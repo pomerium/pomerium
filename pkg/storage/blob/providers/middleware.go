@@ -3,14 +3,15 @@ package providers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"net/url"
 
 	"cloud.google.com/go/storage"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
-	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
+	smithymiddleware "github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/googleapis/gax-go/v2/callctx"
 	_ "gocloud.dev/blob/fileblob"
 	_ "gocloud.dev/blob/memblob"
@@ -86,40 +87,34 @@ func s3UserAgentOption(identity string) func(*awss3.Options) {
 	}
 }
 
+// s3CustomQueryParam returns an S3 per-operation option that adds a query
+// parameter to the outgoing request. The parameter is added in the Build
+// step of the SDK middleware stack, which runs before SigV4 signing in the
+// Finalize step — so additional parameters included here also show up in
+// the signed canonical request.
+// Mutating the URL after signing (e.g. via a custom HTTPClient) would break
+// strict SigV4 verifiers such as MinIO,Ceph,etc...
 func s3CustomQueryParam(key, val string) func(*awss3.Options) {
 	return func(o *awss3.Options) {
-		base := o.HTTPClient
-		if base == nil {
-			base = awshttp.NewBuildableClient()
-		}
-		o.HTTPClient = &withExtraParams{
-			base: base,
-			params: [][2]string{
-				{key, val},
-			},
-		}
+		o.APIOptions = append(o.APIOptions, func(stack *smithymiddleware.Stack) error {
+			return stack.Build.Add(addQueryParamMiddleware(key, val), smithymiddleware.After)
+		})
 	}
 }
 
-type withExtraParams struct {
-	base   awss3.HTTPClient
-	params [][2]string
+func addQueryParamMiddleware(key, val string) smithymiddleware.BuildMiddleware {
+	return smithymiddleware.BuildMiddlewareFunc(
+		fmt.Sprintf("pomerium.AddS3QueryParam(%s)", key),
+		func(ctx context.Context, in smithymiddleware.BuildInput, next smithymiddleware.BuildHandler) (smithymiddleware.BuildOutput, smithymiddleware.Metadata, error) {
+			if req, ok := in.Request.(*smithyhttp.Request); ok && req.URL != nil {
+				q := req.URL.Query()
+				q.Add(key, val)
+				req.URL.RawQuery = q.Encode()
+			}
+			return next.HandleBuild(ctx, in)
+		},
+	)
 }
-
-func (e *withExtraParams) Do(req *http.Request) (*http.Response, error) {
-	extra := url.Values{}
-	for _, p := range e.params {
-		extra.Add(p[0], p[1])
-	}
-	q := req.URL.RawQuery
-	if q != "" {
-		q += "&"
-	}
-	req.URL.RawQuery = q + extra.Encode()
-	return e.base.Do(req)
-}
-
-var _ awss3.HTTPClient = (*withExtraParams)(nil)
 
 // auditIdentity extracts the blob user identity from context and enriches it
 // with provider-specific audit headers (Azure, GCS).

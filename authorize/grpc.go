@@ -181,12 +181,17 @@ func (a *Authorize) getMCPSession(
 	}
 
 	accessToken := auth[len(prefix):]
-	sessionID, err := a.state.Load().mcp.GetSessionIDFromAccessToken(accessToken)
+	sessionID, sessionRecordVersion, err := a.state.Load().mcp.GetSessionAndVersionFromAccessToken(accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("no session found for access token: %w", sessions.ErrNoSessionFound)
 	}
 
-	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, 0)
+	// Read the session with the record version captured when the token was
+	// issued. This gives read-your-writes: if the synced-data cache is behind
+	// that version (e.g. a session just written on another databroker node), the
+	// querier falls through to an authoritative databroker read instead of
+	// reporting the session as missing and denying with a 401.
+	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, sessionRecordVersion)
 	if storage.IsNotFound(err) {
 		return nil, fmt.Errorf("session databroker record not found: %w", sessions.ErrNoSessionFound)
 	}

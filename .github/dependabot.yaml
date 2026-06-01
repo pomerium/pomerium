@@ -75,3 +75,35 @@ updates:
       go-pkg-grpc-config:
         patterns:
           - "*"
+  - package-ecosystem: "gomod"
+    directory: "/pkg/grpc/databroker/"
+    schedule:
+      interval: "monthly"
+    groups:
+      go-pkg-grpc-databroker:
+        patterns:
+          - "*"
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm:
+        patterns:
+          - "*"
+  - package-ecosystem: "npm"
+    directory: "/internal/acceptance/browser"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm:
+        patterns:
+          - "*"
+  - package-ecosystem: "npm"
+    directory: "/internal/acceptance/ws-server"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm:
+        patterns:
+          - "*"

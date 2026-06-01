@@ -4619,6 +4619,22 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for SessionRecordingConcurrency
 	}
 
+	if m.NormalizePath != nil {
+		// no validation rules for NormalizePath
+	}
+
+	if m.MergeSlashes != nil {
+		// no validation rules for MergeSlashes
+	}
+
+	if m.PathWithEscapedSlashesAction != nil {
+		// no validation rules for PathWithEscapedSlashesAction
+	}
+
+	if m.HeadersWithUnderscoresAction != nil {
+		// no validation rules for HeadersWithUnderscoresAction
+	}
+
 	if len(errors) > 0 {
 		return SettingsMultiError(errors)
 	}
@@ -11083,6 +11099,39 @@ func (m *UpdateKeyPairRequest) validate(all bool) error {
 		}
 	}
 
+	if m.UpdateMask != nil {
+
+		if all {
+			switch v := interface{}(m.GetUpdateMask()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, UpdateKeyPairRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, UpdateKeyPairRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetUpdateMask()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return UpdateKeyPairRequestValidationError{
+					field:  "UpdateMask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if len(errors) > 0 {
 		return UpdateKeyPairRequestMultiError(errors)
 	}
@@ -11343,6 +11392,39 @@ func (m *UpdatePolicyRequest) validate(all bool) error {
 				cause:  err,
 			}
 		}
+	}
+
+	if m.UpdateMask != nil {
+
+		if all {
+			switch v := interface{}(m.GetUpdateMask()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, UpdatePolicyRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, UpdatePolicyRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetUpdateMask()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return UpdatePolicyRequestValidationError{
+					field:  "UpdateMask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
 	}
 
 	if len(errors) > 0 {
@@ -11607,6 +11689,39 @@ func (m *UpdateRouteRequest) validate(all bool) error {
 		}
 	}
 
+	if m.UpdateMask != nil {
+
+		if all {
+			switch v := interface{}(m.GetUpdateMask()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, UpdateRouteRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, UpdateRouteRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetUpdateMask()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return UpdateRouteRequestValidationError{
+					field:  "UpdateMask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if len(errors) > 0 {
 		return UpdateRouteRequestMultiError(errors)
 	}
@@ -11867,6 +11982,39 @@ func (m *UpdateServiceAccountRequest) validate(all bool) error {
 				cause:  err,
 			}
 		}
+	}
+
+	if m.UpdateMask != nil {
+
+		if all {
+			switch v := interface{}(m.GetUpdateMask()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, UpdateServiceAccountRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, UpdateServiceAccountRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetUpdateMask()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return UpdateServiceAccountRequestValidationError{
+					field:  "UpdateMask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
 	}
 
 	if len(errors) > 0 {
@@ -12133,6 +12281,39 @@ func (m *UpdateSettingsRequest) validate(all bool) error {
 				cause:  err,
 			}
 		}
+	}
+
+	if m.UpdateMask != nil {
+
+		if all {
+			switch v := interface{}(m.GetUpdateMask()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, UpdateSettingsRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, UpdateSettingsRequestValidationError{
+						field:  "UpdateMask",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetUpdateMask()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return UpdateSettingsRequestValidationError{
+					field:  "UpdateMask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
 	}
 
 	if len(errors) > 0 {

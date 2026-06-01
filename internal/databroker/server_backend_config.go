@@ -127,31 +127,23 @@ func (srv *backendConfigServer) CreateServiceAccount(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("service account is required"))
 	}
 
-	entity := &user.ServiceAccount{
-		AccessedAt:  timestamppb.Now(),
-		Description: req.Msg.ServiceAccount.Description,
-		ExpiresAt:   req.Msg.ServiceAccount.ExpiresAt,
-		Id:          req.Msg.ServiceAccount.GetId(),
-		IssuedAt:    timestamppb.Now(),
-		NamespaceId: req.Msg.ServiceAccount.NamespaceId,
-		UserId:      req.Msg.ServiceAccount.GetUserId(),
+	dbEntity := configServiceAccountToUserServiceAccount(req.Msg.GetServiceAccount())
+	if dbEntity.Id == "" {
+		dbEntity.Id = uuid.NewString()
 	}
-	if entity.Id == "" {
-		entity.Id = uuid.NewString()
-	}
-	id := &entity.Id
-	record, err := srv.createEntity(ctx, entity, &id)
+	id := &dbEntity.Id
+	record, err := srv.createEntity(ctx, dbEntity, &id)
 	if err != nil {
 		return nil, err
 	}
 
-	jwt, err := srv.generateServiceAccountJWT(entity)
+	jwt, err := srv.generateServiceAccountJWT(dbEntity)
 	if err != nil {
 		return nil, err
 	}
 
 	return connect.NewResponse(&configpb.CreateServiceAccountResponse{
-		ServiceAccount: userServiceAccountToConfigServiceAccount(record, entity),
+		ServiceAccount: userServiceAccountToConfigServiceAccount(record, dbEntity),
 		Jwt:            jwt,
 	}), nil
 }
@@ -574,7 +566,12 @@ func (srv *backendConfigServer) UpdateKeyPair(
 		return nil, err
 	}
 
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
+	if err != nil {
+		return nil, err
+	}
 	entity.CreatedAt = original.CreatedAt
+
 	record, err := srv.putEntity(ctx, entity)
 	if err != nil {
 		return nil, err
@@ -602,6 +599,11 @@ func (srv *backendConfigServer) UpdatePolicy(
 
 	original := proto.CloneOf(entity)
 	_, err := srv.getEntity(ctx, original)
+	if err != nil {
+		return nil, err
+	}
+
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
 	if err != nil {
 		return nil, err
 	}
@@ -642,6 +644,10 @@ func (srv *backendConfigServer) UpdateRoute(
 		return nil, err
 	}
 
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
+	if err != nil {
+		return nil, err
+	}
 	entity.CreatedAt = original.CreatedAt
 
 	if err := srv.validateRoute(entity); err != nil {
@@ -672,31 +678,37 @@ func (srv *backendConfigServer) UpdateServiceAccount(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("service account id is required"))
 	}
 
-	original := &user.ServiceAccount{Id: req.Msg.GetServiceAccount().GetId()}
-	_, err := srv.getEntity(ctx, original)
+	dbOriginal := &user.ServiceAccount{
+		Id: req.Msg.GetServiceAccount().GetId(),
+	}
+	record, err := srv.getEntity(ctx, dbOriginal)
 	if err != nil {
 		return nil, err
 	}
 
-	entity := proto.CloneOf(original)
+	original := userServiceAccountToConfigServiceAccount(record, dbOriginal)
+	entity := proto.CloneOf(req.Msg.GetServiceAccount())
+
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
+	if err != nil {
+		return nil, err
+	}
 	entity.AccessedAt = timestamppb.Now()
-	entity.Description = req.Msg.ServiceAccount.Description
-	entity.ExpiresAt = req.Msg.ServiceAccount.ExpiresAt
-	entity.NamespaceId = req.Msg.ServiceAccount.NamespaceId
-	entity.UserId = req.Msg.ServiceAccount.GetUserId()
+	entity.CreatedAt = original.CreatedAt
 
-	record, err := srv.putEntity(ctx, entity)
+	dbEntity := configServiceAccountToUserServiceAccount(entity)
+	record, err = srv.putEntity(ctx, dbEntity)
 	if err != nil {
 		return nil, err
 	}
 
-	jwt, err := srv.generateServiceAccountJWT(entity)
+	jwt, err := srv.generateServiceAccountJWT(dbEntity)
 	if err != nil {
 		return nil, err
 	}
 
 	return connect.NewResponse(&configpb.UpdateServiceAccountResponse{
-		ServiceAccount: userServiceAccountToConfigServiceAccount(record, entity),
+		ServiceAccount: userServiceAccountToConfigServiceAccount(record, dbEntity),
 		Jwt:            jwt,
 	}), nil
 }
@@ -721,6 +733,11 @@ func (srv *backendConfigServer) UpdateSettings(
 	if storage.IsNotFound(err) {
 		original.CreatedAt = timestamppb.Now()
 	} else if err != nil {
+		return nil, err
+	}
+
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
+	if err != nil {
 		return nil, err
 	}
 	entity.CreatedAt = original.CreatedAt
@@ -919,6 +936,48 @@ func (srv *backendConfigServer) validateSettings(entity *configpb.Settings) erro
 	return options.Validate()
 }
 
+func applyUpdateMask[T interface {
+	proto.Message
+	GetCreatedAt() *timestamppb.Timestamp
+	GetId() string
+	GetModifiedAt() *timestamppb.Timestamp
+}](original, updated T, mask *fieldmaskpb.FieldMask) (T, error) {
+	if mask == nil {
+		return updated, nil
+	}
+
+	beforeCreatedAt := original.GetCreatedAt()
+	beforeID := original.GetId()
+	beforeModifiedAt := original.GetModifiedAt()
+
+	original = proto.CloneOf(original)
+	err := protoutil.OverwriteMasked(original, updated, mask)
+	if err != nil {
+		var zero T
+		return zero, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	updated = original
+
+	afterCreatedAt := updated.GetCreatedAt()
+	afterID := updated.GetId()
+	afterModifiedAt := updated.GetModifiedAt()
+
+	if !beforeCreatedAt.AsTime().Equal(afterCreatedAt.AsTime()) {
+		var zero T
+		return zero, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("created_at is a read-only property"))
+	}
+	if beforeID != afterID {
+		var zero T
+		return zero, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("id is a read-only property"))
+	}
+	if !beforeModifiedAt.AsTime().Equal(afterModifiedAt.AsTime()) {
+		var zero T
+		return zero, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("modified_at is a read-only property"))
+	}
+
+	return updated, nil
+}
+
 func listRecords[T any, TMsg interface {
 	*T
 	proto.Message
@@ -1034,6 +1093,19 @@ func sortRecords[T any, TMsg interface {
 	return nil
 }
 
+func configServiceAccountToUserServiceAccount(src *configpb.ServiceAccount) *user.ServiceAccount {
+	return &user.ServiceAccount{
+		AccessedAt:   src.AccessedAt,
+		Description:  src.Description,
+		ExpiresAt:    src.ExpiresAt,
+		Id:           src.GetId(),
+		IssuedAt:     src.CreatedAt,
+		NamespaceId:  src.NamespaceId,
+		OriginatorId: src.OriginatorId,
+		UserId:       src.GetUserId(),
+	}
+}
+
 func userServiceAccountToConfigServiceAccount(record *databrokerpb.Record, serviceAccount *user.ServiceAccount) *configpb.ServiceAccount {
 	var userID *string
 	if serviceAccount.UserId != "" {
@@ -1047,7 +1119,7 @@ func userServiceAccountToConfigServiceAccount(record *databrokerpb.Record, servi
 		Id:           new(serviceAccount.Id),
 		ModifiedAt:   record.ModifiedAt,
 		NamespaceId:  serviceAccount.NamespaceId,
-		OriginatorId: nil,
+		OriginatorId: serviceAccount.OriginatorId,
 		UserId:       userID,
 	}
 }

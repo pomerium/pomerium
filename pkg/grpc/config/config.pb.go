@@ -11,6 +11,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
@@ -26,6 +27,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Format used for the `iss` claim of JWTs Pomerium issues for upstream
+// requests.
 type IssuerFormat int32
 
 const (
@@ -133,6 +136,126 @@ func (BearerTokenFormat) EnumDescriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{1}
 }
 
+// Action to take when Envoy receives client request with header names containing underscore characters.
+type HeadersWithUnderscoresAction int32
+
+const (
+	HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_UNKNOWN HeadersWithUnderscoresAction = 0
+	// Allow headers with underscores.
+	HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_ALLOW HeadersWithUnderscoresAction = 1
+	// ⁣Reject client request. This is the default behavior.
+	HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST HeadersWithUnderscoresAction = 2
+	// Drop the client header with name containing underscores.
+	HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_DROP_HEADER HeadersWithUnderscoresAction = 3
+)
+
+// Enum value maps for HeadersWithUnderscoresAction.
+var (
+	HeadersWithUnderscoresAction_name = map[int32]string{
+		0: "HEADERS_WITH_UNDERSCORES_ACTION_UNKNOWN",
+		1: "HEADERS_WITH_UNDERSCORES_ACTION_ALLOW",
+		2: "HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST",
+		3: "HEADERS_WITH_UNDERSCORES_ACTION_DROP_HEADER",
+	}
+	HeadersWithUnderscoresAction_value = map[string]int32{
+		"HEADERS_WITH_UNDERSCORES_ACTION_UNKNOWN":        0,
+		"HEADERS_WITH_UNDERSCORES_ACTION_ALLOW":          1,
+		"HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST": 2,
+		"HEADERS_WITH_UNDERSCORES_ACTION_DROP_HEADER":    3,
+	}
+)
+
+func (x HeadersWithUnderscoresAction) Enum() *HeadersWithUnderscoresAction {
+	p := new(HeadersWithUnderscoresAction)
+	*p = x
+	return p
+}
+
+func (x HeadersWithUnderscoresAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (HeadersWithUnderscoresAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_config_proto_enumTypes[2].Descriptor()
+}
+
+func (HeadersWithUnderscoresAction) Type() protoreflect.EnumType {
+	return &file_config_proto_enumTypes[2]
+}
+
+func (x HeadersWithUnderscoresAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use HeadersWithUnderscoresAction.Descriptor instead.
+func (HeadersWithUnderscoresAction) EnumDescriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{2}
+}
+
+// PathWithEscapedSlashesAction determines the action for request that contain
+// %2F, %2f, %5C or %5c sequences in the URI path.
+type PathWithEscapedSlashesAction int32
+
+const (
+	PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_UNKNOWN PathWithEscapedSlashesAction = 0
+	// ⁣Keep escaped slashes.
+	PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_KEEP_UNCHANGED PathWithEscapedSlashesAction = 1
+	// ⁣Reject client request with the 400 status. This is the default behavior.
+	PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST PathWithEscapedSlashesAction = 2
+	// Unescape %2F and %5C sequences and redirect request to the new path if
+	// these sequences were present.
+	PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_REDIRECT PathWithEscapedSlashesAction = 3
+	// ⁣Unescape %2F and %5C sequences.
+	PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_FORWARD PathWithEscapedSlashesAction = 4
+)
+
+// Enum value maps for PathWithEscapedSlashesAction.
+var (
+	PathWithEscapedSlashesAction_name = map[int32]string{
+		0: "PATH_WITH_ESCAPED_SLASHES_ACTION_UNKNOWN",
+		1: "PATH_WITH_ESCAPED_SLASHES_ACTION_KEEP_UNCHANGED",
+		2: "PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST",
+		3: "PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_REDIRECT",
+		4: "PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_FORWARD",
+	}
+	PathWithEscapedSlashesAction_value = map[string]int32{
+		"PATH_WITH_ESCAPED_SLASHES_ACTION_UNKNOWN":               0,
+		"PATH_WITH_ESCAPED_SLASHES_ACTION_KEEP_UNCHANGED":        1,
+		"PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST":        2,
+		"PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_REDIRECT": 3,
+		"PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_FORWARD":  4,
+	}
+)
+
+func (x PathWithEscapedSlashesAction) Enum() *PathWithEscapedSlashesAction {
+	p := new(PathWithEscapedSlashesAction)
+	*p = x
+	return p
+}
+
+func (x PathWithEscapedSlashesAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PathWithEscapedSlashesAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_config_proto_enumTypes[3].Descriptor()
+}
+
+func (PathWithEscapedSlashesAction) Type() protoreflect.EnumType {
+	return &file_config_proto_enumTypes[3]
+}
+
+func (x PathWithEscapedSlashesAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PathWithEscapedSlashesAction.Descriptor instead.
+func (PathWithEscapedSlashesAction) EnumDescriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{3}
+}
+
+// How the OAuth2 client identifies itself to the authorization server when
+// fetching tokens.
 type OAuth2AuthStyle int32
 
 const (
@@ -171,11 +294,11 @@ func (x OAuth2AuthStyle) String() string {
 }
 
 func (OAuth2AuthStyle) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[2].Descriptor()
+	return file_config_proto_enumTypes[4].Descriptor()
 }
 
 func (OAuth2AuthStyle) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[2]
+	return &file_config_proto_enumTypes[4]
 }
 
 func (x OAuth2AuthStyle) Number() protoreflect.EnumNumber {
@@ -184,7 +307,7 @@ func (x OAuth2AuthStyle) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OAuth2AuthStyle.Descriptor instead.
 func (OAuth2AuthStyle) EnumDescriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{2}
+	return file_config_proto_rawDescGZIP(), []int{4}
 }
 
 // Represents a client certificate enforcement behavior.
@@ -231,11 +354,11 @@ func (x MtlsEnforcementMode) String() string {
 }
 
 func (MtlsEnforcementMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[3].Descriptor()
+	return file_config_proto_enumTypes[5].Descriptor()
 }
 
 func (MtlsEnforcementMode) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[3]
+	return &file_config_proto_enumTypes[5]
 }
 
 func (x MtlsEnforcementMode) Number() protoreflect.EnumNumber {
@@ -244,15 +367,18 @@ func (x MtlsEnforcementMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use MtlsEnforcementMode.Descriptor instead.
 func (MtlsEnforcementMode) EnumDescriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{3}
+	return file_config_proto_rawDescGZIP(), []int{5}
 }
 
+// Indicates where a managed key pair came from.
 type KeyPairOrigin int32
 
 const (
 	KeyPairOrigin_KEY_PAIR_ORIGIN_UNKNOWN KeyPairOrigin = 0
-	KeyPairOrigin_KEY_PAIR_ORIGIN_USER    KeyPairOrigin = 1
-	KeyPairOrigin_KEY_PAIR_ORIGIN_SYSTEM  KeyPairOrigin = 2
+	// The key pair was uploaded by a user.
+	KeyPairOrigin_KEY_PAIR_ORIGIN_USER KeyPairOrigin = 1
+	// The key pair was generated by Pomerium itself (e.g. autocert).
+	KeyPairOrigin_KEY_PAIR_ORIGIN_SYSTEM KeyPairOrigin = 2
 )
 
 // Enum value maps for KeyPairOrigin.
@@ -280,11 +406,11 @@ func (x KeyPairOrigin) String() string {
 }
 
 func (KeyPairOrigin) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[4].Descriptor()
+	return file_config_proto_enumTypes[6].Descriptor()
 }
 
 func (KeyPairOrigin) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[4]
+	return &file_config_proto_enumTypes[6]
 }
 
 func (x KeyPairOrigin) Number() protoreflect.EnumNumber {
@@ -293,14 +419,17 @@ func (x KeyPairOrigin) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use KeyPairOrigin.Descriptor instead.
 func (KeyPairOrigin) EnumDescriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{4}
+	return file_config_proto_rawDescGZIP(), []int{6}
 }
 
+// Lifecycle state of a managed key pair.
 type KeyPairStatus int32
 
 const (
 	KeyPairStatus_KEY_PAIR_STATUS_UNKNOWN KeyPairStatus = 0
-	KeyPairStatus_KEY_PAIR_STATUS_READY   KeyPairStatus = 1
+	// The key pair is fully provisioned and ready for use.
+	KeyPairStatus_KEY_PAIR_STATUS_READY KeyPairStatus = 1
+	// The key pair is still being prepared (e.g. waiting on ACME issuance).
 	KeyPairStatus_KEY_PAIR_STATUS_PENDING KeyPairStatus = 2
 )
 
@@ -329,11 +458,11 @@ func (x KeyPairStatus) String() string {
 }
 
 func (KeyPairStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[5].Descriptor()
+	return file_config_proto_enumTypes[7].Descriptor()
 }
 
 func (KeyPairStatus) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[5]
+	return &file_config_proto_enumTypes[7]
 }
 
 func (x KeyPairStatus) Number() protoreflect.EnumNumber {
@@ -342,16 +471,20 @@ func (x KeyPairStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use KeyPairStatus.Descriptor instead.
 func (KeyPairStatus) EnumDescriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{5}
+	return file_config_proto_rawDescGZIP(), []int{7}
 }
 
+// Which Pomerium build is serving the request.
 type ServerType int32
 
 const (
-	ServerType_SERVER_TYPE_UNKNOWN    ServerType = 0
-	ServerType_SERVER_TYPE_CORE       ServerType = 1
+	ServerType_SERVER_TYPE_UNKNOWN ServerType = 0
+	// Pomerium Core (open source).
+	ServerType_SERVER_TYPE_CORE ServerType = 1
+	// Pomerium Enterprise (self-hosted).
 	ServerType_SERVER_TYPE_ENTERPRISE ServerType = 2
-	ServerType_SERVER_TYPE_ZERO       ServerType = 3
+	// Pomerium Zero (hosted).
+	ServerType_SERVER_TYPE_ZERO ServerType = 3
 )
 
 // Enum value maps for ServerType.
@@ -381,11 +514,11 @@ func (x ServerType) String() string {
 }
 
 func (ServerType) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[6].Descriptor()
+	return file_config_proto_enumTypes[8].Descriptor()
 }
 
 func (ServerType) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[6]
+	return &file_config_proto_enumTypes[8]
 }
 
 func (x ServerType) Number() protoreflect.EnumNumber {
@@ -394,16 +527,20 @@ func (x ServerType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ServerType.Descriptor instead.
 func (ServerType) EnumDescriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{6}
+	return file_config_proto_rawDescGZIP(), []int{8}
 }
 
 // CodecType defines the codec type to use for connections.
 type CodecType int32
 
 const (
-	CodecType_CODEC_TYPE_AUTO  CodecType = 0
+	// Auto-detect the codec from the client's TLS ALPN advertisement.
+	CodecType_CODEC_TYPE_AUTO CodecType = 0
+	// Force HTTP/1.1.
 	CodecType_CODEC_TYPE_HTTP1 CodecType = 1
+	// Force HTTP/2.
 	CodecType_CODEC_TYPE_HTTP2 CodecType = 2
+	// Force HTTP/3 (QUIC).
 	CodecType_CODEC_TYPE_HTTP3 CodecType = 3
 )
 
@@ -434,11 +571,11 @@ func (x CodecType) String() string {
 }
 
 func (CodecType) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[7].Descriptor()
+	return file_config_proto_enumTypes[9].Descriptor()
 }
 
 func (CodecType) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[7]
+	return &file_config_proto_enumTypes[9]
 }
 
 func (x CodecType) Number() protoreflect.EnumNumber {
@@ -447,7 +584,7 @@ func (x CodecType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CodecType.Descriptor instead.
 func (CodecType) EnumDescriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{7}
+	return file_config_proto_rawDescGZIP(), []int{9}
 }
 
 // LoadBalancingPolicy defines the strategy used to balance requests across
@@ -500,11 +637,11 @@ func (x LoadBalancingPolicy) String() string {
 }
 
 func (LoadBalancingPolicy) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[8].Descriptor()
+	return file_config_proto_enumTypes[10].Descriptor()
 }
 
 func (LoadBalancingPolicy) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[8]
+	return &file_config_proto_enumTypes[10]
 }
 
 func (x LoadBalancingPolicy) Number() protoreflect.EnumNumber {
@@ -513,7 +650,7 @@ func (x LoadBalancingPolicy) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LoadBalancingPolicy.Descriptor instead.
 func (LoadBalancingPolicy) EnumDescriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{8}
+	return file_config_proto_rawDescGZIP(), []int{10}
 }
 
 // Represents a certificate Subject Alternative Name type.
@@ -565,11 +702,11 @@ func (x SANMatcher_SANType) String() string {
 }
 
 func (SANMatcher_SANType) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[9].Descriptor()
+	return file_config_proto_enumTypes[11].Descriptor()
 }
 
 func (SANMatcher_SANType) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[9]
+	return &file_config_proto_enumTypes[11]
 }
 
 func (x SANMatcher_SANType) Number() protoreflect.EnumNumber {
@@ -635,11 +772,11 @@ func (x HealthCheck_HealthStatus) String() string {
 }
 
 func (HealthCheck_HealthStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[10].Descriptor()
+	return file_config_proto_enumTypes[12].Descriptor()
 }
 
 func (HealthCheck_HealthStatus) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[10]
+	return &file_config_proto_enumTypes[12]
 }
 
 func (x HealthCheck_HealthStatus) Number() protoreflect.EnumNumber {
@@ -651,11 +788,15 @@ func (HealthCheck_HealthStatus) EnumDescriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{76, 0}
 }
 
+// HTTP version used to phrase the health-check request to the upstream.
 type HealthCheck_CodecClientType int32
 
 const (
+	// Use HTTP/1.1 framing.
 	HealthCheck_HTTP1 HealthCheck_CodecClientType = 0
+	// Use HTTP/2 framing.
 	HealthCheck_HTTP2 HealthCheck_CodecClientType = 1
+	// Use HTTP/3 framing.
 	HealthCheck_HTTP3 HealthCheck_CodecClientType = 2
 )
 
@@ -684,11 +825,11 @@ func (x HealthCheck_CodecClientType) String() string {
 }
 
 func (HealthCheck_CodecClientType) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[11].Descriptor()
+	return file_config_proto_enumTypes[13].Descriptor()
 }
 
 func (HealthCheck_CodecClientType) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[11]
+	return &file_config_proto_enumTypes[13]
 }
 
 func (x HealthCheck_CodecClientType) Number() protoreflect.EnumNumber {
@@ -819,14 +960,19 @@ func (x *VersionedConfig) GetConditions() []*VersionedConfig_Condition {
 	return nil
 }
 
+// A rewrite rule applied to a single response header before the response is
+// returned to the downstream client.
 type RouteRewriteHeader struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Header string                 `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The name of the response header to rewrite (case-insensitive).
+	Header string `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	// Types that are valid to be assigned to Matcher:
 	//
 	//	*RouteRewriteHeader_Prefix
-	Matcher       isRouteRewriteHeader_Matcher `protobuf_oneof:"matcher"`
-	Value         string                       `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Matcher isRouteRewriteHeader_Matcher `protobuf_oneof:"matcher"`
+	// The new value (or replacement substring, when `prefix` is set) to write
+	// back to the header.
+	Value         string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -896,6 +1042,8 @@ type isRouteRewriteHeader_Matcher interface {
 }
 
 type RouteRewriteHeader_Prefix struct {
+	// Only the portion of the header value that begins with this literal
+	// prefix is replaced; the remainder is kept.
 	Prefix string `protobuf:"bytes,3,opt,name=prefix,proto3,oneof"`
 }
 
@@ -1232,7 +1380,7 @@ func (x *EntityInfo) GetModifiedAt() *timestamppb.Timestamp {
 type SessionRecording struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Toggle to enable/disable recording for this route.
-	Enabled       bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"` // follow-up: configure overflow_mode when upload buffer is flow & buffer size
+	Enabled       bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2169,12 +2317,16 @@ func (x *Route) GetNamespaceName() string {
 	return ""
 }
 
-// Configuration for an upstream tunnel.
+// Configuration for an upstream tunnel. Applies to routes whose upstream is
+// reached through Pomerium's SSH proxy.
 type UpstreamTunnel struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SshPolicy     *PPLPolicy             `protobuf:"bytes,1,opt,name=ssh_policy,json=sshPolicy,proto3,oneof" json:"ssh_policy,omitempty"`
-	SshPolicyRego []string               `protobuf:"bytes,2,rep,name=ssh_policy_rego,json=sshPolicyRego,proto3" json:"ssh_policy_rego,omitempty"`
-	SshPolicyId   *string                `protobuf:"bytes,3,opt,name=ssh_policy_id,json=sshPolicyId,proto3,oneof" json:"ssh_policy_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// PPL policy enforced before the SSH tunnel is opened to the upstream.
+	SshPolicy *PPLPolicy `protobuf:"bytes,1,opt,name=ssh_policy,json=sshPolicy,proto3,oneof" json:"ssh_policy,omitempty"`
+	// Rego rules evaluated before the SSH tunnel is opened to the upstream.
+	SshPolicyRego []string `protobuf:"bytes,2,rep,name=ssh_policy_rego,json=sshPolicyRego,proto3" json:"ssh_policy_rego,omitempty"`
+	// ID of a shared policy whose rules also gate this SSH tunnel.
+	SshPolicyId   *string `protobuf:"bytes,3,opt,name=ssh_policy_id,json=sshPolicyId,proto3,oneof" json:"ssh_policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2579,9 +2731,11 @@ func (x *OAuth2Endpoint) GetAuthStyle() OAuth2AuthStyle {
 	return OAuth2AuthStyle_OAUTH2_AUTH_STYLE_UNSPECIFIED
 }
 
+// A policy expressed in Pomerium Policy Language (PPL).
 type PPLPolicy struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Raw           []byte                 `protobuf:"bytes,1,opt,name=raw,proto3" json:"raw,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The serialized PPL document as raw bytes (typically YAML).
+	Raw           []byte `protobuf:"bytes,1,opt,name=raw,proto3" json:"raw,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2625,22 +2779,38 @@ func (x *PPLPolicy) GetRaw() []byte {
 
 // Configuration for a policy.
 type Policy struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	Id           *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
-	NamespaceId  *string                `protobuf:"bytes,11,opt,name=namespace_id,json=namespaceId,proto3,oneof" json:"namespace_id,omitempty"`
-	OriginatorId *string                `protobuf:"bytes,12,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
-	Name         *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description  *string                `protobuf:"bytes,13,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Server-assigned unique ID of the policy.
+	Id *string `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	// ID of the namespace the policy belongs to.
+	NamespaceId *string `protobuf:"bytes,11,opt,name=namespace_id,json=namespaceId,proto3,oneof" json:"namespace_id,omitempty"`
+	// ID of the upstream object the policy originated from, when imported.
+	OriginatorId *string `protobuf:"bytes,12,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
+	// Human-readable name of the policy.
+	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Free-form description of what the policy is for.
+	Description *string `protobuf:"bytes,13,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// An enforced policy is automatically applied to routes.
 	// Not supported in the open source version of Pomerium.
-	Enforced         *bool                          `protobuf:"varint,14,opt,name=enforced,proto3,oneof" json:"enforced,omitempty"`
-	AllowedUsers     []string                       `protobuf:"bytes,3,rep,name=allowed_users,json=allowedUsers,proto3" json:"allowed_users,omitempty"`
-	AllowedDomains   []string                       `protobuf:"bytes,5,rep,name=allowed_domains,json=allowedDomains,proto3" json:"allowed_domains,omitempty"`
+	Enforced *bool `protobuf:"varint,14,opt,name=enforced,proto3,oneof" json:"enforced,omitempty"`
+	// Grants access if the logged-in user's ID matches one of the given values.
+	AllowedUsers []string `protobuf:"bytes,3,rep,name=allowed_users,json=allowedUsers,proto3" json:"allowed_users,omitempty"`
+	// Grants access if the logged-in user's email address domain matches one
+	// of the given values.
+	AllowedDomains []string `protobuf:"bytes,5,rep,name=allowed_domains,json=allowedDomains,proto3" json:"allowed_domains,omitempty"`
+	// Grants access if the logged-in user's IdP claims include one of the
+	// listed key/value pairs.
 	AllowedIdpClaims map[string]*structpb.ListValue `protobuf:"bytes,7,rep,name=allowed_idp_claims,json=allowedIdpClaims,proto3" json:"allowed_idp_claims,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Rego             []string                       `protobuf:"bytes,6,rep,name=rego,proto3" json:"rego,omitempty"`
-	SourcePpl        *string                        `protobuf:"bytes,10,opt,name=source_ppl,json=sourcePpl,proto3,oneof" json:"source_ppl,omitempty"`
-	Explanation      *string                        `protobuf:"bytes,8,opt,name=explanation,proto3,oneof" json:"explanation,omitempty"`
-	Remediation      *string                        `protobuf:"bytes,9,opt,name=remediation,proto3,oneof" json:"remediation,omitempty"`
+	// Rego rules that authorize requests. All rules must allow for access to
+	// be granted.
+	Rego []string `protobuf:"bytes,6,rep,name=rego,proto3" json:"rego,omitempty"`
+	// The original PPL source the policy was compiled from, when available.
+	SourcePpl *string `protobuf:"bytes,10,opt,name=source_ppl,json=sourcePpl,proto3,oneof" json:"source_ppl,omitempty"`
+	// Free-form text shown to the user explaining why this policy applies.
+	Explanation *string `protobuf:"bytes,8,opt,name=explanation,proto3,oneof" json:"explanation,omitempty"`
+	// Free-form text shown to the user telling them how to gain access when
+	// this policy denies the request.
+	Remediation *string `protobuf:"bytes,9,opt,name=remediation,proto3,oneof" json:"remediation,omitempty"`
 	// When the policy was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the policy was last modified.
@@ -2815,138 +2985,344 @@ func (x *Policy) GetNamespaceName() string {
 
 // Global Pomerium configuration settings.
 type Settings struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Id                 *string                `protobuf:"bytes,158,opt,name=id,proto3,oneof" json:"id,omitempty"`
-	NamespaceId        *string                `protobuf:"bytes,159,opt,name=namespace_id,json=namespaceId,proto3,oneof" json:"namespace_id,omitempty"`
-	ClusterId          *string                `protobuf:"bytes,176,opt,name=cluster_id,json=clusterId,proto3,oneof" json:"cluster_id,omitempty"`
-	OriginatorId       *string                `protobuf:"bytes,160,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
-	Name               *string                `protobuf:"bytes,161,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	InstallationId     *string                `protobuf:"bytes,71,opt,name=installation_id,json=installationId,proto3,oneof" json:"installation_id,omitempty"`
-	LogLevel           *string                `protobuf:"bytes,3,opt,name=log_level,json=logLevel,proto3,oneof" json:"log_level,omitempty"`
-	AccessLogFields    *Settings_StringList   `protobuf:"bytes,114,opt,name=access_log_fields,json=accessLogFields,proto3,oneof" json:"access_log_fields,omitempty"`
-	AuthorizeLogFields *Settings_StringList   `protobuf:"bytes,115,opt,name=authorize_log_fields,json=authorizeLogFields,proto3,oneof" json:"authorize_log_fields,omitempty"`
-	ProxyLogLevel      *string                `protobuf:"bytes,4,opt,name=proxy_log_level,json=proxyLogLevel,proto3,oneof" json:"proxy_log_level,omitempty"`
-	SharedSecret       *string                `protobuf:"bytes,5,opt,name=shared_secret,json=sharedSecret,proto3,oneof" json:"shared_secret,omitempty"`
-	Services           *string                `protobuf:"bytes,6,opt,name=services,proto3,oneof" json:"services,omitempty"`
-	Address            *string                `protobuf:"bytes,7,opt,name=address,proto3,oneof" json:"address,omitempty"`
-	InsecureServer     *bool                  `protobuf:"varint,8,opt,name=insecure_server,json=insecureServer,proto3,oneof" json:"insecure_server,omitempty"`
-	// dns options
-	DnsFailureRefreshRate                             *durationpb.Duration             `protobuf:"bytes,153,opt,name=dns_failure_refresh_rate,json=dnsFailureRefreshRate,proto3,oneof" json:"dns_failure_refresh_rate,omitempty"`
-	DnsLookupFamily                                   *string                          `protobuf:"bytes,60,opt,name=dns_lookup_family,json=dnsLookupFamily,proto3,oneof" json:"dns_lookup_family,omitempty"`
-	DnsQueryTimeout                                   *durationpb.Duration             `protobuf:"bytes,149,opt,name=dns_query_timeout,json=dnsQueryTimeout,proto3,oneof" json:"dns_query_timeout,omitempty"`
-	DnsQueryTries                                     *uint32                          `protobuf:"varint,148,opt,name=dns_query_tries,json=dnsQueryTries,proto3,oneof" json:"dns_query_tries,omitempty"`
-	DnsRefreshRate                                    *durationpb.Duration             `protobuf:"bytes,154,opt,name=dns_refresh_rate,json=dnsRefreshRate,proto3,oneof" json:"dns_refresh_rate,omitempty"`
-	DnsUdpMaxQueries                                  *uint32                          `protobuf:"varint,146,opt,name=dns_udp_max_queries,json=dnsUdpMaxQueries,proto3,oneof" json:"dns_udp_max_queries,omitempty"`
-	DnsUseTcp                                         *bool                            `protobuf:"varint,147,opt,name=dns_use_tcp,json=dnsUseTcp,proto3,oneof" json:"dns_use_tcp,omitempty"`
-	Certificates                                      []*Settings_Certificate          `protobuf:"bytes,9,rep,name=certificates,proto3" json:"certificates,omitempty"`
-	CertificateKeyPairIds                             []string                         `protobuf:"bytes,162,rep,name=certificate_key_pair_ids,json=certificateKeyPairIds,proto3" json:"certificate_key_pair_ids,omitempty"`
-	HttpRedirectAddr                                  *string                          `protobuf:"bytes,10,opt,name=http_redirect_addr,json=httpRedirectAddr,proto3,oneof" json:"http_redirect_addr,omitempty"`
-	TimeoutRead                                       *durationpb.Duration             `protobuf:"bytes,11,opt,name=timeout_read,json=timeoutRead,proto3,oneof" json:"timeout_read,omitempty"`
-	TimeoutWrite                                      *durationpb.Duration             `protobuf:"bytes,12,opt,name=timeout_write,json=timeoutWrite,proto3,oneof" json:"timeout_write,omitempty"`
-	TimeoutIdle                                       *durationpb.Duration             `protobuf:"bytes,13,opt,name=timeout_idle,json=timeoutIdle,proto3,oneof" json:"timeout_idle,omitempty"`
-	AuthenticateServiceUrl                            *string                          `protobuf:"bytes,14,opt,name=authenticate_service_url,json=authenticateServiceUrl,proto3,oneof" json:"authenticate_service_url,omitempty"`
-	AuthenticateInternalServiceUrl                    *string                          `protobuf:"bytes,82,opt,name=authenticate_internal_service_url,json=authenticateInternalServiceUrl,proto3,oneof" json:"authenticate_internal_service_url,omitempty"`
-	SignoutRedirectUrl                                *string                          `protobuf:"bytes,93,opt,name=signout_redirect_url,json=signoutRedirectUrl,proto3,oneof" json:"signout_redirect_url,omitempty"`
-	CookieName                                        *string                          `protobuf:"bytes,16,opt,name=cookie_name,json=cookieName,proto3,oneof" json:"cookie_name,omitempty"`
-	CookieSecret                                      *string                          `protobuf:"bytes,17,opt,name=cookie_secret,json=cookieSecret,proto3,oneof" json:"cookie_secret,omitempty"`
-	CookieDomain                                      *string                          `protobuf:"bytes,18,opt,name=cookie_domain,json=cookieDomain,proto3,oneof" json:"cookie_domain,omitempty"`
-	CookieHttpOnly                                    *bool                            `protobuf:"varint,20,opt,name=cookie_http_only,json=cookieHttpOnly,proto3,oneof" json:"cookie_http_only,omitempty"`
-	CookieExpire                                      *durationpb.Duration             `protobuf:"bytes,21,opt,name=cookie_expire,json=cookieExpire,proto3,oneof" json:"cookie_expire,omitempty"`
-	CookieSameSite                                    *string                          `protobuf:"bytes,113,opt,name=cookie_same_site,json=cookieSameSite,proto3,oneof" json:"cookie_same_site,omitempty"`
-	IdpClientId                                       *string                          `protobuf:"bytes,22,opt,name=idp_client_id,json=idpClientId,proto3,oneof" json:"idp_client_id,omitempty"`
-	IdpClientSecret                                   *string                          `protobuf:"bytes,23,opt,name=idp_client_secret,json=idpClientSecret,proto3,oneof" json:"idp_client_secret,omitempty"`
-	IdpProvider                                       *string                          `protobuf:"bytes,24,opt,name=idp_provider,json=idpProvider,proto3,oneof" json:"idp_provider,omitempty"`
-	IdpProviderUrl                                    *string                          `protobuf:"bytes,25,opt,name=idp_provider_url,json=idpProviderUrl,proto3,oneof" json:"idp_provider_url,omitempty"`
-	IdpAccessTokenAllowedAudiences                    *Settings_StringList             `protobuf:"bytes,137,opt,name=idp_access_token_allowed_audiences,json=idpAccessTokenAllowedAudiences,proto3,oneof" json:"idp_access_token_allowed_audiences,omitempty"`
-	Scopes                                            []string                         `protobuf:"bytes,26,rep,name=scopes,proto3" json:"scopes,omitempty"`
-	RequestParams                                     map[string]string                `protobuf:"bytes,30,rep,name=request_params,json=requestParams,proto3" json:"request_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	AuthorizeServiceUrls                              []string                         `protobuf:"bytes,32,rep,name=authorize_service_urls,json=authorizeServiceUrls,proto3" json:"authorize_service_urls,omitempty"`
-	AuthorizeInternalServiceUrl                       *string                          `protobuf:"bytes,83,opt,name=authorize_internal_service_url,json=authorizeInternalServiceUrl,proto3,oneof" json:"authorize_internal_service_url,omitempty"`
-	OverrideCertificateName                           *string                          `protobuf:"bytes,33,opt,name=override_certificate_name,json=overrideCertificateName,proto3,oneof" json:"override_certificate_name,omitempty"`
-	CertificateAuthority                              *string                          `protobuf:"bytes,34,opt,name=certificate_authority,json=certificateAuthority,proto3,oneof" json:"certificate_authority,omitempty"`
-	CertificateAuthorityKeyPairId                     *string                          `protobuf:"bytes,163,opt,name=certificate_authority_key_pair_id,json=certificateAuthorityKeyPairId,proto3,oneof" json:"certificate_authority_key_pair_id,omitempty"`
-	DeriveTls                                         *string                          `protobuf:"bytes,96,opt,name=derive_tls,json=deriveTls,proto3,oneof" json:"derive_tls,omitempty"`
-	SigningKey                                        *string                          `protobuf:"bytes,36,opt,name=signing_key,json=signingKey,proto3,oneof" json:"signing_key,omitempty"`
-	SetResponseHeaders                                map[string]string                `protobuf:"bytes,69,rep,name=set_response_headers,json=setResponseHeaders,proto3" json:"set_response_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	JwtClaimsHeaders                                  map[string]string                `protobuf:"bytes,63,rep,name=jwt_claims_headers,json=jwtClaimsHeaders,proto3" json:"jwt_claims_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	JwtIssuerFormat                                   *IssuerFormat                    `protobuf:"varint,139,opt,name=jwt_issuer_format,json=jwtIssuerFormat,proto3,enum=pomerium.config.IssuerFormat,oneof" json:"jwt_issuer_format,omitempty"`
-	JwtGroupsFilter                                   []string                         `protobuf:"bytes,119,rep,name=jwt_groups_filter,json=jwtGroupsFilter,proto3" json:"jwt_groups_filter,omitempty"`
-	JwtGroupsFilterInferFromPpl                       *bool                            `protobuf:"varint,175,opt,name=jwt_groups_filter_infer_from_ppl,json=jwtGroupsFilterInferFromPpl,proto3,oneof" json:"jwt_groups_filter_infer_from_ppl,omitempty"`
-	BearerTokenFormat                                 *BearerTokenFormat               `protobuf:"varint,138,opt,name=bearer_token_format,json=bearerTokenFormat,proto3,enum=pomerium.config.BearerTokenFormat,oneof" json:"bearer_token_format,omitempty"`
-	DefaultUpstreamTimeout                            *durationpb.Duration             `protobuf:"bytes,39,opt,name=default_upstream_timeout,json=defaultUpstreamTimeout,proto3,oneof" json:"default_upstream_timeout,omitempty"`
-	DebugAddress                                      *string                          `protobuf:"bytes,156,opt,name=debug_address,json=debugAddress,proto3,oneof" json:"debug_address,omitempty"`
-	MetricsAddress                                    *string                          `protobuf:"bytes,40,opt,name=metrics_address,json=metricsAddress,proto3,oneof" json:"metrics_address,omitempty"`
-	MetricsBasicAuth                                  *string                          `protobuf:"bytes,64,opt,name=metrics_basic_auth,json=metricsBasicAuth,proto3,oneof" json:"metrics_basic_auth,omitempty"`
-	MetricsCertificate                                *Settings_Certificate            `protobuf:"bytes,65,opt,name=metrics_certificate,json=metricsCertificate,proto3,oneof" json:"metrics_certificate,omitempty"`
-	MetricsClientCa                                   *string                          `protobuf:"bytes,66,opt,name=metrics_client_ca,json=metricsClientCa,proto3,oneof" json:"metrics_client_ca,omitempty"`
-	MetricsClientCaKeyPairId                          *string                          `protobuf:"bytes,164,opt,name=metrics_client_ca_key_pair_id,json=metricsClientCaKeyPairId,proto3,oneof" json:"metrics_client_ca_key_pair_id,omitempty"`
-	OtelTracesExporter                                *string                          `protobuf:"bytes,121,opt,name=otel_traces_exporter,json=otelTracesExporter,proto3,oneof" json:"otel_traces_exporter,omitempty"`
-	OtelTracesSamplerArg                              *float64                         `protobuf:"fixed64,122,opt,name=otel_traces_sampler_arg,json=otelTracesSamplerArg,proto3,oneof" json:"otel_traces_sampler_arg,omitempty"`
-	OtelResourceAttributes                            []string                         `protobuf:"bytes,123,rep,name=otel_resource_attributes,json=otelResourceAttributes,proto3" json:"otel_resource_attributes,omitempty"`
-	OtelLogLevel                                      *string                          `protobuf:"bytes,124,opt,name=otel_log_level,json=otelLogLevel,proto3,oneof" json:"otel_log_level,omitempty"`
-	OtelAttributeValueLengthLimit                     *int32                           `protobuf:"varint,125,opt,name=otel_attribute_value_length_limit,json=otelAttributeValueLengthLimit,proto3,oneof" json:"otel_attribute_value_length_limit,omitempty"`
-	OtelExporterOtlpEndpoint                          *string                          `protobuf:"bytes,126,opt,name=otel_exporter_otlp_endpoint,json=otelExporterOtlpEndpoint,proto3,oneof" json:"otel_exporter_otlp_endpoint,omitempty"`
-	OtelExporterOtlpTracesEndpoint                    *string                          `protobuf:"bytes,127,opt,name=otel_exporter_otlp_traces_endpoint,json=otelExporterOtlpTracesEndpoint,proto3,oneof" json:"otel_exporter_otlp_traces_endpoint,omitempty"`
-	OtelExporterOtlpProtocol                          *string                          `protobuf:"bytes,128,opt,name=otel_exporter_otlp_protocol,json=otelExporterOtlpProtocol,proto3,oneof" json:"otel_exporter_otlp_protocol,omitempty"`
-	OtelExporterOtlpTracesProtocol                    *string                          `protobuf:"bytes,129,opt,name=otel_exporter_otlp_traces_protocol,json=otelExporterOtlpTracesProtocol,proto3,oneof" json:"otel_exporter_otlp_traces_protocol,omitempty"`
-	OtelExporterOtlpHeaders                           []string                         `protobuf:"bytes,130,rep,name=otel_exporter_otlp_headers,json=otelExporterOtlpHeaders,proto3" json:"otel_exporter_otlp_headers,omitempty"`
-	OtelExporterOtlpTracesHeaders                     []string                         `protobuf:"bytes,131,rep,name=otel_exporter_otlp_traces_headers,json=otelExporterOtlpTracesHeaders,proto3" json:"otel_exporter_otlp_traces_headers,omitempty"`
-	OtelExporterOtlpTimeout                           *durationpb.Duration             `protobuf:"bytes,132,opt,name=otel_exporter_otlp_timeout,json=otelExporterOtlpTimeout,proto3,oneof" json:"otel_exporter_otlp_timeout,omitempty"`
-	OtelExporterOtlpTracesTimeout                     *durationpb.Duration             `protobuf:"bytes,133,opt,name=otel_exporter_otlp_traces_timeout,json=otelExporterOtlpTracesTimeout,proto3,oneof" json:"otel_exporter_otlp_traces_timeout,omitempty"`
-	OtelBspScheduleDelay                              *durationpb.Duration             `protobuf:"bytes,134,opt,name=otel_bsp_schedule_delay,json=otelBspScheduleDelay,proto3,oneof" json:"otel_bsp_schedule_delay,omitempty"`
-	OtelBspMaxExportBatchSize                         *int32                           `protobuf:"varint,135,opt,name=otel_bsp_max_export_batch_size,json=otelBspMaxExportBatchSize,proto3,oneof" json:"otel_bsp_max_export_batch_size,omitempty"`
-	GrpcAddress                                       *string                          `protobuf:"bytes,46,opt,name=grpc_address,json=grpcAddress,proto3,oneof" json:"grpc_address,omitempty"`
-	GrpcInsecure                                      *bool                            `protobuf:"varint,47,opt,name=grpc_insecure,json=grpcInsecure,proto3,oneof" json:"grpc_insecure,omitempty"`
-	GrpcClientTimeout                                 *durationpb.Duration             `protobuf:"bytes,99,opt,name=grpc_client_timeout,json=grpcClientTimeout,proto3,oneof" json:"grpc_client_timeout,omitempty"`
-	DatabrokerClusterLeaderId                         *string                          `protobuf:"bytes,152,opt,name=databroker_cluster_leader_id,json=databrokerClusterLeaderId,proto3,oneof" json:"databroker_cluster_leader_id,omitempty"`
-	DatabrokerClusterNodeId                           *string                          `protobuf:"bytes,150,opt,name=databroker_cluster_node_id,json=databrokerClusterNodeId,proto3,oneof" json:"databroker_cluster_node_id,omitempty"`
-	DatabrokerClusterNodes                            *Settings_DataBrokerClusterNodes `protobuf:"bytes,151,opt,name=databroker_cluster_nodes,json=databrokerClusterNodes,proto3,oneof" json:"databroker_cluster_nodes,omitempty"`
-	DatabrokerServiceUrls                             []string                         `protobuf:"bytes,52,rep,name=databroker_service_urls,json=databrokerServiceUrls,proto3" json:"databroker_service_urls,omitempty"`
-	DatabrokerInternalServiceUrl                      *string                          `protobuf:"bytes,84,opt,name=databroker_internal_service_url,json=databrokerInternalServiceUrl,proto3,oneof" json:"databroker_internal_service_url,omitempty"`
-	DatabrokerRaftBindAddress                         *string                          `protobuf:"bytes,155,opt,name=databroker_raft_bind_address,json=databrokerRaftBindAddress,proto3,oneof" json:"databroker_raft_bind_address,omitempty"`
-	DatabrokerStorageType                             *string                          `protobuf:"bytes,101,opt,name=databroker_storage_type,json=databrokerStorageType,proto3,oneof" json:"databroker_storage_type,omitempty"`
-	DatabrokerStorageConnectionString                 *string                          `protobuf:"bytes,102,opt,name=databroker_storage_connection_string,json=databrokerStorageConnectionString,proto3,oneof" json:"databroker_storage_connection_string,omitempty"`
-	DownstreamMtls                                    *DownstreamMtlsSettings          `protobuf:"bytes,116,opt,name=downstream_mtls,json=downstreamMtls,proto3,oneof" json:"downstream_mtls,omitempty"`
-	GoogleCloudServerlessAuthenticationServiceAccount *string                          `protobuf:"bytes,55,opt,name=google_cloud_serverless_authentication_service_account,json=googleCloudServerlessAuthenticationServiceAccount,proto3,oneof" json:"google_cloud_serverless_authentication_service_account,omitempty"`
-	UseProxyProtocol                                  *bool                            `protobuf:"varint,107,opt,name=use_proxy_protocol,json=useProxyProtocol,proto3,oneof" json:"use_proxy_protocol,omitempty"`
-	Autocert                                          *bool                            `protobuf:"varint,56,opt,name=autocert,proto3,oneof" json:"autocert,omitempty"`
-	AutocertCa                                        *string                          `protobuf:"bytes,76,opt,name=autocert_ca,json=autocertCa,proto3,oneof" json:"autocert_ca,omitempty"`
-	AutocertCaKeyPairId                               *string                          `protobuf:"bytes,165,opt,name=autocert_ca_key_pair_id,json=autocertCaKeyPairId,proto3,oneof" json:"autocert_ca_key_pair_id,omitempty"`
-	AutocertEmail                                     *string                          `protobuf:"bytes,77,opt,name=autocert_email,json=autocertEmail,proto3,oneof" json:"autocert_email,omitempty"`
-	AutocertUseStaging                                *bool                            `protobuf:"varint,57,opt,name=autocert_use_staging,json=autocertUseStaging,proto3,oneof" json:"autocert_use_staging,omitempty"`
-	AutocertEabKeyId                                  *string                          `protobuf:"bytes,78,opt,name=autocert_eab_key_id,json=autocertEabKeyId,proto3,oneof" json:"autocert_eab_key_id,omitempty"`
-	AutocertEabMacKey                                 *string                          `protobuf:"bytes,79,opt,name=autocert_eab_mac_key,json=autocertEabMacKey,proto3,oneof" json:"autocert_eab_mac_key,omitempty"`
-	AutocertMustStaple                                *bool                            `protobuf:"varint,58,opt,name=autocert_must_staple,json=autocertMustStaple,proto3,oneof" json:"autocert_must_staple,omitempty"`
-	AutocertDir                                       *string                          `protobuf:"bytes,59,opt,name=autocert_dir,json=autocertDir,proto3,oneof" json:"autocert_dir,omitempty"`
-	AutocertTrustedCa                                 *string                          `protobuf:"bytes,80,opt,name=autocert_trusted_ca,json=autocertTrustedCa,proto3,oneof" json:"autocert_trusted_ca,omitempty"`
-	AutocertTrustedCaKeyPairId                        *string                          `protobuf:"bytes,166,opt,name=autocert_trusted_ca_key_pair_id,json=autocertTrustedCaKeyPairId,proto3,oneof" json:"autocert_trusted_ca_key_pair_id,omitempty"`
-	SkipXffAppend                                     *bool                            `protobuf:"varint,61,opt,name=skip_xff_append,json=skipXffAppend,proto3,oneof" json:"skip_xff_append,omitempty"`
-	XffNumTrustedHops                                 *uint32                          `protobuf:"varint,70,opt,name=xff_num_trusted_hops,json=xffNumTrustedHops,proto3,oneof" json:"xff_num_trusted_hops,omitempty"`
-	EnvoyAdminAccessLogPath                           *string                          `protobuf:"bytes,108,opt,name=envoy_admin_access_log_path,json=envoyAdminAccessLogPath,proto3,oneof" json:"envoy_admin_access_log_path,omitempty"`
-	EnvoyAdminProfilePath                             *string                          `protobuf:"bytes,109,opt,name=envoy_admin_profile_path,json=envoyAdminProfilePath,proto3,oneof" json:"envoy_admin_profile_path,omitempty"`
-	EnvoyAdminAddress                                 *string                          `protobuf:"bytes,110,opt,name=envoy_admin_address,json=envoyAdminAddress,proto3,oneof" json:"envoy_admin_address,omitempty"`
-	EnvoyBindConfigSourceAddress                      *string                          `protobuf:"bytes,111,opt,name=envoy_bind_config_source_address,json=envoyBindConfigSourceAddress,proto3,oneof" json:"envoy_bind_config_source_address,omitempty"`
-	EnvoyBindConfigFreebind                           *bool                            `protobuf:"varint,112,opt,name=envoy_bind_config_freebind,json=envoyBindConfigFreebind,proto3,oneof" json:"envoy_bind_config_freebind,omitempty"`
-	ProgrammaticRedirectDomainWhitelist               []string                         `protobuf:"bytes,68,rep,name=programmatic_redirect_domain_whitelist,json=programmaticRedirectDomainWhitelist,proto3" json:"programmatic_redirect_domain_whitelist,omitempty"`
-	CodecType                                         *CodecType                       `protobuf:"varint,73,opt,name=codec_type,json=codecType,proto3,enum=pomerium.config.CodecType,oneof" json:"codec_type,omitempty"`
-	PrimaryColor                                      *string                          `protobuf:"bytes,85,opt,name=primary_color,json=primaryColor,proto3,oneof" json:"primary_color,omitempty"`
-	SecondaryColor                                    *string                          `protobuf:"bytes,86,opt,name=secondary_color,json=secondaryColor,proto3,oneof" json:"secondary_color,omitempty"`
-	DarkmodePrimaryColor                              *string                          `protobuf:"bytes,87,opt,name=darkmode_primary_color,json=darkmodePrimaryColor,proto3,oneof" json:"darkmode_primary_color,omitempty"`
-	DarkmodeSecondaryColor                            *string                          `protobuf:"bytes,88,opt,name=darkmode_secondary_color,json=darkmodeSecondaryColor,proto3,oneof" json:"darkmode_secondary_color,omitempty"`
-	LogoUrl                                           *string                          `protobuf:"bytes,89,opt,name=logo_url,json=logoUrl,proto3,oneof" json:"logo_url,omitempty"`
-	FaviconUrl                                        *string                          `protobuf:"bytes,90,opt,name=favicon_url,json=faviconUrl,proto3,oneof" json:"favicon_url,omitempty"`
-	ErrorMessageFirstParagraph                        *string                          `protobuf:"bytes,91,opt,name=error_message_first_paragraph,json=errorMessageFirstParagraph,proto3,oneof" json:"error_message_first_paragraph,omitempty"`
-	PassIdentityHeaders                               *bool                            `protobuf:"varint,117,opt,name=pass_identity_headers,json=passIdentityHeaders,proto3,oneof" json:"pass_identity_headers,omitempty"`
-	RuntimeFlags                                      map[string]bool                  `protobuf:"bytes,118,rep,name=runtime_flags,json=runtimeFlags,proto3" json:"runtime_flags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	Http3AdvertisePort                                *uint32                          `protobuf:"varint,136,opt,name=http3_advertise_port,json=http3AdvertisePort,proto3,oneof" json:"http3_advertise_port,omitempty"`
-	CircuitBreakerThresholds                          *CircuitBreakerThresholds        `protobuf:"bytes,140,opt,name=circuit_breaker_thresholds,json=circuitBreakerThresholds,proto3,oneof" json:"circuit_breaker_thresholds,omitempty"`
-	SshAddress                                        *string                          `protobuf:"bytes,141,opt,name=ssh_address,json=sshAddress,proto3,oneof" json:"ssh_address,omitempty"`
-	SshHostKeyFiles                                   *Settings_StringList             `protobuf:"bytes,142,opt,name=ssh_host_key_files,json=sshHostKeyFiles,proto3,oneof" json:"ssh_host_key_files,omitempty"`
-	SshHostKeys                                       *Settings_StringList             `protobuf:"bytes,143,opt,name=ssh_host_keys,json=sshHostKeys,proto3,oneof" json:"ssh_host_keys,omitempty"`
-	SshHostKeyPairIds                                 []string                         `protobuf:"bytes,167,rep,name=ssh_host_key_pair_ids,json=sshHostKeyPairIds,proto3" json:"ssh_host_key_pair_ids,omitempty"`
-	SshUserCaKeyFile                                  *string                          `protobuf:"bytes,144,opt,name=ssh_user_ca_key_file,json=sshUserCaKeyFile,proto3,oneof" json:"ssh_user_ca_key_file,omitempty"`
-	SshUserCaKey                                      *string                          `protobuf:"bytes,145,opt,name=ssh_user_ca_key,json=sshUserCaKey,proto3,oneof" json:"ssh_user_ca_key,omitempty"`
-	SshUserCaKeyPairId                                *string                          `protobuf:"bytes,168,opt,name=ssh_user_ca_key_pair_id,json=sshUserCaKeyPairId,proto3,oneof" json:"ssh_user_ca_key_pair_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Server-assigned unique ID of the Settings record.
+	Id *string `protobuf:"bytes,158,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	// ID of the namespace the Settings record belongs to.
+	NamespaceId *string `protobuf:"bytes,159,opt,name=namespace_id,json=namespaceId,proto3,oneof" json:"namespace_id,omitempty"`
+	// ID of the cluster the Settings record applies to.
+	ClusterId *string `protobuf:"bytes,176,opt,name=cluster_id,json=clusterId,proto3,oneof" json:"cluster_id,omitempty"`
+	// ID of the upstream object the record originated from, when imported.
+	OriginatorId *string `protobuf:"bytes,160,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
+	// Human-readable name of the Settings record.
+	Name *string `protobuf:"bytes,161,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Stable identifier for this installation, used in telemetry and
+	// diagnostics. Generated at first start when unset.
+	InstallationId *string `protobuf:"bytes,71,opt,name=installation_id,json=installationId,proto3,oneof" json:"installation_id,omitempty"`
+	// Global log level for Pomerium services ("debug", "info", "warn",
+	// "error"). Empty falls back to "info".
+	LogLevel *string `protobuf:"bytes,3,opt,name=log_level,json=logLevel,proto3,oneof" json:"log_level,omitempty"`
+	// Subset of access-log fields to emit. Use
+	// ListAvailableLogFields.available_access_log_fields to see what's valid;
+	// unset means the service default.
+	AccessLogFields *Settings_StringList `protobuf:"bytes,114,opt,name=access_log_fields,json=accessLogFields,proto3,oneof" json:"access_log_fields,omitempty"`
+	// Subset of authorize-log fields to emit; see ListAvailableLogFields.
+	AuthorizeLogFields *Settings_StringList `protobuf:"bytes,115,opt,name=authorize_log_fields,json=authorizeLogFields,proto3,oneof" json:"authorize_log_fields,omitempty"`
+	// Log level for the proxy service in particular, overriding `log_level`.
+	ProxyLogLevel *string `protobuf:"bytes,4,opt,name=proxy_log_level,json=proxyLogLevel,proto3,oneof" json:"proxy_log_level,omitempty"`
+	// Cluster-wide shared secret used to sign and validate internal requests
+	// and JWTs across Pomerium services. Must be a base64-encoded 32-byte
+	// value.
+	SharedSecret *string `protobuf:"bytes,5,opt,name=shared_secret,json=sharedSecret,proto3,oneof" json:"shared_secret,omitempty"`
+	// Comma-separated list of Pomerium services to run in this process
+	// ("all", "authenticate", "authorize", "databroker", "proxy").
+	Services *string `protobuf:"bytes,6,opt,name=services,proto3,oneof" json:"services,omitempty"`
+	// IP address and port for serving HTTPS requests (e.g. ":443").
+	Address *string `protobuf:"bytes,7,opt,name=address,proto3,oneof" json:"address,omitempty"`
+	// When true, Pomerium serves HTTP without TLS. Intended only for testing
+	// behind a TLS-terminating load balancer.
+	InsecureServer *bool `protobuf:"varint,8,opt,name=insecure_server,json=insecureServer,proto3,oneof" json:"insecure_server,omitempty"`
+	// How long Envoy waits before retrying a failed DNS resolution.
+	DnsFailureRefreshRate *durationpb.Duration `protobuf:"bytes,153,opt,name=dns_failure_refresh_rate,json=dnsFailureRefreshRate,proto3,oneof" json:"dns_failure_refresh_rate,omitempty"`
+	// Envoy DNS lookup family ("AUTO", "V4_ONLY", "V6_ONLY", "V4_PREFERRED",
+	// "ALL"). Controls which address families Envoy resolves.
+	DnsLookupFamily *string `protobuf:"bytes,60,opt,name=dns_lookup_family,json=dnsLookupFamily,proto3,oneof" json:"dns_lookup_family,omitempty"`
+	// Maximum time Envoy waits for a single DNS query to return.
+	DnsQueryTimeout *durationpb.Duration `protobuf:"bytes,149,opt,name=dns_query_timeout,json=dnsQueryTimeout,proto3,oneof" json:"dns_query_timeout,omitempty"`
+	// Number of times Envoy retries a failed DNS query before giving up.
+	DnsQueryTries *uint32 `protobuf:"varint,148,opt,name=dns_query_tries,json=dnsQueryTries,proto3,oneof" json:"dns_query_tries,omitempty"`
+	// How often Envoy refreshes resolved addresses regardless of TTL.
+	DnsRefreshRate *durationpb.Duration `protobuf:"bytes,154,opt,name=dns_refresh_rate,json=dnsRefreshRate,proto3,oneof" json:"dns_refresh_rate,omitempty"`
+	// Maximum number of in-flight DNS queries Envoy will multiplex over a
+	// single UDP socket.
+	DnsUdpMaxQueries *uint32 `protobuf:"varint,146,opt,name=dns_udp_max_queries,json=dnsUdpMaxQueries,proto3,oneof" json:"dns_udp_max_queries,omitempty"`
+	// When true, Envoy resolves DNS over TCP instead of UDP.
+	DnsUseTcp *bool `protobuf:"varint,147,opt,name=dns_use_tcp,json=dnsUseTcp,proto3,oneof" json:"dns_use_tcp,omitempty"`
+	// Inline TLS certificate/key pairs Pomerium serves. Each entry is matched
+	// against the request's SNI hostname.
+	Certificates []*Settings_Certificate `protobuf:"bytes,9,rep,name=certificates,proto3" json:"certificates,omitempty"`
+	// IDs of managed key pairs to serve as TLS certificates, as an alternative
+	// to inline `certificates` entries.
+	CertificateKeyPairIds []string `protobuf:"bytes,162,rep,name=certificate_key_pair_ids,json=certificateKeyPairIds,proto3" json:"certificate_key_pair_ids,omitempty"`
+	// Address (host:port) on which Pomerium listens for plaintext HTTP and
+	// issues a redirect to the HTTPS address. Empty disables the redirect
+	// listener.
+	HttpRedirectAddr *string `protobuf:"bytes,10,opt,name=http_redirect_addr,json=httpRedirectAddr,proto3,oneof" json:"http_redirect_addr,omitempty"`
+	// Maximum time the proxy will wait for a complete request from a
+	// downstream client.
+	TimeoutRead *durationpb.Duration `protobuf:"bytes,11,opt,name=timeout_read,json=timeoutRead,proto3,oneof" json:"timeout_read,omitempty"`
+	// Maximum time the proxy will wait to send a complete response to a
+	// downstream client.
+	TimeoutWrite *durationpb.Duration `protobuf:"bytes,12,opt,name=timeout_write,json=timeoutWrite,proto3,oneof" json:"timeout_write,omitempty"`
+	// Maximum idle time on a kept-alive connection before it is closed.
+	TimeoutIdle *durationpb.Duration `protobuf:"bytes,13,opt,name=timeout_idle,json=timeoutIdle,proto3,oneof" json:"timeout_idle,omitempty"`
+	// Externally accessible URL for the authenticate service.
+	AuthenticateServiceUrl *string `protobuf:"bytes,14,opt,name=authenticate_service_url,json=authenticateServiceUrl,proto3,oneof" json:"authenticate_service_url,omitempty"`
+	// URL Pomerium uses internally to reach the authenticate service. Set
+	// when the externally visible URL goes through a load balancer that
+	// proxies cannot reuse.
+	AuthenticateInternalServiceUrl *string `protobuf:"bytes,82,opt,name=authenticate_internal_service_url,json=authenticateInternalServiceUrl,proto3,oneof" json:"authenticate_internal_service_url,omitempty"`
+	// URL to redirect users to after they sign out.
+	SignoutRedirectUrl *string `protobuf:"bytes,93,opt,name=signout_redirect_url,json=signoutRedirectUrl,proto3,oneof" json:"signout_redirect_url,omitempty"`
+	// Name of the session cookie Pomerium issues. Defaults to "_pomerium".
+	CookieName *string `protobuf:"bytes,16,opt,name=cookie_name,json=cookieName,proto3,oneof" json:"cookie_name,omitempty"`
+	// Secret used to encrypt and sign session cookies. Must be a
+	// base64-encoded 32-byte value.
+	CookieSecret *string `protobuf:"bytes,17,opt,name=cookie_secret,json=cookieSecret,proto3,oneof" json:"cookie_secret,omitempty"`
+	// Domain set on the session cookie. Pomerium defaults to the
+	// authenticate service URL host.
+	CookieDomain *string `protobuf:"bytes,18,opt,name=cookie_domain,json=cookieDomain,proto3,oneof" json:"cookie_domain,omitempty"`
+	// When true the session cookie carries the HttpOnly attribute.
+	CookieHttpOnly *bool `protobuf:"varint,20,opt,name=cookie_http_only,json=cookieHttpOnly,proto3,oneof" json:"cookie_http_only,omitempty"`
+	// How long an issued session cookie remains valid.
+	CookieExpire *durationpb.Duration `protobuf:"bytes,21,opt,name=cookie_expire,json=cookieExpire,proto3,oneof" json:"cookie_expire,omitempty"`
+	// SameSite attribute of the session cookie ("strict", "lax", "none").
+	CookieSameSite *string `protobuf:"bytes,113,opt,name=cookie_same_site,json=cookieSameSite,proto3,oneof" json:"cookie_same_site,omitempty"`
+	// OAuth2 client ID for the identity provider.
+	IdpClientId *string `protobuf:"bytes,22,opt,name=idp_client_id,json=idpClientId,proto3,oneof" json:"idp_client_id,omitempty"`
+	// OAuth2 client secret for the identity provider.
+	IdpClientSecret *string `protobuf:"bytes,23,opt,name=idp_client_secret,json=idpClientSecret,proto3,oneof" json:"idp_client_secret,omitempty"`
+	// Identity provider name ("oidc", "okta", "auth0", "google", "azure", …).
+	// Selects which IdP integration Pomerium uses.
+	IdpProvider *string `protobuf:"bytes,24,opt,name=idp_provider,json=idpProvider,proto3,oneof" json:"idp_provider,omitempty"`
+	// OIDC issuer URL of the identity provider.
+	IdpProviderUrl *string `protobuf:"bytes,25,opt,name=idp_provider_url,json=idpProviderUrl,proto3,oneof" json:"idp_provider_url,omitempty"`
+	// Audiences Pomerium accepts on IdP-issued access tokens. Required when
+	// BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN routes exist.
+	IdpAccessTokenAllowedAudiences *Settings_StringList `protobuf:"bytes,137,opt,name=idp_access_token_allowed_audiences,json=idpAccessTokenAllowedAudiences,proto3,oneof" json:"idp_access_token_allowed_audiences,omitempty"`
+	// OIDC scopes Pomerium requests when authenticating users.
+	Scopes []string `protobuf:"bytes,26,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	// Additional query parameters Pomerium appends to the IdP authorization
+	// request.
+	RequestParams map[string]string `protobuf:"bytes,30,rep,name=request_params,json=requestParams,proto3" json:"request_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Externally accessible URLs for the authorize service.
+	AuthorizeServiceUrls []string `protobuf:"bytes,32,rep,name=authorize_service_urls,json=authorizeServiceUrls,proto3" json:"authorize_service_urls,omitempty"`
+	// URL Pomerium uses internally to reach the authorize service.
+	AuthorizeInternalServiceUrl *string `protobuf:"bytes,83,opt,name=authorize_internal_service_url,json=authorizeInternalServiceUrl,proto3,oneof" json:"authorize_internal_service_url,omitempty"`
+	// Hostname Pomerium expects in upstream TLS certificates. Useful when
+	// upstream addresses are IPs but the certificate contains a hostname SAN.
+	OverrideCertificateName *string `protobuf:"bytes,33,opt,name=override_certificate_name,json=overrideCertificateName,proto3,oneof" json:"override_certificate_name,omitempty"`
+	// PEM-encoded certificate authority bundle Pomerium trusts for upstream
+	// TLS verification.
+	CertificateAuthority *string `protobuf:"bytes,34,opt,name=certificate_authority,json=certificateAuthority,proto3,oneof" json:"certificate_authority,omitempty"`
+	// ID of a managed key pair whose certificate is used as the upstream CA
+	// bundle, as an alternative to the inline `certificate_authority` value.
+	CertificateAuthorityKeyPairId *string `protobuf:"bytes,163,opt,name=certificate_authority_key_pair_id,json=certificateAuthorityKeyPairId,proto3,oneof" json:"certificate_authority_key_pair_id,omitempty"`
+	// Base hostname Pomerium uses to derive default TLS certificates for
+	// routes. Empty disables derivation.
+	DeriveTls *string `protobuf:"bytes,96,opt,name=derive_tls,json=deriveTls,proto3,oneof" json:"derive_tls,omitempty"`
+	// Private key Pomerium uses to sign internally issued JWTs (e.g. the JWT
+	// attached to upstream requests). Must be a PEM-encoded key.
+	SigningKey *string `protobuf:"bytes,36,opt,name=signing_key,json=signingKey,proto3,oneof" json:"signing_key,omitempty"`
+	// Headers Pomerium sets on every response across all routes.
+	SetResponseHeaders map[string]string `protobuf:"bytes,69,rep,name=set_response_headers,json=setResponseHeaders,proto3" json:"set_response_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Map of header name to JWT claim. Pomerium copies the claim value from
+	// the session JWT to the named header on upstream requests.
+	JwtClaimsHeaders map[string]string `protobuf:"bytes,63,rep,name=jwt_claims_headers,json=jwtClaimsHeaders,proto3" json:"jwt_claims_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Format of the `iss` claim in JWTs Pomerium issues for upstream
+	// requests.
+	JwtIssuerFormat *IssuerFormat `protobuf:"varint,139,opt,name=jwt_issuer_format,json=jwtIssuerFormat,proto3,enum=pomerium.config.IssuerFormat,oneof" json:"jwt_issuer_format,omitempty"`
+	// Allowlist of group IDs/names; the JWT Pomerium issues includes only
+	// groups appearing here. Empty means include all.
+	JwtGroupsFilter []string `protobuf:"bytes,119,rep,name=jwt_groups_filter,json=jwtGroupsFilter,proto3" json:"jwt_groups_filter,omitempty"`
+	// When true the effective `jwt_groups_filter` is augmented with groups
+	// referenced by route PPL policies.
+	JwtGroupsFilterInferFromPpl *bool `protobuf:"varint,175,opt,name=jwt_groups_filter_infer_from_ppl,json=jwtGroupsFilterInferFromPpl,proto3,oneof" json:"jwt_groups_filter_infer_from_ppl,omitempty"`
+	// Cluster-wide default for how to interpret HTTP bearer tokens. Routes
+	// may override per-route.
+	BearerTokenFormat *BearerTokenFormat `protobuf:"varint,138,opt,name=bearer_token_format,json=bearerTokenFormat,proto3,enum=pomerium.config.BearerTokenFormat,oneof" json:"bearer_token_format,omitempty"`
+	// Default per-request timeout applied to upstream HTTP requests when a
+	// route does not specify its own.
+	DefaultUpstreamTimeout *durationpb.Duration `protobuf:"bytes,39,opt,name=default_upstream_timeout,json=defaultUpstreamTimeout,proto3,oneof" json:"default_upstream_timeout,omitempty"`
+	// Address (host:port) on which Pomerium exposes its pprof debug
+	// endpoints. Empty disables them.
+	DebugAddress *string `protobuf:"bytes,156,opt,name=debug_address,json=debugAddress,proto3,oneof" json:"debug_address,omitempty"`
+	// Address (host:port) on which Pomerium serves Prometheus metrics.
+	MetricsAddress *string `protobuf:"bytes,40,opt,name=metrics_address,json=metricsAddress,proto3,oneof" json:"metrics_address,omitempty"`
+	// HTTP Basic Auth credentials required to access `metrics_address`, of
+	// the form "user:password". Empty disables auth.
+	MetricsBasicAuth *string `protobuf:"bytes,64,opt,name=metrics_basic_auth,json=metricsBasicAuth,proto3,oneof" json:"metrics_basic_auth,omitempty"`
+	// TLS certificate/key pair Pomerium uses on the metrics listener.
+	MetricsCertificate *Settings_Certificate `protobuf:"bytes,65,opt,name=metrics_certificate,json=metricsCertificate,proto3,oneof" json:"metrics_certificate,omitempty"`
+	// PEM-encoded CA bundle used to authenticate clients connecting to the
+	// metrics listener.
+	MetricsClientCa *string `protobuf:"bytes,66,opt,name=metrics_client_ca,json=metricsClientCa,proto3,oneof" json:"metrics_client_ca,omitempty"`
+	// ID of a managed key pair whose certificate is used as the metrics
+	// client CA bundle, as an alternative to `metrics_client_ca`.
+	MetricsClientCaKeyPairId *string `protobuf:"bytes,164,opt,name=metrics_client_ca_key_pair_id,json=metricsClientCaKeyPairId,proto3,oneof" json:"metrics_client_ca_key_pair_id,omitempty"`
+	// Which OpenTelemetry traces exporter to use ("otlp", "none", …). Empty
+	// disables tracing.
+	OtelTracesExporter *string `protobuf:"bytes,121,opt,name=otel_traces_exporter,json=otelTracesExporter,proto3,oneof" json:"otel_traces_exporter,omitempty"`
+	// OpenTelemetry sampler argument. For ratio-based samplers this is the
+	// sampling probability (0.0–1.0).
+	OtelTracesSamplerArg *float64 `protobuf:"fixed64,122,opt,name=otel_traces_sampler_arg,json=otelTracesSamplerArg,proto3,oneof" json:"otel_traces_sampler_arg,omitempty"`
+	// OpenTelemetry resource attributes appended to every emitted span/log,
+	// as "key=value" strings.
+	OtelResourceAttributes []string `protobuf:"bytes,123,rep,name=otel_resource_attributes,json=otelResourceAttributes,proto3" json:"otel_resource_attributes,omitempty"`
+	// Log level for the OpenTelemetry SDK itself.
+	OtelLogLevel *string `protobuf:"bytes,124,opt,name=otel_log_level,json=otelLogLevel,proto3,oneof" json:"otel_log_level,omitempty"`
+	// Maximum length of a single OpenTelemetry attribute value before it is
+	// truncated.
+	OtelAttributeValueLengthLimit *int32 `protobuf:"varint,125,opt,name=otel_attribute_value_length_limit,json=otelAttributeValueLengthLimit,proto3,oneof" json:"otel_attribute_value_length_limit,omitempty"`
+	// Default OTLP endpoint Pomerium dials for any OTLP exporter (traces,
+	// logs) when no signal-specific endpoint is set.
+	OtelExporterOtlpEndpoint *string `protobuf:"bytes,126,opt,name=otel_exporter_otlp_endpoint,json=otelExporterOtlpEndpoint,proto3,oneof" json:"otel_exporter_otlp_endpoint,omitempty"`
+	// OTLP endpoint specifically for traces; overrides
+	// `otel_exporter_otlp_endpoint` for the trace signal.
+	OtelExporterOtlpTracesEndpoint *string `protobuf:"bytes,127,opt,name=otel_exporter_otlp_traces_endpoint,json=otelExporterOtlpTracesEndpoint,proto3,oneof" json:"otel_exporter_otlp_traces_endpoint,omitempty"`
+	// OTLP transport protocol ("grpc" or "http/protobuf").
+	OtelExporterOtlpProtocol *string `protobuf:"bytes,128,opt,name=otel_exporter_otlp_protocol,json=otelExporterOtlpProtocol,proto3,oneof" json:"otel_exporter_otlp_protocol,omitempty"`
+	// OTLP transport protocol used specifically for traces.
+	OtelExporterOtlpTracesProtocol *string `protobuf:"bytes,129,opt,name=otel_exporter_otlp_traces_protocol,json=otelExporterOtlpTracesProtocol,proto3,oneof" json:"otel_exporter_otlp_traces_protocol,omitempty"`
+	// Headers attached to every OTLP request, as "key=value" strings (e.g.
+	// for tenant identification).
+	OtelExporterOtlpHeaders []string `protobuf:"bytes,130,rep,name=otel_exporter_otlp_headers,json=otelExporterOtlpHeaders,proto3" json:"otel_exporter_otlp_headers,omitempty"`
+	// OTLP headers used specifically for traces.
+	OtelExporterOtlpTracesHeaders []string `protobuf:"bytes,131,rep,name=otel_exporter_otlp_traces_headers,json=otelExporterOtlpTracesHeaders,proto3" json:"otel_exporter_otlp_traces_headers,omitempty"`
+	// Per-request timeout for the OTLP exporter.
+	OtelExporterOtlpTimeout *durationpb.Duration `protobuf:"bytes,132,opt,name=otel_exporter_otlp_timeout,json=otelExporterOtlpTimeout,proto3,oneof" json:"otel_exporter_otlp_timeout,omitempty"`
+	// Per-request timeout used specifically for the OTLP traces exporter.
+	OtelExporterOtlpTracesTimeout *durationpb.Duration `protobuf:"bytes,133,opt,name=otel_exporter_otlp_traces_timeout,json=otelExporterOtlpTracesTimeout,proto3,oneof" json:"otel_exporter_otlp_traces_timeout,omitempty"`
+	// Delay between scheduled batches of spans the BatchSpanProcessor
+	// exports.
+	OtelBspScheduleDelay *durationpb.Duration `protobuf:"bytes,134,opt,name=otel_bsp_schedule_delay,json=otelBspScheduleDelay,proto3,oneof" json:"otel_bsp_schedule_delay,omitempty"`
+	// Maximum number of spans per export batch.
+	OtelBspMaxExportBatchSize *int32 `protobuf:"varint,135,opt,name=otel_bsp_max_export_batch_size,json=otelBspMaxExportBatchSize,proto3,oneof" json:"otel_bsp_max_export_batch_size,omitempty"`
+	// Address (host:port) on which Pomerium serves its gRPC API.
+	GrpcAddress *string `protobuf:"bytes,46,opt,name=grpc_address,json=grpcAddress,proto3,oneof" json:"grpc_address,omitempty"`
+	// When true, Pomerium speaks plaintext gRPC instead of TLS. Intended for
+	// co-located service deployments behind a trusted network boundary.
+	GrpcInsecure *bool `protobuf:"varint,47,opt,name=grpc_insecure,json=grpcInsecure,proto3,oneof" json:"grpc_insecure,omitempty"`
+	// Per-request timeout applied to gRPC client calls Pomerium makes to its
+	// own services (authorize, databroker).
+	GrpcClientTimeout *durationpb.Duration `protobuf:"bytes,99,opt,name=grpc_client_timeout,json=grpcClientTimeout,proto3,oneof" json:"grpc_client_timeout,omitempty"`
+	// Node ID of the databroker Raft leader, as observed by this process.
+	DatabrokerClusterLeaderId *string `protobuf:"bytes,152,opt,name=databroker_cluster_leader_id,json=databrokerClusterLeaderId,proto3,oneof" json:"databroker_cluster_leader_id,omitempty"`
+	// Node ID this process uses when participating in the databroker
+	// cluster.
+	DatabrokerClusterNodeId *string `protobuf:"bytes,150,opt,name=databroker_cluster_node_id,json=databrokerClusterNodeId,proto3,oneof" json:"databroker_cluster_node_id,omitempty"`
+	// Full membership list of the databroker cluster.
+	DatabrokerClusterNodes *Settings_DataBrokerClusterNodes `protobuf:"bytes,151,opt,name=databroker_cluster_nodes,json=databrokerClusterNodes,proto3,oneof" json:"databroker_cluster_nodes,omitempty"`
+	// Externally accessible URLs for the databroker service.
+	DatabrokerServiceUrls []string `protobuf:"bytes,52,rep,name=databroker_service_urls,json=databrokerServiceUrls,proto3" json:"databroker_service_urls,omitempty"`
+	// URL Pomerium uses internally to reach the databroker service.
+	DatabrokerInternalServiceUrl *string `protobuf:"bytes,84,opt,name=databroker_internal_service_url,json=databrokerInternalServiceUrl,proto3,oneof" json:"databroker_internal_service_url,omitempty"`
+	// Bind address (host:port) for this node's Raft transport.
+	DatabrokerRaftBindAddress *string `protobuf:"bytes,155,opt,name=databroker_raft_bind_address,json=databrokerRaftBindAddress,proto3,oneof" json:"databroker_raft_bind_address,omitempty"`
+	// Backing-store type for the databroker ("memory", "postgres", …).
+	DatabrokerStorageType *string `protobuf:"bytes,101,opt,name=databroker_storage_type,json=databrokerStorageType,proto3,oneof" json:"databroker_storage_type,omitempty"`
+	// Connection string for the databroker storage backend, when applicable.
+	DatabrokerStorageConnectionString *string `protobuf:"bytes,102,opt,name=databroker_storage_connection_string,json=databrokerStorageConnectionString,proto3,oneof" json:"databroker_storage_connection_string,omitempty"`
+	// Downstream (end-user) mTLS validation configuration.
+	DownstreamMtls *DownstreamMtlsSettings `protobuf:"bytes,116,opt,name=downstream_mtls,json=downstreamMtls,proto3,oneof" json:"downstream_mtls,omitempty"`
+	// Google Cloud service account email Pomerium uses to obtain ID tokens
+	// for Cloud Run / serverless upstream targets.
+	GoogleCloudServerlessAuthenticationServiceAccount *string `protobuf:"bytes,55,opt,name=google_cloud_serverless_authentication_service_account,json=googleCloudServerlessAuthenticationServiceAccount,proto3,oneof" json:"google_cloud_serverless_authentication_service_account,omitempty"`
+	// When true, Pomerium expects downstream connections to begin with the
+	// HAProxy PROXY protocol header (v1 or v2).
+	UseProxyProtocol *bool `protobuf:"varint,107,opt,name=use_proxy_protocol,json=useProxyProtocol,proto3,oneof" json:"use_proxy_protocol,omitempty"`
+	// When true, Pomerium uses ACME to automatically obtain and renew TLS
+	// certificates for the configured route hostnames.
+	Autocert *bool `protobuf:"varint,56,opt,name=autocert,proto3,oneof" json:"autocert,omitempty"`
+	// Directory URL of the ACME CA to use when `autocert` is enabled.
+	AutocertCa *string `protobuf:"bytes,76,opt,name=autocert_ca,json=autocertCa,proto3,oneof" json:"autocert_ca,omitempty"`
+	// ID of a managed key pair whose certificate Pomerium presents to the
+	// ACME CA for account binding.
+	AutocertCaKeyPairId *string `protobuf:"bytes,165,opt,name=autocert_ca_key_pair_id,json=autocertCaKeyPairId,proto3,oneof" json:"autocert_ca_key_pair_id,omitempty"`
+	// Email address Pomerium registers with the ACME CA. Required by most
+	// CAs for expiration notifications.
+	AutocertEmail *string `protobuf:"bytes,77,opt,name=autocert_email,json=autocertEmail,proto3,oneof" json:"autocert_email,omitempty"`
+	// When true, Pomerium uses Let's Encrypt's staging environment. Useful
+	// for testing to avoid hitting rate limits.
+	AutocertUseStaging *bool `protobuf:"varint,57,opt,name=autocert_use_staging,json=autocertUseStaging,proto3,oneof" json:"autocert_use_staging,omitempty"`
+	// External Account Binding key identifier provided by the ACME CA.
+	AutocertEabKeyId *string `protobuf:"bytes,78,opt,name=autocert_eab_key_id,json=autocertEabKeyId,proto3,oneof" json:"autocert_eab_key_id,omitempty"`
+	// Base64-URL-encoded EAB MAC key paired with `autocert_eab_key_id`.
+	AutocertEabMacKey *string `protobuf:"bytes,79,opt,name=autocert_eab_mac_key,json=autocertEabMacKey,proto3,oneof" json:"autocert_eab_mac_key,omitempty"`
+	// When true, Pomerium requests certificates with the OCSP Must-Staple
+	// extension.
+	AutocertMustStaple *bool `protobuf:"varint,58,opt,name=autocert_must_staple,json=autocertMustStaple,proto3,oneof" json:"autocert_must_staple,omitempty"`
+	// Filesystem directory Pomerium uses to cache obtained certificates and
+	// ACME account state.
+	AutocertDir *string `protobuf:"bytes,59,opt,name=autocert_dir,json=autocertDir,proto3,oneof" json:"autocert_dir,omitempty"`
+	// PEM-encoded CA bundle Pomerium trusts when validating the ACME CA's
+	// own TLS certificate, for private ACME servers.
+	AutocertTrustedCa *string `protobuf:"bytes,80,opt,name=autocert_trusted_ca,json=autocertTrustedCa,proto3,oneof" json:"autocert_trusted_ca,omitempty"`
+	// ID of a managed key pair whose certificate is used as the trusted CA
+	// for the ACME server, as an alternative to `autocert_trusted_ca`.
+	AutocertTrustedCaKeyPairId *string `protobuf:"bytes,166,opt,name=autocert_trusted_ca_key_pair_id,json=autocertTrustedCaKeyPairId,proto3,oneof" json:"autocert_trusted_ca_key_pair_id,omitempty"`
+	// When true, Pomerium does not append the immediate client IP to the
+	// X-Forwarded-For header on upstream requests.
+	SkipXffAppend *bool `protobuf:"varint,61,opt,name=skip_xff_append,json=skipXffAppend,proto3,oneof" json:"skip_xff_append,omitempty"`
+	// Number of trusted hops Pomerium considers when extracting the
+	// client IP from the X-Forwarded-For header.
+	XffNumTrustedHops *uint32 `protobuf:"varint,70,opt,name=xff_num_trusted_hops,json=xffNumTrustedHops,proto3,oneof" json:"xff_num_trusted_hops,omitempty"`
+	// Path to which Envoy writes admin-interface access logs. Empty
+	// disables admin-access logging.
+	EnvoyAdminAccessLogPath *string `protobuf:"bytes,108,opt,name=envoy_admin_access_log_path,json=envoyAdminAccessLogPath,proto3,oneof" json:"envoy_admin_access_log_path,omitempty"`
+	// Path to which Envoy writes pprof profiles when requested via the
+	// admin interface.
+	EnvoyAdminProfilePath *string `protobuf:"bytes,109,opt,name=envoy_admin_profile_path,json=envoyAdminProfilePath,proto3,oneof" json:"envoy_admin_profile_path,omitempty"`
+	// Address (host:port) on which Envoy exposes its admin interface.
+	// Empty disables the admin interface.
+	EnvoyAdminAddress *string `protobuf:"bytes,110,opt,name=envoy_admin_address,json=envoyAdminAddress,proto3,oneof" json:"envoy_admin_address,omitempty"`
+	// Source address Envoy binds when connecting to upstreams.
+	EnvoyBindConfigSourceAddress *string `protobuf:"bytes,111,opt,name=envoy_bind_config_source_address,json=envoyBindConfigSourceAddress,proto3,oneof" json:"envoy_bind_config_source_address,omitempty"`
+	// When true, Envoy's upstream connections set IP_FREEBIND, allowing
+	// binding to non-local addresses.
+	EnvoyBindConfigFreebind *bool `protobuf:"varint,112,opt,name=envoy_bind_config_freebind,json=envoyBindConfigFreebind,proto3,oneof" json:"envoy_bind_config_freebind,omitempty"`
+	// Hostnames Pomerium allows in programmatic-login redirect URLs.
+	ProgrammaticRedirectDomainWhitelist []string `protobuf:"bytes,68,rep,name=programmatic_redirect_domain_whitelist,json=programmaticRedirectDomainWhitelist,proto3" json:"programmatic_redirect_domain_whitelist,omitempty"`
+	// Default HTTP codec used for downstream connections.
+	CodecType *CodecType `protobuf:"varint,73,opt,name=codec_type,json=codecType,proto3,enum=pomerium.config.CodecType,oneof" json:"codec_type,omitempty"`
+	// Primary brand color (hex string like "#1e88e5") used in the
+	// Pomerium-served sign-in and error pages.
+	PrimaryColor *string `protobuf:"bytes,85,opt,name=primary_color,json=primaryColor,proto3,oneof" json:"primary_color,omitempty"`
+	// Secondary brand color (hex string).
+	SecondaryColor *string `protobuf:"bytes,86,opt,name=secondary_color,json=secondaryColor,proto3,oneof" json:"secondary_color,omitempty"`
+	// Primary brand color used in dark mode.
+	DarkmodePrimaryColor *string `protobuf:"bytes,87,opt,name=darkmode_primary_color,json=darkmodePrimaryColor,proto3,oneof" json:"darkmode_primary_color,omitempty"`
+	// Secondary brand color used in dark mode.
+	DarkmodeSecondaryColor *string `protobuf:"bytes,88,opt,name=darkmode_secondary_color,json=darkmodeSecondaryColor,proto3,oneof" json:"darkmode_secondary_color,omitempty"`
+	// URL of the logo image displayed on Pomerium-served pages.
+	LogoUrl *string `protobuf:"bytes,89,opt,name=logo_url,json=logoUrl,proto3,oneof" json:"logo_url,omitempty"`
+	// URL of the favicon used on Pomerium-served pages.
+	FaviconUrl *string `protobuf:"bytes,90,opt,name=favicon_url,json=faviconUrl,proto3,oneof" json:"favicon_url,omitempty"`
+	// First paragraph of the error message Pomerium shows on access denied
+	// pages, before the auto-generated diagnostic text.
+	ErrorMessageFirstParagraph *string `protobuf:"bytes,91,opt,name=error_message_first_paragraph,json=errorMessageFirstParagraph,proto3,oneof" json:"error_message_first_paragraph,omitempty"`
+	// When true, Pomerium adds X-Pomerium-* identity headers to upstream
+	// requests in addition to the signed JWT.
+	PassIdentityHeaders *bool `protobuf:"varint,117,opt,name=pass_identity_headers,json=passIdentityHeaders,proto3,oneof" json:"pass_identity_headers,omitempty"`
+	// Per-flag boolean overrides for Pomerium runtime feature gates. The
+	// set of supported keys evolves with the release.
+	RuntimeFlags map[string]bool `protobuf:"bytes,118,rep,name=runtime_flags,json=runtimeFlags,proto3" json:"runtime_flags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	// Port advertised in the Alt-Svc header so clients can upgrade to HTTP/3
+	// (QUIC). Zero disables advertisement.
+	Http3AdvertisePort *uint32 `protobuf:"varint,136,opt,name=http3_advertise_port,json=http3AdvertisePort,proto3,oneof" json:"http3_advertise_port,omitempty"`
+	// Default upstream circuit-breaker thresholds applied to all routes
+	// unless overridden per route.
+	CircuitBreakerThresholds *CircuitBreakerThresholds `protobuf:"bytes,140,opt,name=circuit_breaker_thresholds,json=circuitBreakerThresholds,proto3,oneof" json:"circuit_breaker_thresholds,omitempty"`
+	// Address (host:port) on which Pomerium listens for SSH traffic.
+	// Empty disables the SSH proxy.
+	SshAddress *string `protobuf:"bytes,141,opt,name=ssh_address,json=sshAddress,proto3,oneof" json:"ssh_address,omitempty"`
+	// Paths to host-key files Pomerium reads at startup to authenticate
+	// itself to SSH clients.
+	SshHostKeyFiles *Settings_StringList `protobuf:"bytes,142,opt,name=ssh_host_key_files,json=sshHostKeyFiles,proto3,oneof" json:"ssh_host_key_files,omitempty"`
+	// Inline SSH host keys, used in place of `ssh_host_key_files`.
+	SshHostKeys *Settings_StringList `protobuf:"bytes,143,opt,name=ssh_host_keys,json=sshHostKeys,proto3,oneof" json:"ssh_host_keys,omitempty"`
+	// IDs of managed key pairs to use as SSH host keys, as an alternative
+	// to file or inline values.
+	SshHostKeyPairIds []string `protobuf:"bytes,167,rep,name=ssh_host_key_pair_ids,json=sshHostKeyPairIds,proto3" json:"ssh_host_key_pair_ids,omitempty"`
+	// Path to a file containing the SSH user-CA private key Pomerium uses
+	// to issue short-lived SSH user certificates.
+	SshUserCaKeyFile *string `protobuf:"bytes,144,opt,name=ssh_user_ca_key_file,json=sshUserCaKeyFile,proto3,oneof" json:"ssh_user_ca_key_file,omitempty"`
+	// Inline SSH user-CA private key, used in place of
+	// `ssh_user_ca_key_file`.
+	SshUserCaKey *string `protobuf:"bytes,145,opt,name=ssh_user_ca_key,json=sshUserCaKey,proto3,oneof" json:"ssh_user_ca_key,omitempty"`
+	// ID of a managed key pair to use as the SSH user-CA key, as an
+	// alternative to file or inline values.
+	SshUserCaKeyPairId *string `protobuf:"bytes,168,opt,name=ssh_user_ca_key_pair_id,json=sshUserCaKeyPairId,proto3,oneof" json:"ssh_user_ca_key_pair_id,omitempty"`
 	// mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
 	// Supports wildcard patterns like "*.example.com".
 	// This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
@@ -2954,12 +3330,20 @@ type Settings struct {
 	// mcp_allowed_as_metadata_domains specifies the allowed domains for upstream AS/PRM metadata URLs.
 	// Supports wildcard patterns like "*.example.com".
 	// This restricts which domains Pomerium will contact during upstream OAuth discovery.
-	McpAllowedAsMetadataDomains      []string             `protobuf:"bytes,177,rep,name=mcp_allowed_as_metadata_domains,json=mcpAllowedAsMetadataDomains,proto3" json:"mcp_allowed_as_metadata_domains,omitempty"`
-	DirectoryProvider                *string              `protobuf:"bytes,171,opt,name=directory_provider,json=directoryProvider,proto3,oneof" json:"directory_provider,omitempty"`
-	DirectoryProviderOptions         *structpb.Struct     `protobuf:"bytes,172,opt,name=directory_provider_options,json=directoryProviderOptions,proto3,oneof" json:"directory_provider_options,omitempty"`
+	McpAllowedAsMetadataDomains []string `protobuf:"bytes,177,rep,name=mcp_allowed_as_metadata_domains,json=mcpAllowedAsMetadataDomains,proto3" json:"mcp_allowed_as_metadata_domains,omitempty"`
+	// Directory-sync provider Pomerium uses to enumerate users and groups
+	// ("auth0", "okta", "azure", …). Empty disables directory sync.
+	DirectoryProvider *string `protobuf:"bytes,171,opt,name=directory_provider,json=directoryProvider,proto3,oneof" json:"directory_provider,omitempty"`
+	// Provider-specific options for the directory provider, as a generic
+	// JSON object.
+	DirectoryProviderOptions *structpb.Struct `protobuf:"bytes,172,opt,name=directory_provider_options,json=directoryProviderOptions,proto3,oneof" json:"directory_provider_options,omitempty"`
+	// How often Pomerium refreshes the directory cache.
 	DirectoryProviderRefreshInterval *durationpb.Duration `protobuf:"bytes,173,opt,name=directory_provider_refresh_interval,json=directoryProviderRefreshInterval,proto3,oneof" json:"directory_provider_refresh_interval,omitempty"`
-	DirectoryProviderRefreshTimeout  *durationpb.Duration `protobuf:"bytes,174,opt,name=directory_provider_refresh_timeout,json=directoryProviderRefreshTimeout,proto3,oneof" json:"directory_provider_refresh_timeout,omitempty"`
-	BlobStorage                      *BlobStorageSettings `protobuf:"bytes,179,opt,name=blob_storage,json=blobStorage,proto3,oneof" json:"blob_storage,omitempty"`
+	// Per-attempt timeout for a single directory refresh cycle.
+	DirectoryProviderRefreshTimeout *durationpb.Duration `protobuf:"bytes,174,opt,name=directory_provider_refresh_timeout,json=directoryProviderRefreshTimeout,proto3,oneof" json:"directory_provider_refresh_timeout,omitempty"`
+	// Object-storage backend Pomerium uses for large artifacts (session
+	// recordings, exports). Empty disables blob storage.
+	BlobStorage *BlobStorageSettings `protobuf:"bytes,179,opt,name=blob_storage,json=blobStorage,proto3,oneof" json:"blob_storage,omitempty"`
 	// auto_apply_changesets controls whether or not changesets are automatically
 	// applied or require an adminstrator to apply them. This setting is
 	// currently only used in Pomerium Zero.
@@ -2971,6 +3355,18 @@ type Settings struct {
 	// Tunes the maximum number of worker threads that envoy allocates for session recording
 	// uploading
 	SessionRecordingConcurrency *uint32 `protobuf:"varint,183,opt,name=session_recording_concurrency,json=sessionRecordingConcurrency,proto3,oneof" json:"session_recording_concurrency,omitempty"`
+	// Should paths be normalized according to RFC 3986 before any processing of
+	// requests by HTTP filters or routing? Defaults to true.
+	NormalizePath *bool `protobuf:"varint,184,opt,name=normalize_path,json=normalizePath,proto3,oneof" json:"normalize_path,omitempty"`
+	// Determines if adjacent slashes in the path are merged into one before any
+	// processing of requests by HTTP filters or routing. Defaults to true.
+	MergeSlashes *bool `protobuf:"varint,185,opt,name=merge_slashes,json=mergeSlashes,proto3,oneof" json:"merge_slashes,omitempty"`
+	// Action to take when request URL path contains escaped slash sequences
+	// (%2F, %2f, %5C and %5c). Defaults to rejecting requests.
+	PathWithEscapedSlashesAction *PathWithEscapedSlashesAction `protobuf:"varint,186,opt,name=path_with_escaped_slashes_action,json=pathWithEscapedSlashesAction,proto3,enum=pomerium.config.PathWithEscapedSlashesAction,oneof" json:"path_with_escaped_slashes_action,omitempty"`
+	// Action to take when a client request with a header name containing
+	// underscore characters is received. Defaults to rejecting the request.
+	HeadersWithUnderscoresAction *HeadersWithUnderscoresAction `protobuf:"varint,187,opt,name=headers_with_underscores_action,json=headersWithUnderscoresAction,proto3,enum=pomerium.config.HeadersWithUnderscoresAction,oneof" json:"headers_with_underscores_action,omitempty"`
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.
@@ -3996,6 +4392,34 @@ func (x *Settings) GetSessionRecordingConcurrency() uint32 {
 	return 0
 }
 
+func (x *Settings) GetNormalizePath() bool {
+	if x != nil && x.NormalizePath != nil {
+		return *x.NormalizePath
+	}
+	return false
+}
+
+func (x *Settings) GetMergeSlashes() bool {
+	if x != nil && x.MergeSlashes != nil {
+		return *x.MergeSlashes
+	}
+	return false
+}
+
+func (x *Settings) GetPathWithEscapedSlashesAction() PathWithEscapedSlashesAction {
+	if x != nil && x.PathWithEscapedSlashesAction != nil {
+		return *x.PathWithEscapedSlashesAction
+	}
+	return PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_UNKNOWN
+}
+
+func (x *Settings) GetHeadersWithUnderscoresAction() HeadersWithUnderscoresAction {
+	if x != nil && x.HeadersWithUnderscoresAction != nil {
+		return *x.HeadersWithUnderscoresAction
+	}
+	return HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_UNKNOWN
+}
+
 func (x *Settings) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
@@ -4010,10 +4434,16 @@ func (x *Settings) GetModifiedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// BlobStorageSettings configures the object-storage backend Pomerium uses
+// for large artifacts such as session recordings.
 type BlobStorageSettings struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BucketUri     *string                `protobuf:"bytes,1,opt,name=bucket_uri,json=bucketUri,proto3,oneof" json:"bucket_uri,omitempty"`
-	ManagedPrefix *string                `protobuf:"bytes,2,opt,name=managed_prefix,json=managedPrefix,proto3,oneof" json:"managed_prefix,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// URI of the object-storage bucket (e.g. "s3://my-bucket",
+	// "gs://my-bucket"). Empty disables blob storage.
+	BucketUri *string `protobuf:"bytes,1,opt,name=bucket_uri,json=bucketUri,proto3,oneof" json:"bucket_uri,omitempty"`
+	// Optional path prefix within the bucket where Pomerium stores managed
+	// objects, isolating them from other tenants of the same bucket.
+	ManagedPrefix *string `protobuf:"bytes,2,opt,name=managed_prefix,json=managedPrefix,proto3,oneof" json:"managed_prefix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4062,16 +4492,29 @@ func (x *BlobStorageSettings) GetManagedPrefix() string {
 	return ""
 }
 
+// DownstreamMtlsSettings controls how Pomerium validates client certificates
+// presented by downstream (end-user) connections.
 type DownstreamMtlsSettings struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Ca                   *string                `protobuf:"bytes,1,opt,name=ca,proto3,oneof" json:"ca,omitempty"`
-	Crl                  *string                `protobuf:"bytes,2,opt,name=crl,proto3,oneof" json:"crl,omitempty"`
-	Enforcement          *MtlsEnforcementMode   `protobuf:"varint,3,opt,name=enforcement,proto3,enum=pomerium.config.MtlsEnforcementMode,oneof" json:"enforcement,omitempty"`
-	MatchSubjectAltNames []*SANMatcher          `protobuf:"bytes,4,rep,name=match_subject_alt_names,json=matchSubjectAltNames,proto3" json:"match_subject_alt_names,omitempty"`
-	MaxVerifyDepth       *uint32                `protobuf:"varint,5,opt,name=max_verify_depth,json=maxVerifyDepth,proto3,oneof" json:"max_verify_depth,omitempty"`
-	CaKeyPairId          *string                `protobuf:"bytes,6,opt,name=ca_key_pair_id,json=caKeyPairId,proto3,oneof" json:"ca_key_pair_id,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// PEM-encoded certificate authority bundle used to verify client
+	// certificates.
+	Ca *string `protobuf:"bytes,1,opt,name=ca,proto3,oneof" json:"ca,omitempty"`
+	// PEM-encoded certificate revocation list checked against client
+	// certificates.
+	Crl *string `protobuf:"bytes,2,opt,name=crl,proto3,oneof" json:"crl,omitempty"`
+	// How aggressively client certificate requirements are enforced.
+	Enforcement *MtlsEnforcementMode `protobuf:"varint,3,opt,name=enforcement,proto3,enum=pomerium.config.MtlsEnforcementMode,oneof" json:"enforcement,omitempty"`
+	// Patterns the certificate Subject Alternative Names must satisfy for the
+	// connection to be allowed.
+	MatchSubjectAltNames []*SANMatcher `protobuf:"bytes,4,rep,name=match_subject_alt_names,json=matchSubjectAltNames,proto3" json:"match_subject_alt_names,omitempty"`
+	// Maximum depth of the verification chain accepted from clients. Zero
+	// means use Envoy's default.
+	MaxVerifyDepth *uint32 `protobuf:"varint,5,opt,name=max_verify_depth,json=maxVerifyDepth,proto3,oneof" json:"max_verify_depth,omitempty"`
+	// ID of a managed key pair whose certificate is used as the client CA,
+	// as an alternative to the inline `ca` value.
+	CaKeyPairId   *string `protobuf:"bytes,6,opt,name=ca_key_pair_id,json=caKeyPairId,proto3,oneof" json:"ca_key_pair_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DownstreamMtlsSettings) Reset() {
@@ -4146,10 +4589,14 @@ func (x *DownstreamMtlsSettings) GetCaKeyPairId() string {
 	return ""
 }
 
+// SANMatcher describes a constraint against one Subject Alternative Name
+// entry in a client certificate.
 type SANMatcher struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SanType       SANMatcher_SANType     `protobuf:"varint,1,opt,name=san_type,json=sanType,proto3,enum=pomerium.config.SANMatcher_SANType" json:"san_type,omitempty"`
-	Pattern       string                 `protobuf:"bytes,2,opt,name=pattern,proto3" json:"pattern,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Which SAN entry type this pattern applies to.
+	SanType SANMatcher_SANType `protobuf:"varint,1,opt,name=san_type,json=sanType,proto3,enum=pomerium.config.SANMatcher_SANType" json:"san_type,omitempty"`
+	// Regular expression the SAN value must fully match.
+	Pattern       string `protobuf:"bytes,2,opt,name=pattern,proto3" json:"pattern,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4211,7 +4658,7 @@ type KeyPair struct {
 	Name *string `protobuf:"bytes,4,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	// The key pair certificate raw bytes.
 	Certificate []byte `protobuf:"bytes,5,opt,name=certificate,proto3,oneof" json:"certificate,omitempty"`
-	// THe key pair private key raw bytes.
+	// The key pair private key raw bytes.
 	Key []byte `protobuf:"bytes,6,opt,name=key,proto3,oneof" json:"key,omitempty"`
 	// When the key pair was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -4335,21 +4782,33 @@ func (x *KeyPair) GetCertificateInfo() []*CertificateInfo {
 }
 
 // KeyUsage specifies the usage flags set on a signed TLS certificate.
+// Each field maps to one bit of the X.509 KeyUsage / ExtKeyUsage extensions.
 type KeyUsage struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	DigitalSignature  bool                   `protobuf:"varint,1,opt,name=digital_signature,json=digitalSignature,proto3" json:"digital_signature,omitempty"`
-	ContentCommitment bool                   `protobuf:"varint,2,opt,name=content_commitment,json=contentCommitment,proto3" json:"content_commitment,omitempty"`
-	KeyEncipherment   bool                   `protobuf:"varint,3,opt,name=key_encipherment,json=keyEncipherment,proto3" json:"key_encipherment,omitempty"`
-	DataEncipherment  bool                   `protobuf:"varint,4,opt,name=data_encipherment,json=dataEncipherment,proto3" json:"data_encipherment,omitempty"`
-	KeyAgreement      bool                   `protobuf:"varint,5,opt,name=key_agreement,json=keyAgreement,proto3" json:"key_agreement,omitempty"`
-	CertSign          bool                   `protobuf:"varint,6,opt,name=cert_sign,json=certSign,proto3" json:"cert_sign,omitempty"`
-	CrlSign           bool                   `protobuf:"varint,7,opt,name=crl_sign,json=crlSign,proto3" json:"crl_sign,omitempty"`
-	EncipherOnly      bool                   `protobuf:"varint,8,opt,name=encipher_only,json=encipherOnly,proto3" json:"encipher_only,omitempty"`
-	DecipherOnly      bool                   `protobuf:"varint,9,opt,name=decipher_only,json=decipherOnly,proto3" json:"decipher_only,omitempty"`
-	ServerAuth        bool                   `protobuf:"varint,10,opt,name=server_auth,json=serverAuth,proto3" json:"server_auth,omitempty"`
-	ClientAuth        bool                   `protobuf:"varint,11,opt,name=client_auth,json=clientAuth,proto3" json:"client_auth,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Certificate authorizes verifying digital signatures.
+	DigitalSignature bool `protobuf:"varint,1,opt,name=digital_signature,json=digitalSignature,proto3" json:"digital_signature,omitempty"`
+	// Certificate authorizes non-repudiation of signed data.
+	ContentCommitment bool `protobuf:"varint,2,opt,name=content_commitment,json=contentCommitment,proto3" json:"content_commitment,omitempty"`
+	// Certificate authorizes key transport (encryption of session keys).
+	KeyEncipherment bool `protobuf:"varint,3,opt,name=key_encipherment,json=keyEncipherment,proto3" json:"key_encipherment,omitempty"`
+	// Certificate authorizes direct encryption of arbitrary data.
+	DataEncipherment bool `protobuf:"varint,4,opt,name=data_encipherment,json=dataEncipherment,proto3" json:"data_encipherment,omitempty"`
+	// Certificate authorizes Diffie-Hellman style key agreement.
+	KeyAgreement bool `protobuf:"varint,5,opt,name=key_agreement,json=keyAgreement,proto3" json:"key_agreement,omitempty"`
+	// Certificate authorizes signing other certificates (CA).
+	CertSign bool `protobuf:"varint,6,opt,name=cert_sign,json=certSign,proto3" json:"cert_sign,omitempty"`
+	// Certificate authorizes signing certificate revocation lists.
+	CrlSign bool `protobuf:"varint,7,opt,name=crl_sign,json=crlSign,proto3" json:"crl_sign,omitempty"`
+	// With key_agreement, restricts use to encipherment only.
+	EncipherOnly bool `protobuf:"varint,8,opt,name=encipher_only,json=encipherOnly,proto3" json:"encipher_only,omitempty"`
+	// With key_agreement, restricts use to decipherment only.
+	DecipherOnly bool `protobuf:"varint,9,opt,name=decipher_only,json=decipherOnly,proto3" json:"decipher_only,omitempty"`
+	// Extended usage: server authentication (TLS server certificates).
+	ServerAuth bool `protobuf:"varint,10,opt,name=server_auth,json=serverAuth,proto3" json:"server_auth,omitempty"`
+	// Extended usage: client authentication (TLS client certificates).
+	ClientAuth    bool `protobuf:"varint,11,opt,name=client_auth,json=clientAuth,proto3" json:"client_auth,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *KeyUsage) Reset() {
@@ -4459,20 +4918,30 @@ func (x *KeyUsage) GetClientAuth() bool {
 	return false
 }
 
-// Name defines the x509 identity
+// Name defines an X.509 distinguished name (RFC 5280 §4.1.2.4). Multi-valued
+// attributes are returned in DER order.
 type Name struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Country            []string               `protobuf:"bytes,1,rep,name=country,proto3" json:"country,omitempty"`
-	Organization       []string               `protobuf:"bytes,2,rep,name=organization,proto3" json:"organization,omitempty"`
-	OrganizationalUnit []string               `protobuf:"bytes,3,rep,name=organizational_unit,json=organizationalUnit,proto3" json:"organizational_unit,omitempty"`
-	Locality           []string               `protobuf:"bytes,4,rep,name=locality,proto3" json:"locality,omitempty"`
-	Province           []string               `protobuf:"bytes,5,rep,name=province,proto3" json:"province,omitempty"`
-	StreetAddress      []string               `protobuf:"bytes,6,rep,name=street_address,json=streetAddress,proto3" json:"street_address,omitempty"`
-	PostalCode         []string               `protobuf:"bytes,7,rep,name=postal_code,json=postalCode,proto3" json:"postal_code,omitempty"`
-	SerialNumber       string                 `protobuf:"bytes,8,opt,name=serial_number,json=serialNumber,proto3" json:"serial_number,omitempty"`
-	CommonName         string                 `protobuf:"bytes,9,opt,name=common_name,json=commonName,proto3" json:"common_name,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Two-letter ISO country codes from the C= relative distinguished name.
+	Country []string `protobuf:"bytes,1,rep,name=country,proto3" json:"country,omitempty"`
+	// Organization (O=) entries.
+	Organization []string `protobuf:"bytes,2,rep,name=organization,proto3" json:"organization,omitempty"`
+	// Organizational unit (OU=) entries.
+	OrganizationalUnit []string `protobuf:"bytes,3,rep,name=organizational_unit,json=organizationalUnit,proto3" json:"organizational_unit,omitempty"`
+	// Locality (L=) entries — typically a city.
+	Locality []string `protobuf:"bytes,4,rep,name=locality,proto3" json:"locality,omitempty"`
+	// State or province (ST=) entries.
+	Province []string `protobuf:"bytes,5,rep,name=province,proto3" json:"province,omitempty"`
+	// Street address (STREET=) entries.
+	StreetAddress []string `protobuf:"bytes,6,rep,name=street_address,json=streetAddress,proto3" json:"street_address,omitempty"`
+	// Postal code (postalCode=) entries.
+	PostalCode []string `protobuf:"bytes,7,rep,name=postal_code,json=postalCode,proto3" json:"postal_code,omitempty"`
+	// X.509 serialNumber attribute of the name (not the certificate serial).
+	SerialNumber string `protobuf:"bytes,8,opt,name=serial_number,json=serialNumber,proto3" json:"serial_number,omitempty"`
+	// Common name (CN=).
+	CommonName    string `protobuf:"bytes,9,opt,name=common_name,json=commonName,proto3" json:"common_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Name) Reset() {
@@ -4571,29 +5040,53 @@ func (x *Name) GetCommonName() string {
 // CertificateInfo is a .proto reflection of
 // https://golang.org/pkg/crypto/x509/#Certificate
 type CertificateInfo struct {
-	state                       protoimpl.MessageState `protogen:"open.v1"`
-	Version                     int64                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
-	Serial                      string                 `protobuf:"bytes,2,opt,name=serial,proto3" json:"serial,omitempty"`
-	Issuer                      *Name                  `protobuf:"bytes,3,opt,name=issuer,proto3" json:"issuer,omitempty"`
-	Subject                     *Name                  `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
-	NotBefore                   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=not_before,json=notBefore,proto3" json:"not_before,omitempty"`
-	NotAfter                    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=not_after,json=notAfter,proto3" json:"not_after,omitempty"`
-	KeyUsage                    *KeyUsage              `protobuf:"bytes,7,opt,name=key_usage,json=keyUsage,proto3" json:"key_usage,omitempty"`
-	DnsNames                    []string               `protobuf:"bytes,10,rep,name=dns_names,json=dnsNames,proto3" json:"dns_names,omitempty"`
-	EmailAddresses              []string               `protobuf:"bytes,11,rep,name=email_addresses,json=emailAddresses,proto3" json:"email_addresses,omitempty"`
-	IpAddresses                 []string               `protobuf:"bytes,12,rep,name=ip_addresses,json=ipAddresses,proto3" json:"ip_addresses,omitempty"`
-	Uris                        []string               `protobuf:"bytes,13,rep,name=uris,proto3" json:"uris,omitempty"`
-	PermittedDnsDomainsCritical bool                   `protobuf:"varint,14,opt,name=permitted_dns_domains_critical,json=permittedDnsDomainsCritical,proto3" json:"permitted_dns_domains_critical,omitempty"`
-	PermittedDnsDomains         []string               `protobuf:"bytes,15,rep,name=permitted_dns_domains,json=permittedDnsDomains,proto3" json:"permitted_dns_domains,omitempty"`
-	ExcludedDnsDomains          []string               `protobuf:"bytes,16,rep,name=excluded_dns_domains,json=excludedDnsDomains,proto3" json:"excluded_dns_domains,omitempty"`
-	PermittedIpRanges           []string               `protobuf:"bytes,17,rep,name=permitted_ip_ranges,json=permittedIpRanges,proto3" json:"permitted_ip_ranges,omitempty"`
-	ExcludedIpRanges            []string               `protobuf:"bytes,18,rep,name=excluded_ip_ranges,json=excludedIpRanges,proto3" json:"excluded_ip_ranges,omitempty"`
-	PermittedEmailAddresses     []string               `protobuf:"bytes,19,rep,name=permitted_email_addresses,json=permittedEmailAddresses,proto3" json:"permitted_email_addresses,omitempty"`
-	ExcludedEmailAddresses      []string               `protobuf:"bytes,20,rep,name=excluded_email_addresses,json=excludedEmailAddresses,proto3" json:"excluded_email_addresses,omitempty"`
-	PermittedUriDomains         []string               `protobuf:"bytes,21,rep,name=permitted_uri_domains,json=permittedUriDomains,proto3" json:"permitted_uri_domains,omitempty"`
-	ExcludedUriDomains          []string               `protobuf:"bytes,22,rep,name=excluded_uri_domains,json=excludedUriDomains,proto3" json:"excluded_uri_domains,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// X.509 certificate format version (3 for modern certificates).
+	Version int64 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	// Certificate serial number, formatted as a decimal integer string.
+	Serial string `protobuf:"bytes,2,opt,name=serial,proto3" json:"serial,omitempty"`
+	// Issuer distinguished name (the CA that signed this certificate).
+	Issuer *Name `protobuf:"bytes,3,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	// Subject distinguished name (the identity the certificate vouches for).
+	Subject *Name `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	// First instant the certificate is valid.
+	NotBefore *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=not_before,json=notBefore,proto3" json:"not_before,omitempty"`
+	// First instant the certificate is no longer valid.
+	NotAfter *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=not_after,json=notAfter,proto3" json:"not_after,omitempty"`
+	// Decoded KeyUsage and ExtKeyUsage extensions on the certificate.
+	KeyUsage *KeyUsage `protobuf:"bytes,7,opt,name=key_usage,json=keyUsage,proto3" json:"key_usage,omitempty"`
+	// DNS names in the Subject Alternative Name extension.
+	DnsNames []string `protobuf:"bytes,10,rep,name=dns_names,json=dnsNames,proto3" json:"dns_names,omitempty"`
+	// Email addresses in the Subject Alternative Name extension.
+	EmailAddresses []string `protobuf:"bytes,11,rep,name=email_addresses,json=emailAddresses,proto3" json:"email_addresses,omitempty"`
+	// IP addresses in the Subject Alternative Name extension, formatted as
+	// strings (IPv4 dotted-decimal or IPv6 colon-hex).
+	IpAddresses []string `protobuf:"bytes,12,rep,name=ip_addresses,json=ipAddresses,proto3" json:"ip_addresses,omitempty"`
+	// URIs in the Subject Alternative Name extension.
+	Uris []string `protobuf:"bytes,13,rep,name=uris,proto3" json:"uris,omitempty"`
+	// When true the permitted/excluded DNS-domain name-constraints are marked
+	// critical and clients must understand them or reject the certificate.
+	PermittedDnsDomainsCritical bool `protobuf:"varint,14,opt,name=permitted_dns_domains_critical,json=permittedDnsDomainsCritical,proto3" json:"permitted_dns_domains_critical,omitempty"`
+	// Name constraints: DNS domains the certificate is permitted to assert.
+	PermittedDnsDomains []string `protobuf:"bytes,15,rep,name=permitted_dns_domains,json=permittedDnsDomains,proto3" json:"permitted_dns_domains,omitempty"`
+	// Name constraints: DNS domains the certificate must not assert.
+	ExcludedDnsDomains []string `protobuf:"bytes,16,rep,name=excluded_dns_domains,json=excludedDnsDomains,proto3" json:"excluded_dns_domains,omitempty"`
+	// Name constraints: IP-range CIDRs the certificate is permitted to assert.
+	PermittedIpRanges []string `protobuf:"bytes,17,rep,name=permitted_ip_ranges,json=permittedIpRanges,proto3" json:"permitted_ip_ranges,omitempty"`
+	// Name constraints: IP-range CIDRs the certificate must not assert.
+	ExcludedIpRanges []string `protobuf:"bytes,18,rep,name=excluded_ip_ranges,json=excludedIpRanges,proto3" json:"excluded_ip_ranges,omitempty"`
+	// Name constraints: email addresses (or domains) the certificate is
+	// permitted to assert.
+	PermittedEmailAddresses []string `protobuf:"bytes,19,rep,name=permitted_email_addresses,json=permittedEmailAddresses,proto3" json:"permitted_email_addresses,omitempty"`
+	// Name constraints: email addresses (or domains) the certificate must not
+	// assert.
+	ExcludedEmailAddresses []string `protobuf:"bytes,20,rep,name=excluded_email_addresses,json=excludedEmailAddresses,proto3" json:"excluded_email_addresses,omitempty"`
+	// Name constraints: URI domains the certificate is permitted to assert.
+	PermittedUriDomains []string `protobuf:"bytes,21,rep,name=permitted_uri_domains,json=permittedUriDomains,proto3" json:"permitted_uri_domains,omitempty"`
+	// Name constraints: URI domains the certificate must not assert.
+	ExcludedUriDomains []string `protobuf:"bytes,22,rep,name=excluded_uri_domains,json=excludedUriDomains,proto3" json:"excluded_uri_domains,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CertificateInfo) Reset() {
@@ -4885,8 +5378,9 @@ func (x *ServiceAccount) GetAccessedAt() *timestamppb.Timestamp {
 }
 
 type CreateKeyPairRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeyPair       *KeyPair               `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The key pair to create.
+	KeyPair       *KeyPair `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4929,8 +5423,9 @@ func (x *CreateKeyPairRequest) GetKeyPair() *KeyPair {
 }
 
 type CreateKeyPairResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeyPair       *KeyPair               `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The newly created key pair, including any server-assigned fields.
+	KeyPair       *KeyPair `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4973,8 +5468,9 @@ func (x *CreateKeyPairResponse) GetKeyPair() *KeyPair {
 }
 
 type CreatePolicyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Policy        *Policy                `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The policy to create.
+	Policy        *Policy `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5017,8 +5513,9 @@ func (x *CreatePolicyRequest) GetPolicy() *Policy {
 }
 
 type CreatePolicyResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Policy        *Policy                `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The newly created policy, including any server-assigned fields.
+	Policy        *Policy `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5061,8 +5558,9 @@ func (x *CreatePolicyResponse) GetPolicy() *Policy {
 }
 
 type CreateRouteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Route         *Route                 `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The route to create.
+	Route         *Route `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5105,8 +5603,9 @@ func (x *CreateRouteRequest) GetRoute() *Route {
 }
 
 type CreateRouteResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Route         *Route                 `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The newly created route, including any server-assigned fields.
+	Route         *Route `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5149,8 +5648,9 @@ func (x *CreateRouteResponse) GetRoute() *Route {
 }
 
 type CreateServiceAccountRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ServiceAccount *ServiceAccount        `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The service account to create.
+	ServiceAccount *ServiceAccount `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -5193,11 +5693,14 @@ func (x *CreateServiceAccountRequest) GetServiceAccount() *ServiceAccount {
 }
 
 type CreateServiceAccountResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ServiceAccount *ServiceAccount        `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
-	Jwt            string                 `protobuf:"bytes,2,opt,name=jwt,proto3" json:"jwt,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The newly created service account, including any server-assigned fields.
+	ServiceAccount *ServiceAccount `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
+	// A signed JWT credential the holder uses to authenticate as the new
+	// service account. Issued only at creation time and never returned again.
+	Jwt           string `protobuf:"bytes,2,opt,name=jwt,proto3" json:"jwt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateServiceAccountResponse) Reset() {
@@ -5245,8 +5748,9 @@ func (x *CreateServiceAccountResponse) GetJwt() string {
 }
 
 type DeleteKeyPairRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the key pair to delete.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5325,8 +5829,9 @@ func (*DeleteKeyPairResponse) Descriptor() ([]byte, []int) {
 }
 
 type DeletePolicyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the policy to delete.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5405,8 +5910,9 @@ func (*DeletePolicyResponse) Descriptor() ([]byte, []int) {
 }
 
 type DeleteRouteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the route to delete.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5485,8 +5991,9 @@ func (*DeleteRouteResponse) Descriptor() ([]byte, []int) {
 }
 
 type DeleteServiceAccountRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the service account to delete.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5565,8 +6072,9 @@ func (*DeleteServiceAccountResponse) Descriptor() ([]byte, []int) {
 }
 
 type GetKeyPairRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the key pair to fetch.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5609,8 +6117,9 @@ func (x *GetKeyPairRequest) GetId() string {
 }
 
 type GetKeyPairResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeyPair       *KeyPair               `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The requested key pair. Sensitive fields are stripped before return.
+	KeyPair       *KeyPair `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5653,8 +6162,9 @@ func (x *GetKeyPairResponse) GetKeyPair() *KeyPair {
 }
 
 type GetPolicyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the policy to fetch.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5697,8 +6207,9 @@ func (x *GetPolicyRequest) GetId() string {
 }
 
 type GetPolicyResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Policy        *Policy                `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The requested policy.
+	Policy        *Policy `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5741,8 +6252,9 @@ func (x *GetPolicyResponse) GetPolicy() *Policy {
 }
 
 type GetRouteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the route to fetch.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5785,8 +6297,9 @@ func (x *GetRouteRequest) GetId() string {
 }
 
 type GetRouteResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Route         *Route                 `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The requested route. Sensitive fields are stripped before return.
+	Route         *Route `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5829,8 +6342,9 @@ func (x *GetRouteResponse) GetRoute() *Route {
 }
 
 type GetServiceAccountRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the service account to fetch.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5873,8 +6387,9 @@ func (x *GetServiceAccountRequest) GetId() string {
 }
 
 type GetServiceAccountResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ServiceAccount *ServiceAccount        `protobuf:"bytes,2,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The requested service account.
+	ServiceAccount *ServiceAccount `protobuf:"bytes,2,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -5987,10 +6502,12 @@ type isGetSettingsRequest_For interface {
 }
 
 type GetSettingsRequest_Id struct {
+	// ID of the Settings record to fetch.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3,oneof"`
 }
 
 type GetSettingsRequest_ClusterId struct {
+	// Cluster ID whose Settings record should be returned.
 	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3,oneof"`
 }
 
@@ -5999,8 +6516,10 @@ func (*GetSettingsRequest_Id) isGetSettingsRequest_For() {}
 func (*GetSettingsRequest_ClusterId) isGetSettingsRequest_For() {}
 
 type GetSettingsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Settings      *Settings              `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The requested Settings record. Sensitive fields are stripped before
+	// return.
+	Settings      *Settings `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6079,13 +6598,20 @@ func (*ListAvailableLogFieldsRequest) Descriptor() ([]byte, []int) {
 }
 
 type ListAvailableLogFieldsResponse struct {
-	state                       protoimpl.MessageState `protogen:"open.v1"`
-	AvailableAccessLogFields    []string               `protobuf:"bytes,1,rep,name=available_access_log_fields,json=availableAccessLogFields,proto3" json:"available_access_log_fields,omitempty"`
-	AvailableAuthorizeLogFields []string               `protobuf:"bytes,2,rep,name=available_authorize_log_fields,json=availableAuthorizeLogFields,proto3" json:"available_authorize_log_fields,omitempty"`
-	DefaultAccessLogFields      []string               `protobuf:"bytes,3,rep,name=default_access_log_fields,json=defaultAccessLogFields,proto3" json:"default_access_log_fields,omitempty"`
-	DefaultAuthorizeLogFields   []string               `protobuf:"bytes,4,rep,name=default_authorize_log_fields,json=defaultAuthorizeLogFields,proto3" json:"default_authorize_log_fields,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// All access-log field names that may appear in `Settings.access_log_fields`.
+	AvailableAccessLogFields []string `protobuf:"bytes,1,rep,name=available_access_log_fields,json=availableAccessLogFields,proto3" json:"available_access_log_fields,omitempty"`
+	// All authorize-log field names that may appear in
+	// `Settings.authorize_log_fields`.
+	AvailableAuthorizeLogFields []string `protobuf:"bytes,2,rep,name=available_authorize_log_fields,json=availableAuthorizeLogFields,proto3" json:"available_authorize_log_fields,omitempty"`
+	// The default access-log field set Pomerium uses when
+	// `Settings.access_log_fields` is unset.
+	DefaultAccessLogFields []string `protobuf:"bytes,3,rep,name=default_access_log_fields,json=defaultAccessLogFields,proto3" json:"default_access_log_fields,omitempty"`
+	// The default authorize-log field set Pomerium uses when
+	// `Settings.authorize_log_fields` is unset.
+	DefaultAuthorizeLogFields []string `protobuf:"bytes,4,rep,name=default_authorize_log_fields,json=defaultAuthorizeLogFields,proto3" json:"default_authorize_log_fields,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *ListAvailableLogFieldsResponse) Reset() {
@@ -6147,11 +6673,19 @@ func (x *ListAvailableLogFieldsResponse) GetDefaultAuthorizeLogFields() []string
 }
 
 type ListKeyPairsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Offset        *uint64                `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
-	Limit         *uint64                `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	Filter        *structpb.Struct       `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
-	OrderBy       *string                `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zero-based index of the first record to return; combine with `limit` to
+	// page through results.
+	Offset *uint64 `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
+	// Maximum number of records to return in this page. The server clamps
+	// very large values; callers should not depend on the exact ceiling.
+	Limit *uint64 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	// Optional structured filter expression. The accepted shape is
+	// service-specific; see the Pomerium console for examples.
+	Filter *structpb.Struct `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
+	// Sort expression, e.g. "modified_at desc". Empty for service default
+	// ordering.
+	OrderBy       *string `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6215,9 +6749,12 @@ func (x *ListKeyPairsRequest) GetOrderBy() string {
 }
 
 type ListKeyPairsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeyPairs      []*KeyPair             `protobuf:"bytes,1,rep,name=key_pairs,json=keyPairs,proto3" json:"key_pairs,omitempty"`
-	TotalCount    uint64                 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Page of key pairs matching the request.
+	KeyPairs []*KeyPair `protobuf:"bytes,1,rep,name=key_pairs,json=keyPairs,proto3" json:"key_pairs,omitempty"`
+	// Total number of key pairs that match the request across all pages,
+	// independent of `limit`/`offset`.
+	TotalCount    uint64 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6267,11 +6804,15 @@ func (x *ListKeyPairsResponse) GetTotalCount() uint64 {
 }
 
 type ListPoliciesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Offset        *uint64                `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
-	Limit         *uint64                `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	Filter        *structpb.Struct       `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
-	OrderBy       *string                `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zero-based index of the first record to return.
+	Offset *uint64 `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
+	// Maximum number of records to return in this page.
+	Limit *uint64 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	// Optional structured filter expression.
+	Filter *structpb.Struct `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
+	// Sort expression, e.g. "name asc".
+	OrderBy       *string `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6335,9 +6876,11 @@ func (x *ListPoliciesRequest) GetOrderBy() string {
 }
 
 type ListPoliciesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Policies      []*Policy              `protobuf:"bytes,1,rep,name=policies,proto3" json:"policies,omitempty"`
-	TotalCount    uint64                 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Page of policies matching the request.
+	Policies []*Policy `protobuf:"bytes,1,rep,name=policies,proto3" json:"policies,omitempty"`
+	// Total number of policies matching the request across all pages.
+	TotalCount    uint64 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6387,11 +6930,15 @@ func (x *ListPoliciesResponse) GetTotalCount() uint64 {
 }
 
 type ListRoutesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Offset        *uint64                `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
-	Limit         *uint64                `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	Filter        *structpb.Struct       `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
-	OrderBy       *string                `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zero-based index of the first record to return.
+	Offset *uint64 `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
+	// Maximum number of records to return in this page.
+	Limit *uint64 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	// Optional structured filter expression.
+	Filter *structpb.Struct `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
+	// Sort expression, e.g. "name asc".
+	OrderBy       *string `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6455,9 +7002,11 @@ func (x *ListRoutesRequest) GetOrderBy() string {
 }
 
 type ListRoutesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Routes        []*Route               `protobuf:"bytes,1,rep,name=routes,proto3" json:"routes,omitempty"`
-	TotalCount    uint64                 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Page of routes matching the request.
+	Routes []*Route `protobuf:"bytes,1,rep,name=routes,proto3" json:"routes,omitempty"`
+	// Total number of routes matching the request across all pages.
+	TotalCount    uint64 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6507,11 +7056,15 @@ func (x *ListRoutesResponse) GetTotalCount() uint64 {
 }
 
 type ListServiceAccountsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Offset        *uint64                `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
-	Limit         *uint64                `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	Filter        *structpb.Struct       `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
-	OrderBy       *string                `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zero-based index of the first record to return.
+	Offset *uint64 `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
+	// Maximum number of records to return in this page.
+	Limit *uint64 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	// Optional structured filter expression.
+	Filter *structpb.Struct `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
+	// Sort expression, e.g. "name asc".
+	OrderBy       *string `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6575,11 +7128,13 @@ func (x *ListServiceAccountsRequest) GetOrderBy() string {
 }
 
 type ListServiceAccountsResponse struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	ServiceAccounts []*ServiceAccount      `protobuf:"bytes,1,rep,name=service_accounts,json=serviceAccounts,proto3" json:"service_accounts,omitempty"`
-	TotalCount      uint64                 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Page of service accounts matching the request.
+	ServiceAccounts []*ServiceAccount `protobuf:"bytes,1,rep,name=service_accounts,json=serviceAccounts,proto3" json:"service_accounts,omitempty"`
+	// Total number of service accounts matching the request across all pages.
+	TotalCount    uint64 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListServiceAccountsResponse) Reset() {
@@ -6627,11 +7182,15 @@ func (x *ListServiceAccountsResponse) GetTotalCount() uint64 {
 }
 
 type ListSettingsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Offset        *uint64                `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
-	Limit         *uint64                `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	Filter        *structpb.Struct       `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
-	OrderBy       *string                `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zero-based index of the first record to return.
+	Offset *uint64 `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
+	// Maximum number of records to return in this page.
+	Limit *uint64 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	// Optional structured filter expression.
+	Filter *structpb.Struct `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
+	// Sort expression.
+	OrderBy       *string `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6695,9 +7254,11 @@ func (x *ListSettingsRequest) GetOrderBy() string {
 }
 
 type ListSettingsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Settings      []*Settings            `protobuf:"bytes,1,rep,name=settings,proto3" json:"settings,omitempty"`
-	TotalCount    uint64                 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Page of Settings records matching the request.
+	Settings []*Settings `protobuf:"bytes,1,rep,name=settings,proto3" json:"settings,omitempty"`
+	// Total number of Settings records matching the request across all pages.
+	TotalCount    uint64 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6783,9 +7344,11 @@ func (*GetServerInfoRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetServerInfoResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ServerType    ServerType             `protobuf:"varint,1,opt,name=server_type,json=serverType,proto3,enum=pomerium.config.ServerType" json:"server_type,omitempty"`
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Which Pomerium build is serving this request (core, enterprise, zero).
+	ServerType ServerType `protobuf:"varint,1,opt,name=server_type,json=serverType,proto3,enum=pomerium.config.ServerType" json:"server_type,omitempty"`
+	// The semantic version string of the running Pomerium binary.
+	Version       string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6835,8 +7398,12 @@ func (x *GetServerInfoResponse) GetVersion() string {
 }
 
 type UpdateKeyPairRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeyPair       *KeyPair               `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updated key pair. The KeyPair's `id` selects which record to update; any
+	// sensitive fields not present are preserved from the existing record.
+	KeyPair *KeyPair `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6878,9 +7445,17 @@ func (x *UpdateKeyPairRequest) GetKeyPair() *KeyPair {
 	return nil
 }
 
+func (x *UpdateKeyPairRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
+}
+
 type UpdateKeyPairResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeyPair       *KeyPair               `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The updated key pair, including any server-modified fields.
+	KeyPair       *KeyPair `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6923,8 +7498,11 @@ func (x *UpdateKeyPairResponse) GetKeyPair() *KeyPair {
 }
 
 type UpdatePolicyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Policy        *Policy                `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updated policy. The Policy's `id` selects which record to update.
+	Policy *Policy `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6966,9 +7544,17 @@ func (x *UpdatePolicyRequest) GetPolicy() *Policy {
 	return nil
 }
 
+func (x *UpdatePolicyRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
+}
+
 type UpdatePolicyResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Policy        *Policy                `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The updated policy, including any server-modified fields.
+	Policy        *Policy `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7011,8 +7597,12 @@ func (x *UpdatePolicyResponse) GetPolicy() *Policy {
 }
 
 type UpdateRouteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Route         *Route                 `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updated route. The Route's `id` selects which record to update; any
+	// sensitive fields not present are preserved from the existing record.
+	Route *Route `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7054,9 +7644,17 @@ func (x *UpdateRouteRequest) GetRoute() *Route {
 	return nil
 }
 
+func (x *UpdateRouteRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
+}
+
 type UpdateRouteResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Route         *Route                 `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The updated route, including any server-modified fields.
+	Route         *Route `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7099,10 +7697,14 @@ func (x *UpdateRouteResponse) GetRoute() *Route {
 }
 
 type UpdateServiceAccountRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ServiceAccount *ServiceAccount        `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updated service account. The ServiceAccount's `id` selects which record
+	// to update.
+	ServiceAccount *ServiceAccount `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateServiceAccountRequest) Reset() {
@@ -7138,6 +7740,13 @@ func (*UpdateServiceAccountRequest) Descriptor() ([]byte, []int) {
 func (x *UpdateServiceAccountRequest) GetServiceAccount() *ServiceAccount {
 	if x != nil {
 		return x.ServiceAccount
+	}
+	return nil
+}
+
+func (x *UpdateServiceAccountRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
 	}
 	return nil
 }
@@ -7197,8 +7806,13 @@ func (x *UpdateServiceAccountResponse) GetJwt() string {
 }
 
 type UpdateSettingsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Settings      *Settings              `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updated Settings record. The Settings `id` selects which record to
+	// update; sensitive fields not present in the request are preserved from
+	// the existing record.
+	Settings *Settings `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7240,9 +7854,17 @@ func (x *UpdateSettingsRequest) GetSettings() *Settings {
 	return nil
 }
 
+func (x *UpdateSettingsRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
+}
+
 type UpdateSettingsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Settings      *Settings              `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The updated Settings record, including any server-modified fields.
+	Settings      *Settings `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8004,9 +8626,12 @@ func (x *VersionedConfig_Condition) GetLessThan() string {
 	return ""
 }
 
+// Wrapper for a list of strings, used so map-valued fields can hold
+// repeated string values.
 type Route_StringList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Values        []string               `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The string values held by this list.
+	Values        []string `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8048,11 +8673,17 @@ func (x *Route_StringList) GetValues() []string {
 	return nil
 }
 
+// An inline TLS certificate/key pair Pomerium serves for matching SNI
+// hostnames.
 type Settings_Certificate struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CertBytes     []byte                 `protobuf:"bytes,3,opt,name=cert_bytes,json=certBytes,proto3" json:"cert_bytes,omitempty"`
-	KeyBytes      []byte                 `protobuf:"bytes,4,opt,name=key_bytes,json=keyBytes,proto3" json:"key_bytes,omitempty"`
-	Id            string                 `protobuf:"bytes,5,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// PEM-encoded certificate chain.
+	CertBytes []byte `protobuf:"bytes,3,opt,name=cert_bytes,json=certBytes,proto3" json:"cert_bytes,omitempty"`
+	// PEM-encoded private key matching `cert_bytes`.
+	KeyBytes []byte `protobuf:"bytes,4,opt,name=key_bytes,json=keyBytes,proto3" json:"key_bytes,omitempty"`
+	// Optional identifier for the certificate, used to refer to it from
+	// other parts of the configuration.
+	Id            string `protobuf:"bytes,5,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8108,11 +8739,16 @@ func (x *Settings_Certificate) GetId() string {
 	return ""
 }
 
+// One peer in a Pomerium databroker Raft cluster.
 type Settings_DataBrokerClusterNode struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	GrpcAddress   string                 `protobuf:"bytes,2,opt,name=grpc_address,json=grpcAddress,proto3" json:"grpc_address,omitempty"`
-	RaftAddress   *string                `protobuf:"bytes,3,opt,name=raft_address,json=raftAddress,proto3,oneof" json:"raft_address,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable identifier of the node within the cluster.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// gRPC service address (host:port) other components dial to reach this
+	// databroker node.
+	GrpcAddress string `protobuf:"bytes,2,opt,name=grpc_address,json=grpcAddress,proto3" json:"grpc_address,omitempty"`
+	// Raft transport address (host:port) used for peer-to-peer replication.
+	RaftAddress   *string `protobuf:"bytes,3,opt,name=raft_address,json=raftAddress,proto3,oneof" json:"raft_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8168,8 +8804,10 @@ func (x *Settings_DataBrokerClusterNode) GetRaftAddress() string {
 	return ""
 }
 
+// Aggregate list of databroker cluster peers.
 type Settings_DataBrokerClusterNodes struct {
-	state         protoimpl.MessageState            `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every node participating in the databroker cluster.
 	Nodes         []*Settings_DataBrokerClusterNode `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -8212,9 +8850,12 @@ func (x *Settings_DataBrokerClusterNodes) GetNodes() []*Settings_DataBrokerClust
 	return nil
 }
 
+// Wrapper for a list of strings, used so map-valued Settings fields can
+// hold repeated string values.
 type Settings_StringList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Values        []string               `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The string values held by this list.
+	Values        []string `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8713,7 +9354,7 @@ var File_config_proto protoreflect.FileDescriptor
 
 const file_config_proto_rawDesc = "" +
 	"\n" +
-	"\fconfig.proto\x12\x0fpomerium.config\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\x1a\roptions.proto\x1a\x17validate/validate.proto\"\x83\x01\n" +
+	"\fconfig.proto\x12\x0fpomerium.config\x1a\x1egoogle/protobuf/duration.proto\x1a google/protobuf/field_mask.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\x1a\roptions.proto\x1a\x17validate/validate.proto\"\x83\x01\n" +
 	"\x06Config\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12.\n" +
 	"\x06routes\x18\x02 \x03(\v2\x16.pomerium.config.RouteR\x06routes\x125\n" +
@@ -8992,7 +9633,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\x9bd\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xdag\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9144,7 +9785,11 @@ const file_config_proto_rawDesc = "" +
 	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bHxR\x13autoApplyChangesets\x88\x01\x01\x12Q\n" +
 	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHyR\rallowUpgrades\x88\x01\x01\x12_\n" +
 	"\x18envoy_dynamic_extensions\x18\xb6\x01 \x01(\v2$.pomerium.config.Settings.StringListR\x16envoyDynamicExtensions\x12H\n" +
-	"\x1dsession_recording_concurrency\x18\xb7\x01 \x01(\rHzR\x1bsessionRecordingConcurrency\x88\x01\x01\x12:\n" +
+	"\x1dsession_recording_concurrency\x18\xb7\x01 \x01(\rHzR\x1bsessionRecordingConcurrency\x88\x01\x01\x12+\n" +
+	"\x0enormalize_path\x18\xb8\x01 \x01(\bH{R\rnormalizePath\x88\x01\x01\x12)\n" +
+	"\rmerge_slashes\x18\xb9\x01 \x01(\bH|R\fmergeSlashes\x88\x01\x01\x12{\n" +
+	" path_with_escaped_slashes_action\x18\xba\x01 \x01(\x0e2-.pomerium.config.PathWithEscapedSlashesActionH}R\x1cpathWithEscapedSlashesAction\x88\x01\x01\x12z\n" +
+	"\x1fheaders_with_underscores_action\x18\xbb\x01 \x01(\x0e2-.pomerium.config.HeadersWithUnderscoresActionH~R\x1cheadersWithUnderscoresAction\x88\x01\x01\x12:\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -9300,7 +9945,11 @@ const file_config_proto_rawDesc = "" +
 	"\r_blob_storageB\x18\n" +
 	"\x16_auto_apply_changesetsB\x11\n" +
 	"\x0f_allow_upgradesB \n" +
-	"\x1e_session_recording_concurrencyJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\x87\x01\n" +
+	"\x1e_session_recording_concurrencyB\x11\n" +
+	"\x0f_normalize_pathB\x10\n" +
+	"\x0e_merge_slashesB#\n" +
+	"!_path_with_escaped_slashes_actionB\"\n" +
+	" _headers_with_underscores_actionJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\x87\x01\n" +
 	"\x13BlobStorageSettings\x12\"\n" +
 	"\n" +
 	"bucket_uri\x18\x01 \x01(\tH\x00R\tbucketUri\x88\x01\x01\x12*\n" +
@@ -9550,26 +10199,41 @@ const file_config_proto_rawDesc = "" +
 	"\x15GetServerInfoResponse\x12<\n" +
 	"\vserver_type\x18\x01 \x01(\x0e2\x1b.pomerium.config.ServerTypeR\n" +
 	"serverType\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion\"K\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\"\x9d\x01\n" +
 	"\x14UpdateKeyPairRequest\x123\n" +
-	"\bkey_pair\x18\x01 \x01(\v2\x18.pomerium.config.KeyPairR\akeyPair\"L\n" +
+	"\bkey_pair\x18\x01 \x01(\v2\x18.pomerium.config.KeyPairR\akeyPair\x12@\n" +
+	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskH\x00R\n" +
+	"updateMask\x88\x01\x01B\x0e\n" +
+	"\f_update_mask\"L\n" +
 	"\x15UpdateKeyPairResponse\x123\n" +
-	"\bkey_pair\x18\x01 \x01(\v2\x18.pomerium.config.KeyPairR\akeyPair\"F\n" +
+	"\bkey_pair\x18\x01 \x01(\v2\x18.pomerium.config.KeyPairR\akeyPair\"\x98\x01\n" +
 	"\x13UpdatePolicyRequest\x12/\n" +
-	"\x06policy\x18\x01 \x01(\v2\x17.pomerium.config.PolicyR\x06policy\"G\n" +
+	"\x06policy\x18\x01 \x01(\v2\x17.pomerium.config.PolicyR\x06policy\x12@\n" +
+	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskH\x00R\n" +
+	"updateMask\x88\x01\x01B\x0e\n" +
+	"\f_update_mask\"G\n" +
 	"\x14UpdatePolicyResponse\x12/\n" +
-	"\x06policy\x18\x01 \x01(\v2\x17.pomerium.config.PolicyR\x06policy\"B\n" +
+	"\x06policy\x18\x01 \x01(\v2\x17.pomerium.config.PolicyR\x06policy\"\x94\x01\n" +
 	"\x12UpdateRouteRequest\x12,\n" +
-	"\x05route\x18\x01 \x01(\v2\x16.pomerium.config.RouteR\x05route\"C\n" +
+	"\x05route\x18\x01 \x01(\v2\x16.pomerium.config.RouteR\x05route\x12@\n" +
+	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskH\x00R\n" +
+	"updateMask\x88\x01\x01B\x0e\n" +
+	"\f_update_mask\"C\n" +
 	"\x13UpdateRouteResponse\x12,\n" +
-	"\x05route\x18\x01 \x01(\v2\x16.pomerium.config.RouteR\x05route\"g\n" +
+	"\x05route\x18\x01 \x01(\v2\x16.pomerium.config.RouteR\x05route\"\xb9\x01\n" +
 	"\x1bUpdateServiceAccountRequest\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"\x80\x01\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12@\n" +
+	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskH\x00R\n" +
+	"updateMask\x88\x01\x01B\x0e\n" +
+	"\f_update_mask\"\x80\x01\n" +
 	"\x1cUpdateServiceAccountResponse\x12H\n" +
 	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x16\n" +
-	"\x03jwt\x18\x02 \x01(\tB\x04\xe8\xd6,\x01R\x03jwt\"N\n" +
+	"\x03jwt\x18\x02 \x01(\tB\x04\xe8\xd6,\x01R\x03jwt\"\xa0\x01\n" +
 	"\x15UpdateSettingsRequest\x125\n" +
-	"\bsettings\x18\x01 \x01(\v2\x19.pomerium.config.SettingsR\bsettings\"O\n" +
+	"\bsettings\x18\x01 \x01(\v2\x19.pomerium.config.SettingsR\bsettings\x12@\n" +
+	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskH\x00R\n" +
+	"updateMask\x88\x01\x01B\x0e\n" +
+	"\f_update_mask\"O\n" +
 	"\x16UpdateSettingsResponse\x125\n" +
 	"\bsettings\x18\x01 \x01(\v2\x19.pomerium.config.SettingsR\bsettings\"\xcc\x15\n" +
 	"\vHealthCheck\x123\n" +
@@ -9666,7 +10330,18 @@ const file_config_proto_rawDesc = "" +
 	"\x1bBEARER_TOKEN_FORMAT_UNKNOWN\x10\x00\x12\x1f\n" +
 	"\x1bBEARER_TOKEN_FORMAT_DEFAULT\x10\x01\x12(\n" +
 	"$BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN\x10\x02\x12*\n" +
-	"&BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN\x10\x03*v\n" +
+	"&BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN\x10\x03*\xdb\x01\n" +
+	"\x1cHeadersWithUnderscoresAction\x12+\n" +
+	"'HEADERS_WITH_UNDERSCORES_ACTION_UNKNOWN\x10\x00\x12)\n" +
+	"%HEADERS_WITH_UNDERSCORES_ACTION_ALLOW\x10\x01\x122\n" +
+	".HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST\x10\x02\x12/\n" +
+	"+HEADERS_WITH_UNDERSCORES_ACTION_DROP_HEADER\x10\x03*\xad\x02\n" +
+	"\x1cPathWithEscapedSlashesAction\x12,\n" +
+	"(PATH_WITH_ESCAPED_SLASHES_ACTION_UNKNOWN\x10\x00\x123\n" +
+	"/PATH_WITH_ESCAPED_SLASHES_ACTION_KEEP_UNCHANGED\x10\x01\x123\n" +
+	"/PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST\x10\x02\x12:\n" +
+	"6PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_REDIRECT\x10\x03\x129\n" +
+	"5PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_FORWARD\x10\x04*v\n" +
 	"\x0fOAuth2AuthStyle\x12!\n" +
 	"\x1dOAUTH2_AUTH_STYLE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bOAUTH2_AUTH_STYLE_IN_PARAMS\x10\x01\x12\x1f\n" +
@@ -9744,366 +10419,376 @@ func file_config_proto_rawDescGZIP() []byte {
 	return file_config_proto_rawDescData
 }
 
-var file_config_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
+var file_config_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
 var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 99)
 var file_config_proto_goTypes = []any{
 	(IssuerFormat)(0),                       // 0: pomerium.config.IssuerFormat
 	(BearerTokenFormat)(0),                  // 1: pomerium.config.BearerTokenFormat
-	(OAuth2AuthStyle)(0),                    // 2: pomerium.config.OAuth2AuthStyle
-	(MtlsEnforcementMode)(0),                // 3: pomerium.config.MtlsEnforcementMode
-	(KeyPairOrigin)(0),                      // 4: pomerium.config.KeyPairOrigin
-	(KeyPairStatus)(0),                      // 5: pomerium.config.KeyPairStatus
-	(ServerType)(0),                         // 6: pomerium.config.ServerType
-	(CodecType)(0),                          // 7: pomerium.config.CodecType
-	(LoadBalancingPolicy)(0),                // 8: pomerium.config.LoadBalancingPolicy
-	(SANMatcher_SANType)(0),                 // 9: pomerium.config.SANMatcher.SANType
-	(HealthCheck_HealthStatus)(0),           // 10: pomerium.config.HealthCheck.HealthStatus
-	(HealthCheck_CodecClientType)(0),        // 11: pomerium.config.HealthCheck.CodecClientType
-	(*Config)(nil),                          // 12: pomerium.config.Config
-	(*VersionedConfig)(nil),                 // 13: pomerium.config.VersionedConfig
-	(*RouteRewriteHeader)(nil),              // 14: pomerium.config.RouteRewriteHeader
-	(*RouteRedirect)(nil),                   // 15: pomerium.config.RouteRedirect
-	(*RouteDirectResponse)(nil),             // 16: pomerium.config.RouteDirectResponse
-	(*CircuitBreakerThresholds)(nil),        // 17: pomerium.config.CircuitBreakerThresholds
-	(*EntityInfo)(nil),                      // 18: pomerium.config.EntityInfo
-	(*SessionRecording)(nil),                // 19: pomerium.config.SessionRecording
-	(*Route)(nil),                           // 20: pomerium.config.Route
-	(*UpstreamTunnel)(nil),                  // 21: pomerium.config.UpstreamTunnel
-	(*MCP)(nil),                             // 22: pomerium.config.MCP
-	(*MCPServer)(nil),                       // 23: pomerium.config.MCPServer
-	(*MCPClient)(nil),                       // 24: pomerium.config.MCPClient
-	(*UpstreamOAuth2)(nil),                  // 25: pomerium.config.UpstreamOAuth2
-	(*OAuth2Endpoint)(nil),                  // 26: pomerium.config.OAuth2Endpoint
-	(*PPLPolicy)(nil),                       // 27: pomerium.config.PPLPolicy
-	(*Policy)(nil),                          // 28: pomerium.config.Policy
-	(*Settings)(nil),                        // 29: pomerium.config.Settings
-	(*BlobStorageSettings)(nil),             // 30: pomerium.config.BlobStorageSettings
-	(*DownstreamMtlsSettings)(nil),          // 31: pomerium.config.DownstreamMtlsSettings
-	(*SANMatcher)(nil),                      // 32: pomerium.config.SANMatcher
-	(*KeyPair)(nil),                         // 33: pomerium.config.KeyPair
-	(*KeyUsage)(nil),                        // 34: pomerium.config.KeyUsage
-	(*Name)(nil),                            // 35: pomerium.config.Name
-	(*CertificateInfo)(nil),                 // 36: pomerium.config.CertificateInfo
-	(*ServiceAccount)(nil),                  // 37: pomerium.config.ServiceAccount
-	(*CreateKeyPairRequest)(nil),            // 38: pomerium.config.CreateKeyPairRequest
-	(*CreateKeyPairResponse)(nil),           // 39: pomerium.config.CreateKeyPairResponse
-	(*CreatePolicyRequest)(nil),             // 40: pomerium.config.CreatePolicyRequest
-	(*CreatePolicyResponse)(nil),            // 41: pomerium.config.CreatePolicyResponse
-	(*CreateRouteRequest)(nil),              // 42: pomerium.config.CreateRouteRequest
-	(*CreateRouteResponse)(nil),             // 43: pomerium.config.CreateRouteResponse
-	(*CreateServiceAccountRequest)(nil),     // 44: pomerium.config.CreateServiceAccountRequest
-	(*CreateServiceAccountResponse)(nil),    // 45: pomerium.config.CreateServiceAccountResponse
-	(*DeleteKeyPairRequest)(nil),            // 46: pomerium.config.DeleteKeyPairRequest
-	(*DeleteKeyPairResponse)(nil),           // 47: pomerium.config.DeleteKeyPairResponse
-	(*DeletePolicyRequest)(nil),             // 48: pomerium.config.DeletePolicyRequest
-	(*DeletePolicyResponse)(nil),            // 49: pomerium.config.DeletePolicyResponse
-	(*DeleteRouteRequest)(nil),              // 50: pomerium.config.DeleteRouteRequest
-	(*DeleteRouteResponse)(nil),             // 51: pomerium.config.DeleteRouteResponse
-	(*DeleteServiceAccountRequest)(nil),     // 52: pomerium.config.DeleteServiceAccountRequest
-	(*DeleteServiceAccountResponse)(nil),    // 53: pomerium.config.DeleteServiceAccountResponse
-	(*GetKeyPairRequest)(nil),               // 54: pomerium.config.GetKeyPairRequest
-	(*GetKeyPairResponse)(nil),              // 55: pomerium.config.GetKeyPairResponse
-	(*GetPolicyRequest)(nil),                // 56: pomerium.config.GetPolicyRequest
-	(*GetPolicyResponse)(nil),               // 57: pomerium.config.GetPolicyResponse
-	(*GetRouteRequest)(nil),                 // 58: pomerium.config.GetRouteRequest
-	(*GetRouteResponse)(nil),                // 59: pomerium.config.GetRouteResponse
-	(*GetServiceAccountRequest)(nil),        // 60: pomerium.config.GetServiceAccountRequest
-	(*GetServiceAccountResponse)(nil),       // 61: pomerium.config.GetServiceAccountResponse
-	(*GetSettingsRequest)(nil),              // 62: pomerium.config.GetSettingsRequest
-	(*GetSettingsResponse)(nil),             // 63: pomerium.config.GetSettingsResponse
-	(*ListAvailableLogFieldsRequest)(nil),   // 64: pomerium.config.ListAvailableLogFieldsRequest
-	(*ListAvailableLogFieldsResponse)(nil),  // 65: pomerium.config.ListAvailableLogFieldsResponse
-	(*ListKeyPairsRequest)(nil),             // 66: pomerium.config.ListKeyPairsRequest
-	(*ListKeyPairsResponse)(nil),            // 67: pomerium.config.ListKeyPairsResponse
-	(*ListPoliciesRequest)(nil),             // 68: pomerium.config.ListPoliciesRequest
-	(*ListPoliciesResponse)(nil),            // 69: pomerium.config.ListPoliciesResponse
-	(*ListRoutesRequest)(nil),               // 70: pomerium.config.ListRoutesRequest
-	(*ListRoutesResponse)(nil),              // 71: pomerium.config.ListRoutesResponse
-	(*ListServiceAccountsRequest)(nil),      // 72: pomerium.config.ListServiceAccountsRequest
-	(*ListServiceAccountsResponse)(nil),     // 73: pomerium.config.ListServiceAccountsResponse
-	(*ListSettingsRequest)(nil),             // 74: pomerium.config.ListSettingsRequest
-	(*ListSettingsResponse)(nil),            // 75: pomerium.config.ListSettingsResponse
-	(*GetServerInfoRequest)(nil),            // 76: pomerium.config.GetServerInfoRequest
-	(*GetServerInfoResponse)(nil),           // 77: pomerium.config.GetServerInfoResponse
-	(*UpdateKeyPairRequest)(nil),            // 78: pomerium.config.UpdateKeyPairRequest
-	(*UpdateKeyPairResponse)(nil),           // 79: pomerium.config.UpdateKeyPairResponse
-	(*UpdatePolicyRequest)(nil),             // 80: pomerium.config.UpdatePolicyRequest
-	(*UpdatePolicyResponse)(nil),            // 81: pomerium.config.UpdatePolicyResponse
-	(*UpdateRouteRequest)(nil),              // 82: pomerium.config.UpdateRouteRequest
-	(*UpdateRouteResponse)(nil),             // 83: pomerium.config.UpdateRouteResponse
-	(*UpdateServiceAccountRequest)(nil),     // 84: pomerium.config.UpdateServiceAccountRequest
-	(*UpdateServiceAccountResponse)(nil),    // 85: pomerium.config.UpdateServiceAccountResponse
-	(*UpdateSettingsRequest)(nil),           // 86: pomerium.config.UpdateSettingsRequest
-	(*UpdateSettingsResponse)(nil),          // 87: pomerium.config.UpdateSettingsResponse
-	(*HealthCheck)(nil),                     // 88: pomerium.config.HealthCheck
-	(*OutlierDetection)(nil),                // 89: pomerium.config.OutlierDetection
-	(*VersionedConfig_Condition)(nil),       // 90: pomerium.config.VersionedConfig.Condition
-	(*Route_StringList)(nil),                // 91: pomerium.config.Route.StringList
-	nil,                                     // 92: pomerium.config.Route.AllowedIdpClaimsEntry
-	nil,                                     // 93: pomerium.config.Route.SetRequestHeadersEntry
-	nil,                                     // 94: pomerium.config.Route.SetResponseHeadersEntry
-	nil,                                     // 95: pomerium.config.UpstreamOAuth2.AuthorizationUrlParamsEntry
-	nil,                                     // 96: pomerium.config.Policy.AllowedIdpClaimsEntry
-	(*Settings_Certificate)(nil),            // 97: pomerium.config.Settings.Certificate
-	(*Settings_DataBrokerClusterNode)(nil),  // 98: pomerium.config.Settings.DataBrokerClusterNode
-	(*Settings_DataBrokerClusterNodes)(nil), // 99: pomerium.config.Settings.DataBrokerClusterNodes
-	(*Settings_StringList)(nil),             // 100: pomerium.config.Settings.StringList
-	nil,                                     // 101: pomerium.config.Settings.RequestParamsEntry
-	nil,                                     // 102: pomerium.config.Settings.SetResponseHeadersEntry
-	nil,                                     // 103: pomerium.config.Settings.JwtClaimsHeadersEntry
-	nil,                                     // 104: pomerium.config.Settings.RuntimeFlagsEntry
-	(*HealthCheck_HealthStatusSet)(nil),     // 105: pomerium.config.HealthCheck.HealthStatusSet
-	(*HealthCheck_Int64Range)(nil),          // 106: pomerium.config.HealthCheck.Int64Range
-	(*HealthCheck_Payload)(nil),             // 107: pomerium.config.HealthCheck.Payload
-	(*HealthCheck_HttpHealthCheck)(nil),     // 108: pomerium.config.HealthCheck.HttpHealthCheck
-	(*HealthCheck_TcpHealthCheck)(nil),      // 109: pomerium.config.HealthCheck.TcpHealthCheck
-	(*HealthCheck_GrpcHealthCheck)(nil),     // 110: pomerium.config.HealthCheck.GrpcHealthCheck
-	(*timestamppb.Timestamp)(nil),           // 111: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),             // 112: google.protobuf.Duration
-	(*structpb.Struct)(nil),                 // 113: google.protobuf.Struct
-	(*wrapperspb.UInt32Value)(nil),          // 114: google.protobuf.UInt32Value
-	(*wrapperspb.BoolValue)(nil),            // 115: google.protobuf.BoolValue
-	(*structpb.ListValue)(nil),              // 116: google.protobuf.ListValue
-	(*wrapperspb.UInt64Value)(nil),          // 117: google.protobuf.UInt64Value
+	(HeadersWithUnderscoresAction)(0),       // 2: pomerium.config.HeadersWithUnderscoresAction
+	(PathWithEscapedSlashesAction)(0),       // 3: pomerium.config.PathWithEscapedSlashesAction
+	(OAuth2AuthStyle)(0),                    // 4: pomerium.config.OAuth2AuthStyle
+	(MtlsEnforcementMode)(0),                // 5: pomerium.config.MtlsEnforcementMode
+	(KeyPairOrigin)(0),                      // 6: pomerium.config.KeyPairOrigin
+	(KeyPairStatus)(0),                      // 7: pomerium.config.KeyPairStatus
+	(ServerType)(0),                         // 8: pomerium.config.ServerType
+	(CodecType)(0),                          // 9: pomerium.config.CodecType
+	(LoadBalancingPolicy)(0),                // 10: pomerium.config.LoadBalancingPolicy
+	(SANMatcher_SANType)(0),                 // 11: pomerium.config.SANMatcher.SANType
+	(HealthCheck_HealthStatus)(0),           // 12: pomerium.config.HealthCheck.HealthStatus
+	(HealthCheck_CodecClientType)(0),        // 13: pomerium.config.HealthCheck.CodecClientType
+	(*Config)(nil),                          // 14: pomerium.config.Config
+	(*VersionedConfig)(nil),                 // 15: pomerium.config.VersionedConfig
+	(*RouteRewriteHeader)(nil),              // 16: pomerium.config.RouteRewriteHeader
+	(*RouteRedirect)(nil),                   // 17: pomerium.config.RouteRedirect
+	(*RouteDirectResponse)(nil),             // 18: pomerium.config.RouteDirectResponse
+	(*CircuitBreakerThresholds)(nil),        // 19: pomerium.config.CircuitBreakerThresholds
+	(*EntityInfo)(nil),                      // 20: pomerium.config.EntityInfo
+	(*SessionRecording)(nil),                // 21: pomerium.config.SessionRecording
+	(*Route)(nil),                           // 22: pomerium.config.Route
+	(*UpstreamTunnel)(nil),                  // 23: pomerium.config.UpstreamTunnel
+	(*MCP)(nil),                             // 24: pomerium.config.MCP
+	(*MCPServer)(nil),                       // 25: pomerium.config.MCPServer
+	(*MCPClient)(nil),                       // 26: pomerium.config.MCPClient
+	(*UpstreamOAuth2)(nil),                  // 27: pomerium.config.UpstreamOAuth2
+	(*OAuth2Endpoint)(nil),                  // 28: pomerium.config.OAuth2Endpoint
+	(*PPLPolicy)(nil),                       // 29: pomerium.config.PPLPolicy
+	(*Policy)(nil),                          // 30: pomerium.config.Policy
+	(*Settings)(nil),                        // 31: pomerium.config.Settings
+	(*BlobStorageSettings)(nil),             // 32: pomerium.config.BlobStorageSettings
+	(*DownstreamMtlsSettings)(nil),          // 33: pomerium.config.DownstreamMtlsSettings
+	(*SANMatcher)(nil),                      // 34: pomerium.config.SANMatcher
+	(*KeyPair)(nil),                         // 35: pomerium.config.KeyPair
+	(*KeyUsage)(nil),                        // 36: pomerium.config.KeyUsage
+	(*Name)(nil),                            // 37: pomerium.config.Name
+	(*CertificateInfo)(nil),                 // 38: pomerium.config.CertificateInfo
+	(*ServiceAccount)(nil),                  // 39: pomerium.config.ServiceAccount
+	(*CreateKeyPairRequest)(nil),            // 40: pomerium.config.CreateKeyPairRequest
+	(*CreateKeyPairResponse)(nil),           // 41: pomerium.config.CreateKeyPairResponse
+	(*CreatePolicyRequest)(nil),             // 42: pomerium.config.CreatePolicyRequest
+	(*CreatePolicyResponse)(nil),            // 43: pomerium.config.CreatePolicyResponse
+	(*CreateRouteRequest)(nil),              // 44: pomerium.config.CreateRouteRequest
+	(*CreateRouteResponse)(nil),             // 45: pomerium.config.CreateRouteResponse
+	(*CreateServiceAccountRequest)(nil),     // 46: pomerium.config.CreateServiceAccountRequest
+	(*CreateServiceAccountResponse)(nil),    // 47: pomerium.config.CreateServiceAccountResponse
+	(*DeleteKeyPairRequest)(nil),            // 48: pomerium.config.DeleteKeyPairRequest
+	(*DeleteKeyPairResponse)(nil),           // 49: pomerium.config.DeleteKeyPairResponse
+	(*DeletePolicyRequest)(nil),             // 50: pomerium.config.DeletePolicyRequest
+	(*DeletePolicyResponse)(nil),            // 51: pomerium.config.DeletePolicyResponse
+	(*DeleteRouteRequest)(nil),              // 52: pomerium.config.DeleteRouteRequest
+	(*DeleteRouteResponse)(nil),             // 53: pomerium.config.DeleteRouteResponse
+	(*DeleteServiceAccountRequest)(nil),     // 54: pomerium.config.DeleteServiceAccountRequest
+	(*DeleteServiceAccountResponse)(nil),    // 55: pomerium.config.DeleteServiceAccountResponse
+	(*GetKeyPairRequest)(nil),               // 56: pomerium.config.GetKeyPairRequest
+	(*GetKeyPairResponse)(nil),              // 57: pomerium.config.GetKeyPairResponse
+	(*GetPolicyRequest)(nil),                // 58: pomerium.config.GetPolicyRequest
+	(*GetPolicyResponse)(nil),               // 59: pomerium.config.GetPolicyResponse
+	(*GetRouteRequest)(nil),                 // 60: pomerium.config.GetRouteRequest
+	(*GetRouteResponse)(nil),                // 61: pomerium.config.GetRouteResponse
+	(*GetServiceAccountRequest)(nil),        // 62: pomerium.config.GetServiceAccountRequest
+	(*GetServiceAccountResponse)(nil),       // 63: pomerium.config.GetServiceAccountResponse
+	(*GetSettingsRequest)(nil),              // 64: pomerium.config.GetSettingsRequest
+	(*GetSettingsResponse)(nil),             // 65: pomerium.config.GetSettingsResponse
+	(*ListAvailableLogFieldsRequest)(nil),   // 66: pomerium.config.ListAvailableLogFieldsRequest
+	(*ListAvailableLogFieldsResponse)(nil),  // 67: pomerium.config.ListAvailableLogFieldsResponse
+	(*ListKeyPairsRequest)(nil),             // 68: pomerium.config.ListKeyPairsRequest
+	(*ListKeyPairsResponse)(nil),            // 69: pomerium.config.ListKeyPairsResponse
+	(*ListPoliciesRequest)(nil),             // 70: pomerium.config.ListPoliciesRequest
+	(*ListPoliciesResponse)(nil),            // 71: pomerium.config.ListPoliciesResponse
+	(*ListRoutesRequest)(nil),               // 72: pomerium.config.ListRoutesRequest
+	(*ListRoutesResponse)(nil),              // 73: pomerium.config.ListRoutesResponse
+	(*ListServiceAccountsRequest)(nil),      // 74: pomerium.config.ListServiceAccountsRequest
+	(*ListServiceAccountsResponse)(nil),     // 75: pomerium.config.ListServiceAccountsResponse
+	(*ListSettingsRequest)(nil),             // 76: pomerium.config.ListSettingsRequest
+	(*ListSettingsResponse)(nil),            // 77: pomerium.config.ListSettingsResponse
+	(*GetServerInfoRequest)(nil),            // 78: pomerium.config.GetServerInfoRequest
+	(*GetServerInfoResponse)(nil),           // 79: pomerium.config.GetServerInfoResponse
+	(*UpdateKeyPairRequest)(nil),            // 80: pomerium.config.UpdateKeyPairRequest
+	(*UpdateKeyPairResponse)(nil),           // 81: pomerium.config.UpdateKeyPairResponse
+	(*UpdatePolicyRequest)(nil),             // 82: pomerium.config.UpdatePolicyRequest
+	(*UpdatePolicyResponse)(nil),            // 83: pomerium.config.UpdatePolicyResponse
+	(*UpdateRouteRequest)(nil),              // 84: pomerium.config.UpdateRouteRequest
+	(*UpdateRouteResponse)(nil),             // 85: pomerium.config.UpdateRouteResponse
+	(*UpdateServiceAccountRequest)(nil),     // 86: pomerium.config.UpdateServiceAccountRequest
+	(*UpdateServiceAccountResponse)(nil),    // 87: pomerium.config.UpdateServiceAccountResponse
+	(*UpdateSettingsRequest)(nil),           // 88: pomerium.config.UpdateSettingsRequest
+	(*UpdateSettingsResponse)(nil),          // 89: pomerium.config.UpdateSettingsResponse
+	(*HealthCheck)(nil),                     // 90: pomerium.config.HealthCheck
+	(*OutlierDetection)(nil),                // 91: pomerium.config.OutlierDetection
+	(*VersionedConfig_Condition)(nil),       // 92: pomerium.config.VersionedConfig.Condition
+	(*Route_StringList)(nil),                // 93: pomerium.config.Route.StringList
+	nil,                                     // 94: pomerium.config.Route.AllowedIdpClaimsEntry
+	nil,                                     // 95: pomerium.config.Route.SetRequestHeadersEntry
+	nil,                                     // 96: pomerium.config.Route.SetResponseHeadersEntry
+	nil,                                     // 97: pomerium.config.UpstreamOAuth2.AuthorizationUrlParamsEntry
+	nil,                                     // 98: pomerium.config.Policy.AllowedIdpClaimsEntry
+	(*Settings_Certificate)(nil),            // 99: pomerium.config.Settings.Certificate
+	(*Settings_DataBrokerClusterNode)(nil),  // 100: pomerium.config.Settings.DataBrokerClusterNode
+	(*Settings_DataBrokerClusterNodes)(nil), // 101: pomerium.config.Settings.DataBrokerClusterNodes
+	(*Settings_StringList)(nil),             // 102: pomerium.config.Settings.StringList
+	nil,                                     // 103: pomerium.config.Settings.RequestParamsEntry
+	nil,                                     // 104: pomerium.config.Settings.SetResponseHeadersEntry
+	nil,                                     // 105: pomerium.config.Settings.JwtClaimsHeadersEntry
+	nil,                                     // 106: pomerium.config.Settings.RuntimeFlagsEntry
+	(*HealthCheck_HealthStatusSet)(nil),     // 107: pomerium.config.HealthCheck.HealthStatusSet
+	(*HealthCheck_Int64Range)(nil),          // 108: pomerium.config.HealthCheck.Int64Range
+	(*HealthCheck_Payload)(nil),             // 109: pomerium.config.HealthCheck.Payload
+	(*HealthCheck_HttpHealthCheck)(nil),     // 110: pomerium.config.HealthCheck.HttpHealthCheck
+	(*HealthCheck_TcpHealthCheck)(nil),      // 111: pomerium.config.HealthCheck.TcpHealthCheck
+	(*HealthCheck_GrpcHealthCheck)(nil),     // 112: pomerium.config.HealthCheck.GrpcHealthCheck
+	(*timestamppb.Timestamp)(nil),           // 113: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),             // 114: google.protobuf.Duration
+	(*structpb.Struct)(nil),                 // 115: google.protobuf.Struct
+	(*fieldmaskpb.FieldMask)(nil),           // 116: google.protobuf.FieldMask
+	(*wrapperspb.UInt32Value)(nil),          // 117: google.protobuf.UInt32Value
+	(*wrapperspb.BoolValue)(nil),            // 118: google.protobuf.BoolValue
+	(*structpb.ListValue)(nil),              // 119: google.protobuf.ListValue
+	(*wrapperspb.UInt64Value)(nil),          // 120: google.protobuf.UInt64Value
 }
 var file_config_proto_depIdxs = []int32{
-	20,  // 0: pomerium.config.Config.routes:type_name -> pomerium.config.Route
-	29,  // 1: pomerium.config.Config.settings:type_name -> pomerium.config.Settings
-	12,  // 2: pomerium.config.VersionedConfig.config:type_name -> pomerium.config.Config
-	90,  // 3: pomerium.config.VersionedConfig.conditions:type_name -> pomerium.config.VersionedConfig.Condition
-	111, // 4: pomerium.config.EntityInfo.modified_at:type_name -> google.protobuf.Timestamp
-	15,  // 5: pomerium.config.Route.redirect:type_name -> pomerium.config.RouteRedirect
-	16,  // 6: pomerium.config.Route.response:type_name -> pomerium.config.RouteDirectResponse
-	92,  // 7: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
-	112, // 8: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
-	112, // 9: pomerium.config.Route.idle_timeout:type_name -> google.protobuf.Duration
-	93,  // 10: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
-	94,  // 11: pomerium.config.Route.set_response_headers:type_name -> pomerium.config.Route.SetResponseHeadersEntry
-	14,  // 12: pomerium.config.Route.rewrite_response_headers:type_name -> pomerium.config.RouteRewriteHeader
+	22,  // 0: pomerium.config.Config.routes:type_name -> pomerium.config.Route
+	31,  // 1: pomerium.config.Config.settings:type_name -> pomerium.config.Settings
+	14,  // 2: pomerium.config.VersionedConfig.config:type_name -> pomerium.config.Config
+	92,  // 3: pomerium.config.VersionedConfig.conditions:type_name -> pomerium.config.VersionedConfig.Condition
+	113, // 4: pomerium.config.EntityInfo.modified_at:type_name -> google.protobuf.Timestamp
+	17,  // 5: pomerium.config.Route.redirect:type_name -> pomerium.config.RouteRedirect
+	18,  // 6: pomerium.config.Route.response:type_name -> pomerium.config.RouteDirectResponse
+	94,  // 7: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
+	114, // 8: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
+	114, // 9: pomerium.config.Route.idle_timeout:type_name -> google.protobuf.Duration
+	95,  // 10: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
+	96,  // 11: pomerium.config.Route.set_response_headers:type_name -> pomerium.config.Route.SetResponseHeadersEntry
+	16,  // 12: pomerium.config.Route.rewrite_response_headers:type_name -> pomerium.config.RouteRewriteHeader
 	0,   // 13: pomerium.config.Route.jwt_issuer_format:type_name -> pomerium.config.IssuerFormat
 	1,   // 14: pomerium.config.Route.bearer_token_format:type_name -> pomerium.config.BearerTokenFormat
-	28,  // 15: pomerium.config.Route.policies:type_name -> pomerium.config.Policy
-	27,  // 16: pomerium.config.Route.ppl_policies:type_name -> pomerium.config.PPLPolicy
-	91,  // 17: pomerium.config.Route.idp_access_token_allowed_audiences:type_name -> pomerium.config.Route.StringList
-	22,  // 18: pomerium.config.Route.mcp:type_name -> pomerium.config.MCP
-	17,  // 19: pomerium.config.Route.circuit_breaker_thresholds:type_name -> pomerium.config.CircuitBreakerThresholds
-	21,  // 20: pomerium.config.Route.upstream_tunnel:type_name -> pomerium.config.UpstreamTunnel
-	89,  // 21: pomerium.config.Route.outlier_detection:type_name -> pomerium.config.OutlierDetection
-	88,  // 22: pomerium.config.Route.health_checks:type_name -> pomerium.config.HealthCheck
-	8,   // 23: pomerium.config.Route.load_balancing_policy:type_name -> pomerium.config.LoadBalancingPolicy
-	91,  // 24: pomerium.config.Route.allow_upgrades:type_name -> pomerium.config.Route.StringList
-	19,  // 25: pomerium.config.Route.session_recording:type_name -> pomerium.config.SessionRecording
-	111, // 26: pomerium.config.Route.created_at:type_name -> google.protobuf.Timestamp
-	111, // 27: pomerium.config.Route.modified_at:type_name -> google.protobuf.Timestamp
-	18,  // 28: pomerium.config.Route.enforced_policies:type_name -> pomerium.config.EntityInfo
-	18,  // 29: pomerium.config.Route.assigned_policies:type_name -> pomerium.config.EntityInfo
-	27,  // 30: pomerium.config.UpstreamTunnel.ssh_policy:type_name -> pomerium.config.PPLPolicy
-	23,  // 31: pomerium.config.MCP.server:type_name -> pomerium.config.MCPServer
-	24,  // 32: pomerium.config.MCP.client:type_name -> pomerium.config.MCPClient
-	25,  // 33: pomerium.config.MCPServer.upstream_oauth2:type_name -> pomerium.config.UpstreamOAuth2
-	26,  // 34: pomerium.config.UpstreamOAuth2.oauth2_endpoint:type_name -> pomerium.config.OAuth2Endpoint
-	95,  // 35: pomerium.config.UpstreamOAuth2.authorization_url_params:type_name -> pomerium.config.UpstreamOAuth2.AuthorizationUrlParamsEntry
-	2,   // 36: pomerium.config.OAuth2Endpoint.auth_style:type_name -> pomerium.config.OAuth2AuthStyle
-	96,  // 37: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
-	111, // 38: pomerium.config.Policy.created_at:type_name -> google.protobuf.Timestamp
-	111, // 39: pomerium.config.Policy.modified_at:type_name -> google.protobuf.Timestamp
-	18,  // 40: pomerium.config.Policy.enforced_routes:type_name -> pomerium.config.EntityInfo
-	18,  // 41: pomerium.config.Policy.assigned_routes:type_name -> pomerium.config.EntityInfo
-	100, // 42: pomerium.config.Settings.access_log_fields:type_name -> pomerium.config.Settings.StringList
-	100, // 43: pomerium.config.Settings.authorize_log_fields:type_name -> pomerium.config.Settings.StringList
-	112, // 44: pomerium.config.Settings.dns_failure_refresh_rate:type_name -> google.protobuf.Duration
-	112, // 45: pomerium.config.Settings.dns_query_timeout:type_name -> google.protobuf.Duration
-	112, // 46: pomerium.config.Settings.dns_refresh_rate:type_name -> google.protobuf.Duration
-	97,  // 47: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
-	112, // 48: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
-	112, // 49: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
-	112, // 50: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
-	112, // 51: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
-	100, // 52: pomerium.config.Settings.idp_access_token_allowed_audiences:type_name -> pomerium.config.Settings.StringList
-	101, // 53: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
-	102, // 54: pomerium.config.Settings.set_response_headers:type_name -> pomerium.config.Settings.SetResponseHeadersEntry
-	103, // 55: pomerium.config.Settings.jwt_claims_headers:type_name -> pomerium.config.Settings.JwtClaimsHeadersEntry
+	30,  // 15: pomerium.config.Route.policies:type_name -> pomerium.config.Policy
+	29,  // 16: pomerium.config.Route.ppl_policies:type_name -> pomerium.config.PPLPolicy
+	93,  // 17: pomerium.config.Route.idp_access_token_allowed_audiences:type_name -> pomerium.config.Route.StringList
+	24,  // 18: pomerium.config.Route.mcp:type_name -> pomerium.config.MCP
+	19,  // 19: pomerium.config.Route.circuit_breaker_thresholds:type_name -> pomerium.config.CircuitBreakerThresholds
+	23,  // 20: pomerium.config.Route.upstream_tunnel:type_name -> pomerium.config.UpstreamTunnel
+	91,  // 21: pomerium.config.Route.outlier_detection:type_name -> pomerium.config.OutlierDetection
+	90,  // 22: pomerium.config.Route.health_checks:type_name -> pomerium.config.HealthCheck
+	10,  // 23: pomerium.config.Route.load_balancing_policy:type_name -> pomerium.config.LoadBalancingPolicy
+	93,  // 24: pomerium.config.Route.allow_upgrades:type_name -> pomerium.config.Route.StringList
+	21,  // 25: pomerium.config.Route.session_recording:type_name -> pomerium.config.SessionRecording
+	113, // 26: pomerium.config.Route.created_at:type_name -> google.protobuf.Timestamp
+	113, // 27: pomerium.config.Route.modified_at:type_name -> google.protobuf.Timestamp
+	20,  // 28: pomerium.config.Route.enforced_policies:type_name -> pomerium.config.EntityInfo
+	20,  // 29: pomerium.config.Route.assigned_policies:type_name -> pomerium.config.EntityInfo
+	29,  // 30: pomerium.config.UpstreamTunnel.ssh_policy:type_name -> pomerium.config.PPLPolicy
+	25,  // 31: pomerium.config.MCP.server:type_name -> pomerium.config.MCPServer
+	26,  // 32: pomerium.config.MCP.client:type_name -> pomerium.config.MCPClient
+	27,  // 33: pomerium.config.MCPServer.upstream_oauth2:type_name -> pomerium.config.UpstreamOAuth2
+	28,  // 34: pomerium.config.UpstreamOAuth2.oauth2_endpoint:type_name -> pomerium.config.OAuth2Endpoint
+	97,  // 35: pomerium.config.UpstreamOAuth2.authorization_url_params:type_name -> pomerium.config.UpstreamOAuth2.AuthorizationUrlParamsEntry
+	4,   // 36: pomerium.config.OAuth2Endpoint.auth_style:type_name -> pomerium.config.OAuth2AuthStyle
+	98,  // 37: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
+	113, // 38: pomerium.config.Policy.created_at:type_name -> google.protobuf.Timestamp
+	113, // 39: pomerium.config.Policy.modified_at:type_name -> google.protobuf.Timestamp
+	20,  // 40: pomerium.config.Policy.enforced_routes:type_name -> pomerium.config.EntityInfo
+	20,  // 41: pomerium.config.Policy.assigned_routes:type_name -> pomerium.config.EntityInfo
+	102, // 42: pomerium.config.Settings.access_log_fields:type_name -> pomerium.config.Settings.StringList
+	102, // 43: pomerium.config.Settings.authorize_log_fields:type_name -> pomerium.config.Settings.StringList
+	114, // 44: pomerium.config.Settings.dns_failure_refresh_rate:type_name -> google.protobuf.Duration
+	114, // 45: pomerium.config.Settings.dns_query_timeout:type_name -> google.protobuf.Duration
+	114, // 46: pomerium.config.Settings.dns_refresh_rate:type_name -> google.protobuf.Duration
+	99,  // 47: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
+	114, // 48: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
+	114, // 49: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
+	114, // 50: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
+	114, // 51: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
+	102, // 52: pomerium.config.Settings.idp_access_token_allowed_audiences:type_name -> pomerium.config.Settings.StringList
+	103, // 53: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
+	104, // 54: pomerium.config.Settings.set_response_headers:type_name -> pomerium.config.Settings.SetResponseHeadersEntry
+	105, // 55: pomerium.config.Settings.jwt_claims_headers:type_name -> pomerium.config.Settings.JwtClaimsHeadersEntry
 	0,   // 56: pomerium.config.Settings.jwt_issuer_format:type_name -> pomerium.config.IssuerFormat
 	1,   // 57: pomerium.config.Settings.bearer_token_format:type_name -> pomerium.config.BearerTokenFormat
-	112, // 58: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
-	97,  // 59: pomerium.config.Settings.metrics_certificate:type_name -> pomerium.config.Settings.Certificate
-	112, // 60: pomerium.config.Settings.otel_exporter_otlp_timeout:type_name -> google.protobuf.Duration
-	112, // 61: pomerium.config.Settings.otel_exporter_otlp_traces_timeout:type_name -> google.protobuf.Duration
-	112, // 62: pomerium.config.Settings.otel_bsp_schedule_delay:type_name -> google.protobuf.Duration
-	112, // 63: pomerium.config.Settings.grpc_client_timeout:type_name -> google.protobuf.Duration
-	99,  // 64: pomerium.config.Settings.databroker_cluster_nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNodes
-	31,  // 65: pomerium.config.Settings.downstream_mtls:type_name -> pomerium.config.DownstreamMtlsSettings
-	7,   // 66: pomerium.config.Settings.codec_type:type_name -> pomerium.config.CodecType
-	104, // 67: pomerium.config.Settings.runtime_flags:type_name -> pomerium.config.Settings.RuntimeFlagsEntry
-	17,  // 68: pomerium.config.Settings.circuit_breaker_thresholds:type_name -> pomerium.config.CircuitBreakerThresholds
-	100, // 69: pomerium.config.Settings.ssh_host_key_files:type_name -> pomerium.config.Settings.StringList
-	100, // 70: pomerium.config.Settings.ssh_host_keys:type_name -> pomerium.config.Settings.StringList
-	113, // 71: pomerium.config.Settings.directory_provider_options:type_name -> google.protobuf.Struct
-	112, // 72: pomerium.config.Settings.directory_provider_refresh_interval:type_name -> google.protobuf.Duration
-	112, // 73: pomerium.config.Settings.directory_provider_refresh_timeout:type_name -> google.protobuf.Duration
-	30,  // 74: pomerium.config.Settings.blob_storage:type_name -> pomerium.config.BlobStorageSettings
-	100, // 75: pomerium.config.Settings.allow_upgrades:type_name -> pomerium.config.Settings.StringList
-	100, // 76: pomerium.config.Settings.envoy_dynamic_extensions:type_name -> pomerium.config.Settings.StringList
-	111, // 77: pomerium.config.Settings.created_at:type_name -> google.protobuf.Timestamp
-	111, // 78: pomerium.config.Settings.modified_at:type_name -> google.protobuf.Timestamp
-	3,   // 79: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode
-	32,  // 80: pomerium.config.DownstreamMtlsSettings.match_subject_alt_names:type_name -> pomerium.config.SANMatcher
-	9,   // 81: pomerium.config.SANMatcher.san_type:type_name -> pomerium.config.SANMatcher.SANType
-	111, // 82: pomerium.config.KeyPair.created_at:type_name -> google.protobuf.Timestamp
-	111, // 83: pomerium.config.KeyPair.modified_at:type_name -> google.protobuf.Timestamp
-	5,   // 84: pomerium.config.KeyPair.status:type_name -> pomerium.config.KeyPairStatus
-	4,   // 85: pomerium.config.KeyPair.origin:type_name -> pomerium.config.KeyPairOrigin
-	36,  // 86: pomerium.config.KeyPair.certificate_info:type_name -> pomerium.config.CertificateInfo
-	35,  // 87: pomerium.config.CertificateInfo.issuer:type_name -> pomerium.config.Name
-	35,  // 88: pomerium.config.CertificateInfo.subject:type_name -> pomerium.config.Name
-	111, // 89: pomerium.config.CertificateInfo.not_before:type_name -> google.protobuf.Timestamp
-	111, // 90: pomerium.config.CertificateInfo.not_after:type_name -> google.protobuf.Timestamp
-	34,  // 91: pomerium.config.CertificateInfo.key_usage:type_name -> pomerium.config.KeyUsage
-	111, // 92: pomerium.config.ServiceAccount.expires_at:type_name -> google.protobuf.Timestamp
-	111, // 93: pomerium.config.ServiceAccount.created_at:type_name -> google.protobuf.Timestamp
-	111, // 94: pomerium.config.ServiceAccount.modified_at:type_name -> google.protobuf.Timestamp
-	111, // 95: pomerium.config.ServiceAccount.accessed_at:type_name -> google.protobuf.Timestamp
-	33,  // 96: pomerium.config.CreateKeyPairRequest.key_pair:type_name -> pomerium.config.KeyPair
-	33,  // 97: pomerium.config.CreateKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
-	28,  // 98: pomerium.config.CreatePolicyRequest.policy:type_name -> pomerium.config.Policy
-	28,  // 99: pomerium.config.CreatePolicyResponse.policy:type_name -> pomerium.config.Policy
-	20,  // 100: pomerium.config.CreateRouteRequest.route:type_name -> pomerium.config.Route
-	20,  // 101: pomerium.config.CreateRouteResponse.route:type_name -> pomerium.config.Route
-	37,  // 102: pomerium.config.CreateServiceAccountRequest.service_account:type_name -> pomerium.config.ServiceAccount
-	37,  // 103: pomerium.config.CreateServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
-	33,  // 104: pomerium.config.GetKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
-	28,  // 105: pomerium.config.GetPolicyResponse.policy:type_name -> pomerium.config.Policy
-	20,  // 106: pomerium.config.GetRouteResponse.route:type_name -> pomerium.config.Route
-	37,  // 107: pomerium.config.GetServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
-	29,  // 108: pomerium.config.GetSettingsResponse.settings:type_name -> pomerium.config.Settings
-	113, // 109: pomerium.config.ListKeyPairsRequest.filter:type_name -> google.protobuf.Struct
-	33,  // 110: pomerium.config.ListKeyPairsResponse.key_pairs:type_name -> pomerium.config.KeyPair
-	113, // 111: pomerium.config.ListPoliciesRequest.filter:type_name -> google.protobuf.Struct
-	28,  // 112: pomerium.config.ListPoliciesResponse.policies:type_name -> pomerium.config.Policy
-	113, // 113: pomerium.config.ListRoutesRequest.filter:type_name -> google.protobuf.Struct
-	20,  // 114: pomerium.config.ListRoutesResponse.routes:type_name -> pomerium.config.Route
-	113, // 115: pomerium.config.ListServiceAccountsRequest.filter:type_name -> google.protobuf.Struct
-	37,  // 116: pomerium.config.ListServiceAccountsResponse.service_accounts:type_name -> pomerium.config.ServiceAccount
-	113, // 117: pomerium.config.ListSettingsRequest.filter:type_name -> google.protobuf.Struct
-	29,  // 118: pomerium.config.ListSettingsResponse.settings:type_name -> pomerium.config.Settings
-	6,   // 119: pomerium.config.GetServerInfoResponse.server_type:type_name -> pomerium.config.ServerType
-	33,  // 120: pomerium.config.UpdateKeyPairRequest.key_pair:type_name -> pomerium.config.KeyPair
-	33,  // 121: pomerium.config.UpdateKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
-	28,  // 122: pomerium.config.UpdatePolicyRequest.policy:type_name -> pomerium.config.Policy
-	28,  // 123: pomerium.config.UpdatePolicyResponse.policy:type_name -> pomerium.config.Policy
-	20,  // 124: pomerium.config.UpdateRouteRequest.route:type_name -> pomerium.config.Route
-	20,  // 125: pomerium.config.UpdateRouteResponse.route:type_name -> pomerium.config.Route
-	37,  // 126: pomerium.config.UpdateServiceAccountRequest.service_account:type_name -> pomerium.config.ServiceAccount
-	37,  // 127: pomerium.config.UpdateServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
-	29,  // 128: pomerium.config.UpdateSettingsRequest.settings:type_name -> pomerium.config.Settings
-	29,  // 129: pomerium.config.UpdateSettingsResponse.settings:type_name -> pomerium.config.Settings
-	112, // 130: pomerium.config.HealthCheck.timeout:type_name -> google.protobuf.Duration
-	112, // 131: pomerium.config.HealthCheck.interval:type_name -> google.protobuf.Duration
-	112, // 132: pomerium.config.HealthCheck.initial_jitter:type_name -> google.protobuf.Duration
-	112, // 133: pomerium.config.HealthCheck.interval_jitter:type_name -> google.protobuf.Duration
-	114, // 134: pomerium.config.HealthCheck.unhealthy_threshold:type_name -> google.protobuf.UInt32Value
-	114, // 135: pomerium.config.HealthCheck.healthy_threshold:type_name -> google.protobuf.UInt32Value
-	114, // 136: pomerium.config.HealthCheck.alt_port:type_name -> google.protobuf.UInt32Value
-	115, // 137: pomerium.config.HealthCheck.reuse_connection:type_name -> google.protobuf.BoolValue
-	108, // 138: pomerium.config.HealthCheck.http_health_check:type_name -> pomerium.config.HealthCheck.HttpHealthCheck
-	109, // 139: pomerium.config.HealthCheck.tcp_health_check:type_name -> pomerium.config.HealthCheck.TcpHealthCheck
-	110, // 140: pomerium.config.HealthCheck.grpc_health_check:type_name -> pomerium.config.HealthCheck.GrpcHealthCheck
-	112, // 141: pomerium.config.HealthCheck.no_traffic_interval:type_name -> google.protobuf.Duration
-	112, // 142: pomerium.config.HealthCheck.no_traffic_healthy_interval:type_name -> google.protobuf.Duration
-	112, // 143: pomerium.config.HealthCheck.unhealthy_interval:type_name -> google.protobuf.Duration
-	112, // 144: pomerium.config.HealthCheck.unhealthy_edge_interval:type_name -> google.protobuf.Duration
-	112, // 145: pomerium.config.HealthCheck.healthy_edge_interval:type_name -> google.protobuf.Duration
-	113, // 146: pomerium.config.HealthCheck.transport_socket_match_criteria:type_name -> google.protobuf.Struct
-	114, // 147: pomerium.config.OutlierDetection.consecutive_5xx:type_name -> google.protobuf.UInt32Value
-	112, // 148: pomerium.config.OutlierDetection.interval:type_name -> google.protobuf.Duration
-	112, // 149: pomerium.config.OutlierDetection.base_ejection_time:type_name -> google.protobuf.Duration
-	114, // 150: pomerium.config.OutlierDetection.max_ejection_percent:type_name -> google.protobuf.UInt32Value
-	114, // 151: pomerium.config.OutlierDetection.enforcing_consecutive_5xx:type_name -> google.protobuf.UInt32Value
-	114, // 152: pomerium.config.OutlierDetection.enforcing_success_rate:type_name -> google.protobuf.UInt32Value
-	114, // 153: pomerium.config.OutlierDetection.success_rate_minimum_hosts:type_name -> google.protobuf.UInt32Value
-	114, // 154: pomerium.config.OutlierDetection.success_rate_request_volume:type_name -> google.protobuf.UInt32Value
-	114, // 155: pomerium.config.OutlierDetection.success_rate_stdev_factor:type_name -> google.protobuf.UInt32Value
-	114, // 156: pomerium.config.OutlierDetection.consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
-	114, // 157: pomerium.config.OutlierDetection.enforcing_consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
-	114, // 158: pomerium.config.OutlierDetection.consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
-	114, // 159: pomerium.config.OutlierDetection.enforcing_consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
-	114, // 160: pomerium.config.OutlierDetection.enforcing_local_origin_success_rate:type_name -> google.protobuf.UInt32Value
-	114, // 161: pomerium.config.OutlierDetection.failure_percentage_threshold:type_name -> google.protobuf.UInt32Value
-	114, // 162: pomerium.config.OutlierDetection.enforcing_failure_percentage:type_name -> google.protobuf.UInt32Value
-	114, // 163: pomerium.config.OutlierDetection.enforcing_failure_percentage_local_origin:type_name -> google.protobuf.UInt32Value
-	114, // 164: pomerium.config.OutlierDetection.failure_percentage_minimum_hosts:type_name -> google.protobuf.UInt32Value
-	114, // 165: pomerium.config.OutlierDetection.failure_percentage_request_volume:type_name -> google.protobuf.UInt32Value
-	112, // 166: pomerium.config.OutlierDetection.max_ejection_time:type_name -> google.protobuf.Duration
-	112, // 167: pomerium.config.OutlierDetection.max_ejection_time_jitter:type_name -> google.protobuf.Duration
-	115, // 168: pomerium.config.OutlierDetection.successful_active_health_check_uneject_host:type_name -> google.protobuf.BoolValue
-	115, // 169: pomerium.config.OutlierDetection.always_eject_one_host:type_name -> google.protobuf.BoolValue
-	116, // 170: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	116, // 171: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	98,  // 172: pomerium.config.Settings.DataBrokerClusterNodes.nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNode
-	10,  // 173: pomerium.config.HealthCheck.HealthStatusSet.statuses:type_name -> pomerium.config.HealthCheck.HealthStatus
-	107, // 174: pomerium.config.HealthCheck.HttpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
-	107, // 175: pomerium.config.HealthCheck.HttpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
-	117, // 176: pomerium.config.HealthCheck.HttpHealthCheck.response_buffer_size:type_name -> google.protobuf.UInt64Value
-	106, // 177: pomerium.config.HealthCheck.HttpHealthCheck.expected_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
-	106, // 178: pomerium.config.HealthCheck.HttpHealthCheck.retriable_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
-	11,  // 179: pomerium.config.HealthCheck.HttpHealthCheck.codec_client_type:type_name -> pomerium.config.HealthCheck.CodecClientType
-	107, // 180: pomerium.config.HealthCheck.TcpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
-	107, // 181: pomerium.config.HealthCheck.TcpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
-	38,  // 182: pomerium.config.ConfigService.CreateKeyPair:input_type -> pomerium.config.CreateKeyPairRequest
-	40,  // 183: pomerium.config.ConfigService.CreatePolicy:input_type -> pomerium.config.CreatePolicyRequest
-	42,  // 184: pomerium.config.ConfigService.CreateRoute:input_type -> pomerium.config.CreateRouteRequest
-	44,  // 185: pomerium.config.ConfigService.CreateServiceAccount:input_type -> pomerium.config.CreateServiceAccountRequest
-	46,  // 186: pomerium.config.ConfigService.DeleteKeyPair:input_type -> pomerium.config.DeleteKeyPairRequest
-	48,  // 187: pomerium.config.ConfigService.DeletePolicy:input_type -> pomerium.config.DeletePolicyRequest
-	50,  // 188: pomerium.config.ConfigService.DeleteRoute:input_type -> pomerium.config.DeleteRouteRequest
-	52,  // 189: pomerium.config.ConfigService.DeleteServiceAccount:input_type -> pomerium.config.DeleteServiceAccountRequest
-	54,  // 190: pomerium.config.ConfigService.GetKeyPair:input_type -> pomerium.config.GetKeyPairRequest
-	56,  // 191: pomerium.config.ConfigService.GetPolicy:input_type -> pomerium.config.GetPolicyRequest
-	58,  // 192: pomerium.config.ConfigService.GetRoute:input_type -> pomerium.config.GetRouteRequest
-	76,  // 193: pomerium.config.ConfigService.GetServerInfo:input_type -> pomerium.config.GetServerInfoRequest
-	60,  // 194: pomerium.config.ConfigService.GetServiceAccount:input_type -> pomerium.config.GetServiceAccountRequest
-	62,  // 195: pomerium.config.ConfigService.GetSettings:input_type -> pomerium.config.GetSettingsRequest
-	64,  // 196: pomerium.config.ConfigService.ListAvailableLogFields:input_type -> pomerium.config.ListAvailableLogFieldsRequest
-	66,  // 197: pomerium.config.ConfigService.ListKeyPairs:input_type -> pomerium.config.ListKeyPairsRequest
-	68,  // 198: pomerium.config.ConfigService.ListPolicies:input_type -> pomerium.config.ListPoliciesRequest
-	70,  // 199: pomerium.config.ConfigService.ListRoutes:input_type -> pomerium.config.ListRoutesRequest
-	72,  // 200: pomerium.config.ConfigService.ListServiceAccounts:input_type -> pomerium.config.ListServiceAccountsRequest
-	74,  // 201: pomerium.config.ConfigService.ListSettings:input_type -> pomerium.config.ListSettingsRequest
-	78,  // 202: pomerium.config.ConfigService.UpdateKeyPair:input_type -> pomerium.config.UpdateKeyPairRequest
-	80,  // 203: pomerium.config.ConfigService.UpdatePolicy:input_type -> pomerium.config.UpdatePolicyRequest
-	82,  // 204: pomerium.config.ConfigService.UpdateRoute:input_type -> pomerium.config.UpdateRouteRequest
-	84,  // 205: pomerium.config.ConfigService.UpdateServiceAccount:input_type -> pomerium.config.UpdateServiceAccountRequest
-	86,  // 206: pomerium.config.ConfigService.UpdateSettings:input_type -> pomerium.config.UpdateSettingsRequest
-	39,  // 207: pomerium.config.ConfigService.CreateKeyPair:output_type -> pomerium.config.CreateKeyPairResponse
-	41,  // 208: pomerium.config.ConfigService.CreatePolicy:output_type -> pomerium.config.CreatePolicyResponse
-	43,  // 209: pomerium.config.ConfigService.CreateRoute:output_type -> pomerium.config.CreateRouteResponse
-	45,  // 210: pomerium.config.ConfigService.CreateServiceAccount:output_type -> pomerium.config.CreateServiceAccountResponse
-	47,  // 211: pomerium.config.ConfigService.DeleteKeyPair:output_type -> pomerium.config.DeleteKeyPairResponse
-	49,  // 212: pomerium.config.ConfigService.DeletePolicy:output_type -> pomerium.config.DeletePolicyResponse
-	51,  // 213: pomerium.config.ConfigService.DeleteRoute:output_type -> pomerium.config.DeleteRouteResponse
-	53,  // 214: pomerium.config.ConfigService.DeleteServiceAccount:output_type -> pomerium.config.DeleteServiceAccountResponse
-	55,  // 215: pomerium.config.ConfigService.GetKeyPair:output_type -> pomerium.config.GetKeyPairResponse
-	57,  // 216: pomerium.config.ConfigService.GetPolicy:output_type -> pomerium.config.GetPolicyResponse
-	59,  // 217: pomerium.config.ConfigService.GetRoute:output_type -> pomerium.config.GetRouteResponse
-	77,  // 218: pomerium.config.ConfigService.GetServerInfo:output_type -> pomerium.config.GetServerInfoResponse
-	61,  // 219: pomerium.config.ConfigService.GetServiceAccount:output_type -> pomerium.config.GetServiceAccountResponse
-	63,  // 220: pomerium.config.ConfigService.GetSettings:output_type -> pomerium.config.GetSettingsResponse
-	65,  // 221: pomerium.config.ConfigService.ListAvailableLogFields:output_type -> pomerium.config.ListAvailableLogFieldsResponse
-	67,  // 222: pomerium.config.ConfigService.ListKeyPairs:output_type -> pomerium.config.ListKeyPairsResponse
-	69,  // 223: pomerium.config.ConfigService.ListPolicies:output_type -> pomerium.config.ListPoliciesResponse
-	71,  // 224: pomerium.config.ConfigService.ListRoutes:output_type -> pomerium.config.ListRoutesResponse
-	73,  // 225: pomerium.config.ConfigService.ListServiceAccounts:output_type -> pomerium.config.ListServiceAccountsResponse
-	75,  // 226: pomerium.config.ConfigService.ListSettings:output_type -> pomerium.config.ListSettingsResponse
-	79,  // 227: pomerium.config.ConfigService.UpdateKeyPair:output_type -> pomerium.config.UpdateKeyPairResponse
-	81,  // 228: pomerium.config.ConfigService.UpdatePolicy:output_type -> pomerium.config.UpdatePolicyResponse
-	83,  // 229: pomerium.config.ConfigService.UpdateRoute:output_type -> pomerium.config.UpdateRouteResponse
-	85,  // 230: pomerium.config.ConfigService.UpdateServiceAccount:output_type -> pomerium.config.UpdateServiceAccountResponse
-	87,  // 231: pomerium.config.ConfigService.UpdateSettings:output_type -> pomerium.config.UpdateSettingsResponse
-	207, // [207:232] is the sub-list for method output_type
-	182, // [182:207] is the sub-list for method input_type
-	182, // [182:182] is the sub-list for extension type_name
-	182, // [182:182] is the sub-list for extension extendee
-	0,   // [0:182] is the sub-list for field type_name
+	114, // 58: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
+	99,  // 59: pomerium.config.Settings.metrics_certificate:type_name -> pomerium.config.Settings.Certificate
+	114, // 60: pomerium.config.Settings.otel_exporter_otlp_timeout:type_name -> google.protobuf.Duration
+	114, // 61: pomerium.config.Settings.otel_exporter_otlp_traces_timeout:type_name -> google.protobuf.Duration
+	114, // 62: pomerium.config.Settings.otel_bsp_schedule_delay:type_name -> google.protobuf.Duration
+	114, // 63: pomerium.config.Settings.grpc_client_timeout:type_name -> google.protobuf.Duration
+	101, // 64: pomerium.config.Settings.databroker_cluster_nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNodes
+	33,  // 65: pomerium.config.Settings.downstream_mtls:type_name -> pomerium.config.DownstreamMtlsSettings
+	9,   // 66: pomerium.config.Settings.codec_type:type_name -> pomerium.config.CodecType
+	106, // 67: pomerium.config.Settings.runtime_flags:type_name -> pomerium.config.Settings.RuntimeFlagsEntry
+	19,  // 68: pomerium.config.Settings.circuit_breaker_thresholds:type_name -> pomerium.config.CircuitBreakerThresholds
+	102, // 69: pomerium.config.Settings.ssh_host_key_files:type_name -> pomerium.config.Settings.StringList
+	102, // 70: pomerium.config.Settings.ssh_host_keys:type_name -> pomerium.config.Settings.StringList
+	115, // 71: pomerium.config.Settings.directory_provider_options:type_name -> google.protobuf.Struct
+	114, // 72: pomerium.config.Settings.directory_provider_refresh_interval:type_name -> google.protobuf.Duration
+	114, // 73: pomerium.config.Settings.directory_provider_refresh_timeout:type_name -> google.protobuf.Duration
+	32,  // 74: pomerium.config.Settings.blob_storage:type_name -> pomerium.config.BlobStorageSettings
+	102, // 75: pomerium.config.Settings.allow_upgrades:type_name -> pomerium.config.Settings.StringList
+	102, // 76: pomerium.config.Settings.envoy_dynamic_extensions:type_name -> pomerium.config.Settings.StringList
+	3,   // 77: pomerium.config.Settings.path_with_escaped_slashes_action:type_name -> pomerium.config.PathWithEscapedSlashesAction
+	2,   // 78: pomerium.config.Settings.headers_with_underscores_action:type_name -> pomerium.config.HeadersWithUnderscoresAction
+	113, // 79: pomerium.config.Settings.created_at:type_name -> google.protobuf.Timestamp
+	113, // 80: pomerium.config.Settings.modified_at:type_name -> google.protobuf.Timestamp
+	5,   // 81: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode
+	34,  // 82: pomerium.config.DownstreamMtlsSettings.match_subject_alt_names:type_name -> pomerium.config.SANMatcher
+	11,  // 83: pomerium.config.SANMatcher.san_type:type_name -> pomerium.config.SANMatcher.SANType
+	113, // 84: pomerium.config.KeyPair.created_at:type_name -> google.protobuf.Timestamp
+	113, // 85: pomerium.config.KeyPair.modified_at:type_name -> google.protobuf.Timestamp
+	7,   // 86: pomerium.config.KeyPair.status:type_name -> pomerium.config.KeyPairStatus
+	6,   // 87: pomerium.config.KeyPair.origin:type_name -> pomerium.config.KeyPairOrigin
+	38,  // 88: pomerium.config.KeyPair.certificate_info:type_name -> pomerium.config.CertificateInfo
+	37,  // 89: pomerium.config.CertificateInfo.issuer:type_name -> pomerium.config.Name
+	37,  // 90: pomerium.config.CertificateInfo.subject:type_name -> pomerium.config.Name
+	113, // 91: pomerium.config.CertificateInfo.not_before:type_name -> google.protobuf.Timestamp
+	113, // 92: pomerium.config.CertificateInfo.not_after:type_name -> google.protobuf.Timestamp
+	36,  // 93: pomerium.config.CertificateInfo.key_usage:type_name -> pomerium.config.KeyUsage
+	113, // 94: pomerium.config.ServiceAccount.expires_at:type_name -> google.protobuf.Timestamp
+	113, // 95: pomerium.config.ServiceAccount.created_at:type_name -> google.protobuf.Timestamp
+	113, // 96: pomerium.config.ServiceAccount.modified_at:type_name -> google.protobuf.Timestamp
+	113, // 97: pomerium.config.ServiceAccount.accessed_at:type_name -> google.protobuf.Timestamp
+	35,  // 98: pomerium.config.CreateKeyPairRequest.key_pair:type_name -> pomerium.config.KeyPair
+	35,  // 99: pomerium.config.CreateKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
+	30,  // 100: pomerium.config.CreatePolicyRequest.policy:type_name -> pomerium.config.Policy
+	30,  // 101: pomerium.config.CreatePolicyResponse.policy:type_name -> pomerium.config.Policy
+	22,  // 102: pomerium.config.CreateRouteRequest.route:type_name -> pomerium.config.Route
+	22,  // 103: pomerium.config.CreateRouteResponse.route:type_name -> pomerium.config.Route
+	39,  // 104: pomerium.config.CreateServiceAccountRequest.service_account:type_name -> pomerium.config.ServiceAccount
+	39,  // 105: pomerium.config.CreateServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
+	35,  // 106: pomerium.config.GetKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
+	30,  // 107: pomerium.config.GetPolicyResponse.policy:type_name -> pomerium.config.Policy
+	22,  // 108: pomerium.config.GetRouteResponse.route:type_name -> pomerium.config.Route
+	39,  // 109: pomerium.config.GetServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
+	31,  // 110: pomerium.config.GetSettingsResponse.settings:type_name -> pomerium.config.Settings
+	115, // 111: pomerium.config.ListKeyPairsRequest.filter:type_name -> google.protobuf.Struct
+	35,  // 112: pomerium.config.ListKeyPairsResponse.key_pairs:type_name -> pomerium.config.KeyPair
+	115, // 113: pomerium.config.ListPoliciesRequest.filter:type_name -> google.protobuf.Struct
+	30,  // 114: pomerium.config.ListPoliciesResponse.policies:type_name -> pomerium.config.Policy
+	115, // 115: pomerium.config.ListRoutesRequest.filter:type_name -> google.protobuf.Struct
+	22,  // 116: pomerium.config.ListRoutesResponse.routes:type_name -> pomerium.config.Route
+	115, // 117: pomerium.config.ListServiceAccountsRequest.filter:type_name -> google.protobuf.Struct
+	39,  // 118: pomerium.config.ListServiceAccountsResponse.service_accounts:type_name -> pomerium.config.ServiceAccount
+	115, // 119: pomerium.config.ListSettingsRequest.filter:type_name -> google.protobuf.Struct
+	31,  // 120: pomerium.config.ListSettingsResponse.settings:type_name -> pomerium.config.Settings
+	8,   // 121: pomerium.config.GetServerInfoResponse.server_type:type_name -> pomerium.config.ServerType
+	35,  // 122: pomerium.config.UpdateKeyPairRequest.key_pair:type_name -> pomerium.config.KeyPair
+	116, // 123: pomerium.config.UpdateKeyPairRequest.update_mask:type_name -> google.protobuf.FieldMask
+	35,  // 124: pomerium.config.UpdateKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
+	30,  // 125: pomerium.config.UpdatePolicyRequest.policy:type_name -> pomerium.config.Policy
+	116, // 126: pomerium.config.UpdatePolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	30,  // 127: pomerium.config.UpdatePolicyResponse.policy:type_name -> pomerium.config.Policy
+	22,  // 128: pomerium.config.UpdateRouteRequest.route:type_name -> pomerium.config.Route
+	116, // 129: pomerium.config.UpdateRouteRequest.update_mask:type_name -> google.protobuf.FieldMask
+	22,  // 130: pomerium.config.UpdateRouteResponse.route:type_name -> pomerium.config.Route
+	39,  // 131: pomerium.config.UpdateServiceAccountRequest.service_account:type_name -> pomerium.config.ServiceAccount
+	116, // 132: pomerium.config.UpdateServiceAccountRequest.update_mask:type_name -> google.protobuf.FieldMask
+	39,  // 133: pomerium.config.UpdateServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
+	31,  // 134: pomerium.config.UpdateSettingsRequest.settings:type_name -> pomerium.config.Settings
+	116, // 135: pomerium.config.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
+	31,  // 136: pomerium.config.UpdateSettingsResponse.settings:type_name -> pomerium.config.Settings
+	114, // 137: pomerium.config.HealthCheck.timeout:type_name -> google.protobuf.Duration
+	114, // 138: pomerium.config.HealthCheck.interval:type_name -> google.protobuf.Duration
+	114, // 139: pomerium.config.HealthCheck.initial_jitter:type_name -> google.protobuf.Duration
+	114, // 140: pomerium.config.HealthCheck.interval_jitter:type_name -> google.protobuf.Duration
+	117, // 141: pomerium.config.HealthCheck.unhealthy_threshold:type_name -> google.protobuf.UInt32Value
+	117, // 142: pomerium.config.HealthCheck.healthy_threshold:type_name -> google.protobuf.UInt32Value
+	117, // 143: pomerium.config.HealthCheck.alt_port:type_name -> google.protobuf.UInt32Value
+	118, // 144: pomerium.config.HealthCheck.reuse_connection:type_name -> google.protobuf.BoolValue
+	110, // 145: pomerium.config.HealthCheck.http_health_check:type_name -> pomerium.config.HealthCheck.HttpHealthCheck
+	111, // 146: pomerium.config.HealthCheck.tcp_health_check:type_name -> pomerium.config.HealthCheck.TcpHealthCheck
+	112, // 147: pomerium.config.HealthCheck.grpc_health_check:type_name -> pomerium.config.HealthCheck.GrpcHealthCheck
+	114, // 148: pomerium.config.HealthCheck.no_traffic_interval:type_name -> google.protobuf.Duration
+	114, // 149: pomerium.config.HealthCheck.no_traffic_healthy_interval:type_name -> google.protobuf.Duration
+	114, // 150: pomerium.config.HealthCheck.unhealthy_interval:type_name -> google.protobuf.Duration
+	114, // 151: pomerium.config.HealthCheck.unhealthy_edge_interval:type_name -> google.protobuf.Duration
+	114, // 152: pomerium.config.HealthCheck.healthy_edge_interval:type_name -> google.protobuf.Duration
+	115, // 153: pomerium.config.HealthCheck.transport_socket_match_criteria:type_name -> google.protobuf.Struct
+	117, // 154: pomerium.config.OutlierDetection.consecutive_5xx:type_name -> google.protobuf.UInt32Value
+	114, // 155: pomerium.config.OutlierDetection.interval:type_name -> google.protobuf.Duration
+	114, // 156: pomerium.config.OutlierDetection.base_ejection_time:type_name -> google.protobuf.Duration
+	117, // 157: pomerium.config.OutlierDetection.max_ejection_percent:type_name -> google.protobuf.UInt32Value
+	117, // 158: pomerium.config.OutlierDetection.enforcing_consecutive_5xx:type_name -> google.protobuf.UInt32Value
+	117, // 159: pomerium.config.OutlierDetection.enforcing_success_rate:type_name -> google.protobuf.UInt32Value
+	117, // 160: pomerium.config.OutlierDetection.success_rate_minimum_hosts:type_name -> google.protobuf.UInt32Value
+	117, // 161: pomerium.config.OutlierDetection.success_rate_request_volume:type_name -> google.protobuf.UInt32Value
+	117, // 162: pomerium.config.OutlierDetection.success_rate_stdev_factor:type_name -> google.protobuf.UInt32Value
+	117, // 163: pomerium.config.OutlierDetection.consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
+	117, // 164: pomerium.config.OutlierDetection.enforcing_consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
+	117, // 165: pomerium.config.OutlierDetection.consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
+	117, // 166: pomerium.config.OutlierDetection.enforcing_consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
+	117, // 167: pomerium.config.OutlierDetection.enforcing_local_origin_success_rate:type_name -> google.protobuf.UInt32Value
+	117, // 168: pomerium.config.OutlierDetection.failure_percentage_threshold:type_name -> google.protobuf.UInt32Value
+	117, // 169: pomerium.config.OutlierDetection.enforcing_failure_percentage:type_name -> google.protobuf.UInt32Value
+	117, // 170: pomerium.config.OutlierDetection.enforcing_failure_percentage_local_origin:type_name -> google.protobuf.UInt32Value
+	117, // 171: pomerium.config.OutlierDetection.failure_percentage_minimum_hosts:type_name -> google.protobuf.UInt32Value
+	117, // 172: pomerium.config.OutlierDetection.failure_percentage_request_volume:type_name -> google.protobuf.UInt32Value
+	114, // 173: pomerium.config.OutlierDetection.max_ejection_time:type_name -> google.protobuf.Duration
+	114, // 174: pomerium.config.OutlierDetection.max_ejection_time_jitter:type_name -> google.protobuf.Duration
+	118, // 175: pomerium.config.OutlierDetection.successful_active_health_check_uneject_host:type_name -> google.protobuf.BoolValue
+	118, // 176: pomerium.config.OutlierDetection.always_eject_one_host:type_name -> google.protobuf.BoolValue
+	119, // 177: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	119, // 178: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	100, // 179: pomerium.config.Settings.DataBrokerClusterNodes.nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNode
+	12,  // 180: pomerium.config.HealthCheck.HealthStatusSet.statuses:type_name -> pomerium.config.HealthCheck.HealthStatus
+	109, // 181: pomerium.config.HealthCheck.HttpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
+	109, // 182: pomerium.config.HealthCheck.HttpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
+	120, // 183: pomerium.config.HealthCheck.HttpHealthCheck.response_buffer_size:type_name -> google.protobuf.UInt64Value
+	108, // 184: pomerium.config.HealthCheck.HttpHealthCheck.expected_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
+	108, // 185: pomerium.config.HealthCheck.HttpHealthCheck.retriable_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
+	13,  // 186: pomerium.config.HealthCheck.HttpHealthCheck.codec_client_type:type_name -> pomerium.config.HealthCheck.CodecClientType
+	109, // 187: pomerium.config.HealthCheck.TcpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
+	109, // 188: pomerium.config.HealthCheck.TcpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
+	40,  // 189: pomerium.config.ConfigService.CreateKeyPair:input_type -> pomerium.config.CreateKeyPairRequest
+	42,  // 190: pomerium.config.ConfigService.CreatePolicy:input_type -> pomerium.config.CreatePolicyRequest
+	44,  // 191: pomerium.config.ConfigService.CreateRoute:input_type -> pomerium.config.CreateRouteRequest
+	46,  // 192: pomerium.config.ConfigService.CreateServiceAccount:input_type -> pomerium.config.CreateServiceAccountRequest
+	48,  // 193: pomerium.config.ConfigService.DeleteKeyPair:input_type -> pomerium.config.DeleteKeyPairRequest
+	50,  // 194: pomerium.config.ConfigService.DeletePolicy:input_type -> pomerium.config.DeletePolicyRequest
+	52,  // 195: pomerium.config.ConfigService.DeleteRoute:input_type -> pomerium.config.DeleteRouteRequest
+	54,  // 196: pomerium.config.ConfigService.DeleteServiceAccount:input_type -> pomerium.config.DeleteServiceAccountRequest
+	56,  // 197: pomerium.config.ConfigService.GetKeyPair:input_type -> pomerium.config.GetKeyPairRequest
+	58,  // 198: pomerium.config.ConfigService.GetPolicy:input_type -> pomerium.config.GetPolicyRequest
+	60,  // 199: pomerium.config.ConfigService.GetRoute:input_type -> pomerium.config.GetRouteRequest
+	78,  // 200: pomerium.config.ConfigService.GetServerInfo:input_type -> pomerium.config.GetServerInfoRequest
+	62,  // 201: pomerium.config.ConfigService.GetServiceAccount:input_type -> pomerium.config.GetServiceAccountRequest
+	64,  // 202: pomerium.config.ConfigService.GetSettings:input_type -> pomerium.config.GetSettingsRequest
+	66,  // 203: pomerium.config.ConfigService.ListAvailableLogFields:input_type -> pomerium.config.ListAvailableLogFieldsRequest
+	68,  // 204: pomerium.config.ConfigService.ListKeyPairs:input_type -> pomerium.config.ListKeyPairsRequest
+	70,  // 205: pomerium.config.ConfigService.ListPolicies:input_type -> pomerium.config.ListPoliciesRequest
+	72,  // 206: pomerium.config.ConfigService.ListRoutes:input_type -> pomerium.config.ListRoutesRequest
+	74,  // 207: pomerium.config.ConfigService.ListServiceAccounts:input_type -> pomerium.config.ListServiceAccountsRequest
+	76,  // 208: pomerium.config.ConfigService.ListSettings:input_type -> pomerium.config.ListSettingsRequest
+	80,  // 209: pomerium.config.ConfigService.UpdateKeyPair:input_type -> pomerium.config.UpdateKeyPairRequest
+	82,  // 210: pomerium.config.ConfigService.UpdatePolicy:input_type -> pomerium.config.UpdatePolicyRequest
+	84,  // 211: pomerium.config.ConfigService.UpdateRoute:input_type -> pomerium.config.UpdateRouteRequest
+	86,  // 212: pomerium.config.ConfigService.UpdateServiceAccount:input_type -> pomerium.config.UpdateServiceAccountRequest
+	88,  // 213: pomerium.config.ConfigService.UpdateSettings:input_type -> pomerium.config.UpdateSettingsRequest
+	41,  // 214: pomerium.config.ConfigService.CreateKeyPair:output_type -> pomerium.config.CreateKeyPairResponse
+	43,  // 215: pomerium.config.ConfigService.CreatePolicy:output_type -> pomerium.config.CreatePolicyResponse
+	45,  // 216: pomerium.config.ConfigService.CreateRoute:output_type -> pomerium.config.CreateRouteResponse
+	47,  // 217: pomerium.config.ConfigService.CreateServiceAccount:output_type -> pomerium.config.CreateServiceAccountResponse
+	49,  // 218: pomerium.config.ConfigService.DeleteKeyPair:output_type -> pomerium.config.DeleteKeyPairResponse
+	51,  // 219: pomerium.config.ConfigService.DeletePolicy:output_type -> pomerium.config.DeletePolicyResponse
+	53,  // 220: pomerium.config.ConfigService.DeleteRoute:output_type -> pomerium.config.DeleteRouteResponse
+	55,  // 221: pomerium.config.ConfigService.DeleteServiceAccount:output_type -> pomerium.config.DeleteServiceAccountResponse
+	57,  // 222: pomerium.config.ConfigService.GetKeyPair:output_type -> pomerium.config.GetKeyPairResponse
+	59,  // 223: pomerium.config.ConfigService.GetPolicy:output_type -> pomerium.config.GetPolicyResponse
+	61,  // 224: pomerium.config.ConfigService.GetRoute:output_type -> pomerium.config.GetRouteResponse
+	79,  // 225: pomerium.config.ConfigService.GetServerInfo:output_type -> pomerium.config.GetServerInfoResponse
+	63,  // 226: pomerium.config.ConfigService.GetServiceAccount:output_type -> pomerium.config.GetServiceAccountResponse
+	65,  // 227: pomerium.config.ConfigService.GetSettings:output_type -> pomerium.config.GetSettingsResponse
+	67,  // 228: pomerium.config.ConfigService.ListAvailableLogFields:output_type -> pomerium.config.ListAvailableLogFieldsResponse
+	69,  // 229: pomerium.config.ConfigService.ListKeyPairs:output_type -> pomerium.config.ListKeyPairsResponse
+	71,  // 230: pomerium.config.ConfigService.ListPolicies:output_type -> pomerium.config.ListPoliciesResponse
+	73,  // 231: pomerium.config.ConfigService.ListRoutes:output_type -> pomerium.config.ListRoutesResponse
+	75,  // 232: pomerium.config.ConfigService.ListServiceAccounts:output_type -> pomerium.config.ListServiceAccountsResponse
+	77,  // 233: pomerium.config.ConfigService.ListSettings:output_type -> pomerium.config.ListSettingsResponse
+	81,  // 234: pomerium.config.ConfigService.UpdateKeyPair:output_type -> pomerium.config.UpdateKeyPairResponse
+	83,  // 235: pomerium.config.ConfigService.UpdatePolicy:output_type -> pomerium.config.UpdatePolicyResponse
+	85,  // 236: pomerium.config.ConfigService.UpdateRoute:output_type -> pomerium.config.UpdateRouteResponse
+	87,  // 237: pomerium.config.ConfigService.UpdateServiceAccount:output_type -> pomerium.config.UpdateServiceAccountResponse
+	89,  // 238: pomerium.config.ConfigService.UpdateSettings:output_type -> pomerium.config.UpdateSettingsResponse
+	214, // [214:239] is the sub-list for method output_type
+	189, // [189:214] is the sub-list for method input_type
+	189, // [189:189] is the sub-list for extension type_name
+	189, // [189:189] is the sub-list for extension extendee
+	0,   // [0:189] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }
@@ -10141,6 +10826,11 @@ func file_config_proto_init() {
 	file_config_proto_msgTypes[58].OneofWrappers = []any{}
 	file_config_proto_msgTypes[60].OneofWrappers = []any{}
 	file_config_proto_msgTypes[62].OneofWrappers = []any{}
+	file_config_proto_msgTypes[66].OneofWrappers = []any{}
+	file_config_proto_msgTypes[68].OneofWrappers = []any{}
+	file_config_proto_msgTypes[70].OneofWrappers = []any{}
+	file_config_proto_msgTypes[72].OneofWrappers = []any{}
+	file_config_proto_msgTypes[74].OneofWrappers = []any{}
 	file_config_proto_msgTypes[76].OneofWrappers = []any{
 		(*HealthCheck_HttpHealthCheck_)(nil),
 		(*HealthCheck_TcpHealthCheck_)(nil),
@@ -10157,7 +10847,7 @@ func file_config_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_config_proto_rawDesc), len(file_config_proto_rawDesc)),
-			NumEnums:      12,
+			NumEnums:      14,
 			NumMessages:   99,
 			NumExtensions: 0,
 			NumServices:   1,

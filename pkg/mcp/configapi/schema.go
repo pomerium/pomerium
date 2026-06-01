@@ -7,8 +7,11 @@ package configapi
 
 import (
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // messageToJSONSchema converts a protobuf MessageDescriptor to a JSON Schema
@@ -86,30 +89,60 @@ func msgToSchema(md protoreflect.MessageDescriptor, visited map[protoreflect.Ful
 		props[fd.JSONName()] = fieldToSchema(fd, visited)
 	}
 
-	return map[string]any{
+	schema := map[string]any{
 		"type":       "object",
 		"properties": props,
 	}
+	if d := configpb.MessageDescription(md); d != "" {
+		schema["description"] = d
+	}
+	return schema
 }
 
+// fieldToSchema attaches the field's leading-comment doc (from config.proto)
+// to the schema for the field itself. For a scalar that lands directly on
+// the property; for a list/map it lands on the container so the LLM sees
+// the description next to the field name, not buried inside `items`.
 func fieldToSchema(fd protoreflect.FieldDescriptor, visited map[protoreflect.FullName]bool) map[string]any {
+	desc := configpb.FieldDescription(fd)
+
 	if fd.IsMap() {
 		valueField := fd.MapValue()
-		return map[string]any{
+		out := map[string]any{
 			"type":                 "object",
 			"additionalProperties": scalarOrMessageSchema(valueField, visited),
 		}
+		if desc != "" {
+			out["description"] = desc
+		}
+		return out
 	}
 
 	schema := scalarOrMessageSchema(fd, visited)
 
 	if fd.IsList() {
-		return map[string]any{
+		out := map[string]any{
 			"type":  "array",
 			"items": schema,
 		}
+		if desc != "" {
+			out["description"] = desc
+		}
+		return out
 	}
 
+	if desc != "" {
+		// Singular scalar/message: merge the field doc onto the value schema.
+		// scalarOrMessageSchema may have set its own "description" (e.g. for
+		// 64-bit-int-as-string or bytes-as-base64); preserve that hint by
+		// appending. Field-level doc comes first because it's the more
+		// informative one for an LLM.
+		if existing, ok := schema["description"].(string); ok && existing != "" {
+			schema["description"] = desc + " (" + existing + ")"
+		} else {
+			schema["description"] = desc
+		}
+	}
 	return schema
 }
 
@@ -147,16 +180,36 @@ func scalarOrMessageSchema(fd protoreflect.FieldDescriptor, visited map[protoref
 	}
 }
 
+// enumSchema renders a protobuf enum as a JSON Schema string with the legal
+// values listed under `enum`. JSON Schema has no standard slot for per-value
+// docs, so any per-value leading comments from config.proto are appended to
+// the schema's `description` as "VALUE_NAME: comment" lines — an LLM picking
+// a value sees what each one means, not just the constant name.
 func enumSchema(ed protoreflect.EnumDescriptor) map[string]any {
 	values := ed.Values()
 	names := make([]any, 0, values.Len())
+	var valueDocs []string
 	for i := range values.Len() {
-		names = append(names, string(values.Get(i).Name()))
+		v := values.Get(i)
+		names = append(names, string(v.Name()))
+		if d := configpb.EnumValueDescription(v); d != "" {
+			valueDocs = append(valueDocs, string(v.Name())+": "+d)
+		}
 	}
+
+	var parts []string
+	if d := configpb.EnumDescription(ed); d != "" {
+		parts = append(parts, d)
+	}
+	parts = append(parts, fmt.Sprintf("(enum %s)", ed.FullName()))
+	if len(valueDocs) > 0 {
+		parts = append(parts, "Values: "+strings.Join(valueDocs, "; "))
+	}
+
 	return map[string]any{
 		"type":        "string",
 		"enum":        names,
-		"description": fmt.Sprintf("enum %s", ed.FullName()),
+		"description": strings.Join(parts, " "),
 	}
 }
 

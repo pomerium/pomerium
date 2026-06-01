@@ -34,9 +34,12 @@ func OpenBucket(ctx context.Context, bucketURI string) (*blob.Bucket, error) {
 	}
 
 	switch u.Scheme {
-	case "minio":
-		if u.User != nil {
-			return openMinioBucket(ctx, u)
+	case "file":
+		q := u.Query()
+		if !q.Has("no_tmp_dir") {
+			q.Set("no_tmp_dir", "true")
+			u.RawQuery = q.Encode()
+			bucketURI = u.String()
 		}
 	}
 	return blob.OpenBucket(ctx, bucketURI)
