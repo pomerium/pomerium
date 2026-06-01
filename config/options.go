@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"iter"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -52,11 +53,6 @@ import (
 
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
-
-// DefaultAlternativeAddr is the address used is two services are competing over
-// the same listener. Typically this is invisible to the end user (e.g. localhost)
-// gRPC server, or is used for healthchecks (authorize only service)
-const DefaultAlternativeAddr = ":5443"
 
 // The randomSharedKey is used if no shared key is supplied in all-in-one mode.
 var randomSharedKey = cryptutil.NewBase64Key()
@@ -900,7 +896,7 @@ func (o *Options) SupportsUserRefresh() bool {
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURLs() ([]*url.URL, error) {
 	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
-		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
+		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + o.GetAlternativePort())
 		if err != nil {
 			return nil, err
 		}
@@ -921,7 +917,7 @@ func (o *Options) GetInternalAuthorizeURLs() ([]*url.URL, error) {
 // GetDataBrokerURLs returns the DataBrokerURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetDataBrokerURLs() ([]*url.URL, error) {
 	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.DataBroker.ServiceURL == "" && len(o.DataBroker.ServiceURLs) == 0 {
-		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
+		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1:" + o.GetAlternativePort())
 		if err != nil {
 			return nil, err
 		}
@@ -954,17 +950,28 @@ func (o *Options) getURLs(strs ...string) ([]*url.URL, error) {
 		}
 	}
 	if len(urls) == 0 {
-		u, _ := url.Parse("http://127.0.0.1" + DefaultAlternativeAddr)
+		u, _ := url.Parse("http://127.0.0.1:" + o.GetAlternativePort())
 		urls = append(urls, u)
 	}
 	return urls, nil
+}
+
+// GetAlternativePort gets the alternative port when running both an HTTP
+// listener and a gRPC listener.
+func (o *Options) GetAlternativePort() string {
+	_, httpPort, _ := net.SplitHostPort(o.Addr)
+	// 5443 is not available, so switch to 5444
+	if httpPort == "5443" {
+		return "5444"
+	}
+	return "5443"
 }
 
 // GetGRPCAddr gets the gRPC address.
 func (o *Options) GetGRPCAddr() string {
 	// to avoid port collision when running on localhost
 	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.GRPCAddr == defaultOptions.GRPCAddr {
-		return DefaultAlternativeAddr
+		return ":" + o.GetAlternativePort()
 	}
 	return o.GRPCAddr
 }

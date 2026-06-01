@@ -1453,6 +1453,14 @@ func TestOptions_GetCSRFSameSite(t *testing.T) {
 	}
 }
 
+func TestOptions_GetAlternativePort(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "5443", NewDefaultOptions().GetAlternativePort())
+	o := NewDefaultOptions()
+	o.Addr = "127.0.0.1:5443"
+	assert.Equal(t, "5444", o.GetAlternativePort())
+}
+
 func TestOptions_GetMCPAllowedAsMetadataDomains(t *testing.T) {
 	t.Parallel()
 	o := NewDefaultOptions()
