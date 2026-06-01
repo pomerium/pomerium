@@ -896,7 +896,7 @@ func (o *Options) SupportsUserRefresh() bool {
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURLs() ([]*url.URL, error) {
 	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
-		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + o.GetAlternativePort())
+		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1:" + o.GetAlternativePort())
 		if err != nil {
 			return nil, err
 		}
