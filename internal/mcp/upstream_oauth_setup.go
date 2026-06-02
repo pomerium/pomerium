@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // upstreamOAuthSetupConfig holds configuration for the upstream OAuth discovery + client_id setup workflow.
@@ -621,11 +622,7 @@ func effectiveUpstreamResourceURL(configuredUpstream, originalURL string) (strin
 		return "", fmt.Errorf("parsing configured upstream URL %q: %w", configuredUpstream, err)
 	}
 
-	// Prepend the configured base path only when there is one; otherwise the request URL
-	// already reflects the resource being accessed.
-	if cu.Path != "" && cu.Path != "/" {
-		ru.Path = path.Join(cu.Path, ru.Path)
-	}
+	ru.Path = urlutil.Join(cu.Path, ru.Path)
 	return ru.String(), nil
 }
 

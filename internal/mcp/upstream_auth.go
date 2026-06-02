@@ -415,7 +415,7 @@ func (h *UpstreamAuthHandler) handle401(
 	// This is used for PRM discovery/validation and the OAuth resource parameter.
 	// The base upstreamServer URL is used for token storage keys (must match GetUpstreamToken).
 	// effectiveUpstreamResourceURL rejoins the configured upstream base path that ext_proc's
-	// originalURL drops; see its doc for why.
+	// originalURL drops.
 	resourceURL, err := effectiveUpstreamResourceURL(serverInfo.UpstreamURL, originalURL)
 	if err != nil {
 		return nil, fmt.Errorf("deriving upstream resource URL: %w", err)
