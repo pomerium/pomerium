@@ -608,6 +608,27 @@ func stripQueryFromURL(rawURL string) string {
 	return u.String()
 }
 
+func effectiveUpstreamResourceURL(configuredUpstream, originalURL string) (string, error) {
+	ru, err := url.Parse(originalURL)
+	if err != nil {
+		return "", fmt.Errorf("parsing request URL %q: %w", originalURL, err)
+	}
+	ru.RawQuery = ""
+	ru.Fragment = ""
+
+	cu, err := url.Parse(configuredUpstream)
+	if err != nil {
+		return "", fmt.Errorf("parsing configured upstream URL %q: %w", configuredUpstream, err)
+	}
+
+	// Prepend the configured base path only when there is one; otherwise the request URL
+	// already reflects the resource being accessed.
+	if cu.Path != "" && cu.Path != "/" {
+		ru.Path = path.Join(cu.Path, ru.Path)
+	}
+	return ru.String(), nil
+}
+
 // normalizeResourceURL normalizes a resource URL for comparison by stripping trailing slashes.
 // RFC 9728 §3.3 requires exact match, but trailing slash differences are common in practice.
 func normalizeResourceURL(u string) string {
