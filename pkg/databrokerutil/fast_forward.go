@@ -1,4 +1,4 @@
-package databroker
+package databrokerutil
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	internalmetrics "github.com/pomerium/pomerium/internal/telemetry/metrics"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	metrics "github.com/pomerium/pomerium/pkg/metrics"
 	"github.com/pomerium/pomerium/pkg/slices"
 )
@@ -31,7 +32,7 @@ type fastForwardHandler struct {
 type ffCmd struct {
 	clearRecords  bool
 	serverVersion uint64
-	records       []*Record
+	records       []*databrokerpb.Record
 }
 
 func newFastForwardHandler(ctx context.Context, tracerProvider oteltrace.TracerProvider, id string, handler SyncerHandler) SyncerHandler {
@@ -71,7 +72,7 @@ func (ff *fastForwardHandler) processCmd(ctx context.Context, cmd ffCmd) {
 	op.Complete()
 }
 
-func (ff *fastForwardHandler) GetDataBrokerServiceClient() DataBrokerServiceClient {
+func (ff *fastForwardHandler) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
 	return ff.handler.GetDataBrokerServiceClient()
 }
 
@@ -98,7 +99,7 @@ func (ff *fastForwardHandler) ClearRecords(ctx context.Context) {
 	}
 }
 
-func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*Record) {
+func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databrokerpb.Record) {
 	ctx, op := ff.c.Start(ctx, "Enqueue/UpdateRecords")
 	defer op.Complete()
 
@@ -117,7 +118,7 @@ func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion u
 	// reverse, so that when we get the unique records, the newest take precedence
 	slices.Reverse(records)
 	cnt := len(records)
-	records = slices.UniqueBy(records, func(record *Record) [2]string {
+	records = slices.UniqueBy(records, func(record *databrokerpb.Record) [2]string {
 		return [2]string{record.GetType(), record.GetId()}
 	})
 	dropped := cnt - len(records)

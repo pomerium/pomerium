@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Perform a dry-run (snapshot build, no publishing)'
+        description: "Perform a dry-run (snapshot build, no publishing)"
         required: true
         default: true
         type: boolean
@@ -167,3 +167,21 @@ jobs:
             Bump test environment pomerium/pomerium
             Image tag: ${{ needs.goreleaser.outputs.tag }}
             Source Repo: ${{ github.repository }}@${{ github.sha }}
+
+  tag-sub-packages:
+    runs-on: ubuntu-22.04
+    needs: goreleaser
+    if: github.event_name == 'release'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: pomerium/pomerium
+          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+
+      - name: Tag
+        run: |
+          git tag pkg/grpc/config/${{ needs.goreleaser.outputs.tag }} ${{ needs.goreleaser.outputs.tag }}
+          git push origin tag pkg/grpc/config/${{ needs.goreleaser.outputs.tag }}
+          git tag pkg/grpc/databroker/${{ needs.goreleaser.outputs.tag }} ${{ needs.goreleaser.outputs.tag }}
+          git push origin tag pkg/grpc/databroker/${{ needs.goreleaser.outputs.tag }}

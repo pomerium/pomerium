@@ -1,4 +1,4 @@
-package databroker
+package databrokerutil
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/internal/log"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // a retryableError is one we'll retry later
@@ -28,7 +29,7 @@ func (err retryableError) Is(target error) bool {
 
 // A LeaserHandler is a handler for the locker.
 type LeaserHandler interface {
-	GetDataBrokerServiceClient() DataBrokerServiceClient
+	GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient
 	RunLeased(ctx context.Context) error
 }
 
@@ -53,7 +54,7 @@ func NewLeaser(leaseName string, ttl time.Duration, handler LeaserHandler, optio
 }
 
 // NewLeasers creates a leaser using multiple handler functions
-func NewLeasers(leaseName string, ttl time.Duration, client DataBrokerServiceClient, handlers ...func(context.Context) error) *Leaser {
+func NewLeasers(leaseName string, ttl time.Duration, client databrokerpb.DataBrokerServiceClient, handlers ...func(context.Context) error) *Leaser {
 	return NewLeaser(leaseName, ttl, &leaseHandlers{client, handlers})
 }
 
@@ -91,7 +92,7 @@ func (locker *Leaser) Run(ctx context.Context) error {
 }
 
 func (locker *Leaser) runOnce(ctx context.Context, resetBackoff func()) error {
-	res, err := locker.handler.GetDataBrokerServiceClient().AcquireLease(ctx, &AcquireLeaseRequest{
+	res, err := locker.handler.GetDataBrokerServiceClient().AcquireLease(ctx, &databrokerpb.AcquireLeaseRequest{
 		Name:     locker.leaseName,
 		Duration: durationpb.New(locker.ttl),
 	})
@@ -118,7 +119,7 @@ func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), locker.ttl)
 		defer cancel()
-		_, _ = locker.handler.GetDataBrokerServiceClient().ReleaseLease(ctx, &ReleaseLeaseRequest{
+		_, _ = locker.handler.GetDataBrokerServiceClient().ReleaseLease(ctx, &databrokerpb.ReleaseLeaseRequest{
 			Name: locker.leaseName,
 			Id:   leaseID,
 		})
@@ -140,7 +141,7 @@ func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 			case <-renewTicker.C:
 			}
 
-			_, err := locker.handler.GetDataBrokerServiceClient().RenewLease(ctx, &RenewLeaseRequest{
+			_, err := locker.handler.GetDataBrokerServiceClient().RenewLease(ctx, &databrokerpb.RenewLeaseRequest{
 				Name:     locker.leaseName,
 				Id:       leaseID,
 				Duration: durationpb.New(locker.ttl),
@@ -169,12 +170,12 @@ func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 }
 
 type leaseHandlers struct {
-	DataBrokerServiceClient
+	databrokerpb.DataBrokerServiceClient
 	handlers []func(ctx context.Context) error
 }
 
 // GetDataBrokerServiceClient implements databroker.LeaseHandler
-func (h *leaseHandlers) GetDataBrokerServiceClient() DataBrokerServiceClient {
+func (h *leaseHandlers) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
 	return h.DataBrokerServiceClient
 }
 

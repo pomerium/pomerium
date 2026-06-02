@@ -1,4 +1,4 @@
-package databroker
+package databrokerutil
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/telemetry"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // Reconciler reconciles the target and current record sets with the databroker.
@@ -21,11 +22,11 @@ type Reconciler interface {
 
 type reconciler struct {
 	reconcilerConfig
-	client              DataBrokerServiceClient
+	client              databrokerpb.DataBrokerServiceClient
 	currentStateBuilder StateBuilderFn
-	cmpFn               RecordCompareFn
+	cmpFn               databrokerpb.RecordCompareFn
 	targetStateBuilder  StateBuilderFn
-	setCurrentState     func([]*Record)
+	setCurrentState     func([]*databrokerpb.Record)
 	telemetry           *telemetry.Component
 }
 
@@ -81,15 +82,15 @@ func getReconcilerConfig(options ...ReconcilerOption) reconcilerConfig {
 }
 
 // StateBuilderFn is a function that builds a record set bundle
-type StateBuilderFn func(ctx context.Context) (RecordSetBundle, error)
+type StateBuilderFn func(ctx context.Context) (databrokerpb.RecordSetBundle, error)
 
 // NewReconciler creates a new reconciler
 func NewReconciler(
-	client DataBrokerServiceClient,
+	client databrokerpb.DataBrokerServiceClient,
 	currentStateBuilder StateBuilderFn,
 	targetStateBuilder StateBuilderFn,
-	setCurrentState func([]*Record),
-	cmpFn RecordCompareFn,
+	setCurrentState func([]*databrokerpb.Record),
+	cmpFn databrokerpb.RecordCompareFn,
 	opts ...ReconcilerOption,
 ) Reconciler {
 	cfg := getReconcilerConfig(opts...)
@@ -114,7 +115,7 @@ func (r *reconciler) Reconcile(ctx context.Context) error {
 		return op.Failure(fmt.Errorf("get config record sets: %w", err))
 	}
 
-	updates := GetChangeSet(current, target, r.cmpFn)
+	updates := databrokerpb.GetChangeSet(current, target, r.cmpFn)
 
 	err = r.applyChanges(ctx, updates)
 	if err != nil {
@@ -126,8 +127,8 @@ func (r *reconciler) Reconcile(ctx context.Context) error {
 }
 
 func (r *reconciler) getRecordSets(ctx context.Context) (
-	current RecordSetBundle,
-	target RecordSetBundle,
+	current databrokerpb.RecordSetBundle,
+	target databrokerpb.RecordSetBundle,
 	_ error,
 ) {
 	ctx, op := r.telemetry.Start(ctx, "GetRecordSets")
@@ -164,11 +165,11 @@ func (r *reconciler) getRecordSets(ctx context.Context) (
 	return current, target, nil
 }
 
-func (r *reconciler) applyChanges(ctx context.Context, updates []*Record) error {
+func (r *reconciler) applyChanges(ctx context.Context, updates []*databrokerpb.Record) error {
 	ctx, op := r.telemetry.Start(ctx, "ApplyChanges")
 	defer op.Complete()
 
-	err := PutMulti(ctx, r.client, updates...)
+	err := databrokerpb.PutMulti(ctx, r.client, updates...)
 	if err != nil {
 		return op.Failure(fmt.Errorf("apply databroker changes: %w", err))
 	}

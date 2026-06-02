@@ -54,7 +54,7 @@ type (
 	KeyboardInteractiveAuthMethodResponse = AuthMethodResponse[extensions_ssh.KeyboardInteractiveAllowResponse]
 )
 
-//go:generate go tool -modfile ../../internal/tools/go.mod go.uber.org/mock/mockgen -typed -destination ./mock/mock_auth_interface.go . AuthInterface
+//go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_auth_interface.go . AuthInterface
 
 type AuthInterface interface {
 	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)

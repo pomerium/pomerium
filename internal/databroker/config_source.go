@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -342,38 +343,38 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 
 	client := databrokerpb.NewDataBrokerServiceClient(cc)
 
-	configSyncer := databrokerpb.NewSyncer(ctx, "databroker", &configSyncerHandler{
+	configSyncer := databrokerutil.NewSyncer(ctx, "databroker", &configSyncerHandler{
 		client: client,
 		src:    src,
-	}, databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
-		databrokerpb.WithFastForward(),
-		databrokerpb.WithSyncerTracerProvider(src.tracerProvider))
+	}, databrokerutil.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
+		databrokerutil.WithFastForward(),
+		databrokerutil.WithSyncerTracerProvider(src.tracerProvider))
 	go configSyncer.Run(ctx) //nolint:errcheck
 
-	versionedConfigSyncer := databrokerpb.NewSyncer(ctx, "databroker", &versionedConfigSyncerHandler{
+	versionedConfigSyncer := databrokerutil.NewSyncer(ctx, "databroker", &versionedConfigSyncerHandler{
 		client: client,
 		src:    src,
-	}, databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.VersionedConfig))),
-		databrokerpb.WithFastForward(),
-		databrokerpb.WithSyncerTracerProvider(src.tracerProvider))
+	}, databrokerutil.WithTypeURL(grpcutil.GetTypeURL(new(configpb.VersionedConfig))),
+		databrokerutil.WithFastForward(),
+		databrokerutil.WithSyncerTracerProvider(src.tracerProvider))
 	go versionedConfigSyncer.Run(ctx) //nolint:errcheck
 
-	go databrokerpb.NewSyncer(ctx, "databroker",
+	go databrokerutil.NewSyncer(ctx, "databroker",
 		newEntityConfigSyncerHandler(src, client, src.bundle.KeyPairs, &src.bundleKeyPairsReady),
-		databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.KeyPair))),
-		databrokerpb.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
-	go databrokerpb.NewSyncer(ctx, "databroker",
+		databrokerutil.WithTypeURL(grpcutil.GetTypeURL(new(configpb.KeyPair))),
+		databrokerutil.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
+	go databrokerutil.NewSyncer(ctx, "databroker",
 		newEntityConfigSyncerHandler(src, client, src.bundle.Policies, &src.bundlePoliciesReady),
-		databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Policy))),
-		databrokerpb.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
-	go databrokerpb.NewSyncer(ctx, "databroker",
+		databrokerutil.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Policy))),
+		databrokerutil.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
+	go databrokerutil.NewSyncer(ctx, "databroker",
 		newEntityConfigSyncerHandler(src, client, src.bundle.Routes, &src.bundleRoutesReady),
-		databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Route))),
-		databrokerpb.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
-	go databrokerpb.NewSyncer(ctx, "databroker",
+		databrokerutil.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Route))),
+		databrokerutil.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
+	go databrokerutil.NewSyncer(ctx, "databroker",
 		newEntityConfigSyncerHandler(src, client, src.bundle.Settings, &src.bundleSettingsReady),
-		databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Settings))),
-		databrokerpb.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
+		databrokerutil.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Settings))),
+		databrokerutil.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
 
 	log.Ctx(ctx).Debug().
 		Str("outbound-port", cfg.OutboundPort).

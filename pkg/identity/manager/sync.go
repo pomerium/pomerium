@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -15,10 +16,10 @@ type sessionSyncerHandler struct {
 	mgr     *Manager
 }
 
-func newSessionSyncer(ctx context.Context, mgr *Manager) *databroker.Syncer {
-	return databroker.NewSyncer(ctx, "identity_manager/sessions", sessionSyncerHandler{baseCtx: ctx, mgr: mgr},
-		databroker.WithTypeURL(grpcutil.GetTypeURL(new(session.Session))),
-		databroker.WithSyncerTracerProvider(mgr.cfg.Load().tracerProvider))
+func newSessionSyncer(ctx context.Context, mgr *Manager) *databrokerutil.Syncer {
+	return databrokerutil.NewSyncer(ctx, "identity_manager/sessions", sessionSyncerHandler{baseCtx: ctx, mgr: mgr},
+		databrokerutil.WithTypeURL(grpcutil.GetTypeURL(new(session.Session))),
+		databrokerutil.WithSyncerTracerProvider(mgr.cfg.Load().tracerProvider))
 }
 
 func (h sessionSyncerHandler) ClearRecords(ctx context.Context) {
@@ -50,10 +51,10 @@ type userSyncerHandler struct {
 	mgr     *Manager
 }
 
-func newUserSyncer(ctx context.Context, mgr *Manager) *databroker.Syncer {
-	return databroker.NewSyncer(ctx, "identity_manager/users", userSyncerHandler{baseCtx: ctx, mgr: mgr},
-		databroker.WithTypeURL(grpcutil.GetTypeURL(new(user.User))),
-		databroker.WithSyncerTracerProvider(mgr.cfg.Load().tracerProvider))
+func newUserSyncer(ctx context.Context, mgr *Manager) *databrokerutil.Syncer {
+	return databrokerutil.NewSyncer(ctx, "identity_manager/users", userSyncerHandler{baseCtx: ctx, mgr: mgr},
+		databrokerutil.WithTypeURL(grpcutil.GetTypeURL(new(user.User))),
+		databrokerutil.WithSyncerTracerProvider(mgr.cfg.Load().tracerProvider))
 }
 
 func (h userSyncerHandler) ClearRecords(ctx context.Context) {

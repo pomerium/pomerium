@@ -1,4 +1,4 @@
-package databroker_test
+package databrokerutil_test
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
@@ -172,7 +173,7 @@ func TestSyncer(t *testing.T) {
 
 	clearCh := make(chan struct{})
 	updateCh := make(chan []*databroker.Record)
-	syncer := databroker.NewSyncer(ctx, "test", testSyncerHandler{
+	syncer := databrokerutil.NewSyncer(ctx, "test", testSyncerHandler{
 		getDataBrokerServiceClient: func() databroker.DataBrokerServiceClient {
 			return databroker.NewDataBrokerServiceClient(gc)
 		},
@@ -370,7 +371,7 @@ func TestSyncerOnTransientErrors(t *testing.T) {
 	)
 	bo.MaxElapsedTime = 0
 
-	syncer := databrokerpb.NewSyncer(ctx, "foo-syncer", testHandler, databroker.WithBackOff(bo))
+	syncer := databrokerutil.NewSyncer(ctx, "foo-syncer", testHandler, databrokerutil.WithBackOff(bo))
 	go syncer.Run(ctx)
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {

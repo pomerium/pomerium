@@ -1,4 +1,4 @@
-package databroker
+package databrokerutil
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/contextkeys"
 	"github.com/pomerium/pomerium/internal/log"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/metrics"
 )
@@ -85,9 +86,9 @@ func WithBackOff(bo backoff.BackOff) SyncerOption {
 
 // A SyncerHandler receives sync events from the Syncer.
 type SyncerHandler interface {
-	GetDataBrokerServiceClient() DataBrokerServiceClient
+	GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient
 	ClearRecords(ctx context.Context)
-	UpdateRecords(ctx context.Context, serverVersion uint64, records []*Record)
+	UpdateRecords(ctx context.Context, serverVersion uint64, records []*databrokerpb.Record)
 }
 
 // A Syncer is a helper type for working with Sync and SyncLatest. It will make a call to
@@ -188,7 +189,7 @@ func (syncer *Syncer) init(ctx context.Context) error {
 		Str("syncer-id", syncer.id).
 		Str("syncer-type", syncer.cfg.typeURL).
 		Msg("databroker/syncer: initial sync")
-	records, _, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
+	records, _, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &databrokerpb.SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
 	syncer.incSyncLatest(ctx, err)
@@ -222,7 +223,7 @@ func (syncer *Syncer) resetServerVersion(ctx context.Context) {
 }
 
 func (syncer *Syncer) sync(ctx context.Context) error {
-	stream, err := syncer.handler.GetDataBrokerServiceClient().Sync(ctx, &SyncRequest{
+	stream, err := syncer.handler.GetDataBrokerServiceClient().Sync(ctx, &databrokerpb.SyncRequest{
 		ServerVersion: syncer.serverVersion,
 		RecordVersion: syncer.recordVersion,
 		Type:          syncer.cfg.typeURL,
@@ -255,7 +256,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			return fmt.Errorf("error receiving sync record: %w", err)
 		}
 		switch res := res.Response.(type) {
-		case *SyncResponse_Record:
+		case *databrokerpb.SyncResponse_Record:
 			syncer.recordVersion = res.Record.GetVersion()
 			log.Ctx(logCtxRec(ctx, res.Record)).Debug().
 				Str("syncer-id", syncer.id).
@@ -267,7 +268,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 				start := time.Now()
 				syncer.handler.UpdateRecords(
 					context.WithValue(ctx, contextkeys.UpdateRecordsVersion, res.Record.GetVersion()),
-					syncer.serverVersion, []*Record{res.Record})
+					syncer.serverVersion, []*databrokerpb.Record{res.Record})
 				syncer.onUpdateRecords(ctx, start, 1)
 			}
 		}
@@ -333,7 +334,7 @@ func (syncer *Syncer) logError(ctx context.Context, err error, msg string) {
 }
 
 // logCtxRecRec adds log params to context related to particular record
-func logCtxRec(ctx context.Context, rec *Record) context.Context {
+func logCtxRec(ctx context.Context, rec *databrokerpb.Record) context.Context {
 	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("record-type", rec.GetType()).
 			Str("record-id", rec.GetId()).

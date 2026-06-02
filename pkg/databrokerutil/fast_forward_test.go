@@ -1,4 +1,4 @@
-package databroker
+package databrokerutil
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
+
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type mockFF struct {
@@ -20,12 +22,12 @@ func (ff *mockFF) ClearRecords(_ context.Context) {
 	ff.clear <- struct{}{}
 }
 
-func (ff *mockFF) UpdateRecords(_ context.Context, sv uint64, _ []*Record) {
+func (ff *mockFF) UpdateRecords(_ context.Context, sv uint64, _ []*databrokerpb.Record) {
 	time.Sleep(time.Millisecond * time.Duration(rand.Intn(5)))
 	ff.update <- sv
 }
 
-func (ff *mockFF) GetDataBrokerServiceClient() DataBrokerServiceClient {
+func (ff *mockFF) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
 	return nil
 }
 

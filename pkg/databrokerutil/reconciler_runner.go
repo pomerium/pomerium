@@ -1,4 +1,4 @@
-package databroker
+package databrokerutil
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type ReconcilerRunner interface {
@@ -19,7 +20,7 @@ type ReconcilerRunner interface {
 type reconcilerRunner struct {
 	reconcilerConfig
 	reconciler Reconciler
-	client     DataBrokerServiceClient
+	client     databrokerpb.DataBrokerServiceClient
 	name       string
 	trigger    chan struct{}
 	telemetry  *telemetry.Component
@@ -29,7 +30,7 @@ type reconcilerRunner struct {
 func NewReconcilerRunner(
 	reconciler Reconciler,
 	leaseName string, // must be unique across pomerium ecosystem
-	client DataBrokerServiceClient,
+	client databrokerpb.DataBrokerServiceClient,
 	opts ...ReconcilerOption,
 ) ReconcilerRunner {
 	cfg := getReconcilerConfig(opts...)
@@ -58,7 +59,7 @@ func (rr *reconcilerRunner) Run(ctx context.Context) error {
 }
 
 // GetDataBrokerServiceClient implements the LeaseHandler interface.
-func (rr *reconcilerRunner) GetDataBrokerServiceClient() DataBrokerServiceClient {
+func (rr *reconcilerRunner) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
 	return rr.client
 }
 
