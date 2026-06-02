@@ -57,5 +57,6 @@ for _d in "${_connect_dirs[@]}"; do
 		-I "./$_d/" \
 		--connect-go_out="./$_d/" \
 		--connect-go_opt="paths=source_relative" \
+		--connect-openapi_out="./$_d/" \
 		"./$_d"/*.proto
 done
