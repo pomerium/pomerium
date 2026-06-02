@@ -94,8 +94,10 @@ func NewClientMetadataFetcher(httpClient *http.Client, domainMatcher *DomainMatc
 // - MUST NOT contain single-dot or double-dot path segments
 // - MUST NOT contain a fragment component
 // - MUST NOT contain username or password
-// - SHOULD NOT include a query string component
 // - MAY contain a port
+//
+// A query string SHOULD NOT be included per the draft, but because that is a
+// recommendation rather than a requirement we tolerate it.
 //
 // Returns (false, nil) if clientID is not a URL (e.g., a regular client ID string).
 // Returns (false, error) if clientID is a URL but violates RFC requirements.
@@ -141,11 +143,6 @@ func IsClientIDMetadataURL(clientID string) (bool, error) {
 	// Must not have username or password
 	if u.User != nil {
 		return false, fmt.Errorf("%w: client_id URL must not contain username or password", ErrClientMetadataValidation)
-	}
-
-	// SHOULD NOT include a query string - we treat this as an error per RFC guidance
-	if u.RawQuery != "" {
-		return false, fmt.Errorf("%w: client_id URL should not include a query string", ErrClientMetadataValidation)
 	}
 
 	return true, nil
