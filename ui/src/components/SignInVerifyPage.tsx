@@ -33,7 +33,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
   };
 
   const expiresDate = parseToDate(data.expiresAt);
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(() =>
     Math.max(0, Math.round((expiresDate.getTime() - Date.now()) / 1000))
   );
 

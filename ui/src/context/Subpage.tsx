@@ -41,6 +41,6 @@ export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
   const [state, setState] = useState(initState);
 
   return (
-    <SubpageContext.Provider value={state}>{children}</SubpageContext.Provider>
+    <SubpageContext value={state}>{children}</SubpageContext>
   );
 };

@@ -7,13 +7,15 @@ export type IDFieldProps = {
 };
 export const IDField: FC<IDFieldProps> = ({ value }) => {
   return (
-    <Box component="span" sx={{ fontFamily: '"DM Mono"', fontSize: "12px" }}>
-      {value?.split("")?.map((str, idx) => (
-        <React.Fragment key={idx}>
-          {str}
-          <wbr />
-        </React.Fragment>
-      ))}
+    <Box
+      component="span"
+      sx={{
+        fontFamily: '"DM Mono"',
+        fontSize: "12px",
+        overflowWrap: "anywhere",
+      }}
+    >
+      {value}
     </Box>
   );
 };
