@@ -5,8 +5,8 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import type { FC, ReactNode } from "react";
-import React, { useContext } from "react";
+import type { FC, ReactNode, JSX } from "react";
+import { useContext } from "react";
 import { Link, Lock, User, Users } from "react-feather";
 
 import { SubpageContext } from "../context/Subpage";
