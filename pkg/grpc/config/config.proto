@@ -7,10 +7,27 @@ import "google/protobuf/field_mask.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
+import "openapiv3/annotations.proto";
 import "options.proto";
 import "validate/validate.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
+
+option (openapi.v3.document) = {
+  info: {
+    title:       "Pomerium API",
+    description: "API for managing Pomerium configuration.",
+    contact: {
+      name:  "Pomerium",
+      url:   "https://github.com/pomerium",
+      email: "support@pomerium.com",
+    },
+    license: {
+      name: "Apache License 2.0",
+      url:  "https://github.com/pomerium/pomerium/blob/main/LICENSE",
+    },
+  },
+};
 
 // A bundle of Pomerium configuration including routes and settings.
 message Config {
@@ -1630,83 +1647,194 @@ message UpdateSettingsResponse {
 // Manages configuration in Pomerium.
 service ConfigService {
   // Creates a new key pair.
-  rpc CreateKeyPair(CreateKeyPairRequest) returns (CreateKeyPairResponse);
+  rpc CreateKeyPair(CreateKeyPairRequest) returns (CreateKeyPairResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Creates a key pair",
+      tags:    ["KeyPair"],
+    };
+  }
   // Creates a new policy.
-  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Creates a policy",
+      tags:    ["Policy"],
+    };
+  }
   // Creates a new route.
-  rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse);
+  rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Creates a route",
+      tags:    ["Route"],
+    };
+  }
   // Creates a new service account.
-  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse);
+  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Creates a service account",
+      tags:    ["ServiceAccount"],
+    };
+  }
 
   // Deletes a key pair.
-  rpc DeleteKeyPair(DeleteKeyPairRequest) returns (DeleteKeyPairResponse);
+  rpc DeleteKeyPair(DeleteKeyPairRequest) returns (DeleteKeyPairResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Deletes a key pair",
+      tags:    ["KeyPair"],
+    };
+  }
   // Deletes a policy.
-  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Deletes a policy",
+      tags:    ["Policy"],
+    };
+  }
   // Deletes a route.
-  rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
+  rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Deletes a route",
+      tags:    ["Route"],
+    };
+  }
   // Deletes a service account.
-  rpc DeleteServiceAccount(DeleteServiceAccountRequest) returns (DeleteServiceAccountResponse);
+  rpc DeleteServiceAccount(DeleteServiceAccountRequest) returns (DeleteServiceAccountResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Deletes a service account",
+      tags:    ["ServiceAccount"],
+    };
+  }
 
   // Gets a key pair.
   rpc GetKeyPair(GetKeyPairRequest) returns (GetKeyPairResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Gets a key pair",
+      tags:    ["KeyPair"],
+    };
   }
   // Gets a policy.
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Gets a policy",
+      tags:    ["Policy"],
+    };
   }
   // Gets a route.
   rpc GetRoute(GetRouteRequest) returns (GetRouteResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Gets a route",
+      tags:    ["Route"],
+    };
   }
   // Gets information about a server.
   rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Gets information about a server",
+    };
   }
   // Gets a service account.
   rpc GetServiceAccount(GetServiceAccountRequest) returns (GetServiceAccountResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Gets a service account",
+      tags:    ["ServiceAccount"],
+    };
   }
   // Gets settings.
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Gets settings",
+      tags:    ["Settings"],
+    };
   }
 
   // Lists all the available log fields.
   rpc ListAvailableLogFields(ListAvailableLogFieldsRequest) returns (ListAvailableLogFieldsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Lists all the available log fields",
+    };
   }
   // Lists key pairs.
   rpc ListKeyPairs(ListKeyPairsRequest) returns (ListKeyPairsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Lists key pairs",
+      tags:    ["KeyPair"],
+    };
   }
   // Lists policies.
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Lists policies",
+      tags:    ["Policy"],
+    };
   }
   // Lists routes.
   rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Lists routes",
+      tags:    ["Route"],
+    };
   }
   // Lists service accounts.
   rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Lists service accounts",
+      tags:    ["ServiceAccount"],
+    };
   }
   // Lists settings.
   rpc ListSettings(ListSettingsRequest) returns (ListSettingsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      summary: "Lists settings",
+      tags:    ["Settings"],
+    };
   }
 
   // Updates an existing key pair.
-  rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse);
+  rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Updates an existing key pair",
+      tags:    ["KeyPair"],
+    };
+  }
   // Updates an existing policy.
-  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Updates an existing policy",
+      tags:    ["Policy"],
+    };
+  }
   // Updates an existing route.
-  rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse);
+  rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Updates an existing route",
+      tags:    ["Route"],
+    };
+  }
   // Updates an existing service account.
-  rpc UpdateServiceAccount(UpdateServiceAccountRequest) returns (UpdateServiceAccountResponse);
+  rpc UpdateServiceAccount(UpdateServiceAccountRequest) returns (UpdateServiceAccountResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Updates an existing service account",
+      tags:    ["ServiceAccount"],
+    };
+  }
   // Updates existing settings.
-  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse) {
+    option (openapi.v3.operation) = {
+      summary: "Updates existing settings",
+      tags:    ["Settings"],
+    };
+  }
 }
 
 // Definitions are taken from envoy with some modifications.

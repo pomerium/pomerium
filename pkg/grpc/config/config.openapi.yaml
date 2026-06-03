@@ -1,13 +1,21 @@
 openapi: 3.1.0
 info:
-  version: 0.32.5-rc.1
-  title: pomerium.config
+  title: Pomerium API
+  description: API for managing Pomerium configuration.
+  contact:
+    name: Pomerium
+    url: https://github.com/pomerium
+    email: support@pomerium.com
+  license:
+    name: Apache License 2.0
+    url: https://github.com/pomerium/pomerium/blob/main/LICENSE
 paths:
   /pomerium.config.ConfigService/CreateKeyPair:
     post:
       tags:
+        - KeyPair
         - pomerium.config.ConfigService
-      summary: CreateKeyPair
+      summary: Creates a key pair
       description: Creates a new key pair.
       operationId: pomerium.config.ConfigService.CreateKeyPair
       parameters:
@@ -42,8 +50,9 @@ paths:
   /pomerium.config.ConfigService/CreatePolicy:
     post:
       tags:
+        - Policy
         - pomerium.config.ConfigService
-      summary: CreatePolicy
+      summary: Creates a policy
       description: Creates a new policy.
       operationId: pomerium.config.ConfigService.CreatePolicy
       parameters:
@@ -78,8 +87,9 @@ paths:
   /pomerium.config.ConfigService/CreateRoute:
     post:
       tags:
+        - Route
         - pomerium.config.ConfigService
-      summary: CreateRoute
+      summary: Creates a route
       description: Creates a new route.
       operationId: pomerium.config.ConfigService.CreateRoute
       parameters:
@@ -114,8 +124,9 @@ paths:
   /pomerium.config.ConfigService/CreateServiceAccount:
     post:
       tags:
+        - ServiceAccount
         - pomerium.config.ConfigService
-      summary: CreateServiceAccount
+      summary: Creates a service account
       description: Creates a new service account.
       operationId: pomerium.config.ConfigService.CreateServiceAccount
       parameters:
@@ -150,8 +161,9 @@ paths:
   /pomerium.config.ConfigService/DeleteKeyPair:
     post:
       tags:
+        - KeyPair
         - pomerium.config.ConfigService
-      summary: DeleteKeyPair
+      summary: Deletes a key pair
       description: Deletes a key pair.
       operationId: pomerium.config.ConfigService.DeleteKeyPair
       parameters:
@@ -186,8 +198,9 @@ paths:
   /pomerium.config.ConfigService/DeletePolicy:
     post:
       tags:
+        - Policy
         - pomerium.config.ConfigService
-      summary: DeletePolicy
+      summary: Deletes a policy
       description: Deletes a policy.
       operationId: pomerium.config.ConfigService.DeletePolicy
       parameters:
@@ -222,8 +235,9 @@ paths:
   /pomerium.config.ConfigService/DeleteRoute:
     post:
       tags:
+        - Route
         - pomerium.config.ConfigService
-      summary: DeleteRoute
+      summary: Deletes a route
       description: Deletes a route.
       operationId: pomerium.config.ConfigService.DeleteRoute
       parameters:
@@ -258,8 +272,9 @@ paths:
   /pomerium.config.ConfigService/DeleteServiceAccount:
     post:
       tags:
+        - ServiceAccount
         - pomerium.config.ConfigService
-      summary: DeleteServiceAccount
+      summary: Deletes a service account
       description: Deletes a service account.
       operationId: pomerium.config.ConfigService.DeleteServiceAccount
       parameters:
@@ -294,8 +309,9 @@ paths:
   /pomerium.config.ConfigService/GetKeyPair:
     get:
       tags:
+        - KeyPair
         - pomerium.config.ConfigService
-      summary: GetKeyPair
+      summary: Gets a key pair
       description: Gets a key pair.
       operationId: pomerium.config.ConfigService.GetKeyPair.get
       parameters:
@@ -346,8 +362,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.GetKeyPairResponse'
     post:
       tags:
+        - KeyPair
         - pomerium.config.ConfigService
-      summary: GetKeyPair
+      summary: Gets a key pair
       description: Gets a key pair.
       operationId: pomerium.config.ConfigService.GetKeyPair
       parameters:
@@ -382,8 +399,9 @@ paths:
   /pomerium.config.ConfigService/GetPolicy:
     get:
       tags:
+        - Policy
         - pomerium.config.ConfigService
-      summary: GetPolicy
+      summary: Gets a policy
       description: Gets a policy.
       operationId: pomerium.config.ConfigService.GetPolicy.get
       parameters:
@@ -434,8 +452,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.GetPolicyResponse'
     post:
       tags:
+        - Policy
         - pomerium.config.ConfigService
-      summary: GetPolicy
+      summary: Gets a policy
       description: Gets a policy.
       operationId: pomerium.config.ConfigService.GetPolicy
       parameters:
@@ -470,8 +489,9 @@ paths:
   /pomerium.config.ConfigService/GetRoute:
     get:
       tags:
+        - Route
         - pomerium.config.ConfigService
-      summary: GetRoute
+      summary: Gets a route
       description: Gets a route.
       operationId: pomerium.config.ConfigService.GetRoute.get
       parameters:
@@ -522,8 +542,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.GetRouteResponse'
     post:
       tags:
+        - Route
         - pomerium.config.ConfigService
-      summary: GetRoute
+      summary: Gets a route
       description: Gets a route.
       operationId: pomerium.config.ConfigService.GetRoute
       parameters:
@@ -559,7 +580,7 @@ paths:
     get:
       tags:
         - pomerium.config.ConfigService
-      summary: GetServerInfo
+      summary: Gets information about a server
       description: Gets information about a server.
       operationId: pomerium.config.ConfigService.GetServerInfo.get
       parameters:
@@ -611,7 +632,7 @@ paths:
     post:
       tags:
         - pomerium.config.ConfigService
-      summary: GetServerInfo
+      summary: Gets information about a server
       description: Gets information about a server.
       operationId: pomerium.config.ConfigService.GetServerInfo
       parameters:
@@ -646,8 +667,9 @@ paths:
   /pomerium.config.ConfigService/GetServiceAccount:
     get:
       tags:
+        - ServiceAccount
         - pomerium.config.ConfigService
-      summary: GetServiceAccount
+      summary: Gets a service account
       description: Gets a service account.
       operationId: pomerium.config.ConfigService.GetServiceAccount.get
       parameters:
@@ -698,8 +720,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.GetServiceAccountResponse'
     post:
       tags:
+        - ServiceAccount
         - pomerium.config.ConfigService
-      summary: GetServiceAccount
+      summary: Gets a service account
       description: Gets a service account.
       operationId: pomerium.config.ConfigService.GetServiceAccount
       parameters:
@@ -734,8 +757,9 @@ paths:
   /pomerium.config.ConfigService/GetSettings:
     get:
       tags:
+        - Settings
         - pomerium.config.ConfigService
-      summary: GetSettings
+      summary: Gets settings
       description: Gets settings.
       operationId: pomerium.config.ConfigService.GetSettings.get
       parameters:
@@ -786,8 +810,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.GetSettingsResponse'
     post:
       tags:
+        - Settings
         - pomerium.config.ConfigService
-      summary: GetSettings
+      summary: Gets settings
       description: Gets settings.
       operationId: pomerium.config.ConfigService.GetSettings
       parameters:
@@ -823,7 +848,7 @@ paths:
     get:
       tags:
         - pomerium.config.ConfigService
-      summary: ListAvailableLogFields
+      summary: Lists all the available log fields
       description: Lists all the available log fields.
       operationId: pomerium.config.ConfigService.ListAvailableLogFields.get
       parameters:
@@ -875,7 +900,7 @@ paths:
     post:
       tags:
         - pomerium.config.ConfigService
-      summary: ListAvailableLogFields
+      summary: Lists all the available log fields
       description: Lists all the available log fields.
       operationId: pomerium.config.ConfigService.ListAvailableLogFields
       parameters:
@@ -910,8 +935,9 @@ paths:
   /pomerium.config.ConfigService/ListKeyPairs:
     get:
       tags:
+        - KeyPair
         - pomerium.config.ConfigService
-      summary: ListKeyPairs
+      summary: Lists key pairs
       description: Lists key pairs.
       operationId: pomerium.config.ConfigService.ListKeyPairs.get
       parameters:
@@ -962,8 +988,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.ListKeyPairsResponse'
     post:
       tags:
+        - KeyPair
         - pomerium.config.ConfigService
-      summary: ListKeyPairs
+      summary: Lists key pairs
       description: Lists key pairs.
       operationId: pomerium.config.ConfigService.ListKeyPairs
       parameters:
@@ -998,8 +1025,9 @@ paths:
   /pomerium.config.ConfigService/ListPolicies:
     get:
       tags:
+        - Policy
         - pomerium.config.ConfigService
-      summary: ListPolicies
+      summary: Lists policies
       description: Lists policies.
       operationId: pomerium.config.ConfigService.ListPolicies.get
       parameters:
@@ -1050,8 +1078,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.ListPoliciesResponse'
     post:
       tags:
+        - Policy
         - pomerium.config.ConfigService
-      summary: ListPolicies
+      summary: Lists policies
       description: Lists policies.
       operationId: pomerium.config.ConfigService.ListPolicies
       parameters:
@@ -1086,8 +1115,9 @@ paths:
   /pomerium.config.ConfigService/ListRoutes:
     get:
       tags:
+        - Route
         - pomerium.config.ConfigService
-      summary: ListRoutes
+      summary: Lists routes
       description: Lists routes.
       operationId: pomerium.config.ConfigService.ListRoutes.get
       parameters:
@@ -1138,8 +1168,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.ListRoutesResponse'
     post:
       tags:
+        - Route
         - pomerium.config.ConfigService
-      summary: ListRoutes
+      summary: Lists routes
       description: Lists routes.
       operationId: pomerium.config.ConfigService.ListRoutes
       parameters:
@@ -1174,8 +1205,9 @@ paths:
   /pomerium.config.ConfigService/ListServiceAccounts:
     get:
       tags:
+        - ServiceAccount
         - pomerium.config.ConfigService
-      summary: ListServiceAccounts
+      summary: Lists service accounts
       description: Lists service accounts.
       operationId: pomerium.config.ConfigService.ListServiceAccounts.get
       parameters:
@@ -1226,8 +1258,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.ListServiceAccountsResponse'
     post:
       tags:
+        - ServiceAccount
         - pomerium.config.ConfigService
-      summary: ListServiceAccounts
+      summary: Lists service accounts
       description: Lists service accounts.
       operationId: pomerium.config.ConfigService.ListServiceAccounts
       parameters:
@@ -1262,8 +1295,9 @@ paths:
   /pomerium.config.ConfigService/ListSettings:
     get:
       tags:
+        - Settings
         - pomerium.config.ConfigService
-      summary: ListSettings
+      summary: Lists settings
       description: Lists settings.
       operationId: pomerium.config.ConfigService.ListSettings.get
       parameters:
@@ -1314,8 +1348,9 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.ListSettingsResponse'
     post:
       tags:
+        - Settings
         - pomerium.config.ConfigService
-      summary: ListSettings
+      summary: Lists settings
       description: Lists settings.
       operationId: pomerium.config.ConfigService.ListSettings
       parameters:
@@ -1350,8 +1385,9 @@ paths:
   /pomerium.config.ConfigService/UpdateKeyPair:
     post:
       tags:
+        - KeyPair
         - pomerium.config.ConfigService
-      summary: UpdateKeyPair
+      summary: Updates an existing key pair
       description: Updates an existing key pair.
       operationId: pomerium.config.ConfigService.UpdateKeyPair
       parameters:
@@ -1386,8 +1422,9 @@ paths:
   /pomerium.config.ConfigService/UpdatePolicy:
     post:
       tags:
+        - Policy
         - pomerium.config.ConfigService
-      summary: UpdatePolicy
+      summary: Updates an existing policy
       description: Updates an existing policy.
       operationId: pomerium.config.ConfigService.UpdatePolicy
       parameters:
@@ -1422,8 +1459,9 @@ paths:
   /pomerium.config.ConfigService/UpdateRoute:
     post:
       tags:
+        - Route
         - pomerium.config.ConfigService
-      summary: UpdateRoute
+      summary: Updates an existing route
       description: Updates an existing route.
       operationId: pomerium.config.ConfigService.UpdateRoute
       parameters:
@@ -1458,8 +1496,9 @@ paths:
   /pomerium.config.ConfigService/UpdateServiceAccount:
     post:
       tags:
+        - ServiceAccount
         - pomerium.config.ConfigService
-      summary: UpdateServiceAccount
+      summary: Updates an existing service account
       description: Updates an existing service account.
       operationId: pomerium.config.ConfigService.UpdateServiceAccount
       parameters:
@@ -1494,8 +1533,9 @@ paths:
   /pomerium.config.ConfigService/UpdateSettings:
     post:
       tags:
+        - Settings
         - pomerium.config.ConfigService
-      summary: UpdateSettings
+      summary: Updates existing settings
       description: Updates existing settings.
       operationId: pomerium.config.ConfigService.UpdateSettings
       parameters:

@@ -16,8 +16,8 @@ require-command protoc
 require-command go
 
 exec protoc \
-	-I "$(go list -m -f '{{.Dir}}' github.com/envoyproxy/protoc-gen-validate)" \
-	--experimental_allow_proto3_optional \
+	--proto_path="$(go list -m -f '{{.Dir}}' github.com/envoyproxy/protoc-gen-validate)" \
+	--proto_path="$(go list -m -f '{{.Dir}}' github.com/google/gnostic)" \
 	--plugin="protoc-gen-connect-go=$_dir/protoc-gen-connect-go" \
 	--plugin="protoc-gen-connect-openapi=$_dir/protoc-gen-connect-openapi" \
 	--plugin="protoc-gen-doc=$_dir/protoc-gen-doc" \
