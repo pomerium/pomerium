@@ -106,6 +106,38 @@ func TestDecodeJWTClaimHeadersHookFunc(t *testing.T) {
 			"x-pomerium-claim-c": "c",
 		}, withClaims.Claims)
 	})
+
+	t.Run("string", func(t *testing.T) {
+		err := decoder.Decode(struct {
+			Claims any `mapstructure:"claims"`
+		}{
+			Claims: "a,b,c",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{
+			"x-pomerium-claim-a": "a",
+			"x-pomerium-claim-b": "b",
+			"x-pomerium-claim-c": "c",
+		}, withClaims.Claims)
+	})
+
+	t.Run("array of objects", func(t *testing.T) {
+		err := decoder.Decode(struct {
+			Claims any `mapstructure:"claims"`
+		}{
+			Claims: []map[string]string{{"a": "a"}, {"b": "b"}, {"c": "c"}},
+		})
+		assert.ErrorContains(t, err, "'claims' syntax error: found nested object in array of values")
+	})
+
+	t.Run("invalid header name", func(t *testing.T) {
+		err := decoder.Decode(struct {
+			Claims any `mapstructure:"claims"`
+		}{
+			Claims: map[string]string{"a": "a", "b:not:ok": "b", "c": "c"},
+		})
+		assert.ErrorContains(t, err, `'claims' has invalid header name "b:not:ok"`)
+	})
 }
 
 func TestStringSlice_UnmarshalJSON(t *testing.T) {

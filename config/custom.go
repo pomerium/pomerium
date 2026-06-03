@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -116,12 +117,18 @@ func NewJWTClaimHeaders(claims ...string) JWTClaimHeaders {
 	return hdrs
 }
 
+// from https://httpwg.org/specs/rfc9110.html#tokens
+var tokenRegExp = regexp.MustCompile("^[!#$%&'*+\\-.^_`|~0-9a-zA-Z]+$")
+
 // UnmarshalJSON unmarshals JSON data into the JWTClaimHeaders.
 func (hdrs *JWTClaimHeaders) UnmarshalJSON(data []byte) error {
 	var m map[string]any
 	if json.Unmarshal(data, &m) == nil {
 		*hdrs = make(map[string]string)
 		for k, v := range m {
+			if !tokenRegExp.MatchString(k) {
+				return fmt.Errorf("has invalid header name %q", k)
+			}
 			str := fmt.Sprint(v)
 			(*hdrs)[k] = str
 		}
@@ -132,6 +139,9 @@ func (hdrs *JWTClaimHeaders) UnmarshalJSON(data []byte) error {
 	if json.Unmarshal(data, &a) == nil {
 		var vs []string
 		for _, v := range a {
+			if _, isMap := v.(map[string]any); isMap {
+				return fmt.Errorf("syntax error: found nested object in array of values")
+			}
 			vs = append(vs, fmt.Sprint(v))
 		}
 		*hdrs = NewJWTClaimHeaders(vs...)
