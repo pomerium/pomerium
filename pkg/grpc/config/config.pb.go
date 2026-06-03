@@ -9422,7 +9422,7 @@ const file_config_proto_rawDesc = "" +
 	"\x05_nameB\x0e\n" +
 	"\f_modified_at\",\n" +
 	"\x10SessionRecording\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\"\x90/\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\"\xb3/\n" +
 	"\x05Route\x12\x13\n" +
 	"\x02id\x18\x1c \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18P \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -9508,14 +9508,14 @@ const file_config_proto_rawDesc = "" +
 	"\x15load_balancing_policy\x18N \x01(\x0e2$.pomerium.config.LoadBalancingPolicyH\x1bR\x13loadBalancingPolicy\x88\x01\x01\x12;\n" +
 	"\x17healthy_panic_threshold\x18O \x01(\x05H\x1cR\x15healthyPanicThreshold\x88\x01\x01\x12M\n" +
 	"\x0eallow_upgrades\x18] \x01(\v2!.pomerium.config.Route.StringListH\x1dR\rallowUpgrades\x88\x01\x01\x12S\n" +
-	"\x11session_recording\x18^ \x01(\v2!.pomerium.config.SessionRecordingH\x1eR\x10sessionRecording\x88\x01\x01\x129\n" +
+	"\x11session_recording\x18^ \x01(\v2!.pomerium.config.SessionRecordingH\x1eR\x10sessionRecording\x88\x01\x01\x12@\n" +
 	"\n" +
-	"created_at\x18W \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
-	"\vmodified_at\x18X \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"modifiedAt\x12H\n" +
-	"\x11enforced_policies\x18Z \x03(\v2\x1b.pomerium.config.EntityInfoR\x10enforcedPolicies\x12H\n" +
-	"\x11assigned_policies\x18[ \x03(\v2\x1b.pomerium.config.EntityInfoR\x10assignedPolicies\x12*\n" +
-	"\x0enamespace_name\x18\\ \x01(\tH\x1fR\rnamespaceName\x88\x01\x01\x1a$\n" +
+	"created_at\x18W \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12B\n" +
+	"\vmodified_at\x18X \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
+	"modifiedAt\x12O\n" +
+	"\x11enforced_policies\x18Z \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x10enforcedPolicies\x12O\n" +
+	"\x11assigned_policies\x18[ \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x10assignedPolicies\x121\n" +
+	"\x0enamespace_name\x18\\ \x01(\tB\x05\xbaG\x02\x18\x01H\x1fR\rnamespaceName\x88\x01\x01\x1a$\n" +
 	"\n" +
 	"StringList\x12\x16\n" +
 	"\x06values\x18\x01 \x03(\tR\x06values\x1a_\n" +
@@ -9598,7 +9598,7 @@ const file_config_proto_rawDesc = "" +
 	"auth_style\x18\x03 \x01(\x0e2 .pomerium.config.OAuth2AuthStyleH\x00R\tauthStyle\x88\x01\x01B\r\n" +
 	"\v_auth_style\"\x1d\n" +
 	"\tPPLPolicy\x12\x10\n" +
-	"\x03raw\x18\x01 \x01(\fR\x03raw\"\xaa\b\n" +
+	"\x03raw\x18\x01 \x01(\fR\x03raw\"\xcd\b\n" +
 	"\x06Policy\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18\v \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -9614,14 +9614,14 @@ const file_config_proto_rawDesc = "" +
 	"source_ppl\x18\n" +
 	" \x01(\tH\x06R\tsourcePpl\x88\x01\x01\x12%\n" +
 	"\vexplanation\x18\b \x01(\tH\aR\vexplanation\x88\x01\x01\x12%\n" +
-	"\vremediation\x18\t \x01(\tH\bR\vremediation\x88\x01\x01\x129\n" +
+	"\vremediation\x18\t \x01(\tH\bR\vremediation\x88\x01\x01\x12@\n" +
 	"\n" +
-	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
-	"\vmodified_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"modifiedAt\x12D\n" +
-	"\x0fenforced_routes\x18\x11 \x03(\v2\x1b.pomerium.config.EntityInfoR\x0eenforcedRoutes\x12D\n" +
-	"\x0fassigned_routes\x18\x12 \x03(\v2\x1b.pomerium.config.EntityInfoR\x0eassignedRoutes\x12*\n" +
-	"\x0enamespace_name\x18\x13 \x01(\tH\tR\rnamespaceName\x88\x01\x01\x1a_\n" +
+	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12B\n" +
+	"\vmodified_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
+	"modifiedAt\x12K\n" +
+	"\x0fenforced_routes\x18\x11 \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x0eenforcedRoutes\x12K\n" +
+	"\x0fassigned_routes\x18\x12 \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x0eassignedRoutes\x121\n" +
+	"\x0enamespace_name\x18\x13 \x01(\tB\x05\xbaG\x02\x18\x01H\tR\rnamespaceName\x88\x01\x01\x1a_\n" +
 	"\x15AllowedIdpClaimsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
 	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.ListValueR\x05value:\x028\x01B\x05\n" +
@@ -9634,7 +9634,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xdag\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xe8g\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9790,10 +9790,10 @@ const file_config_proto_rawDesc = "" +
 	"\x0enormalize_path\x18\xb8\x01 \x01(\bH{R\rnormalizePath\x88\x01\x01\x12)\n" +
 	"\rmerge_slashes\x18\xb9\x01 \x01(\bH|R\fmergeSlashes\x88\x01\x01\x12{\n" +
 	" path_with_escaped_slashes_action\x18\xba\x01 \x01(\x0e2-.pomerium.config.PathWithEscapedSlashesActionH}R\x1cpathWithEscapedSlashesAction\x88\x01\x01\x12z\n" +
-	"\x1fheaders_with_underscores_action\x18\xbb\x01 \x01(\x0e2-.pomerium.config.HeadersWithUnderscoresActionH~R\x1cheadersWithUnderscoresAction\x88\x01\x01\x12:\n" +
+	"\x1fheaders_with_underscores_action\x18\xbb\x01 \x01(\x0e2-.pomerium.config.HeadersWithUnderscoresActionH~R\x1cheadersWithUnderscoresAction\x88\x01\x01\x12A\n" +
 	"\n" +
-	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
-	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12C\n" +
+	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
 	"modifiedAt\x1a_\n" +
 	"\vCertificate\x12\x1d\n" +
 	"\n" +

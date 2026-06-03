@@ -455,17 +455,37 @@ message Route {
   // computed properties
 
   // When the route was created.
-  google.protobuf.Timestamp created_at = 87;
+  google.protobuf.Timestamp created_at = 87 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // When the route was last modified.
-  google.protobuf.Timestamp modified_at = 88;
+  google.protobuf.Timestamp modified_at = 88 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // Policies that are automatically enforced.
   // Not supported in the open source version of Pomerium.
-  repeated EntityInfo enforced_policies = 90;
+  repeated EntityInfo enforced_policies = 90 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // Info about policies assigned to this route.
   // Not supported in the open source version of Pomerium.
-  repeated EntityInfo assigned_policies = 91;
+  repeated EntityInfo assigned_policies = 91 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // The name of the namespace for the route.
-  optional string namespace_name = 92;
+  optional string namespace_name = 92 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
 }
 
 // Configuration for an upstream tunnel. Applies to routes whose upstream is
@@ -594,17 +614,37 @@ message Policy {
   // computed properties
 
   // When the policy was created.
-  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp created_at = 15 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // When the policy was last modified.
-  google.protobuf.Timestamp modified_at = 16;
+  google.protobuf.Timestamp modified_at = 16 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // Routes that are automatically enforced by this policy.
   // Not supported in the open source version of Pomerium.
-  repeated EntityInfo enforced_routes = 17;
+  repeated EntityInfo enforced_routes = 17 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // Info about routes with this policy assigned.
   // Not supported in the open source version of Pomerium.
-  repeated EntityInfo assigned_routes = 18;
+  repeated EntityInfo assigned_routes = 18 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // The name of the namespace for the policy.
-  optional string namespace_name = 19;
+  optional string namespace_name = 19 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
 }
 
 // Global Pomerium configuration settings.
@@ -1048,9 +1088,17 @@ message Settings {
   // computed properties
 
   // When the settings were created.
-  google.protobuf.Timestamp created_at = 169;
+  google.protobuf.Timestamp created_at = 169 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // When the settings were last modified.
-  google.protobuf.Timestamp modified_at = 170;
+  google.protobuf.Timestamp modified_at = 170 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses
@@ -1205,23 +1253,33 @@ message KeyPair {
 
   // When the key pair was created.
   google.protobuf.Timestamp created_at = 7 [
-    (openapi.v3.property).read_only = true
+    (openapi.v3.property) = {
+      read_only: true,
+    }
   ];
   // When the key pair was last modified.
   google.protobuf.Timestamp modified_at = 8 [
-    (openapi.v3.property).read_only = true
+    (openapi.v3.property) = {
+      read_only: true,
+    }
   ];
   // The status of the key pair.
   KeyPairStatus status = 9 [
-    (openapi.v3.property).read_only = true
+    (openapi.v3.property) = {
+      read_only: true,
+    }
   ];
   // The origin of the key pair.
   KeyPairOrigin origin = 10 [
-    (openapi.v3.property).read_only = true
+    (openapi.v3.property) = {
+      read_only: true,
+    }
   ];
   // Info about any certificates the key pair has.
   repeated CertificateInfo certificate_info = 11 [
-    (openapi.v3.property).read_only = true
+    (openapi.v3.property) = {
+      read_only: true,
+    }
   ];
 }
 

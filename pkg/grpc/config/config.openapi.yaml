@@ -3404,10 +3404,12 @@ components:
         createdAt:
           title: created_at
           description: When the policy was created.
+          readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
         modifiedAt:
           title: modified_at
           description: When the policy was last modified.
+          readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
         enforcedRoutes:
           type: array
@@ -3417,6 +3419,7 @@ components:
           description: |-
             Routes that are automatically enforced by this policy.
              Not supported in the open source version of Pomerium.
+          readOnly: true
         assignedRoutes:
           type: array
           items:
@@ -3425,12 +3428,14 @@ components:
           description: |-
             Info about routes with this policy assigned.
              Not supported in the open source version of Pomerium.
+          readOnly: true
         namespaceName:
           type:
             - string
             - "null"
           title: namespace_name
           description: The name of the namespace for the policy.
+          readOnly: true
       title: Policy
       additionalProperties: false
       description: Configuration for a policy.
@@ -3993,10 +3998,12 @@ components:
         createdAt:
           title: created_at
           description: When the route was created.
+          readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
         modifiedAt:
           title: modified_at
           description: When the route was last modified.
+          readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
         enforcedPolicies:
           type: array
@@ -4006,6 +4013,7 @@ components:
           description: |-
             Policies that are automatically enforced.
              Not supported in the open source version of Pomerium.
+          readOnly: true
         assignedPolicies:
           type: array
           items:
@@ -4014,12 +4022,14 @@ components:
           description: |-
             Info about policies assigned to this route.
              Not supported in the open source version of Pomerium.
+          readOnly: true
         namespaceName:
           type:
             - string
             - "null"
           title: namespace_name
           description: The name of the namespace for the route.
+          readOnly: true
       title: Route
       additionalProperties: false
       description: Configuration for a route.
@@ -5344,10 +5354,12 @@ components:
         createdAt:
           title: created_at
           description: When the settings were created.
+          readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
         modifiedAt:
           title: modified_at
           description: When the settings were last modified.
+          readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
       title: Settings
       additionalProperties: false
