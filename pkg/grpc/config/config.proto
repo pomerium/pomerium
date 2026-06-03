@@ -1143,42 +1143,70 @@ enum KeyPairStatus {
 message KeyPair {
   // ID of the key pair.
   optional string id = 1 [
-    (validate.rules).string.min_len = 1
+    (validate.rules).string.min_len = 1,
+    (openapi.v3.property).example   = {
+      yaml: "\"019e8e96-0959-7dc2-b45f-e32dcafcf95b\"",
+    }
   ];
   // Namespace of the key pair.
   optional string namespace_id = 2 [
-    (validate.rules).string.min_len = 1
+    (validate.rules).string.min_len = 1,
+    (openapi.v3.property).example   = {
+      yaml: "\"019e8e96-87b4-78b9-9830-19874b518d60\"",
+    }
   ];
   // Originator of the key pair.
   optional string originator_id = 3 [
-    (validate.rules).string.min_len = 1
+    (validate.rules).string.min_len = 1,
+    (openapi.v3.property).example   = {
+      yaml: "\"your-custom-app\"",
+    }
   ];
   // The name of the key pair.
   optional string name = 4 [
-    (validate.rules).string.min_len = 1
+    (validate.rules).string.min_len = 1,
+    (openapi.v3.property).example   = {
+      yaml: "\"TLS Certificate for www.example.com\"",
+    }
   ];
   // The key pair certificate raw bytes.
   optional bytes certificate = 5 [
-    (validate.rules).bytes.min_len = 1
+    (validate.rules).bytes.min_len = 1,
+    (openapi.v3.property).example  = {
+      yaml: "\"-----BEGIN CERTIFICATE-----\\nEXAMPLE\\n-----END CERTIFICATE-----\"",
+    }
   ];
   // The key pair private key raw bytes.
   optional bytes key = 6 [
     (validate.rules).bytes.min_len = 1,
-    (sensitive)                    = true
+    (sensitive)                    = true,
+    (openapi.v3.property).example  = {
+      yaml: "\"-----BEGIN EC PRIVATE KEY-----\\nEXAMPLE\\n-----END EC PRIVATE KEY-----\"",
+    }
   ];
 
   // computed properties
 
   // When the key pair was created.
-  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp created_at = 7 [
+    (openapi.v3.property).read_only = true
+  ];
   // When the key pair was last modified.
-  google.protobuf.Timestamp modified_at = 8;
+  google.protobuf.Timestamp modified_at = 8 [
+    (openapi.v3.property).read_only = true
+  ];
   // The status of the key pair.
-  KeyPairStatus status = 9;
+  KeyPairStatus status = 9 [
+    (openapi.v3.property).read_only = true
+  ];
   // The origin of the key pair.
-  KeyPairOrigin origin = 10;
+  KeyPairOrigin origin = 10 [
+    (openapi.v3.property).read_only = true
+  ];
   // Info about any certificates the key pair has.
-  repeated CertificateInfo certificate_info = 11;
+  repeated CertificateInfo certificate_info = 11 [
+    (openapi.v3.property).read_only = true
+  ];
 }
 
 // KeyUsage specifies the usage flags set on a signed TLS certificate.

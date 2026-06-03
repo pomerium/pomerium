@@ -307,59 +307,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.DeleteServiceAccountResponse'
   /pomerium.config.ConfigService/GetKeyPair:
-    get:
-      tags:
-        - KeyPair
-        - pomerium.config.ConfigService
-      summary: Gets a key pair
-      description: Gets a key pair.
-      operationId: pomerium.config.ConfigService.GetKeyPair.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetKeyPairRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetKeyPairResponse'
     post:
       tags:
         - KeyPair
@@ -397,59 +344,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.GetKeyPairResponse'
   /pomerium.config.ConfigService/GetPolicy:
-    get:
-      tags:
-        - Policy
-        - pomerium.config.ConfigService
-      summary: Gets a policy
-      description: Gets a policy.
-      operationId: pomerium.config.ConfigService.GetPolicy.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetPolicyRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetPolicyResponse'
     post:
       tags:
         - Policy
@@ -487,59 +381,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.GetPolicyResponse'
   /pomerium.config.ConfigService/GetRoute:
-    get:
-      tags:
-        - Route
-        - pomerium.config.ConfigService
-      summary: Gets a route
-      description: Gets a route.
-      operationId: pomerium.config.ConfigService.GetRoute.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetRouteRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetRouteResponse'
     post:
       tags:
         - Route
@@ -577,58 +418,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.GetRouteResponse'
   /pomerium.config.ConfigService/GetServerInfo:
-    get:
-      tags:
-        - pomerium.config.ConfigService
-      summary: Gets information about a server
-      description: Gets information about a server.
-      operationId: pomerium.config.ConfigService.GetServerInfo.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetServerInfoRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetServerInfoResponse'
     post:
       tags:
         - pomerium.config.ConfigService
@@ -665,59 +454,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.GetServerInfoResponse'
   /pomerium.config.ConfigService/GetServiceAccount:
-    get:
-      tags:
-        - ServiceAccount
-        - pomerium.config.ConfigService
-      summary: Gets a service account
-      description: Gets a service account.
-      operationId: pomerium.config.ConfigService.GetServiceAccount.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetServiceAccountRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetServiceAccountResponse'
     post:
       tags:
         - ServiceAccount
@@ -755,59 +491,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.GetServiceAccountResponse'
   /pomerium.config.ConfigService/GetSettings:
-    get:
-      tags:
-        - Settings
-        - pomerium.config.ConfigService
-      summary: Gets settings
-      description: Gets settings.
-      operationId: pomerium.config.ConfigService.GetSettings.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetSettingsRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.GetSettingsResponse'
     post:
       tags:
         - Settings
@@ -845,58 +528,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.GetSettingsResponse'
   /pomerium.config.ConfigService/ListAvailableLogFields:
-    get:
-      tags:
-        - pomerium.config.ConfigService
-      summary: Lists all the available log fields
-      description: Lists all the available log fields.
-      operationId: pomerium.config.ConfigService.ListAvailableLogFields.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListAvailableLogFieldsRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListAvailableLogFieldsResponse'
     post:
       tags:
         - pomerium.config.ConfigService
@@ -933,59 +564,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.ListAvailableLogFieldsResponse'
   /pomerium.config.ConfigService/ListKeyPairs:
-    get:
-      tags:
-        - KeyPair
-        - pomerium.config.ConfigService
-      summary: Lists key pairs
-      description: Lists key pairs.
-      operationId: pomerium.config.ConfigService.ListKeyPairs.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListKeyPairsRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListKeyPairsResponse'
     post:
       tags:
         - KeyPair
@@ -1023,59 +601,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.ListKeyPairsResponse'
   /pomerium.config.ConfigService/ListPolicies:
-    get:
-      tags:
-        - Policy
-        - pomerium.config.ConfigService
-      summary: Lists policies
-      description: Lists policies.
-      operationId: pomerium.config.ConfigService.ListPolicies.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListPoliciesRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListPoliciesResponse'
     post:
       tags:
         - Policy
@@ -1113,59 +638,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.ListPoliciesResponse'
   /pomerium.config.ConfigService/ListRoutes:
-    get:
-      tags:
-        - Route
-        - pomerium.config.ConfigService
-      summary: Lists routes
-      description: Lists routes.
-      operationId: pomerium.config.ConfigService.ListRoutes.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListRoutesRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListRoutesResponse'
     post:
       tags:
         - Route
@@ -1203,59 +675,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.ListRoutesResponse'
   /pomerium.config.ConfigService/ListServiceAccounts:
-    get:
-      tags:
-        - ServiceAccount
-        - pomerium.config.ConfigService
-      summary: Lists service accounts
-      description: Lists service accounts.
-      operationId: pomerium.config.ConfigService.ListServiceAccounts.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListServiceAccountsRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListServiceAccountsResponse'
     post:
       tags:
         - ServiceAccount
@@ -1293,59 +712,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/pomerium.config.ListServiceAccountsResponse'
   /pomerium.config.ConfigService/ListSettings:
-    get:
-      tags:
-        - Settings
-        - pomerium.config.ConfigService
-      summary: Lists settings
-      description: Lists settings.
-      operationId: pomerium.config.ConfigService.ListSettings.get
-      parameters:
-        - name: Connect-Protocol-Version
-          in: header
-          required: true
-          schema:
-            $ref: '#/components/schemas/connect-protocol-version'
-        - name: Connect-Timeout-Ms
-          in: header
-          schema:
-            $ref: '#/components/schemas/connect-timeout-header'
-        - name: message
-          in: query
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListSettingsRequest'
-        - name: encoding
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/encoding'
-        - name: base64
-          in: query
-          schema:
-            $ref: '#/components/schemas/base64'
-        - name: compression
-          in: query
-          schema:
-            $ref: '#/components/schemas/compression'
-        - name: connect
-          in: query
-          schema:
-            $ref: '#/components/schemas/connect'
-      responses:
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/connect.error'
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/pomerium.config.ListSettingsResponse'
     post:
       tags:
         - Settings
@@ -1569,22 +935,6 @@ paths:
                 $ref: '#/components/schemas/pomerium.config.UpdateSettingsResponse'
 components:
   schemas:
-    base64:
-      type: boolean
-      title: base64
-      description: Specifies if the message query param is base64 encoded, which may be required for binary data
-    compression:
-      title: compression
-      enum:
-        - identity
-        - gzip
-        - br
-      description: Which compression algorithm to use for this request
-    connect:
-      title: connect
-      enum:
-        - v1
-      description: Define the version of the Connect protocol
     connect-protocol-version:
       type: number
       title: Connect-Protocol-Version
@@ -1654,12 +1004,6 @@ components:
           description: Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic.
       additionalProperties: true
       description: Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details.
-    encoding:
-      title: encoding
-      enum:
-        - proto
-        - json
-      description: Define which encoding or 'Message-Codec' to use
     google.protobuf.BoolValue:
       type: boolean
       description: |-
@@ -3108,30 +2452,43 @@ components:
           type:
             - string
             - "null"
+          examples:
+            - 019e8e96-0959-7dc2-b45f-e32dcafcf95b
           title: id
           description: ID of the key pair.
         namespaceId:
           type:
             - string
             - "null"
+          examples:
+            - 019e8e96-87b4-78b9-9830-19874b518d60
           title: namespace_id
           description: Namespace of the key pair.
         originatorId:
           type:
             - string
             - "null"
+          examples:
+            - your-custom-app
           title: originator_id
           description: Originator of the key pair.
         name:
           type:
             - string
             - "null"
+          examples:
+            - TLS Certificate for www.example.com
           title: name
           description: The name of the key pair.
         certificate:
           type:
             - string
             - "null"
+          examples:
+            - |-
+              -----BEGIN CERTIFICATE-----
+              EXAMPLE
+              -----END CERTIFICATE-----
           title: certificate
           format: byte
           description: The key pair certificate raw bytes.
@@ -3139,24 +2496,33 @@ components:
           type:
             - string
             - "null"
+          examples:
+            - |-
+              -----BEGIN EC PRIVATE KEY-----
+              EXAMPLE
+              -----END EC PRIVATE KEY-----
           title: key
           format: byte
           description: The key pair private key raw bytes.
         createdAt:
           title: created_at
           description: When the key pair was created.
+          readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
         modifiedAt:
           title: modified_at
           description: When the key pair was last modified.
+          readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
         status:
           title: status
           description: The status of the key pair.
+          readOnly: true
           $ref: '#/components/schemas/pomerium.config.KeyPairStatus'
         origin:
           title: origin
           description: The origin of the key pair.
+          readOnly: true
           $ref: '#/components/schemas/pomerium.config.KeyPairOrigin'
         certificateInfo:
           type: array
@@ -3164,6 +2530,7 @@ components:
             $ref: '#/components/schemas/pomerium.config.CertificateInfo'
           title: certificate_info
           description: Info about any certificates the key pair has.
+          readOnly: true
       title: KeyPair
       additionalProperties: false
       description: A KeyPair represents a public / private key pair.
