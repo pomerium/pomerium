@@ -8101,11 +8101,11 @@
           "name": "ConfigService",
           "longName": "ConfigService",
           "fullName": "pomerium.config.ConfigService",
-          "description": "",
+          "description": "Manages configuration in Pomerium.",
           "methods": [
             {
               "name": "CreateKeyPair",
-              "description": "",
+              "description": "Creates a new key pair.",
               "requestType": "CreateKeyPairRequest",
               "requestLongType": "CreateKeyPairRequest",
               "requestFullType": "pomerium.config.CreateKeyPairRequest",
@@ -8117,7 +8117,7 @@
             },
             {
               "name": "CreatePolicy",
-              "description": "",
+              "description": "Creates a new policy.",
               "requestType": "CreatePolicyRequest",
               "requestLongType": "CreatePolicyRequest",
               "requestFullType": "pomerium.config.CreatePolicyRequest",
@@ -8129,7 +8129,7 @@
             },
             {
               "name": "CreateRoute",
-              "description": "",
+              "description": "Creates a new route.",
               "requestType": "CreateRouteRequest",
               "requestLongType": "CreateRouteRequest",
               "requestFullType": "pomerium.config.CreateRouteRequest",
@@ -8141,7 +8141,7 @@
             },
             {
               "name": "CreateServiceAccount",
-              "description": "",
+              "description": "Creates a new service account.",
               "requestType": "CreateServiceAccountRequest",
               "requestLongType": "CreateServiceAccountRequest",
               "requestFullType": "pomerium.config.CreateServiceAccountRequest",
@@ -8153,7 +8153,7 @@
             },
             {
               "name": "DeleteKeyPair",
-              "description": "",
+              "description": "Deletes a key pair.",
               "requestType": "DeleteKeyPairRequest",
               "requestLongType": "DeleteKeyPairRequest",
               "requestFullType": "pomerium.config.DeleteKeyPairRequest",
@@ -8165,7 +8165,7 @@
             },
             {
               "name": "DeletePolicy",
-              "description": "",
+              "description": "Deletes a policy.",
               "requestType": "DeletePolicyRequest",
               "requestLongType": "DeletePolicyRequest",
               "requestFullType": "pomerium.config.DeletePolicyRequest",
@@ -8177,7 +8177,7 @@
             },
             {
               "name": "DeleteRoute",
-              "description": "",
+              "description": "Deletes a route.",
               "requestType": "DeleteRouteRequest",
               "requestLongType": "DeleteRouteRequest",
               "requestFullType": "pomerium.config.DeleteRouteRequest",
@@ -8189,7 +8189,7 @@
             },
             {
               "name": "DeleteServiceAccount",
-              "description": "",
+              "description": "Deletes a service account.",
               "requestType": "DeleteServiceAccountRequest",
               "requestLongType": "DeleteServiceAccountRequest",
               "requestFullType": "pomerium.config.DeleteServiceAccountRequest",
@@ -8201,7 +8201,7 @@
             },
             {
               "name": "GetKeyPair",
-              "description": "",
+              "description": "Gets a key pair.",
               "requestType": "GetKeyPairRequest",
               "requestLongType": "GetKeyPairRequest",
               "requestFullType": "pomerium.config.GetKeyPairRequest",
@@ -8216,7 +8216,7 @@
             },
             {
               "name": "GetPolicy",
-              "description": "",
+              "description": "Gets a policy.",
               "requestType": "GetPolicyRequest",
               "requestLongType": "GetPolicyRequest",
               "requestFullType": "pomerium.config.GetPolicyRequest",
@@ -8231,7 +8231,7 @@
             },
             {
               "name": "GetRoute",
-              "description": "",
+              "description": "Gets a route.",
               "requestType": "GetRouteRequest",
               "requestLongType": "GetRouteRequest",
               "requestFullType": "pomerium.config.GetRouteRequest",
@@ -8246,7 +8246,7 @@
             },
             {
               "name": "GetServerInfo",
-              "description": "",
+              "description": "Gets information about a server.",
               "requestType": "GetServerInfoRequest",
               "requestLongType": "GetServerInfoRequest",
               "requestFullType": "pomerium.config.GetServerInfoRequest",
@@ -8261,7 +8261,7 @@
             },
             {
               "name": "GetServiceAccount",
-              "description": "",
+              "description": "Gets a service account.",
               "requestType": "GetServiceAccountRequest",
               "requestLongType": "GetServiceAccountRequest",
               "requestFullType": "pomerium.config.GetServiceAccountRequest",
@@ -8276,7 +8276,7 @@
             },
             {
               "name": "GetSettings",
-              "description": "",
+              "description": "Gets settings.",
               "requestType": "GetSettingsRequest",
               "requestLongType": "GetSettingsRequest",
               "requestFullType": "pomerium.config.GetSettingsRequest",
@@ -8291,7 +8291,7 @@
             },
             {
               "name": "ListAvailableLogFields",
-              "description": "",
+              "description": "Lists all the available log fields.",
               "requestType": "ListAvailableLogFieldsRequest",
               "requestLongType": "ListAvailableLogFieldsRequest",
               "requestFullType": "pomerium.config.ListAvailableLogFieldsRequest",
@@ -8306,7 +8306,7 @@
             },
             {
               "name": "ListKeyPairs",
-              "description": "",
+              "description": "Lists key pairs.",
               "requestType": "ListKeyPairsRequest",
               "requestLongType": "ListKeyPairsRequest",
               "requestFullType": "pomerium.config.ListKeyPairsRequest",
@@ -8321,7 +8321,7 @@
             },
             {
               "name": "ListPolicies",
-              "description": "",
+              "description": "Lists policies.",
               "requestType": "ListPoliciesRequest",
               "requestLongType": "ListPoliciesRequest",
               "requestFullType": "pomerium.config.ListPoliciesRequest",
@@ -8336,7 +8336,7 @@
             },
             {
               "name": "ListRoutes",
-              "description": "",
+              "description": "Lists routes.",
               "requestType": "ListRoutesRequest",
               "requestLongType": "ListRoutesRequest",
               "requestFullType": "pomerium.config.ListRoutesRequest",
@@ -8351,7 +8351,7 @@
             },
             {
               "name": "ListServiceAccounts",
-              "description": "",
+              "description": "Lists service accounts.",
               "requestType": "ListServiceAccountsRequest",
               "requestLongType": "ListServiceAccountsRequest",
               "requestFullType": "pomerium.config.ListServiceAccountsRequest",
@@ -8366,7 +8366,7 @@
             },
             {
               "name": "ListSettings",
-              "description": "",
+              "description": "Lists settings.",
               "requestType": "ListSettingsRequest",
               "requestLongType": "ListSettingsRequest",
               "requestFullType": "pomerium.config.ListSettingsRequest",
@@ -8381,7 +8381,7 @@
             },
             {
               "name": "UpdateKeyPair",
-              "description": "",
+              "description": "Updates an existing key pair.",
               "requestType": "UpdateKeyPairRequest",
               "requestLongType": "UpdateKeyPairRequest",
               "requestFullType": "pomerium.config.UpdateKeyPairRequest",
@@ -8393,7 +8393,7 @@
             },
             {
               "name": "UpdatePolicy",
-              "description": "",
+              "description": "Updates an existing policy.",
               "requestType": "UpdatePolicyRequest",
               "requestLongType": "UpdatePolicyRequest",
               "requestFullType": "pomerium.config.UpdatePolicyRequest",
@@ -8405,7 +8405,7 @@
             },
             {
               "name": "UpdateRoute",
-              "description": "",
+              "description": "Updates an existing route.",
               "requestType": "UpdateRouteRequest",
               "requestLongType": "UpdateRouteRequest",
               "requestFullType": "pomerium.config.UpdateRouteRequest",
@@ -8417,7 +8417,7 @@
             },
             {
               "name": "UpdateServiceAccount",
-              "description": "",
+              "description": "Updates an existing service account.",
               "requestType": "UpdateServiceAccountRequest",
               "requestLongType": "UpdateServiceAccountRequest",
               "requestFullType": "pomerium.config.UpdateServiceAccountRequest",
@@ -8429,7 +8429,7 @@
             },
             {
               "name": "UpdateSettings",
-              "description": "",
+              "description": "Updates existing settings.",
               "requestType": "UpdateSettingsRequest",
               "requestLongType": "UpdateSettingsRequest",
               "requestFullType": "pomerium.config.UpdateSettingsRequest",

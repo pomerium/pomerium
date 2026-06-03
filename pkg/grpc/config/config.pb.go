@@ -8,6 +8,7 @@ package config
 
 import (
 	_ "github.com/envoyproxy/protoc-gen-validate/validate"
+	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -9354,7 +9355,7 @@ var File_config_proto protoreflect.FileDescriptor
 
 const file_config_proto_rawDesc = "" +
 	"\n" +
-	"\fconfig.proto\x12\x0fpomerium.config\x1a\x1egoogle/protobuf/duration.proto\x1a google/protobuf/field_mask.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\x1a\roptions.proto\x1a\x17validate/validate.proto\"\x83\x01\n" +
+	"\fconfig.proto\x12\x0fpomerium.config\x1a\x1egoogle/protobuf/duration.proto\x1a google/protobuf/field_mask.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x1bopenapiv3/annotations.proto\x1a\roptions.proto\x1a\x17validate/validate.proto\"\x83\x01\n" +
 	"\x06Config\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12.\n" +
 	"\x06routes\x18\x02 \x03(\v2\x16.pomerium.config.RouteR\x06routes\x125\n" +
@@ -9421,7 +9422,7 @@ const file_config_proto_rawDesc = "" +
 	"\x05_nameB\x0e\n" +
 	"\f_modified_at\",\n" +
 	"\x10SessionRecording\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\"\x90/\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\"\xb3/\n" +
 	"\x05Route\x12\x13\n" +
 	"\x02id\x18\x1c \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18P \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -9507,14 +9508,14 @@ const file_config_proto_rawDesc = "" +
 	"\x15load_balancing_policy\x18N \x01(\x0e2$.pomerium.config.LoadBalancingPolicyH\x1bR\x13loadBalancingPolicy\x88\x01\x01\x12;\n" +
 	"\x17healthy_panic_threshold\x18O \x01(\x05H\x1cR\x15healthyPanicThreshold\x88\x01\x01\x12M\n" +
 	"\x0eallow_upgrades\x18] \x01(\v2!.pomerium.config.Route.StringListH\x1dR\rallowUpgrades\x88\x01\x01\x12S\n" +
-	"\x11session_recording\x18^ \x01(\v2!.pomerium.config.SessionRecordingH\x1eR\x10sessionRecording\x88\x01\x01\x129\n" +
+	"\x11session_recording\x18^ \x01(\v2!.pomerium.config.SessionRecordingH\x1eR\x10sessionRecording\x88\x01\x01\x12@\n" +
 	"\n" +
-	"created_at\x18W \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
-	"\vmodified_at\x18X \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"modifiedAt\x12H\n" +
-	"\x11enforced_policies\x18Z \x03(\v2\x1b.pomerium.config.EntityInfoR\x10enforcedPolicies\x12H\n" +
-	"\x11assigned_policies\x18[ \x03(\v2\x1b.pomerium.config.EntityInfoR\x10assignedPolicies\x12*\n" +
-	"\x0enamespace_name\x18\\ \x01(\tH\x1fR\rnamespaceName\x88\x01\x01\x1a$\n" +
+	"created_at\x18W \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12B\n" +
+	"\vmodified_at\x18X \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
+	"modifiedAt\x12O\n" +
+	"\x11enforced_policies\x18Z \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x10enforcedPolicies\x12O\n" +
+	"\x11assigned_policies\x18[ \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x10assignedPolicies\x121\n" +
+	"\x0enamespace_name\x18\\ \x01(\tB\x05\xbaG\x02\x18\x01H\x1fR\rnamespaceName\x88\x01\x01\x1a$\n" +
 	"\n" +
 	"StringList\x12\x16\n" +
 	"\x06values\x18\x01 \x03(\tR\x06values\x1a_\n" +
@@ -9597,7 +9598,7 @@ const file_config_proto_rawDesc = "" +
 	"auth_style\x18\x03 \x01(\x0e2 .pomerium.config.OAuth2AuthStyleH\x00R\tauthStyle\x88\x01\x01B\r\n" +
 	"\v_auth_style\"\x1d\n" +
 	"\tPPLPolicy\x12\x10\n" +
-	"\x03raw\x18\x01 \x01(\fR\x03raw\"\xaa\b\n" +
+	"\x03raw\x18\x01 \x01(\fR\x03raw\"\xcd\b\n" +
 	"\x06Policy\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18\v \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -9613,14 +9614,14 @@ const file_config_proto_rawDesc = "" +
 	"source_ppl\x18\n" +
 	" \x01(\tH\x06R\tsourcePpl\x88\x01\x01\x12%\n" +
 	"\vexplanation\x18\b \x01(\tH\aR\vexplanation\x88\x01\x01\x12%\n" +
-	"\vremediation\x18\t \x01(\tH\bR\vremediation\x88\x01\x01\x129\n" +
+	"\vremediation\x18\t \x01(\tH\bR\vremediation\x88\x01\x01\x12@\n" +
 	"\n" +
-	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
-	"\vmodified_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"modifiedAt\x12D\n" +
-	"\x0fenforced_routes\x18\x11 \x03(\v2\x1b.pomerium.config.EntityInfoR\x0eenforcedRoutes\x12D\n" +
-	"\x0fassigned_routes\x18\x12 \x03(\v2\x1b.pomerium.config.EntityInfoR\x0eassignedRoutes\x12*\n" +
-	"\x0enamespace_name\x18\x13 \x01(\tH\tR\rnamespaceName\x88\x01\x01\x1a_\n" +
+	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12B\n" +
+	"\vmodified_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
+	"modifiedAt\x12K\n" +
+	"\x0fenforced_routes\x18\x11 \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x0eenforcedRoutes\x12K\n" +
+	"\x0fassigned_routes\x18\x12 \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x0eassignedRoutes\x121\n" +
+	"\x0enamespace_name\x18\x13 \x01(\tB\x05\xbaG\x02\x18\x01H\tR\rnamespaceName\x88\x01\x01\x1a_\n" +
 	"\x15AllowedIdpClaimsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
 	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.ListValueR\x05value:\x028\x01B\x05\n" +
@@ -9633,7 +9634,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xdag\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xe8g\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9789,10 +9790,10 @@ const file_config_proto_rawDesc = "" +
 	"\x0enormalize_path\x18\xb8\x01 \x01(\bH{R\rnormalizePath\x88\x01\x01\x12)\n" +
 	"\rmerge_slashes\x18\xb9\x01 \x01(\bH|R\fmergeSlashes\x88\x01\x01\x12{\n" +
 	" path_with_escaped_slashes_action\x18\xba\x01 \x01(\x0e2-.pomerium.config.PathWithEscapedSlashesActionH}R\x1cpathWithEscapedSlashesAction\x88\x01\x01\x12z\n" +
-	"\x1fheaders_with_underscores_action\x18\xbb\x01 \x01(\x0e2-.pomerium.config.HeadersWithUnderscoresActionH~R\x1cheadersWithUnderscoresAction\x88\x01\x01\x12:\n" +
+	"\x1fheaders_with_underscores_action\x18\xbb\x01 \x01(\x0e2-.pomerium.config.HeadersWithUnderscoresActionH~R\x1cheadersWithUnderscoresAction\x88\x01\x01\x12A\n" +
 	"\n" +
-	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
-	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12C\n" +
+	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
 	"modifiedAt\x1a_\n" +
 	"\vCertificate\x12\x1d\n" +
 	"\n" +
@@ -9979,22 +9980,22 @@ const file_config_proto_rawDesc = "" +
 	"\x03URI\x10\x03\x12\x0e\n" +
 	"\n" +
 	"IP_ADDRESS\x10\x04\x12\x17\n" +
-	"\x13USER_PRINCIPAL_NAME\x10\x05\"\x81\x05\n" +
-	"\aKeyPair\x12\x1c\n" +
-	"\x02id\x18\x01 \x01(\tB\a\xfaB\x04r\x02\x10\x01H\x00R\x02id\x88\x01\x01\x12/\n" +
-	"\fnamespace_id\x18\x02 \x01(\tB\a\xfaB\x04r\x02\x10\x01H\x01R\vnamespaceId\x88\x01\x01\x121\n" +
-	"\roriginator_id\x18\x03 \x01(\tB\a\xfaB\x04r\x02\x10\x01H\x02R\foriginatorId\x88\x01\x01\x12 \n" +
-	"\x04name\x18\x04 \x01(\tB\a\xfaB\x04r\x02\x10\x01H\x03R\x04name\x88\x01\x01\x12.\n" +
-	"\vcertificate\x18\x05 \x01(\fB\a\xfaB\x04z\x02\x10\x01H\x04R\vcertificate\x88\x01\x01\x12\"\n" +
-	"\x03key\x18\x06 \x01(\fB\v\xfaB\x04z\x02\x10\x01\xe8\xd6,\x01H\x05R\x03key\x88\x01\x01\x129\n" +
+	"\x13USER_PRINCIPAL_NAME\x10\x05\"\xd8\a\n" +
+	"\aKeyPair\x12I\n" +
+	"\x02id\x18\x01 \x01(\tB4\xfaB\x04r\x02\x10\x01\xbaG*:(\x12&\"019e8e96-0959-7dc2-b45f-e32dcafcf95b\"H\x00R\x02id\x88\x01\x01\x12\\\n" +
+	"\fnamespace_id\x18\x02 \x01(\tB4\xfaB\x04r\x02\x10\x01\xbaG*:(\x12&\"019e8e96-87b4-78b9-9830-19874b518d60\"H\x01R\vnamespaceId\x88\x01\x01\x12I\n" +
+	"\roriginator_id\x18\x03 \x01(\tB\x1f\xfaB\x04r\x02\x10\x01\xbaG\x15:\x13\x12\x11\"your-custom-app\"H\x02R\foriginatorId\x88\x01\x01\x12L\n" +
+	"\x04name\x18\x04 \x01(\tB3\xfaB\x04r\x02\x10\x01\xbaG):'\x12%\"TLS Certificate for www.example.com\"H\x03R\x04name\x88\x01\x01\x12v\n" +
+	"\vcertificate\x18\x05 \x01(\fBO\xfaB\x04z\x02\x10\x01\xbaGE:C\x12A\"-----BEGIN CERTIFICATE-----\\nEXAMPLE\\n-----END CERTIFICATE-----\"H\x04R\vcertificate\x88\x01\x01\x12p\n" +
+	"\x03key\x18\x06 \x01(\fBY\xfaB\x04z\x02\x10\x01\xbaGK:I\x12G\"-----BEGIN EC PRIVATE KEY-----\\nEXAMPLE\\n-----END EC PRIVATE KEY-----\"\xe8\xd6,\x01H\x05R\x03key\x88\x01\x01\x12@\n" +
 	"\n" +
-	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
-	"\vmodified_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"modifiedAt\x126\n" +
-	"\x06status\x18\t \x01(\x0e2\x1e.pomerium.config.KeyPairStatusR\x06status\x126\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12B\n" +
+	"\vmodified_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
+	"modifiedAt\x12=\n" +
+	"\x06status\x18\t \x01(\x0e2\x1e.pomerium.config.KeyPairStatusB\x05\xbaG\x02\x18\x01R\x06status\x12=\n" +
 	"\x06origin\x18\n" +
-	" \x01(\x0e2\x1e.pomerium.config.KeyPairOriginR\x06origin\x12K\n" +
-	"\x10certificate_info\x18\v \x03(\v2 .pomerium.config.CertificateInfoR\x0fcertificateInfoB\x05\n" +
+	" \x01(\x0e2\x1e.pomerium.config.KeyPairOriginB\x05\xbaG\x02\x18\x01R\x06origin\x12R\n" +
+	"\x10certificate_info\x18\v \x03(\v2 .pomerium.config.CertificateInfoB\x05\xbaG\x02\x18\x01R\x0fcertificateInfoB\x05\n" +
 	"\x03_idB\x0f\n" +
 	"\r_namespace_idB\x10\n" +
 	"\x0e_originator_idB\a\n" +
@@ -10377,35 +10378,64 @@ const file_config_proto_rawDesc = "" +
 	"\x1cLOAD_BALANCING_POLICY_MAGLEV\x10\x02\x12 \n" +
 	"\x1cLOAD_BALANCING_POLICY_RANDOM\x10\x03\x12#\n" +
 	"\x1fLOAD_BALANCING_POLICY_RING_HASH\x10\x04\x12'\n" +
-	"#LOAD_BALANCING_POLICY_LEAST_REQUEST\x10\x052\xcf\x13\n" +
-	"\rConfigService\x12^\n" +
-	"\rCreateKeyPair\x12%.pomerium.config.CreateKeyPairRequest\x1a&.pomerium.config.CreateKeyPairResponse\x12[\n" +
-	"\fCreatePolicy\x12$.pomerium.config.CreatePolicyRequest\x1a%.pomerium.config.CreatePolicyResponse\x12X\n" +
-	"\vCreateRoute\x12#.pomerium.config.CreateRouteRequest\x1a$.pomerium.config.CreateRouteResponse\x12s\n" +
-	"\x14CreateServiceAccount\x12,.pomerium.config.CreateServiceAccountRequest\x1a-.pomerium.config.CreateServiceAccountResponse\x12^\n" +
-	"\rDeleteKeyPair\x12%.pomerium.config.DeleteKeyPairRequest\x1a&.pomerium.config.DeleteKeyPairResponse\x12[\n" +
-	"\fDeletePolicy\x12$.pomerium.config.DeletePolicyRequest\x1a%.pomerium.config.DeletePolicyResponse\x12X\n" +
-	"\vDeleteRoute\x12#.pomerium.config.DeleteRouteRequest\x1a$.pomerium.config.DeleteRouteResponse\x12s\n" +
-	"\x14DeleteServiceAccount\x12,.pomerium.config.DeleteServiceAccountRequest\x1a-.pomerium.config.DeleteServiceAccountResponse\x12Z\n" +
+	"#LOAD_BALANCING_POLICY_LEAST_REQUEST\x10\x052\xd0\x1a\n" +
+	"\rConfigService\x12\x80\x01\n" +
+	"\rCreateKeyPair\x12%.pomerium.config.CreateKeyPairRequest\x1a&.pomerium.config.CreateKeyPairResponse\" \xbaG\x1d\n" +
+	"\aKeyPair\x1a\x12Creates a key pair\x12z\n" +
+	"\fCreatePolicy\x12$.pomerium.config.CreatePolicyRequest\x1a%.pomerium.config.CreatePolicyResponse\"\x1d\xbaG\x1a\n" +
+	"\x06Policy\x1a\x10Creates a policy\x12u\n" +
+	"\vCreateRoute\x12#.pomerium.config.CreateRouteRequest\x1a$.pomerium.config.CreateRouteResponse\"\x1b\xbaG\x18\n" +
+	"\x05Route\x1a\x0fCreates a route\x12\xa3\x01\n" +
+	"\x14CreateServiceAccount\x12,.pomerium.config.CreateServiceAccountRequest\x1a-.pomerium.config.CreateServiceAccountResponse\".\xbaG+\n" +
+	"\x0eServiceAccount\x1a\x19Creates a service account\x12\x80\x01\n" +
+	"\rDeleteKeyPair\x12%.pomerium.config.DeleteKeyPairRequest\x1a&.pomerium.config.DeleteKeyPairResponse\" \xbaG\x1d\n" +
+	"\aKeyPair\x1a\x12Deletes a key pair\x12z\n" +
+	"\fDeletePolicy\x12$.pomerium.config.DeletePolicyRequest\x1a%.pomerium.config.DeletePolicyResponse\"\x1d\xbaG\x1a\n" +
+	"\x06Policy\x1a\x10Deletes a policy\x12u\n" +
+	"\vDeleteRoute\x12#.pomerium.config.DeleteRouteRequest\x1a$.pomerium.config.DeleteRouteResponse\"\x1b\xbaG\x18\n" +
+	"\x05Route\x1a\x0fDeletes a route\x12\xa3\x01\n" +
+	"\x14DeleteServiceAccount\x12,.pomerium.config.DeleteServiceAccountRequest\x1a-.pomerium.config.DeleteServiceAccountResponse\".\xbaG+\n" +
+	"\x0eServiceAccount\x1a\x19Deletes a service account\x12w\n" +
 	"\n" +
-	"GetKeyPair\x12\".pomerium.config.GetKeyPairRequest\x1a#.pomerium.config.GetKeyPairResponse\"\x03\x90\x02\x01\x12W\n" +
-	"\tGetPolicy\x12!.pomerium.config.GetPolicyRequest\x1a\".pomerium.config.GetPolicyResponse\"\x03\x90\x02\x01\x12T\n" +
-	"\bGetRoute\x12 .pomerium.config.GetRouteRequest\x1a!.pomerium.config.GetRouteResponse\"\x03\x90\x02\x01\x12c\n" +
-	"\rGetServerInfo\x12%.pomerium.config.GetServerInfoRequest\x1a&.pomerium.config.GetServerInfoResponse\"\x03\x90\x02\x01\x12o\n" +
-	"\x11GetServiceAccount\x12).pomerium.config.GetServiceAccountRequest\x1a*.pomerium.config.GetServiceAccountResponse\"\x03\x90\x02\x01\x12]\n" +
-	"\vGetSettings\x12#.pomerium.config.GetSettingsRequest\x1a$.pomerium.config.GetSettingsResponse\"\x03\x90\x02\x01\x12~\n" +
-	"\x16ListAvailableLogFields\x12..pomerium.config.ListAvailableLogFieldsRequest\x1a/.pomerium.config.ListAvailableLogFieldsResponse\"\x03\x90\x02\x01\x12`\n" +
-	"\fListKeyPairs\x12$.pomerium.config.ListKeyPairsRequest\x1a%.pomerium.config.ListKeyPairsResponse\"\x03\x90\x02\x01\x12`\n" +
-	"\fListPolicies\x12$.pomerium.config.ListPoliciesRequest\x1a%.pomerium.config.ListPoliciesResponse\"\x03\x90\x02\x01\x12Z\n" +
+	"GetKeyPair\x12\".pomerium.config.GetKeyPairRequest\x1a#.pomerium.config.GetKeyPairResponse\" \xbaG\x1a\n" +
+	"\aKeyPair\x1a\x0fGets a key pair\x90\x02\x01\x12q\n" +
+	"\tGetPolicy\x12!.pomerium.config.GetPolicyRequest\x1a\".pomerium.config.GetPolicyResponse\"\x1d\xbaG\x17\n" +
+	"\x06Policy\x1a\rGets a policy\x90\x02\x01\x12l\n" +
+	"\bGetRoute\x12 .pomerium.config.GetRouteRequest\x1a!.pomerium.config.GetRouteResponse\"\x1b\xbaG\x15\n" +
+	"\x05Route\x1a\fGets a route\x90\x02\x01\x12\x87\x01\n" +
+	"\rGetServerInfo\x12%.pomerium.config.GetServerInfoRequest\x1a&.pomerium.config.GetServerInfoResponse\"'\xbaG!\x1a\x1fGets information about a server\x90\x02\x01\x12\x9a\x01\n" +
+	"\x11GetServiceAccount\x12).pomerium.config.GetServiceAccountRequest\x1a*.pomerium.config.GetServiceAccountResponse\".\xbaG(\n" +
+	"\x0eServiceAccount\x1a\x16Gets a service account\x90\x02\x01\x12y\n" +
+	"\vGetSettings\x12#.pomerium.config.GetSettingsRequest\x1a$.pomerium.config.GetSettingsResponse\"\x1f\xbaG\x19\n" +
+	"\bSettings\x1a\rGets settings\x90\x02\x01\x12\xa5\x01\n" +
+	"\x16ListAvailableLogFields\x12..pomerium.config.ListAvailableLogFieldsRequest\x1a/.pomerium.config.ListAvailableLogFieldsResponse\"*\xbaG$\x1a\"Lists all the available log fields\x90\x02\x01\x12}\n" +
+	"\fListKeyPairs\x12$.pomerium.config.ListKeyPairsRequest\x1a%.pomerium.config.ListKeyPairsResponse\" \xbaG\x1a\n" +
+	"\aKeyPair\x1a\x0fLists key pairs\x90\x02\x01\x12{\n" +
+	"\fListPolicies\x12$.pomerium.config.ListPoliciesRequest\x1a%.pomerium.config.ListPoliciesResponse\"\x1e\xbaG\x18\n" +
+	"\x06Policy\x1a\x0eLists policies\x90\x02\x01\x12r\n" +
 	"\n" +
-	"ListRoutes\x12\".pomerium.config.ListRoutesRequest\x1a#.pomerium.config.ListRoutesResponse\"\x03\x90\x02\x01\x12u\n" +
-	"\x13ListServiceAccounts\x12+.pomerium.config.ListServiceAccountsRequest\x1a,.pomerium.config.ListServiceAccountsResponse\"\x03\x90\x02\x01\x12`\n" +
-	"\fListSettings\x12$.pomerium.config.ListSettingsRequest\x1a%.pomerium.config.ListSettingsResponse\"\x03\x90\x02\x01\x12^\n" +
-	"\rUpdateKeyPair\x12%.pomerium.config.UpdateKeyPairRequest\x1a&.pomerium.config.UpdateKeyPairResponse\x12[\n" +
-	"\fUpdatePolicy\x12$.pomerium.config.UpdatePolicyRequest\x1a%.pomerium.config.UpdatePolicyResponse\x12X\n" +
-	"\vUpdateRoute\x12#.pomerium.config.UpdateRouteRequest\x1a$.pomerium.config.UpdateRouteResponse\x12s\n" +
-	"\x14UpdateServiceAccount\x12,.pomerium.config.UpdateServiceAccountRequest\x1a-.pomerium.config.UpdateServiceAccountResponse\x12a\n" +
-	"\x0eUpdateSettings\x12&.pomerium.config.UpdateSettingsRequest\x1a'.pomerium.config.UpdateSettingsResponseB.Z,github.com/pomerium/pomerium/pkg/grpc/configb\x06proto3"
+	"ListRoutes\x12\".pomerium.config.ListRoutesRequest\x1a#.pomerium.config.ListRoutesResponse\"\x1b\xbaG\x15\n" +
+	"\x05Route\x1a\fLists routes\x90\x02\x01\x12\xa0\x01\n" +
+	"\x13ListServiceAccounts\x12+.pomerium.config.ListServiceAccountsRequest\x1a,.pomerium.config.ListServiceAccountsResponse\".\xbaG(\n" +
+	"\x0eServiceAccount\x1a\x16Lists service accounts\x90\x02\x01\x12}\n" +
+	"\fListSettings\x12$.pomerium.config.ListSettingsRequest\x1a%.pomerium.config.ListSettingsResponse\" \xbaG\x1a\n" +
+	"\bSettings\x1a\x0eLists settings\x90\x02\x01\x12\x8a\x01\n" +
+	"\rUpdateKeyPair\x12%.pomerium.config.UpdateKeyPairRequest\x1a&.pomerium.config.UpdateKeyPairResponse\"*\xbaG'\n" +
+	"\aKeyPair\x1a\x1cUpdates an existing key pair\x12\x84\x01\n" +
+	"\fUpdatePolicy\x12$.pomerium.config.UpdatePolicyRequest\x1a%.pomerium.config.UpdatePolicyResponse\"'\xbaG$\n" +
+	"\x06Policy\x1a\x1aUpdates an existing policy\x12\x7f\n" +
+	"\vUpdateRoute\x12#.pomerium.config.UpdateRouteRequest\x1a$.pomerium.config.UpdateRouteResponse\"%\xbaG\"\n" +
+	"\x05Route\x1a\x19Updates an existing route\x12\xad\x01\n" +
+	"\x14UpdateServiceAccount\x12,.pomerium.config.UpdateServiceAccountRequest\x1a-.pomerium.config.UpdateServiceAccountResponse\"8\xbaG5\n" +
+	"\x0eServiceAccount\x1a#Updates an existing service account\x12\x8b\x01\n" +
+	"\x0eUpdateSettings\x12&.pomerium.config.UpdateSettingsRequest\x1a'.pomerium.config.UpdateSettingsResponse\"(\xbaG%\n" +
+	"\bSettings\x1a\x19Updates existing settingsB\xc3\x02\xbaG\x91\x02\x12\xc5\x01\n" +
+	"\fPomerium API\x12(API for managing Pomerium configuration.\"=\n" +
+	"\bPomerium\x12\x1bhttps://github.com/pomerium\x1a\x14support@pomerium.com*L\n" +
+	"\x12Apache License 2.0\x126https://github.com/pomerium/pomerium/blob/main/LICENSE\x1aG\n" +
+	"\x10https://{{host}}\x12\x11Pomerium Zero API\x1a \n" +
+	"\x1e\n" +
+	"\x04host\x12\x16\x12\x14console.pomerium.appZ,github.com/pomerium/pomerium/pkg/grpc/configb\x06proto3"
 
 var (
 	file_config_proto_rawDescOnce sync.Once

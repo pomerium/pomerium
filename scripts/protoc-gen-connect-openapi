@@ -1,0 +1,4 @@
+#!/bin/bash
+set -euo pipefail
+_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+exec go tool github.com/sudorandom/protoc-gen-connect-openapi "$@"

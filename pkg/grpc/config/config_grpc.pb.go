@@ -49,31 +49,58 @@ const (
 // ConfigServiceClient is the client API for ConfigService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// Manages configuration in Pomerium.
 type ConfigServiceClient interface {
+	// Creates a new key pair.
 	CreateKeyPair(ctx context.Context, in *CreateKeyPairRequest, opts ...grpc.CallOption) (*CreateKeyPairResponse, error)
+	// Creates a new policy.
 	CreatePolicy(ctx context.Context, in *CreatePolicyRequest, opts ...grpc.CallOption) (*CreatePolicyResponse, error)
+	// Creates a new route.
 	CreateRoute(ctx context.Context, in *CreateRouteRequest, opts ...grpc.CallOption) (*CreateRouteResponse, error)
+	// Creates a new service account.
 	CreateServiceAccount(ctx context.Context, in *CreateServiceAccountRequest, opts ...grpc.CallOption) (*CreateServiceAccountResponse, error)
+	// Deletes a key pair.
 	DeleteKeyPair(ctx context.Context, in *DeleteKeyPairRequest, opts ...grpc.CallOption) (*DeleteKeyPairResponse, error)
+	// Deletes a policy.
 	DeletePolicy(ctx context.Context, in *DeletePolicyRequest, opts ...grpc.CallOption) (*DeletePolicyResponse, error)
+	// Deletes a route.
 	DeleteRoute(ctx context.Context, in *DeleteRouteRequest, opts ...grpc.CallOption) (*DeleteRouteResponse, error)
+	// Deletes a service account.
 	DeleteServiceAccount(ctx context.Context, in *DeleteServiceAccountRequest, opts ...grpc.CallOption) (*DeleteServiceAccountResponse, error)
+	// Gets a key pair.
 	GetKeyPair(ctx context.Context, in *GetKeyPairRequest, opts ...grpc.CallOption) (*GetKeyPairResponse, error)
+	// Gets a policy.
 	GetPolicy(ctx context.Context, in *GetPolicyRequest, opts ...grpc.CallOption) (*GetPolicyResponse, error)
+	// Gets a route.
 	GetRoute(ctx context.Context, in *GetRouteRequest, opts ...grpc.CallOption) (*GetRouteResponse, error)
+	// Gets information about a server.
 	GetServerInfo(ctx context.Context, in *GetServerInfoRequest, opts ...grpc.CallOption) (*GetServerInfoResponse, error)
+	// Gets a service account.
 	GetServiceAccount(ctx context.Context, in *GetServiceAccountRequest, opts ...grpc.CallOption) (*GetServiceAccountResponse, error)
+	// Gets settings.
 	GetSettings(ctx context.Context, in *GetSettingsRequest, opts ...grpc.CallOption) (*GetSettingsResponse, error)
+	// Lists all the available log fields.
 	ListAvailableLogFields(ctx context.Context, in *ListAvailableLogFieldsRequest, opts ...grpc.CallOption) (*ListAvailableLogFieldsResponse, error)
+	// Lists key pairs.
 	ListKeyPairs(ctx context.Context, in *ListKeyPairsRequest, opts ...grpc.CallOption) (*ListKeyPairsResponse, error)
+	// Lists policies.
 	ListPolicies(ctx context.Context, in *ListPoliciesRequest, opts ...grpc.CallOption) (*ListPoliciesResponse, error)
+	// Lists routes.
 	ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error)
+	// Lists service accounts.
 	ListServiceAccounts(ctx context.Context, in *ListServiceAccountsRequest, opts ...grpc.CallOption) (*ListServiceAccountsResponse, error)
+	// Lists settings.
 	ListSettings(ctx context.Context, in *ListSettingsRequest, opts ...grpc.CallOption) (*ListSettingsResponse, error)
+	// Updates an existing key pair.
 	UpdateKeyPair(ctx context.Context, in *UpdateKeyPairRequest, opts ...grpc.CallOption) (*UpdateKeyPairResponse, error)
+	// Updates an existing policy.
 	UpdatePolicy(ctx context.Context, in *UpdatePolicyRequest, opts ...grpc.CallOption) (*UpdatePolicyResponse, error)
+	// Updates an existing route.
 	UpdateRoute(ctx context.Context, in *UpdateRouteRequest, opts ...grpc.CallOption) (*UpdateRouteResponse, error)
+	// Updates an existing service account.
 	UpdateServiceAccount(ctx context.Context, in *UpdateServiceAccountRequest, opts ...grpc.CallOption) (*UpdateServiceAccountResponse, error)
+	// Updates existing settings.
 	UpdateSettings(ctx context.Context, in *UpdateSettingsRequest, opts ...grpc.CallOption) (*UpdateSettingsResponse, error)
 }
 
@@ -338,31 +365,58 @@ func (c *configServiceClient) UpdateSettings(ctx context.Context, in *UpdateSett
 // ConfigServiceServer is the server API for ConfigService service.
 // All implementations should embed UnimplementedConfigServiceServer
 // for forward compatibility.
+//
+// Manages configuration in Pomerium.
 type ConfigServiceServer interface {
+	// Creates a new key pair.
 	CreateKeyPair(context.Context, *CreateKeyPairRequest) (*CreateKeyPairResponse, error)
+	// Creates a new policy.
 	CreatePolicy(context.Context, *CreatePolicyRequest) (*CreatePolicyResponse, error)
+	// Creates a new route.
 	CreateRoute(context.Context, *CreateRouteRequest) (*CreateRouteResponse, error)
+	// Creates a new service account.
 	CreateServiceAccount(context.Context, *CreateServiceAccountRequest) (*CreateServiceAccountResponse, error)
+	// Deletes a key pair.
 	DeleteKeyPair(context.Context, *DeleteKeyPairRequest) (*DeleteKeyPairResponse, error)
+	// Deletes a policy.
 	DeletePolicy(context.Context, *DeletePolicyRequest) (*DeletePolicyResponse, error)
+	// Deletes a route.
 	DeleteRoute(context.Context, *DeleteRouteRequest) (*DeleteRouteResponse, error)
+	// Deletes a service account.
 	DeleteServiceAccount(context.Context, *DeleteServiceAccountRequest) (*DeleteServiceAccountResponse, error)
+	// Gets a key pair.
 	GetKeyPair(context.Context, *GetKeyPairRequest) (*GetKeyPairResponse, error)
+	// Gets a policy.
 	GetPolicy(context.Context, *GetPolicyRequest) (*GetPolicyResponse, error)
+	// Gets a route.
 	GetRoute(context.Context, *GetRouteRequest) (*GetRouteResponse, error)
+	// Gets information about a server.
 	GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error)
+	// Gets a service account.
 	GetServiceAccount(context.Context, *GetServiceAccountRequest) (*GetServiceAccountResponse, error)
+	// Gets settings.
 	GetSettings(context.Context, *GetSettingsRequest) (*GetSettingsResponse, error)
+	// Lists all the available log fields.
 	ListAvailableLogFields(context.Context, *ListAvailableLogFieldsRequest) (*ListAvailableLogFieldsResponse, error)
+	// Lists key pairs.
 	ListKeyPairs(context.Context, *ListKeyPairsRequest) (*ListKeyPairsResponse, error)
+	// Lists policies.
 	ListPolicies(context.Context, *ListPoliciesRequest) (*ListPoliciesResponse, error)
+	// Lists routes.
 	ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error)
+	// Lists service accounts.
 	ListServiceAccounts(context.Context, *ListServiceAccountsRequest) (*ListServiceAccountsResponse, error)
+	// Lists settings.
 	ListSettings(context.Context, *ListSettingsRequest) (*ListSettingsResponse, error)
+	// Updates an existing key pair.
 	UpdateKeyPair(context.Context, *UpdateKeyPairRequest) (*UpdateKeyPairResponse, error)
+	// Updates an existing policy.
 	UpdatePolicy(context.Context, *UpdatePolicyRequest) (*UpdatePolicyResponse, error)
+	// Updates an existing route.
 	UpdateRoute(context.Context, *UpdateRouteRequest) (*UpdateRouteResponse, error)
+	// Updates an existing service account.
 	UpdateServiceAccount(context.Context, *UpdateServiceAccountRequest) (*UpdateServiceAccountResponse, error)
+	// Updates existing settings.
 	UpdateSettings(context.Context, *UpdateSettingsRequest) (*UpdateSettingsResponse, error)
 }
 
