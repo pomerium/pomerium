@@ -20,8 +20,8 @@ export const WebAuthnButton: FC<WebAuthnButtonProps> = ({
   url,
   ...props
 }) => {
-  const formRef = useRef<HTMLFormElement>();
-  const responseRef = useRef<HTMLInputElement>();
+  const formRef = useRef<HTMLFormElement>(null);
+  const responseRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string>(null);
 
   function handleClickButton(evt: React.MouseEvent): void {

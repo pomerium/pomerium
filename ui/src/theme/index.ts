@@ -8,7 +8,7 @@ import { softShadows } from "./shadows";
 
 export const createTheme = (
   primaryColor: string,
-  secondaryColor: string
+  secondaryColor: string,
 ): MuiTheme => {
   return muiCreateTheme({
     components: {

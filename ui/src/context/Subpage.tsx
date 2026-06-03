@@ -1,5 +1,5 @@
-import type { FC } from "react";
-import React, { createContext, useState } from "react";
+import type { FC, ReactNode } from "react";
+import { createContext, useState } from "react";
 
 export interface SubpageContextValue {
   subpage: string;
@@ -12,6 +12,7 @@ export const SubpageContext = createContext<SubpageContextValue>({
 });
 
 export type SubpageContextProviderProps = {
+  children?: ReactNode;
   page: string;
 };
 export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
@@ -29,12 +30,12 @@ export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
       page === "DeviceEnrolled"
         ? "Devices Info"
         : page === "Routes"
-        ? "Routes"
-        : hashParams.get("subpage") === "Groups Info"
-        ? "Groups Info"
-        : hashParams.get("subpage") === "Devices Info"
-        ? "Devices Info"
-        : "User",
+          ? "Routes"
+          : hashParams.get("subpage") === "Groups Info"
+            ? "Groups Info"
+            : hashParams.get("subpage") === "Devices Info"
+              ? "Devices Info"
+              : "User",
     setSubpage,
   };
 

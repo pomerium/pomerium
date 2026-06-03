@@ -11,6 +11,6 @@ const ExperimentalIcon = createSvgIcon(
       transform="scale(.83333)"
     />
   </svg>,
-  "Experimental"
+  "Experimental",
 );
 export default ExperimentalIcon;
