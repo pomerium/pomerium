@@ -11,8 +11,11 @@ info:
     name: Apache License 2.0
     url: https://github.com/pomerium/pomerium/blob/main/LICENSE
 servers:
-  - url: https://console.pomerium.app
+  - url: https://{{host}}
     description: Pomerium Zero API
+    variables:
+      host:
+        default: console.pomerium.app
 paths:
   /pomerium.config.ConfigService/CreateKeyPair:
     post:

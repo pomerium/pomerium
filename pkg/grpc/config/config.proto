@@ -28,8 +28,16 @@ option (openapi.v3.document) = {
     },
   },
   servers: [{
-    url:         "https://console.pomerium.app",
+    url:         "https://{{host}}",
     description: "Pomerium Zero API",
+    variables: {
+      additional_properties: [{
+        name: "host",
+        value: {
+          default: "console.pomerium.app",
+        },
+      }],
+    },
   }],
 };
 
