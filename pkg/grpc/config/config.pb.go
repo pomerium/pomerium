@@ -10429,10 +10429,11 @@ const file_config_proto_rawDesc = "" +
 	"\x14UpdateServiceAccount\x12,.pomerium.config.UpdateServiceAccountRequest\x1a-.pomerium.config.UpdateServiceAccountResponse\"8\xbaG5\n" +
 	"\x0eServiceAccount\x1a#Updates an existing service account\x12\x8b\x01\n" +
 	"\x0eUpdateSettings\x12&.pomerium.config.UpdateSettingsRequest\x1a'.pomerium.config.UpdateSettingsResponse\"(\xbaG%\n" +
-	"\bSettings\x1a\x19Updates existing settingsB\xfa\x01\xbaG\xc8\x01\x12\xc5\x01\n" +
+	"\bSettings\x1a\x19Updates existing settingsB\xad\x02\xbaG\xfb\x01\x12\xc5\x01\n" +
 	"\fPomerium API\x12(API for managing Pomerium configuration.\"=\n" +
 	"\bPomerium\x12\x1bhttps://github.com/pomerium\x1a\x14support@pomerium.com*L\n" +
-	"\x12Apache License 2.0\x126https://github.com/pomerium/pomerium/blob/main/LICENSEZ,github.com/pomerium/pomerium/pkg/grpc/configb\x06proto3"
+	"\x12Apache License 2.0\x126https://github.com/pomerium/pomerium/blob/main/LICENSE\x1a1\n" +
+	"\x1chttps://console.pomerium.app\x12\x11Pomerium Zero APIZ,github.com/pomerium/pomerium/pkg/grpc/configb\x06proto3"
 
 var (
 	file_config_proto_rawDescOnce sync.Once

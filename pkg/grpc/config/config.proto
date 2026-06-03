@@ -27,6 +27,10 @@ option (openapi.v3.document) = {
       url:  "https://github.com/pomerium/pomerium/blob/main/LICENSE",
     },
   },
+  servers: [{
+    url:         "https://console.pomerium.app",
+    description: "Pomerium Zero API",
+  }],
 };
 
 // A bundle of Pomerium configuration including routes and settings.
