@@ -87,8 +87,8 @@ require (
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06
 	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-00010101000000-000000000000
 	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-00010101000000-000000000000
-	github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5
-	github.com/pomerium/webauthn v0.0.0-20260528204052-877913fd849b
+	github.com/pomerium/protoutil v0.0.0-20260602131210-1eaf0f941535
+	github.com/pomerium/webauthn v0.0.0-20260602131006-1e3665bdc05e
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5
