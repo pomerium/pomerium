@@ -34,14 +34,14 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
 
   const expiresDate = parseToDate(data.expiresAt);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(
-    Math.max(0, Math.round((expiresDate.getTime() - Date.now()) / 1000))
+    Math.max(0, Math.round((expiresDate.getTime() - Date.now()) / 1000)),
   );
 
   useEffect(() => {
     const id = setInterval(() => {
       const secs = Math.max(
         0,
-        Math.round((expiresDate.getTime() - Date.now()) / 1000)
+        Math.round((expiresDate.getTime() - Date.now()) / 1000),
       );
       setRemainingSeconds(secs);
     }, 1000);
@@ -113,7 +113,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
               t.palette.getContrastText(
                 remainingSeconds === 0
                   ? t.palette.error.light
-                  : t.palette.primary.light
+                  : t.palette.primary.light,
               ),
             boxShadow: 1,
             mb: 1,

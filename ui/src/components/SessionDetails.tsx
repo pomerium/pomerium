@@ -65,7 +65,7 @@ export const SessionDetails: FC<SessionDetailsProps> = ({
                         claimKey={key}
                         claimValue={values}
                       />
-                    )
+                    ),
                   )}
                   {Object.entries(profile?.claims || {}).map(([key, value]) => (
                     <ClaimRow

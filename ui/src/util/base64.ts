@@ -41,7 +41,7 @@ base64Lookup[95 /* _ */] = 63;
 export function encode(
   buffer: ArrayBuffer,
   chars = base64Chars,
-  padding = "="
+  padding = "=",
 ): string {
   const bytes = new Uint8Array(buffer);
   const length = bytes.length;

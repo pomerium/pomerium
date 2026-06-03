@@ -68,13 +68,13 @@ const App: FC = () => {
 
   useLayoutEffect(() => {
     const favicon = document.getElementById(
-      "favicon"
+      "favicon",
     ) as HTMLAnchorElement | null;
     if (favicon) {
       favicon.href = data?.faviconUrl || "/.pomerium/favicon.ico";
     }
     const extraFaviconLinks = document.getElementsByClassName(
-      "pomerium_favicon"
+      "pomerium_favicon",
     ) as HTMLCollectionOf<HTMLAnchorElement> | null;
     for (const link of extraFaviconLinks) {
       link.style.display = data?.faviconUrl ? "none" : "";
