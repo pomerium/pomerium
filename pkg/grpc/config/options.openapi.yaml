@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  title: "pomerium.config"
   version: 0.32.5-rc.1
+  title: pomerium.config
 paths: {}
 components: {}
 security: []

@@ -1627,59 +1627,85 @@ message UpdateSettingsResponse {
   Settings settings = 1;
 }
 
+// Manages configuration in Pomerium.
 service ConfigService {
+  // Creates a new key pair.
   rpc CreateKeyPair(CreateKeyPairRequest) returns (CreateKeyPairResponse);
+  // Creates a new policy.
   rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
+  // Creates a new route.
   rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse);
+  // Creates a new service account.
   rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse);
 
+  // Deletes a key pair.
   rpc DeleteKeyPair(DeleteKeyPairRequest) returns (DeleteKeyPairResponse);
+  // Deletes a policy.
   rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
+  // Deletes a route.
   rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
+  // Deletes a service account.
   rpc DeleteServiceAccount(DeleteServiceAccountRequest) returns (DeleteServiceAccountResponse);
 
+  // Gets a key pair.
   rpc GetKeyPair(GetKeyPairRequest) returns (GetKeyPairResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Gets a policy.
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Gets a route.
   rpc GetRoute(GetRouteRequest) returns (GetRouteResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Gets information about a server.
   rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Gets a service account.
   rpc GetServiceAccount(GetServiceAccountRequest) returns (GetServiceAccountResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Gets settings.
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  // Lists all the available log fields.
   rpc ListAvailableLogFields(ListAvailableLogFieldsRequest) returns (ListAvailableLogFieldsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Lists key pairs.
   rpc ListKeyPairs(ListKeyPairsRequest) returns (ListKeyPairsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Lists policies.
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Lists routes.
   rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Lists service accounts.
   rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Lists settings.
   rpc ListSettings(ListSettingsRequest) returns (ListSettingsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  // Updates an existing key pair.
   rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse);
+  // Updates an existing policy.
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+  // Updates an existing route.
   rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse);
+  // Updates an existing service account.
   rpc UpdateServiceAccount(UpdateServiceAccountRequest) returns (UpdateServiceAccountResponse);
+  // Updates existing settings.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
 }
 

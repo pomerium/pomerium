@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
-  title: "pomerium.config"
   version: 0.32.5-rc.1
+  title: pomerium.config
 paths:
   /pomerium.config.ConfigService/CreateKeyPair:
     post:
       tags:
         - pomerium.config.ConfigService
       summary: CreateKeyPair
+      description: Creates a new key pair.
       operationId: pomerium.config.ConfigService.CreateKeyPair
       parameters:
         - name: Connect-Protocol-Version
@@ -43,6 +44,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: CreatePolicy
+      description: Creates a new policy.
       operationId: pomerium.config.ConfigService.CreatePolicy
       parameters:
         - name: Connect-Protocol-Version
@@ -78,6 +80,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: CreateRoute
+      description: Creates a new route.
       operationId: pomerium.config.ConfigService.CreateRoute
       parameters:
         - name: Connect-Protocol-Version
@@ -113,6 +116,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: CreateServiceAccount
+      description: Creates a new service account.
       operationId: pomerium.config.ConfigService.CreateServiceAccount
       parameters:
         - name: Connect-Protocol-Version
@@ -148,6 +152,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: DeleteKeyPair
+      description: Deletes a key pair.
       operationId: pomerium.config.ConfigService.DeleteKeyPair
       parameters:
         - name: Connect-Protocol-Version
@@ -183,6 +188,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: DeletePolicy
+      description: Deletes a policy.
       operationId: pomerium.config.ConfigService.DeletePolicy
       parameters:
         - name: Connect-Protocol-Version
@@ -218,6 +224,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: DeleteRoute
+      description: Deletes a route.
       operationId: pomerium.config.ConfigService.DeleteRoute
       parameters:
         - name: Connect-Protocol-Version
@@ -253,6 +260,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: DeleteServiceAccount
+      description: Deletes a service account.
       operationId: pomerium.config.ConfigService.DeleteServiceAccount
       parameters:
         - name: Connect-Protocol-Version
@@ -288,6 +296,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetKeyPair
+      description: Gets a key pair.
       operationId: pomerium.config.ConfigService.GetKeyPair.get
       parameters:
         - name: Connect-Protocol-Version
@@ -339,6 +348,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetKeyPair
+      description: Gets a key pair.
       operationId: pomerium.config.ConfigService.GetKeyPair
       parameters:
         - name: Connect-Protocol-Version
@@ -374,6 +384,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetPolicy
+      description: Gets a policy.
       operationId: pomerium.config.ConfigService.GetPolicy.get
       parameters:
         - name: Connect-Protocol-Version
@@ -425,6 +436,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetPolicy
+      description: Gets a policy.
       operationId: pomerium.config.ConfigService.GetPolicy
       parameters:
         - name: Connect-Protocol-Version
@@ -460,6 +472,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetRoute
+      description: Gets a route.
       operationId: pomerium.config.ConfigService.GetRoute.get
       parameters:
         - name: Connect-Protocol-Version
@@ -511,6 +524,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetRoute
+      description: Gets a route.
       operationId: pomerium.config.ConfigService.GetRoute
       parameters:
         - name: Connect-Protocol-Version
@@ -546,6 +560,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetServerInfo
+      description: Gets information about a server.
       operationId: pomerium.config.ConfigService.GetServerInfo.get
       parameters:
         - name: Connect-Protocol-Version
@@ -597,6 +612,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetServerInfo
+      description: Gets information about a server.
       operationId: pomerium.config.ConfigService.GetServerInfo
       parameters:
         - name: Connect-Protocol-Version
@@ -632,6 +648,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetServiceAccount
+      description: Gets a service account.
       operationId: pomerium.config.ConfigService.GetServiceAccount.get
       parameters:
         - name: Connect-Protocol-Version
@@ -683,6 +700,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetServiceAccount
+      description: Gets a service account.
       operationId: pomerium.config.ConfigService.GetServiceAccount
       parameters:
         - name: Connect-Protocol-Version
@@ -718,6 +736,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetSettings
+      description: Gets settings.
       operationId: pomerium.config.ConfigService.GetSettings.get
       parameters:
         - name: Connect-Protocol-Version
@@ -769,6 +788,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: GetSettings
+      description: Gets settings.
       operationId: pomerium.config.ConfigService.GetSettings
       parameters:
         - name: Connect-Protocol-Version
@@ -804,6 +824,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListAvailableLogFields
+      description: Lists all the available log fields.
       operationId: pomerium.config.ConfigService.ListAvailableLogFields.get
       parameters:
         - name: Connect-Protocol-Version
@@ -855,6 +876,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListAvailableLogFields
+      description: Lists all the available log fields.
       operationId: pomerium.config.ConfigService.ListAvailableLogFields
       parameters:
         - name: Connect-Protocol-Version
@@ -890,6 +912,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListKeyPairs
+      description: Lists key pairs.
       operationId: pomerium.config.ConfigService.ListKeyPairs.get
       parameters:
         - name: Connect-Protocol-Version
@@ -941,6 +964,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListKeyPairs
+      description: Lists key pairs.
       operationId: pomerium.config.ConfigService.ListKeyPairs
       parameters:
         - name: Connect-Protocol-Version
@@ -976,6 +1000,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListPolicies
+      description: Lists policies.
       operationId: pomerium.config.ConfigService.ListPolicies.get
       parameters:
         - name: Connect-Protocol-Version
@@ -1027,6 +1052,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListPolicies
+      description: Lists policies.
       operationId: pomerium.config.ConfigService.ListPolicies
       parameters:
         - name: Connect-Protocol-Version
@@ -1062,6 +1088,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListRoutes
+      description: Lists routes.
       operationId: pomerium.config.ConfigService.ListRoutes.get
       parameters:
         - name: Connect-Protocol-Version
@@ -1113,6 +1140,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListRoutes
+      description: Lists routes.
       operationId: pomerium.config.ConfigService.ListRoutes
       parameters:
         - name: Connect-Protocol-Version
@@ -1148,6 +1176,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListServiceAccounts
+      description: Lists service accounts.
       operationId: pomerium.config.ConfigService.ListServiceAccounts.get
       parameters:
         - name: Connect-Protocol-Version
@@ -1199,6 +1228,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListServiceAccounts
+      description: Lists service accounts.
       operationId: pomerium.config.ConfigService.ListServiceAccounts
       parameters:
         - name: Connect-Protocol-Version
@@ -1234,6 +1264,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListSettings
+      description: Lists settings.
       operationId: pomerium.config.ConfigService.ListSettings.get
       parameters:
         - name: Connect-Protocol-Version
@@ -1285,6 +1316,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: ListSettings
+      description: Lists settings.
       operationId: pomerium.config.ConfigService.ListSettings
       parameters:
         - name: Connect-Protocol-Version
@@ -1320,6 +1352,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: UpdateKeyPair
+      description: Updates an existing key pair.
       operationId: pomerium.config.ConfigService.UpdateKeyPair
       parameters:
         - name: Connect-Protocol-Version
@@ -1355,6 +1388,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: UpdatePolicy
+      description: Updates an existing policy.
       operationId: pomerium.config.ConfigService.UpdatePolicy
       parameters:
         - name: Connect-Protocol-Version
@@ -1390,6 +1424,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: UpdateRoute
+      description: Updates an existing route.
       operationId: pomerium.config.ConfigService.UpdateRoute
       parameters:
         - name: Connect-Protocol-Version
@@ -1425,6 +1460,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: UpdateServiceAccount
+      description: Updates an existing service account.
       operationId: pomerium.config.ConfigService.UpdateServiceAccount
       parameters:
         - name: Connect-Protocol-Version
@@ -1460,6 +1496,7 @@ paths:
       tags:
         - pomerium.config.ConfigService
       summary: UpdateSettings
+      description: Updates existing settings.
       operationId: pomerium.config.ConfigService.UpdateSettings
       parameters:
         - name: Connect-Protocol-Version
@@ -6226,3 +6263,4 @@ components:
 security: []
 tags:
   - name: pomerium.config.ConfigService
+    description: Manages configuration in Pomerium.

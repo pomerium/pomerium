@@ -69,6 +69,6 @@ for _d in "${_connect_dirs[@]}"; do
 		--connect-go_out="./$_d/" \
 		--connect-go_opt="paths=source_relative" \
 		--connect-openapi_out="./$_d/" \
-		--connect-openapi_opt="allow-get,content-types=json,trim-unused-types,base=$_tmp_dir/base-openapi.yaml" \
+		--connect-openapi_opt="allow-get,content-types=json,trim-unused-types,base=$_tmp_dir/base-openapi.yaml,features=connectrpc" \
 		"./$_d"/*.proto
 done

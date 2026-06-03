@@ -110,30 +110,55 @@ const (
 
 // ConfigServiceClient is a client for the pomerium.config.ConfigService service.
 type ConfigServiceClient interface {
+	// Creates a new key pair.
 	CreateKeyPair(context.Context, *connect.Request[config.CreateKeyPairRequest]) (*connect.Response[config.CreateKeyPairResponse], error)
+	// Creates a new policy.
 	CreatePolicy(context.Context, *connect.Request[config.CreatePolicyRequest]) (*connect.Response[config.CreatePolicyResponse], error)
+	// Creates a new route.
 	CreateRoute(context.Context, *connect.Request[config.CreateRouteRequest]) (*connect.Response[config.CreateRouteResponse], error)
+	// Creates a new service account.
 	CreateServiceAccount(context.Context, *connect.Request[config.CreateServiceAccountRequest]) (*connect.Response[config.CreateServiceAccountResponse], error)
+	// Deletes a key pair.
 	DeleteKeyPair(context.Context, *connect.Request[config.DeleteKeyPairRequest]) (*connect.Response[config.DeleteKeyPairResponse], error)
+	// Deletes a policy.
 	DeletePolicy(context.Context, *connect.Request[config.DeletePolicyRequest]) (*connect.Response[config.DeletePolicyResponse], error)
+	// Deletes a route.
 	DeleteRoute(context.Context, *connect.Request[config.DeleteRouteRequest]) (*connect.Response[config.DeleteRouteResponse], error)
+	// Deletes a service account.
 	DeleteServiceAccount(context.Context, *connect.Request[config.DeleteServiceAccountRequest]) (*connect.Response[config.DeleteServiceAccountResponse], error)
+	// Gets a key pair.
 	GetKeyPair(context.Context, *connect.Request[config.GetKeyPairRequest]) (*connect.Response[config.GetKeyPairResponse], error)
+	// Gets a policy.
 	GetPolicy(context.Context, *connect.Request[config.GetPolicyRequest]) (*connect.Response[config.GetPolicyResponse], error)
+	// Gets a route.
 	GetRoute(context.Context, *connect.Request[config.GetRouteRequest]) (*connect.Response[config.GetRouteResponse], error)
+	// Gets information about a server.
 	GetServerInfo(context.Context, *connect.Request[config.GetServerInfoRequest]) (*connect.Response[config.GetServerInfoResponse], error)
+	// Gets a service account.
 	GetServiceAccount(context.Context, *connect.Request[config.GetServiceAccountRequest]) (*connect.Response[config.GetServiceAccountResponse], error)
+	// Gets settings.
 	GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error)
+	// Lists all the available log fields.
 	ListAvailableLogFields(context.Context, *connect.Request[config.ListAvailableLogFieldsRequest]) (*connect.Response[config.ListAvailableLogFieldsResponse], error)
+	// Lists key pairs.
 	ListKeyPairs(context.Context, *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error)
+	// Lists policies.
 	ListPolicies(context.Context, *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error)
+	// Lists routes.
 	ListRoutes(context.Context, *connect.Request[config.ListRoutesRequest]) (*connect.Response[config.ListRoutesResponse], error)
+	// Lists service accounts.
 	ListServiceAccounts(context.Context, *connect.Request[config.ListServiceAccountsRequest]) (*connect.Response[config.ListServiceAccountsResponse], error)
+	// Lists settings.
 	ListSettings(context.Context, *connect.Request[config.ListSettingsRequest]) (*connect.Response[config.ListSettingsResponse], error)
+	// Updates an existing key pair.
 	UpdateKeyPair(context.Context, *connect.Request[config.UpdateKeyPairRequest]) (*connect.Response[config.UpdateKeyPairResponse], error)
+	// Updates an existing policy.
 	UpdatePolicy(context.Context, *connect.Request[config.UpdatePolicyRequest]) (*connect.Response[config.UpdatePolicyResponse], error)
+	// Updates an existing route.
 	UpdateRoute(context.Context, *connect.Request[config.UpdateRouteRequest]) (*connect.Response[config.UpdateRouteResponse], error)
+	// Updates an existing service account.
 	UpdateServiceAccount(context.Context, *connect.Request[config.UpdateServiceAccountRequest]) (*connect.Response[config.UpdateServiceAccountResponse], error)
+	// Updates existing settings.
 	UpdateSettings(context.Context, *connect.Request[config.UpdateSettingsRequest]) (*connect.Response[config.UpdateSettingsResponse], error)
 }
 
@@ -469,30 +494,55 @@ func (c *configServiceClient) UpdateSettings(ctx context.Context, req *connect.R
 
 // ConfigServiceHandler is an implementation of the pomerium.config.ConfigService service.
 type ConfigServiceHandler interface {
+	// Creates a new key pair.
 	CreateKeyPair(context.Context, *connect.Request[config.CreateKeyPairRequest]) (*connect.Response[config.CreateKeyPairResponse], error)
+	// Creates a new policy.
 	CreatePolicy(context.Context, *connect.Request[config.CreatePolicyRequest]) (*connect.Response[config.CreatePolicyResponse], error)
+	// Creates a new route.
 	CreateRoute(context.Context, *connect.Request[config.CreateRouteRequest]) (*connect.Response[config.CreateRouteResponse], error)
+	// Creates a new service account.
 	CreateServiceAccount(context.Context, *connect.Request[config.CreateServiceAccountRequest]) (*connect.Response[config.CreateServiceAccountResponse], error)
+	// Deletes a key pair.
 	DeleteKeyPair(context.Context, *connect.Request[config.DeleteKeyPairRequest]) (*connect.Response[config.DeleteKeyPairResponse], error)
+	// Deletes a policy.
 	DeletePolicy(context.Context, *connect.Request[config.DeletePolicyRequest]) (*connect.Response[config.DeletePolicyResponse], error)
+	// Deletes a route.
 	DeleteRoute(context.Context, *connect.Request[config.DeleteRouteRequest]) (*connect.Response[config.DeleteRouteResponse], error)
+	// Deletes a service account.
 	DeleteServiceAccount(context.Context, *connect.Request[config.DeleteServiceAccountRequest]) (*connect.Response[config.DeleteServiceAccountResponse], error)
+	// Gets a key pair.
 	GetKeyPair(context.Context, *connect.Request[config.GetKeyPairRequest]) (*connect.Response[config.GetKeyPairResponse], error)
+	// Gets a policy.
 	GetPolicy(context.Context, *connect.Request[config.GetPolicyRequest]) (*connect.Response[config.GetPolicyResponse], error)
+	// Gets a route.
 	GetRoute(context.Context, *connect.Request[config.GetRouteRequest]) (*connect.Response[config.GetRouteResponse], error)
+	// Gets information about a server.
 	GetServerInfo(context.Context, *connect.Request[config.GetServerInfoRequest]) (*connect.Response[config.GetServerInfoResponse], error)
+	// Gets a service account.
 	GetServiceAccount(context.Context, *connect.Request[config.GetServiceAccountRequest]) (*connect.Response[config.GetServiceAccountResponse], error)
+	// Gets settings.
 	GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error)
+	// Lists all the available log fields.
 	ListAvailableLogFields(context.Context, *connect.Request[config.ListAvailableLogFieldsRequest]) (*connect.Response[config.ListAvailableLogFieldsResponse], error)
+	// Lists key pairs.
 	ListKeyPairs(context.Context, *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error)
+	// Lists policies.
 	ListPolicies(context.Context, *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error)
+	// Lists routes.
 	ListRoutes(context.Context, *connect.Request[config.ListRoutesRequest]) (*connect.Response[config.ListRoutesResponse], error)
+	// Lists service accounts.
 	ListServiceAccounts(context.Context, *connect.Request[config.ListServiceAccountsRequest]) (*connect.Response[config.ListServiceAccountsResponse], error)
+	// Lists settings.
 	ListSettings(context.Context, *connect.Request[config.ListSettingsRequest]) (*connect.Response[config.ListSettingsResponse], error)
+	// Updates an existing key pair.
 	UpdateKeyPair(context.Context, *connect.Request[config.UpdateKeyPairRequest]) (*connect.Response[config.UpdateKeyPairResponse], error)
+	// Updates an existing policy.
 	UpdatePolicy(context.Context, *connect.Request[config.UpdatePolicyRequest]) (*connect.Response[config.UpdatePolicyResponse], error)
+	// Updates an existing route.
 	UpdateRoute(context.Context, *connect.Request[config.UpdateRouteRequest]) (*connect.Response[config.UpdateRouteResponse], error)
+	// Updates an existing service account.
 	UpdateServiceAccount(context.Context, *connect.Request[config.UpdateServiceAccountRequest]) (*connect.Response[config.UpdateServiceAccountResponse], error)
+	// Updates existing settings.
 	UpdateSettings(context.Context, *connect.Request[config.UpdateSettingsRequest]) (*connect.Response[config.UpdateSettingsResponse], error)
 }
 
