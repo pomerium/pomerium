@@ -1,5 +1,5 @@
 import js from "@eslint/js";
-import pluginReact from "eslint-plugin-react";
+import eslintReact from "@eslint-react/eslint-plugin";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
@@ -22,17 +22,16 @@ export default [
 
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  pluginReact.configs.flat.recommended,
+
+  // React rules via @eslint-react (eslint 10+, flat-config native).
+  // Replaces eslint-plugin-react, which has no eslint 10 release.
+  {
+    files: ["**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}"],
+    ...eslintReact.configs["recommended-typescript"],
+  },
 
   {
-    settings: {
-      react: {
-        version: "detect",
-      },
-    },
     rules: {
-      "react/react-in-jsx-scope": "off",
-      "react/prop-types": "off",
       "@typescript-eslint/consistent-type-imports": [
         "error",
         {
