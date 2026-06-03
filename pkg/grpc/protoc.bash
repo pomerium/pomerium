@@ -6,6 +6,17 @@ function join_by() {
 	echo "$*"
 }
 
+function replace-in-file() {
+	local _search="${1?"search is required"}"
+	local _replace="${2?"replace is required"}"
+	local _file="${3?"file is required"}"
+	local _tmp
+
+	_tmp="$(mktemp)"
+	sed -E 's/'"$_search"'/'"$_replace"'/g' "$_file" >"$_tmp"
+	mv "$_tmp" "$_file"
+}
+
 _dirs=(
 	cli
 	config
@@ -60,4 +71,5 @@ for _d in "${_connect_dirs[@]}"; do
 		--connect-openapi_out="./$_d/" \
 		--connect-openapi_opt="content-types=json,trim-unused-types,features=connectrpc;gnostic;protovalidate" \
 		"./$_d"/*.proto
+	replace-in-file "^info:" "info:\n  version: $(git describe --tags --abbrev=0)" "$_d/config.openapi.yaml"
 done

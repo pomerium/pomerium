@@ -1144,44 +1144,56 @@ message KeyPair {
   // ID of the key pair.
   optional string id = 1 [
     (validate.rules).string.min_len = 1,
-    (openapi.v3.property).example   = {
-      yaml: "\"019e8e96-0959-7dc2-b45f-e32dcafcf95b\"",
+    (openapi.v3.property)           = {
+      example: {
+        yaml: "\"019e8e96-0959-7dc2-b45f-e32dcafcf95b\"",
+      },
     }
   ];
   // Namespace of the key pair.
   optional string namespace_id = 2 [
     (validate.rules).string.min_len = 1,
-    (openapi.v3.property).example   = {
-      yaml: "\"019e8e96-87b4-78b9-9830-19874b518d60\"",
+    (openapi.v3.property)           = {
+      example: {
+        yaml: "\"019e8e96-87b4-78b9-9830-19874b518d60\"",
+      },
     }
   ];
   // Originator of the key pair.
   optional string originator_id = 3 [
     (validate.rules).string.min_len = 1,
-    (openapi.v3.property).example   = {
-      yaml: "\"your-custom-app\"",
+    (openapi.v3.property)           = {
+      example: {
+        yaml: "\"your-custom-app\"",
+      },
     }
   ];
   // The name of the key pair.
   optional string name = 4 [
     (validate.rules).string.min_len = 1,
-    (openapi.v3.property).example   = {
-      yaml: "\"TLS Certificate for www.example.com\"",
+    (openapi.v3.property)           = {
+      example: {
+        yaml: "\"TLS Certificate for www.example.com\"",
+      },
     }
   ];
   // The key pair certificate raw bytes.
   optional bytes certificate = 5 [
     (validate.rules).bytes.min_len = 1,
-    (openapi.v3.property).example  = {
-      yaml: "\"-----BEGIN CERTIFICATE-----\\nEXAMPLE\\n-----END CERTIFICATE-----\"",
+    (openapi.v3.property)          = {
+      example: {
+        yaml: "\"-----BEGIN CERTIFICATE-----\\nEXAMPLE\\n-----END CERTIFICATE-----\"",
+      },
     }
   ];
   // The key pair private key raw bytes.
   optional bytes key = 6 [
     (validate.rules).bytes.min_len = 1,
     (sensitive)                    = true,
-    (openapi.v3.property).example  = {
-      yaml: "\"-----BEGIN EC PRIVATE KEY-----\\nEXAMPLE\\n-----END EC PRIVATE KEY-----\"",
+    (openapi.v3.property)          = {
+      example: {
+        yaml: "\"-----BEGIN EC PRIVATE KEY-----\\nEXAMPLE\\n-----END EC PRIVATE KEY-----\"",
+      },
     }
   ];
 
