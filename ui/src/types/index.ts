@@ -119,7 +119,7 @@ export type DeviceEnrolledPageData = BasePageData &
 export type Route = {
   id: string;
   name: string;
-  type: "http" | "tcp" | "udp" | "mcp";
+  type: "http" | "tcp" | "udp" | "mcp" | "ssh";
   from: string;
   connect_command?: string;
   description: string;

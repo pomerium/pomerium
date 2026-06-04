@@ -2,6 +2,8 @@
 package portal
 
 import (
+	"fmt"
+	"net"
 	"strings"
 
 	"github.com/pomerium/pomerium/config"
@@ -16,6 +18,7 @@ const (
 	RouteTypeTCP  = "tcp"
 	RouteTypeUDP  = "udp"
 	RouteTypeMCP  = "mcp"
+	RouteTypeSSH  = "ssh"
 )
 
 // A Route is a portal route.
@@ -32,7 +35,7 @@ type Route struct {
 }
 
 // RoutesFromConfigRoutes converts config routes into portal routes.
-func RoutesFromConfigRoutes(routes []*config.Policy) []Route {
+func RoutesFromConfigRoutes(routes []*config.Policy, sshAddr string) []Route {
 	prs := make([]Route, len(routes))
 	for i, route := range routes {
 		pr := Route{}
@@ -62,6 +65,18 @@ func RoutesFromConfigRoutes(routes []*config.Policy) []Route {
 					pr.ConnectCommand = "pomerium-cli udp " + fromURL.String()
 				} else {
 					pr.ConnectCommand = "pomerium-cli udp " + fromURL.Host
+				}
+
+			} else if strings.HasPrefix(fromURL.Scheme, "ssh") {
+				pr.Type = RouteTypeSSH
+				pr.Name = fromURL.Host
+				if sshAddr != "" {
+					host, port, err := net.SplitHostPort(sshAddr)
+					if err == nil {
+						pr.ConnectCommand = fmt.Sprintf("ssh -p %s $(whoami)@%s@%s", port, fromURL.Host, host)
+					} else {
+						log.Error().Err(err).Str("from", route.From).Msg("portal: invalid SSH address")
+					}
 				}
 			} else {
 				pr.Type = RouteTypeHTTP
