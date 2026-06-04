@@ -42,6 +42,25 @@ const (
 	HeaderUserAgent = "User-Agent"
 )
 
+type azureAuditHeaderKey struct{}
+
+func withAzureAuditHeaders(ctx context.Context, h http.Header) context.Context {
+	return context.WithValue(ctx, azureAuditHeaderKey{}, h)
+}
+
+// azureAuditHeaderPolicy copies per-request audit headers onto the outgoing
+// request before the blob operation has been signed
+type azureAuditHeaderPolicy struct{}
+
+func (azureAuditHeaderPolicy) Do(req *policy.Request) (*http.Response, error) {
+	if h, ok := req.Raw().Context().Value(azureAuditHeaderKey{}).(http.Header); ok {
+		for k, vals := range h {
+			req.Raw().Header[http.CanonicalHeaderKey(k)] = vals
+		}
+	}
+	return req.Next()
+}
+
 // createAuditContext adds context values for GCS & Azure blob header UserAgent values.
 func createAuditContext(ctx context.Context, identity string, accessID *string) context.Context {
 	azureHeaders := http.Header{
@@ -57,7 +76,7 @@ func createAuditContext(ctx context.Context, identity string, accessID *string) 
 			"x-goog-custom-audit-pomerium-access-id", *accessID,
 		)
 	}
-	ctx = policy.WithHTTPHeader(ctx, azureHeaders)
+	ctx = withAzureAuditHeaders(ctx, azureHeaders)
 	ctx = callctx.SetHeaders(ctx, googHeaders...)
 	return ctx
 }
