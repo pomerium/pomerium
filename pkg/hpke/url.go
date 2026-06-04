@@ -166,6 +166,7 @@ func decodeQueryStringV1(raw []byte) (url.Values, error) {
 
 var zstdDecoder, _ = zstd.NewReader(nil,
 	zstd.WithDecoderLowmem(true),
+	zstd.WithDecoderMaxMemory(4*1024*1024),
 )
 
 func decodeQueryStringV2(raw []byte) (url.Values, error) {
