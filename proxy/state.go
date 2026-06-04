@@ -14,12 +14,16 @@ import (
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 type authenticateFlow interface {
 	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string, additionalHosts []string) (string, error)
 	Callback(w http.ResponseWriter, r *http.Request) error
+	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, h *session.Handle) error
+	RevokeSessionBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
+	RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 }
 
 type proxyState struct {
