@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace/noop"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/proto"
@@ -61,7 +59,7 @@ func TestReconciler(t *testing.T) {
 		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 
 		r := NewReconciler(
-			client,
+			databroker.NewStaticClientGetter(client),
 			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
@@ -99,7 +97,7 @@ func TestReconciler(t *testing.T) {
 			Return(&databroker.PutResponse{}, nil)
 
 		r := NewReconciler(
-			client,
+			databroker.NewStaticClientGetter(client),
 			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
@@ -137,7 +135,7 @@ func TestReconciler(t *testing.T) {
 			Return(&databroker.PutResponse{}, nil)
 
 		r := NewReconciler(
-			client,
+			databroker.NewStaticClientGetter(client),
 			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
@@ -181,7 +179,7 @@ func TestReconciler(t *testing.T) {
 			Return(&databroker.PutResponse{}, nil)
 
 		r := NewReconciler(
-			client,
+			databroker.NewStaticClientGetter(client),
 			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
@@ -229,7 +227,7 @@ func TestReconciler(t *testing.T) {
 			Return(&databroker.PutResponse{}, nil)
 
 		r := NewReconciler(
-			client,
+			databroker.NewStaticClientGetter(client),
 			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
@@ -245,6 +243,64 @@ func TestReconciler(t *testing.T) {
 		testutil.AssertProtoEqual(t, target, current)
 	})
 
+	t.Run("databroker client change", func(t *testing.T) {
+		t.Parallel()
+
+		exampleRecord := &databroker.Record{
+			Type: "test.Type",
+			Id:   "record-1",
+			Data: protoutil.ToAny(map[string]any{"name": "test"}),
+		}
+
+		current, setCurrentState := initCurrent()
+		target := databroker.RecordSetBundle{}
+
+		var currentClient databroker.DataBrokerServiceClient
+		clientGetter := databroker.ClientGetterFunc(
+			func() databroker.DataBrokerServiceClient { return currentClient })
+
+		ctrl := gomock.NewController(t)
+
+		r := NewReconciler(
+			clientGetter,
+			func(context.Context) (databroker.RecordSetBundle, error) {
+				return current, nil
+			},
+			func(context.Context) (databroker.RecordSetBundle, error) {
+				return target, nil
+			},
+			setCurrentState,
+			cmpFn,
+		)
+
+		// First add a databroker record.
+		target.Add(exampleRecord)
+
+		client1 := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+		client1.EXPECT().
+			Put(gomock.Any(), mock_databroker.PutRequestFor(exampleRecord)).
+			Return(&databroker.PutResponse{}, nil)
+		currentClient = client1
+
+		err := r.Reconcile(t.Context())
+		require.NoError(t, err)
+		testutil.AssertProtoEqual(t, target, current)
+
+		// Then delete this record after changing the databroker client.
+		// The Reconcile() method should use the updated client.
+		clear(target)
+
+		client2 := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+		client2.EXPECT().
+			Put(gomock.Any(), mock_databroker.DeleteRequestFor(exampleRecord)).
+			Return(&databroker.PutResponse{}, nil)
+		currentClient = client2
+
+		err = r.Reconcile(t.Context())
+		require.NoError(t, err)
+		testutil.AssertProtoEqual(t, target, current)
+	})
+
 	t.Run("current state builder error", func(t *testing.T) {
 		t.Parallel()
 
@@ -255,7 +311,7 @@ func TestReconciler(t *testing.T) {
 		builderErr := errors.New("failed to build current state")
 
 		r := NewReconciler(
-			client,
+			databroker.NewStaticClientGetter(client),
 			func(context.Context) (databroker.RecordSetBundle, error) {
 				return nil, builderErr
 			},
@@ -281,7 +337,7 @@ func TestReconciler(t *testing.T) {
 		builderErr := errors.New("failed to build target state")
 
 		r := NewReconciler(
-			client,
+			databroker.NewStaticClientGetter(client),
 			func(context.Context) (databroker.RecordSetBundle, error) {
 				return databroker.RecordSetBundle{}, nil
 			},
@@ -317,7 +373,7 @@ func TestReconciler(t *testing.T) {
 			Return(nil, putErr)
 
 		r := NewReconciler(
-			client,
+			databroker.NewStaticClientGetter(client),
 			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
@@ -345,7 +401,7 @@ func TestReconciler(t *testing.T) {
 		cancel() // cancel immediately
 
 		r := NewReconciler(
-			client,
+			databroker.NewStaticClientGetter(client),
 			func(context.Context) (databroker.RecordSetBundle, error) {
 				return nil, ctx.Err()
 			},
@@ -361,22 +417,14 @@ func TestReconciler(t *testing.T) {
 		assert.ErrorIs(t, err, context.Canceled)
 	})
 
-	t.Run("reconciler options", func(t *testing.T) {
+	t.Run("trace provider option", func(t *testing.T) {
 		t.Parallel()
 
-		attr := attribute.String("test", "value")
-		interval := 123 * time.Second
 		traceProvider := noop.NewTracerProvider()
 
 		r := NewReconciler(nil, nil, nil, nil, nil,
-			WithAttributes(attr),
-			WithInterval(interval),
-			WithReconcilerErrorHandler(func(error) {}),
 			WithReconcilerTracerProvider(traceProvider),
 		).(*reconciler)
-		assert.Equal(t, []attribute.KeyValue{attr}, r.attributes)
-		assert.Equal(t, interval, r.interval)
-		assert.NotNil(t, r.errorHandler)
-		assert.Equal(t, traceProvider, r.tracerProvider)
+		assert.Equal(t, traceProvider, r.telemetry.GetTracerProvider())
 	})
 }
