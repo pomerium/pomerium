@@ -29,6 +29,10 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 				From: "https://*.example.com",
 				To:   mustParseWeightedURLs(t, "https://www.example.com"),
 			},
+			{
+				From: "ssh://should-be-ignored",
+				To:   mustParseWeightedURLs(t, "ssh://ignored:22"),
+			},
 		},
 	})
 	b := New("connect", "grpc", "http", "debug", "metrics", filemgr.NewManager(), nil, true)
@@ -171,6 +175,124 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 		]
 
 	}`, routeConfiguration)
+}
+
+func TestBuilder_buildSSHRouteConfiguration(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.New(&config.Options{
+		CookieName:             "pomerium",
+		DefaultUpstreamTimeout: time.Second * 3,
+		SharedKey:              cryptutil.NewBase64Key(),
+		Services:               "proxy",
+		Policies: []config.Policy{
+			{
+				From: "https://should-be-ignored.example.com",
+				To:   mustParseWeightedURLs(t, "https://ignored"),
+			},
+			{
+				From: "ssh://host1",
+				To:   mustParseWeightedURLs(t, "ssh://target1:22"),
+			},
+			{
+				From: "ssh://host2",
+				To:   mustParseWeightedURLs(t, "ssh://target2:22"),
+			},
+		},
+	})
+	routeConfiguration, err := buildSSHRouteConfiguration(cfg)
+	assert.NoError(t, err)
+	testutil.AssertProtoJSONEqual(t, `{
+		"name": "ssh",
+		"routes": {
+			"matcherList": {
+				"matchers": [
+					{
+						"predicate": {
+							"singlePredicate": {
+								"input": {
+									"name": "host",
+									"typedConfig": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.network.generic_proxy.matcher.v3.HostMatchInput"
+									}
+								},
+								"valueMatch": {
+									"exact": "host1"
+								}
+							}
+						},
+						"onMatch": {
+							"action": {
+								"name": "route",
+								"typedConfig": {
+									"@type": "type.googleapis.com/envoy.extensions.filters.network.generic_proxy.action.v3.RouteAction",
+									"cluster": "`+GetClusterID(&cfg.Options.Policies[1])+`",
+									"timeout": "0s"
+								}
+							}
+						}
+					},
+					{
+						"predicate": {
+							"singlePredicate": {
+								"input": {
+									"name": "host",
+									"typedConfig": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.network.generic_proxy.matcher.v3.HostMatchInput"
+									}
+								},
+								"valueMatch": {
+									"exact": "host2"
+								}
+							}
+						},
+						"onMatch": {
+							"action": {
+								"name": "route",
+								"typedConfig": {
+									"@type": "type.googleapis.com/envoy.extensions.filters.network.generic_proxy.action.v3.RouteAction",
+									"cluster": "`+GetClusterID(&cfg.Options.Policies[2])+`",
+									"timeout": "0s"
+								}
+							}
+						}
+					}
+				]
+			}
+		}
+	}`, routeConfiguration)
+}
+
+func TestBuilder_buildSSHRouteConfigurationErrors(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid From url", func(t *testing.T) {
+		cfg := config.New(config.NewDefaultOptions())
+		cfg.Options.SSHAddr = "0.0.0.0:22"
+		cfg.Options.Policies = []config.Policy{
+			{From: "ssh://\x7f", To: mustParseWeightedURLs(t, "ssh://to1:22")},
+		}
+		_, err := buildSSHRouteConfiguration(cfg)
+		assert.Error(t, err)
+	})
+	t.Run("multiple To urls", func(t *testing.T) {
+		cfg := config.New(config.NewDefaultOptions())
+		cfg.Options.SSHAddr = "0.0.0.0:22"
+		cfg.Options.Policies = []config.Policy{
+			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to1:22", "ssh://to2:22")},
+		}
+		_, err := buildSSHRouteConfiguration(cfg)
+		assert.Error(t, err)
+	})
+	t.Run("To url missing scheme", func(t *testing.T) {
+		cfg := config.New(config.NewDefaultOptions())
+		cfg.Options.SSHAddr = "0.0.0.0:22"
+		cfg.Options.Policies = []config.Policy{
+			{From: "ssh://host1", To: mustParseWeightedURLs(t, "http://to1:22")},
+		}
+		_, err := buildSSHRouteConfiguration(cfg)
+		assert.Error(t, err)
+	})
 }
 
 func Test_getAllDomains(t *testing.T) {

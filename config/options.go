@@ -1351,6 +1351,10 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, map[string]bool, error) 
 	// policy urls
 	if IsProxy(o.Services) {
 		for policy := range o.GetAllPolicies() {
+			if policy.IsSSH() {
+				// SSH routes are not part of the main route configuration
+				continue
+			}
 			fromURL, err := urlutil.ParseAndValidateURL(policy.From)
 			if err != nil {
 				return nil, nil, err

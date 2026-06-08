@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"maps"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"golang.org/x/sync/errgroup"
@@ -14,9 +15,8 @@ import (
 )
 
 const (
-	clusterTypeURL            = "type.googleapis.com/envoy.config.cluster.v3.Cluster"
-	listenerTypeURL           = "type.googleapis.com/envoy.config.listener.v3.Listener"
-	routeConfigurationTypeURL = "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
+	clusterTypeURL  = "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+	listenerTypeURL = "type.googleapis.com/envoy.config.listener.v3.Listener"
 )
 
 func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*envoy_service_discovery_v3.Resource, error) {
@@ -61,17 +61,18 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil
 	})
 
-	var routeConfigurationResources []*envoy_service_discovery_v3.Resource
+	routeConfigurationResources := map[string][]*envoy_service_discovery_v3.Resource{}
 	eg.Go(func() error {
 		routeConfigurations, err := srv.Builder.BuildRouteConfigurations(ctx, cfg)
 		if err != nil {
 			return fmt.Errorf("error building route configurations: %w", err)
 		}
 		for _, routeConfiguration := range routeConfigurations {
-			routeConfigurationResources = append(routeConfigurationResources, &envoy_service_discovery_v3.Resource{
+			typeURL := protoutil.GetTypeURL(routeConfiguration.Config)
+			routeConfigurationResources[typeURL] = append(routeConfigurationResources[typeURL], &envoy_service_discovery_v3.Resource{
 				Name:     routeConfiguration.Name,
-				Version:  hex.EncodeToString(cryptutil.HashProto(routeConfiguration)),
-				Resource: protoutil.NewAny(routeConfiguration),
+				Version:  hex.EncodeToString(cryptutil.HashProto(routeConfiguration.Config)),
+				Resource: protoutil.NewAny(routeConfiguration.Config),
 			})
 		}
 		return nil
@@ -88,9 +89,10 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		Int("route-configuration-count", len(routeConfigurationResources)).
 		Msg("controlplane: built discovery resources")
 
-	return map[string][]*envoy_service_discovery_v3.Resource{
-		clusterTypeURL:            clusterResources,
-		listenerTypeURL:           listenerResources,
-		routeConfigurationTypeURL: routeConfigurationResources,
-	}, nil
+	resources := map[string][]*envoy_service_discovery_v3.Resource{
+		clusterTypeURL:  clusterResources,
+		listenerTypeURL: listenerResources,
+	}
+	maps.Copy(resources, routeConfigurationResources)
+	return resources, nil
 }
