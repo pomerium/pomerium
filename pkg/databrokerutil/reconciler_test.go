@@ -62,10 +62,10 @@ func TestReconciler(t *testing.T) {
 
 		r := NewReconciler(
 			client,
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return target, nil
 			},
 			setCurrentState,
@@ -100,10 +100,10 @@ func TestReconciler(t *testing.T) {
 
 		r := NewReconciler(
 			client,
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return target, nil
 			},
 			setCurrentState,
@@ -138,10 +138,10 @@ func TestReconciler(t *testing.T) {
 
 		r := NewReconciler(
 			client,
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return target, nil
 			},
 			setCurrentState,
@@ -182,10 +182,10 @@ func TestReconciler(t *testing.T) {
 
 		r := NewReconciler(
 			client,
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return target, nil
 			},
 			setCurrentState,
@@ -230,10 +230,10 @@ func TestReconciler(t *testing.T) {
 
 		r := NewReconciler(
 			client,
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return target, nil
 			},
 			setCurrentState,
@@ -256,13 +256,13 @@ func TestReconciler(t *testing.T) {
 
 		r := NewReconciler(
 			client,
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return nil, builderErr
 			},
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return databroker.RecordSetBundle{}, nil
 			},
-			func(records []*databroker.Record) {},
+			func([]*databroker.Record) {},
 			cmpFn,
 		)
 
@@ -282,13 +282,13 @@ func TestReconciler(t *testing.T) {
 
 		r := NewReconciler(
 			client,
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return databroker.RecordSetBundle{}, nil
 			},
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return nil, builderErr
 			},
-			func(records []*databroker.Record) {},
+			func([]*databroker.Record) {},
 			cmpFn,
 		)
 
@@ -318,10 +318,10 @@ func TestReconciler(t *testing.T) {
 
 		r := NewReconciler(
 			client,
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return current, nil
 			},
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return target, nil
 			},
 			setCurrentState,
@@ -346,13 +346,13 @@ func TestReconciler(t *testing.T) {
 
 		r := NewReconciler(
 			client,
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return nil, ctx.Err()
 			},
-			func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			func(context.Context) (databroker.RecordSetBundle, error) {
 				return databroker.RecordSetBundle{}, nil
 			},
-			func(records []*databroker.Record) {},
+			func([]*databroker.Record) {},
 			cmpFn,
 		)
 
