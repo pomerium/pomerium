@@ -9,15 +9,20 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
+func PutRequestFor(records ...*databroker.Record) gomock.Matcher {
+	return putRequestMatcher{expected: records}
+}
+
 func DeleteRequestFor(records ...*databroker.Record) gomock.Matcher {
-	return deleteRequestMatcher{records}
+	return putRequestMatcher{expected: records, wantDeleted: true}
 }
 
-type deleteRequestMatcher struct {
-	expected []*databroker.Record
+type putRequestMatcher struct {
+	expected    []*databroker.Record
+	wantDeleted bool
 }
 
-func (m deleteRequestMatcher) Matches(x any) bool {
+func (m putRequestMatcher) Matches(x any) bool {
 	p, ok := x.(*databroker.PutRequest)
 	if !ok {
 		return false
@@ -28,13 +33,17 @@ func (m deleteRequestMatcher) Matches(x any) bool {
 		if !proto.Equal(p.Records[i].Data, m.expected[i].Data) {
 			return false
 		}
-		if p.Records[i].DeletedAt == nil {
+		hasDeletedAt := p.Records[i].DeletedAt != nil
+		if hasDeletedAt != m.wantDeleted {
 			return false
 		}
 	}
 	return true
 }
 
-func (m deleteRequestMatcher) String() string {
-	return fmt.Sprintf("is PutRequest to delete %v", m.expected)
+func (m putRequestMatcher) String() string {
+	if m.wantDeleted {
+		return fmt.Sprintf("is PutRequest to delete %v", m.expected)
+	}
+	return fmt.Sprintf("is PutRequest for %v", m.expected)
 }
