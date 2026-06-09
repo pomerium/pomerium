@@ -3,6 +3,8 @@ package mcp
 import (
 	"crypto/cipher"
 	"encoding/base64"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -125,6 +127,101 @@ func TestCreateCode(t *testing.T) {
 	}
 }
 
+// TestCreateCodeFormURLEncodingSafe verifies that codes are emitted in a
+// form-body-safe alphabet (base64url, no '+' '/' '=') and survive a round-trip
+// through application/x-www-form-urlencoded, which is how an OAuth client sends
+// the code back to the token endpoint. A '+' in the legacy StdEncoding alphabet
+// is decoded to a space by form parsers when a client under-encodes it,
+// corrupting the code and causing a spurious invalid_grant.
+func TestCreateCodeFormURLEncodingSafe(t *testing.T) {
+	key := cryptutil.NewKey()
+	testCipher, err := cryptutil.NewAEADCipher(key)
+	require.NoError(t, err)
+
+	// Run several iterations so we exercise ciphertexts that would have
+	// contained '+' or '/' under StdEncoding.
+	for i := 0; i < 100; i++ {
+		code, err := CreateCode(CodeTypeAuthorization, "test-id", time.Now().Add(time.Hour), "test-ad", testCipher)
+		require.NoError(t, err)
+
+		assert.NotContains(t, code, "+", "code must not contain '+' (corrupted to space by form parsers)")
+		assert.NotContains(t, code, "/", "code must not contain '/'")
+		assert.NotContains(t, code, "=", "code must not contain '=' padding")
+
+		// Simulate the client placing the code in a form body and the server
+		// parsing it back out via url.Values, then decrypting it.
+		form := url.Values{}
+		form.Set("code", code)
+		parsed, err := url.ParseQuery(form.Encode())
+		require.NoError(t, err)
+		require.Equal(t, code, parsed.Get("code"), "code must survive a form-urlencoded round-trip")
+
+		decoded, err := DecryptCode(CodeTypeAuthorization, parsed.Get("code"), testCipher, "test-ad", time.Now())
+		require.NoError(t, err)
+		assert.Equal(t, "test-id", decoded.Id)
+	}
+}
+
+// TestDecryptCodeLegacyStdEncoding verifies the backward-compatible decode path:
+// a code encoded with the legacy StdEncoding alphabet still decrypts via the
+// fallback, keeping in-flight codes redeemable across the cutover.
+func TestDecryptCodeLegacyStdEncoding(t *testing.T) {
+	key := cryptutil.NewKey()
+	testCipher, err := cryptutil.NewAEADCipher(key)
+	require.NoError(t, err)
+
+	future := time.Now().Add(time.Hour)
+
+	// Build a code by hand using StdEncoding to emulate a pre-cutover issuance.
+	v := &oauth21proto.Code{
+		Id:        "legacy-id",
+		ExpiresAt: timestamppb.New(future),
+		GrantType: CodeTypeAuthorization,
+	}
+	b, err := proto.Marshal(v)
+	require.NoError(t, err)
+	ciphertext := cryptutil.Encrypt(testCipher, b, []byte("test-ad"))
+	legacyCode := base64.StdEncoding.EncodeToString(ciphertext)
+
+	decoded, err := DecryptCode(CodeTypeAuthorization, legacyCode, testCipher, "test-ad", time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, "legacy-id", decoded.Id)
+}
+
+// TestDecryptCodeLegacyStdEncodingWithPlus exercises the fallback specifically
+// for a StdEncoding code that contains a '+'. This is the exact failure mode the
+// new encoding guards against, here proven still-decodable via the fallback.
+func TestDecryptCodeLegacyStdEncodingWithPlus(t *testing.T) {
+	key := cryptutil.NewKey()
+	testCipher, err := cryptutil.NewAEADCipher(key)
+	require.NoError(t, err)
+
+	future := time.Now().Add(time.Hour)
+
+	// Keep generating until StdEncoding produces a code containing '+'.
+	var legacyCode string
+	for i := 0; i < 1000; i++ {
+		v := &oauth21proto.Code{
+			Id:        "legacy-plus-id",
+			ExpiresAt: timestamppb.New(future),
+			GrantType: CodeTypeAuthorization,
+		}
+		b, err := proto.Marshal(v)
+		require.NoError(t, err)
+		ciphertext := cryptutil.Encrypt(testCipher, b, []byte("test-ad"))
+		candidate := base64.StdEncoding.EncodeToString(ciphertext)
+		if strings.Contains(candidate, "+") {
+			legacyCode = candidate
+			break
+		}
+	}
+	require.NotEmpty(t, legacyCode, "failed to generate a StdEncoding code containing '+'")
+
+	decoded, err := DecryptCode(CodeTypeAuthorization, legacyCode, testCipher, "test-ad", time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, "legacy-plus-id", decoded.Id)
+}
+
 func TestDecryptCode(t *testing.T) {
 	key := cryptutil.NewKey()
 	testCipher, err := cryptutil.NewAEADCipher(key)
@@ -214,9 +311,11 @@ func TestDecryptCode(t *testing.T) {
 			errMessage: "expires_at: value is required",
 		},
 		{
-			name:       "invalid base64",
-			typ:        CodeTypeAuthorization,
-			code:       "not-base64",
+			name: "invalid base64",
+			typ:  CodeTypeAuthorization,
+			// '!' is not in either the StdEncoding or RawURLEncoding alphabet,
+			// so both decode paths fail and the base64-decode error surfaces.
+			code:       "not-base64!",
 			cipher:     testCipher,
 			ad:         "test-ad",
 			now:        now,
