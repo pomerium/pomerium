@@ -418,13 +418,20 @@ func NewChunkReader(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bu
 	readerOpts.Apply(opts...)
 
 	if readerOpts.validateSignature {
-		path, _ := schema.SignaturePath()
-		ok, err := bucket.Exists(ctx, path)
-		if err != nil {
-			return nil, err
+		sigPath, _ := schema.SignaturePath()
+		mdPath, _ := schema.MetadataPath()
+		mdOk, mdErr := bucket.Exists(ctx, mdPath)
+		if mdErr != nil {
+			return nil, fmt.Errorf("failed to check existence for bucket : %w", mdErr)
 		}
-
-		if !ok {
+		if !mdOk {
+			return nil, fmt.Errorf("recording not found")
+		}
+		sigOk, sigErr := bucket.Exists(ctx, sigPath)
+		if sigErr != nil {
+			return nil, fmt.Errorf("failed to check existence for bucket: %w", sigErr)
+		}
+		if !sigOk {
 			return nil, ErrNotYetFinalized
 		}
 	}
