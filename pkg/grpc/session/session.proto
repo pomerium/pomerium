@@ -5,6 +5,7 @@ package session;
 import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "options.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/session";
 
@@ -13,14 +14,14 @@ message IDToken {
   string                    subject    = 2;
   google.protobuf.Timestamp expires_at = 3;
   google.protobuf.Timestamp issued_at  = 4;
-  string                    raw        = 5;
+  string                    raw        = 5 [(pomerium.config.sensitive) = true];
 }
 
 message OAuthToken {
-  string                    access_token  = 1;
+  string                    access_token  = 1 [(pomerium.config.sensitive) = true];
   string                    token_type    = 2;
   google.protobuf.Timestamp expires_at    = 3;
-  string                    refresh_token = 4;
+  string                    refresh_token = 4 [(pomerium.config.sensitive) = true];
 }
 
 message Session {

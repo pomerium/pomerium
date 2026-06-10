@@ -7,6 +7,7 @@
 package identity
 
 import (
+	_ "github.com/pomerium/pomerium/pkg/grpc/config"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
@@ -247,12 +248,12 @@ var File_identity_proto protoreflect.FileDescriptor
 
 const file_identity_proto_rawDesc = "" +
 	"\n" +
-	"\x0eidentity.proto\x12\x11pomerium.identity\x1a\x1cgoogle/protobuf/struct.proto\"\xa8\x04\n" +
+	"\x0eidentity.proto\x12\x11pomerium.identity\x1a\x1cgoogle/protobuf/struct.proto\x1a\roptions.proto\"\xae\x04\n" +
 	"\bProvider\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
 	"\x18authenticate_service_url\x18\t \x01(\tR\x16authenticateServiceUrl\x12\x1b\n" +
-	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12#\n" +
-	"\rclient_secret\x18\x03 \x01(\tR\fclientSecret\x12\x12\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12)\n" +
+	"\rclient_secret\x18\x03 \x01(\tB\x04\xe8\xd6,\x01R\fclientSecret\x12\x12\n" +
 	"\x04type\x18\x04 \x01(\tR\x04type\x12\x16\n" +
 	"\x06scopes\x18\x05 \x03(\tR\x06scopes\x12\x10\n" +
 	"\x03url\x18\a \x01(\tR\x03url\x12U\n" +
@@ -265,12 +266,12 @@ const file_identity_proto_rawDesc = "" +
 	"\x12RequestParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B!\n" +
-	"\x1f_access_token_allowed_audiences\"\x97\x01\n" +
+	"\x1f_access_token_allowed_audiences\"\xa3\x01\n" +
 	"\aProfile\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
-	"providerId\x12\x19\n" +
-	"\bid_token\x18\x02 \x01(\fR\aidToken\x12\x1f\n" +
-	"\voauth_token\x18\x03 \x01(\fR\n" +
+	"providerId\x12\x1f\n" +
+	"\bid_token\x18\x02 \x01(\fB\x04\xe8\xd6,\x01R\aidToken\x12%\n" +
+	"\voauth_token\x18\x03 \x01(\fB\x04\xe8\xd6,\x01R\n" +
 	"oauthToken\x12/\n" +
 	"\x06claims\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06claimsB0Z.github.com/pomerium/pomerium/pkg/grpc/identityb\x06proto3"
 
