@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -18,9 +17,9 @@ func TestRedactSensitive_Scalars(t *testing.T) {
 	t.Parallel()
 
 	settings := &configpb.Settings{
-		SharedSecret: proto.String("shared-secret-value"),
-		CookieSecret: proto.String("cookie-secret-value"),
-		CookieName:   proto.String("my-cookie"),
+		SharedSecret: new("shared-secret-value"),
+		CookieSecret: new("cookie-secret-value"),
+		CookieName:   new("my-cookie"),
 	}
 	protoutil.RedactSensitive(settings)
 
@@ -35,8 +34,8 @@ func TestRedactSensitive_NestedMessages(t *testing.T) {
 	cfg := &configpb.Config{
 		Name: "test-config",
 		Settings: &configpb.Settings{
-			SharedSecret:         proto.String("shared-secret-value"),
-			CertificateAuthority: proto.String("not-a-secret"),
+			SharedSecret:         new("shared-secret-value"),
+			CertificateAuthority: new("not-a-secret"),
 		},
 		Routes: []*configpb.Route{{
 			From:         "https://from.example.com",
@@ -77,7 +76,7 @@ func TestRedactSensitive_MessageKindCleared(t *testing.T) {
 		SshHostKeys: &configpb.Settings_StringList{
 			Values: []string{"-----BEGIN PRIVATE KEY-----"},
 		},
-		SshUserCaKey: proto.String("ssh-user-ca-private-key"),
+		SshUserCaKey: new("ssh-user-ca-private-key"),
 	}
 	protoutil.RedactSensitive(settings)
 
@@ -91,7 +90,7 @@ func TestRedactSensitive_DescendsIntoAny(t *testing.T) {
 
 	cfg := &configpb.Config{
 		Settings: &configpb.Settings{
-			SharedSecret: proto.String("shared-secret-value"),
+			SharedSecret: new("shared-secret-value"),
 		},
 	}
 	data, err := anypb.New(cfg)

@@ -3,6 +3,7 @@ package controlplane
 import (
 	"context"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -85,7 +85,7 @@ func TestDebugServer_DatabrokerRecord_RedactsSensitiveFields(t *testing.T) {
 	cfg := &configpb.Config{
 		Name: "test-config",
 		Settings: &configpb.Settings{
-			SharedSecret: proto.String("super-secret-shared-key"),
+			SharedSecret: new("super-secret-shared-key"),
 		},
 		Routes: []*configpb.Route{{
 			From:         "https://from.example.com",
@@ -98,7 +98,7 @@ func TestDebugServer_DatabrokerRecord_RedactsSensitiveFields(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	srv.ServeHTTP(w, httptest.NewRequest("GET",
+	srv.ServeHTTP(w, httptest.NewRequest(http.MethodGet,
 		"/databroker/"+url.PathEscape(record.Type)+"/test-id", nil))
 
 	require.Equal(t, 200, w.Code)
@@ -139,7 +139,7 @@ func TestDebugServer_DatabrokerRecord_RedactsSessionTokens(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	srv.ServeHTTP(w, httptest.NewRequest("GET",
+	srv.ServeHTTP(w, httptest.NewRequest(http.MethodGet,
 		"/databroker/"+url.PathEscape(record.Type)+"/"+url.PathEscape(record.Id), nil))
 
 	require.Equal(t, 200, w.Code)
@@ -159,7 +159,7 @@ func TestDebugServer_VersionedConfig_RedactsSensitiveFields(t *testing.T) {
 		Config: &configpb.Config{
 			Name: "versioned-config",
 			Settings: &configpb.Settings{
-				SharedSecret: proto.String("super-secret-shared-key"),
+				SharedSecret: new("super-secret-shared-key"),
 			},
 		},
 	}
@@ -179,7 +179,7 @@ func TestDebugServer_VersionedConfig_RedactsSensitiveFields(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	srv.ServeHTTP(w, httptest.NewRequest("GET", "/versioned_config", nil))
+	srv.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/versioned_config", nil))
 
 	require.Equal(t, 200, w.Code)
 	body := w.Body.String()
