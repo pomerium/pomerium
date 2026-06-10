@@ -70,6 +70,8 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
               <Avatar>TCP</Avatar>
             ) : route.type === "udp" ? (
               <Avatar>UDP</Avatar>
+            ) : route.type == "ssh" ? (
+              <Avatar>SSH</Avatar>
             ) : (
               <Avatar>
                 <Link />
@@ -124,11 +126,12 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
 };
 
 type RoutesSectionProps = {
-  type: "http" | "tcp" | "udp";
+  type: "http" | "tcp" | "udp" | "ssh";
   title: string;
   allRoutes: Route[];
 };
 const RoutesSection: FC<RoutesSectionProps> = ({ type, title, allRoutes }) => {
+  console.log(allRoutes);
   const routes = allRoutes?.filter((r) => r.type === type);
   if (routes?.length === 0) {
     return <></>;
@@ -219,6 +222,11 @@ const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
               title={"UDP Routes"}
               allRoutes={data.routes}
             />
+            <RoutesSection
+              type={"ssh"}
+              title={"SSH Routes"}
+              allRoutes={data.routes}
+            ></RoutesSection>
           </>
         ) : (
           <Paper sx={{ padding: 3 }}>
