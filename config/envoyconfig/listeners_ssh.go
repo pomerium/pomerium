@@ -21,6 +21,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
@@ -201,6 +202,7 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 				Filters: filters,
 			},
 		},
+		PerConnectionBufferLimitBytes: wrapperspb.UInt32(sshConnectionBufferLimit),
 	}
 	li.Address, li.AdditionalAddresses = buildTCPListenAddresses(cfg.Options.SSHAddr, 22)
 	return li, nil
