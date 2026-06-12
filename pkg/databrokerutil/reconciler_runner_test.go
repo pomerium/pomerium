@@ -12,6 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace/noop"
+	"go.uber.org/mock/gomock"
+
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
 )
 
 func TestReconcilerRunner(t *testing.T) {
@@ -114,6 +118,25 @@ func TestReconcilerRunnerErrorLogging(t *testing.T) {
 		synctest.Wait()
 		assert.ErrorIs(t, runError, context.Canceled)
 	})
+}
+
+func TestReconcilerRunnerClientGetter(t *testing.T) {
+	t.Parallel()
+
+	var client databroker.DataBrokerServiceClient
+	clientGetter := databroker.ClientGetterFunc(func() databroker.DataBrokerServiceClient { return client })
+	rr := NewReconcilerRunner(nil, "test", clientGetter)
+
+	ctrl := gomock.NewController(t)
+	client1 := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+	client2 := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+
+	// GetDataBrokerServiceClient() should always return the latest client.
+	client = client1
+	assert.Equal(t, client1, rr.GetDataBrokerServiceClient())
+
+	client = client2
+	assert.Equal(t, client2, rr.GetDataBrokerServiceClient())
 }
 
 func TestReconcilerRunnerOptionsSet(t *testing.T) {

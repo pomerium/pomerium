@@ -21,8 +21,7 @@ type Reconciler interface {
 }
 
 type reconciler struct {
-	reconcilerConfig
-	client              databrokerpb.DataBrokerServiceClient
+	client              databrokerpb.ClientGetter
 	currentStateBuilder StateBuilderFn
 	cmpFn               databrokerpb.RecordCompareFn
 	targetStateBuilder  StateBuilderFn
@@ -86,7 +85,7 @@ type StateBuilderFn func(ctx context.Context) (databrokerpb.RecordSetBundle, err
 
 // NewReconciler creates a new reconciler
 func NewReconciler(
-	client databrokerpb.DataBrokerServiceClient,
+	client databrokerpb.ClientGetter,
 	currentStateBuilder StateBuilderFn,
 	targetStateBuilder StateBuilderFn,
 	setCurrentState func([]*databrokerpb.Record),
@@ -95,7 +94,6 @@ func NewReconciler(
 ) Reconciler {
 	cfg := getReconcilerConfig(opts...)
 	return &reconciler{
-		reconcilerConfig:    cfg,
 		client:              client,
 		currentStateBuilder: currentStateBuilder,
 		targetStateBuilder:  targetStateBuilder,
@@ -169,7 +167,7 @@ func (r *reconciler) applyChanges(ctx context.Context, updates []*databrokerpb.R
 	ctx, op := r.telemetry.Start(ctx, "ApplyChanges")
 	defer op.Complete()
 
-	err := databrokerpb.PutMulti(ctx, r.client, updates...)
+	err := databrokerpb.PutMulti(ctx, r.client.GetDataBrokerServiceClient(), updates...)
 	if err != nil {
 		return op.Failure(fmt.Errorf("apply databroker changes: %w", err))
 	}
