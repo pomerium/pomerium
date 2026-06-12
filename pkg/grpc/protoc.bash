@@ -23,6 +23,7 @@ _dirs=(
 for _d in "${_dirs[@]}"; do
 	../../scripts/protoc \
 		-I "./$_d/" \
+		-I "./config/" \
 		-I "./" \
 		--go_out="./$_d" \
 		--go_opt="paths=source_relative" \

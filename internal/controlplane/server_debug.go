@@ -432,6 +432,7 @@ func (srv *debugServer) serveDatabrokerRecord(w http.ResponseWriter, r *http.Req
 		http.Error(w, "record not found", http.StatusNotFound)
 		return
 	}
+	protoutil.RedactSensitive(res.Record)
 
 	o := protojson.MarshalOptions{
 		Multiline:     true,
@@ -548,6 +549,7 @@ func (v *versionedConfigData) RenderVersionedConfig(cfg *configpb.VersionedConfi
 	conditions := cfg.Conditions
 	cfg = proto.Clone(cfg).(*configpb.VersionedConfig)
 	cfg.Conditions = nil
+	protoutil.RedactSensitive(cfg)
 
 	marshaled, err := protojson.MarshalOptions{
 		Multiline:     true,
