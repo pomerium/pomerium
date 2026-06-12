@@ -40,7 +40,8 @@
     "alwaysSetRequestIdInResponse": true,
     "commonHttpProtocolOptions": {
       "headersWithUnderscoresAction": "REJECT_REQUEST",
-      "idleTimeout": "300s"
+      "idleTimeout": "300s",
+      "maxHeadersCount": 1000
     },
     "earlyHeaderMutationExtensions": [
       {
@@ -2088,6 +2089,7 @@
       }
     },
     "requestTimeout": "30s",
+    "maxRequestHeadersKb": 128,
     "mergeSlashes": true,
     "normalizePath": true,
     "pathWithEscapedSlashesAction": "REJECT_REQUEST",
