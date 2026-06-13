@@ -17,7 +17,6 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { clearAuthState } from "../../helpers/authn-flow.js";
 import { sendPreflight, makeCrossOriginRequest, testOrigins } from "../../helpers/cors.js";
 import { urls } from "../../fixtures/test-data.js";
 
@@ -34,10 +33,6 @@ const corsRoutes = {
 };
 
 test.describe("CORS Preflight", () => {
-  test.beforeEach(async ({ page }) => {
-    await clearAuthState(page);
-  });
-
   test("should pass OPTIONS preflight with cors_allow_preflight enabled", async ({ page }) => {
     // Send preflight to CORS-enabled route
     const url = `${urls.app}${corsRoutes.enabled}`;
