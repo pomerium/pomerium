@@ -39,7 +39,8 @@
     ],
     "alwaysSetRequestIdInResponse": true,
     "commonHttpProtocolOptions": {
-      "idleTimeout": "300s"
+      "idleTimeout": "300s",
+      "maxHeadersCount": 1000
     },
     "earlyHeaderMutationExtensions": [
       {
@@ -2068,6 +2069,7 @@
       }
     },
     "requestTimeout": "30s",
+    "maxRequestHeadersKb": 128,
     "normalizePath": true,
     "rds": {
       "configSource": {

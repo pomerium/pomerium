@@ -187,7 +187,9 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
 			IdleTimeout:       durationpb.New(cfg.Options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
+			MaxHeadersCount:   wrapperspb.UInt32(1000),
 		},
+		MaxRequestHeadersKb: wrapperspb.UInt32(128),
 		HttpProtocolOptions: http1ProtocolOptions,
 		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
