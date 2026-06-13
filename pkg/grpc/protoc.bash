@@ -9,6 +9,7 @@ function join_by() {
 _dirs=(
 	cli
 	config
+	credentials
 	databroker
 	device
 	events
