@@ -60,7 +60,8 @@ func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) ([
 			routes = append(routes, route)
 		}
 	}
-	portalRoutes := portal.RoutesFromConfigRoutes(routes)
+	sshAddr := p.currentConfig.Load().Options.SSHAddr
+	portalRoutes := portal.RoutesFromConfigRoutes(routes, sshAddr)
 
 	var wg sync.WaitGroup
 	for i, pr := range portalRoutes {

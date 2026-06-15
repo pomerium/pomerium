@@ -19,6 +19,8 @@ func TestRouteFromConfigRoute(t *testing.T) {
 	require.NoError(t, err)
 	to3, err := config.ParseWeightedUrls("tcp://redis:6379")
 	require.NoError(t, err)
+	toSSH, err := config.ParseWeightedUrls("ssh://0.0.0.0:22")
+	require.NoError(t, err)
 
 	assert.Equal(t, []portal.Route{
 		{
@@ -62,6 +64,13 @@ func TestRouteFromConfigRoute(t *testing.T) {
 			Type: portal.RouteTypeMCP,
 			From: "https://mcp-server.example.com",
 		},
+		{
+			ID:             "5ffeca8ba135d423",
+			Name:           "example",
+			Type:           portal.RouteTypeSSH,
+			From:           "ssh://example",
+			ConnectCommand: "ssh -p 2222 $(whoami)@example@0.0.0.0",
+		},
 	}, portal.RoutesFromConfigRoutes([]*config.Policy{
 		{
 			From:        "https://from.example.com",
@@ -92,5 +101,9 @@ func TestRouteFromConfigRoute(t *testing.T) {
 			To:   to1,
 			MCP:  &config.MCP{Server: &config.MCPServer{}},
 		},
-	}))
+		{
+			From: "ssh://example",
+			To:   toSSH,
+		},
+	}, "0.0.0.0:2222"))
 }
