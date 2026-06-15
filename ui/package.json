@@ -43,7 +43,7 @@
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "eslint": "9.39.1",
     "eslint-plugin-react": "^7.37.0",
     "globals": "^17.6.0",
