@@ -288,11 +288,15 @@ func testChunkReaderWriterConformance(t *testing.T,
 				RecordingType: "ssh",
 				ClusterID:     uuid.New().String(),
 			}, "in-progress")
+			mdPathJSON, ctMd0 := schema.MetadataJSON()
+			require.NoError(t, bk.WriteAll(ctx, mdPathJSON, []byte("mdJSON"), &gblob.WriterOptions{ContentType: ctMd0}))
+			mdPathProto, ctMd1 := schema.MetadataPath()
+			require.NoError(t, bk.WriteAll(ctx, mdPathProto, []byte("mdProto"), &gblob.WriterOptions{ContentType: ctMd1}))
 
 			chunk0Path, ct0 := schema.ChunkPath(0)
 			require.NoError(t, bk.WriteAll(ctx, chunk0Path, []byte("chunk0"), &gblob.WriterOptions{ContentType: ct0}))
-			chunk2Path, ct2 := schema.ChunkPath(1)
-			require.NoError(t, bk.WriteAll(ctx, chunk2Path, []byte("chunk2"), &gblob.WriterOptions{ContentType: ct2}))
+			chunk1Path, ct1 := schema.ChunkPath(1)
+			require.NoError(t, bk.WriteAll(ctx, chunk1Path, []byte("chunk1"), &gblob.WriterOptions{ContentType: ct1}))
 
 			_, err := rF(schema)
 			assert.Error(t, err)

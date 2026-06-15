@@ -7,6 +7,7 @@ import (
 
 	xds_core_v3 "github.com/cncf/xds/go/xds/core/v3"
 	xds_matcher_v3 "github.com/cncf/xds/go/xds/type/matcher/v3"
+	xds_type_v3 "github.com/cncf/xds/go/xds/type/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v3"
@@ -17,7 +18,10 @@ import (
 	envoy_generic_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/v3"
 	envoy_generic_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/ratelimit/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
@@ -142,9 +146,21 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 
 	var enabledChannelFilters []*envoy_config_core_v3.TypedExtensionConfig
 	if slices.Contains(extensionsToLoad, ExtensionSSHSessionRecording) {
+		ext := &xssh.ChannelFilterConfig{}
+		ts := &xds_type_v3.TypedStruct{
+			TypeUrl: "type.googleapis.com/" + string(ext.ProtoReflect().Descriptor().FullName()),
+			Value:   &structpb.Struct{},
+		}
+		data, err := protojson.Marshal(ext)
+		if err != nil {
+			return nil, err
+		}
+		if err := protojson.Unmarshal(data, ts.Value); err != nil {
+			return nil, err
+		}
 		enabledChannelFilters = append(enabledChannelFilters, &envoy_config_core_v3.TypedExtensionConfig{
 			Name:        "session_recording",
-			TypedConfig: marshalAny(&xssh.ChannelFilterConfig{}),
+			TypedConfig: marshalAny(ts),
 		})
 	}
 
@@ -186,6 +202,7 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 				Filters: filters,
 			},
 		},
+		PerConnectionBufferLimitBytes: wrapperspb.UInt32(sshConnectionBufferLimit),
 	}
 	li.Address, li.AdditionalAddresses = buildTCPListenAddresses(cfg.Options.SSHAddr, 22)
 	return li, nil

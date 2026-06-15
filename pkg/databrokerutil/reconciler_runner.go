@@ -18,9 +18,9 @@ type ReconcilerRunner interface {
 }
 
 type reconcilerRunner struct {
+	databrokerpb.ClientGetter
 	reconcilerConfig
 	reconciler Reconciler
-	client     databrokerpb.DataBrokerServiceClient
 	name       string
 	trigger    chan struct{}
 	telemetry  *telemetry.Component
@@ -30,14 +30,14 @@ type reconcilerRunner struct {
 func NewReconcilerRunner(
 	reconciler Reconciler,
 	leaseName string, // must be unique across pomerium ecosystem
-	client databrokerpb.DataBrokerServiceClient,
+	client databrokerpb.ClientGetter,
 	opts ...ReconcilerOption,
 ) ReconcilerRunner {
 	cfg := getReconcilerConfig(opts...)
 	return &reconcilerRunner{
+		ClientGetter:     client,
 		reconcilerConfig: cfg,
 		reconciler:       reconciler,
-		client:           client,
 		name:             fmt.Sprintf("%s-reconciler", leaseName),
 		trigger:          make(chan struct{}, 1),
 		telemetry:        telemetry.NewComponent(cfg.tracerProvider, zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
@@ -56,11 +56,6 @@ func (rr *reconcilerRunner) TriggerSync() {
 func (rr *reconcilerRunner) Run(ctx context.Context) error {
 	leaser := NewLeaser(rr.name, rr.interval, rr, WithLeaserErrorHandler(rr.errorHandler))
 	return leaser.Run(ctx)
-}
-
-// GetDataBrokerServiceClient implements the LeaseHandler interface.
-func (rr *reconcilerRunner) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
-	return rr.client
 }
 
 // RunLeased implements the LeaseHandler interface.

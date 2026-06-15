@@ -16,9 +16,7 @@ env:
 before:
   hooks:
     - go mod download
-    - make get-envoy
-    - make build-deps
-    - make build-ui
+    - make deps-build deps-release build-ui
 
 builds:
   - id: pomerium

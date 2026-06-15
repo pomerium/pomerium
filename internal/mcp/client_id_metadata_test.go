@@ -79,10 +79,16 @@ func TestIsClientIDMetadataURL(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "contains query string - RFC violation",
+			name:        "contains query string - tolerated (RFC SHOULD NOT)",
 			clientID:    "https://example.com/oauth/client.json?foo=bar",
-			expectIsURL: false,
-			expectError: true,
+			expectIsURL: true,
+			expectError: false,
+		},
+		{
+			name:        "real-world client_id URL with query string",
+			clientID:    "https://chatgpt.com/oauth/XXXXXXXXXX/client.json?token_endpoint_auth_method=none",
+			expectIsURL: true,
+			expectError: false,
 		},
 		{
 			name:        "UUID-style client ID - not a URL",

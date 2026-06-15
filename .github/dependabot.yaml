@@ -79,6 +79,7 @@ updates:
     directory: "/ui"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 50
     groups:
       npm:
         patterns:
@@ -87,6 +88,7 @@ updates:
     directory: "/internal/acceptance/browser"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 50
     groups:
       npm:
         patterns:
@@ -95,6 +97,7 @@ updates:
     directory: "/internal/acceptance/ws-server"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 50
     groups:
       npm:
         patterns:

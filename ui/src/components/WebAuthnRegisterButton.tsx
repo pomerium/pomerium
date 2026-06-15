@@ -17,7 +17,7 @@ type CredentialForCreate = {
 };
 
 async function createCredential(
-  creationOptions: WebAuthnCreationOptions
+  creationOptions: WebAuthnCreationOptions,
 ): Promise<CredentialForCreate> {
   const credential = await navigator.credentials.create({
     publicKey: {

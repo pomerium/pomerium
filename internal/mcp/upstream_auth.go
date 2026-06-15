@@ -414,7 +414,12 @@ func (h *UpstreamAuthHandler) handle401(
 	// The resource URL is the actual URL the client was trying to access (with path).
 	// This is used for PRM discovery/validation and the OAuth resource parameter.
 	// The base upstreamServer URL is used for token storage keys (must match GetUpstreamToken).
-	resourceURL := stripQueryFromURL(originalURL)
+	// effectiveUpstreamResourceURL rejoins the configured upstream base path that ext_proc's
+	// originalURL drops.
+	resourceURL, err := effectiveUpstreamResourceURL(serverInfo.UpstreamURL, originalURL)
+	if err != nil {
+		return nil, fmt.Errorf("deriving upstream resource URL: %w", err)
+	}
 
 	setupOpts := []UpstreamOAuthSetupOption{
 		WithWWWAuthenticate(wwwAuth),

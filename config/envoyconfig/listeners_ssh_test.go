@@ -128,5 +128,14 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	// TODO: tests
+	t.Run("connection buffer limits", func(t *testing.T) {
+		cfg := config.New(config.NewDefaultOptions())
+		cfg.Options.SSHAddr = "0.0.0.0:22"
+		cfg.Options.Policies = []config.Policy{
+			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to:22")},
+		}
+		l, err := buildSSHListener(cfg, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, sshConnectionBufferLimit, l.PerConnectionBufferLimitBytes.GetValue())
+	})
 }
