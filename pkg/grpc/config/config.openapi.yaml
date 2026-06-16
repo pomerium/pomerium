@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  version: v0.32.5-rc.1
+  version: 
   title: Pomerium API
   description: API for managing Pomerium configuration.
   contact:
