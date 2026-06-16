@@ -211,7 +211,7 @@ require (
 	github.com/bufbuild/buf v1.70.0 // indirect
 	github.com/bufbuild/protocompile v0.14.2-0.20260522222248-64e6ad034132 // indirect
 	github.com/bufbuild/protoplugin v0.0.0-20260414125817-25d1d281b46b // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/caddyserver/zerossl v0.1.5 // indirect
 	github.com/ccoveille/go-safecast/v2 v2.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect

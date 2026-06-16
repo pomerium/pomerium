@@ -251,8 +251,8 @@ github.com/bufbuild/protocompile v0.14.2-0.20260522222248-64e6ad034132 h1:f4T4k/
 github.com/bufbuild/protocompile v0.14.2-0.20260522222248-64e6ad034132/go.mod h1:jPUiZUFWc8E3Kc2Y4SRlGAdjde4amGkHY0BUACNS43E=
 github.com/bufbuild/protoplugin v0.0.0-20260414125817-25d1d281b46b h1:b7wvo9ZhjLzCp7tGbOUMvgtYTnd33zGSAmMxcdxMnhQ=
 github.com/bufbuild/protoplugin v0.0.0-20260414125817-25d1d281b46b/go.mod h1:c5D8gWRIZ2HLWO3gXYTtUfw/hbJyD8xikv2ooPxnklQ=
-github.com/buger/jsonparser v1.1.1 h1:2PnMjfWD7wBILjqQbt530v576A/cAbQvEW9gGIpYMUs=
-github.com/buger/jsonparser v1.1.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
+github.com/buger/jsonparser v1.1.2 h1:frqHqw7otoVbk5M8LlE/L7HTnIq2v9RX6EJ48i9AxJk=
+github.com/buger/jsonparser v1.1.2/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
 github.com/bytecodealliance/wasmtime-go/v39 v39.0.1 h1:RibaT47yiyCRxMOj/l2cvL8cWiWBSqDXHyqsa9sGcCE=
 github.com/bytecodealliance/wasmtime-go/v39 v39.0.1/go.mod h1:miR4NYIEBXeDNamZIzpskhJ0z/p8al+lwMWylQ/ZJb4=
 github.com/caddyserver/certmagic v0.25.2 h1:D7xcS7ggX/WEY54x0czj7ioTkmDWKIgxtIi2OcQclUc=
