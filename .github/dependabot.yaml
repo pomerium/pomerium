@@ -47,8 +47,15 @@ updates:
           - "github.com/exaring/otelpgx"
           - "charm.land/*"
           - "github.com/charmbracelet/*"
-          - "github.com/muesli/termenv"
+          - "github.com/muesli/*"
           - "github.com/mattn/go-runewidth"
+          - "github.com/lucasb-eyer/go-colorful"
+          - "github.com/rivo/uniseg"
+          - "github.com/aymanbagabas/go-osc52/*"
+          - "github.com/xo/terminfo"
+          - "github.com/atotto/clipboard"
+          - "github.com/sahilm/fuzzy"
+          - "github.com/creack/pty"
       otel:
         patterns:
           - "go.opentelemetry.io/*"
@@ -57,8 +64,15 @@ updates:
         patterns:
           - "charm.land/*"
           - "github.com/charmbracelet/*"
-          - "github.com/muesli/termenv"
+          - "github.com/muesli/*"
           - "github.com/mattn/go-runewidth"
+          - "github.com/lucasb-eyer/go-colorful"
+          - "github.com/rivo/uniseg"
+          - "github.com/aymanbagabas/go-osc52/*"
+          - "github.com/xo/terminfo"
+          - "github.com/atotto/clipboard"
+          - "github.com/sahilm/fuzzy"
+          - "github.com/creack/pty"
   - package-ecosystem: "gomod"
     directory: "/pkg/grpc/config/"
     schedule:
