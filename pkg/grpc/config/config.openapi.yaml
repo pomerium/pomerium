@@ -1511,8 +1511,9 @@ components:
             - "null"
           title: managed_prefix
           description: |-
-            Optional path prefix within the bucket where Pomerium stores managed
-             objects, isolating them from other tenants of the same bucket.
+            Prefix assigned by a connected Pomerium Enterprise instance. End users
+             should not set or modify this field unless they know exactly what they
+             are doing or are working around a specific issue.
       title: BlobStorageSettings
       additionalProperties: false
       description: |-
