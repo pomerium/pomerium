@@ -4442,8 +4442,9 @@ type BlobStorageSettings struct {
 	// URI of the object-storage bucket (e.g. "s3://my-bucket",
 	// "gs://my-bucket"). Empty disables blob storage.
 	BucketUri *string `protobuf:"bytes,1,opt,name=bucket_uri,json=bucketUri,proto3,oneof" json:"bucket_uri,omitempty"`
-	// Optional path prefix within the bucket where Pomerium stores managed
-	// objects, isolating them from other tenants of the same bucket.
+	// Prefix assigned by a connected Pomerium Enterprise instance. End users
+	// should not set or modify this field unless they know exactly what they
+	// are doing or are working around a specific issue.
 	ManagedPrefix *string `protobuf:"bytes,2,opt,name=managed_prefix,json=managedPrefix,proto3,oneof" json:"managed_prefix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
