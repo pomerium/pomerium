@@ -434,6 +434,15 @@ replace (
 	github.com/pomerium/pomerium/pkg/grpc/databroker => ./pkg/grpc/databroker
 )
 
+// The SSH TUI is built on the lipgloss v2 beta, whose ultraviolet-integrated
+// drawable Layer API (Bounds/GetWidth/GetHeight/SetContent) was removed in the
+// stable v2.0.3 release in favor of a static string Canvas/Layer model.
+// github.com/minio/minio-go (a test-only dependency) carries lipgloss v2.0.3 as
+// a phantom indirect requirement that none of its packages actually import, and
+// MVS otherwise promotes us to it and breaks the TUI build. Pin to the beta
+// until the TUI is migrated to the stable lipgloss v2 API.
+replace charm.land/lipgloss/v2 => charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106192539-4b304240aab7
+
 tool (
 	connectrpc.com/connect/cmd/protoc-gen-connect-go
 	github.com/bufbuild/buf/cmd/buf
