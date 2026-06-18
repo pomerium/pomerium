@@ -98,7 +98,7 @@ type LayoutComponent struct {
 }
 
 func (bc *LayoutComponent) Type() string { return bc.componentType }
-func (bc *LayoutComponent) ID() string {
+func (bc *LayoutComponent) InstanceID() string {
 	if bc.widgetID != "" {
 		return bc.widgetID
 	}

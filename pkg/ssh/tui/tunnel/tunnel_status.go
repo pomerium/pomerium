@@ -3,7 +3,9 @@ package tunnel
 import (
 	"container/ring"
 	"fmt"
+	"image"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -65,6 +67,7 @@ type Model struct {
 	motd *MotdOptions
 
 	mouseMode              tea.MouseMode
+	lastMouseMotionCell    tea.Position
 	ignoreNextMouseRelease bool
 
 	grid    *layout.GridLayout
@@ -72,7 +75,9 @@ type Model struct {
 
 	tabOrder              *ring.Ring
 	lastWidth, lastHeight int
-	lastView              *lipgloss.Canvas
+	lastRenderOrder       core.RenderOrder
+	canvas                *lipgloss.Canvas
+	perfInfo              *PerfInfo
 
 	modalInterceptor       *messages.ModalInterceptor
 	modalPreviousTheme     *style.Theme
@@ -80,7 +85,8 @@ type Model struct {
 
 	exitError error
 
-	buffer *core.DoubleBuffer
+	skipNextRender bool
+	lastView       string
 }
 
 var AppName string
@@ -99,8 +105,27 @@ const (
 	IDDialog     = "dialog"
 )
 
+type PerfInfo struct {
+	LastFrame          int64
+	LastUpdateDuration time.Duration
+	LastRenderDuration time.Duration
+	ReusedFrame        bool
+}
+
+func (rdi *PerfInfo) String() string {
+	reusedFrameMarker := " "
+	if rdi.ReusedFrame {
+		reusedFrameMarker = "*"
+	}
+	return fmt.Sprintf("%d%s| U:%s | R:%s", rdi.LastFrame, reusedFrameMarker, rdi.LastUpdateDuration, rdi.LastRenderDuration)
+}
+
 func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, config Config, cfr components.ComponentFactoryRegistry) *Model {
 	core.ApplyKeyMapDefaults(&config.KeyMap, DefaultKeyMap)
+	var perfInfo *PerfInfo
+	if config.ShowPerfInfo {
+		perfInfo = &PerfInfo{}
+	}
 	m := &Model{
 		config:       config,
 		keyMap:       core.NewDynamicKeyMap(config.KeyMap),
@@ -130,7 +155,8 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 				return base.Dialog
 			}),
 		}),
-		buffer: core.NewDoubleBuffer(),
+		canvas:   lipgloss.NewCanvas(0, 0),
+		perfInfo: perfInfo,
 	}
 
 	m.headerWidget = core.NewWidget(IDHeader, m.headerModel)
@@ -249,10 +275,17 @@ func (m *Model) showMotd() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.perfInfo != nil {
+		start := time.Now()
+		defer func() {
+			m.perfInfo.LastUpdateDuration = time.Since(start)
+		}()
+	}
 	return m, m.update(msg)
 }
 
 func (m *Model) update(msg tea.Msg) tea.Cmd {
+	m.skipNextRender = false
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.EnvMsg:
@@ -288,7 +321,11 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return m.resetModalInterceptor(msg.Interceptor)
 	case tea.KeyPressMsg:
 		if m.shouldIntercept(msg) {
-			return m.modalInterceptor.Update(msg)
+			resp := m.modalInterceptor.Update(msg)
+			if resp == core.SkipNextRender {
+				m.skipNextRender = true
+			}
+			return resp.Cmd()
 		}
 		switch {
 		case key.Matches(msg, m.keyMap.Get().FocusNext):
@@ -332,16 +369,32 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 			m.resize(m.lastWidth, m.lastHeight)
 		}
 	case tea.MouseMsg:
-		if m.lastView == nil {
+		if m.mouseMode == tea.MouseModeAllMotion {
+			if motion, ok := msg.(tea.MouseMotionMsg); ok {
+				if motion.X == m.lastMouseMotionCell.X && motion.Y == m.lastMouseMotionCell.Y {
+					m.skipNextRender = true
+					return nil
+				}
+				m.lastMouseMotionCell = tea.Position{
+					X: motion.X,
+					Y: motion.Y,
+				}
+			}
+		}
+		if len(m.lastRenderOrder) == 0 {
 			return nil
 		}
 
 		if m.modalInterceptor != nil {
-			return m.modalInterceptor.Update(msg)
+			resp := m.modalInterceptor.Update(msg)
+			if resp == core.SkipNextRender {
+				m.skipNextRender = true
+			}
+			return resp.Cmd()
 		}
 
-		id := m.lastView.Hit(msg.Mouse().X, msg.Mouse().Y)
-		if id == "" {
+		hit := m.lastRenderOrder.HitTest(msg.Mouse().X, msg.Mouse().Y)
+		if hit.Empty() {
 			return nil
 		}
 
@@ -352,31 +405,39 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 				return nil
 			}
 		}
-		switch id {
+		switch hit.ID {
 		case "":
 			return nil
 		case IDMenu:
-			return m.contextMenuModel.Update(msg)
+			resp := m.contextMenuModel.Update(msg)
+			if resp == core.SkipNextRender {
+				m.skipNextRender = true
+			}
+			return resp.Cmd()
 		case IDDialog:
-			return m.dialogModel.Update(msg)
+			resp := m.dialogModel.Update(msg)
+			if resp == core.SkipNextRender {
+				m.skipNextRender = true
+			}
+			return resp.Cmd()
 		case IDHeader:
-			return m.headerModel.Update(msg)
+			return m.headerModel.Update(msg).Cmd()
 		case IDHelp:
-			return m.helpModel.Update(msg)
+			return m.helpModel.Update(msg).Cmd()
 		default:
-			if c, ok := m.components.LookupID(id); ok {
+			if c, ok := m.components.LookupID(hit.ID); ok {
 				model := c.Model()
 				switch msg := msg.(type) {
 				case tea.MouseMotionMsg:
 					// mouse motion should not affect panel focus
 					if model.Focused() {
-						return model.Update(msg)
+						return model.Update(msg).Cmd()
 					}
 				default:
 					if !model.Focused() {
-						return tea.Sequence(m.setFocus(model), model.Update(msg))
+						return tea.Sequence(m.setFocus(model), model.Update(msg).Cmd())
 					}
-					return model.Update(msg)
+					return model.Update(msg).Cmd()
 				}
 			}
 		}
@@ -408,13 +469,13 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	}
 
 	cmds = append(cmds,
-		m.helpModel.Update(msg),
-		m.headerModel.Update(msg),
-		m.dialogModel.Update(msg),
-		m.contextMenuModel.Update(msg),
+		m.helpModel.Update(msg).Cmd(),
+		m.headerModel.Update(msg).Cmd(),
+		m.dialogModel.Update(msg).Cmd(),
+		m.contextMenuModel.Update(msg).Cmd(),
 	)
 	for comp := range m.components.RowMajorOrder() {
-		cmds = append(cmds, comp.Model().Update(msg))
+		cmds = append(cmds, comp.Model().Update(msg).Cmd())
 	}
 	return tea.Batch(cmds...)
 }
@@ -435,6 +496,7 @@ func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) tea.
 		prevMode := m.mouseMode
 		m.modalPreviousMouseMode = &prevMode
 		m.mouseMode = *interceptor.MouseModeOverride
+		m.lastMouseMotionCell = tea.Position{X: -1, Y: -1}
 	}
 	if interceptor.Scrim {
 		newTheme := style.NewTheme(
@@ -519,12 +581,23 @@ func (m *Model) showDialog(options dialog.Options) tea.Cmd {
 	return m.dialogModel.Focus()
 }
 
+// from an older version of ultraviolet
+func CenterRect(area uv.Rectangle, width, height int) uv.Rectangle {
+	centerX := area.Min.X + area.Dx()/2
+	centerY := area.Min.Y + area.Dy()/2
+	minX := centerX - width/2
+	minY := centerY - height/2
+	maxX := minX + width
+	maxY := minY + height
+	return image.Rect(minX, minY, maxX, maxY)
+}
+
 func (m *Model) resizeDialog(width, height int) {
 	var w, h int
 	if width > 0 && height > 0 {
 		w, h = m.dialogModel.SizeHint()
 	}
-	m.dialogWidget.SetBounds(uv.CenterRect(uv.Rect(0, 0, width, height), min(w, width), min(h, height)))
+	m.dialogWidget.SetBounds(CenterRect(uv.Rect(0, 0, width, height), min(w, width), min(h, height)))
 }
 
 func (m *Model) setFocus(toFocus core.Model) tea.Cmd {
@@ -557,32 +630,53 @@ func (m *Model) resize(width int, height int) {
 }
 
 func (m *Model) View() tea.View {
-	canvas := lipgloss.NewCanvas()
-	layers := make([]*lipgloss.Layer, 0, 1+m.components.Len()+2)
-	layers = append(layers, m.headerWidget.Layer().Z(2))
-	for c := range m.components.RowMajorOrder() {
-		if !c.Hidden() {
-			layers = append(layers, c.Layer().Z(2))
+	var start time.Time
+	if m.perfInfo != nil {
+		start = time.Now()
+	}
+
+	if !m.skipNextRender {
+		renderOrder := core.RenderOrder{}
+		m.canvas.Resize(m.lastWidth, m.lastHeight)
+		m.canvas.Clear()
+		render := func(w core.Widget) {
+			bounds := w.Bounds()
+			w.Draw(m.canvas, bounds)
+			renderOrder = append(renderOrder, core.RenderInfo{ID: w.ID(), Bounds: bounds})
 		}
-	}
-	layers = append(layers, m.helpWidget.Layer().Z(2))
-	layers = append(layers, m.backgroundWidget.Layer().Z(1))
-	if m.contextMenuModel.Focused() {
-		layers = append(layers, m.contextMenuWidget.Layer().Z(99))
-	}
-	if m.dialogModel.Focused() {
-		layers = append(layers, m.dialogWidget.Layer().Z(100))
-	}
-	canvas.AddLayers(layers...)
 
-	m.lastView = canvas
-	m.buffer.UpdateView(m.lastWidth, m.lastHeight, m.lastView)
+		render(m.backgroundWidget)
+		render(m.headerWidget)
+		for c := range m.components.RowMajorOrder() {
+			if !c.Hidden() {
+				render(c)
+			}
+		}
+		render(m.helpWidget)
 
+		if m.dialogModel.Focused() {
+			render(m.dialogWidget)
+		}
+		if m.contextMenuModel.Focused() {
+			render(m.contextMenuWidget)
+		}
+		m.lastRenderOrder = renderOrder
+		m.lastView = m.canvas.Render()
+	}
+
+	perfInfo := ""
+	if m.perfInfo != nil {
+		m.perfInfo.LastFrame++
+		m.perfInfo.LastRenderDuration = time.Since(start)
+		m.perfInfo.ReusedFrame = m.skipNextRender
+		perfInfo = m.perfInfo.String()
+	}
 	return tea.View{
-		ContentDrawable: m.buffer,
+		Content:         m.lastView,
 		BackgroundColor: m.config.Styles.Style().BackgroundColor,
 		AltScreen:       true,
 		MouseMode:       m.mouseMode,
+		WindowTitle:     perfInfo,
 	}
 }
 

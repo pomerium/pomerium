@@ -39,13 +39,15 @@ type Model struct {
 	core.BaseModel
 	config Config
 
-	options       Options
-	buttons       []core.Widget
-	grid          *layout.GridLayout
-	canvas        *lipgloss.Canvas
-	interceptor   *messages.ModalInterceptor
-	focused       bool
-	focusedButton int
+	options         Options
+	buttons         []core.Widget
+	grid            *layout.GridLayout
+	width, height   int
+	canvas          *lipgloss.Canvas
+	lastRenderOrder core.RenderOrder
+	interceptor     *messages.ModalInterceptor
+	focused         bool
+	focusedButton   int
 
 	borderFlashing       bool
 	cancelBorderFlashing context.CancelFunc
@@ -129,11 +131,11 @@ func (m *Model) Reset(options Options) {
 		},
 	}
 	m.grid = layout.NewGridLayout(rows)
-	m.canvas = lipgloss.NewCanvas()
-	m.canvas.AddLayers(m.options.Contents.Layer())
-	for _, btn := range m.buttons {
-		m.canvas.AddLayers(btn.Layer())
-	}
+	m.canvas = lipgloss.NewCanvas(0, 0)
+	// m.canvas.AddLayers(m.options.Contents.Layer())
+	// for _, btn := range m.buttons {
+	// 	m.canvas.AddLayers(btn.Layer())
+	// }
 	m.interceptor = &messages.ModalInterceptor{
 		Update: m.Update,
 		KeyMap: m.options.KeyMap,
@@ -141,23 +143,23 @@ func (m *Model) Reset(options Options) {
 	}
 }
 
-func (m *Model) Update(msg tea.Msg) tea.Cmd {
+func (m *Model) Update(msg tea.Msg) core.Status {
 	if !m.focused {
-		return nil
+		return core.NilCmd
 	}
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg.Key(), m.options.KeyMap.Close):
-			return m.Blur()
+			return core.Cmd(m.Blur())
 		case key.Matches(msg.Key(), m.options.KeyMap.Next):
 			m.focusNextButton()
-			return nil
+			return core.NilCmd
 		case key.Matches(msg.Key(), m.options.KeyMap.Prev):
 			m.focusPrevButton()
-			return nil
+			return core.NilCmd
 		case key.Matches(msg.Key(), m.options.KeyMap.Select):
-			return m.selectCurrentButton()
+			return core.Cmd(m.selectCurrentButton())
 		}
 	case tea.MouseMsg:
 		pos := msg.Mouse()
@@ -170,36 +172,36 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			switch msg.(type) {
 			case tea.MouseClickMsg:
 				if !m.options.ActionRequired {
-					return m.hide(true)
+					return core.Cmd(m.hide(true))
 				}
-				return m.flashBorder()
+				return core.Cmd(m.flashBorder())
 			case tea.MouseReleaseMsg:
 				// Do nothing here. The initial click would have originated from
 				// within the dialog bounds
-				return nil
+				return core.NilCmd
 			}
-			return nil
+			return core.SkipNextRender
 		}
-		id := m.canvas.Hit(local.X, local.Y)
-		if id != "" {
-			index, err := strconv.Atoi(id)
+		hit := m.lastRenderOrder.HitTest(local.X, local.Y)
+		if !hit.Empty() {
+			index, err := strconv.Atoi(hit.ID)
 			if err == nil && index < len(m.buttons) {
 				m.focusButton(index)
 				switch msg.(type) {
 				case tea.MouseClickMsg:
 				case tea.MouseReleaseMsg:
-					return m.selectCurrentButton()
+					return core.Cmd(m.selectCurrentButton())
 				}
 			}
 		}
 	case FlashBorderMsg:
 		if msg.context.Err() != nil {
-			return nil
+			return core.NilCmd
 		}
 		m.borderFlashing = msg.flashOn
-		return msg.next()
+		return core.Cmd(msg.next())
 	}
-	return nil
+	return core.NilCmd
 }
 
 type FlashBorderMsg struct {
@@ -333,8 +335,9 @@ func (m *Model) KeyMap() help.KeyMap {
 
 func (m *Model) OnResized(w, h int) {
 	styles := m.config.Styles.Style()
-	m.grid.Resize(max(0, w-styles.Dialog.GetHorizontalFrameSize()),
-		max(0, h-styles.Dialog.GetVerticalFrameSize()))
+	m.width = max(0, w-styles.Dialog.GetHorizontalFrameSize())
+	m.height = max(0, h-styles.Dialog.GetVerticalFrameSize())
+	m.grid.Resize(m.width, m.height)
 }
 
 func (m *Model) View() uv.Drawable {
@@ -343,5 +346,19 @@ func (m *Model) View() uv.Drawable {
 	if m.borderFlashing {
 		style = styles.DialogFlash
 	}
+
+	renderOrder := core.RenderOrder{}
+	m.canvas.Resize(m.width, m.height)
+	m.canvas.Clear()
+	render := func(w core.Widget) {
+		bounds := w.Bounds()
+		w.Draw(m.canvas, bounds)
+		renderOrder = append(renderOrder, core.RenderInfo{ID: w.ID(), Bounds: bounds})
+	}
+	render(m.options.Contents)
+	for _, btn := range m.buttons {
+		render(btn)
+	}
+	m.lastRenderOrder = renderOrder
 	return uv.NewStyledString(style.Render(m.canvas.Render()))
 }

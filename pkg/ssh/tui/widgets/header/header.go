@@ -20,7 +20,7 @@ type Model struct {
 	segments []Segment
 	layout   layout.DirectionalLayout
 
-	canvas *lipgloss.Canvas
+	canvas *lipgloss.Compositor
 }
 
 type Segment struct {
@@ -36,7 +36,7 @@ func NewModel(config Config) *Model {
 	leftAligned, rightAligned := config.LeftAlignedSegments, config.RightAlignedSegments
 	cells := make([]layout.Cell, 0, len(leftAligned)+len(rightAligned)+1)
 	hm := &Model{
-		canvas: lipgloss.NewCanvas(),
+		canvas: lipgloss.NewCompositor(),
 		segments: append(append(leftAligned, Segment{
 			Content: func(*models.Session) string { return "" },
 		}), rightAligned...),
@@ -90,11 +90,11 @@ func (s *Model) rebuildCanvas() {
 		if segment.Styles != nil {
 			baseStyle = segment.Styles.Style().Base
 		}
-		layer := lipgloss.NewLayer(baseStyle.Render(content)).ID(cell.Title).Width(cell.Size).X(x).Y(0)
-		x += layer.GetWidth()
+		layer := lipgloss.NewLayer(baseStyle.Render(content)).ID(cell.Title).X(x).Y(0)
+		x += cell.Size
 		layers = append(layers, layer)
 	}
-	canvas := lipgloss.NewCanvas(layers...)
+	canvas := lipgloss.NewCompositor(layers...)
 	s.canvas = canvas
 }
 
@@ -110,25 +110,27 @@ func (s *Model) View() uv.Drawable {
 	return s.canvas
 }
 
-func (s *Model) Update(msg tea.Msg) tea.Cmd {
+func (s *Model) Update(msg tea.Msg) core.Status {
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
 		global := uv.Pos(msg.X, msg.Y)
 		local, inBounds := s.Parent().TranslateGlobalToLocalPos(global)
 		if !inBounds {
-			return nil
+			return core.NilCmd
 		}
 		if s.canvas != nil {
-			id := s.canvas.Hit(local.X, local.Y)
-			for _, segment := range s.segments {
-				if segment.Label == id {
-					if segment.OnClick != nil {
-						return segment.OnClick(s.session, global)
+			hit := s.canvas.Hit(local.X, local.Y)
+			if !hit.Empty() {
+				for _, segment := range s.segments {
+					if segment.Label == hit.ID() {
+						if segment.OnClick != nil {
+							return core.Cmd(segment.OnClick(s.session, global))
+						}
+						break
 					}
-					break
 				}
 			}
 		}
 	}
-	return nil
+	return core.NilCmd
 }

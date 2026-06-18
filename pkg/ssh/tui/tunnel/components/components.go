@@ -6,7 +6,7 @@ import (
 
 type Component interface {
 	Type() string
-	ID() string
+	InstanceID() string
 	Mnemonic() string
 	StartsHidden() bool
 	RowHint() int

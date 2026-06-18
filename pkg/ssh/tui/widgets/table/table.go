@@ -144,16 +144,16 @@ func (m *Model[T, K]) KeyMap() help.KeyMap {
 	return m.keyMap
 }
 
-func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
+func (m *Model[T, K]) Update(msg tea.Msg) core.Status {
 	styles := m.config.Styles.Style()
 	if m.mode == Edit {
 		switch msg := msg.(type) {
 		case tea.KeyPressMsg:
 			switch {
 			case key.Matches(msg, m.editKeyMap.Submit):
-				return m.endEdit(true)
+				return core.Cmd(m.endEdit(true))
 			case key.Matches(msg, m.editKeyMap.Cancel):
-				return m.endEdit(false)
+				return core.Cmd(m.endEdit(false))
 			}
 		}
 		var cmd tea.Cmd
@@ -171,13 +171,13 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 			m.editState.lastError = inputErr
 		}
 		m.UpdateViewport()
-		return cmd
+		return core.Cmd(cmd)
 	}
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if !m.focus {
-			return nil
+			return core.NilCmd
 		}
 		switch {
 		case key.Matches(msg, m.keyMap.LineUp):
@@ -204,18 +204,18 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 				global := m.Parent().TranslateLocalToGlobalPos(
 					uv.Pos(styles.Border.GetBorderLeftSize(), styles.Border.GetBorderTopSize()+1+m.cursor))
 				if m.config.OnRowMenuRequested != nil {
-					return m.config.OnRowMenuRequested(m, global, m.cursor)
+					return core.Cmd(m.config.OnRowMenuRequested(m, global, m.cursor))
 				}
 			}
 		}
 	case tea.MouseClickMsg:
 		if !m.focus {
-			return nil
+			return core.NilCmd
 		}
 		global := uv.Pos(msg.X, msg.Y)
 		local, inBounds := m.Parent().TranslateGlobalToLocalPos(global)
 		if !inBounds {
-			return nil
+			return core.NilCmd
 		}
 
 		if local.X >= styles.Border.GetBorderLeftSize() &&
@@ -228,7 +228,7 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 				case tea.MouseLeft:
 				case tea.MouseRight:
 					if m.config.OnRowMenuRequested != nil {
-						return m.config.OnRowMenuRequested(m, global, row)
+						return core.Cmd(m.config.OnRowMenuRequested(m, global, row))
 					}
 				}
 			} else {
@@ -244,7 +244,7 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 		m.UpdateViewport()
 	}
 
-	return nil
+	return core.NilCmd
 }
 
 // Focused returns the focus state of the table.
