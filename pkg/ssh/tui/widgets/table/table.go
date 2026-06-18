@@ -144,16 +144,16 @@ func (m *Model[T, K]) KeyMap() help.KeyMap {
 	return m.keyMap
 }
 
-func (m *Model[T, K]) Update(msg tea.Msg) core.Status {
+func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 	styles := m.config.Styles.Style()
 	if m.mode == Edit {
 		switch msg := msg.(type) {
 		case tea.KeyPressMsg:
 			switch {
 			case key.Matches(msg, m.editKeyMap.Submit):
-				return core.Cmd(m.endEdit(true))
+				return m.endEdit(true)
 			case key.Matches(msg, m.editKeyMap.Cancel):
-				return core.Cmd(m.endEdit(false))
+				return m.endEdit(false)
 			}
 		}
 		var cmd tea.Cmd
@@ -171,13 +171,13 @@ func (m *Model[T, K]) Update(msg tea.Msg) core.Status {
 			m.editState.lastError = inputErr
 		}
 		m.UpdateViewport()
-		return core.Cmd(cmd)
+		return cmd
 	}
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if !m.focus {
-			return core.NilCmd
+			return nil
 		}
 		switch {
 		case key.Matches(msg, m.keyMap.LineUp):
@@ -204,18 +204,18 @@ func (m *Model[T, K]) Update(msg tea.Msg) core.Status {
 				global := m.Parent().TranslateLocalToGlobalPos(
 					uv.Pos(styles.Border.GetBorderLeftSize(), styles.Border.GetBorderTopSize()+1+m.cursor))
 				if m.config.OnRowMenuRequested != nil {
-					return core.Cmd(m.config.OnRowMenuRequested(m, global, m.cursor))
+					return m.config.OnRowMenuRequested(m, global, m.cursor)
 				}
 			}
 		}
 	case tea.MouseClickMsg:
 		if !m.focus {
-			return core.NilCmd
+			return nil
 		}
 		global := uv.Pos(msg.X, msg.Y)
 		local, inBounds := m.Parent().TranslateGlobalToLocalPos(global)
 		if !inBounds {
-			return core.NilCmd
+			return nil
 		}
 
 		if local.X >= styles.Border.GetBorderLeftSize() &&
@@ -228,7 +228,7 @@ func (m *Model[T, K]) Update(msg tea.Msg) core.Status {
 				case tea.MouseLeft:
 				case tea.MouseRight:
 					if m.config.OnRowMenuRequested != nil {
-						return core.Cmd(m.config.OnRowMenuRequested(m, global, row))
+						return m.config.OnRowMenuRequested(m, global, row)
 					}
 				}
 			} else {
@@ -244,7 +244,7 @@ func (m *Model[T, K]) Update(msg tea.Msg) core.Status {
 		m.UpdateViewport()
 	}
 
-	return core.NilCmd
+	return nil
 }
 
 // Focused returns the focus state of the table.
@@ -440,7 +440,9 @@ func (m *Model[T, K]) beginEdit(state editState) tea.Cmd {
 	focusCmd := m.editState.editInput.Focus()
 	m.UpdateViewport()
 	m.editState.interceptor = &messages.ModalInterceptor{
-		Update: m.Update,
+		Update: func(msg tea.Msg) core.Status {
+			return core.Cmd(m.Update(msg))
+		},
 		KeyMap: m.editKeyMap,
 	}
 	return tea.Sequence(

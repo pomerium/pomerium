@@ -9,39 +9,29 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
-type Status interface {
-	Cmd() tea.Cmd
+type StatusFlags uint32
+
+const (
+	SkipNextRender StatusFlags = 1 << iota
+)
+
+type Status struct {
+	Cmd   tea.Cmd
+	Flags StatusFlags
 }
 
 func Cmd(cmd tea.Cmd) Status {
-	return cmdWrapper{cmd: cmd}
+	return Status{Cmd: cmd}
 }
 
-type cmdWrapper struct {
-	cmd tea.Cmd
-}
-
-func (cmd cmdWrapper) Cmd() tea.Cmd {
-	return cmd.cmd
-}
-
-type skipNextRender struct{}
-
-// Cmd implements [Status].
-func (s *skipNextRender) Cmd() tea.Cmd {
-	return nil
-}
-
-var NilCmd = Cmd(nil)
-
-var SkipNextRender = &skipNextRender{}
+var NilCmd = Status{}
 
 type (
 	KeyMap = help.KeyMap
 
 	Model interface {
 		View() uv.Drawable
-		Update(tea.Msg) Status
+		Update(tea.Msg) tea.Cmd
 		Focused() bool
 		Focus() tea.Cmd
 		Blur() tea.Cmd

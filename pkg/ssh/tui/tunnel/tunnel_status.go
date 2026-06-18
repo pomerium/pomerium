@@ -322,10 +322,8 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	case tea.KeyPressMsg:
 		if m.shouldIntercept(msg) {
 			resp := m.modalInterceptor.Update(msg)
-			if resp == core.SkipNextRender {
-				m.skipNextRender = true
-			}
-			return resp.Cmd()
+			m.skipNextRender = (resp.Flags & core.SkipNextRender) != 0
+			return resp.Cmd
 		}
 		switch {
 		case key.Matches(msg, m.keyMap.Get().FocusNext):
@@ -387,10 +385,10 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 
 		if m.modalInterceptor != nil {
 			resp := m.modalInterceptor.Update(msg)
-			if resp == core.SkipNextRender {
+			if (resp.Flags & core.SkipNextRender) != 0 {
 				m.skipNextRender = true
 			}
-			return resp.Cmd()
+			return resp.Cmd
 		}
 
 		hit := m.lastRenderOrder.HitTest(msg.Mouse().X, msg.Mouse().Y)
@@ -402,6 +400,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 			switch msg.(type) {
 			case tea.MouseReleaseMsg:
 				m.ignoreNextMouseRelease = false
+				m.skipNextRender = true
 				return nil
 			}
 		}
@@ -409,21 +408,13 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		case "":
 			return nil
 		case IDMenu:
-			resp := m.contextMenuModel.Update(msg)
-			if resp == core.SkipNextRender {
-				m.skipNextRender = true
-			}
-			return resp.Cmd()
+			return m.contextMenuModel.Update(msg)
 		case IDDialog:
-			resp := m.dialogModel.Update(msg)
-			if resp == core.SkipNextRender {
-				m.skipNextRender = true
-			}
-			return resp.Cmd()
+			return m.dialogModel.Update(msg)
 		case IDHeader:
-			return m.headerModel.Update(msg).Cmd()
+			return m.headerModel.Update(msg)
 		case IDHelp:
-			return m.helpModel.Update(msg).Cmd()
+			return m.helpModel.Update(msg)
 		default:
 			if c, ok := m.components.LookupID(hit.ID); ok {
 				model := c.Model()
@@ -431,13 +422,13 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 				case tea.MouseMotionMsg:
 					// mouse motion should not affect panel focus
 					if model.Focused() {
-						return model.Update(msg).Cmd()
+						return model.Update(msg)
 					}
 				default:
 					if !model.Focused() {
-						return tea.Sequence(m.setFocus(model), model.Update(msg).Cmd())
+						return tea.Sequence(m.setFocus(model), model.Update(msg))
 					}
-					return model.Update(msg).Cmd()
+					return model.Update(msg)
 				}
 			}
 		}
@@ -469,15 +460,15 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	}
 
 	cmds = append(cmds,
-		m.helpModel.Update(msg).Cmd(),
-		m.headerModel.Update(msg).Cmd(),
-		m.dialogModel.Update(msg).Cmd(),
-		m.contextMenuModel.Update(msg).Cmd(),
+		m.helpModel.Update(msg),
+		m.headerModel.Update(msg),
+		m.dialogModel.Update(msg),
+		m.contextMenuModel.Update(msg),
 	)
 	for comp := range m.components.RowMajorOrder() {
-		cmds = append(cmds, comp.Model().Update(msg).Cmd())
+		cmds = append(cmds, comp.Model().Update(msg))
 	}
-	return tea.Batch(cmds...)
+	return tea.Sequence(cmds...)
 }
 
 func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) tea.Cmd {
@@ -509,7 +500,7 @@ func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) tea.
 		cmds = append(cmds, m.forceRedraw)
 	}
 
-	return tea.Batch(cmds...)
+	return tea.Sequence(cmds...)
 }
 
 func (m *Model) resetModalInterceptor(interceptor *messages.ModalInterceptor) tea.Cmd {
@@ -534,7 +525,7 @@ func (m *Model) resetModalInterceptor(interceptor *messages.ModalInterceptor) te
 			cmds = append(cmds, m.forceRedraw)
 		}
 	}
-	return tea.Batch(cmds...)
+	return tea.Sequence(cmds...)
 }
 
 func (m *Model) forceRedraw() tea.Msg {
@@ -619,7 +610,7 @@ func (m *Model) setFocus(toFocus core.Model) tea.Cmd {
 	}
 	cmds = append(cmds, m.tabOrder.Value.(core.Model).Focus())
 	m.keyMap.SetFocusedKeyMap(m.tabOrder.Value.(core.Model).KeyMap())
-	return tea.Batch(cmds...)
+	return tea.Sequence(cmds...)
 }
 
 func (m *Model) resize(width int, height int) {

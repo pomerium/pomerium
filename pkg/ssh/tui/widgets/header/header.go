@@ -110,13 +110,13 @@ func (s *Model) View() uv.Drawable {
 	return s.canvas
 }
 
-func (s *Model) Update(msg tea.Msg) core.Status {
+func (s *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
 		global := uv.Pos(msg.X, msg.Y)
 		local, inBounds := s.Parent().TranslateGlobalToLocalPos(global)
 		if !inBounds {
-			return core.NilCmd
+			return nil
 		}
 		if s.canvas != nil {
 			hit := s.canvas.Hit(local.X, local.Y)
@@ -124,7 +124,7 @@ func (s *Model) Update(msg tea.Msg) core.Status {
 				for _, segment := range s.segments {
 					if segment.Label == hit.ID() {
 						if segment.OnClick != nil {
-							return core.Cmd(segment.OnClick(s.session, global))
+							return segment.OnClick(s.session, global)
 						}
 						break
 					}
@@ -132,5 +132,5 @@ func (s *Model) Update(msg tea.Msg) core.Status {
 			}
 		}
 	}
-	return core.NilCmd
+	return nil
 }

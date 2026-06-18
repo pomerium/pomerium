@@ -20,10 +20,10 @@ func (hm *Model) View() uv.Drawable {
 	return uv.NewStyledString(hm.Model.View(hm.DisplayedKeyMap))
 }
 
-func (hm *Model) Update(msg tea.Msg) core.Status {
+func (hm *Model) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	hm.Model, cmd = hm.Model.Update(msg)
-	return core.Cmd(cmd)
+	return cmd
 }
 
 func (hm *Model) OnResized(w, _ int) {

@@ -137,13 +137,17 @@ func (m *Model) Reset(options Options) {
 	// 	m.canvas.AddLayers(btn.Layer())
 	// }
 	m.interceptor = &messages.ModalInterceptor{
-		Update: m.Update,
+		Update: m.update,
 		KeyMap: m.options.KeyMap,
 		Scrim:  true,
 	}
 }
 
-func (m *Model) Update(msg tea.Msg) core.Status {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	return m.update(msg).Cmd
+}
+
+func (m *Model) update(msg tea.Msg) core.Status {
 	if !m.focused {
 		return core.NilCmd
 	}
@@ -180,7 +184,7 @@ func (m *Model) Update(msg tea.Msg) core.Status {
 				// within the dialog bounds
 				return core.NilCmd
 			}
-			return core.SkipNextRender
+			return core.Status{Flags: core.SkipNextRender}
 		}
 		hit := m.lastRenderOrder.HitTest(local.X, local.Y)
 		if !hit.Empty() {

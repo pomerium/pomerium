@@ -200,7 +200,7 @@ func (m *Model) SizeHint() (int, int) {
 	return m.config.Styles.Style().Border.GetFrameSize()
 }
 
-func (m *Model) Update(msg tea.Msg) core.Status {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if !m.focused {
@@ -248,7 +248,7 @@ func (m *Model) Update(msg tea.Msg) core.Status {
 		global := uv.Pos(msg.X, msg.Y)
 		local, inBounds := m.Parent().TranslateGlobalToLocalPos(global)
 		if !inBounds {
-			return core.NilCmd
+			return nil
 		}
 
 		if local.X == m.width { // scrollbar
@@ -285,7 +285,7 @@ func (m *Model) Update(msg tea.Msg) core.Status {
 			m.Push(l)
 		}
 	}
-	return core.NilCmd
+	return nil
 }
 
 func (m *Model) View() uv.Drawable {

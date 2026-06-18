@@ -81,14 +81,18 @@ func (m *Model) Reset(options Options) {
 	m.maxLabelWidth = w
 	mouseMode := tea.MouseModeAllMotion
 	m.interceptor = &messages.ModalInterceptor{
-		Update:            m.Update,
+		Update:            m.update,
 		KeyMap:            m.options.KeyMap,
 		Scrim:             false,
 		MouseModeOverride: &mouseMode,
 	}
 }
 
-func (m *Model) Update(msg tea.Msg) core.Status {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	return m.update(msg).Cmd
+}
+
+func (m *Model) update(msg tea.Msg) core.Status {
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
 		if !m.focused {
@@ -108,7 +112,9 @@ func (m *Model) Update(msg tea.Msg) core.Status {
 				return core.Cmd(m.hide(true))
 			default:
 				// ignore motion/scroll messages outside of the menu
-				return core.SkipNextRender
+				return core.Status{
+					Flags: core.SkipNextRender,
+				}
 			}
 		}
 		index, ok := m.hitTest(local)

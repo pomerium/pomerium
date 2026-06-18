@@ -230,7 +230,7 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 				// }
 				return nil
 			},
-			ShowPerfInfo: true,
+			ShowPerfInfo: false,
 		},
 	}
 

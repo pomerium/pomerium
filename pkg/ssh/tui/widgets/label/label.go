@@ -26,8 +26,8 @@ func (m *Model) OnResized(maxWidth, maxHeight int) {
 	m.height = maxHeight
 }
 
-func (m *Model) Update(_ tea.Msg) core.Status {
-	return core.NilCmd
+func (m *Model) Update(_ tea.Msg) tea.Cmd {
+	return nil
 }
 
 func (m *Model) currentStyle() lipgloss.Style {
