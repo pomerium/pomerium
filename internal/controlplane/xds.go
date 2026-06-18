@@ -7,7 +7,6 @@ import (
 	"maps"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -27,60 +26,44 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 
 	log.Ctx(ctx).Debug().Msg("controlplane: building discovery resources")
 
-	eg, ctx := errgroup.WithContext(ctx)
-
 	var clusterResources []*envoy_service_discovery_v3.Resource
-	eg.Go(func() error {
-		clusters, err := srv.Builder.BuildClusters(ctx, cfg)
-		if err != nil {
-			return fmt.Errorf("error building clusters: %w", err)
-		}
-		for _, cluster := range clusters {
-			clusterResources = append(clusterResources, &envoy_service_discovery_v3.Resource{
-				Name:     cluster.Name,
-				Version:  hex.EncodeToString(cryptutil.HashProto(cluster)),
-				Resource: protoutil.NewAny(cluster),
-			})
-		}
-		return nil
-	})
+	clusters, err := srv.Builder.BuildClusters(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("error building clusters: %w", err)
+	}
+	for _, cluster := range clusters {
+		clusterResources = append(clusterResources, &envoy_service_discovery_v3.Resource{
+			Name:     cluster.Name,
+			Version:  hex.EncodeToString(cryptutil.HashProto(cluster)),
+			Resource: protoutil.NewAny(cluster),
+		})
+	}
 
 	var listenerResources []*envoy_service_discovery_v3.Resource
-	eg.Go(func() error {
-		listeners, err := srv.Builder.BuildListeners(ctx, cfg, false)
-		if err != nil {
-			return fmt.Errorf("error building listeners: %w", err)
-		}
-		for _, listener := range listeners {
-			listenerResources = append(listenerResources, &envoy_service_discovery_v3.Resource{
-				Name:     listener.Name,
-				Version:  hex.EncodeToString(cryptutil.HashProto(listener)),
-				Resource: protoutil.NewAny(listener),
-			})
-		}
-		return nil
-	})
+	listeners, err := srv.Builder.BuildListeners(ctx, cfg, false)
+	if err != nil {
+		return nil, fmt.Errorf("error building listeners: %w", err)
+	}
+	for _, listener := range listeners {
+		listenerResources = append(listenerResources, &envoy_service_discovery_v3.Resource{
+			Name:     listener.Name,
+			Version:  hex.EncodeToString(cryptutil.HashProto(listener)),
+			Resource: protoutil.NewAny(listener),
+		})
+	}
 
 	routeConfigurationResources := map[string][]*envoy_service_discovery_v3.Resource{}
-	eg.Go(func() error {
-		routeConfigurations, err := srv.Builder.BuildRouteConfigurations(ctx, cfg)
-		if err != nil {
-			return fmt.Errorf("error building route configurations: %w", err)
-		}
-		for _, routeConfiguration := range routeConfigurations {
-			typeURL := protoutil.GetTypeURL(routeConfiguration.Config)
-			routeConfigurationResources[typeURL] = append(routeConfigurationResources[typeURL], &envoy_service_discovery_v3.Resource{
-				Name:     routeConfiguration.Name,
-				Version:  hex.EncodeToString(cryptutil.HashProto(routeConfiguration.Config)),
-				Resource: protoutil.NewAny(routeConfiguration.Config),
-			})
-		}
-		return nil
-	})
-
-	err := eg.Wait()
+	routeConfigurations, err := srv.Builder.BuildRouteConfigurations(ctx, cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error building route configurations: %w", err)
+	}
+	for _, routeConfiguration := range routeConfigurations {
+		typeURL := protoutil.GetTypeURL(routeConfiguration.Config)
+		routeConfigurationResources[typeURL] = append(routeConfigurationResources[typeURL], &envoy_service_discovery_v3.Resource{
+			Name:     routeConfiguration.Name,
+			Version:  hex.EncodeToString(cryptutil.HashProto(routeConfiguration.Config)),
+			Resource: protoutil.NewAny(routeConfiguration.Config),
+		})
 	}
 
 	log.Ctx(ctx).Debug().
