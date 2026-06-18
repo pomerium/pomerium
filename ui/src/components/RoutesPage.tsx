@@ -136,9 +136,9 @@ const RoutesSection: FC<RoutesSectionProps> = ({ type, title, allRoutes }) => {
 
   return (
     <Section title={title}>
-      <Grid container spacing={2} justifyContent="center">
+      <Grid container spacing={2} sx={{ justifyContent: "center" }}>
         {routes?.map((r) => (
-          <Grid key={r.id} item sx={{ width: 300 }}>
+          <Grid key={r.id} sx={{ width: 300 }}>
             <RouteCard route={r} />
           </Grid>
         ))}
@@ -158,9 +158,9 @@ const MCPRoutesSection: FC<MCPRoutesSectionProps> = ({ allRoutes }) => {
 
   return (
     <Section title="MCP Servers">
-      <Grid container spacing={2} justifyContent="center">
+      <Grid container spacing={2} sx={{ justifyContent: "center" }}>
         {routes?.map((r) => (
-          <Grid key={r.id} item sx={{ width: 300 }}>
+          <Grid key={r.id} sx={{ width: 300 }}>
             <MCPRouteCard route={r} />
           </Grid>
         ))}

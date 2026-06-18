@@ -19,7 +19,11 @@ import IDField from "./IDField";
 
 const TextBlock: FC<TypographyProps> = ({ children }) => {
   return (
-    <Typography variant="body2" fontWeight={400} color="rgba(102, 112, 133, 1)">
+    <Typography
+      variant="body2"
+      color="rgba(102, 112, 133, 1)"
+      sx={{ fontWeight: 400 }}
+    >
       {children}
     </Typography>
   );
@@ -42,14 +46,14 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
         <Card sx={{ borderRadius: 0, borderTop: 0 }}>
           <Stack
             direction="row"
-            alignItems="center"
-            width="100%"
             sx={{
+              alignItems: "center",
+              width: "100%",
               m: "3vw",
+              gap: 15,
             }}
-            gap={15}
           >
-            <Stack direction="row" alignItems="center" gap={2}>
+            <Stack direction="row" sx={{ alignItems: "center", gap: 2 }}>
               <CheckCircleRounded color="primary" fontSize="large" />
               <Stack>
                 <Typography variant="overline">YOU (BROWSER)</Typography>
@@ -68,7 +72,7 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
               }}
             />
 
-            <Stack direction="row" alignItems="center" gap={2}>
+            <Stack direction="row" sx={{ alignItems: "center", gap: 2 }}>
               <CheckCircleRounded color="primary" fontSize="large" />
               <Stack>
                 <Typography variant="overline">POMERIUM</Typography>
@@ -87,7 +91,7 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
               }}
             />
 
-            <Stack direction="row" alignItems="center" gap={2}>
+            <Stack direction="row" sx={{ alignItems: "center", gap: 2 }}>
               <Circle color="error" fontSize="large" />
               <Stack>
                 <Typography variant="overline">UPSTREAM HOST</Typography>
@@ -99,7 +103,7 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
           </Stack>
           <CardContent>
             <Divider sx={{ color: "rgba(234, 236, 240, 1)" }} />
-            <Stack gap={1} sx={{ my: 5 }}>
+            <Stack sx={{ gap: 1, my: 5 }}>
               <Typography variant="h5">What happened?</Typography>
               <TextBlock>
                 The web server is not returning a connection. As a result, the
@@ -107,22 +111,22 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
               </TextBlock>
             </Stack>
             <Divider sx={{ color: "rgba(234, 236, 240, 1)" }} />
-            <Stack gap={2} sx={{ my: 5 }}>
-              <Stack gap={1}>
+            <Stack sx={{ gap: 2, my: 5 }}>
+              <Stack sx={{ gap: 1 }}>
                 <Typography variant="h5">What can I do?</Typography>
               </Stack>
               <Stack>
                 <Typography
                   variant="body2"
-                  fontWeight={700}
                   color="rgba(102, 112, 133, 1)"
+                  sx={{ fontWeight: 700 }}
                 >
                   If you are a visitor of this website:
                 </Typography>
                 <TextBlock>Please try again in a few minutes.</TextBlock>
               </Stack>
               <Stack>
-                <Typography variant="body2" fontWeight={700}>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
                   If you are the owner of this website:
                 </Typography>
                 <TextBlock>

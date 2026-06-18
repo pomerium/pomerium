@@ -152,7 +152,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
                 name="create_id_binding"
                 value="true"
                 size="small"
-                inputProps={{ form: "authorize-form" }}
+                slotProps={{ input: { form: "authorize-form" } }}
               />
             }
             label="Remember me"
@@ -162,9 +162,8 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
 
         <Stack
           direction="row"
-          justifyContent="center"
           spacing={2}
-          alignItems="center"
+          sx={{ justifyContent: "center", alignItems: "center" }}
         >
           <Box
             component="form"

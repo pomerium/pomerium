@@ -1,5 +1,5 @@
 import { Link } from "@mui/material";
-import { styled } from "@mui/system";
+import { styled } from "@mui/material/styles";
 
 export const FooterLink = styled(Link)(({ theme }) => ({
   fontSize: "1.25rem",
