@@ -433,7 +433,7 @@
             },
             {
               "name": "managed_prefix",
-              "description": "Optional path prefix within the bucket where Pomerium stores managed\nobjects, isolating them from other tenants of the same bucket.",
+              "description": "Prefix assigned by a connected Pomerium Enterprise instance. End users\nshould not set or modify this field unless they know exactly what they\nare doing or are working around a specific issue.",
               "label": "optional",
               "type": "string",
               "longType": "string",
