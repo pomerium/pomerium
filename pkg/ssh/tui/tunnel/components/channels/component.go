@@ -42,7 +42,7 @@ type (
 
 // NewWidget implements components.ComponentFactory.
 func (c *ComponentFactory) NewWidget(component components.Component) core.Widget {
-	w := core.NewWidget(component.ID(),
+	w := core.NewWidget(component.InstanceID(),
 		table.NewModel(
 			TableConfig{
 				Styles: style.Bind(c.config.Styles, func(base *Styles, _ style.NewStyleFunc) table.Styles {

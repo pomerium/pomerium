@@ -3,11 +3,17 @@ package messages
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
 )
 
+type UpdateResponse struct {
+	tea.Cmd
+	NoUpdate bool
+}
+
 type ModalInterceptor struct {
-	Update            func(tea.Msg) tea.Cmd
+	Update            func(tea.Msg) core.Status
 	KeyMap            help.KeyMap // optional
 	Scrim             bool
 	MouseModeOverride *tea.MouseMode
