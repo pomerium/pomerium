@@ -163,7 +163,7 @@ func (m *itemModel[T, K]) InvalidateAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, l := range m.listeners {
-		l.OnModelReset(m.items)
+		l.OnModelReset(slices.Clone(m.items))
 	}
 }
 

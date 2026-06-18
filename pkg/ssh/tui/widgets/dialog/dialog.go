@@ -132,10 +132,6 @@ func (m *Model) Reset(options Options) {
 	}
 	m.grid = layout.NewGridLayout(rows)
 	m.canvas = lipgloss.NewCanvas(0, 0)
-	// m.canvas.AddLayers(m.options.Contents.Layer())
-	// for _, btn := range m.buttons {
-	// 	m.canvas.AddLayers(btn.Layer())
-	// }
 	m.interceptor = &messages.ModalInterceptor{
 		Update: m.update,
 		KeyMap: m.options.KeyMap,
