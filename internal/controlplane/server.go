@@ -426,7 +426,7 @@ func (srv *Server) Run(ctx context.Context) error {
 func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
 	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.OnConfigChange")
 	defer span.End()
-
+	srv.updateHealthProviders(ctx, cfg)
 	select {
 	case <-ctx.Done():
 		return context.Cause(ctx)
