@@ -24,6 +24,10 @@ const (
 	// DatabrokerCluster checks whether members of the databroker cluster are healthy
 	DatabrokerCluster = Check("databroker.cluster")
 
+	// EnvoyDynamicExtensions checks that the set of expected extensions configured
+	// are actually successfully initialized in envoy
+	EnvoyDynamicExtensions = Check("envoy.extensions")
+
 	// StorageBackend checks whether the storage backend is healthy
 	StorageBackend = Check("storage.backend")
 	// StorageBackendCleanup checks the storage backend cleanup tasks are healthy

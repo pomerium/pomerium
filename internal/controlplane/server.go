@@ -597,6 +597,11 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 			health.XDSRouteConfiguration,
 		)
 	}
+
+	if len(cfg.Options.EnvoyDynamicExtensions.Or([]string{})) > 0 {
+		ret = append(ret, health.EnvoyDynamicExtensions)
+	}
+
 	for _, extraCheckers := range srv.extraHealthChecks {
 		ret = append(ret, extraCheckers.GetExpectedHealthChecks()...)
 	}
