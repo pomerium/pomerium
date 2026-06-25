@@ -54,6 +54,6 @@ const JwtIcon = createSvgIcon(
       d="m4.543 9.578-2.344 3.238 1.797 1.309 2.36-3.238V9ZM10.383 5.348l2.344-3.239L10.93.801 8.586 4.039v1.887Zm0 0"
     />
   </svg>,
-  "JWT"
+  "JWT",
 );
 export default JwtIcon;

@@ -144,6 +144,8 @@ type Server struct {
 	channelZClient         atomic.Pointer[grpc_channelz_v1.ChannelzClient]
 	channelZCleanup        func()
 
+	extraHealthChecks []health.Checker
+
 	options *Options
 }
 
@@ -424,7 +426,7 @@ func (srv *Server) Run(ctx context.Context) error {
 func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
 	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.OnConfigChange")
 	defer span.End()
-
+	srv.updateHealthProviders(ctx, cfg)
 	select {
 	case <-ctx.Done():
 		return context.Cause(ctx)
@@ -596,6 +598,14 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 		)
 	}
 
+	if len(cfg.Options.EnvoyDynamicExtensions.Or([]string{})) > 0 {
+		ret = append(ret, health.EnvoyDynamicExtensions)
+	}
+
+	for _, extraCheckers := range srv.extraHealthChecks {
+		ret = append(ret, extraCheckers.GetExpectedHealthChecks()...)
+	}
+
 	ret = append(
 		ret,
 		// contingent on control plane
@@ -614,4 +624,9 @@ func (srv *Server) SyncHealth(in *healthpb.HealthStreamRequest, remote grpc.Serv
 		return status.Error(codes.Unavailable, "health streaming server not yet available")
 	}
 	return p.SyncHealth(in, remote)
+}
+
+func (srv *Server) RegisterAdditionalExpectedChecks(ctx context.Context, cfg *config.Config, checkers ...health.Checker) {
+	srv.extraHealthChecks = checkers
+	srv.updateHealthProviders(ctx, cfg)
 }

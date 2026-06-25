@@ -34,12 +34,13 @@ GO_TESTFLAGS := -race
 # disable the race detector in macos
 ifeq ($(shell env -u GOOS $(GO) env GOOS), darwin)
 	GO_TESTFLAGS :=
+	export POMERIUM_SOCKET_DIRECTORY := /tmp
 endif
 ENVOY_OCI_REPO ?= "ghcr.io/pomerium/envoy-custom"
 GET_ENVOY_DEBUG :=
 
 .PHONY: all
-all: clean build-deps test lint build ## Runs a clean, build, fmt, lint, test, and vet.
+all: clean deps-build test lint build ## Runs a clean, build, fmt, lint, test, and vet.
 
 .PHONY: setup-merge-driver
 setup-merge-driver: ## Configure git merge driver for components.json (run once after cloning)
@@ -66,10 +67,6 @@ deps-build: get-envoy ## Install build dependencies
 deps-release: get-envoy ## Install release dependencies
 	@echo "==> $@"
 	@$(GO) install github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION}
-
-.PHONY: build-deps
-build-deps: deps-build deps-release
-	@echo "==> $@"
 
 .PHONY: proto-before
 proto-before:
@@ -99,14 +96,20 @@ build: build-ui build-go
 	@echo "==> $@"
 
 .PHONY: build-debug
-build-debug: build-deps ## Builds binaries appropriate for debugging
+build-debug: deps-build ## Builds binaries appropriate for debugging
 	@echo "==> $@"
 	@CGO_ENABLED=0 $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: build-go
-build-go: build-deps
+build-go: deps-build
 	@echo "==> $@"
 	@CGO_ENABLED=0 $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+
+DEBUG_LOCAL_ENVOY_PATH ?=
+build-local: build-ui # Builds pomerium core with a local envoy build
+	@echo "==> $@"
+	@echo "${DEBUG_LOCAL_ENVOY_PATH}"
+	@CGO_ENABLED=0 $(GO) build -tags "debug_local_envoy $(BUILDTAGS)" -ldflags "-s -w $(CTIMEVAR) -X $(PKG)/pkg/envoy.DebugLocalEnvoyPath=$(DEBUG_LOCAL_ENVOY_PATH)" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: build-ui
 build-ui: npm-install
@@ -114,10 +117,9 @@ build-ui: npm-install
 	@cd ui; npm run build
 
 .PHONY: go-fix
-go-fix: build-go ## Runs go fix on all packages.
+go-fix: deps-build
 	@echo "==> $@"
 	$(GO) fix ./...
-	$(MAKE) lint
 
 .PHONY: docker
 docker: build-ui ## Builds the local root image through the release Dockerfile.
@@ -144,7 +146,6 @@ lint:
 	@echo "==> $@"
 	$(GO) run ./pkg/tools/get-tools.go && \
 	./bin/golangci-lint run --fix --timeout=10m ./...
-
 
 .PHONY: test
 test: get-envoy ## Runs the go tests.
@@ -178,14 +179,14 @@ clean: ## Cleanup any build binaries or packages.
 	$(RM) -r /tmp/pomerium-protoc-3pp
 
 .PHONY: snapshot
-snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
+snapshot: deps-build deps-release ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
 	@echo "==> $@"
 	@goreleaser release --clean -f .github/goreleaser.yaml --snapshot
 
 .PHONY: npm-install
 npm-install:
 	@echo "==> $@"
-	cd ui ; npm install
+	cd ui ; npm ci
 
 .PHONY: help
 help:

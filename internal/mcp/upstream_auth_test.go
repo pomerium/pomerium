@@ -66,18 +66,16 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 		require.NoError(t, err)
 
 		// Build HostInfo: downstream host "proxy.example.com" maps to the test upstream server
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						Name: "test-mcp-server",
-						From: "https://proxy.example.com",
-						To:   config.WeightedURLs{{URL: *parsedUpstream}},
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
+		cfg := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-mcp-server",
+					From: "https://proxy.example.com",
+					To:   config.WeightedURLs{{URL: *parsedUpstream}},
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 			},
-		}
+		})
 		hosts := NewHostInfo(cfg, nil)
 
 		// Verify HostInfo is set up correctly
@@ -143,17 +141,15 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 		t.Parallel()
 
 		// HostInfo only knows about downstream hosts
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						Name: "test-mcp-server",
-						From: "https://proxy.example.com",
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
+		cfg := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-mcp-server",
+					From: "https://proxy.example.com",
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 			},
-		}
+		})
 		hosts := NewHostInfo(cfg, nil)
 
 		handler := &UpstreamAuthHandler{
@@ -186,11 +182,12 @@ type testUpstreamAuthStorage struct {
 	putPendingUpstreamAuthFunc func(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
 }
 
-func (s *testUpstreamAuthStorage) GetSession(ctx context.Context, id string) (*session.Session, error) {
+func (s *testUpstreamAuthStorage) GetSession(ctx context.Context, id string) (*session.Session, uint64, error) {
 	if s.getSessionFunc != nil {
-		return s.getSessionFunc(ctx, id)
+		sess, err := s.getSessionFunc(ctx, id)
+		return sess, 0, err
 	}
-	return nil, status.Error(codes.NotFound, "session not found")
+	return nil, 0, status.Error(codes.NotFound, "session not found")
 }
 
 func (s *testUpstreamAuthStorage) PutPendingUpstreamAuth(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error {
@@ -221,7 +218,7 @@ func (s *testUpstreamAuthStorage) DeleteAuthorizationRequest(context.Context, st
 	panic("unexpected call to DeleteAuthorizationRequest")
 }
 
-func (s *testUpstreamAuthStorage) PutSession(context.Context, *session.Session) error {
+func (s *testUpstreamAuthStorage) PutSession(context.Context, *session.Session) (uint64, error) {
 	panic("unexpected call to PutSession")
 }
 
@@ -620,18 +617,16 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 		parsedUpstream, err := url.Parse(srvURL)
 		require.NoError(t, err)
 
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						Name: "test-mcp-server",
-						From: "https://proxy.example.com",
-						To:   config.WeightedURLs{{URL: *parsedUpstream}},
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
+		cfg := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-mcp-server",
+					From: "https://proxy.example.com",
+					To:   config.WeightedURLs{{URL: *parsedUpstream}},
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 			},
-		}
+		})
 		hosts := NewHostInfo(cfg, nil)
 
 		var capturedPending *oauth21proto.PendingUpstreamAuth
@@ -738,18 +733,16 @@ func TestReusePendingAuth_ResourceParamConsistency(t *testing.T) {
 func TestHandle401_EmptyUserID(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					Name: "test-mcp-server",
-					From: "https://proxy.example.com",
-					To:   mustParseWeightedURLs([]string{"https://api.upstream.com"}),
-					MCP:  &config.MCP{Server: &config.MCPServer{}},
-				},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				Name: "test-mcp-server",
+				From: "https://proxy.example.com",
+				To:   mustParseWeightedURLs([]string{"https://api.upstream.com"}),
+				MCP:  &config.MCP{Server: &config.MCPServer{}},
 			},
 		},
-	}
+	})
 	hosts := NewHostInfo(cfg, nil)
 
 	handler := &UpstreamAuthHandler{
@@ -820,11 +813,11 @@ func (s *refreshTokenTestStorage) DeleteAuthorizationRequest(context.Context, st
 	panic("unexpected call")
 }
 
-func (s *refreshTokenTestStorage) GetSession(context.Context, string) (*session.Session, error) {
+func (s *refreshTokenTestStorage) GetSession(context.Context, string) (*session.Session, uint64, error) {
 	panic("unexpected call")
 }
 
-func (s *refreshTokenTestStorage) PutSession(context.Context, *session.Session) error {
+func (s *refreshTokenTestStorage) PutSession(context.Context, *session.Session) (uint64, error) {
 	panic("unexpected call")
 }
 
@@ -898,18 +891,16 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 		}
 
 		parsedUpstream, _ := url.Parse("https://api.example.com")
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						Name: "test-mcp-server",
-						From: "https://proxy.example.com",
-						To:   config.WeightedURLs{{URL: *parsedUpstream}},
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
+		cfg := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-mcp-server",
+					From: "https://proxy.example.com",
+					To:   config.WeightedURLs{{URL: *parsedUpstream}},
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 			},
-		}
+		})
 		hosts := NewHostInfo(cfg, nil)
 
 		handler := &UpstreamAuthHandler{
@@ -964,18 +955,16 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 		}
 
 		parsedUpstream, _ := url.Parse("https://api.example.com")
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						Name: "test-mcp-server",
-						From: "https://proxy.example.com",
-						To:   config.WeightedURLs{{URL: *parsedUpstream}},
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
+		cfg := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-mcp-server",
+					From: "https://proxy.example.com",
+					To:   config.WeightedURLs{{URL: *parsedUpstream}},
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 			},
-		}
+		})
 		hosts := NewHostInfo(cfg, nil)
 
 		handler := &UpstreamAuthHandler{
@@ -1049,18 +1038,16 @@ func TestRefreshOrClearToken_ErrorClassification(t *testing.T) {
 
 	makeHandler := func(store HandlerStorage, httpClient *http.Client) *UpstreamAuthHandler {
 		parsedUpstream, _ := url.Parse("https://api.example.com")
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						Name: "test-mcp-server",
-						From: "https://proxy.example.com",
-						To:   config.WeightedURLs{{URL: *parsedUpstream}},
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
+		cfg := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-mcp-server",
+					From: "https://proxy.example.com",
+					To:   config.WeightedURLs{{URL: *parsedUpstream}},
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 			},
-		}
+		})
 		return &UpstreamAuthHandler{
 			storage:    store,
 			hosts:      NewHostInfo(cfg, nil),

@@ -23,11 +23,9 @@ func TestHTTPTransport(t *testing.T) {
 	}))
 	defer s.Close()
 
-	src := NewStaticSource(&Config{
-		Options: &Options{
-			CA: base64.StdEncoding.EncodeToString(getLocalCertPEM(s)),
-		},
-	})
+	src := NewStaticSource(New(&Options{
+		CA: base64.StdEncoding.EncodeToString(getLocalCertPEM(s)),
+	}))
 	transport := NewHTTPTransport(src)
 	client := &http.Client{
 		Transport: transport,
@@ -41,7 +39,7 @@ func TestPolicyHTTPTransport(t *testing.T) {
 	defer func() {
 		http.DefaultTransport = originalTransport
 	}()
-	src := NewStaticSource(&Config{Options: &Options{}})
+	src := NewStaticSource(New(&Options{}))
 	http.DefaultTransport = NewHTTPTransport(src)
 
 	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

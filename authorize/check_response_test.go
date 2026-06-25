@@ -46,7 +46,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
-	a, err := New(t.Context(), &config.Config{Options: opt})
+	a, err := New(t.Context(), config.New(opt))
 	require.NoError(t, err)
 
 	t.Run("user-unauthenticated", func(t *testing.T) {
@@ -352,9 +352,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 		JWTClaimsHeaders: config.NewJWTClaimHeaders("email"),
 	}
 	a := &Authorize{}
-	a.currentConfig.Store(&config.Config{
-		Options: opt,
-	})
+	a.currentConfig.Store(config.New(opt))
 	a.state.Store(new(authorizeState))
 	a.store = store.New()
 	pe, err := newPolicyEvaluator(t.Context(), opt, a.store, nil)
@@ -426,16 +424,14 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 	t.Parallel()
 
 	a := &Authorize{}
-	a.currentConfig.Store(&config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{{
-				From: "https://example.com",
-				SubPolicies: []config.SubPolicy{{
-					Rego: []string{"allow = true"},
-				}},
+	a.currentConfig.Store(config.New(&config.Options{
+		Policies: []config.Policy{{
+			From: "https://example.com",
+			SubPolicies: []config.SubPolicy{{
+				Rego: []string{"allow = true"},
 			}},
-		},
-	})
+		}},
+	}))
 	a.state.Store(new(authorizeState))
 
 	t.Run("json", func(t *testing.T) {
@@ -672,7 +668,7 @@ func TestRequireLogin(t *testing.T) {
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
-	a, err := New(t.Context(), &config.Config{Options: opt})
+	a, err := New(t.Context(), config.New(opt))
 	require.NoError(t, err)
 
 	t.Run("accept empty", func(t *testing.T) {
@@ -804,12 +800,12 @@ func TestShouldRedirect(t *testing.T) {
 	t.Parallel()
 	t.Run("empty", func(t *testing.T) {
 		t.Parallel()
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		assert.True(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{}, &evaluator.Request{}))
 	})
 	t.Run("mcp", func(t *testing.T) {
 		t.Parallel()
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
 		assert.True(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{}, &evaluator.Request{}))
 		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{}, &evaluator.Request{
@@ -830,7 +826,7 @@ func TestShouldRedirect(t *testing.T) {
 	})
 	t.Run("grpc", func(t *testing.T) {
 		t.Parallel()
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
@@ -852,7 +848,7 @@ func TestShouldRedirect(t *testing.T) {
 	})
 	t.Run("grpc-web", func(t *testing.T) {
 		t.Parallel()
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
@@ -874,7 +870,7 @@ func TestShouldRedirect(t *testing.T) {
 	})
 	t.Run("json", func(t *testing.T) {
 		t.Parallel()
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
@@ -887,7 +883,7 @@ func TestShouldRedirect(t *testing.T) {
 	})
 	t.Run("html", func(t *testing.T) {
 		t.Parallel()
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		assert.True(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
@@ -900,7 +896,7 @@ func TestShouldRedirect(t *testing.T) {
 	})
 	t.Run("session header", func(t *testing.T) {
 		t.Parallel()
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
@@ -940,7 +936,7 @@ func TestShouldRedirect(t *testing.T) {
 	})
 	t.Run("session query", func(t *testing.T) {
 		t.Parallel()
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
 				Request: &envoy_service_auth_v3.AttributeContext_Request{

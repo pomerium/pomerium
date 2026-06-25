@@ -25,9 +25,9 @@ AwEHoUQDQgAEpDspy8qOG7ARSokzfO86qBnuMetrXUWhPoOU68aqr/KlsIW+KvX1
 FiPqTUIoAXth7BiRbJ3gNjNEtdUV1Rtn3w==
 -----END EC PRIVATE KEY-----
 `
-	cfg := &config.Config{Options: &config.Options{
+	cfg := config.New(&config.Options{
 		SharedKey: base64.StdEncoding.EncodeToString([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")),
-	}}
+	})
 	cert, err := cfg.GenerateCatchAllCertificate()
 	require.NoError(t, err)
 	key, err := cryptutil.EncodePrivateKey(cert.PrivateKey.(*ecdsa.PrivateKey))

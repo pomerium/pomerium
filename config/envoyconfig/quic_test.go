@@ -30,11 +30,9 @@ func Test_newQUICAltSvcHeaderFilter(t *testing.T) {
 				}},
 			},
 		}),
-		newQUICAltSvcHeaderFilter(&config.Config{
-			Options: &config.Options{
-				Addr: ":443",
-			},
-		}))
+		newQUICAltSvcHeaderFilter(config.New(&config.Options{
+			Addr: ":443",
+		})))
 	testutil.AssertProtoEqual(t,
 		HTTPHeaderMutationsFilter(&envoy_extensions_filters_http_header_mutation_v3.HeaderMutation{
 			Mutations: &envoy_extensions_filters_http_header_mutation_v3.Mutations{
@@ -50,10 +48,8 @@ func Test_newQUICAltSvcHeaderFilter(t *testing.T) {
 				}},
 			},
 		}),
-		newQUICAltSvcHeaderFilter(&config.Config{
-			Options: &config.Options{
-				Addr:               ":8443",
-				HTTP3AdvertisePort: null.Uint32From(443),
-			},
-		}))
+		newQUICAltSvcHeaderFilter(config.New(&config.Options{
+			Addr:               ":8443",
+			HTTP3AdvertisePort: null.Uint32From(443),
+		})))
 }

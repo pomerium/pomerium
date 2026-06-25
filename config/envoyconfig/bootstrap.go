@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
@@ -25,24 +24,33 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
+const (
+	ExtensionSSHSessionRecording = "pomerium.ssh.session_recording"
+)
+
 const maxActiveDownstreamConnections = 50000
 
-var (
-	envoyAdminAddressSockName = "pomerium-envoy-admin.sock"
-	envoyAdminAddressMode     = 0o600
-	envoyAdminClusterName     = "pomerium-envoy-admin"
-)
+var envoyAdminClusterName = "pomerium-envoy-admin"
+
+type DynamicExtensionsConfig struct {
+	ExtensionsToLoad  []string
+	DynamicExtensions *envoy_config_core_v3.TypedExtensionConfig
+}
 
 // BuildBootstrap builds the bootstrap config.
 func (b *Builder) BuildBootstrap(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
+	dynCfg *DynamicExtensionsConfig,
 ) (bootstrap *envoy_config_bootstrap_v3.Bootstrap, err error) {
 	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildBootstrap")
 	defer span.End()
-
 	bootstrap = new(envoy_config_bootstrap_v3.Bootstrap)
+	if dynCfg != nil && len(dynCfg.ExtensionsToLoad) > 0 {
+		bootstrap.BootstrapExtensions = append(bootstrap.BootstrapExtensions, dynCfg.DynamicExtensions)
+		b.extensionsToLoad = dynCfg.ExtensionsToLoad
+	}
 
 	bootstrap.Admin, err = b.BuildBootstrapAdmin(cfg)
 	if err != nil {
@@ -91,16 +99,8 @@ func (b *Builder) BuildBootstrap(
 // BuildBootstrapAdmin builds the admin config for the envoy bootstrap.
 func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_bootstrap_v3.Admin, err error) {
 	admin = &envoy_config_bootstrap_v3.Admin{
+		Address:     cfg.EnvoyAdminInternalAddress.EnvoyAddress(),
 		ProfilePath: cfg.Options.EnvoyAdminProfilePath,
-	}
-
-	admin.Address = &envoy_config_core_v3.Address{
-		Address: &envoy_config_core_v3.Address_Pipe{
-			Pipe: &envoy_config_core_v3.Pipe{
-				Path: filepath.Join(os.TempDir(), envoyAdminAddressSockName),
-				Mode: uint32(envoyAdminAddressMode),
-			},
-		},
 	}
 
 	if cfg.Options.EnvoyAdminAccessLogPath != os.DevNull && cfg.Options.EnvoyAdminAccessLogPath != "" {

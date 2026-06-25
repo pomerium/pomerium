@@ -603,7 +603,7 @@ func TestSharedResourceMonitor(t *testing.T) {
 		},
 	}
 
-	configSrc := config.NewStaticSource(&config.Config{})
+	configSrc := config.NewStaticSource(config.New(nil))
 	monitor, err := NewSharedResourceMonitor(t.Context(), configSrc, tempDir, WithCgroupDriver(driver))
 	require.NoError(t, err)
 
@@ -660,25 +660,21 @@ func TestSharedResourceMonitor(t *testing.T) {
 		assert.Equal(c, "1.000000", readMemorySaturation(c))
 	}, timeout, interval)
 
-	configSrc.SetConfig(ctx, &config.Config{
-		Options: &config.Options{
-			RuntimeFlags: config.RuntimeFlags{
-				config.RuntimeFlagEnvoyResourceManager: false,
-			},
+	configSrc.SetConfig(ctx, config.New(&config.Options{
+		RuntimeFlags: config.RuntimeFlags{
+			config.RuntimeFlagEnvoyResourceManager: false,
 		},
-	})
+	}))
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "0.000000", readMemorySaturation(c))
 	}, timeout, interval)
 
-	configSrc.SetConfig(ctx, &config.Config{
-		Options: &config.Options{
-			RuntimeFlags: config.RuntimeFlags{
-				config.RuntimeFlagEnvoyResourceManager: true,
-			},
+	configSrc.SetConfig(ctx, config.New(&config.Options{
+		RuntimeFlags: config.RuntimeFlags{
+			config.RuntimeFlagEnvoyResourceManager: true,
 		},
-	})
+	}))
 
 	updateMemoryMax("150")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -728,11 +724,9 @@ func TestBootstrapConfig(t *testing.T) {
 	}))
 	require.NoError(t, err)
 
-	bootstrap, err := b.BuildBootstrap(t.Context(), &config.Config{
-		Options: &config.Options{
-			EnvoyAdminAddress: "localhost:9901",
-		},
-	}, false)
+	bootstrap, err := b.BuildBootstrap(t.Context(), config.New(&config.Options{
+		EnvoyAdminAddress: "localhost:9901",
+	}), false, nil)
 	assert.NoError(t, err)
 
 	monitor.ApplyBootstrapConfig(bootstrap)

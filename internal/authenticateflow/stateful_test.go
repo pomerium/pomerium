@@ -70,7 +70,7 @@ func TestStatefulSignIn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sessionStore := &mstore.Store{SaveError: tt.saveError}
-			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, sessionStore, &pom_grpc.CachedOutboundGRPClientConn{})
+			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), config.New(opts), sessionStore, &pom_grpc.CachedOutboundGRPClientConn{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -124,7 +124,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 	opts.AuthenticateURLString = "https://authenticate.example.com"
 	key := cryptutil.NewKey()
 	opts.SharedKey = base64.StdEncoding.EncodeToString(key)
-	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil, &pom_grpc.CachedOutboundGRPClientConn{})
+	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), config.New(opts), nil, &pom_grpc.CachedOutboundGRPClientConn{})
 	require.NoError(t, err)
 
 	t.Run("NilQueryParams", func(t *testing.T) {
@@ -254,7 +254,7 @@ func TestStatefulCallback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, tt.sessionStore, &pom_grpc.CachedOutboundGRPClientConn{})
+			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), config.New(opts), tt.sessionStore, &pom_grpc.CachedOutboundGRPClientConn{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -312,7 +312,7 @@ func TestStatefulCallback_AdditionalHosts(t *testing.T) {
 	flow, err := NewStateful(
 		t.Context(),
 		trace.NewNoopTracerProvider(),
-		&config.Config{Options: opts},
+		config.New(opts),
 		&mstore.Store{SessionHandle: &session.Handle{}},
 		&pom_grpc.CachedOutboundGRPClientConn{},
 	)
@@ -361,7 +361,7 @@ func TestStatefulCallback_AdditionalHosts(t *testing.T) {
 
 func TestStatefulRevokeSession(t *testing.T) {
 	opts := config.NewDefaultOptions()
-	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil, &pom_grpc.CachedOutboundGRPClientConn{})
+	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), config.New(opts), nil, &pom_grpc.CachedOutboundGRPClientConn{})
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)
@@ -437,7 +437,7 @@ func TestPersistSession(t *testing.T) {
 
 	opts := config.NewDefaultOptions()
 	opts.CookieExpire = 4 * time.Hour
-	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil, &pom_grpc.CachedOutboundGRPClientConn{})
+	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), config.New(opts), nil, &pom_grpc.CachedOutboundGRPClientConn{})
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)

@@ -3,23 +3,18 @@ package databroker
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"net/url"
 
 	"google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
-
-	"github.com/pomerium/pomerium/pkg/grpcutil"
-	"github.com/pomerium/pomerium/pkg/health"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-//go:generate go tool -modfile ../../../internal/tools/go.mod go.uber.org/mock/mockgen -source=databroker_grpc.pb.go -destination ./mock_databroker/databroker.pb.go DataBrokerServiceClient
-//go:generate go tool -modfile ../../../internal/tools/go.mod go.uber.org/mock/mockgen -source=leaser.go -destination ./mock_databroker/leaser.go LeaserHandler
+//go:generate go tool go.uber.org/mock/mockgen -source=databroker_grpc.pb.go -destination ./mock_databroker/databroker.pb.go DataBrokerServiceClient
+//go:generate go tool go.uber.org/mock/mockgen -source=leaser.go -destination ./mock_databroker/leaser.go LeaserHandler
 
 type recordObject interface {
 	proto.Message
@@ -29,9 +24,9 @@ type recordObject interface {
 // NewRecord creates a new Record.
 func NewRecord(object recordObject) *Record {
 	return &Record{
-		Type: grpcutil.GetTypeURL(object),
+		Type: getTypeURL(object),
 		Id:   object.GetId(),
-		Data: protoutil.NewAny(object),
+		Data: newAny(object),
 	}
 }
 
@@ -43,7 +38,7 @@ func IsNotFound(err error) bool {
 // Get gets a record from the databroker and unmarshals it into the object.
 func Get(ctx context.Context, client DataBrokerServiceClient, object recordObject) error {
 	res, err := client.Get(ctx, &GetRequest{
-		Type: grpcutil.GetTypeURL(object),
+		Type: getTypeURL(object),
 		Id:   object.GetId(),
 	})
 	if err != nil {
@@ -74,48 +69,6 @@ func ApplyOffsetAndLimit(all []*Record, offset, limit int) (records []*Record, t
 		records = records[:limit]
 	}
 	return records, len(all)
-}
-
-// InitialSync performs a sync latest and then returns all the results.
-func InitialSync(
-	ctx context.Context,
-	client DataBrokerServiceClient,
-	req *SyncLatestRequest,
-) (records []*Record, options []*TypedOptions, recordVersion, serverVersion uint64, err error) {
-	defer func() {
-		if err != nil {
-			health.ReportError(health.DatabrokerInitialSync, err)
-		} else {
-			health.ReportRunning(health.DatabrokerInitialSync)
-		}
-	}()
-	stream, err := client.SyncLatest(ctx, req)
-	if err != nil {
-		return nil, nil, 0, 0, err
-	}
-
-loop:
-	for {
-		res, err := stream.Recv()
-		switch {
-		case errors.Is(err, io.EOF):
-			break loop
-		case err != nil:
-			return nil, nil, 0, 0, fmt.Errorf("error receiving record: %w", err)
-		}
-
-		switch res := res.GetResponse().(type) {
-		case *SyncLatestResponse_Versions:
-			recordVersion = res.Versions.GetLatestRecordVersion()
-			serverVersion = res.Versions.GetServerVersion()
-		case *SyncLatestResponse_Record:
-			records = append(records, res.Record)
-		case *SyncLatestResponse_Options:
-			options = append(options, res.Options)
-		}
-	}
-
-	return records, options, recordVersion, serverVersion, nil
 }
 
 // GetRecord gets the first record, or nil if there are none.
@@ -199,4 +152,17 @@ func OptimumPutRequestsFromRecords(records []*Record) []*PutRequest {
 		OptimumPutRequestsFromRecords(records[:len(records)/2]),
 		OptimumPutRequestsFromRecords(records[len(records)/2:])...,
 	)
+}
+
+func getTypeURL(msg proto.Message) string {
+	// taken from the anypb package
+	return "type.googleapis.com/" + string(msg.ProtoReflect().Descriptor().FullName())
+}
+
+func newAny(src proto.Message) *anypb.Any {
+	a, err := anypb.New(src)
+	if err != nil {
+		panic(err)
+	}
+	return a
 }

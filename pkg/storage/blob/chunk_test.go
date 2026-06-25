@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"net/url"
 	"os"
+	"path"
 	"runtime"
 	"testing"
 
@@ -17,16 +19,14 @@ import (
 	"github.com/stretchr/testify/require"
 	gblob "gocloud.dev/blob"
 	_ "gocloud.dev/blob/memblob"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/version"
-	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
+	blobtestutil "github.com/pomerium/pomerium/pkg/storage/blob/testutil"
 )
 
 func emptyCheckSum() [16]byte {
@@ -34,8 +34,6 @@ func emptyCheckSum() [16]byte {
 }
 
 func TestChunkReaderWriter(t *testing.T) {
-	t.Parallel()
-
 	t.Run("in-mem", func(t *testing.T) {
 		b, err := gblob.OpenBucket(t.Context(), "mem://?prefix=a/subfolder/")
 		require.NoError(t, err)
@@ -47,20 +45,12 @@ func TestChunkReaderWriter(t *testing.T) {
 			func(ctx context.Context, schema blob.SchemaV1WithKey) (blob.ChunkWriter, error) {
 				return blob.NewChunkWriter(ctx, schema, b)
 			},
-			func(ctx context.Context, schema blob.SchemaV1, opts ...blob.ListOption) iterutil.ErrorSeq[string] {
-				return blob.IterateRecordingIDs(ctx, b, schema, opts...)
-			},
 			b, true,
 		)
 	})
 
 	t.Run("minio-locked", func(t *testing.T) {
-		endp, ak, sk, bk := setupWithObjectLock(t)
-
-		bucketURI := fmt.Sprintf(
-			"minio://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
-			ak, sk, bk, endp,
-		)
+		bucketURI := setupWithObjectLock(t)
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
 		require.NoError(t, err)
 		require.NotNil(t, b)
@@ -71,9 +61,6 @@ func TestChunkReaderWriter(t *testing.T) {
 			func(ctx context.Context, schema blob.SchemaV1WithKey) (blob.ChunkWriter, error) {
 				return blob.NewChunkWriter(ctx, schema, b)
 			},
-			func(ctx context.Context, schema blob.SchemaV1, opts ...blob.ListOption) iterutil.ErrorSeq[string] {
-				return blob.IterateRecordingIDs(ctx, b, schema, opts...)
-			},
 			b, false,
 		)
 	})
@@ -82,12 +69,8 @@ func TestChunkReaderWriter(t *testing.T) {
 // Meta testing that the test code we write for WORM conformance is correct
 func TestConformanceChecks(t *testing.T) {
 	t.Run("minio-locked", func(t *testing.T) {
-		endp, ak, sk, bk := setupWithObjectLock(t)
+		bucketURI := setupWithObjectLock(t)
 
-		bucketURI := fmt.Sprintf(
-			"minio://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
-			ak, sk, bk, endp,
-		)
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
 		require.NoError(t, err)
 
@@ -104,7 +87,6 @@ func TestConformanceChecks(t *testing.T) {
 func testChunkReaderWriterConformance(t *testing.T,
 	rF func(blob.SchemaV1WithKey) (blob.ChunkReader, error),
 	wrF func(context.Context, blob.SchemaV1WithKey) (blob.ChunkWriter, error),
-	iterF func(context.Context, blob.SchemaV1, ...blob.ListOption) iterutil.ErrorSeq[string],
 	bk *gblob.Bucket,
 	skipLockCheck bool,
 ) {
@@ -123,7 +105,7 @@ func testChunkReaderWriterConformance(t *testing.T,
 			cw, err := wrF(ctx, schema)
 			require.NoError(t, err)
 
-			md := &recording.RecordingMetadata{Id: "rec-1", RecordingType: recording.RecordingFormat_RecordingFormatUnknown}
+			md := &recording.RecordingMetadata{RecordingType: recording.RecordingFormat_RecordingFormatSSH}
 			require.NoError(t, cw.WriteMetadata(ctx, md))
 
 			chunk1 := []byte("foo")
@@ -133,23 +115,22 @@ func testChunkReaderWriterConformance(t *testing.T,
 			require.NoError(t, cw.WriteChunk(ctx, chunk2, emptyCheckSum()))
 			require.NoError(t, cw.WriteChunk(ctx, chunk3, emptyCheckSum()))
 
-			require.NoError(t, cw.Finalize(ctx, &recording.RecordingSignature{}))
+			require.NoError(t, cw.Finalize(ctx, &recording.RecordingTrailer{}))
 
-			mdPath, _ := schema.MetadataPath()
-			rawMd, err := bk.ReadAll(ctx, mdPath)
-			require.NoError(t, err)
-			existingMd := &recording.RecordingMetadata{}
-			require.NoError(t, proto.Unmarshal(rawMd, existingMd))
-			assert.Equal(t, md.GetId(), existingMd.GetId())
-			assert.Equal(t, md.GetRecordingType(), existingMd.GetRecordingType())
-
-			jsonMdPath, _ := schema.MetadataJSON()
-			rawJSONMD, err := bk.ReadAll(ctx, jsonMdPath)
-			require.NoError(t, err)
-			jsonExistingMd := &recording.RecordingMetadata{}
-			require.NoError(t, protojson.Unmarshal(rawJSONMD, jsonExistingMd))
-			assert.Equal(t, md.GetId(), jsonExistingMd.GetId())
-			assert.Equal(t, md.GetRecordingType(), jsonExistingMd.GetRecordingType())
+			zeroChecksum := make([]byte, 16)
+			blobtestutil.TestFullObjectMatches(t, bk, schema,
+				&recording.RecordingData{Data: &recording.RecordingData_Metadata{Metadata: md}},
+				&recording.ChunkManifest{
+					Items: []*recording.ChunkMetadata{
+						{Size: 3, Checksum: zeroChecksum},
+						{Size: 3, Checksum: zeroChecksum},
+						{Size: 3, Checksum: zeroChecksum},
+					},
+				},
+				[]byte("foobarbaz"),
+				&recording.RecordingTrailer{},
+			)
+			blobtestutil.TestSchemaIDsMatchExactly(t, bk, schema.SchemaV1, []string{"id1"})
 
 			cr, err := rF(schema)
 			require.NoError(t, err)
@@ -181,45 +162,8 @@ func testChunkReaderWriterConformance(t *testing.T,
 			}
 			assert.Equal(t, 1, count)
 
-			sigPath, _ := schema.SignaturePath()
-			sigExists, err := bk.Exists(ctx, sigPath)
-			require.NoError(t, err)
-			assert.True(t, sigExists)
-
 			_, err = wrF(ctx, schema)
 			require.ErrorIs(t, err, blob.ErrAlreadyFinalized)
-
-			// check all content types of written obejcts
-			mdAttrs, err := bk.Attributes(ctx, mdPath)
-			require.NoError(t, err)
-			assert.Equal(t, blob.ContentTypeProtobuf, mdAttrs.ContentType, "metadata proto content type")
-
-			jsonMdAttrs, err := bk.Attributes(ctx, jsonMdPath)
-			require.NoError(t, err)
-			assert.Equal(t, blob.ContentTypeJSON, jsonMdAttrs.ContentType, "metadata json content type")
-
-			for i := range 3 {
-				chunkPath := schema.ObjectDir() + "/recording_" + fmt.Sprintf("%010d", i) + ".json"
-				chunkAttrs, err := bk.Attributes(ctx, chunkPath)
-				require.NoError(t, err)
-				assert.Equal(t, blob.ContentTypeProtojson, chunkAttrs.ContentType, "chunk %d content type", i)
-			}
-
-			manifestPath, expectedManifestCT := schema.ManifestPath()
-			manifestAttrs, err := bk.Attributes(ctx, manifestPath)
-			require.NoError(t, err)
-			assert.Equal(t, expectedManifestCT, manifestAttrs.ContentType, "manifest content type")
-
-			sigAttrs, err := bk.Attributes(ctx, sigPath)
-			require.NoError(t, err)
-			assert.Equal(t, blob.ContentTypeProtobuf, sigAttrs.ContentType, "signature content type")
-			ids := []string{}
-			iter := iterF(ctx, schema.SchemaV1, blob.WithFinalizedRecordings())
-			for id, err := range iter {
-				require.NoError(t, err)
-				ids = append(ids, id)
-			}
-			assert.ElementsMatch(t, []string{"id1"}, ids)
 		})
 
 		t.Run("resume", func(t *testing.T) {
@@ -229,8 +173,11 @@ func testChunkReaderWriterConformance(t *testing.T,
 				ClusterID:     uuid.New().String(),
 			}, "resume")
 
+			md := &recording.RecordingMetadata{RecordingType: recording.RecordingFormat_RecordingFormatSSH}
+
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
+			require.NoError(t, cw1.WriteMetadata(ctx, md))
 			require.NoError(t, cw1.WriteChunk(ctx, []byte("foo"), emptyCheckSum()))
 
 			// after resume, loadManifest rebuilds manifest from listed objects.
@@ -245,13 +192,20 @@ func testChunkReaderWriterConformance(t *testing.T,
 			assert.Equal(t, expectedMD5[:], resumedManifest.GetItems()[0].GetChecksum(), "resumed chunk checksum should be MD5 of chunk data")
 
 			require.NoError(t, cw2.WriteChunk(ctx, []byte("bar"), emptyCheckSum()))
-			require.NoError(t, cw2.Finalize(ctx, &recording.RecordingSignature{}))
+			require.NoError(t, cw2.Finalize(ctx, &recording.RecordingTrailer{}))
 
-			cr, err := rF(schema)
-			require.NoError(t, err)
-			all, err := cr.GetAll(ctx)
-			require.NoError(t, err)
-			assert.Equal(t, []byte("foobar"), all)
+			blobtestutil.TestFullObjectMatches(t, bk, schema,
+				&recording.RecordingData{Data: &recording.RecordingData_Metadata{Metadata: md}},
+				&recording.ChunkManifest{
+					Items: []*recording.ChunkMetadata{
+						{Size: uint32(len("foo")), Checksum: expectedMD5[:]},
+						{Size: uint32(len("bar")), Checksum: make([]byte, 16)},
+					},
+				},
+				[]byte("foobar"),
+				&recording.RecordingTrailer{},
+			)
+			blobtestutil.TestSchemaIDsMatchExactly(t, bk, schema.SchemaV1, []string{"resume"})
 		})
 
 		t.Run("metadata conflict", func(t *testing.T) {
@@ -263,12 +217,12 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
-			md1 := &recording.RecordingMetadata{Id: "rec-1"}
+			md1 := &recording.RecordingMetadata{RecordingType: recording.RecordingFormat_RecordingFormatSSH}
 			require.NoError(t, cw1.WriteMetadata(ctx, md1))
 
 			cw2, err := wrF(ctx, schema)
 			require.NoError(t, err)
-			md2 := &recording.RecordingMetadata{Id: "rec-2"}
+			md2 := &recording.RecordingMetadata{RecordingType: recording.RecordingFormat_RecordingFormatUnknown}
 			err = cw2.WriteMetadata(ctx, md2)
 			require.ErrorIs(t, err, blob.ErrMetadataMismatch)
 
@@ -305,7 +259,7 @@ func testChunkReaderWriterConformance(t *testing.T,
 			cw, err := wrF(ctx, schema)
 			require.NoError(t, err)
 			require.NoError(t, cw.WriteChunk(ctx, []byte("data"), emptyCheckSum()))
-			require.NoError(t, cw.Finalize(ctx, &recording.RecordingSignature{}))
+			require.NoError(t, cw.Finalize(ctx, &recording.RecordingTrailer{}))
 
 			_, err = wrF(ctx, schema)
 			require.ErrorIs(t, err, blob.ErrAlreadyFinalized)
@@ -334,11 +288,15 @@ func testChunkReaderWriterConformance(t *testing.T,
 				RecordingType: "ssh",
 				ClusterID:     uuid.New().String(),
 			}, "in-progress")
+			mdPathJSON, ctMd0 := schema.MetadataJSON()
+			require.NoError(t, bk.WriteAll(ctx, mdPathJSON, []byte("mdJSON"), &gblob.WriterOptions{ContentType: ctMd0}))
+			mdPathProto, ctMd1 := schema.MetadataPath()
+			require.NoError(t, bk.WriteAll(ctx, mdPathProto, []byte("mdProto"), &gblob.WriterOptions{ContentType: ctMd1}))
 
 			chunk0Path, ct0 := schema.ChunkPath(0)
 			require.NoError(t, bk.WriteAll(ctx, chunk0Path, []byte("chunk0"), &gblob.WriterOptions{ContentType: ct0}))
-			chunk2Path, ct2 := schema.ChunkPath(1)
-			require.NoError(t, bk.WriteAll(ctx, chunk2Path, []byte("chunk2"), &gblob.WriterOptions{ContentType: ct2}))
+			chunk1Path, ct1 := schema.ChunkPath(1)
+			require.NoError(t, bk.WriteAll(ctx, chunk1Path, []byte("chunk1"), &gblob.WriterOptions{ContentType: ct1}))
 
 			_, err := rF(schema)
 			assert.Error(t, err)
@@ -382,12 +340,20 @@ func verifyWroteOnceSemantics(t *testing.T, bk *gblob.Bucket, expectLocked bool)
 	require.Greater(t, checked, 0, "no objects were actually tested when checking for versions")
 }
 
-func setupWithObjectLock(t *testing.T) (endpoint, accessKey, secretKey, bucket string) {
+// setupWithObjectLock returns the bucketURI string of the constructed bucket
+func setupWithObjectLock(t *testing.T) string {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
 	endpoint, ak, sk := testutil.StartMinio(t)
+	profilePath := path.Join(t.TempDir(), "test-minio-profile")
+	require.NoError(t, os.WriteFile(profilePath, fmt.Appendf(nil, `[testminio]
+aws_access_key_id=%s
+aws_secret_access_key=%s
+region=us-east-1
+`, ak, sk), 0o644))
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", profilePath)
 
 	ctx := context.Background()
 
@@ -411,5 +377,16 @@ func setupWithObjectLock(t *testing.T) (endpoint, accessKey, secretKey, bucket s
 	unit := minio.Days
 	require.NoError(t, client.SetObjectLockConfig(ctx, bk, &mode, &validity, &unit))
 
-	return endpoint, ak, sk, bk
+	bucketURI := &url.URL{
+		Scheme: "s3",
+		Host:   bk,
+	}
+	q := bucketURI.Query()
+	q.Add("endpoint", "http://"+endpoint)
+	q.Add("disable_https", "true")
+	q.Add("profile", "testminio")
+	q.Add("s3ForcePathStyle", "true")
+	bucketURI.RawQuery = q.Encode()
+
+	return bucketURI.String()
 }

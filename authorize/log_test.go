@@ -23,9 +23,7 @@ import (
 func Test_logAuthorizeCheck(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	a, err := New(t.Context(), cfg)
 	require.NoError(t, err)
 
@@ -85,7 +83,7 @@ func Test_logAuthorizeCheck(t *testing.T) {
 		"email": "user@example.com",
 		"envoy-route-checksum": 5678,
 		"envoy-route-id": "ENVOY-ROUTE-1",
-		"route-checksum": 14498102996580223852,
+		"route-checksum": 1537017797331053845,
 		"route-id": "ROUTE-1",
 		"allow": true,
 		"allow-why-true": ["user-ok"],
@@ -177,7 +175,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{logfields.AuthorizeLogFieldQuery, s, `{"query":"a=b"}`},
 		{logfields.AuthorizeLogFieldRemovedGroupsCount, s, `{"removed-groups-count":42}`},
 		{logfields.AuthorizeLogFieldRequestID, s, `{"request-id":"REQUEST-ID"}`},
-		{logfields.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":7994031080614738683}`},
+		{logfields.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":13488377874434619714}`},
 		{logfields.AuthorizeLogFieldRouteID, s, `{"route-id":"POLICY-ID"}`},
 		{logfields.AuthorizeLogFieldServiceAccountID, sa, `{"service-account-id":"SERVICE-ACCOUNT-ID"}`},
 		{logfields.AuthorizeLogFieldSessionID, s, `{"session-id":"SESSION-ID"}`},

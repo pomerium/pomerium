@@ -98,6 +98,9 @@ gha-creds-*.json
 # Local issue tracking
 .issues/
 
+# Hegel property-based testing cache and database
+.hegel/
+
 *.log
 *.env
 # tcpdump captures

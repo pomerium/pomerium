@@ -20,6 +20,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -92,12 +93,12 @@ func (ur *UsageReporter) runInit(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
 ) (serverVersion, latestSessionRecordVersion, latestUserRecordVersion uint64, err error) {
-	_, latestSessionRecordVersion, err = databroker.SyncLatestRecords(ctx, client, ur.onUpdateSession)
+	_, latestSessionRecordVersion, err = databrokerutil.SyncLatestRecords(ctx, client, ur.onUpdateSession)
 	if err != nil {
 		return 0, 0, 0, err
 	}
 
-	serverVersion, latestUserRecordVersion, err = databroker.SyncLatestRecords(ctx, client, ur.onUpdateUser)
+	serverVersion, latestUserRecordVersion, err = databrokerutil.SyncLatestRecords(ctx, client, ur.onUpdateUser)
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -112,10 +113,10 @@ func (ur *UsageReporter) runSync(
 ) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return databroker.SyncRecords(ctx, client, serverVersion, latestSessionRecordVersion, ur.onUpdateSession)
+		return databrokerutil.SyncRecords(ctx, client, serverVersion, latestSessionRecordVersion, ur.onUpdateSession)
 	})
 	eg.Go(func() error {
-		return databroker.SyncRecords(ctx, client, serverVersion, latestUserRecordVersion, ur.onUpdateUser)
+		return databrokerutil.SyncRecords(ctx, client, serverVersion, latestUserRecordVersion, ur.onUpdateUser)
 	})
 	eg.Go(func() error {
 		return ur.runReporter(ctx)

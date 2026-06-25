@@ -190,9 +190,14 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		HttpFilters:                  filters,
 		AccessLog:                    buildAccessLogs(cfg.Options),
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
+			HeadersWithUnderscoresAction: cfg.Options.HeadersWithUnderscoresAction.
+				Or(configpb.HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST).
+				ToEnvoy(),
 			IdleTimeout:       durationpb.New(cfg.Options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
+			MaxHeadersCount:   wrapperspb.UInt32(1000),
 		},
+		MaxRequestHeadersKb: wrapperspb.UInt32(128),
 		HttpProtocolOptions: http1ProtocolOptions,
 		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
@@ -200,7 +205,11 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		SkipXffAppend:     cfg.Options.SkipXffAppend,
 		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
 		LocalReplyConfig:  localReply,
-		NormalizePath:     wrapperspb.Bool(true),
+		MergeSlashes:      cfg.Options.MergeSlashes.Or(true),
+		NormalizePath:     wrapperspb.Bool(cfg.Options.NormalizePath.Or(true)),
+		PathWithEscapedSlashesAction: cfg.Options.PathWithEscapedSlashesAction.
+			Or(configpb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST).
+			ToEnvoy(),
 	}
 
 	if useQUIC {

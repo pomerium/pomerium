@@ -44,7 +44,7 @@ func TestStreamManager(t *testing.T) {
 	databrokerClient := databrokerpb.NewDataBrokerServiceClient(cc)
 	auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
-	cfg := &config.Config{Options: config.NewDefaultOptions()}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.Policies = []config.Policy{
 		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22")},
 		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22")},
@@ -187,7 +187,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 	ctrl := gomock.NewController(t, gomock.WithOverridableExpectations())
 	auth := mock_ssh.NewMockAuthInterface(ctrl)
 
-	cfg := &config.Config{Options: config.NewDefaultOptions()}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = []config.Policy{
 		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22"), UpstreamTunnel: &config.UpstreamTunnel{}, AllowPublicUnauthenticatedAccess: true},

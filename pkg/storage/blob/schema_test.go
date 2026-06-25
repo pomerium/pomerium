@@ -47,7 +47,7 @@ func TestSchemaV1_SignaturePath(t *testing.T) {
 	s := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
 
 	p, ct := s.SignaturePath("rec-1")
-	assert.Equal(t, "c1/ssh/v1/rec-1.sig", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/signature", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 }
 
@@ -56,11 +56,11 @@ func TestSchemaV1_ChunkPath(t *testing.T) {
 	s := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
 
 	p, ct := s.ChunkPath("rec-1", 0)
-	assert.Equal(t, "c1/ssh/v1/rec-1/recording_0000000000.json", p)
-	assert.Equal(t, blob.ContentTypeProtojson, ct)
+	assert.Equal(t, "c1/ssh/v1/rec-1/recording_0000000000", p)
+	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 
 	p, _ = s.ChunkPath("rec-1", 42)
-	assert.Equal(t, "c1/ssh/v1/rec-1/recording_0000000042.json", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/recording_0000000042", p)
 }
 
 func TestAsIDStr(t *testing.T) {
@@ -91,10 +91,10 @@ func TestSchemaV1WithKey(t *testing.T) {
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 
 	p, ct = s.SignaturePath()
-	assert.Equal(t, "c1/ssh/v1/rec-1.sig", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/signature", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 
 	p, ct = s.ChunkPath(5)
-	assert.Equal(t, "c1/ssh/v1/rec-1/recording_0000000005.json", p)
-	assert.Equal(t, blob.ContentTypeProtojson, ct)
+	assert.Equal(t, "c1/ssh/v1/rec-1/recording_0000000005", p)
+	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 }

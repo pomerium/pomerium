@@ -19,7 +19,7 @@ type CredentialForAuthenticate = {
 };
 
 async function authenticateCredential(
-  requestOptions: WebAuthnRequestOptions
+  requestOptions: WebAuthnRequestOptions,
 ): Promise<CredentialForAuthenticate> {
   const credential = await navigator.credentials.get({
     publicKey: {

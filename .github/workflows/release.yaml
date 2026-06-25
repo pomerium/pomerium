@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Perform a dry-run (snapshot build, no publishing)'
+        description: "Perform a dry-run (snapshot build, no publishing)"
         required: true
         default: true
         type: boolean
@@ -27,7 +27,7 @@ jobs:
       tag: ${{ steps.tagName.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Unshallow
         run: git fetch --prune --unshallow
@@ -68,7 +68,7 @@ jobs:
         run: echo "version=v$(grep '^goreleaser ' .tool-versions | awk '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89
         with:
           version: ${{ steps.goreleaser-version.outputs.version }}
           args: >-
@@ -150,13 +150,13 @@ jobs:
     if: github.event_name == 'release'
     steps:
       - name: Checkout Gitops Repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c
+        uses: mikefarah/yq@1b9b4ac5187171d2e5e3129be0cfa827c7f9d53d
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
@@ -167,3 +167,21 @@ jobs:
             Bump test environment pomerium/pomerium
             Image tag: ${{ needs.goreleaser.outputs.tag }}
             Source Repo: ${{ github.repository }}@${{ github.sha }}
+
+  tag-sub-packages:
+    runs-on: ubuntu-22.04
+    needs: goreleaser
+    if: github.event_name == 'release'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: pomerium/pomerium
+          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+
+      - name: Tag
+        run: |
+          git tag pkg/grpc/config/${{ needs.goreleaser.outputs.tag }} ${{ needs.goreleaser.outputs.tag }}
+          git push origin tag pkg/grpc/config/${{ needs.goreleaser.outputs.tag }}
+          git tag pkg/grpc/databroker/${{ needs.goreleaser.outputs.tag }} ${{ needs.goreleaser.outputs.tag }}
+          git push origin tag pkg/grpc/databroker/${{ needs.goreleaser.outputs.tag }}

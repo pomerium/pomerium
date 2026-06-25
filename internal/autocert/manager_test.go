@@ -246,19 +246,17 @@ func TestConfig(t *testing.T) {
 	ocspUpdated := signal.New()
 	ocspUpdatedCh := domainRenewed.Bind()
 
-	mgr, err := newManager(ctx, config.NewStaticSource(&config.Config{
-		Options: &config.Options{
-			AutocertOptions: config.AutocertOptions{
-				Enable:     true,
-				UseStaging: true,
-				Email:      "pomerium-test@example.com",
-				MustStaple: true,
-				Folder:     tmpdir,
-			},
-			HTTPRedirectAddr: addr,
-			Policies:         []config.Policy{p1},
+	mgr, err := newManager(ctx, config.NewStaticSource(config.New(&config.Options{
+		AutocertOptions: config.AutocertOptions{
+			Enable:     true,
+			UseStaging: true,
+			Email:      "pomerium-test@example.com",
+			MustStaple: true,
+			Folder:     tmpdir,
 		},
-	}), certmagic.ACMEIssuer{
+		HTTPRedirectAddr: addr,
+		Policies:         []config.Policy{p1},
+	})), certmagic.ACMEIssuer{
 		CA:     srv.URL + "/acme/directory",
 		TestCA: srv.URL + "/acme/directory",
 	}, time.Millisecond*100)
@@ -313,16 +311,14 @@ func TestRedirect(t *testing.T) {
 	addr := li.Addr().String()
 	_ = li.Close()
 
-	src := config.NewStaticSource(&config.Config{
-		Options: &config.Options{
-			HTTPRedirectAddr: addr,
-			SetResponseHeaders: map[string]string{
-				"X-Frame-Options":           "SAMEORIGIN",
-				"X-XSS-Protection":          "1; mode=block",
-				"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-			},
+	src := config.NewStaticSource(config.New(&config.Options{
+		HTTPRedirectAddr: addr,
+		SetResponseHeaders: map[string]string{
+			"X-Frame-Options":           "SAMEORIGIN",
+			"X-XSS-Protection":          "1; mode=block",
+			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 		},
-	})
+	}))
 	_, err = New(t.Context(), src)
 	require.NoError(t, err)
 
@@ -356,17 +352,15 @@ func TestRedirect(t *testing.T) {
 	}
 
 	go func() {
-		src.SetConfig(t.Context(), &config.Config{
-			Options: &config.Options{
-				HTTPRedirectAddr: addr,
-				SetResponseHeaders: map[string]string{
-					"X-Frame-Options":           "SAMEORIGIN",
-					"X-XSS-Protection":          "1; mode=block",
-					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-				},
-				UseProxyProtocol: true,
+		src.SetConfig(t.Context(), config.New(&config.Options{
+			HTTPRedirectAddr: addr,
+			SetResponseHeaders: map[string]string{
+				"X-Frame-Options":           "SAMEORIGIN",
+				"X-XSS-Protection":          "1; mode=block",
+				"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 			},
-		})
+			UseProxyProtocol: true,
+		}))
 	}()
 
 	require.Eventually(t, func() bool {
@@ -680,9 +674,7 @@ func Test_configureTrustedRoots(t *testing.T) {
 func Test_sourceHostnames(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.Policies = []config.Policy{
 		{From: "https://foo.example.com"},
 		{From: "http://non-https-route.example.com"},
@@ -704,18 +696,18 @@ func TestShouldEnableHTTPChallenge(t *testing.T) {
 	t.Parallel()
 
 	assert.False(t, shouldEnableHTTPChallenge(nil))
-	assert.False(t, shouldEnableHTTPChallenge(&config.Config{}))
-	assert.False(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{}}))
-	assert.False(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{
+	assert.False(t, shouldEnableHTTPChallenge(config.New(nil)))
+	assert.False(t, shouldEnableHTTPChallenge(config.New(&config.Options{})))
+	assert.False(t, shouldEnableHTTPChallenge(config.New(&config.Options{
 		HTTPRedirectAddr: ":8080",
-	}}))
-	assert.False(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{
+	})))
+	assert.False(t, shouldEnableHTTPChallenge(config.New(&config.Options{
 		HTTPRedirectAddr: "127.0.0.1:8080",
-	}}))
-	assert.True(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{
+	})))
+	assert.True(t, shouldEnableHTTPChallenge(config.New(&config.Options{
 		HTTPRedirectAddr: ":80",
-	}}))
-	assert.True(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{
+	})))
+	assert.True(t, shouldEnableHTTPChallenge(config.New(&config.Options{
 		HTTPRedirectAddr: "127.0.0.1:80",
-	}}))
+	})))
 }

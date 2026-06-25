@@ -10,6 +10,7 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_extensions_clusters_common_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/common/dns/v3"
 	envoy_extensions_clusters_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dns/v3"
 	envoy_extensions_network_dns_resolver_cares_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/network/dns_resolver/cares/v3"
@@ -29,15 +30,26 @@ import (
 )
 
 func Test_BuildClusters(t *testing.T) {
-	// The admin address path is based on os.TempDir(), which will vary from
-	// system to system, so replace this with a stable location.
-	t.Setenv("TMPDIR", "/tmp")
+	t.Parallel()
 
-	opts := config.NewDefaultOptions()
+	cfg := config.New(config.NewDefaultOptions())
 	ctx := t.Context()
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
-	clusters, err := b.BuildClusters(ctx, &config.Config{Options: opts})
+	clusters, err := b.BuildClusters(ctx, cfg)
 	require.NoError(t, err)
+	for _, c := range clusters {
+		if c.Name != "pomerium-envoy-admin" {
+			continue
+		}
+		c.LoadAssignment.Endpoints[0].LbEndpoints[0].
+			HostIdentifier.(*envoy_config_endpoint_v3.LbEndpoint_Endpoint).
+			Endpoint.Address.Address.(*envoy_config_core_v3.Address_Pipe).
+			Pipe.Mode = 0o0600
+		c.LoadAssignment.Endpoints[0].LbEndpoints[0].
+			HostIdentifier.(*envoy_config_endpoint_v3.LbEndpoint_Endpoint).
+			Endpoint.Address.Address.(*envoy_config_core_v3.Address_Pipe).
+			Pipe.Path = "ENVOY_ADMIN_SOCKET"
+	}
 	testutil.AssertProtoJSONFileEqual(t, "testdata/clusters.json", clusters)
 }
 
@@ -49,25 +61,25 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-3133535332543131503345494c.pem")
 
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
-	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
+	rootCABytes, _ := getCombinedCertificateAuthority(ctx, config.New(&config.Options{}))
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 
 	o1 := config.NewDefaultOptions()
 	o2 := config.NewDefaultOptions()
 	o2.CA = base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0})
 
-	combinedCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{CA: o2.CA}})
+	combinedCABytes, _ := getCombinedCertificateAuthority(ctx, config.New(&config.Options{CA: o2.CA}))
 	combinedCA := b.filemgr.BytesDataSource("ca.pem", combinedCABytes).GetFilename()
 
 	t.Run("insecure", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, config.New(o1), &config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com"),
 		}, *mustParseURL(t, "http://example.com"))
 		require.NoError(t, err)
 		assert.Nil(t, ts)
 	})
 	t.Run("host as sni", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, config.New(o1), &config.Policy{
 			To: mustParseWeightedURLs(t, "https://example.com"),
 		}, *mustParseURL(t, "https://example.com"))
 		require.NoError(t, err)
@@ -122,7 +134,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, ts)
 	})
 	t.Run("tls_server_name as sni", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, config.New(o1), &config.Policy{
 			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSServerName: "use-this-name.example.com",
 		}, *mustParseURL(t, "https://example.com"))
@@ -178,7 +190,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, ts)
 	})
 	t.Run("tls_upstream_server_name as sni", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, config.New(o1), &config.Policy{
 			To:                    mustParseWeightedURLs(t, "https://example.com"),
 			TLSUpstreamServerName: "use-this-name.example.com",
 		}, *mustParseURL(t, "https://example.com"))
@@ -234,7 +246,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, ts)
 	})
 	t.Run("tls_skip_verify", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, config.New(o1), &config.Policy{
 			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSSkipVerify: true,
 		}, *mustParseURL(t, "https://example.com"))
@@ -291,7 +303,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, ts)
 	})
 	t.Run("custom ca", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, config.New(o1), &config.Policy{
 			To:          mustParseWeightedURLs(t, "https://example.com"),
 			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
 		}, *mustParseURL(t, "https://example.com"))
@@ -347,7 +359,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, ts)
 	})
 	t.Run("options custom ca", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o2}, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, config.New(o2), &config.Policy{
 			To: mustParseWeightedURLs(t, "https://example.com"),
 		}, *mustParseURL(t, "https://example.com"))
 		require.NoError(t, err)
@@ -403,7 +415,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	})
 	t.Run("client certificate", func(t *testing.T) {
 		clientCert, _ := cryptutil.CertificateFromBase64(aExampleComCert, aExampleComKey)
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, config.New(o1), &config.Policy{
 			To:                mustParseWeightedURLs(t, "https://example.com"),
 			ClientCertificate: clientCert,
 		}, *mustParseURL(t, "https://example.com"))
@@ -467,7 +479,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, ts)
 	})
 	t.Run("allow renegotiation", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, config.New(o1), &config.Policy{
 			To:                            mustParseWeightedURLs(t, "https://example.com"),
 			TLSUpstreamAllowRenegotiation: true,
 		}, *mustParseURL(t, "https://example.com"))
@@ -530,11 +542,11 @@ func Test_buildCluster(t *testing.T) {
 
 	ctx := t.Context()
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
-	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
+	rootCABytes, _ := getCombinedCertificateAuthority(ctx, config.New(&config.Options{}))
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 	o1 := config.NewDefaultOptions()
 	t.Run("insecure", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Config{Options: o1}, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, config.New(o1), &config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com", "http://1.2.3.4"),
 		})
 		require.NoError(t, err)
@@ -606,7 +618,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("secure", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Config{Options: o1}, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, config.New(o1), &config.Policy{
 			To: mustParseWeightedURLs(t,
 				"https://example.com",
 				"https://example.com",
@@ -803,7 +815,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("ip addresses", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Config{Options: o1}, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, config.New(o1), &config.Policy{
 			To: mustParseWeightedURLs(t, "http://127.0.0.1", "http://127.0.0.2"),
 		})
 		require.NoError(t, err)
@@ -861,7 +873,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("weights", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Config{Options: o1}, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, config.New(o1), &config.Policy{
 			To: mustParseWeightedURLs(t, "http://127.0.0.1:8080,1", "http://127.0.0.2,2"),
 		})
 		require.NoError(t, err)
@@ -921,7 +933,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("localhost", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Config{Options: o1}, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, config.New(o1), &config.Policy{
 			To: mustParseWeightedURLs(t, "http://localhost"),
 		})
 		require.NoError(t, err)
@@ -969,7 +981,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("outlier", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Config{Options: o1}, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, config.New(o1), &config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com"),
 		})
 		require.NoError(t, err)
@@ -1070,7 +1082,7 @@ func Test_bindConfig(t *testing.T) {
 
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("no bind config", func(t *testing.T) {
-		cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: &config.Options{}}, &config.Policy{
+		cluster, err := b.buildPolicyCluster(ctx, config.New(&config.Options{}), &config.Policy{
 			From: "https://from.example.com",
 			To:   mustParseWeightedURLs(t, "https://to.example.com"),
 		})
@@ -1078,9 +1090,9 @@ func Test_bindConfig(t *testing.T) {
 		assert.Nil(t, cluster.UpstreamBindConfig)
 	})
 	t.Run("freebind", func(t *testing.T) {
-		cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: &config.Options{
+		cluster, err := b.buildPolicyCluster(ctx, config.New(&config.Options{
 			EnvoyBindConfigFreebind: null.BoolFrom(true),
-		}}, &config.Policy{
+		}), &config.Policy{
 			From: "https://from.example.com",
 			To:   mustParseWeightedURLs(t, "https://to.example.com"),
 		})
@@ -1092,9 +1104,9 @@ func Test_bindConfig(t *testing.T) {
 		`, cluster.UpstreamBindConfig)
 	})
 	t.Run("freebind set but null", func(t *testing.T) {
-		cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: &config.Options{
+		cluster, err := b.buildPolicyCluster(ctx, config.New(&config.Options{
 			EnvoyBindConfigFreebind: null.BoolFromPtr(nil),
-		}}, &config.Policy{
+		}), &config.Policy{
 			From: "https://from.example.com",
 			To:   mustParseWeightedURLs(t, "https://to.example.com"),
 		})
@@ -1102,9 +1114,9 @@ func Test_bindConfig(t *testing.T) {
 		assert.Nil(t, cluster.UpstreamBindConfig.GetSourceAddress())
 	})
 	t.Run("source address", func(t *testing.T) {
-		cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: &config.Options{
+		cluster, err := b.buildPolicyCluster(ctx, config.New(&config.Options{
 			EnvoyBindConfigSourceAddress: "192.168.0.1",
-		}}, &config.Policy{
+		}), &config.Policy{
 			From: "https://from.example.com",
 			To:   mustParseWeightedURLs(t, "https://to.example.com"),
 		})
@@ -1357,7 +1369,7 @@ func Test_buildPolicyCluster(t *testing.T) {
 
 	t.Run("use stat name", func(t *testing.T) {
 		t.Parallel()
-		cluster, err := b.buildPolicyCluster(t.Context(), &config.Config{Options: config.NewDefaultOptions()}, &config.Policy{
+		cluster, err := b.buildPolicyCluster(t.Context(), config.New(config.NewDefaultOptions()), &config.Policy{
 			From:     "https://from.example.com",
 			To:       mustParseWeightedURLs(t, "https://example.com"),
 			StatName: null.StringFrom("stat-name"),
@@ -1365,4 +1377,39 @@ func Test_buildPolicyCluster(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "stat-name", cluster.AltStatName)
 	})
+}
+
+func TestSshConnectionBufferLimits(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.New(config.NewDefaultOptions())
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+
+	{
+		cluster, err := b.buildPolicyCluster(t.Context(), cfg, &config.Policy{
+			From: "ssh://route1",
+			To:   mustParseWeightedURLs(t, "ssh://dest1"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, sshConnectionBufferLimit, cluster.PerConnectionBufferLimitBytes.GetValue())
+	}
+
+	{
+		cluster, err := b.buildPolicyCluster(t.Context(), cfg, &config.Policy{
+			From: "http://route2",
+			To:   mustParseWeightedURLs(t, "http://dest2"),
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t, connectionBufferLimit, cluster.PerConnectionBufferLimitBytes.GetValue())
+	}
+	{
+		cluster, err := b.buildPolicyCluster(t.Context(), cfg, &config.Policy{
+			From:           "http://route3",
+			To:             mustParseWeightedURLs(t, "http://dest3"),
+			UpstreamTunnel: &config.UpstreamTunnel{},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, sshConnectionBufferLimit, cluster.PerConnectionBufferLimitBytes.GetValue())
+	}
 }

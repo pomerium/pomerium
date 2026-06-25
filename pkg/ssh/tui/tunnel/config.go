@@ -53,11 +53,12 @@ type HeaderOptions struct {
 type HelpOptions struct{}
 
 type Options struct {
-	KeyMap     KeyMap
-	Header     HeaderOptions
-	Help       HelpOptions
-	Components []components.Component
-	FetchMotd  func(session models.Session) *MotdOptions
+	KeyMap       KeyMap
+	Header       HeaderOptions
+	Help         HelpOptions
+	Components   []components.Component
+	FetchMotd    func(session models.Session) *MotdOptions
+	ShowPerfInfo bool
 }
 
 type MotdStartupBehavior int

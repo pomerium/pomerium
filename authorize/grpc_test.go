@@ -49,16 +49,14 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	t.Parallel()
 
 	a := &Authorize{}
-	a.currentConfig.Store(&config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{{
-				From: "https://example.com",
-				SubPolicies: []config.SubPolicy{{
-					Rego: []string{"allow = true"},
-				}},
+	a.currentConfig.Store(config.New(&config.Options{
+		Policies: []config.Policy{{
+			From: "https://example.com",
+			SubPolicies: []config.SubPolicy{{
+				Rego: []string{"allow = true"},
 			}},
-		},
-	})
+		}},
+	}))
 	a.state.Store(new(authorizeState))
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),
@@ -123,16 +121,14 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	t.Parallel()
 
 	a := &Authorize{}
-	a.currentConfig.Store(&config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{{
-				From: "https://example.com",
-				SubPolicies: []config.SubPolicy{{
-					Rego: []string{"allow = true"},
-				}},
+	a.currentConfig.Store(config.New(&config.Options{
+		Policies: []config.Policy{{
+			From: "https://example.com",
+			SubPolicies: []config.SubPolicy{{
+				Rego: []string{"allow = true"},
 			}},
-		},
-	})
+		}},
+	}))
 	a.state.Store(new(authorizeState))
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),

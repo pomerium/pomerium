@@ -33,12 +33,11 @@ func TestDatabrokerRestart(t *testing.T) {
 	t.Parallel()
 
 	newConfig := func() *config.Config {
-		return &config.Config{
-			Options: &config.Options{
-				SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey()),
-			},
-			GRPCPort: ":12345",
-		}
+		cfg := config.New(&config.Options{
+			SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey()),
+		})
+		cfg.GRPCPort = ":12345"
+		return cfg
 	}
 
 	t.Run("no error", func(t *testing.T) {

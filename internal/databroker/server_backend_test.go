@@ -28,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	sessionpb "github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -56,12 +57,10 @@ func newServer(tb testing.TB) Server {
 
 	srv := NewBackendServer(noop.NewTracerProvider())
 	tb.Cleanup(srv.Stop)
-	srv.OnConfigChange(tb.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  cryptutil.NewBase64Key(),
-		},
-	})
+	srv.OnConfigChange(tb.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  cryptutil.NewBase64Key(),
+	}))
 	return srv
 }
 
@@ -319,7 +318,7 @@ func TestServer_Sync(t *testing.T) {
 		updateRecords := make(chan uint64, 10)
 
 		client := databrokerpb.NewDataBrokerServiceClient(cc)
-		syncer := databrokerpb.NewSyncer(ctx, "TEST", testSyncerHandler{
+		syncer := databrokerutil.NewSyncer(ctx, "TEST", testSyncerHandler{
 			getDataBrokerServiceClient: func() databrokerpb.DataBrokerServiceClient {
 				return client
 			},
@@ -367,12 +366,10 @@ func TestServerInvalidStorage(t *testing.T) {
 	t.Parallel()
 
 	srv := newServer(t)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: "<INVALID>"},
-			SharedKey:  cryptutil.NewBase64Key(),
-		},
-	})
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: "<INVALID>"},
+		SharedKey:  cryptutil.NewBase64Key(),
+	}))
 
 	s := new(sessionpb.Session)
 	s.Id = "1"
@@ -396,14 +393,12 @@ func TestServerPostgres(t *testing.T) {
 
 	dsn := testutil.StartPostgres(t)
 	srv := newServer(t)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{
-				StorageType:             "postgres",
-				StorageConnectionString: dsn,
-			},
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{
+			StorageType:             "postgres",
+			StorageConnectionString: dsn,
 		},
-	})
+	}))
 
 	s := new(sessionpb.Session)
 	s.Id = "1"

@@ -352,6 +352,44 @@ func TestPolicy_FromToPb(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, p.Redirect.HTTPSRedirect, policyFromProto.Redirect.HTTPSRedirect)
 	})
+
+	t.Run("outlier detection", func(t *testing.T) {
+		src := &OutlierDetection{
+			SplitExternalLocalOriginErrors: nullable.From(true),
+		}
+		dst := new(config.OutlierDetection)
+		require.NoError(t, setOutlierDetectionToProto(&dst, src))
+		assert.True(t, dst.GetSplitExternalLocalOriginErrors())
+		result := new(OutlierDetection)
+		require.NoError(t, setOutlierDetectionFromProto(result, dst))
+		assert.True(t, result.SplitExternalLocalOriginErrors.Value)
+	})
+
+	t.Run("session recording", func(t *testing.T) {
+		p := &Policy{
+			From: "ssh://example.com",
+			To:   mustParseWeightedURLs(t, "ssh://upstream:22"),
+			RouteOptions: RouteOptions{
+				SessionRecording: nullable.From(SessionRecording{
+					Enabled: nullable.From(true),
+				}),
+			},
+		}
+
+		pbPolicy, err := p.ToProto()
+		require.NoError(t, err)
+		require.NotNil(t, pbPolicy.SessionRecording)
+		assert.Equal(t, true, pbPolicy.SessionRecording.GetEnabled())
+
+		policyFromProto, err := NewPolicyFromProto(pbPolicy)
+		require.NoError(t, err)
+		require.NotNil(t, policyFromProto)
+		require.NotNil(t, policyFromProto.RouteOptions)
+		require.NotNil(t, policyFromProto.RouteOptions.SessionRecording)
+		assert.Equal(t, true, policyFromProto.RouteOptions.SessionRecording.Or(SessionRecording{
+			Enabled: nullable.From(false),
+		}).Enabled.Or(false))
+	})
 }
 
 func TestPolicy_Matches(t *testing.T) {
@@ -492,6 +530,27 @@ func TestPolicy_IsSSH(t *testing.T) {
 
 	p2 := Policy{From: "ssh://example.com"}
 	assert.True(t, p2.IsSSH())
+}
+
+func TestPolicy_IsSSHUpstream(t *testing.T) {
+	p1 := Policy{
+		From: "ssh://example.com",
+		To:   mustParseWeightedURLs(t, "ssh://to"),
+	}
+	assert.True(t, p1.IsSSHUpstream())
+
+	p2 := Policy{
+		From:           "ssh://example.com",
+		To:             mustParseWeightedURLs(t, "http://to"),
+		UpstreamTunnel: &UpstreamTunnel{},
+	}
+	assert.True(t, p2.IsSSHUpstream())
+
+	p3 := Policy{
+		From: "http://example.com",
+		To:   mustParseWeightedURLs(t, "http://to"),
+	}
+	assert.False(t, p3.IsSSHUpstream())
 }
 
 func mustParseWeightedURLs(t testing.TB, urls ...string) WeightedURLs {

@@ -162,7 +162,7 @@ func TestExternalJWTBearer_KubernetesNamespacePolicy(t *testing.T) {
 		"iat": now.Unix(),
 		"nbf": now.Unix(),
 		"kubernetes.io": map[string]any{
-			"namespace": "platform",
+			"namespace":      "platform",
 			"serviceaccount": map[string]any{"name": "any-sa"},
 		},
 	})
@@ -186,7 +186,7 @@ func TestExternalJWTBearer_KubernetesNamespacePolicy(t *testing.T) {
 		"iat": now.Unix(),
 		"nbf": now.Unix(),
 		"kubernetes.io": map[string]any{
-			"namespace": "other",
+			"namespace":      "other",
 			"serviceaccount": map[string]any{"name": "any-sa"},
 		},
 	})

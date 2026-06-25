@@ -10,6 +10,7 @@ import (
 	"github.com/google/btree"
 	"github.com/rs/zerolog/log"
 
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
@@ -28,7 +29,7 @@ type codeManager struct {
 	codeByExpiration *btree.BTreeG[Status]
 }
 
-var _ databroker.SyncerHandler = (*codeManager)(nil)
+var _ databrokerutil.SyncerHandler = (*codeManager)(nil)
 
 func (c *codeManager) ClearRecords(_ context.Context) {
 	c.accessMu.Lock()

@@ -11,8 +11,8 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -48,9 +48,7 @@ func TestEvaluateUpstreamTunnel(t *testing.T) {
 		},
 	}
 
-	cfg := &config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.Routes = []config.Policy{route1, route2}
 	a, err := New(t.Context(), cfg)
 	require.NoError(t, err)

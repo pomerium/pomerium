@@ -22,16 +22,14 @@ func TestVerifyAccessToken(t *testing.T) {
 		http.Error(w, "error", http.StatusInternalServerError)
 	}))
 
-	a, err := authenticate.New(t.Context(), &config.Config{
-		Options: &config.Options{
-			CookieSecret:          base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
-			SharedKey:             base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
-			AuthenticateURLString: "https://authenticate.example.com",
+	a, err := authenticate.New(t.Context(), config.New(&config.Options{
+		CookieSecret:          base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+		SharedKey:             base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+		AuthenticateURLString: "https://authenticate.example.com",
 
-			Provider:    "oidc",
-			ProviderURL: srv.URL,
-		},
-	})
+		Provider:    "oidc",
+		ProviderURL: srv.URL,
+	}))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()

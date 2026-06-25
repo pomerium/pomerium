@@ -234,9 +234,7 @@ func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &Config{
-				Options: NewDefaultOptions(),
-			}
+			cfg := New(NewDefaultOptions())
 			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalBearerTokenFormat)
 
 			var route *Policy
@@ -267,11 +265,11 @@ func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
 	jwtAccept := []JWTIdpAcceptance{{Name: "demo", Audiences: []string{"demo.example.com"}}}
 
 	for _, tc := range []struct {
-		name           string
-		acceptJWTIdps  []JWTIdpAcceptance
-		headers        http.Header
-		expectedOK     bool
-		expectedToken  string
+		name          string
+		acceptJWTIdps []JWTIdpAcceptance
+		headers       http.Header
+		expectedOK    bool
+		expectedToken string
 	}{
 		{
 			name:       "no accept_jwt_idps, no header",
@@ -304,7 +302,7 @@ func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &Config{Options: NewDefaultOptions()}
+			cfg := New(NewDefaultOptions())
 			route := &Policy{AcceptJWTIdps: tc.acceptJWTIdps}
 
 			r, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
@@ -372,7 +370,7 @@ func Test_newSessionFromIDPClaims(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &Config{Options: NewDefaultOptions()}
+			cfg := New(NewDefaultOptions())
 			c := &incomingIDPTokenSessionCreator{
 				timeNow: func() time.Time { return tm1 },
 			}
@@ -457,7 +455,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		srv := httptest.NewTLSServer(mux)
 
 		ctx := testutil.GetContext(t, time.Minute)
-		cfg := &Config{Options: NewDefaultOptions()}
+		cfg := New(NewDefaultOptions())
 		cfg.Options.AuthenticateURLString = srv.URL
 		cfg.Options.ClientSecret = "CLIENT_SECRET_1"
 		cfg.Options.ClientID = "CLIENT_ID_1"
@@ -495,7 +493,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		issuer := idp.Start(t)
 
 		ctx := testutil.GetContext(t, time.Minute)
-		cfg := &Config{Options: NewDefaultOptions()}
+		cfg := New(NewDefaultOptions())
 		cfg.Options.JWTIdentityProviders = []JWTIdentityProvider{{
 			Name:          "test-idp",
 			Issuer:        issuer,

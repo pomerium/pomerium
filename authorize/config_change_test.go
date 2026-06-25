@@ -69,7 +69,7 @@ func TestOnConfigChangeReachesPolicyIndexer(t *testing.T) {
 		Policies:              []config.Policy{testPolicy},
 	}
 
-	cfg1 := &config.Config{Options: opts}
+	cfg1 := config.New(opts)
 	a, err := authorize.New(t.Context(), cfg1,
 		authorize.WithPolicyIndexer(func(_ ssh.SSHEvaluator) ssh.PolicyIndexer {
 			return tracker
@@ -89,7 +89,7 @@ func TestOnConfigChangeReachesPolicyIndexer(t *testing.T) {
 	// forever and OnConfigChange never reaches ssh.OnConfigChange → ProcessConfigUpdate.
 	opts2 := *opts
 	opts2.InstallationID = "changed-installation-id"
-	cfg2 := &config.Config{Options: &opts2}
+	cfg2 := config.New(&opts2)
 
 	var completed atomic.Bool
 	go func() {

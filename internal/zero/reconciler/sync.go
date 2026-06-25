@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/retry"
 	zero "github.com/pomerium/pomerium/internal/zero/api"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -259,8 +260,8 @@ func (c *service) syncBundleToDatabroker(ctx context.Context, src io.Reader, cur
 		return nil, fmt.Errorf("get databroker records: %w", err)
 	}
 
-	err = databroker.NewReconciler(
-		c.config.databrokerClient,
+	err = databrokerutil.NewReconciler(
+		databroker.NewStaticClientGetter(c.config.databrokerClient),
 		func(_ context.Context) (databroker.RecordSetBundle, error) {
 			return databrokerRecords, nil
 		},
@@ -269,7 +270,7 @@ func (c *service) syncBundleToDatabroker(ctx context.Context, src io.Reader, cur
 		},
 		func(_ []*databroker.Record) {},
 		EqualRecord,
-		databroker.WithReconcilerTracerProvider(c.config.tracerProvider),
+		databrokerutil.WithReconcilerTracerProvider(c.config.tracerProvider),
 	).Reconcile(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("reconcile databroker records: %w", err)

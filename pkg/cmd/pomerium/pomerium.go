@@ -245,6 +245,8 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		}
 	}
 
+	controlPlane.RegisterAdditionalExpectedChecks(ctx, cfg, p.envoyServer)
+
 	// run everything
 	p.errGroup, ctx = errgroup.WithContext(ctx)
 	if authorizeServer != nil {

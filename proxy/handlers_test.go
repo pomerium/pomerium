@@ -38,7 +38,7 @@ func TestProxy_SignOut(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := testOptions(t)
-			p, err := New(t.Context(), &config.Config{Options: opts})
+			p, err := New(t.Context(), config.New(opts))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -64,6 +64,62 @@ func TestProxy_SignOut(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, "/.pomerium/sign_out", u.Path)
 			}
+		})
+	}
+}
+
+func TestProxy_SignOutRedirect(t *testing.T) {
+	t.Parallel()
+
+	nop := func(*config.Options) {}
+
+	cases := []struct {
+		label               string
+		optsModifier        func(*config.Options)
+		requestURI          string
+		expectedRedirectURI string
+	}{
+		// By default no pomerium_redirect_uri parameter should be set...
+		{"default", nop, "/.pomerium/sign_out", ""},
+		// ...even if a pomerium_redirect_uri parameter is present on the incoming request.
+		{"redirect param ignored", nop, "/.pomerium/sign_out?pomerium_redirect_uri=https%3A%2F%2Fexample.com", ""},
+
+		// If the global sign-out redirect setting is present, it should be honored...
+		{"global setting", func(opts *config.Options) {
+			opts.SignOutRedirectURLString = "https://example.com/custom"
+		}, "/.pomerium/sign_out", "https://example.com/custom"},
+		// ...even if a pomerium_redirect_uri parameter is present on the incoming request.
+		{"redirect param still ignored", func(opts *config.Options) {
+			opts.SignOutRedirectURLString = "https://example.com/custom"
+		}, "/.pomerium/sign_out?pomerium_redirect_uri=https%3A%2F%2Fexample.com%2Fother", "https://example.com/custom"},
+
+		// The pomerium_redirect_uri parameter should be honored only if explicitly allowed...
+		{"redirect param allowed", func(opts *config.Options) {
+			opts.RuntimeFlags[config.RuntimeFlagAllowAnySignOutRedirectURI] = true
+		}, "/.pomerium/sign_out?pomerium_redirect_uri=https%3A%2F%2Fexample.com", "https://example.com"},
+		// ...and when allowed, it should take precedence over the global setting.
+		{"redirect param and global setting", func(opts *config.Options) {
+			opts.SignOutRedirectURLString = "https://example.com/global-setting"
+			opts.RuntimeFlags[config.RuntimeFlagAllowAnySignOutRedirectURI] = true
+		}, "/.pomerium/sign_out?pomerium_redirect_uri=https%3A%2F%2Fexample.com", "https://example.com"},
+	}
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+			opts := testOptions(t)
+			c.optsModifier(opts)
+			p, err := New(t.Context(), config.New(opts))
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, c.requestURI, nil)
+
+			p.SignOut(w, r)
+
+			res := w.Result()
+			assert.Equal(t, http.StatusFound, res.StatusCode)
+			u, err := url.Parse(res.Header.Get("Location"))
+			require.NoError(t, err, "couldn't parse redirect URL")
+			assert.Equal(t, c.expectedRedirectURI, u.Query().Get("pomerium_redirect_uri"))
 		})
 	}
 }
@@ -132,7 +188,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(t.Context(), &config.Config{Options: tt.options})
+			p, err := New(t.Context(), config.New(tt.options))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -231,7 +287,7 @@ func TestProxy_jsonUserInfo(t *testing.T) {
 func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
 	t.Parallel()
 
-	proxy, err := New(t.Context(), &config.Config{Options: config.NewDefaultOptions()})
+	proxy, err := New(t.Context(), config.New(config.NewDefaultOptions()))
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodGet, "/.pomerium/jwt", nil)
 	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0."
@@ -277,7 +333,7 @@ func TestLoadSessionHandle(t *testing.T) {
 
 		opts := testOptions(t)
 		cxt, clearTimeout := context.WithTimeout(t.Context(), 1*time.Second)
-		proxy, err := New(cxt, &config.Config{Options: opts})
+		proxy, err := New(cxt, config.New(opts))
 		require.NoError(t, err)
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -294,7 +350,7 @@ func TestLoadSessionHandle(t *testing.T) {
 
 		opts := testOptions(t)
 		cxt, clearTimeout := context.WithTimeout(t.Context(), 1*time.Second)
-		proxy, err := New(cxt, &config.Config{Options: opts})
+		proxy, err := New(cxt, config.New(opts))
 		require.NoError(t, err)
 
 		session := encodeSessionHandle(t, opts, &session.Handle{
@@ -319,7 +375,7 @@ func TestLoadSessionHandle(t *testing.T) {
 
 		opts := testOptions(t)
 		cxt, clearTimeout := context.WithTimeout(t.Context(), 1*time.Second)
-		proxy, err := New(cxt, &config.Config{Options: opts})
+		proxy, err := New(cxt, config.New(opts))
 		require.NoError(t, err)
 
 		session := encodeSessionHandle(t, opts, &session.Handle{

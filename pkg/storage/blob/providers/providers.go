@@ -8,7 +8,7 @@ import (
 
 	"gocloud.dev/blob"
 	// registers azure blob
-	_ "gocloud.dev/blob/azureblob"
+	"gocloud.dev/blob/azureblob"
 	// registers file blob
 	_ "gocloud.dev/blob/fileblob"
 	// registers gcs blob
@@ -18,11 +18,7 @@ import (
 )
 
 // OpenBucket creates a *blob.Bucket from a blob storage URI
-// (e.g. "s3://bucket", "gs://bucket", "azblob://container").
-//
-// For minio S3 URIs, credentials can be embedded as userinfo:
-//
-//	s3://access_key:secret_key@bucket?region=us-east-1&endpoint=host:port&disable_https=true&use_path_style=true
+// wraps underlying blob.OpenBucket for setting custom defaults for Pomerium usage
 func OpenBucket(ctx context.Context, bucketURI string) (*blob.Bucket, error) {
 	if bucketURI == "" {
 		return nil, fmt.Errorf("blob storage bucket URI is not set")
@@ -34,10 +30,24 @@ func OpenBucket(ctx context.Context, bucketURI string) (*blob.Bucket, error) {
 	}
 
 	switch u.Scheme {
-	case "minio":
-		if u.User != nil {
-			return openMinioBucket(ctx, u)
+	case "file":
+		q := u.Query()
+		if !q.Has("no_tmp_dir") {
+			q.Set("no_tmp_dir", "true")
+			u.RawQuery = q.Encode()
+			bucketURI = u.String()
 		}
+	case azureblob.Scheme:
+		return openAzureBucket(ctx, u)
 	}
 	return blob.OpenBucket(ctx, bucketURI)
+}
+
+func openAzureBucket(ctx context.Context, u *url.URL) (*blob.Bucket, error) {
+	credInfoT := newCredInfoFromEnv()
+	opener := &azureblob.URLOpener{
+		MakeClient:        credInfoT.NewClient,
+		ServiceURLOptions: *azureblob.NewDefaultServiceURLOptions(),
+	}
+	return opener.OpenBucketURL(ctx, u)
 }

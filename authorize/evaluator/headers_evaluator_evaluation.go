@@ -3,6 +3,7 @@ package evaluator
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -56,6 +57,9 @@ type headersEvaluatorEvaluation struct {
 
 	gotSignedJWT    bool
 	cachedSignedJWT string
+
+	gotParsedClientCert    bool
+	cachedParsedClientCert *x509.Certificate
 }
 
 func newHeadersEvaluatorEvaluation(evaluator *HeadersEvaluator, request *Request, now time.Time) *headersEvaluatorEvaluation {
@@ -182,6 +186,10 @@ func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) 
 			case slices.Equal(ref, []string{"pomerium", "access_token"}):
 				s, _ := e.getSessionOrServiceAccount(ctx)
 				return s.GetOauthToken().GetAccessToken()
+			case slices.Equal(ref, []string{"pomerium", "client_cert_san_dns"}):
+				return e.getClientCertDNSNames()
+			case slices.Equal(ref, []string{"pomerium", "client_cert_san_email"}):
+				return e.getClientCertEmailAddresses()
 			case slices.Equal(ref, []string{"pomerium", "client_cert_fingerprint"}):
 				return e.getClientCertFingerprint()
 			case slices.Equal(ref, []string{"pomerium", "id_token"}):
@@ -248,9 +256,56 @@ func (e *headersEvaluatorEvaluation) getUser(ctx context.Context) *user.User {
 	return e.cachedUser
 }
 
+func (e *headersEvaluatorEvaluation) getParsedClientCert() *x509.Certificate {
+	if e.gotParsedClientCert {
+		return e.cachedParsedClientCert
+	}
+
+	e.gotParsedClientCert = true
+	e.cachedParsedClientCert, _ = cryptutil.ParsePEMCertificate([]byte(e.request.HTTP.ClientCertificate.Leaf))
+	return e.cachedParsedClientCert
+}
+
+func (e *headersEvaluatorEvaluation) getClientCertDNSNames() string {
+	cert := e.getParsedClientCert()
+	if cert == nil {
+		return ""
+	}
+	return commaSeparatedList(cert.DNSNames)
+}
+
+func (e *headersEvaluatorEvaluation) getClientCertEmailAddresses() string {
+	cert := e.getParsedClientCert()
+	if cert == nil {
+		return ""
+	}
+	return commaSeparatedList(cert.EmailAddresses)
+}
+
+func commaSeparatedList(s []string) string {
+	// Scrub any elements of s that contain a comma, to avoid parsing ambiguity.
+	// Valid DNS names cannot contain a comma. Email addresses may technically
+	// contain a comma in the local-part if quoted, but this is unlikely to be
+	// well supported in practice.
+	var scrubbed []string
+	var i int
+	for j := range s {
+		if strings.Contains(s[j], ",") {
+			scrubbed = append(scrubbed, s[i:j]...)
+			i = j + 1
+		}
+	}
+	if i > 0 {
+		scrubbed = append(scrubbed, s[i:]...)
+	} else {
+		scrubbed = s // no elements of s contain a comma
+	}
+	return strings.Join(scrubbed, ",")
+}
+
 func (e *headersEvaluatorEvaluation) getClientCertFingerprint() string {
-	cert, err := cryptutil.ParsePEMCertificate([]byte(e.request.HTTP.ClientCertificate.Leaf))
-	if err != nil {
+	cert := e.getParsedClientCert()
+	if cert == nil {
 		return ""
 	}
 	return cryptoSHA256(cert.Raw)

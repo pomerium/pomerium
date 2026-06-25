@@ -78,14 +78,13 @@ func TestEvents(t *testing.T) {
 				haveSetCapacity: make(map[string]bool),
 				tracerProvider:  noop.NewTracerProvider(),
 			}
-			srv.currentConfig.Store(&config.Config{
-				OutboundPort: outboundPort,
-				Options: &config.Options{
-					SharedKey:    cryptutil.NewBase64Key(),
-					DataBroker:   config.DataBrokerOptions{ServiceURL: "http://" + li.Addr().String()},
-					GRPCInsecure: new(true),
-				},
+			cfg := config.New(&config.Options{
+				SharedKey:    cryptutil.NewBase64Key(),
+				DataBroker:   config.DataBrokerOptions{ServiceURL: "http://" + li.Addr().String()},
+				GRPCInsecure: new(true),
 			})
+			cfg.OutboundPort = outboundPort
+			srv.currentConfig.Store(cfg)
 			err := srv.storeEvent(ctx, new(events.LastError))
 			assert.NoError(t, err)
 			return err

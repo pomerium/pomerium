@@ -34,8 +34,11 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/recording"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/ipc"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 const (
@@ -57,14 +60,19 @@ type Server struct {
 
 	monitorProcessCancel context.CancelFunc
 
-	mu        sync.Mutex
-	shutdownC chan error
-}
+	mu                                sync.Mutex
+	shutdownC                         chan error
+	dynamicExtensionHealthProbeCancel context.CancelFunc
 
+	recordingServer     stdatomic.Pointer[recording.Server]
+	recordingServerErrC chan error
+}
 type ServerOptions struct {
-	extraEnvVars    []string
-	logLevel        config.LogLevel
-	exitGracePeriod time.Duration
+	extraEnvVars          []string
+	logLevel              config.LogLevel
+	exitGracePeriod       time.Duration
+	adminAddress          netutil.InternalAddress
+	dynamicExtensionPaths []string
 }
 
 func (o *ServerOptions) ExitGracePeriod() time.Duration {
@@ -76,6 +84,12 @@ type ServerOption func(*ServerOptions)
 func (o *ServerOptions) apply(opts ...ServerOption) {
 	for _, op := range opts {
 		op(o)
+	}
+}
+
+func WithAdminAddress(adminAddress netutil.InternalAddress) ServerOption {
+	return func(o *ServerOptions) {
+		o.adminAddress = adminAddress
 	}
 }
 
@@ -120,6 +134,8 @@ func NewServer(
 		envoyPath:            envoyPath,
 		shutdownC:            shutdown,
 		monitorProcessCancel: func() {},
+		recordingServer:      stdatomic.Pointer[recording.Server]{},
+		recordingServerErrC:  make(chan error, 1),
 	}
 	go srv.runProcessCollector(ctx)
 
@@ -142,23 +158,23 @@ func NewServer(
 	return srv, nil
 }
 
-func (srv *Server) envoyAdminClient() *http.Client {
+func envoyAdminClient(adminAddress netutil.InternalAddress) *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
-			DialContext: func(context.Context, string, string) (net.Conn, error) {
-				return net.Dial("unix", filepath.Join(os.TempDir(), "pomerium-envoy-admin.sock"))
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				return adminAddress.Dial(ctx)
 			},
 		},
 	}
 }
 
-func (srv *Server) Drain() error {
+func Drain(adminAddress netutil.InternalAddress) error {
 	u := &url.URL{
 		Scheme: "http",
 		Host:   "unix",
 		Path:   ("/drain_listeners"),
 	}
-	client := srv.envoyAdminClient()
+	client := envoyAdminClient(adminAddress)
 
 	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
 	if err != nil {
@@ -204,10 +220,13 @@ func (srv *Server) Close() error {
 
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
+	if srv.dynamicExtensionHealthProbeCancel != nil {
+		srv.dynamicExtensionHealthProbeCancel()
+	}
 
 	var err error
 	if srv.cmd != nil && srv.cmd.Process != nil {
-		if err := srv.Drain(); err != nil {
+		if err := Drain(srv.adminAddress); err != nil {
 			log.Error().Err(err).Msg("failed to request graceful drain from envoy")
 		}
 		log.Debug().Int("exit-grace-period-seconds", int(srv.exitGracePeriod.Seconds())).Msg("requesting envoy to shutdown gracefully")
@@ -246,17 +265,19 @@ func (srv *Server) onConfigChange(ctx context.Context, cfg *config.Config) {
 func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
+	// must pass in new config options in case envoy doesn't require a hot restart
+	srv.onConfigChangeRecordingServer(ctx, cfg)
 
 	opts := srv.ServerOptions
 	// log level is managed via config
 	opts.logLevel = firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug)
-
+	opts.adminAddress = cfg.EnvoyAdminInternalAddress
+	opts.dynamicExtensionPaths = cfg.Options.EnvoyDynamicExtensions.Or([]string{})
 	if cmp.Equal(srv.ServerOptions, opts, cmp.AllowUnexported(ServerOptions{})) {
 		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("envoy: no config changes detected")
 		return
 	}
 	srv.ServerOptions = opts
-
 	log.Ctx(ctx).Debug().Msg("envoy: starting envoy process")
 	if err := srv.run(ctx, cfg); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
@@ -268,7 +289,22 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	// cancel any process monitor since we will be killing the previous process
 	srv.monitorProcessCancel()
 
-	if err := srv.writeConfig(ctx, cfg); err != nil {
+	dynCfg, err := srv.configureDynamicExtensions(ctx, cfg, srv.ServerOptions.dynamicExtensionPaths)
+	if err != nil {
+		return fmt.Errorf("envoy: failed to configure dynamic extensions: %w", err)
+	}
+	srv.startDynExtHealthProbeLocked(ctx, dynCfg)
+
+	if dynCfg.isSessionRecordingEnabled() {
+		srv.enableOrUpdateSessionRecording(ctx, cfg, dynCfg.RecordingPipes)
+	} else {
+		srv.disableSessionRecording(ctx)
+	}
+
+	if err := srv.writeConfig(ctx, cfg, &envoyconfig.DynamicExtensionsConfig{
+		ExtensionsToLoad:  dynCfg.extensionIDs(),
+		DynamicExtensions: dynCfg.DynamicExtensions,
+	}); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
 		return err
 	}
@@ -289,9 +325,14 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs) {
 		args = append(args, "--concurrency", strconv.Itoa(runtime.GOMAXPROCS(0)))
 	}
+	extraFiles := []*os.File{}
+	if len(dynCfg.RecordingPipes) > 0 {
+		extraFiles = ipc.PipeClients(dynCfg.RecordingPipes)
+	}
 
 	exePath, args := srv.prepareRunEnvoyCommand(ctx, args)
 	cmd := exec.Command(exePath, args...)
+	cmd.ExtraFiles = extraFiles
 	cmd.Dir = srv.wd
 	cmd.Env = append(cmd.Env, srv.extraEnvVars...)
 
@@ -369,8 +410,8 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
-	confBytes, err := srv.buildBootstrapConfig(ctx, cfg)
+func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config, dynCfg *envoyconfig.DynamicExtensionsConfig) error {
+	confBytes, err := srv.buildBootstrapConfig(ctx, cfg, dynCfg)
 	if err != nil {
 		return err
 	}
@@ -381,8 +422,8 @@ func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
 	return atomic.WriteFile(cfgPath, bytes.NewReader(confBytes))
 }
 
-func (srv *Server) buildBootstrapConfig(ctx context.Context, cfg *config.Config) ([]byte, error) {
-	bootstrapCfg, err := srv.builder.BuildBootstrap(ctx, cfg, false)
+func (srv *Server) buildBootstrapConfig(ctx context.Context, cfg *config.Config, dynCfg *envoyconfig.DynamicExtensionsConfig) ([]byte, error) {
+	bootstrapCfg, err := srv.builder.BuildBootstrap(ctx, cfg, false, dynCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -464,12 +505,16 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 }
 
 func (srv *Server) envoyReady(ctx context.Context) error {
+	srv.mu.Lock()
+	adminAddress := srv.adminAddress
+	srv.mu.Unlock()
+
 	u := &url.URL{
 		Scheme: "http",
 		Host:   "unix",
 		Path:   "/ready",
 	}
-	client := srv.envoyAdminClient()
+	client := envoyAdminClient(adminAddress)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return err
@@ -480,7 +525,7 @@ func (srv *Server) envoyReady(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected http status code from ready point : %d", resp.StatusCode)
+		return fmt.Errorf("unexpected http status code from ready endpoint : %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -552,4 +597,16 @@ func preserveRlimitNofile() error {
 		return err
 	}
 	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim)
+}
+
+// GetExpectedHealthChecks implements the health.Check interface.
+// It must be safe for concurrent use
+func (srv *Server) GetExpectedHealthChecks() []health.Check {
+	if srv.recordingServer.Load() != nil {
+		return []health.Check{
+			health.BlobStorage,
+			health.RecordingHandler,
+		}
+	}
+	return []health.Check{}
 }

@@ -46,6 +46,7 @@ type RouteOptions struct {
 	BearerTokenFormat   Value[configpb.BearerTokenFormat]   `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 	JWTIssuerFormat     Value[configpb.IssuerFormat]        `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 	LoadBalancingPolicy Value[configpb.LoadBalancingPolicy] `json:"load_balancing_policy,omitzero" mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty"`
+	SessionRecording    Value[SessionRecording]             `json:"session_recording,omitzero" mapstructure:"session_recording" yaml:"session_recording,omitempty"`
 }
 
 type RouteDirectResponse struct {
@@ -70,12 +71,22 @@ type RouteRewriteHeader struct {
 	Value  Value[string] `json:"value,omitzero" mapstructure:"value" yaml:"value,omitempty"`
 }
 
+type SessionRecording struct {
+	Enabled Value[bool] `json:"enabled,omitzero" mapstructure:"enabled" yaml:"enabled,omitempty"`
+}
+
 type GlobalOptions struct {
-	AllowUpgrades       Value[[]string]                   `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
-	AutoApplyChangesets Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
-	BearerTokenFormat   Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
-	CodecType           Value[configpb.CodecType]         `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
-	JWTIssuerFormat     Value[configpb.IssuerFormat]      `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	AllowUpgrades                Value[[]string]                              `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AutoApplyChangesets          Value[bool]                                  `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
+	BearerTokenFormat            Value[configpb.BearerTokenFormat]            `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+	CodecType                    Value[configpb.CodecType]                    `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
+	EnvoyDynamicExtensions       Value[[]string]                              `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
+	HeadersWithUnderscoresAction Value[configpb.HeadersWithUnderscoresAction] `json:"headers_with_underscores_action,omitzero" mapstructure:"headers_with_underscores_action" yaml:"headers_with_underscores_action,omitempty"`
+	JWTIssuerFormat              Value[configpb.IssuerFormat]                 `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	MergeSlashes                 Value[bool]                                  `json:"merge_slashes,omitzero" mapstructure:"merge_slashes" yaml:"merge_slashes,omitempty"`
+	NormalizePath                Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
+	PathWithEscapedSlashesAction Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
+	SessionRecordingConcurrency  Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -100,7 +111,7 @@ func setNullableBlobStorageSettingsFromProto(dst *Value[BlobStorageSettings], sr
 	}
 	obj := dst.Value
 	err := setBlobStorageSettingsFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -138,7 +149,7 @@ func setNullableOutlierDetectionFromProto(dst *Value[OutlierDetection], src *con
 	}
 	obj := dst.Value
 	err := setOutlierDetectionFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -198,7 +209,7 @@ func setNullableRouteOptionsFromProto(dst *Value[RouteOptions], src *configpb.Ro
 	}
 	obj := dst.Value
 	err := setRouteOptionsFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -229,6 +240,7 @@ func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
 		setNullableLoadBalancingPolicyFromProto(&dst.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullableSessionRecordingFromProto(&dst.SessionRecording, src.SessionRecording),
 	)
 }
 
@@ -238,7 +250,7 @@ func setNullableRouteDirectResponseFromProto(dst *Value[RouteDirectResponse], sr
 	}
 	obj := dst.Value
 	err := setRouteDirectResponseFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -276,7 +288,7 @@ func setNullableRouteRedirectFromProto(dst *Value[RouteRedirect], src *configpb.
 	}
 	obj := dst.Value
 	err := setRouteRedirectFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -320,7 +332,7 @@ func setNullableRouteRewriteHeaderFromProto(dst *Value[RouteRewriteHeader], src 
 	}
 	obj := dst.Value
 	err := setRouteRewriteHeaderFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -353,13 +365,50 @@ func setRouteRewriteHeaderFromProto(dst *RouteRewriteHeader, src *configpb.Route
 	)
 }
 
+func setNullableSessionRecordingFromProto(dst *Value[SessionRecording], src *configpb.SessionRecording) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSessionRecordingFromProto(&obj, src)
+	if err != nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfSessionRecordingFromProto(dst *Value[[]SessionRecording], src []*configpb.SessionRecording) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]SessionRecording, len(src))
+	for i := range src {
+		err := setSessionRecordingFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSessionRecordingFromProto(dst *SessionRecording, src *configpb.SessionRecording) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		setNullableBoolFromProto(&dst.Enabled, &src.Enabled),
+	)
+}
+
 func setNullableGlobalOptionsFromProto(dst *Value[GlobalOptions], src *configpb.Settings) error {
 	if src == nil {
 		return nil
 	}
 	obj := dst.Value
 	err := setGlobalOptionsFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -390,7 +439,13 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeFromProto(&dst.CodecType, src.CodecType),
+		setNullableStringListFromProto(&dst.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
+		setNullableHeadersWithUnderscoresActionFromProto(&dst.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
+		setNullableBoolFromProto(&dst.MergeSlashes, src.MergeSlashes),
+		setNullableBoolFromProto(&dst.NormalizePath, src.NormalizePath),
+		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
+		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
 
@@ -400,7 +455,7 @@ func setNullableSettings_CertificateFromProto(dst *Value[Settings_Certificate], 
 	}
 	obj := dst.Value
 	err := setSettings_CertificateFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -439,7 +494,7 @@ func setNullableSettings_DataBrokerClusterNodeFromProto(dst *Value[Settings_Data
 	}
 	obj := dst.Value
 	err := setSettings_DataBrokerClusterNodeFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -478,7 +533,7 @@ func setNullableSettings_DataBrokerClusterNodesFromProto(dst *Value[Settings_Dat
 	}
 	obj := dst.Value
 	err := setSettings_DataBrokerClusterNodesFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -595,7 +650,7 @@ func setOutlierDetectionToProto(dst **configpb.OutlierDetection, src *OutlierDet
 		setNullableUInt32ValueToProto(&obj.MaxEjectionPercent, src.MaxEjectionPercent),
 		setNullableDurationToProto(&obj.MaxEjectionTime, src.MaxEjectionTime),
 		setNullableDurationToProto(&obj.MaxEjectionTimeJitter, src.MaxEjectionTimeJitter),
-		setNullableBoolToProto(new(&obj.SplitExternalLocalOriginErrors), src.SplitExternalLocalOriginErrors),
+		setBoolToProto(&obj.SplitExternalLocalOriginErrors, src.SplitExternalLocalOriginErrors),
 		setNullableUInt32ValueToProto(&obj.SuccessRateMinimumHosts, src.SuccessRateMinimumHosts),
 		setNullableUInt32ValueToProto(&obj.SuccessRateRequestVolume, src.SuccessRateRequestVolume),
 		setNullableUInt32ValueToProto(&obj.SuccessRateStdevFactor, src.SuccessRateStdevFactor),
@@ -638,6 +693,7 @@ func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
 		setNullableLoadBalancingPolicyToProto(&obj.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullableSessionRecordingToProto(&obj.SessionRecording, src.SessionRecording),
 	)
 }
 
@@ -672,8 +728,8 @@ func setRouteDirectResponseToProto(dst **configpb.RouteDirectResponse, src *Rout
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableStringToProto(new(&obj.Body), src.Body),
-		setNullableUInt32ToProto(new(&obj.Status), src.Status),
+		setStringToProto(&obj.Body, src.Body),
+		setUInt32ToProto(&obj.Status, src.Status),
 	)
 }
 
@@ -750,9 +806,44 @@ func setRouteRewriteHeaderToProto(dst **configpb.RouteRewriteHeader, src *RouteR
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableStringToProto(new(&obj.Header), src.Header),
+		setStringToProto(&obj.Header, src.Header),
 		setOneOf(&obj.Matcher, &configpb.RouteRewriteHeader_Prefix{Prefix: src.Prefix.Value}, src.Prefix),
-		setNullableStringToProto(new(&obj.Value), src.Value),
+		setStringToProto(&obj.Value, src.Value),
+	)
+}
+
+func setNullableSessionRecordingToProto(dst **configpb.SessionRecording, src Value[SessionRecording]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setSessionRecordingToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfSessionRecordingToProto(dst *[]*configpb.SessionRecording, src Value[[]SessionRecording]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.SessionRecording, len(src.Value))
+	for i := range src.Value {
+		err := setSessionRecordingToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setSessionRecordingToProto(dst **configpb.SessionRecording, src *SessionRecording) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.SessionRecording)
+	}
+	obj := *dst
+	return errors.Join(
+		setBoolToProto(&obj.Enabled, src.Enabled),
 	)
 }
 
@@ -791,7 +882,13 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeToProto(&obj.CodecType, src.CodecType),
+		setNullableStringListToProto(&obj.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
+		setNullableHeadersWithUnderscoresActionToProto(&obj.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
+		setNullableBoolToProto(&obj.MergeSlashes, src.MergeSlashes),
+		setNullableBoolToProto(&obj.NormalizePath, src.NormalizePath),
+		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
+		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
 
@@ -826,9 +923,9 @@ func setSettings_CertificateToProto(dst **configpb.Settings_Certificate, src *Se
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableSliceOfByteToProto(new(&obj.CertBytes), src.CertBytes),
-		setNullableStringToProto(new(&obj.Id), src.ID),
-		setNullableSliceOfByteToProto(new(&obj.KeyBytes), src.KeyBytes),
+		setSliceOfByteToProto(&obj.CertBytes, src.CertBytes),
+		setStringToProto(&obj.Id, src.ID),
+		setSliceOfByteToProto(&obj.KeyBytes, src.KeyBytes),
 	)
 }
 
@@ -863,8 +960,8 @@ func setSettings_DataBrokerClusterNodeToProto(dst **configpb.Settings_DataBroker
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableStringToProto(new(&obj.GrpcAddress), src.GRPCAddress),
-		setNullableStringToProto(new(&obj.Id), src.ID),
+		setStringToProto(&obj.GrpcAddress, src.GRPCAddress),
+		setStringToProto(&obj.Id, src.ID),
 		setNullableStringToProto(&obj.RaftAddress, src.RaftAddress),
 	)
 }
@@ -910,7 +1007,7 @@ func setNullableBoolFromProto(dst *Value[bool], src *bool) error {
 	}
 	obj := dst.Value
 	err := setBoolFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -933,11 +1030,11 @@ func setNullableBoolToProto(dst **bool, src Value[bool]) error {
 	return nil
 }
 
-func setBoolToProto(dst **bool, src *bool) error {
-	if src == nil {
+func setBoolToProto(dst *bool, src Value[bool]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -947,7 +1044,7 @@ func setNullableByteFromProto(dst *Value[byte], src *byte) error {
 	}
 	obj := dst.Value
 	err := setByteFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -970,11 +1067,11 @@ func setNullableByteToProto(dst **byte, src Value[byte]) error {
 	return nil
 }
 
-func setByteToProto(dst **byte, src *byte) error {
-	if src == nil {
+func setByteToProto(dst *byte, src Value[byte]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -984,7 +1081,7 @@ func setNullableFloatFromProto(dst *Value[float32], src *float32) error {
 	}
 	obj := dst.Value
 	err := setFloatFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1007,11 +1104,11 @@ func setNullableFloatToProto(dst **float32, src Value[float32]) error {
 	return nil
 }
 
-func setFloatToProto(dst **float32, src *float32) error {
-	if src == nil {
+func setFloatToProto(dst *float32, src Value[float32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1021,7 +1118,7 @@ func setNullableDoubleFromProto(dst *Value[float64], src *float64) error {
 	}
 	obj := dst.Value
 	err := setDoubleFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1044,11 +1141,11 @@ func setNullableDoubleToProto(dst **float64, src Value[float64]) error {
 	return nil
 }
 
-func setDoubleToProto(dst **float64, src *float64) error {
-	if src == nil {
+func setDoubleToProto(dst *float64, src Value[float64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1058,7 +1155,7 @@ func setNullableInt16FromProto(dst *Value[int16], src *int16) error {
 	}
 	obj := dst.Value
 	err := setInt16FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1081,11 +1178,11 @@ func setNullableInt16ToProto(dst **int16, src Value[int16]) error {
 	return nil
 }
 
-func setInt16ToProto(dst **int16, src *int16) error {
-	if src == nil {
+func setInt16ToProto(dst *int16, src Value[int16]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1095,7 +1192,7 @@ func setNullableInt32FromProto(dst *Value[int32], src *int32) error {
 	}
 	obj := dst.Value
 	err := setInt32FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1118,11 +1215,11 @@ func setNullableInt32ToProto(dst **int32, src Value[int32]) error {
 	return nil
 }
 
-func setInt32ToProto(dst **int32, src *int32) error {
-	if src == nil {
+func setInt32ToProto(dst *int32, src Value[int32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1132,7 +1229,7 @@ func setNullableInt64FromProto(dst *Value[int64], src *int64) error {
 	}
 	obj := dst.Value
 	err := setInt64FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1155,11 +1252,11 @@ func setNullableInt64ToProto(dst **int64, src Value[int64]) error {
 	return nil
 }
 
-func setInt64ToProto(dst **int64, src *int64) error {
-	if src == nil {
+func setInt64ToProto(dst *int64, src Value[int64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1169,7 +1266,7 @@ func setNullableStringFromProto(dst *Value[string], src *string) error {
 	}
 	obj := dst.Value
 	err := setStringFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1192,11 +1289,11 @@ func setNullableStringToProto(dst **string, src Value[string]) error {
 	return nil
 }
 
-func setStringToProto(dst **string, src *string) error {
-	if src == nil {
+func setStringToProto(dst *string, src Value[string]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1206,7 +1303,7 @@ func setNullableUInt16FromProto(dst *Value[uint16], src *uint16) error {
 	}
 	obj := dst.Value
 	err := setUInt16FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1229,11 +1326,11 @@ func setNullableUInt16ToProto(dst **uint16, src Value[uint16]) error {
 	return nil
 }
 
-func setUInt16ToProto(dst **uint16, src *uint16) error {
-	if src == nil {
+func setUInt16ToProto(dst *uint16, src Value[uint16]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1243,7 +1340,7 @@ func setNullableUInt32FromProto(dst *Value[uint32], src *uint32) error {
 	}
 	obj := dst.Value
 	err := setUInt32FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1266,11 +1363,11 @@ func setNullableUInt32ToProto(dst **uint32, src Value[uint32]) error {
 	return nil
 }
 
-func setUInt32ToProto(dst **uint32, src *uint32) error {
-	if src == nil {
+func setUInt32ToProto(dst *uint32, src Value[uint32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1280,7 +1377,7 @@ func setNullableUInt64FromProto(dst *Value[uint64], src *uint64) error {
 	}
 	obj := dst.Value
 	err := setUInt64FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1303,11 +1400,11 @@ func setNullableUInt64ToProto(dst **uint64, src Value[uint64]) error {
 	return nil
 }
 
-func setUInt64ToProto(dst **uint64, src *uint64) error {
-	if src == nil {
+func setUInt64ToProto(dst *uint64, src Value[uint64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1317,7 +1414,7 @@ func setNullableSliceOfBoolFromProto(dst *Value[[]bool], src *[]bool) error {
 	}
 	obj := dst.Value
 	err := setSliceOfBoolFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1340,11 +1437,11 @@ func setNullableSliceOfBoolToProto(dst **[]bool, src Value[[]bool]) error {
 	return nil
 }
 
-func setSliceOfBoolToProto(dst **[]bool, src *[]bool) error {
-	if src == nil {
+func setSliceOfBoolToProto(dst *[]bool, src Value[[]bool]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1354,7 +1451,7 @@ func setNullableSliceOfByteFromProto(dst *Value[[]byte], src *[]byte) error {
 	}
 	obj := dst.Value
 	err := setSliceOfByteFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1377,11 +1474,11 @@ func setNullableSliceOfByteToProto(dst **[]byte, src Value[[]byte]) error {
 	return nil
 }
 
-func setSliceOfByteToProto(dst **[]byte, src *[]byte) error {
-	if src == nil {
+func setSliceOfByteToProto(dst *[]byte, src Value[[]byte]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1391,7 +1488,7 @@ func setNullableSliceOfFloatFromProto(dst *Value[[]float32], src *[]float32) err
 	}
 	obj := dst.Value
 	err := setSliceOfFloatFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1414,11 +1511,11 @@ func setNullableSliceOfFloatToProto(dst **[]float32, src Value[[]float32]) error
 	return nil
 }
 
-func setSliceOfFloatToProto(dst **[]float32, src *[]float32) error {
-	if src == nil {
+func setSliceOfFloatToProto(dst *[]float32, src Value[[]float32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1428,7 +1525,7 @@ func setNullableSliceOfDoubleFromProto(dst *Value[[]float64], src *[]float64) er
 	}
 	obj := dst.Value
 	err := setSliceOfDoubleFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1451,11 +1548,11 @@ func setNullableSliceOfDoubleToProto(dst **[]float64, src Value[[]float64]) erro
 	return nil
 }
 
-func setSliceOfDoubleToProto(dst **[]float64, src *[]float64) error {
-	if src == nil {
+func setSliceOfDoubleToProto(dst *[]float64, src Value[[]float64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1465,7 +1562,7 @@ func setNullableSliceOfInt16FromProto(dst *Value[[]int16], src *[]int16) error {
 	}
 	obj := dst.Value
 	err := setSliceOfInt16FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1488,11 +1585,11 @@ func setNullableSliceOfInt16ToProto(dst **[]int16, src Value[[]int16]) error {
 	return nil
 }
 
-func setSliceOfInt16ToProto(dst **[]int16, src *[]int16) error {
-	if src == nil {
+func setSliceOfInt16ToProto(dst *[]int16, src Value[[]int16]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1502,7 +1599,7 @@ func setNullableSliceOfInt32FromProto(dst *Value[[]int32], src *[]int32) error {
 	}
 	obj := dst.Value
 	err := setSliceOfInt32FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1525,11 +1622,11 @@ func setNullableSliceOfInt32ToProto(dst **[]int32, src Value[[]int32]) error {
 	return nil
 }
 
-func setSliceOfInt32ToProto(dst **[]int32, src *[]int32) error {
-	if src == nil {
+func setSliceOfInt32ToProto(dst *[]int32, src Value[[]int32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1539,7 +1636,7 @@ func setNullableSliceOfInt64FromProto(dst *Value[[]int64], src *[]int64) error {
 	}
 	obj := dst.Value
 	err := setSliceOfInt64FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1562,11 +1659,11 @@ func setNullableSliceOfInt64ToProto(dst **[]int64, src Value[[]int64]) error {
 	return nil
 }
 
-func setSliceOfInt64ToProto(dst **[]int64, src *[]int64) error {
-	if src == nil {
+func setSliceOfInt64ToProto(dst *[]int64, src Value[[]int64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1576,7 +1673,7 @@ func setNullableSliceOfStringFromProto(dst *Value[[]string], src *[]string) erro
 	}
 	obj := dst.Value
 	err := setSliceOfStringFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1599,11 +1696,11 @@ func setNullableSliceOfStringToProto(dst **[]string, src Value[[]string]) error 
 	return nil
 }
 
-func setSliceOfStringToProto(dst **[]string, src *[]string) error {
-	if src == nil {
+func setSliceOfStringToProto(dst *[]string, src Value[[]string]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1613,7 +1710,7 @@ func setNullableSliceOfUInt16FromProto(dst *Value[[]uint16], src *[]uint16) erro
 	}
 	obj := dst.Value
 	err := setSliceOfUInt16FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1636,11 +1733,11 @@ func setNullableSliceOfUInt16ToProto(dst **[]uint16, src Value[[]uint16]) error 
 	return nil
 }
 
-func setSliceOfUInt16ToProto(dst **[]uint16, src *[]uint16) error {
-	if src == nil {
+func setSliceOfUInt16ToProto(dst *[]uint16, src Value[[]uint16]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1650,7 +1747,7 @@ func setNullableSliceOfUInt32FromProto(dst *Value[[]uint32], src *[]uint32) erro
 	}
 	obj := dst.Value
 	err := setSliceOfUInt32FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1673,11 +1770,11 @@ func setNullableSliceOfUInt32ToProto(dst **[]uint32, src Value[[]uint32]) error 
 	return nil
 }
 
-func setSliceOfUInt32ToProto(dst **[]uint32, src *[]uint32) error {
-	if src == nil {
+func setSliceOfUInt32ToProto(dst *[]uint32, src Value[[]uint32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1687,7 +1784,7 @@ func setNullableSliceOfUInt64FromProto(dst *Value[[]uint64], src *[]uint64) erro
 	}
 	obj := dst.Value
 	err := setSliceOfUInt64FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1710,11 +1807,11 @@ func setNullableSliceOfUInt64ToProto(dst **[]uint64, src Value[[]uint64]) error 
 	return nil
 }
 
-func setSliceOfUInt64ToProto(dst **[]uint64, src *[]uint64) error {
-	if src == nil {
+func setSliceOfUInt64ToProto(dst *[]uint64, src Value[[]uint64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1743,6 +1840,22 @@ func setNullableCodecTypeFromProto(dst *Value[configpb.CodecType], src *configpb
 }
 
 func setNullableCodecTypeToProto(dst **configpb.CodecType, src Value[configpb.CodecType]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableHeadersWithUnderscoresActionFromProto(dst *Value[configpb.HeadersWithUnderscoresAction], src *configpb.HeadersWithUnderscoresAction) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableHeadersWithUnderscoresActionToProto(dst **configpb.HeadersWithUnderscoresAction, src Value[configpb.HeadersWithUnderscoresAction]) error {
 	if !src.IsSet {
 		return nil
 	}
@@ -1871,6 +1984,22 @@ func setNullableOAuth2AuthStyleFromProto(dst *Value[configpb.OAuth2AuthStyle], s
 }
 
 func setNullableOAuth2AuthStyleToProto(dst **configpb.OAuth2AuthStyle, src Value[configpb.OAuth2AuthStyle]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullablePathWithEscapedSlashesActionFromProto(dst *Value[configpb.PathWithEscapedSlashesAction], src *configpb.PathWithEscapedSlashesAction) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullablePathWithEscapedSlashesActionToProto(dst **configpb.PathWithEscapedSlashesAction, src Value[configpb.PathWithEscapedSlashesAction]) error {
 	if !src.IsSet {
 		return nil
 	}

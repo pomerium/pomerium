@@ -1,4 +1,4 @@
-FROM node:24.15.0-bookworm@sha256:e9891237dfbb1de60ce19e9ff9fac5d73ad9c37da303ad72ff2a425ad1057e71 AS ui
+FROM node:24.17.0-bookworm@sha256:032e78d7e54e352129831743737e3a83171d9cc5b5896f411649c597ce0b11ea AS ui
 WORKDIR /build
 
 COPY .git ./.git
@@ -13,15 +13,12 @@ RUN make npm-install
 COPY ./ui/ ./ui/
 RUN make build-ui
 
-FROM golang:1.26.2-bookworm@sha256:47ce5636e9936b2c5cbf708925578ef386b4f8872aec74a67bd13a627d242b19 AS build
+FROM golang:1.26.4-bookworm@sha256:5f68ec6805843bd3981a951ffada82a26a0bd2631045c8f7dba483fa868f5ec5 AS build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
 RUN apt-get update \
     && apt-get -y --no-install-recommends install zip
 
-# cache dependency downloads
-COPY go.mod go.sum ./
-RUN go mod download
 COPY . .
 COPY --from=ui /build/ui/dist ./ui/dist
 
@@ -29,7 +26,7 @@ COPY --from=ui /build/ui/dist ./ui/dist
 RUN make build-go NAME=pomerium
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/base-debian12:debug@sha256:1f8759794cab46f0673e14afc03e3623cbd803b683abf7e3143fd041cc2e89f7
+FROM gcr.io/distroless/base-debian12:debug@sha256:b2a854c5f5b6d9441084b66628335fb9c66ae2ee93d719746b60ff1add99654a
 ENV AUTOCERT_DIR=/data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/

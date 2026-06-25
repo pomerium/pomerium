@@ -440,7 +440,9 @@ func (m *Model[T, K]) beginEdit(state editState) tea.Cmd {
 	focusCmd := m.editState.editInput.Focus()
 	m.UpdateViewport()
 	m.editState.interceptor = &messages.ModalInterceptor{
-		Update: m.Update,
+		Update: func(msg tea.Msg) core.Status {
+			return core.Cmd(m.Update(msg))
+		},
 		KeyMap: m.editKeyMap,
 	}
 	return tea.Sequence(

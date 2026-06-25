@@ -6,11 +6,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
+	"strconv"
 	"sync/atomic"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/rs/zerolog"
 	otelcode "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
@@ -22,6 +25,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -32,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
@@ -40,7 +45,7 @@ const (
 	telemetryFingerprintAttribute = "publickey-fingerprint"
 )
 
-//go:generate go tool -modfile ../../internal/tools/go.mod go.uber.org/mock/mockgen -typed -destination ./mock/mock_evaluator.go . SSHEvaluator
+//go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_evaluator.go . SSHEvaluator
 
 //nolint:revive
 type SSHEvaluator interface {
@@ -343,7 +348,7 @@ func (a *Auth) handleLogin(
 	if err != nil {
 		return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
 	}
-	authURL, _ := cfg.Options.GetInternalAuthenticateURL()
+	authURL, _ := cfg.Options.GetAuthenticateURL()
 	generatedCode := a.codeIssuer.IssueCode()
 	now := timestamppb.Now()
 
@@ -488,6 +493,68 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user ap
 		return nil
 	}
 	return errAccessDenied
+}
+
+// BuildTargetChannelFilters implements [AuthInterface].
+func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
+	hostname := user.Hostname()
+	if hostname == "" {
+		return nil, nil, fmt.Errorf("no hostname")
+	}
+	// TODO: optimize looking up routes by hostname
+	opts := a.currentConfig.Load().Options
+	route := opts.GetRouteForSSHHostname(hostname)
+	if route == nil {
+		return nil, nil, fmt.Errorf("no route")
+	}
+	addr := SocketAddressFromString(route)
+	if !route.SessionRecording.IsSet || !route.SessionRecording.Value.Enabled.Or(false) {
+		return addr, []*corev3.TypedExtensionConfig{}, nil
+	}
+	sess, err := a.GetSession(ctx, info)
+	if err != nil {
+		return nil, nil, fmt.Errorf("no session")
+	}
+	if recordingConfig := buildSSHRecordingConfig(&route.SessionRecording.Value, sess.GetId(), sess.GetUserId()); recordingConfig != nil {
+		return addr,
+			[]*corev3.TypedExtensionConfig{
+				recordingConfig,
+			}, nil
+	}
+	return addr, []*corev3.TypedExtensionConfig{}, nil
+}
+
+func SocketAddressFromString(route *config.Policy) *corev3.SocketAddress {
+	if route == nil || len(route.To) == 0 {
+		return nil
+	}
+	addr := route.To[0].URL.Host
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return &corev3.SocketAddress{Address: addr}
+	}
+	sa := &corev3.SocketAddress{Address: host}
+	if port, err := strconv.ParseUint(portStr, 10, 32); err == nil {
+		sa.PortSpecifier = &corev3.SocketAddress_PortValue{PortValue: uint32(port)}
+	}
+	return sa
+}
+
+func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID string) *corev3.TypedExtensionConfig {
+	if recCfg == nil {
+		return nil
+	}
+	if !recCfg.Enabled.Or(false) {
+		return nil
+	}
+	ext := &xssh.UpstreamTargetExtensionConfig{
+		SessionId: sessionID,
+		UserId:    userID,
+	}
+	return &corev3.TypedExtensionConfig{
+		Name:        "session_recording",
+		TypedConfig: protoutil.NewAny(ext),
+	}
 }
 
 // EvaluatePortForward implements AuthInterface.
@@ -656,7 +723,6 @@ func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuth
 		SessionID:        sessionBinding.SessionId,
 		SourceAddress:    info.SourceAddress,
 		SessionBindingID: sessionBindingID,
-
-		LogOnlyIfDenied: info.InitialAuthComplete,
+		LogOnlyIfDenied:  info.InitialAuthComplete,
 	}, nil
 }

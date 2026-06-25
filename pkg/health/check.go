@@ -24,12 +24,20 @@ const (
 	// DatabrokerCluster checks whether members of the databroker cluster are healthy
 	DatabrokerCluster = Check("databroker.cluster")
 
+	// EnvoyDynamicExtensions checks that the set of expected extensions configured
+	// are actually successfully initialized in envoy
+	EnvoyDynamicExtensions = Check("envoy.extensions")
+
 	// StorageBackend checks whether the storage backend is healthy
 	StorageBackend = Check("storage.backend")
 	// StorageBackendCleanup checks the storage backend cleanup tasks are healthy
 	StorageBackendCleanup = Check("storage.backend.cleanup")
 	// StorageBackendNotification checks that the backend is processing notifications
 	StorageBackendNotification = Check("storage.backend.notifications")
+
+	// RecordingHandler is ready to receive upload traffic from envoy for session recordings
+	RecordingHandler = Check("recording.handler")
+
 	// XDSCluster checks whether the XDS Cluster resources were applied
 	XDSCluster = Check("xds.cluster")
 	// XDSListener checks whether the XDS Listener resources were applied

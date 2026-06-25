@@ -54,12 +54,13 @@ type (
 	KeyboardInteractiveAuthMethodResponse = AuthMethodResponse[extensions_ssh.KeyboardInteractiveAllowResponse]
 )
 
-//go:generate go tool -modfile ../../internal/tools/go.mod go.uber.org/mock/mockgen -typed -destination ./mock/mock_auth_interface.go . AuthInterface
+//go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_auth_interface.go . AuthInterface
 
 type AuthInterface interface {
 	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
 	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
 	EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) error
+	BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error)
 	GetSession(ctx context.Context, info StreamAuthInfo) (*session.Session, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
@@ -406,7 +407,13 @@ func (sh *StreamHandler) handleHandoffRequest(ctx context.Context, state *Stream
 	}
 	state.CurrentUser = pendingUser
 	lg.Debug().Msg("ssh: user updated successfully; initiating handoff to upstream")
-	req.Reply <- buildHandoffAction(state, req.PtyInfo)
+
+	addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+	if err != nil {
+		log.Ctx(ctx).Err(err).Msg("failed to build extensions for filters")
+		filters = []*corev3.TypedExtensionConfig{}
+	}
+	req.Reply <- buildHandoffAction(state, req.PtyInfo, addr, filters)
 }
 
 func (sh *StreamHandler) handleInternalChannelRequest(state *StreamState, c InternalChannelRequest) {
@@ -653,7 +660,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 		// methods have a valid response in the state
 		state.InitialAuthComplete = true
 		log.Ctx(ctx).Debug().Msg("ssh: all methods valid, sending allow response")
-		sh.sendAllowResponse(state)
+		sh.sendAllowResponse(ctx, state)
 	} else {
 		log.Ctx(ctx).Debug().Msg("ssh: unauthenticated methods remain, sending deny response")
 		sh.sendDenyResponseWithRemainingMethods(partial, state)
@@ -665,11 +672,15 @@ func (sh *StreamHandler) reauth(ctx context.Context, state *StreamState) error {
 	if !state.InitialAuthComplete {
 		return nil
 	}
-	return sh.auth.EvaluateDelayed(ctx, state.StreamAuthInfo, state.CurrentUser)
+	err := sh.auth.EvaluateDelayed(ctx, state.StreamAuthInfo, state.CurrentUser)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func buildHandoffAction(state *StreamState, ptyInfo api.SSHPtyInfo) *extensions_ssh.SSHChannelControlAction {
-	upstreamAllow := buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser)
+func buildHandoffAction(state *StreamState, ptyInfo api.SSHPtyInfo, addr *corev3.SocketAddress, filters []*corev3.TypedExtensionConfig) *extensions_ssh.SSHChannelControlAction {
+	upstreamAllow := buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, addr, filters)
 	var downstreamPtyInfo *extensions_ssh.SSHDownstreamPTYInfo
 	if ptyInfo != nil {
 		downstreamPtyInfo = &extensions_ssh.SSHDownstreamPTYInfo{
@@ -750,7 +761,7 @@ func (sh *StreamHandler) sendDenyResponseWithRemainingMethods(partial bool, stat
 	}
 }
 
-func (sh *StreamHandler) sendAllowResponse(state *StreamState) {
+func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamState) {
 	var allow *extensions_ssh.AllowResponse
 	if !state.CurrentUser.Valid() {
 		panic("bug: current user invalid")
@@ -759,7 +770,12 @@ func (sh *StreamHandler) sendAllowResponse(state *StreamState) {
 		sh.expectingInternalChannel.Store(true)
 		allow = buildInternalAllowResponse(state.StreamAuthInfo, state.CurrentUser)
 	} else {
-		allow = buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser)
+		addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+		if err != nil {
+			log.Ctx(ctx).Err(err).Msg("failed to build channel filters")
+			filters = []*corev3.TypedExtensionConfig{}
+		}
+		allow = buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, addr, filters)
 	}
 
 	sh.writeC <- &extensions_ssh.ServerMessage{
@@ -788,7 +804,12 @@ func (sh *StreamHandler) sendInfoPrompts(prompts *extensions_ssh.KeyboardInterac
 	}
 }
 
-func buildUpstreamAllowResponse(info StreamAuthInfo, user api.UserRequest) *extensions_ssh.AllowResponse {
+func buildUpstreamAllowResponse(
+	info StreamAuthInfo,
+	user api.UserRequest,
+	address *corev3.SocketAddress,
+	filters []*corev3.TypedExtensionConfig,
+) *extensions_ssh.AllowResponse {
 	var allowedMethods []*extensions_ssh.AllowedMethod
 	if value := info.PublicKeyAllow.Value; value != nil {
 		allowedMethods = append(allowedMethods, &extensions_ssh.AllowedMethod{
@@ -802,13 +823,16 @@ func buildUpstreamAllowResponse(info StreamAuthInfo, user api.UserRequest) *exte
 			MethodData: protoutil.NewAny(value),
 		})
 	}
+
 	return &extensions_ssh.AllowResponse{
 		Username: user.Username(),
 		Target: &extensions_ssh.AllowResponse_Upstream{
 			Upstream: &extensions_ssh.UpstreamTarget{
 				Hostname:       user.Hostname(),
+				Address:        address,
 				DirectTcpip:    info.ChannelType == ChannelTypeDirectTcpip,
 				AllowedMethods: allowedMethods,
+				ChannelFilters: filters,
 			},
 		},
 	}

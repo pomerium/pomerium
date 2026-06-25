@@ -25,7 +25,6 @@ import (
 	typev3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	atomicfs "github.com/natefinch/atomic"
 	"golang.org/x/sys/unix"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -653,15 +652,6 @@ func findMountpoint(fsys fs.FS) (mountpoint string, isV2 bool, err error) {
 		return "", false, errors.New("no cgroup mount found")
 	}
 	return cgv1Root, false, nil
-}
-
-func marshalAny(msg proto.Message) *anypb.Any {
-	data := new(anypb.Any)
-	_ = anypb.MarshalFrom(data, msg, proto.MarshalOptions{
-		AllowPartial:  true,
-		Deterministic: true,
-	})
-	return data
 }
 
 type memoryLimitWatcher struct {

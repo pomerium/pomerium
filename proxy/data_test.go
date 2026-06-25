@@ -44,7 +44,7 @@ func Test_getUserInfoData(t *testing.T) {
 		client := databrokerpb.NewDataBrokerServiceClient(cc)
 
 		opts := testOptions(t)
-		proxy, err := New(ctx, &config.Config{Options: opts})
+		proxy, err := New(ctx, config.New(opts))
 		require.NoError(t, err)
 		proxy.state.Load().dataBrokerClient = client
 
@@ -67,7 +67,7 @@ func Test_getUserInfoData(t *testing.T) {
 		client := databrokerpb.NewDataBrokerServiceClient(cc)
 
 		opts := testOptions(t)
-		proxy, err := New(ctx, &config.Config{Options: opts})
+		proxy, err := New(ctx, config.New(opts))
 		require.NoError(t, err)
 		proxy.state.Load().dataBrokerClient = client
 		ctx = storage.WithQuerier(ctx, storage.NewQuerier(client))

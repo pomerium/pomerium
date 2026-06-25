@@ -21,7 +21,7 @@ func TestAuthorize_getDataBrokerSessionOrServiceAccount(t *testing.T) {
 	t.Cleanup(clearTimeout)
 
 	opt := config.NewDefaultOptions()
-	a, err := New(t.Context(), &config.Config{Options: opt})
+	a, err := New(t.Context(), config.New(opt))
 	require.NoError(t, err)
 
 	s1 := &session.Session{Id: "s1", ExpiresAt: timestamppb.New(time.Now().Add(-time.Second))}

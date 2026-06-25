@@ -29,6 +29,7 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh/cli"
@@ -338,7 +339,7 @@ type bindingSyncer struct {
 	updateHandler func(context.Context, uint64, []*databroker.Record)
 }
 
-var _ databroker.SyncerHandler = (*bindingSyncer)(nil)
+var _ databrokerutil.SyncerHandler = (*bindingSyncer)(nil)
 
 func (sbr *bindingSyncer) ClearRecords(ctx context.Context) {
 	sbr.clearHandler(ctx)
@@ -407,20 +408,20 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 	sm.edsServer = delta.NewServer(ctx, sm.edsCache, sm)
 	eg, eCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		syncer := databroker.NewSyncer(
+		syncer := databrokerutil.NewSyncer(
 			eCtx,
 			"ssh-auth-session-sync",
 			sm,
-			databroker.WithTypeURL("type.googleapis.com/session.Session"))
+			databrokerutil.WithTypeURL("type.googleapis.com/session.Session"))
 		return syncer.Run(eCtx)
 	})
 
 	eg.Go(func() error {
-		syncer := databroker.NewSyncer(
+		syncer := databrokerutil.NewSyncer(
 			eCtx,
 			"ssh-auth-session-binding-sync",
 			sm.bindingSyncer,
-			databroker.WithTypeURL("type.googleapis.com/session.SessionBinding"),
+			databrokerutil.WithTypeURL("type.googleapis.com/session.SessionBinding"),
 		)
 		return syncer.Run(eCtx)
 	})

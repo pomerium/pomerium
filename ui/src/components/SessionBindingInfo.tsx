@@ -78,7 +78,7 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                         size="small"
                         onClick={() => {
                           navigator.clipboard.writeText(
-                            s.DetailsSSH.FingerprintID
+                            s.DetailsSSH.FingerprintID,
                           );
                         }}
                       >

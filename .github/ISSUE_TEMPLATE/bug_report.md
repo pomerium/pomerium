@@ -35,3 +35,8 @@ about: Let us know about a bug!
 ## Additional context
 
 Add any other context about the problem here.
+
+## AI disclosure
+
+If AI tools helped draft this report, note which tool and confirm you have
+personally reproduced the bug. See [AI_POLICY.md](../../AI_POLICY.md).

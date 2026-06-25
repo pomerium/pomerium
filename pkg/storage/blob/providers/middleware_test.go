@@ -134,6 +134,7 @@ func testAzureHeaderFromContext(t *testing.T, ctx context.Context) http.Header {
 	t.Helper()
 	var captured http.Header
 	pl := azruntime.NewPipeline("test", "v0.0.0", azruntime.PipelineOptions{}, &policy.ClientOptions{
+		PerCallPolicies: []policy.Policy{azureAuditHeaderPolicy{}},
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			captured = req.Header.Clone()
 			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil

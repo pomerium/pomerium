@@ -12,11 +12,9 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/authorize/checkrequest"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -194,12 +192,17 @@ func (a *Authorize) getMCPSession(
 	}
 
 	accessToken := auth[len(prefix):]
-	sessionID, err := a.state.Load().mcp.GetSessionIDFromAccessToken(accessToken)
+	sessionID, sessionRecordVersion, err := a.state.Load().mcp.GetSessionAndVersionFromAccessToken(accessToken)
 	if err != nil {
-		return nil, fmt.Errorf("no session found for access token: %w", sessions.ErrNoSessionFound)
+		return nil, fmt.Errorf("no session found for access token: %w: %w", err, sessions.ErrNoSessionFound)
 	}
 
-	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, 0)
+	// Read the session with the record version captured when the token was
+	// issued. This gives read-your-writes: if the synced-data cache is behind
+	// that version (e.g. a session just written on another databroker node), the
+	// querier falls through to an authoritative databroker read instead of
+	// reporting the session as missing and denying with a 401.
+	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, sessionRecordVersion)
 	if storage.IsNotFound(err) {
 		return nil, fmt.Errorf("session databroker record not found: %w", sessions.ErrNoSessionFound)
 	}
@@ -307,14 +310,6 @@ func updateSpanWithMCPInfo(span oteltrace.Span, mcp evaluator.RequestMCP) {
 	if tc := mcp.ToolCall; tc != nil {
 		span.SetAttributes(attribute.String("mcp.tool", tc.Name))
 	}
-}
-
-func (a *Authorize) Record(stream googlegrpc.BidiStreamingServer[xrecording.RecordingData, xrecording.RecordingSession]) error {
-	recvSrv := a.recordingServer.Load()
-	if recvSrv == nil {
-		return status.Error(codes.Unavailable, "recording server not enabled")
-	}
-	return (*recvSrv).Record(stream)
 }
 
 // hasCookieAndBearer reports whether the request carries BOTH a Pomerium

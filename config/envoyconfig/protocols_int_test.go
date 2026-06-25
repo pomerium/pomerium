@@ -322,35 +322,54 @@ func TestHttp1Websocket(t *testing.T) {
 		}
 	})
 
-	route := up.Route().
+	// Two routes share the same upstream and websocket handler and differ only
+	// in whether the policy allows websockets. That isolates the denial to the
+	// AllowWebsockets flag: a failure on the denied route can't be blamed on a
+	// misconfigured upstream, since the allowed route proves the upstream works.
+	allowed := up.Route().
 		From(env.SubdomainURL("ws-test")).
 		Policy(func(p *config.Policy) {
 			p.AllowPublicUnauthenticatedAccess = true
 			p.AllowWebsockets = true
+		})
+	denied := up.Route().
+		From(env.SubdomainURL("ws-test-denied")).
+		Policy(func(p *config.Policy) {
+			p.AllowPublicUnauthenticatedAccess = true
 		})
 
 	env.AddUpstream(up)
 	env.Start()
 	snippets.WaitStartupComplete(env)
 
-	assert.NoError(t, up.DialWS(route, func(conn *websocket.Conn) error {
-		if err := conn.SetWriteDeadline(time.Now().Add(1 * time.Second)); err != nil {
-			return err
-		}
-		if err := conn.WriteMessage(websocket.TextMessage, []byte("hello world")); err != nil {
-			return err
-		}
-		if err := conn.SetReadDeadline(time.Now().Add(1 * time.Second)); err != nil {
-			return err
-		}
-		mt, bytes, err := conn.ReadMessage()
-		if err := err; err != nil {
-			return err
-		}
-		assert.Equal(t, websocket.TextMessage, mt)
-		assert.Equal(t, "hello world", string(bytes))
-		return nil
-	}, upstreams.Path("/ws")))
+	t.Run("allowed", func(t *testing.T) {
+		assert.NoError(t, up.DialWS(allowed, func(conn *websocket.Conn) error {
+			if err := conn.SetWriteDeadline(time.Now().Add(1 * time.Second)); err != nil {
+				return err
+			}
+			if err := conn.WriteMessage(websocket.TextMessage, []byte("hello world")); err != nil {
+				return err
+			}
+			if err := conn.SetReadDeadline(time.Now().Add(1 * time.Second)); err != nil {
+				return err
+			}
+			mt, bytes, err := conn.ReadMessage()
+			if err != nil {
+				return err
+			}
+			assert.Equal(t, websocket.TextMessage, mt)
+			assert.Equal(t, "hello world", string(bytes))
+			return nil
+		}, upstreams.Path("/ws")))
+	})
+
+	t.Run("denied", func(t *testing.T) {
+		// Without AllowWebsockets the upgrade is rejected with a non-101
+		// response, which surfaces as ErrBadHandshake. Asserting the specific
+		// error keeps the test from passing on an unrelated dial failure.
+		err := up.DialWS(denied, func(_ *websocket.Conn) error { return nil }, upstreams.Path("/ws"))
+		require.ErrorIs(t, err, websocket.ErrBadHandshake)
+	})
 }
 
 func TestClientCert(t *testing.T) {

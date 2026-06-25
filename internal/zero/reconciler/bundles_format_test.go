@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/pomerium/pomerium/pkg/grpc/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -41,8 +41,8 @@ func writeSampleRecords(dst io.Writer) error {
 		},
 	}
 
-	cfg := protoutil.NewAny(&config.Config{
-		Routes: []*config.Route{
+	cfg := protoutil.NewAny(&configpb.Config{
+		Routes: []*configpb.Route{
 			{
 				From: "https://from.example.com",
 				To:   []string{"https://to.example.com"},

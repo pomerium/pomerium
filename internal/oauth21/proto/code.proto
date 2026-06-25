@@ -27,4 +27,9 @@ message Code {
     (buf.validate.field).required          = true,
     (buf.validate.field).enum.defined_only = true
   ];
+  // record_version is the databroker record version of the record referenced by
+  // this code, captured at issuance time. The authorize service replays it as a
+  // minimum-version hint when reading that record, providing read-your-writes
+  // across databroker replicas. Zero means no hint.
+  uint64 record_version = 4;
 }
