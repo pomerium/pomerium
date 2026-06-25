@@ -68,6 +68,17 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return mkDeniedCheckResponse(http.StatusNoContent, headers, ""), nil
 	}
 
+	// Cookie + Authorization: Bearer are mutually exclusive trust contexts.
+	// Cookies come from a browser; bearer tokens come from an M2M client.
+	// A request carrying both is either a misconfigured client or an
+	// attempt at confusion. See docs/jwt-idps-change-plan.md decision #6.
+	if hasCookieAndBearer(hreq, a.currentConfig.Load().Options.CookieName) {
+		log.Ctx(ctx).Info().
+			Str("request-id", requestID).
+			Msg("request carried both a session cookie and an Authorization: Bearer header; rejecting as 400")
+		return a.deniedResponse(ctx, in, int32(http.StatusBadRequest), http.StatusText(http.StatusBadRequest), nil)
+	}
+
 	// load the session
 	s, err := a.loadSession(ctx, hreq, req)
 	if errors.Is(err, sessions.ErrInvalidSession) {
@@ -304,4 +315,22 @@ func (a *Authorize) Record(stream googlegrpc.BidiStreamingServer[xrecording.Reco
 		return status.Error(codes.Unavailable, "recording server not enabled")
 	}
 	return (*recvSrv).Record(stream)
+}
+
+// hasCookieAndBearer reports whether the request carries BOTH a Pomerium
+// session cookie AND an Authorization: Bearer header. The two are mutually
+// exclusive trust contexts (browser vs M2M).
+func hasCookieAndBearer(r *http.Request, cookieName string) bool {
+	if cookieName == "" {
+		return false
+	}
+	if _, err := r.Cookie(cookieName); err != nil {
+		return false
+	}
+	auth := r.Header.Get(httputil.HeaderAuthorization)
+	if auth == "" {
+		return false
+	}
+	const prefix = "Bearer "
+	return strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix))
 }

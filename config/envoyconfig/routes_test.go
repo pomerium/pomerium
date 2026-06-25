@@ -421,14 +421,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		8: "301084c3bd94c1ed",
 	}
 	routeChecksums := []string{
-		1: "4341832114755408874",
-		2: "13638393699171502415",
-		3: "3531203047506879724",
-		4: "1178256552644419923",
-		5: "17742696910343003772",
-		6: "13665201519959870174",
-		7: "1252430287897678566",
-		8: "14139912498664549934",
+		1: "13582132830232748673",
+		2: "7790351427904271978",
+		3: "8059810159409085447",
+		4: "8669989796084865204",
+		5: "7085235136761699568",
+		6: "8409556405375081907",
+		7: "14936580247738154939",
+		8: "15306198880512945920",
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
@@ -1239,7 +1239,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "7921745563361135508",
+								"route_checksum": "14905876916932722602",
 								"route_id": "98f90d58022ca963"
 							}
 						}
@@ -1317,7 +1317,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "12095073329859970994",
+								"route_checksum": "11903501585155307578",
 								"route_id": "81175a3a9df11dd8"
 							}
 						}
@@ -1416,7 +1416,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "11342209917578064710",
+								"route_checksum": "10093838524385204263",
 								"route_id": "ad0a23467bbdb773"
 							}
 						}
@@ -1520,7 +1520,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "639141970601164929",
+									"route_checksum": "7413927844951260714",
 									"route_id": "1013c6be524d7fbd"
 								}
 							}
@@ -1637,7 +1637,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "9945495030471882867",
+									"route_checksum": "10104987596702812545",
 									"route_id": "a81e6b1e66c1e2cd"
 								}
 							}
@@ -1773,7 +1773,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "2881646402215982330",
+								"route_checksum": "8390522014436076673",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1850,7 +1850,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "936233820672233166",
+								"route_checksum": "11807247639973638612",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1932,7 +1932,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "9777357689858931040",
+								"route_checksum": "8644266764201689603",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2009,7 +2009,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "16952788553312867677",
+								"route_checksum": "11637938573501696798",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2086,7 +2086,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "17338365152641165142",
+								"route_checksum": "10448559569625445542",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2168,7 +2168,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "10586514077981781443",
+								"route_checksum": "15815465685295363514",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}

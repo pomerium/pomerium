@@ -188,6 +188,11 @@ type Policy struct {
 	IDPClientSecret string `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
 	// IDPAccessTokenAllowedAudiences are the allowed audiences for idp access token validation.
 	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
+	// AcceptJWTIdps lists the JWT identity providers (declared in
+	// Options.JWTIdentityProviders) whose tokens this route accepts as
+	// Authorization: Bearer credentials, scoped to per-rule audiences.
+	// See docs/jwt-idps-change-plan.md.
+	AcceptJWTIdps []JWTIdpAcceptance `mapstructure:"accept_jwt_idps" yaml:"accept_jwt_idps,omitempty"`
 
 	// ShowErrorDetails indicates whether or not additional error details should be displayed.
 	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
@@ -438,6 +443,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	} else {
 		p.IDPAccessTokenAllowedAudiences = nil
 	}
+	p.AcceptJWTIdps = acceptJWTIdpsFromProto(pb.GetAcceptJwtIdps())
 	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
 			HTTPSRedirect:  pb.Redirect.HttpsRedirect,
@@ -618,6 +624,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	} else {
 		pb.IdpAccessTokenAllowedAudiences = nil
 	}
+	pb.AcceptJwtIdps = acceptJWTIdpsToProto(p.AcceptJWTIdps)
 	if p.Redirect != nil {
 		pb.Redirect = &configpb.RouteRedirect{
 			HttpsRedirect:  p.Redirect.HTTPSRedirect,

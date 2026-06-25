@@ -264,13 +264,25 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 
 	start := time.Now()
 
-	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
+	resolver, err := cfg.JWTIdpResolver()
 	if err != nil {
-		return nil, op.Failure(fmt.Errorf("error getting identity provider to verify identity token: %w", err))
+		return nil, op.Failure(fmt.Errorf("error building jwt identity provider resolver: %w", err))
+	}
+	if resolver == nil {
+		return nil, op.Failure(fmt.Errorf("%w: no jwt_identity_providers configured", sessions.ErrInvalidSession))
 	}
 
-	sessionID := getIdentityTokenSessionID(idp, rawIdentityToken)
-	res, err, _ := c.singleflight.Do(sessionID, func() (any, error) {
+	// Pre-resolve which named provider this token is bound to (used in the
+	// session ID so caching keys correctly per-named-provider). We do an
+	// unverified parse of `iss` here; signature is still checked inside
+	// resolver.VerifyForPolicy below.
+	res, err, _ := c.singleflight.Do(rawIdentityToken, func() (any, error) {
+		vres, verr := resolver.VerifyForPolicy(ctx, policy.AcceptJWTIdps, rawIdentityToken)
+		if verr != nil {
+			return nil, fmt.Errorf("%w: %v", sessions.ErrInvalidSession, verr)
+		}
+		sessionID := jwtIdpSessionID(vres.ProviderName, rawIdentityToken)
+
 		s, err := c.getSession(ctx, sessionID)
 		if err == nil {
 			c.identityTokenSessionsCachedCount.Add(ctx, 1)
@@ -279,22 +291,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 			return nil, err
 		}
 
-		authenticateURL, transport, err := cfg.resolveAuthenticateURL()
-		if err != nil {
-			return nil, fmt.Errorf("error resolving authenticate url to verify identity token: %w", err)
-		}
-
-		res, err := authenticateapi.New(authenticateURL, transport).VerifyIdentityToken(ctx, &authenticateapi.VerifyIdentityTokenRequest{
-			IdentityToken:      rawIdentityToken,
-			IdentityProviderID: idp.GetId(),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error verifying identity token: %w", err)
-		} else if !res.Valid {
-			return nil, fmt.Errorf("%w: invalid identity token", sessions.ErrInvalidSession)
-		}
-
-		s = c.newSessionFromIDPClaims(cfg, idp.Id, sessionID, res.Claims)
+		s = c.newSessionFromIDPClaims(cfg, vres.ProviderName, sessionID, vres.Claims)
 		s.SetRawIDToken(rawIdentityToken)
 
 		u, err := c.getUser(ctx, s.GetUserId())
@@ -303,7 +300,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 		} else if err != nil {
 			return nil, fmt.Errorf("error retrieving existing user: %w", err)
 		}
-		c.fillUserFromIDPClaims(u, res.Claims)
+		c.fillUserFromIDPClaims(u, vres.Claims)
 
 		err = c.putSessionAndUser(ctx, s, u)
 		if err != nil {
@@ -319,6 +316,16 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 
 	c.identityTokenCreateSessionDuration.Record(ctx, time.Since(start).Milliseconds())
 	return res.(*session.Session), nil
+}
+
+// jwtIdpSessionID derives a stable session id from (jwt_idp_name, raw_token).
+// Same token → same session; switching providers (or rotating the named-idp
+// config) gets a fresh session id naturally.
+var jwtIdpSessionNamespace = uuid.MustParse("0195a000-a000-7000-8000-00000000a01a")
+
+func jwtIdpSessionID(idpName, rawToken string) string {
+	ns := uuid.NewSHA1(jwtIdpSessionNamespace, []byte(idpName))
+	return uuid.NewSHA1(ns, []byte(rawToken)).String()
 }
 
 func (c *incomingIDPTokenSessionCreator) newSessionFromIDPClaims(
@@ -465,25 +472,22 @@ func (cfg *Config) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Re
 	return "", false
 }
 
-// GetIncomingIDPAccessTokenForPolicy returns the raw idp identity token from a request if there is one.
+// GetIncomingIDPIdentityTokenForPolicy returns the raw JWT bearer token from
+// a request if and only if the route's policy has AcceptJWTIdps configured.
+// See docs/jwt-idps-change-plan.md.
 func (cfg *Config) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.Request) (rawIdentityToken string, ok bool) {
-	bearerTokenFormat := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
-	if cfg.Options != nil && cfg.Options.BearerTokenFormat.IsSet {
-		bearerTokenFormat = cfg.Options.BearerTokenFormat.Value
+	if policy == nil || len(policy.AcceptJWTIdps) == 0 {
+		return "", false
 	}
-	if policy != nil && policy.BearerTokenFormat.IsSet {
-		bearerTokenFormat = policy.BearerTokenFormat.Value
+	auth := r.Header.Get(httputil.HeaderAuthorization)
+	if auth == "" {
+		return "", false
 	}
-
-	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
-		prefix := "Bearer "
-		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
-			bearerTokenFormat == config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN {
-			return auth[len(prefix):], true
-		}
+	const prefix = "Bearer "
+	if !strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
+		return "", false
 	}
-
-	return "", false
+	return auth[len(prefix):], true
 }
 
 var accessTokenUUIDNamespace = uuid.MustParse("0194f6f8-e760-76a0-8917-e28ac927a34d")

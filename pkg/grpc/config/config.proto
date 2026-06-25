@@ -138,6 +138,32 @@ message EntityInfo {
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
+// JwtIdentityProvider declares a verify-only JWT issuer. Pomerium accepts
+// JWT bearer tokens from this issuer on routes that opt in via
+// Route.accept_jwt_idps. See docs/jwt-idps-change-plan.md.
+message JwtIdentityProvider {
+  // Stable identifier referenced by Route.accept_jwt_idps[].name. Required.
+  string name = 1;
+  // The `iss` claim that tokens must carry. Required.
+  string issuer = 2;
+  // Optional explicit JWKS URL. When set, OIDC discovery is skipped and keys
+  // are fetched directly from this URL. Useful when the issuer URL is not
+  // externally routable (e.g. Kubernetes' `kubernetes.default.svc.cluster.local`).
+  string jwks_url = 3;
+  // Allowed JWT signing algorithms. When empty, defaults to {RS256, ES256, EdDSA}.
+  repeated string supported_algs = 4;
+}
+
+// JwtIdpAcceptance references a globally-declared JwtIdentityProvider and
+// scopes which token audiences are accepted on the route.
+message JwtIdpAcceptance {
+  // Name of the provider declared in Settings.jwt_identity_providers. Required.
+  string name = 1;
+  // At least one of these must intersect the JWT's `aud` claim. Required and
+  // must be non-empty.
+  repeated string audiences = 2;
+}
+
 // Configuration for a route.
 message Route {
   message StringList {
@@ -356,6 +382,12 @@ message Route {
   // Allowed audiences for validating IdP-issued access tokens for this
   // route.
   optional StringList idp_access_token_allowed_audiences = 69;
+  reserved 94; // was POC idp_identity_token_allowed_audiences
+  // JWT identity provider acceptance rules for this route. When set, the
+  // route accepts JWT bearer tokens issued by any listed named provider
+  // (defined in Settings.jwt_identity_providers), scoped to the per-rule
+  // audiences. See docs/jwt-idps-change-plan.md.
+  repeated JwtIdpAcceptance accept_jwt_idps = 95;
   // If true, include policy explanation and remediation details in
   // authorization error responses.
   bool show_error_details = 59;
@@ -578,6 +610,10 @@ message Settings {
   optional string                   idp_provider                       = 24;
   optional string                   idp_provider_url                   = 25;
   optional StringList               idp_access_token_allowed_audiences = 137;
+  reserved 182, 183; // were POC idp_identity_token_allowed_audiences, idp_jwks_url
+  // Globally declared verify-only JWT identity providers, referenced per-
+  // route via Route.accept_jwt_idps. See docs/jwt-idps-change-plan.md.
+  repeated JwtIdentityProvider jwt_identity_providers = 184;
   repeated string                   scopes                             = 26;
   reserved 27; // was idp_service_account
   reserved 28; // was idp_refresh_directory_timeout

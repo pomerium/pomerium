@@ -19,6 +19,7 @@ var _ = config.Source(new(source))
 
 var cmpOpts = []cmp.Option{
 	cmpopts.IgnoreUnexported(config.Options{}),
+	cmpopts.IgnoreUnexported(config.Config{}),
 	cmpopts.EquateEmpty(),
 }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/authenticateapi"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -263,56 +264,48 @@ func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
 func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
 	t.Parallel()
 
-	bearerTokenFormatIDPIdentityToken := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN
+	jwtAccept := []JWTIdpAcceptance{{Name: "demo", Audiences: []string{"demo.example.com"}}}
 
 	for _, tc := range []struct {
-		name                    string
-		globalBearerTokenFormat *config.BearerTokenFormat
-		routeBearerTokenFormat  *config.BearerTokenFormat
-		headers                 http.Header
-		expectedOK              bool
-		expectedToken           string
+		name           string
+		acceptJWTIdps  []JWTIdpAcceptance
+		headers        http.Header
+		expectedOK     bool
+		expectedToken  string
 	}{
 		{
-			name:       "empty headers",
+			name:       "no accept_jwt_idps, no header",
 			expectedOK: false,
 		},
 		{
-			name:       "bearer disabled",
-			headers:    http.Header{"Authorization": {"Bearer identity token via bearer"}},
+			name:       "no accept_jwt_idps, bearer header ignored",
+			headers:    http.Header{"Authorization": {"Bearer some-jwt"}},
 			expectedOK: false,
 		},
 		{
-			name:                    "bearer enabled via options",
-			globalBearerTokenFormat: &bearerTokenFormatIDPIdentityToken,
-			headers:                 http.Header{"Authorization": {"Bearer identity token via bearer"}},
-			expectedOK:              true,
-			expectedToken:           "identity token via bearer",
+			name:          "accept_jwt_idps configured, bearer header returned",
+			acceptJWTIdps: jwtAccept,
+			headers:       http.Header{"Authorization": {"Bearer some-jwt"}},
+			expectedOK:    true,
+			expectedToken: "some-jwt",
 		},
 		{
-			name:                   "bearer enabled via route",
-			routeBearerTokenFormat: &bearerTokenFormatIDPIdentityToken,
-			headers:                http.Header{"Authorization": {"Bearer identity token via bearer"}},
-			expectedOK:             true,
-			expectedToken:          "identity token via bearer",
+			name:          "accept_jwt_idps configured, no header",
+			acceptJWTIdps: jwtAccept,
+			expectedOK:    false,
+		},
+		{
+			name:          "accept_jwt_idps configured, non-Bearer auth header",
+			acceptJWTIdps: jwtAccept,
+			headers:       http.Header{"Authorization": {"Basic dXNlcjpwYXNz"}},
+			expectedOK:    false,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &Config{
-				Options: NewDefaultOptions(),
-			}
-			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalBearerTokenFormat)
-
-			var route *Policy
-			if tc.routeBearerTokenFormat != nil {
-				route = &Policy{
-					RouteOptions: RouteOptions{
-						BearerTokenFormat: nullable.FromPtr(tc.routeBearerTokenFormat),
-					},
-				}
-			}
+			cfg := &Config{Options: NewDefaultOptions()}
+			route := &Policy{AcceptJWTIdps: tc.acceptJWTIdps}
 
 			r, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
 			require.NoError(t, err)
@@ -497,27 +490,37 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 	t.Run("identity_token", func(t *testing.T) {
 		t.Parallel()
 
-		mux := http.NewServeMux()
-		mux.HandleFunc("/.pomerium/verify-identity-token", func(w http.ResponseWriter, _ *http.Request) {
-			json.NewEncoder(w).Encode(&authenticateapi.VerifyTokenResponse{
-				Valid:  true,
-				Claims: jwtutil.Claims{"sub": "U1"},
-			})
-		})
-		srv := httptest.NewTLSServer(mux)
+		// Set up a mock JWT issuer (publishes OIDC discovery + JWKS).
+		idp := mockidp.New(mockidp.Config{})
+		issuer := idp.Start(t)
 
 		ctx := testutil.GetContext(t, time.Minute)
 		cfg := &Config{Options: NewDefaultOptions()}
-		cfg.Options.AuthenticateURLString = srv.URL
-		cfg.Options.ClientSecret = "CLIENT_SECRET_1"
-		cfg.Options.ClientID = "CLIENT_ID_1"
-		cfg.Options.BearerTokenFormat = nullable.From(*config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN.Enum())
-		route := &Policy{}
-		route.IDPClientSecret = "CLIENT_SECRET_2"
-		route.IDPClientID = "CLIENT_ID_2"
+		cfg.Options.JWTIdentityProviders = []JWTIdentityProvider{{
+			Name:          "test-idp",
+			Issuer:        issuer,
+			SupportedAlgs: []string{"ES256"},
+		}}
+
+		route := &Policy{
+			AcceptJWTIdps: []JWTIdpAcceptance{
+				{Name: "test-idp", Audiences: []string{"pomerium.example.com"}},
+			},
+		}
+
+		now := time.Now()
+		tok := idp.SignJWT(map[string]any{
+			"iss": issuer,
+			"sub": "U1",
+			"aud": []string{"pomerium.example.com"},
+			"exp": now.Add(time.Hour).Unix(),
+			"iat": now.Unix(),
+			"nbf": now.Unix(),
+		})
+
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.example.com", nil)
 		require.NoError(t, err)
-		req.Header.Set("Authorization", "Bearer IDENTITY_TOKEN")
+		req.Header.Set("Authorization", "Bearer "+tok)
 		c := NewIncomingIDPTokenSessionCreator(
 			noop.NewTracerProvider(),
 			func(_ context.Context, _, _ string) (*databroker.Record, error) {

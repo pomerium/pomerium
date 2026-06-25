@@ -2072,6 +2072,102 @@
           ]
         },
         {
+          "name": "JwtIdentityProvider",
+          "longName": "JwtIdentityProvider",
+          "fullName": "pomerium.config.JwtIdentityProvider",
+          "description": "JwtIdentityProvider declares a verify-only JWT issuer. Pomerium accepts\nJWT bearer tokens from this issuer on routes that opt in via\nRoute.accept_jwt_idps. See docs/jwt-idps-change-plan.md.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "name",
+              "description": "Stable identifier referenced by Route.accept_jwt_idps[].name. Required.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "issuer",
+              "description": "The `iss` claim that tokens must carry. Required.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "jwks_url",
+              "description": "Optional explicit JWKS URL. When set, OIDC discovery is skipped and keys\nare fetched directly from this URL. Useful when the issuer URL is not\nexternally routable (e.g. Kubernetes' `kubernetes.default.svc.cluster.local`).",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "supported_algs",
+              "description": "Allowed JWT signing algorithms. When empty, defaults to {RS256, ES256, EdDSA}.",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "JwtIdpAcceptance",
+          "longName": "JwtIdpAcceptance",
+          "fullName": "pomerium.config.JwtIdpAcceptance",
+          "description": "JwtIdpAcceptance references a globally-declared JwtIdentityProvider and\nscopes which token audiences are accepted on the route.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "name",
+              "description": "Name of the provider declared in Settings.jwt_identity_providers. Required.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "audiences",
+              "description": "At least one of these must intersect the JWT's `aud` claim. Required and\nmust be non-empty.",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "KeyPair",
           "longName": "KeyPair",
           "fullName": "pomerium.config.KeyPair",
@@ -4693,6 +4789,18 @@
               "defaultValue": ""
             },
             {
+              "name": "accept_jwt_idps",
+              "description": "JWT identity provider acceptance rules for this route. When set, the\nroute accepts JWT bearer tokens issued by any listed named provider\n(defined in Settings.jwt_identity_providers), scoped to the per-rule\naudiences. See docs/jwt-idps-change-plan.md.",
+              "label": "repeated",
+              "type": "JwtIdpAcceptance",
+              "longType": "JwtIdpAcceptance",
+              "fullType": "pomerium.config.JwtIdpAcceptance",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
               "name": "show_error_details",
               "description": "If true, include policy explanation and remediation details in\nauthorization error responses.",
               "label": "",
@@ -5882,6 +5990,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_idp_access_token_allowed_audiences",
+              "defaultValue": ""
+            },
+            {
+              "name": "jwt_identity_providers",
+              "description": "Globally declared verify-only JWT identity providers, referenced per-\nroute via Route.accept_jwt_idps. See docs/jwt-idps-change-plan.md.",
+              "label": "repeated",
+              "type": "JwtIdentityProvider",
+              "longType": "JwtIdentityProvider",
+              "fullType": "pomerium.config.JwtIdentityProvider",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
               "defaultValue": ""
             },
             {

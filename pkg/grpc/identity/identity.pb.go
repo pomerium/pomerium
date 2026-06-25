@@ -247,7 +247,7 @@ var File_identity_proto protoreflect.FileDescriptor
 
 const file_identity_proto_rawDesc = "" +
 	"\n" +
-	"\x0eidentity.proto\x12\x11pomerium.identity\x1a\x1cgoogle/protobuf/struct.proto\"\xa8\x04\n" +
+	"\x0eidentity.proto\x12\x11pomerium.identity\x1a\x1cgoogle/protobuf/struct.proto\"\xb4\x04\n" +
 	"\bProvider\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
 	"\x18authenticate_service_url\x18\t \x01(\tR\x16authenticateServiceUrl\x12\x1b\n" +
@@ -265,7 +265,7 @@ const file_identity_proto_rawDesc = "" +
 	"\x12RequestParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B!\n" +
-	"\x1f_access_token_allowed_audiences\"\x97\x01\n" +
+	"\x1f_access_token_allowed_audiencesJ\x04\b\v\x10\fJ\x04\b\f\x10\r\"\x97\x01\n" +
 	"\aProfile\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x19\n" +

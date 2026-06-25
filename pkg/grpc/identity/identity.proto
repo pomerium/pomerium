@@ -17,6 +17,7 @@ message Provider {
   string url = 7;
   map<string, string> request_params = 8;
   optional StringList access_token_allowed_audiences = 10;
+  reserved 11, 12; // were POC identity_token_allowed_audiences, jwks_url
 }
 
 message Profile {
