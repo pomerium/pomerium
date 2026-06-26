@@ -144,6 +144,10 @@ enum BearerTokenFormat {
   BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN = 2;
   // The bearer token will be interpreted as an IdP-issued identity token.
   BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN = 3;
+  // The bearer token will be verified as a JWT issued by one of the trusted
+  // issuers declared in jwt_allowed_issuers, scoped to jwt_allowed_audiences.
+  // Authorization on the verified claims is left to PPL (claim/...).
+  BEARER_TOKEN_FORMAT_JWT = 4;
 }
 
 // Action to take when Envoy receives client request with header names containing underscore characters.
@@ -204,30 +208,23 @@ message EntityInfo {
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
-// JwtIdentityProvider declares a verify-only JWT issuer. Pomerium accepts
-// JWT bearer tokens from this issuer on routes that opt in via
-// Route.accept_jwt_idps. See docs/jwt-idps-change-plan.md.
-message JwtIdentityProvider {
-  // Stable identifier referenced by Route.accept_jwt_idps[].name. Required.
-  string name = 1;
-  // The `iss` claim that tokens must carry. Required.
-  string issuer = 2;
+// JwtAllowedIssuer declares a trusted JWT issuer. Pomerium verifies JWT bearer
+// tokens against any of these issuers on routes whose bearer_token_format is
+// BEARER_TOKEN_FORMAT_JWT. Audience binding is enforced separately via
+// jwt_allowed_audiences; authorization on the verified claims is left to PPL.
+message JwtAllowedIssuer {
+  // The `iss` claim that tokens must carry. Required. Used both to select the
+  // matching issuer for an incoming token and (with OIDC discovery) to fetch
+  // the signing keys.
+  string issuer = 1;
   // Optional explicit JWKS URL. When set, OIDC discovery is skipped and keys
   // are fetched directly from this URL. Useful when the issuer URL is not
   // externally routable (e.g. Kubernetes' `kubernetes.default.svc.cluster.local`).
-  string jwks_url = 3;
+  string jwks_url = 2;
   // Allowed JWT signing algorithms. When empty, defaults to {RS256, ES256, EdDSA}.
-  repeated string supported_algs = 4;
-}
-
-// JwtIdpAcceptance references a globally-declared JwtIdentityProvider and
-// scopes which token audiences are accepted on the route.
-message JwtIdpAcceptance {
-  // Name of the provider declared in Settings.jwt_identity_providers. Required.
-  string name = 1;
-  // At least one of these must intersect the JWT's `aud` claim. Required and
-  // must be non-empty.
-  repeated string audiences = 2;
+  repeated string supported_algs = 3;
+  // Optional human-readable identifier, used only for audit logging.
+  optional string name = 4;
 }
 
 // SessionRecording defines session recording settings for routes.
@@ -457,11 +454,12 @@ message Route {
   // Allowed audiences for validating IdP-issued access tokens for this
   // route.
   optional StringList idp_access_token_allowed_audiences = 69;
-  // JWT identity provider acceptance rules for this route. When set, the
-  // route accepts JWT bearer tokens issued by any listed named provider
-  // (defined in Settings.jwt_identity_providers), scoped to the per-rule
-  // audiences. See docs/jwt-idps-change-plan.md.
-  repeated JwtIdpAcceptance accept_jwt_idps = 95;
+  reserved 95; // was accept_jwt_idps
+  // Allowed audiences for verifying JWT bearer tokens on this route (when
+  // bearer_token_format is BEARER_TOKEN_FORMAT_JWT). At least one must
+  // intersect the token's `aud` claim. Fail-closed: an empty effective set
+  // rejects all tokens. When unset, the global jwt_allowed_audiences is used.
+  optional StringList jwt_allowed_audiences = 96;
   // If true, include policy explanation and remediation details in
   // authorization error responses.
   bool show_error_details = 59;
@@ -831,9 +829,12 @@ message Settings {
   // Audiences Pomerium accepts on IdP-issued access tokens. Required when
   // BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN routes exist.
   optional StringList idp_access_token_allowed_audiences = 137;
-  // Globally declared verify-only JWT identity providers, referenced per-
-  // route via Route.accept_jwt_idps. See docs/jwt-idps-change-plan.md.
-  repeated JwtIdentityProvider jwt_identity_providers = 188;
+  // Globally declared trusted JWT issuers. Routes whose bearer_token_format
+  // is BEARER_TOKEN_FORMAT_JWT verify incoming tokens against these.
+  repeated JwtAllowedIssuer jwt_allowed_issuers = 188;
+  // Cluster-wide default allowed audiences for JWT bearer tokens. Routes may
+  // override via Route.jwt_allowed_audiences.
+  optional StringList jwt_allowed_audiences = 189;
   // OIDC scopes Pomerium requests when authenticating users.
   repeated string scopes = 26;
   reserved 27; // was idp_service_account

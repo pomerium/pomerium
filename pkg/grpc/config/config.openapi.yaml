@@ -1493,6 +1493,7 @@ components:
         - BEARER_TOKEN_FORMAT_DEFAULT
         - BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN
         - BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN
+        - BEARER_TOKEN_FORMAT_JWT
       description: Controls how HTTP bearer token authentication is handled.
     pomerium.config.BlobStorageSettings:
       type: object
@@ -2453,6 +2454,42 @@ components:
       description: |-
         Format used for the `iss` claim of JWTs Pomerium issues for upstream
          requests.
+    pomerium.config.JwtAllowedIssuer:
+      type: object
+      properties:
+        issuer:
+          type: string
+          title: issuer
+          description: |-
+            The `iss` claim that tokens must carry. Required. Used both to select the
+             matching issuer for an incoming token and (with OIDC discovery) to fetch
+             the signing keys.
+        jwksUrl:
+          type: string
+          title: jwks_url
+          description: |-
+            Optional explicit JWKS URL. When set, OIDC discovery is skipped and keys
+             are fetched directly from this URL. Useful when the issuer URL is not
+             externally routable (e.g. Kubernetes' `kubernetes.default.svc.cluster.local`).
+        supportedAlgs:
+          type: array
+          items:
+            type: string
+          title: supported_algs
+          description: Allowed JWT signing algorithms. When empty, defaults to {RS256, ES256, EdDSA}.
+        name:
+          type:
+            - string
+            - "null"
+          title: name
+          description: Optional human-readable identifier, used only for audit logging.
+      title: JwtAllowedIssuer
+      additionalProperties: false
+      description: |-
+        JwtAllowedIssuer declares a trusted JWT issuer. Pomerium verifies JWT bearer
+         tokens against any of these issuers on routes whose bearer_token_format is
+         BEARER_TOKEN_FORMAT_JWT. Audience binding is enforced separately via
+         jwt_allowed_audiences; authorization on the verified claims is left to PPL.
     pomerium.config.KeyPair:
       type: object
       properties:
@@ -3928,6 +3965,16 @@ components:
           description: |-
             Allowed audiences for validating IdP-issued access tokens for this
              route.
+        jwtAllowedAudiences:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.Route.StringList'
+            - type: "null"
+          title: jwt_allowed_audiences
+          description: |-
+            Allowed audiences for verifying JWT bearer tokens on this route (when
+             bearer_token_format is BEARER_TOKEN_FORMAT_JWT). At least one must
+             intersect the token's `aud` claim. Fail-closed: an empty effective set
+             rejects all tokens. When unset, the global jwt_allowed_audiences is used.
         showErrorDetails:
           type: boolean
           title: show_error_details
@@ -4591,6 +4638,22 @@ components:
           description: |-
             Audiences Pomerium accepts on IdP-issued access tokens. Required when
              BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN routes exist.
+        jwtAllowedIssuers:
+          type: array
+          items:
+            $ref: '#/components/schemas/pomerium.config.JwtAllowedIssuer'
+          title: jwt_allowed_issuers
+          description: |-
+            Globally declared trusted JWT issuers. Routes whose bearer_token_format
+             is BEARER_TOKEN_FORMAT_JWT verify incoming tokens against these.
+        jwtAllowedAudiences:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.Settings.StringList'
+            - type: "null"
+          title: jwt_allowed_audiences
+          description: |-
+            Cluster-wide default allowed audiences for JWT bearer tokens. Routes may
+             override via Route.jwt_allowed_audiences.
         scopes:
           type: array
           items:

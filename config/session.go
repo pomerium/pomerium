@@ -170,15 +170,21 @@ func (c *incomingIDPTokenSessionCreator) CreateSession(
 	ctx, op := c.telemetry.Start(ctx, "CreateSession")
 	defer op.Complete()
 
-	if rawAccessToken, ok := cfg.GetIncomingIDPAccessTokenForPolicy(policy, r); ok {
-		return c.createSessionForAccessToken(ctx, cfg, policy, rawAccessToken)
+	rawToken, format, ok := cfg.getIncomingBearerToken(policy, r)
+	if !ok {
+		return nil, sessions.ErrNoSessionFound
 	}
 
-	if rawIdentityToken, ok := cfg.GetIncomingIDPIdentityTokenForPolicy(policy, r); ok {
-		return c.createSessionForIdentityToken(ctx, cfg, policy, rawIdentityToken)
+	switch format {
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN:
+		return c.createSessionForAccessToken(ctx, cfg, policy, rawToken)
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN:
+		return c.createSessionForIdentityToken(ctx, cfg, policy, rawToken)
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT:
+		return c.createSessionForJWT(ctx, cfg, policy, rawToken)
+	default:
+		return nil, sessions.ErrNoSessionFound
 	}
-
-	return nil, sessions.ErrNoSessionFound
 }
 
 func (c *incomingIDPTokenSessionCreator) createSessionForAccessToken(
@@ -253,6 +259,8 @@ func (c *incomingIDPTokenSessionCreator) createSessionForAccessToken(
 	return res.(*session.Session), nil
 }
 
+// createSessionForIdentityToken verifies an IdP-issued identity token against
+// the route's (browser/SSO) identity provider via the authenticate service.
 func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 	ctx context.Context,
 	cfg *Config,
@@ -264,24 +272,94 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 
 	start := time.Now()
 
-	resolver, err := cfg.JWTIdpResolver()
+	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
 	if err != nil {
-		return nil, op.Failure(fmt.Errorf("error building jwt identity provider resolver: %w", err))
-	}
-	if resolver == nil {
-		return nil, op.Failure(fmt.Errorf("%w: no jwt_identity_providers configured", sessions.ErrInvalidSession))
+		return nil, op.Failure(fmt.Errorf("error getting identity provider to verify identity token: %w", err))
 	}
 
-	// Pre-resolve which named provider this token is bound to (used in the
-	// session ID so caching keys correctly per-named-provider). We do an
-	// unverified parse of `iss` here; signature is still checked inside
-	// resolver.VerifyForPolicy below.
-	res, err, _ := c.singleflight.Do(rawIdentityToken, func() (any, error) {
-		vres, verr := resolver.VerifyForPolicy(ctx, policy.AcceptJWTIdps, rawIdentityToken)
+	sessionID := getIdentityTokenSessionID(idp, rawIdentityToken)
+	res, err, _ := c.singleflight.Do(sessionID, func() (any, error) {
+		s, err := c.getSession(ctx, sessionID)
+		if err == nil {
+			c.identityTokenSessionsCachedCount.Add(ctx, 1)
+			return s, nil
+		} else if !storage.IsNotFound(err) {
+			return nil, err
+		}
+
+		authenticateURL, transport, err := cfg.resolveAuthenticateURL()
+		if err != nil {
+			return nil, fmt.Errorf("error resolving authenticate url to verify identity token: %w", err)
+		}
+
+		res, err := authenticateapi.New(authenticateURL, transport).VerifyIdentityToken(ctx, &authenticateapi.VerifyIdentityTokenRequest{
+			IdentityToken:      rawIdentityToken,
+			IdentityProviderID: idp.GetId(),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error verifying identity token: %w", err)
+		} else if !res.Valid {
+			return nil, fmt.Errorf("%w: invalid identity token", sessions.ErrInvalidSession)
+		}
+
+		s = c.newSessionFromIDPClaims(cfg, idp.Id, sessionID, res.Claims)
+		s.SetRawIDToken(rawIdentityToken)
+
+		u, err := c.getUser(ctx, s.GetUserId())
+		if errors.Is(err, storage.ErrNotFound) {
+			u = &user.User{Id: s.GetUserId()}
+		} else if err != nil {
+			return nil, fmt.Errorf("error retrieving existing user: %w", err)
+		}
+		c.fillUserFromIDPClaims(u, res.Claims)
+
+		err = c.putSessionAndUser(ctx, s, u)
+		if err != nil {
+			return nil, fmt.Errorf("error saving session and user: %w", err)
+		}
+
+		c.identityTokenSessionsCreatedCount.Add(ctx, 1)
+		return s, nil
+	})
+	if err != nil {
+		return nil, op.Failure(err)
+	}
+
+	c.identityTokenCreateSessionDuration.Record(ctx, time.Since(start).Milliseconds())
+	return res.(*session.Session), nil
+}
+
+// createSessionForJWT verifies an externally-issued JWT bearer token against
+// the trusted issuers declared in jwt_allowed_issuers, with audience binding
+// enforced (fail-closed) against the route's effective jwt_allowed_audiences.
+// Authorization on the verified claims is left to PPL.
+func (c *incomingIDPTokenSessionCreator) createSessionForJWT(
+	ctx context.Context,
+	cfg *Config,
+	policy *Policy,
+	rawJWT string,
+) (*session.Session, error) {
+	ctx, op := c.telemetry.Start(ctx, "createSessionForJWT")
+	defer op.Complete()
+
+	start := time.Now()
+
+	resolver, err := cfg.JWTIssuerResolver()
+	if err != nil {
+		return nil, op.Failure(fmt.Errorf("error building jwt issuer resolver: %w", err))
+	}
+	if resolver == nil {
+		return nil, op.Failure(fmt.Errorf("%w: no jwt_allowed_issuers configured", sessions.ErrInvalidSession))
+	}
+
+	audiences := cfg.GetJWTAllowedAudiencesForPolicy(policy)
+
+	res, err, _ := c.singleflight.Do(rawJWT, func() (any, error) {
+		vres, verr := resolver.Verify(ctx, rawJWT, audiences)
 		if verr != nil {
 			return nil, fmt.Errorf("%w: %v", sessions.ErrInvalidSession, verr)
 		}
-		sessionID := jwtIdpSessionID(vres.ProviderName, rawIdentityToken)
+		sessionID := jwtIssuerSessionID(vres.Issuer, rawJWT)
 
 		s, err := c.getSession(ctx, sessionID)
 		if err == nil {
@@ -291,8 +369,8 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 			return nil, err
 		}
 
-		s = c.newSessionFromIDPClaims(cfg, vres.ProviderName, sessionID, vres.Claims)
-		s.SetRawIDToken(rawIdentityToken)
+		s = c.newSessionFromIDPClaims(cfg, vres.Issuer, sessionID, vres.Claims)
+		s.SetRawIDToken(rawJWT)
 
 		u, err := c.getUser(ctx, s.GetUserId())
 		if errors.Is(err, storage.ErrNotFound) {
@@ -318,13 +396,13 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 	return res.(*session.Session), nil
 }
 
-// jwtIdpSessionID derives a stable session id from (jwt_idp_name, raw_token).
-// Same token → same session; switching providers (or rotating the named-idp
-// config) gets a fresh session id naturally.
-var jwtIdpSessionNamespace = uuid.MustParse("0195a000-a000-7000-8000-00000000a01a")
+// jwtIssuerSessionID derives a stable session id from (issuer, raw_token).
+// Same token → same session; switching issuers gets a fresh session id
+// naturally.
+var jwtIssuerSessionNamespace = uuid.MustParse("0195a000-a000-7000-8000-00000000a01a")
 
-func jwtIdpSessionID(idpName, rawToken string) string {
-	ns := uuid.NewSHA1(jwtIdpSessionNamespace, []byte(idpName))
+func jwtIssuerSessionID(issuer, rawToken string) string {
+	ns := uuid.NewSHA1(jwtIssuerSessionNamespace, []byte(issuer))
 	return uuid.NewSHA1(ns, []byte(rawToken)).String()
 }
 
@@ -451,43 +529,39 @@ func (c *incomingIDPTokenSessionCreator) putSessionAndUser(ctx context.Context, 
 	return nil
 }
 
-// GetIncomingIDPAccessTokenForPolicy returns the raw idp access token from a request if there is one.
-func (cfg *Config) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Request) (rawAccessToken string, ok bool) {
-	bearerTokenFormat := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
+// GetBearerTokenFormatForPolicy resolves the effective bearer_token_format for
+// the policy: per-route override, else the global default, else UNKNOWN.
+func (cfg *Config) GetBearerTokenFormatForPolicy(policy *Policy) config.BearerTokenFormat {
+	format := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
 	if cfg.Options != nil && cfg.Options.BearerTokenFormat.IsSet {
-		bearerTokenFormat = cfg.Options.BearerTokenFormat.Value
+		format = cfg.Options.BearerTokenFormat.Value
 	}
 	if policy != nil && policy.BearerTokenFormat.IsSet {
-		bearerTokenFormat = policy.BearerTokenFormat.Value
+		format = policy.BearerTokenFormat.Value
 	}
-
-	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
-		prefix := "Bearer "
-		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
-			bearerTokenFormat == config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN {
-			return auth[len(prefix):], true
-		}
-	}
-
-	return "", false
+	return format
 }
 
-// GetIncomingIDPIdentityTokenForPolicy returns the raw JWT bearer token from
-// a request if and only if the route's policy has AcceptJWTIdps configured.
-// See docs/jwt-idps-change-plan.md.
-func (cfg *Config) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.Request) (rawIdentityToken string, ok bool) {
-	if policy == nil || len(policy.AcceptJWTIdps) == 0 {
-		return "", false
+// getIncomingBearerToken resolves the effective bearer_token_format for the
+// policy and, when it calls for interpreting the token (access/identity/jwt),
+// returns the raw Bearer token from the Authorization header. For DEFAULT or
+// UNKNOWN (passthrough), or when no Bearer header is present, ok is false.
+func (cfg *Config) getIncomingBearerToken(policy *Policy, r *http.Request) (rawToken string, format config.BearerTokenFormat, ok bool) {
+	format = cfg.GetBearerTokenFormatForPolicy(policy)
+	switch format {
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN,
+		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN,
+		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT:
+	default:
+		return "", format, false
 	}
+
 	auth := r.Header.Get(httputil.HeaderAuthorization)
-	if auth == "" {
-		return "", false
-	}
 	const prefix = "Bearer "
-	if !strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-		return "", false
+	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+		return "", format, false
 	}
-	return auth[len(prefix):], true
+	return auth[len(prefix):], format, true
 }
 
 var accessTokenUUIDNamespace = uuid.MustParse("0194f6f8-e760-76a0-8917-e28ac927a34d")

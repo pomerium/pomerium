@@ -15,14 +15,15 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-// JWTIdentityProvider declares a verify-only JWT issuer. Pomerium accepts
-// JWTs from this issuer on routes that opt in via Policy.AcceptJWTIdps.
-//
-// See docs/jwt-idps-change-plan.md.
-type JWTIdentityProvider struct {
-	// Name is a stable identifier referenced by Policy.AcceptJWTIdps[].Name.
-	Name string `mapstructure:"name" yaml:"name"`
-	// Issuer is the `iss` claim tokens must carry. Required.
+// JWTAllowedIssuer declares a trusted JWT issuer. Pomerium verifies JWT bearer
+// tokens against any of these issuers on routes whose BearerTokenFormat is
+// BEARER_TOKEN_FORMAT_JWT. Audience binding is enforced separately, via the
+// route/global JWTAllowedAudiences; authorization on the verified claims is
+// left to PPL (claim/...).
+type JWTAllowedIssuer struct {
+	// Issuer is the `iss` claim tokens must carry. Required. Used both to
+	// select the matching issuer for an incoming token and (with OIDC
+	// discovery) to fetch the signing keys.
 	Issuer string `mapstructure:"issuer" yaml:"issuer"`
 	// JWKSURL is an optional explicit JWKS URL. When set, OIDC discovery is
 	// skipped — keys are fetched directly from this URL. Useful when the
@@ -32,251 +33,241 @@ type JWTIdentityProvider struct {
 	// SupportedAlgs is the JWT signing algorithms allowlist. When empty,
 	// defaults to {RS256, ES256, EdDSA}.
 	SupportedAlgs []string `mapstructure:"supported_algs" yaml:"supported_algs,omitempty"`
+	// Name is an optional human-readable identifier, used only for audit
+	// logging.
+	Name string `mapstructure:"name" yaml:"name,omitempty"`
 }
 
-// DefaultJWTSupportedAlgs is used when a JWTIdentityProvider does not specify
+// DefaultJWTSupportedAlgs is used when a JWTAllowedIssuer does not specify
 // SupportedAlgs. Avoids the go-oidc default of "RS256 only" so that ES256
 // (SPIFFE, some EKS configurations) and EdDSA-signed tokens are accepted out
 // of the box.
 var DefaultJWTSupportedAlgs = []string{"RS256", "ES256", "EdDSA"}
 
-// Validate checks that the JWTIdentityProvider is well-formed.
-func (p *JWTIdentityProvider) Validate() error {
-	if p.Name == "" {
-		return fmt.Errorf("jwt_identity_providers: name is required")
-	}
+// Validate checks that the JWTAllowedIssuer is well-formed.
+func (p *JWTAllowedIssuer) Validate() error {
 	if p.Issuer == "" {
-		return fmt.Errorf("jwt_identity_providers[%s]: issuer is required", p.Name)
+		return fmt.Errorf("jwt_allowed_issuers: issuer is required")
 	}
 	if _, err := url.Parse(p.Issuer); err != nil {
-		return fmt.Errorf("jwt_identity_providers[%s]: invalid issuer URL: %w", p.Name, err)
+		return fmt.Errorf("jwt_allowed_issuers[%s]: invalid issuer URL: %w", p.Issuer, err)
 	}
 	if p.JWKSURL != "" {
 		u, err := url.Parse(p.JWKSURL)
 		if err != nil {
-			return fmt.Errorf("jwt_identity_providers[%s]: invalid jwks_url: %w", p.Name, err)
+			return fmt.Errorf("jwt_allowed_issuers[%s]: invalid jwks_url: %w", p.Issuer, err)
 		}
 		if u.Scheme != "http" && u.Scheme != "https" {
-			return fmt.Errorf("jwt_identity_providers[%s]: jwks_url must be http(s)", p.Name)
+			return fmt.Errorf("jwt_allowed_issuers[%s]: jwks_url must be http(s)", p.Issuer)
 		}
 	}
 	return nil
 }
 
 // EffectiveSupportedAlgs returns p.SupportedAlgs or the default allowlist.
-func (p *JWTIdentityProvider) EffectiveSupportedAlgs() []string {
+func (p *JWTAllowedIssuer) EffectiveSupportedAlgs() []string {
 	if len(p.SupportedAlgs) > 0 {
 		return slices.Clone(p.SupportedAlgs)
 	}
 	return slices.Clone(DefaultJWTSupportedAlgs)
 }
 
-// JWTIdpAcceptance is a per-route reference to a globally-declared
-// JWTIdentityProvider, scoped to a specific audience set.
-type JWTIdpAcceptance struct {
-	// Name matches a JWTIdentityProvider declared in Options.JWTIdentityProviders.
-	Name string `mapstructure:"name" yaml:"name"`
-	// Audiences is the set of `aud` values accepted on this route. At least
-	// one of these must appear in the JWT's `aud` claim. Required and must
-	// be non-empty.
-	Audiences []string `mapstructure:"audiences" yaml:"audiences"`
-}
-
-// Validate checks that the JWTIdpAcceptance is well-formed.
-func (a *JWTIdpAcceptance) Validate() error {
-	if a.Name == "" {
-		return fmt.Errorf("accept_jwt_idps: name is required")
-	}
-	if len(a.Audiences) == 0 {
-		return fmt.Errorf("accept_jwt_idps[%s]: audiences must be non-empty", a.Name)
-	}
-	return nil
-}
-
-// jwtIdentityProvidersToProto converts the Options slice to its proto form.
-func jwtIdentityProvidersToProto(src []JWTIdentityProvider) []*configpb.JwtIdentityProvider {
+// jwtAllowedIssuersToProto converts the Options slice to its proto form.
+func jwtAllowedIssuersToProto(src []JWTAllowedIssuer) []*configpb.JwtAllowedIssuer {
 	if len(src) == 0 {
 		return nil
 	}
-	out := make([]*configpb.JwtIdentityProvider, 0, len(src))
+	out := make([]*configpb.JwtAllowedIssuer, 0, len(src))
 	for _, p := range src {
-		out = append(out, &configpb.JwtIdentityProvider{
-			Name:          p.Name,
+		pb := &configpb.JwtAllowedIssuer{
 			Issuer:        p.Issuer,
 			JwksUrl:       p.JWKSURL,
 			SupportedAlgs: slices.Clone(p.SupportedAlgs),
-		})
+		}
+		if p.Name != "" {
+			pb.Name = &p.Name
+		}
+		out = append(out, pb)
 	}
 	return out
 }
 
-// setJWTIdentityProviders copies the proto slice into the Options slot.
+// setJWTAllowedIssuers copies the proto slice into the Options slot.
 //
 // Follows the same pattern as setSlice / setMap elsewhere in this package:
 // if the incoming slice is empty we DO NOT clear the destination — empty in
 // proto can mean "not set in this fragment" (multiple Settings fragments are
 // merged sequentially via ApplySettings), and clearing would clobber an
 // earlier fragment.
-func setJWTIdentityProviders(dst *[]JWTIdentityProvider, src []*configpb.JwtIdentityProvider) {
+func setJWTAllowedIssuers(dst *[]JWTAllowedIssuer, src []*configpb.JwtAllowedIssuer) {
 	if len(src) == 0 {
 		return
 	}
-	out := make([]JWTIdentityProvider, 0, len(src))
+	out := make([]JWTAllowedIssuer, 0, len(src))
 	for _, p := range src {
-		out = append(out, JWTIdentityProvider{
-			Name:          p.GetName(),
+		out = append(out, JWTAllowedIssuer{
 			Issuer:        p.GetIssuer(),
 			JWKSURL:       p.GetJwksUrl(),
 			SupportedAlgs: slices.Clone(p.GetSupportedAlgs()),
+			Name:          p.GetName(),
 		})
 	}
 	*dst = out
 }
 
-// acceptJWTIdpsToProto converts the Policy slice to its proto form.
-func acceptJWTIdpsToProto(src []JWTIdpAcceptance) []*configpb.JwtIdpAcceptance {
-	if len(src) == 0 {
-		return nil
+// validateJWTBearerTokens checks the BEARER_TOKEN_FORMAT_JWT configuration:
+// trusted issuers are well-formed and unique, and every route that resolves to
+// the JWT format has at least one trusted issuer and a non-empty (fail-closed)
+// audience allowlist.
+func (o *Options) validateJWTBearerTokens() error {
+	seen := make(map[string]struct{}, len(o.JWTAllowedIssuers))
+	for i := range o.JWTAllowedIssuers {
+		iss := &o.JWTAllowedIssuers[i]
+		if err := iss.Validate(); err != nil {
+			return fmt.Errorf("config: %w", err)
+		}
+		if _, dup := seen[iss.Issuer]; dup {
+			return fmt.Errorf("config: jwt_allowed_issuers: duplicate issuer %q", iss.Issuer)
+		}
+		seen[iss.Issuer] = struct{}{}
 	}
-	out := make([]*configpb.JwtIdpAcceptance, 0, len(src))
-	for _, a := range src {
-		out = append(out, &configpb.JwtIdpAcceptance{
-			Name:      a.Name,
-			Audiences: slices.Clone(a.Audiences),
-		})
-	}
-	return out
-}
 
-// acceptJWTIdpsFromProto reads the proto slice into the Policy slot.
-func acceptJWTIdpsFromProto(src []*configpb.JwtIdpAcceptance) []JWTIdpAcceptance {
-	if len(src) == 0 {
-		return nil
+	globalFormat := configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
+	if o.BearerTokenFormat.IsSet {
+		globalFormat = o.BearerTokenFormat.Value
 	}
-	out := make([]JWTIdpAcceptance, 0, len(src))
-	for _, a := range src {
-		out = append(out, JWTIdpAcceptance{
-			Name:      a.GetName(),
-			Audiences: slices.Clone(a.GetAudiences()),
-		})
+	isJWT := func(p *Policy) bool {
+		if p.BearerTokenFormat.IsSet {
+			return p.BearerTokenFormat.Value == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
+		}
+		return globalFormat == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
 	}
-	return out
-}
 
-// FindJWTIdentityProvider returns the globally-declared provider with the
-// given name, or nil.
-func (o *Options) FindJWTIdentityProvider(name string) *JWTIdentityProvider {
-	for i := range o.JWTIdentityProviders {
-		if o.JWTIdentityProviders[i].Name == name {
-			return &o.JWTIdentityProviders[i]
+	for p := range o.GetAllPolicies() {
+		if !isJWT(p) {
+			continue
+		}
+		if len(o.JWTAllowedIssuers) == 0 {
+			return fmt.Errorf("config: bearer_token_format=jwt requires at least one jwt_allowed_issuers entry (route %q)", p.String())
+		}
+		audiences := p.JWTAllowedAudiences
+		if audiences == nil {
+			audiences = o.JWTAllowedAudiences
+		}
+		if len(ptrSlice(audiences)) == 0 {
+			return fmt.Errorf("config: bearer_token_format=jwt requires a non-empty jwt_allowed_audiences (route %q)", p.String())
 		}
 	}
 	return nil
 }
 
-// ErrNoMatchingJWTIdp is returned by JWTIdpResolver.VerifyForPolicy when no
-// configured provider satisfies the JWT's issuer and the policy's acceptance
-// list.
-var ErrNoMatchingJWTIdp = errors.New("config/jwt_idp: no matching JWT identity provider for token")
+func ptrSlice(s *[]string) []string {
+	if s == nil {
+		return nil
+	}
+	return *s
+}
 
-// JWTVerifyResult is the successful outcome of VerifyForPolicy.
+// GetJWTAllowedAudiencesForPolicy resolves the effective JWT audience
+// allowlist for the policy: per-route override, else the global default, else
+// nil. An empty/nil result is fail-closed downstream (the verifier rejects).
+func (cfg *Config) GetJWTAllowedAudiencesForPolicy(policy *Policy) []string {
+	if policy != nil && policy.JWTAllowedAudiences != nil {
+		return *policy.JWTAllowedAudiences
+	}
+	if cfg != nil && cfg.Options != nil && cfg.Options.JWTAllowedAudiences != nil {
+		return *cfg.Options.JWTAllowedAudiences
+	}
+	return nil
+}
+
+// ErrNoMatchingJWTIssuer is returned by JWTIssuerResolver.Verify when the
+// token's `iss` claim does not match any configured trusted issuer.
+var ErrNoMatchingJWTIssuer = errors.New("config/jwt_idp: no trusted issuer matches the token's iss claim")
+
+// JWTVerifyResult is the successful outcome of JWTIssuerResolver.Verify.
 type JWTVerifyResult struct {
-	// ProviderName is the name of the JwtIdentityProvider that verified the
-	// token. Useful for audit logs.
-	ProviderName string
+	// Issuer is the `iss` of the trusted issuer that verified the token.
+	// Useful for audit logs and as a session-cache namespace.
+	Issuer string
 	// Claims is the verified JWT payload.
 	Claims map[string]any
 }
 
-// JWTIdpResolver owns the per-named-IdP *extjwt.Provider instances and
-// performs per-route dispatch of incoming bearer tokens.
+// JWTIssuerResolver owns one *extjwt.Provider per trusted issuer and verifies
+// incoming bearer tokens against whichever issuer matches the token's `iss`.
 //
-// Construct once per Options snapshot; the resolver instances are immutable
+// Construct once per Options snapshot; the provider instances are immutable
 // after creation.
-type JWTIdpResolver struct {
-	providers map[string]*extjwt.Provider // key: JwtIdentityProvider.Name
-	configs   map[string]JWTIdentityProvider
+type JWTIssuerResolver struct {
+	providers map[string]*extjwt.Provider // key: issuer
 }
 
-// JWTIdpResolver returns a cached resolver built from cfg.Options. Re-built
-// on the first access of each Config instance. Returns nil if no JWT
-// identity providers are configured.
-func (cfg *Config) JWTIdpResolver() (*JWTIdpResolver, error) {
-	if cfg == nil || cfg.Options == nil || len(cfg.Options.JWTIdentityProviders) == 0 {
+// JWTIssuerResolver returns a cached resolver built from cfg.Options. Built
+// once per Config instance. Returns nil if no trusted issuers are configured.
+func (cfg *Config) JWTIssuerResolver() (*JWTIssuerResolver, error) {
+	if cfg == nil || cfg.Options == nil || len(cfg.Options.JWTAllowedIssuers) == 0 {
 		return nil, nil
 	}
 	cfg.jwtResolverOnce.Do(func() {
-		cfg.jwtResolver, cfg.jwtResolverErr = NewJWTIdpResolver(cfg.Options.JWTIdentityProviders)
+		cfg.jwtResolver, cfg.jwtResolverErr = NewJWTIssuerResolver(cfg.Options.JWTAllowedIssuers)
 	})
 	return cfg.jwtResolver, cfg.jwtResolverErr
 }
 
-// NewJWTIdpResolver builds a resolver from the given configurations. Returns
-// an error if any configuration is invalid.
-func NewJWTIdpResolver(idps []JWTIdentityProvider) (*JWTIdpResolver, error) {
-	r := &JWTIdpResolver{
-		providers: make(map[string]*extjwt.Provider, len(idps)),
-		configs:   make(map[string]JWTIdentityProvider, len(idps)),
+// NewJWTIssuerResolver builds a resolver from the given issuers. Returns an
+// error if any issuer is invalid or two share the same `issuer`.
+func NewJWTIssuerResolver(issuers []JWTAllowedIssuer) (*JWTIssuerResolver, error) {
+	r := &JWTIssuerResolver{
+		providers: make(map[string]*extjwt.Provider, len(issuers)),
 	}
-	for _, idp := range idps {
-		if err := idp.Validate(); err != nil {
+	for _, iss := range issuers {
+		if err := iss.Validate(); err != nil {
 			return nil, err
 		}
-		if _, dup := r.providers[idp.Name]; dup {
-			return nil, fmt.Errorf("jwt_identity_providers: duplicate name %q", idp.Name)
+		if _, dup := r.providers[iss.Issuer]; dup {
+			return nil, fmt.Errorf("jwt_allowed_issuers: duplicate issuer %q", iss.Issuer)
 		}
 		p, err := extjwt.New(extjwt.Config{
-			Issuer:        idp.Issuer,
-			JWKSURL:       idp.JWKSURL,
-			SupportedAlgs: idp.EffectiveSupportedAlgs(),
+			Issuer:        iss.Issuer,
+			JWKSURL:       iss.JWKSURL,
+			SupportedAlgs: iss.EffectiveSupportedAlgs(),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("jwt_identity_providers[%s]: %w", idp.Name, err)
+			return nil, fmt.Errorf("jwt_allowed_issuers[%s]: %w", iss.Issuer, err)
 		}
-		r.providers[idp.Name] = p
-		r.configs[idp.Name] = idp
+		r.providers[iss.Issuer] = p
 	}
 	return r, nil
 }
 
-// VerifyForPolicy verifies the raw JWT against whichever JwtIdentityProvider
-// the policy accepts AND whose issuer matches the token's `iss` claim.
+// Verify verifies the raw JWT against the trusted issuer whose `issuer`
+// matches the token's `iss` claim.
 //
 // Dispatch:
 //  1. Parse the token's `iss` claim (no signature check yet).
-//  2. Iterate the policy's AcceptJWTIdps; pick the first whose named
-//     provider matches the JWT's `iss`.
-//  3. Verify signature/exp/nbf via that provider, with `aud` checked against
-//     the matching acceptance entry's audiences.
+//  2. Look up the trusted issuer with that `iss`.
+//  3. Verify signature/exp/nbf via that issuer's provider, with `aud` checked
+//     against allowedAudiences (fail-closed: an empty allowlist rejects).
 //
-// Returns ErrNoMatchingJWTIdp if no acceptance entry matches.
-func (r *JWTIdpResolver) VerifyForPolicy(ctx context.Context, accept []JWTIdpAcceptance, rawJWT string) (*JWTVerifyResult, error) {
-	if len(accept) == 0 {
-		return nil, ErrNoMatchingJWTIdp
-	}
+// Returns ErrNoMatchingJWTIssuer if no trusted issuer matches.
+func (r *JWTIssuerResolver) Verify(ctx context.Context, rawJWT string, allowedAudiences []string) (*JWTVerifyResult, error) {
 	iss, err := unverifiedIssuer(rawJWT)
 	if err != nil {
 		return nil, fmt.Errorf("config/jwt_idp: parse iss: %w", err)
 	}
-	for _, entry := range accept {
-		p, ok := r.providers[entry.Name]
-		if !ok {
-			continue
-		}
-		cfg, ok := r.configs[entry.Name]
-		if !ok || cfg.Issuer != iss {
-			continue
-		}
-		claims, err := p.Verify(ctx, rawJWT, entry.Audiences)
-		if err != nil {
-			return nil, err
-		}
-		return &JWTVerifyResult{
-			ProviderName: entry.Name,
-			Claims:       claims,
-		}, nil
+	p, ok := r.providers[iss]
+	if !ok {
+		return nil, ErrNoMatchingJWTIssuer
 	}
-	return nil, ErrNoMatchingJWTIdp
+	claims, err := p.Verify(ctx, rawJWT, allowedAudiences)
+	if err != nil {
+		return nil, err
+	}
+	return &JWTVerifyResult{
+		Issuer: iss,
+		Claims: claims,
+	}, nil
 }
 
 // unverifiedIssuer extracts the `iss` claim from the JWT payload WITHOUT

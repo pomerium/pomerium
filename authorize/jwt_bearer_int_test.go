@@ -17,6 +17,8 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 // stdSAClaims returns a minimal Kubernetes-shaped SA token claims map.
@@ -38,8 +40,8 @@ func stdSAClaims(issuer, sub, aud string, now time.Time) map[string]any {
 	}
 }
 
-// configureJWTIdp wires a mock OIDC issuer into Pomerium's
-// jwt_identity_providers list and returns the IDP plus its URL.
+// configureJWTIdp wires a mock OIDC issuer into Pomerium's jwt_allowed_issuers
+// list and returns the IDP plus its URL.
 func configureJWTIdp(t *testing.T, env testenv.Environment, idpName string) (*mockidp.IDP, values.Value[string]) {
 	t.Helper()
 
@@ -53,18 +55,27 @@ func configureJWTIdp(t *testing.T, env testenv.Environment, idpName string) (*mo
 	})
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-		cfg.Options.JWTIdentityProviders = append(cfg.Options.JWTIdentityProviders, config.JWTIdentityProvider{
-			Name:          idpName,
+		cfg.Options.JWTAllowedIssuers = append(cfg.Options.JWTAllowedIssuers, config.JWTAllowedIssuer{
 			Issuer:        idpURL.Value(),
 			SupportedAlgs: []string{"ES256"}, // mockidp signs with ES256
+			Name:          idpName,
 		})
 	}))
 
 	return idp, idpURL
 }
 
+// useJWTBearer configures a route to verify JWT bearer tokens (against the
+// globally-trusted issuers) with the given allowed audiences.
+func useJWTBearer(p *config.Policy, audiences ...string) {
+	p.BearerTokenFormat = nullable.From(configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT)
+	auds := audiences
+	p.JWTAllowedAudiences = &auds
+}
+
 // TestExternalJWTBearer_HappyPath asserts a JWT-bearer authenticated request
-// reaches the upstream when the route's accept_jwt_idps matches.
+// reaches the upstream when the route's bearer_token_format is jwt and the
+// token's issuer/audience are trusted.
 func TestExternalJWTBearer_HappyPath(t *testing.T) {
 	env := testenv.New(t)
 	idp, idpURL := configureJWTIdp(t, env, "demo-idp")
@@ -82,9 +93,7 @@ func TestExternalJWTBearer_HappyPath(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			p.AcceptJWTIdps = []config.JWTIdpAcceptance{
-				{Name: "demo-idp", Audiences: []string{audience}},
-			}
+			useJWTBearer(p, audience)
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {
@@ -133,9 +142,7 @@ func TestExternalJWTBearer_KubernetesNamespacePolicy(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			p.AcceptJWTIdps = []config.JWTIdpAcceptance{
-				{Name: "demo-idp", Audiences: []string{audience}},
-			}
+			useJWTBearer(p, audience)
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {
@@ -218,9 +225,7 @@ func TestExternalJWTBearer_WrongAudience(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			p.AcceptJWTIdps = []config.JWTIdpAcceptance{
-				{Name: "demo-idp", Audiences: []string{"pomerium.example.com"}},
-			}
+			useJWTBearer(p, "pomerium.example.com")
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {"and": [{"claim/sub": "system:serviceaccount:default:my-sa"}]}
@@ -246,7 +251,7 @@ func TestExternalJWTBearer_WrongAudience(t *testing.T) {
 
 // TestExternalJWTBearer_NoBearerNoFallthrough asserts a JWT-only route with
 // no Authorization header returns 401 (or non-200) — does NOT redirect to
-// browser SSO. See change plan decision #1.
+// browser SSO.
 func TestExternalJWTBearer_NoBearerNoFallthrough(t *testing.T) {
 	env := testenv.New(t)
 	configureJWTIdp(t, env, "demo-idp")
@@ -262,9 +267,7 @@ func TestExternalJWTBearer_NoBearerNoFallthrough(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			p.AcceptJWTIdps = []config.JWTIdpAcceptance{
-				{Name: "demo-idp", Audiences: []string{"pomerium.example.com"}},
-			}
+			useJWTBearer(p, "pomerium.example.com")
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {"and": [{"claim/sub": "system:serviceaccount:default:my-sa"}]}
@@ -295,7 +298,7 @@ func TestExternalJWTBearer_NoBearerNoFallthrough(t *testing.T) {
 
 // TestExternalJWTBearer_CookieAndBearerCollision asserts that a request
 // carrying both a Pomerium session cookie AND an Authorization: Bearer
-// header is rejected with 400 (see change plan decision #6).
+// header is rejected with 400.
 func TestExternalJWTBearer_CookieAndBearerCollision(t *testing.T) {
 	env := testenv.New(t)
 	idp, idpURL := configureJWTIdp(t, env, "demo-idp")
@@ -311,9 +314,7 @@ func TestExternalJWTBearer_CookieAndBearerCollision(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			p.AcceptJWTIdps = []config.JWTIdpAcceptance{
-				{Name: "demo-idp", Audiences: []string{"pomerium.example.com"}},
-			}
+			useJWTBearer(p, "pomerium.example.com")
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {"and": [{"claim/sub": "system:serviceaccount:default:my-sa"}]}

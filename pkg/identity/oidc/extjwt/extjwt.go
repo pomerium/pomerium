@@ -34,8 +34,8 @@ var (
 	// ErrMissingIssuer is returned when Config.Issuer is empty.
 	ErrMissingIssuer = errors.New("identity/extjwt: issuer is required")
 	// ErrEmptyAudiences is returned when a Verify call passes no audiences.
-	// Audience binding is mandatory under the change plan; an empty set is
-	// a configuration error, not "accept any."
+	// Audience binding is mandatory; an empty set is a configuration error,
+	// not "accept any."
 	ErrEmptyAudiences = errors.New("identity/extjwt: at least one allowed audience is required")
 	// ErrAudienceMismatch indicates the token's `aud` did not intersect the
 	// configured audiences.
@@ -82,7 +82,7 @@ func (p *Provider) Issuer() string { return p.cfg.Issuer }
 // audience allowlist. Returns the verified claims map on success.
 //
 // allowedAudiences MUST be non-empty (an empty allowlist would silently
-// accept any audience — the change plan forbids this).
+// accept any audience, which is forbidden — fail closed instead).
 func (p *Provider) Verify(ctx context.Context, rawJWT string, allowedAudiences []string) (map[string]any, error) {
 	if len(allowedAudiences) == 0 {
 		return nil, ErrEmptyAudiences

@@ -8,61 +8,43 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
-func TestJWTIdentityProvider_Validate(t *testing.T) {
+func TestJWTAllowedIssuer_Validate(t *testing.T) {
 	t.Parallel()
-	t.Run("missing name", func(t *testing.T) {
-		err := (&JWTIdentityProvider{Issuer: "https://example.com"}).Validate()
-		assert.Error(t, err)
-	})
 	t.Run("missing issuer", func(t *testing.T) {
-		err := (&JWTIdentityProvider{Name: "n"}).Validate()
+		err := (&JWTAllowedIssuer{}).Validate()
 		assert.Error(t, err)
 	})
 	t.Run("bad jwks scheme", func(t *testing.T) {
-		err := (&JWTIdentityProvider{Name: "n", Issuer: "https://x", JWKSURL: "ftp://bad"}).Validate()
+		err := (&JWTAllowedIssuer{Issuer: "https://x", JWKSURL: "ftp://bad"}).Validate()
 		assert.Error(t, err)
 	})
 	t.Run("ok", func(t *testing.T) {
-		err := (&JWTIdentityProvider{Name: "n", Issuer: "https://x", JWKSURL: "https://x/jwks"}).Validate()
+		err := (&JWTAllowedIssuer{Issuer: "https://x", JWKSURL: "https://x/jwks"}).Validate()
 		assert.NoError(t, err)
 	})
 }
 
-func TestJWTIdpAcceptance_Validate(t *testing.T) {
+func TestNewJWTIssuerResolver_DuplicateIssuer(t *testing.T) {
 	t.Parallel()
-	t.Run("missing name", func(t *testing.T) {
-		err := (&JWTIdpAcceptance{Audiences: []string{"a"}}).Validate()
-		assert.Error(t, err)
-	})
-	t.Run("missing audiences", func(t *testing.T) {
-		err := (&JWTIdpAcceptance{Name: "n"}).Validate()
-		assert.Error(t, err)
-	})
-	t.Run("ok", func(t *testing.T) {
-		err := (&JWTIdpAcceptance{Name: "n", Audiences: []string{"a"}}).Validate()
-		assert.NoError(t, err)
-	})
-}
-
-func TestNewJWTIdpResolver_DuplicateName(t *testing.T) {
-	t.Parallel()
-	_, err := NewJWTIdpResolver([]JWTIdentityProvider{
-		{Name: "x", Issuer: "https://a", SupportedAlgs: []string{"RS256"}},
-		{Name: "x", Issuer: "https://b", SupportedAlgs: []string{"RS256"}},
+	_, err := NewJWTIssuerResolver([]JWTAllowedIssuer{
+		{Issuer: "https://a", SupportedAlgs: []string{"RS256"}},
+		{Issuer: "https://a", SupportedAlgs: []string{"RS256"}},
 	})
 	require.Error(t, err)
 }
 
-func TestJWTIdpResolver_VerifyForPolicy(t *testing.T) {
+func TestJWTIssuerResolver_Verify(t *testing.T) {
 	t.Parallel()
 
 	idp := mockidp.New(mockidp.Config{})
 	issuer := idp.Start(t)
 
-	resolver, err := NewJWTIdpResolver([]JWTIdentityProvider{
-		{Name: "test", Issuer: issuer, SupportedAlgs: []string{"ES256"}},
+	resolver, err := NewJWTIssuerResolver([]JWTAllowedIssuer{
+		{Issuer: issuer, SupportedAlgs: []string{"ES256"}},
 	})
 	require.NoError(t, err)
 
@@ -77,34 +59,96 @@ func TestJWTIdpResolver_VerifyForPolicy(t *testing.T) {
 	})
 
 	t.Run("happy path", func(t *testing.T) {
-		accept := []JWTIdpAcceptance{{Name: "test", Audiences: []string{"pomerium.example.com"}}}
-		res, err := resolver.VerifyForPolicy(t.Context(), accept, tok)
+		res, err := resolver.Verify(t.Context(), tok, []string{"pomerium.example.com"})
 		require.NoError(t, err)
-		assert.Equal(t, "test", res.ProviderName)
+		assert.Equal(t, issuer, res.Issuer)
 		assert.Equal(t, "system:serviceaccount:ns:sa", res.Claims["sub"])
 	})
 
-	t.Run("no acceptance entries", func(t *testing.T) {
-		_, err := resolver.VerifyForPolicy(t.Context(), nil, tok)
-		assert.ErrorIs(t, err, ErrNoMatchingJWTIdp)
+	t.Run("empty audiences (fail-closed)", func(t *testing.T) {
+		_, err := resolver.Verify(t.Context(), tok, nil)
+		require.Error(t, err)
 	})
 
-	t.Run("unknown provider name on route", func(t *testing.T) {
-		accept := []JWTIdpAcceptance{{Name: "other", Audiences: []string{"pomerium.example.com"}}}
-		_, err := resolver.VerifyForPolicy(t.Context(), accept, tok)
-		assert.ErrorIs(t, err, ErrNoMatchingJWTIdp)
+	t.Run("untrusted issuer", func(t *testing.T) {
+		other := mockidp.New(mockidp.Config{})
+		otherIssuer := other.Start(t)
+		otherTok := other.SignJWT(map[string]any{
+			"iss": otherIssuer,
+			"aud": []string{"pomerium.example.com"},
+			"exp": now.Add(time.Hour).Unix(),
+		})
+		_, err := resolver.Verify(t.Context(), otherTok, []string{"pomerium.example.com"})
+		assert.ErrorIs(t, err, ErrNoMatchingJWTIssuer)
 	})
 
 	t.Run("wrong audience", func(t *testing.T) {
-		accept := []JWTIdpAcceptance{{Name: "test", Audiences: []string{"other.example.com"}}}
-		_, err := resolver.VerifyForPolicy(t.Context(), accept, tok)
+		_, err := resolver.Verify(t.Context(), tok, []string{"other.example.com"})
 		require.Error(t, err)
 	})
 
 	t.Run("garbage token", func(t *testing.T) {
-		accept := []JWTIdpAcceptance{{Name: "test", Audiences: []string{"pomerium.example.com"}}}
-		_, err := resolver.VerifyForPolicy(t.Context(), accept, "not.a.jwt")
+		_, err := resolver.Verify(t.Context(), "not.a.jwt", []string{"pomerium.example.com"})
 		require.Error(t, err)
+	})
+}
+
+func TestValidateJWTBearerTokens(t *testing.T) {
+	t.Parallel()
+
+	jwtFmt := configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
+	issuers := []JWTAllowedIssuer{{Issuer: "https://issuer.example.com", SupportedAlgs: []string{"RS256"}}}
+	auds := []string{"pomerium.api"}
+
+	jwtRoute := func() Policy {
+		return Policy{RouteOptions: RouteOptions{BearerTokenFormat: nullable.From(jwtFmt)}}
+	}
+
+	t.Run("jwt route requires issuers", func(t *testing.T) {
+		o := NewDefaultOptions()
+		r := jwtRoute()
+		r.JWTAllowedAudiences = &auds
+		o.Policies = []Policy{r}
+		assert.Error(t, o.validateJWTBearerTokens())
+	})
+
+	t.Run("jwt route requires audiences", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.JWTAllowedIssuers = issuers
+		o.Policies = []Policy{jwtRoute()}
+		assert.Error(t, o.validateJWTBearerTokens())
+	})
+
+	t.Run("jwt route with route-level audiences ok", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.JWTAllowedIssuers = issuers
+		r := jwtRoute()
+		r.JWTAllowedAudiences = &auds
+		o.Policies = []Policy{r}
+		assert.NoError(t, o.validateJWTBearerTokens())
+	})
+
+	t.Run("jwt route with global audiences ok", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.JWTAllowedIssuers = issuers
+		o.JWTAllowedAudiences = &auds
+		o.Policies = []Policy{jwtRoute()}
+		assert.NoError(t, o.validateJWTBearerTokens())
+	})
+
+	t.Run("duplicate issuers rejected", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.JWTAllowedIssuers = []JWTAllowedIssuer{
+			{Issuer: "https://issuer.example.com", SupportedAlgs: []string{"RS256"}},
+			{Issuer: "https://issuer.example.com", SupportedAlgs: []string{"RS256"}},
+		}
+		assert.Error(t, o.validateJWTBearerTokens())
+	})
+
+	t.Run("non-jwt route needs nothing", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.Policies = []Policy{{}}
+		assert.NoError(t, o.validateJWTBearerTokens())
 	})
 }
 

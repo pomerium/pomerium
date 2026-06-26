@@ -69,7 +69,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	// Cookie + Authorization: Bearer are mutually exclusive trust contexts.
 	// Cookies come from a browser; bearer tokens come from an M2M client.
 	// A request carrying both is either a misconfigured client or an
-	// attempt at confusion. See docs/jwt-idps-change-plan.md decision #6.
+	// attempt at confusion, so we reject it with a 400.
 	if hasCookieAndBearer(hreq, a.currentConfig.Load().Options.CookieName) {
 		log.Ctx(ctx).Info().
 			Str("request-id", requestID).
@@ -319,13 +319,14 @@ func hasCookieAndBearer(r *http.Request, cookieName string) bool {
 	if cookieName == "" {
 		return false
 	}
-	if _, err := r.Cookie(cookieName); err != nil {
-		return false
-	}
-	auth := r.Header.Get(httputil.HeaderAuthorization)
-	if auth == "" {
-		return false
-	}
+	// Check the (cheap) Authorization header before parsing cookies: the
+	// common authenticated browser case carries a cookie but no bearer, so
+	// short-circuiting here skips cookie parsing on the hot path.
 	const prefix = "Bearer "
-	return strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix))
+	auth := r.Header.Get(httputil.HeaderAuthorization)
+	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+		return false
+	}
+	_, err := r.Cookie(cookieName)
+	return err == nil
 }

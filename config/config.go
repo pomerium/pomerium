@@ -70,9 +70,9 @@ type Config struct {
 	// ZeroPseudonymizationKey is the zero key used to pseudonymize data, only set in zero mode.
 	ZeroPseudonymizationKey []byte
 
-	// jwtResolver memoizes the resolver built from Options.JWTIdentityProviders.
+	// jwtResolver memoizes the resolver built from Options.JWTAllowedIssuers.
 	jwtResolverOnce sync.Once
-	jwtResolver     *JWTIdpResolver
+	jwtResolver     *JWTIssuerResolver
 	jwtResolverErr  error
 }
 
