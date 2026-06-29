@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -482,6 +483,7 @@ func (state state) GetUserInfo(users map[string]*User) *userInfo {
 			userInfo.Name = strings.TrimSpace(u.FirstName + " " + u.LastName)
 			userInfo.FamilyName = u.LastName
 			userInfo.GivenName = u.FirstName
+			userInfo.extra = u.Claims
 		}
 	}
 
@@ -494,6 +496,29 @@ type userInfo struct {
 	Email      string `json:"email"`
 	FamilyName string `json:"family_name"`
 	GivenName  string `json:"given_name"`
+
+	// extra holds additional custom claims to merge into the JSON output.
+	extra map[string]any
+}
+
+// claims returns the standard profile claims merged with any extra custom
+// claims as top-level fields.
+func (u *userInfo) claims() map[string]any {
+	m := map[string]any{
+		"sub":         u.Subject,
+		"name":        u.Name,
+		"email":       u.Email,
+		"family_name": u.FamilyName,
+		"given_name":  u.GivenName,
+	}
+	maps.Copy(m, u.extra)
+	return m
+}
+
+// MarshalJSON renders the standard profile claims and merges in any extra
+// custom claims as top-level fields.
+func (u *userInfo) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.claims())
 }
 
 type idToken struct {
@@ -503,6 +528,19 @@ type idToken struct {
 	Audience string           `json:"aud"`
 	Expiry   *jwt.NumericDate `json:"exp"`
 	IssuedAt *jwt.NumericDate `json:"iat"`
+}
+
+// MarshalJSON merges the userinfo claims (including any custom claims) with the
+// id_token's registered claims. It is defined explicitly because embedding
+// *userInfo would otherwise promote userInfo.MarshalJSON and drop the
+// iss/aud/exp/iat fields.
+func (token *idToken) MarshalJSON() ([]byte, error) {
+	m := token.userInfo.claims()
+	m["iss"] = token.Issuer
+	m["aud"] = token.Audience
+	m["exp"] = token.Expiry
+	m["iat"] = token.IssuedAt
+	return json.Marshal(m)
 }
 
 func (token *idToken) Encode(signingKey jose.SigningKey) string {
@@ -523,4 +561,7 @@ type User struct {
 	Email     string `json:"email"`
 	FirstName string `json:"first_name,omitempty"`
 	LastName  string `json:"last_name,omitempty"`
+	// Claims are additional claims to include in the id_token and the
+	// userinfo response, beyond the standard profile claims above.
+	Claims map[string]any `json:"claims,omitempty"`
 }
