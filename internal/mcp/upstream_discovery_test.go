@@ -183,7 +183,7 @@ func TestFetchAuthorizationServerMetadata(t *testing.T) {
 			handler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
-			expectError: "not found",
+			expectError: "upstream has no authorization server",
 		},
 		{
 			name: "server returns invalid JSON",
