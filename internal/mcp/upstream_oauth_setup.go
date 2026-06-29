@@ -353,7 +353,7 @@ func runDiscovery(
 			// An origin-derived AS whose metadata endpoints return 404 means the
 			// upstream advertises no AS.
 			// Pomerium should act as the AS.
-			if originDerived && isMetadataNotFound(err) {
+			if originDerived && errors.Is(err, errNoUpstreamAS) {
 				log.Ctx(ctx).Debug().Err(err).
 					Str("upstream_url", upstreamServerURL).
 					Str("fallback_as_url", fallbackASURL).
