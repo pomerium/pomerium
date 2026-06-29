@@ -60,9 +60,12 @@ type UpstreamMCPToken struct {
 	ResourceParam string `protobuf:"bytes,14,opt,name=resource_param,json=resourceParam,proto3" json:"resource_param,omitempty"`
 	// Client secret for token refresh (populated for pre-registered clients
 	// that require client authentication via client_secret_post).
-	ClientSecret  string `protobuf:"bytes,15,opt,name=client_secret,json=clientSecret,proto3" json:"client_secret,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ClientSecret string `protobuf:"bytes,15,opt,name=client_secret,json=clientSecret,proto3" json:"client_secret,omitempty"`
+	// When Pomerium acts as the authorization server for an upstream MCP server,
+	// this field indicates which Pomerium session it is tied to.
+	PomeriumAuthorizationSessionId *string `protobuf:"bytes,16,opt,name=pomerium_authorization_session_id,json=pomeriumAuthorizationSessionId,proto3,oneof" json:"pomerium_authorization_session_id,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *UpstreamMCPToken) Reset() {
@@ -200,11 +203,18 @@ func (x *UpstreamMCPToken) GetClientSecret() string {
 	return ""
 }
 
+func (x *UpstreamMCPToken) GetPomeriumAuthorizationSessionId() string {
+	if x != nil && x.PomeriumAuthorizationSessionId != nil {
+		return *x.PomeriumAuthorizationSessionId
+	}
+	return ""
+}
+
 var File_upstream_mcp_token_proto protoreflect.FileDescriptor
 
 const file_upstream_mcp_token_proto_rawDesc = "" +
 	"\n" +
-	"\x18upstream_mcp_token.proto\x12\aoauth21\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x05\n" +
+	"\x18upstream_mcp_token.proto\x12\aoauth21\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x96\x06\n" +
 	"\x10UpstreamMCPToken\x12#\n" +
 	"\auser_id\x18\x01 \x01(\tB\n" +
 	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x06userId\x12%\n" +
@@ -226,7 +236,9 @@ const file_upstream_mcp_token_proto_rawDesc = "" +
 	"\x1bauthorization_server_issuer\x18\f \x01(\tR\x19authorizationServerIssuer\x12%\n" +
 	"\x0etoken_endpoint\x18\r \x01(\tR\rtokenEndpoint\x12%\n" +
 	"\x0eresource_param\x18\x0e \x01(\tR\rresourceParam\x12#\n" +
-	"\rclient_secret\x18\x0f \x01(\tR\fclientSecretB\x93\x01\n" +
+	"\rclient_secret\x18\x0f \x01(\tR\fclientSecret\x12N\n" +
+	"!pomerium_authorization_session_id\x18\x10 \x01(\tH\x00R\x1epomeriumAuthorizationSessionId\x88\x01\x01B$\n" +
+	"\"_pomerium_authorization_session_idB\x93\x01\n" +
 	"\vcom.oauth21B\x15UpstreamMcpTokenProtoP\x01Z1github.com/pomerium/pomerium/internal/oauth21/gen\xa2\x02\x03OXX\xaa\x02\aOauth21\xca\x02\aOauth21\xe2\x02\x13Oauth21\\GPBMetadata\xea\x02\aOauth21b\x06proto3"
 
 var (
@@ -262,6 +274,7 @@ func file_upstream_mcp_token_proto_init() {
 	if File_upstream_mcp_token_proto != nil {
 		return
 	}
+	file_upstream_mcp_token_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

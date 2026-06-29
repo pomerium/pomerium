@@ -169,6 +169,7 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 			Hostname:  hostname,
 			Host:      r.Host,
 			UserID:    userID,
+			SessionID: sessionID,
 			AuthReqID: authReqID,
 			Info:      info,
 		})
@@ -407,6 +408,7 @@ type autoDiscoveryAuthParams struct {
 	Hostname  string // downstream hostname (port stripped)
 	Host      string // downstream host (with optional port)
 	UserID    string
+	SessionID string
 	AuthReqID string
 	Info      ServerHostInfo // route info with RouteID and UpstreamURL
 }
@@ -499,7 +501,14 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 	setupOpts = append(setupOpts, upstreamOAuthSetupOptsFromConfig(params.Info.UpstreamOAuth2)...)
 	setup, setupErr := runUpstreamOAuthSetup(ctx, srv.httpClient, params.Info.UpstreamURL, params.Host, setupOpts...)
 	if setupErr != nil {
-		// Discovery failed — upstream may not need OAuth, or there's a real config issue.
+		if errors.Is(setupErr, errNoUpstreamAS) {
+			// The upstream advertises no authorization server of its own, fallback to have pomerium act
+			// as the authorization server.
+			if err := srv.issueNewPomeriumOauthToken(ctx, params); err != nil {
+				return "", err
+			}
+			return "", nil
+		}
 		log.Ctx(ctx).Warn().Err(setupErr).
 			Str("upstream_url", params.Info.UpstreamURL).
 			Str("host", params.Host).
@@ -574,6 +583,36 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		Msg("mcp/auto-discovery: proactive upstream discovery succeeded, redirecting to upstream AS")
 
 	return authURL, nil
+}
+
+// The user is already authenticated, a blank upstream token is issued by Pomerium, and is tied
+// to the current session
+func (srv *Handler) issueNewPomeriumOauthToken(ctx context.Context, params *autoDiscoveryAuthParams) error {
+	log.Ctx(ctx).Debug().
+		Str("upstream_url", params.Info.UpstreamURL).
+		Str("host", params.Host).
+		Msg("mcp/auto-discovery: upstream has no authorization server, Pomerium acting as AS")
+	session, _, sessErr := srv.storage.GetSession(ctx, params.SessionID)
+	if sessErr != nil {
+		log.Ctx(ctx).Warn().Err(sessErr).
+			Str("session_id", params.SessionID).
+			Str("route_id", params.Info.RouteID).
+			Msg("mcp/auto-discovery: could not load session, skipping Pomerium-issued token")
+		return nil
+	}
+	pomeriumIssuer := (&url.URL{Scheme: "https", Host: params.Info.Host}).String()
+	token := newPomeriumAuthorizationServerToken(
+		params.UserID,
+		params.Info.RouteID,
+		params.Info.UpstreamURL,
+		params.SessionID,
+		pomeriumIssuer,
+		session.GetExpiresAt().AsTime(),
+	)
+	if putErr := srv.storage.PutUpstreamMCPToken(ctx, token); putErr != nil {
+		return fmt.Errorf("storing Pomerium-issued token: %w", putErr)
+	}
+	return nil
 }
 
 func (srv *Handler) getOrRegisterUpstreamOAuthClient(

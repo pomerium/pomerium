@@ -38,6 +38,7 @@ type authorizeTestStorage struct {
 	putUpstreamMCPTokenFunc        func(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
 	deleteUpstreamMCPTokenFunc     func(ctx context.Context, userID, routeID, upstreamServer string) error
 	getPendingUpstreamAuthFunc     func(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
+	getSessionFunc                 func(ctx context.Context, id string) (*session.Session, error)
 }
 
 func (s *authorizeTestStorage) CreateAuthorizationRequest(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error) {
@@ -77,7 +78,11 @@ func (s *authorizeTestStorage) GetAuthorizationRequest(context.Context, string) 
 	panic("unexpected call to GetAuthorizationRequest")
 }
 
-func (s *authorizeTestStorage) GetSession(context.Context, string) (*session.Session, uint64, error) {
+func (s *authorizeTestStorage) GetSession(ctx context.Context, id string) (*session.Session, uint64, error) {
+	if s.getSessionFunc != nil {
+		sess, err := s.getSessionFunc(ctx, id)
+		return sess, 0, err
+	}
 	panic("unexpected call to GetSession")
 }
 
@@ -328,6 +333,9 @@ func TestAuthorize_GetUpstreamMCPToken_NotFoundFallsThrough(t *testing.T) {
 			// NotFound is expected — user doesn't have a cached token yet.
 			return nil, status.Error(codes.NotFound, "not found")
 		},
+		putUpstreamMCPTokenFunc: func(_ context.Context, _ *oauth21proto.UpstreamMCPToken) error {
+			return nil
+		},
 		deleteAuthorizationRequestFunc: func(_ context.Context, _ string) error {
 			deleteAuthReqCalled = true
 			return nil
@@ -342,6 +350,9 @@ func TestAuthorize_GetUpstreamMCPToken_NotFoundFallsThrough(t *testing.T) {
 		},
 		getPendingUpstreamAuthFunc: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
 			return nil, fmt.Errorf("no pending auth")
+		},
+		getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+			return &session.Session{Id: testSessionID, ExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}, nil
 		},
 	}
 
@@ -358,12 +369,20 @@ func TestAuthorize_GetUpstreamMCPToken_NotFoundFallsThrough(t *testing.T) {
 	w := httptest.NewRecorder()
 	srv.Authorize(w, r)
 
-	// A NotFound error should NOT trigger a 500 or cleanup — the flow should continue
-	// to auto-discovery (which fails gracefully with DiscoveryError) and then issue an auth code.
-	assert.NotEqual(t, http.StatusInternalServerError, w.Code,
-		"NotFound error should not cause a 500")
+	// The upstream advertises no authorization server, so there is nothing to
+	// authorize against. A NotFound cached token must not 500 or clean up the auth
+	// request — in this case the flow continues and issues an auth code back to the client,
+	// because there is no authorization server in the discovery flow
 	assert.False(t, deleteAuthReqCalled,
-		"should not clean up auth request on NotFound (flow continues)")
+		"should not clean up auth request when upstream has no AS (flow continues)")
+	require.Equal(t, http.StatusFound, w.Code,
+		"flow should continue and redirect back to the client")
+	location, err := url.Parse(w.Header().Get("Location"))
+	require.NoError(t, err)
+	assert.Equal(t, testRedirectURI, location.Scheme+"://"+location.Host+location.Path,
+		"should redirect to the client's callback")
+	assert.NotEmpty(t, location.Query().Get("code"),
+		"flow should issue an authorization code")
 }
 
 // TestAuthorize_ExpiredTokenWithRefreshToken_RefreshesSilently reproduces ENG-3927:

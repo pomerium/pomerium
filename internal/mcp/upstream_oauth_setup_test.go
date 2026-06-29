@@ -566,6 +566,46 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		assert.Nil(t, result)
 	})
 
+	t.Run("no AS at http origin returns errNoUpstreamAS", func(t *testing.T) {
+		t.Parallel()
+
+		// upstream server has no PRM, and no discovery.
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer srv.Close()
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srv.URL, "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+		)
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, errNoUpstreamAS)
+	})
+
+	t.Run("upstream AS erroring", func(t *testing.T) {
+		t.Parallel()
+
+		// transient errors for a discovery server should not be re-routed to Pomerium
+		// acting as the authorization server
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, "/.well-known/oauth-authorization-server") ||
+				strings.HasPrefix(r.URL.Path, "/.well-known/openid-configuration") {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer srv.Close()
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srv.URL, "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+		)
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.NotErrorIs(t, err, errNoUpstreamAS)
+	})
+
 	t.Run("CIMD not supported returns error", func(t *testing.T) {
 		t.Parallel()
 

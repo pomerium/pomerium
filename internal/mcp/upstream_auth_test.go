@@ -920,6 +920,113 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 		assert.Equal(t, "still-valid", result, "should return the non-expired token")
 	})
 
+	t.Run("Pomerium-issued token injects no credential", func(t *testing.T) {
+		t.Parallel()
+
+		// A Pomerium-issued token means the upstream has no AS of its own and
+		// Pomerium is the AS. While the session that established it is still valid,
+		// GetUpstreamToken must return "" so ext_proc injects nothing and the
+		// request rides the Pomerium session.
+		token := newPomeriumAuthorizationServerToken("user-1", "route-1", "https://api.example.com", "session-1", "https://proxy.example.com", time.Now().Add(time.Hour))
+
+		var getTokenCalled bool
+		fullStore := &autoDiscoveryTestStorage{
+			testUpstreamAuthStorage: &testUpstreamAuthStorage{
+				getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+					return &session.Session{Id: "session-1", ExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}, nil
+				},
+			},
+			getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
+				getTokenCalled = true
+				return token, nil
+			},
+		}
+
+		parsedUpstream, _ := url.Parse("https://api.example.com")
+		cfg := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-mcp-server",
+					From: "https://proxy.example.com",
+					To:   config.WeightedURLs{{URL: *parsedUpstream}},
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
+				},
+			},
+		})
+		hosts := NewHostInfo(cfg, nil)
+
+		handler := &UpstreamAuthHandler{
+			storage: fullStore,
+			hosts:   hosts,
+		}
+
+		routeCtx := &extproc.RouteContext{
+			RouteID: "route-1",
+			UserID:  "user-1",
+			IsMCP:   true,
+		}
+
+		result, err := handler.GetUpstreamToken(context.Background(), routeCtx, "proxy.example.com")
+		require.NoError(t, err)
+		assert.True(t, getTokenCalled, "should have called GetUpstreamMCPToken")
+		assert.Empty(t, result, "Pomerium-issued token must inject no upstream credential")
+	})
+
+	t.Run("Pomerium-issued token fails when session is not valid", func(t *testing.T) {
+		t.Parallel()
+
+		cases := map[string]error{
+			"revoked session": status.Error(codes.NotFound, "session not found"),
+			"storage error":   status.Error(codes.Unavailable, "databroker unavailable"),
+		}
+
+		for name, sessionErr := range cases {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+
+				token := newPomeriumAuthorizationServerToken("user-1", "route-1", "https://api.example.com", "session-1", "https://proxy.example.com", time.Now().Add(time.Hour))
+
+				fullStore := &autoDiscoveryTestStorage{
+					testUpstreamAuthStorage: &testUpstreamAuthStorage{
+						getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+							return nil, sessionErr
+						},
+					},
+					getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
+						return token, nil
+					},
+				}
+
+				parsedUpstream, _ := url.Parse("https://api.example.com")
+				cfg := config.New(&config.Options{
+					Policies: []config.Policy{
+						{
+							Name: "test-mcp-server",
+							From: "https://proxy.example.com",
+							To:   config.WeightedURLs{{URL: *parsedUpstream}},
+							MCP:  &config.MCP{Server: &config.MCPServer{}},
+						},
+					},
+				})
+				hosts := NewHostInfo(cfg, nil)
+
+				handler := &UpstreamAuthHandler{
+					storage: fullStore,
+					hosts:   hosts,
+				}
+
+				routeCtx := &extproc.RouteContext{
+					RouteID: "route-1",
+					UserID:  "user-1",
+					IsMCP:   true,
+				}
+
+				_, err := handler.GetUpstreamToken(context.Background(), routeCtx, "proxy.example.com")
+				require.Error(t, err, "must fail closed when the session cannot be confirmed")
+			})
+		}
+	})
+
 	t.Run("expired token with refresh token attempts refresh", func(t *testing.T) {
 		t.Parallel()
 

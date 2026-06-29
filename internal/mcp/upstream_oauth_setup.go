@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,6 +17,28 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
+
+// errNoUpstreamAS signals that the upstream MCP server has no authorization
+// server of its own: no Protected Resource Metadata, no operator-configured
+// fallback AS, and the upstream origin is not a usable https authorization
+// server. Callers should handled this as "Pomerium is the authorization server"
+var errNoUpstreamAS = errors.New("upstream has no authorization server")
+
+type httpStatusError struct {
+	URL    string
+	Status int
+}
+
+func (e *httpStatusError) Error() string {
+	return fmt.Sprintf("fetching %s: unexpected status %d", e.URL, e.Status)
+}
+
+func isMetadataNotFound(err error) bool {
+	if se, ok := errors.AsType[*httpStatusError](err); ok {
+		return se.Status == http.StatusNotFound
+	}
+	return false
+}
 
 // upstreamOAuthSetupConfig holds configuration for the upstream OAuth discovery + client_id setup workflow.
 type upstreamOAuthSetupConfig struct {
@@ -296,7 +319,8 @@ func runDiscovery(
 	// Per MCP spec: "Abort or use pre-configured values."
 	// Use explicit override if configured, otherwise try the upstream server's origin.
 	fallbackASURL := overrideASURL
-	if fallbackASURL == "" {
+	originDerived := overrideASURL == ""
+	if originDerived {
 		fallbackASURL, _ = originOf(upstreamServerURL)
 	}
 	if fallbackASURL != "" {
@@ -305,6 +329,17 @@ func runDiscovery(
 		// config or route definitions), we apply the same validation as the
 		// attacker-influenced paths for consistent security guarantees.
 		if err := validateMetadataURL(fallbackASURL, asMetadataDomainMatcher); err != nil {
+			// When the AS URL was derived from the upstream's own origin (no
+			// operator override) and that origin is not a usable https AS, the
+			// upstream simply has no authorization server of its own.
+			// Pomerium should act as the AS.
+			if originDerived {
+				log.Ctx(ctx).Debug().Err(err).
+					Str("upstream_url", upstreamServerURL).
+					Str("fallback_as_url", fallbackASURL).
+					Msg("ext_proc: no usable upstream AS at origin, treating as no-AS upstream")
+				return nil, errNoUpstreamAS
+			}
 			return nil, fmt.Errorf("fallback AS URL: %w", err)
 		}
 		log.Ctx(ctx).Info().
@@ -313,7 +348,21 @@ func runDiscovery(
 			Bool("explicit_override", overrideASURL != "").
 			AnErr("prm_error", prmErr).
 			Msg("ext_proc: PRM discovery failed, falling back to direct AS metadata discovery")
-		return runDiscoveryFromFallbackAS(ctx, httpClient, fallbackASURL, upstreamServerURL)
+		res, err := runDiscoveryFromFallbackAS(ctx, httpClient, fallbackASURL, upstreamServerURL)
+		if err != nil {
+			// An origin-derived AS whose metadata endpoints return 404 means the
+			// upstream advertises no AS.
+			// Pomerium should act as the AS.
+			if originDerived && isMetadataNotFound(err) {
+				log.Ctx(ctx).Debug().Err(err).
+					Str("upstream_url", upstreamServerURL).
+					Str("fallback_as_url", fallbackASURL).
+					Msg("ext_proc: upstream AS metadata not found, treating as no-AS upstream")
+				return nil, errNoUpstreamAS
+			}
+			return nil, err
+		}
+		return res, nil
 	}
 
 	if prmErr != nil {

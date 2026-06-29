@@ -73,6 +73,43 @@ func newPendingUpstreamAuth(p newPendingUpstreamAuthParams, setup *upstreamOAuth
 	}
 }
 
+// newPomeriumAuthorizationServerToken builds a Pomerium-issued token for routes where
+// the upstream has no authorization server of its own and Pomerium acts as the AS. It
+// carries no credential and is tied to the session's lifetime.
+func newPomeriumAuthorizationServerToken(userID, routeID, upstreamServer, sessionID, pomeriumIssuer string, sessionExpiry time.Time) *oauth21proto.UpstreamMCPToken {
+	return &oauth21proto.UpstreamMCPToken{
+		UserId:                         userID,
+		RouteId:                        routeID,
+		UpstreamServer:                 upstreamServer,
+		TokenType:                      "Bearer",
+		IssuedAt:                       timestamppb.New(time.Now()),
+		ExpiresAt:                      timestamppb.New(sessionExpiry),
+		AuthorizationServerIssuer:      pomeriumIssuer,
+		PomeriumAuthorizationSessionId: &sessionID,
+	}
+}
+
+func isPomeriumIssuedToken(t *oauth21proto.UpstreamMCPToken) bool {
+	return t != nil && t.GetPomeriumAuthorizationSessionId() != ""
+}
+
+// pomeriumIssuedTokenValid reports whether a Pomerium-issued token still matches the session it was issued by
+func (h *UpstreamAuthHandler) pomeriumIssuedTokenValid(ctx context.Context, sessionID string, expiresAt *timestamppb.Timestamp) (bool, error) {
+	if expiresAt != nil && !expiresAt.AsTime().After(time.Now()) {
+		return false, nil
+	}
+	if sessionID == "" {
+		return false, nil
+	}
+	if _, _, err := h.storage.GetSession(ctx, sessionID); err != nil {
+		if isNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("validating session %s: %w", sessionID, err)
+	}
+	return true, nil
+}
+
 // UpstreamAuthHandler implements extproc.UpstreamRequestHandler for MCP upstream OAuth flows.
 // It handles token injection on the request path and 401/403 interception on the response path.
 // All upstream auth modes (auto-discovery, pre-registered, fully static) use a unified
@@ -218,6 +255,31 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 		event.Time("expires_at", token.ExpiresAt.AsTime())
 	}
 	event.Msg("mcp_upstream_auth: loaded cached upstream token")
+
+	// Pomerium is the authorization server- there is no credential associated with it.
+	// This token stays valid as long as the session is valid.
+	if isPomeriumIssuedToken(token) {
+		sessionID := token.GetPomeriumAuthorizationSessionId()
+		valid, err := h.pomeriumIssuedTokenValid(ctx, sessionID, token.ExpiresAt)
+		if err != nil {
+			return "", fmt.Errorf("validating session for Pomerium-issued token: %w", err)
+		}
+		if !valid {
+			log.Ctx(ctx).Info().
+				Str("route_id", routeCtx.RouteID).
+				Str("user_id", userID).
+				Str("upstream_server", info.UpstreamURL).
+				Str("session_id", sessionID).
+				Msg("mcp_upstream_auth: Pomerium-issued token no longer valid (session expired/revoked)")
+			return "", fmt.Errorf("pomerium-issued token no longer valid (session expired/revoked)")
+		}
+		log.Ctx(ctx).Debug().
+			Str("route_id", routeCtx.RouteID).
+			Str("user_id", userID).
+			Str("upstream_server", info.UpstreamURL).
+			Msg("mcp_upstream_auth: upstream has no AS (Pomerium is AS), injecting no credential")
+		return "", nil
+	}
 
 	// Check if access token is expired
 	if token.ExpiresAt != nil && token.ExpiresAt.AsTime().Before(time.Now()) {
@@ -430,6 +492,16 @@ func (h *UpstreamAuthHandler) handle401(
 	setupOpts = append(setupOpts, upstreamOAuthSetupOptsFromConfig(serverInfo.UpstreamOAuth2)...)
 	setup, err := runUpstreamOAuthSetup(ctx, h.httpClient, resourceURL, host, setupOpts...)
 	if err != nil {
+		// The upstream advertises no authorization server of its own. There is
+		// nothing to discover or to authorize against, so pass the 401 through
+		// unchanged rather than treating it as an error.
+		if errors.Is(err, errNoUpstreamAS) {
+			log.Ctx(ctx).Debug().
+				Str("upstream_server", serverInfo.UpstreamURL).
+				Str("host", host).
+				Msg("mcp_upstream_auth: upstream has no authorization server, passing 401 through")
+			return nil, nil
+		}
 		return nil, fmt.Errorf("upstream OAuth setup: %w", err)
 	}
 	if setup == nil {

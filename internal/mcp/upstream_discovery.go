@@ -181,7 +181,7 @@ func fetchJSON(ctx context.Context, client *http.Client, url string, dst any) er
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("fetching %s: unexpected status %d", url, resp.StatusCode)
+		return &httpStatusError{URL: url, Status: resp.StatusCode}
 	}
 
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxMetadataResponseBytes)).Decode(dst); err != nil {

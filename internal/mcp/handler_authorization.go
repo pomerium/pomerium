@@ -212,6 +212,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 			Hostname:  hostname,
 			Host:      r.Host,
 			UserID:    userID,
+			SessionID: sessionID,
 			AuthReqID: authReqID,
 			Info:      info,
 		})
