@@ -89,10 +89,6 @@ func newPomeriumAuthorizationServerToken(userID, routeID, upstreamServer, sessio
 	}
 }
 
-func isPomeriumIssuedToken(t *oauth21proto.UpstreamMCPToken) bool {
-	return t != nil && t.GetPomeriumAuthorizationSessionId() != ""
-}
-
 // pomeriumIssuedTokenValid reports whether a Pomerium-issued token still matches the session it was issued by
 func (h *UpstreamAuthHandler) pomeriumIssuedTokenValid(ctx context.Context, sessionID string, expiresAt *timestamppb.Timestamp) (bool, error) {
 	if expiresAt != nil && !expiresAt.AsTime().After(time.Now()) {
@@ -258,7 +254,7 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 
 	// Pomerium is the authorization server- there is no credential associated with it.
 	// This token stays valid as long as the session is valid.
-	if isPomeriumIssuedToken(token) {
+	if token.IsPomeriumIssuedToken() {
 		sessionID := token.GetPomeriumAuthorizationSessionId()
 		valid, err := h.pomeriumIssuedTokenValid(ctx, sessionID, token.ExpiresAt)
 		if err != nil {
@@ -271,7 +267,7 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 				Str("upstream_server", info.UpstreamURL).
 				Str("session_id", sessionID).
 				Msg("mcp_upstream_auth: Pomerium-issued token no longer valid (session expired/revoked)")
-			return "", fmt.Errorf("pomerium-issued token no longer valid (session expired/revoked)")
+			return "", status.Error(codes.PermissionDenied, "pomerium-issued token no longer valid (session expired/revoked)")
 		}
 		log.Ctx(ctx).Debug().
 			Str("route_id", routeCtx.RouteID).

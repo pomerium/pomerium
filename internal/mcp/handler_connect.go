@@ -120,7 +120,8 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
-		if tokenErr == nil && token != nil && (token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now())) {
+		tokenValid := tokenErr == nil && token.Validate(sessionID) == nil
+		if tokenValid {
 			log.Ctx(ctx).Debug().
 				Str("redirect-url", redirectURL).
 				Msg("mcp/connect: valid upstream MCP token exists, redirecting to client")

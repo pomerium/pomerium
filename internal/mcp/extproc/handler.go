@@ -6,7 +6,16 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
+	"github.com/shogo82148/go-sfv"
 )
+
+func bearerChallenge(params ...sfv.DictMember) string {
+	txt, err := sfv.EncodeDictionary(sfv.Dictionary(params))
+	if err != nil {
+		return "Bearer"
+	}
+	return "Bearer " + txt
+}
 
 // UpstreamRequestHandler handles upstream token injection and response interception.
 // The implementation lives in the mcp package, where it has access to Storage, HostInfo,

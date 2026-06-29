@@ -12,6 +12,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"github.com/rs/zerolog"
+	"github.com/shogo82148/go-sfv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
@@ -271,6 +272,11 @@ func (s *Server) handleRequestHeaders(
 
 	token, err := handler.GetUpstreamToken(ctx, routeCtx, downstreamHost)
 	if err != nil {
+		if grpcstatus.Code(err) == codes.PermissionDenied {
+			return immediateUnauthorizedResponse(bearerChallenge(
+				sfv.DictMember{Key: "error", Item: sfv.Item{Value: "invalid_token"}},
+			))
+		}
 		log.Ctx(ctx).Error().Err(err).
 			Str("route_id", routeCtx.RouteID).
 			Str("downstream_host", downstreamHost).

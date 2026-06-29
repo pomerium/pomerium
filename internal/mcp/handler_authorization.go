@@ -175,7 +175,8 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		if tokenErr == nil && token != nil && (token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now())) {
+		tokenValid := tokenErr == nil && token.Validate(sessionID) == nil
+		if tokenValid {
 			log.Ctx(ctx).Debug().
 				Str("user_id", userID).
 				Str("route_id", info.RouteID).
