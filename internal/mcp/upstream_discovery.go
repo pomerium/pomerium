@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,24 +61,25 @@ func FetchAuthorizationServerMetadata(
 		return nil, fmt.Errorf("building AS metadata URLs: %w", err)
 	}
 
-	var lastErr error
+	errs := []error{}
 	for _, u := range urls {
 		var meta AuthorizationServerMetadata
 		if err := fetchJSON(ctx, client, u, &meta); err != nil {
-			lastErr = err
+			errs = append(errs, err)
 			continue
 		}
 		if err := ValidateAuthorizationServerMetadata(&meta); err != nil {
-			lastErr = err
+			errs = append(errs, err)
 			continue
 		}
 		return &meta, nil
 	}
 
-	if lastErr != nil {
-		return nil, fmt.Errorf("authorization server metadata not found at any well-known endpoint: %w", lastErr)
+	// potentially retryable error from upstream servers
+	if slices.ContainsFunc(errs, func(err error) bool { return !isMetadataNotFound(err) }) {
+		return nil, fmt.Errorf("fetching authorization server metadata: %w", errors.Join(errs...))
 	}
-	return nil, fmt.Errorf("authorization server metadata not found at any well-known endpoint")
+	return nil, errNoUpstreamAS
 }
 
 // BuildProtectedResourceMetadataURLs returns the well-known URLs to probe for
