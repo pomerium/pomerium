@@ -247,7 +247,7 @@ func TestDecryptCode(t *testing.T) {
 	codeBytes, err := proto.Marshal(codeNoExpiry)
 	require.NoError(t, err)
 	ciphertext := cryptutil.Encrypt(testCipher, codeBytes, []byte("test-ad"))
-	codeNoExpiryStr := base64.StdEncoding.EncodeToString(ciphertext)
+	codeNoExpiryStr := base64.RawURLEncoding.EncodeToString(ciphertext)
 
 	tests := []struct {
 		name       string
