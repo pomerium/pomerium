@@ -1,0 +1,12 @@
+{
+  "name": "pomerium-mcp-e2e-upstream",
+  "version": "1.0.0",
+  "description": "Minimal upstream MCP server (Streamable HTTP) used as the protected resource behind Pomerium in the MCP e2e suite. Mounted into a node container as a volume.",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^5.2.1",
+    "zod": "^4.4.3"
+  }
+}

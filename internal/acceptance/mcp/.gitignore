@@ -1,0 +1,7 @@
+node_modules/
+.certs/
+test-results/
+playwright-report/
+artifacts/
+upstream/node_modules/
+*.log
