@@ -38,6 +38,7 @@ func IterateLines(rc io.ReadCloser) iter.Seq[string] {
 				return
 			} else if err != nil {
 				log.Error().Err(err).Msg("logutil: unexpected error while reading log line")
+				return
 			}
 		}
 	}
