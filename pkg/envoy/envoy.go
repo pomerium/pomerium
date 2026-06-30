@@ -60,13 +60,13 @@ type Server struct {
 
 	monitorProcessCancel context.CancelFunc
 
-	mu        sync.Mutex
-	shutdownC chan error
+	mu                                sync.Mutex
+	shutdownC                         chan error
+	dynamicExtensionHealthProbeCancel context.CancelFunc
 
 	recordingServer     stdatomic.Pointer[recording.Server]
 	recordingServerErrC chan error
 }
-
 type ServerOptions struct {
 	extraEnvVars          []string
 	logLevel              config.LogLevel
@@ -220,6 +220,9 @@ func (srv *Server) Close() error {
 
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
+	if srv.dynamicExtensionHealthProbeCancel != nil {
+		srv.dynamicExtensionHealthProbeCancel()
+	}
 
 	var err error
 	if srv.cmd != nil && srv.cmd.Process != nil {
@@ -290,6 +293,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("envoy: failed to configure dynamic extensions: %w", err)
 	}
+	srv.startDynExtHealthProbeLocked(ctx, dynCfg)
 
 	if dynCfg.isSessionRecordingEnabled() {
 		srv.enableOrUpdateSessionRecording(ctx, cfg, dynCfg.RecordingPipes)
@@ -298,7 +302,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	}
 
 	if err := srv.writeConfig(ctx, cfg, &envoyconfig.DynamicExtensionsConfig{
-		ExtensionsToLoad:  dynCfg.extensionIDs,
+		ExtensionsToLoad:  dynCfg.extensionIDs(),
 		DynamicExtensions: dynCfg.DynamicExtensions,
 	}); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
@@ -521,7 +525,7 @@ func (srv *Server) envoyReady(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected http status code from ready point : %d", resp.StatusCode)
+		return fmt.Errorf("unexpected http status code from ready endpoint : %d", resp.StatusCode)
 	}
 	return nil
 }

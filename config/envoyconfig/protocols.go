@@ -31,6 +31,11 @@ const (
 	maxConcurrentStreams             uint32 = 100
 	initialStreamWindowSizeLimit     uint32 = 64 * 1024
 	initialConnectionWindowSizeLimit uint32 = 1 * 1024 * 1024
+
+	// For ssh connections, the minimum safe buffer size is 524288. See
+	// envoy-custom/source/extensions/filters/network/ssh/transport_base.h
+	// for additional details.
+	sshConnectionBufferLimit uint32 = 524288
 )
 
 var http1ProtocolOptions = &envoy_config_core_v3.Http1ProtocolOptions{

@@ -1378,3 +1378,38 @@ func Test_buildPolicyCluster(t *testing.T) {
 		assert.Equal(t, "stat-name", cluster.AltStatName)
 	})
 }
+
+func TestSshConnectionBufferLimits(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.New(config.NewDefaultOptions())
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+
+	{
+		cluster, err := b.buildPolicyCluster(t.Context(), cfg, &config.Policy{
+			From: "ssh://route1",
+			To:   mustParseWeightedURLs(t, "ssh://dest1"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, sshConnectionBufferLimit, cluster.PerConnectionBufferLimitBytes.GetValue())
+	}
+
+	{
+		cluster, err := b.buildPolicyCluster(t.Context(), cfg, &config.Policy{
+			From: "http://route2",
+			To:   mustParseWeightedURLs(t, "http://dest2"),
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t, connectionBufferLimit, cluster.PerConnectionBufferLimitBytes.GetValue())
+	}
+	{
+		cluster, err := b.buildPolicyCluster(t.Context(), cfg, &config.Policy{
+			From:           "http://route3",
+			To:             mustParseWeightedURLs(t, "http://dest3"),
+			UpstreamTunnel: &config.UpstreamTunnel{},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, sshConnectionBufferLimit, cluster.PerConnectionBufferLimitBytes.GetValue())
+	}
+}

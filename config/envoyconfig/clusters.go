@@ -263,6 +263,10 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	}
 	cluster.LbPolicy = policy.LoadBalancingPolicy.Value.ToEnvoy()
 
+	if policy.IsSSHUpstream() {
+		cluster.PerConnectionBufferLimitBytes = wrapperspb.UInt32(sshConnectionBufferLimit)
+	}
+
 	// Keep last
 	if policy.UpstreamTunnel != nil {
 		if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHUpstreamTunnel) {

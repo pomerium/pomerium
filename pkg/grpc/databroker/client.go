@@ -5,15 +5,11 @@ type ClientGetter interface {
 }
 
 func NewStaticClientGetter(client DataBrokerServiceClient) ClientGetter {
-	return staticClientGetter{
-		client: client,
-	}
+	return ClientGetterFunc(func() DataBrokerServiceClient { return client })
 }
 
-type staticClientGetter struct {
-	client DataBrokerServiceClient
-}
+type ClientGetterFunc func() DataBrokerServiceClient
 
-func (w staticClientGetter) GetDataBrokerServiceClient() DataBrokerServiceClient {
-	return w.client
+func (f ClientGetterFunc) GetDataBrokerServiceClient() DataBrokerServiceClient {
+	return f()
 }

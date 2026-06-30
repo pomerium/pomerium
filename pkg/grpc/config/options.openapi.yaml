@@ -1,0 +1,6 @@
+openapi: 3.1.0
+info:
+  title: pomerium.config
+paths: {}
+components: {}
+security: []

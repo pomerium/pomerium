@@ -261,7 +261,7 @@ func (c *service) syncBundleToDatabroker(ctx context.Context, src io.Reader, cur
 	}
 
 	err = databrokerutil.NewReconciler(
-		c.config.databrokerClient,
+		databroker.NewStaticClientGetter(c.config.databrokerClient),
 		func(_ context.Context) (databroker.RecordSetBundle, error) {
 			return databrokerRecords, nil
 		},

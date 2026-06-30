@@ -2,12 +2,29 @@ package core
 
 import (
 	"image"
+	"slices"
 
 	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 )
+
+type StatusFlags uint32
+
+const (
+	SkipNextRender StatusFlags = 1 << iota
+)
+
+type Status struct {
+	Cmd   tea.Cmd
+	Flags StatusFlags
+}
+
+func Cmd(cmd tea.Cmd) Status {
+	return Status{Cmd: cmd}
+}
+
+var NilCmd = Status{}
 
 type (
 	KeyMap = help.KeyMap
@@ -48,21 +65,23 @@ type Resizable interface {
 }
 
 type Widget interface {
+	uv.Drawable
 	Resizable
+	ID() string
 	Model() Model
-	Layer() *lipgloss.Layer
 	Hidden() bool
 	SetHidden(bool)
 }
 
 type widget struct {
-	layer  *lipgloss.Layer
+	id     string
+	bounds uv.Rectangle
 	model  Model
 	hidden bool
 }
 
-func (w *widget) Layer() *lipgloss.Layer {
-	return w.layer
+func (w *widget) ID() string {
+	return w.id
 }
 
 func (w *widget) Model() Model {
@@ -78,19 +97,12 @@ func (w *widget) SetHidden(hidden bool) {
 }
 
 func (w *widget) Bounds() uv.Rectangle {
-	return w.layer.Bounds()
+	return w.bounds
 }
 
 func (w *widget) SetBounds(bounds uv.Rectangle) {
-	// BUG: the layer X() and Y() functions ADD to the existing coordinates,
-	// instead of replacing them. To work around this, apply a negative offset
-	// with the current value
-	w.layer.
-		X(-w.layer.GetX() + bounds.Min.X).
-		Y(-w.layer.GetY() + bounds.Min.Y).
-		Width(bounds.Dx()).
-		Height(bounds.Dy())
-	w.Model().OnResized(w.layer.GetWidth(), w.layer.GetHeight())
+	w.bounds = bounds
+	w.Model().OnResized(bounds.Dx(), bounds.Dy())
 }
 
 func (w *widget) Draw(scr uv.Screen, area image.Rectangle) {
@@ -116,14 +128,36 @@ func (p *parentInterfaceImpl) TranslateGlobalToLocalPos(globalPos uv.Position) (
 
 func NewWidget[M Model](id string, m M) Widget {
 	w := &widget{
-		layer: (&lipgloss.Layer{}).ID(id),
+		id:    id,
 		model: m,
 	}
 	m.SetParentInterface(&parentInterfaceImpl{w})
-	w.layer.SetContent(w)
 	return w
 }
 
 type DeviceAttributes struct {
 	ClipboardSupport bool
+}
+
+// RenderOrder describes a list of rendered widgets. Assumed to be sorted
+// in the order the widgets were composited, so entries ordered later in the
+// list have a higher z-index.
+type RenderOrder []RenderInfo
+
+func (order RenderOrder) HitTest(x, y int) RenderInfo {
+	for _, wr := range slices.Backward(order) {
+		if uv.Pos(x, y).In(wr.Bounds) {
+			return wr
+		}
+	}
+	return RenderInfo{}
+}
+
+type RenderInfo struct {
+	ID     string
+	Bounds uv.Rectangle
+}
+
+func (info *RenderInfo) Empty() bool {
+	return info.ID == ""
 }

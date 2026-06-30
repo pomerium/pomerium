@@ -1,23 +1,20 @@
 package envoyconfig
 
 import (
-	"fmt"
-	"net/url"
 	"strings"
 
-	xds_core_v3 "github.com/cncf/xds/go/xds/core/v3"
-	xds_matcher_v3 "github.com/cncf/xds/go/xds/type/matcher/v3"
+	xds_type_v3 "github.com/cncf/xds/go/xds/type/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v3"
 	envoy_common_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/common/ratelimit/v3"
-	envoy_generic_proxy_action_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/action/v3"
-	envoy_generic_proxy_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/matcher/v3"
 	envoy_generic_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/router/v3"
 	envoy_generic_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/v3"
 	envoy_generic_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/ratelimit/v3"
-	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
@@ -46,10 +43,6 @@ func newRateLimitEntries() []*envoy_common_ratelimit_v3.RateLimitDescriptor_Entr
 func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_config_listener_v3.Listener, error) {
 	if cfg.Options.SSHAddr == "" {
 		return nil, nil
-	}
-	rc, err := buildRouteConfig(cfg)
-	if err != nil {
-		return nil, err
 	}
 
 	authorizeService := &envoy_config_core_v3.GrpcService{
@@ -142,9 +135,21 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 
 	var enabledChannelFilters []*envoy_config_core_v3.TypedExtensionConfig
 	if slices.Contains(extensionsToLoad, ExtensionSSHSessionRecording) {
+		ext := &xssh.ChannelFilterConfig{}
+		ts := &xds_type_v3.TypedStruct{
+			TypeUrl: "type.googleapis.com/" + string(ext.ProtoReflect().Descriptor().FullName()),
+			Value:   &structpb.Struct{},
+		}
+		data, err := protojson.Marshal(ext)
+		if err != nil {
+			return nil, err
+		}
+		if err := protojson.Unmarshal(data, ts.Value); err != nil {
+			return nil, err
+		}
 		enabledChannelFilters = append(enabledChannelFilters, &envoy_config_core_v3.TypedExtensionConfig{
 			Name:        "session_recording",
-			TypedConfig: marshalAny(&xssh.ChannelFilterConfig{}),
+			TypedConfig: marshalAny(ts),
 		})
 	}
 
@@ -171,8 +176,16 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 							}),
 						},
 					},
-					RouteSpecifier: &envoy_generic_proxy_v3.GenericProxy_RouteConfig{
-						RouteConfig: rc,
+					RouteSpecifier: &envoy_generic_proxy_v3.GenericProxy_GenericRds{
+						GenericRds: &envoy_generic_proxy_v3.GenericRds{
+							ConfigSource: &envoy_config_core_v3.ConfigSource{
+								ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+								ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+							},
+							// Matches the ssh generic proxy RouteConfiguration created by
+							// buildSSHRouteConfiguration in route_configurations.go.
+							RouteConfigName: "ssh",
+						},
 					},
 				}),
 			},
@@ -186,90 +199,10 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 				Filters: filters,
 			},
 		},
+		PerConnectionBufferLimitBytes: wrapperspb.UInt32(sshConnectionBufferLimit),
 	}
 	li.Address, li.AdditionalAddresses = buildTCPListenAddresses(cfg.Options.SSHAddr, 22)
 	return li, nil
-}
-
-func buildRouteConfig(cfg *config.Config) (*envoy_generic_proxy_v3.RouteConfiguration, error) {
-	var routeMatchers []*xds_matcher_v3.Matcher_MatcherList_FieldMatcher
-	for route := range cfg.Options.GetAllPolicies() {
-		if !route.IsSSH() {
-			continue
-		}
-		from, err := url.Parse(route.From)
-		if err != nil {
-			return nil, err
-		}
-		fromHost := from.Hostname()
-		if len(route.To) > 1 {
-			return nil, fmt.Errorf("only one 'to' entry allowed for ssh routes")
-		}
-		to := route.To[0].URL
-		if to.Scheme != "ssh" {
-			return nil, fmt.Errorf("'to' route url must have ssh scheme")
-		}
-		clusterID := GetClusterID(route)
-		routeMatchers = append(routeMatchers, &xds_matcher_v3.Matcher_MatcherList_FieldMatcher{
-			Predicate: &xds_matcher_v3.Matcher_MatcherList_Predicate{
-				MatchType: &xds_matcher_v3.Matcher_MatcherList_Predicate_SinglePredicate_{
-					SinglePredicate: &xds_matcher_v3.Matcher_MatcherList_Predicate_SinglePredicate{
-						Input: &xds_core_v3.TypedExtensionConfig{
-							Name:        "request",
-							TypedConfig: marshalAny(&envoy_generic_proxy_matcher_v3.RequestMatchInput{}),
-						},
-						Matcher: &xds_matcher_v3.Matcher_MatcherList_Predicate_SinglePredicate_CustomMatch{
-							CustomMatch: &xds_core_v3.TypedExtensionConfig{
-								Name: "request",
-								TypedConfig: marshalAny(&envoy_generic_proxy_matcher_v3.RequestMatcher{
-									Host: &matcherv3.StringMatcher{
-										MatchPattern: &matcherv3.StringMatcher_Exact{
-											Exact: fromHost,
-										},
-									},
-								}),
-							},
-						},
-					},
-				},
-			},
-			OnMatch: &xds_matcher_v3.Matcher_OnMatch{
-				OnMatch: &xds_matcher_v3.Matcher_OnMatch_Action{
-					Action: &xds_core_v3.TypedExtensionConfig{
-						Name: "route",
-						TypedConfig: marshalAny(&envoy_generic_proxy_action_v3.RouteAction{
-							Name: route.ID,
-							ClusterSpecifier: &envoy_generic_proxy_action_v3.RouteAction_Cluster{
-								Cluster: clusterID,
-							},
-							Timeout: durationpb.New(0),
-						}),
-					},
-				},
-			},
-		})
-	}
-	if len(routeMatchers) == 0 {
-		return &envoy_generic_proxy_v3.RouteConfiguration{
-			Name: "route_config",
-		}, nil
-	}
-	return &envoy_generic_proxy_v3.RouteConfiguration{
-		Name: "route_config",
-		VirtualHosts: []*envoy_generic_proxy_v3.VirtualHost{
-			{
-				Name:  "ssh",
-				Hosts: []string{"*"},
-				Routes: &xds_matcher_v3.Matcher{
-					MatcherType: &xds_matcher_v3.Matcher_MatcherList_{
-						MatcherList: &xds_matcher_v3.Matcher_MatcherList{
-							Matchers: routeMatchers,
-						},
-					},
-				},
-			},
-		},
-	}, nil
 }
 
 func shouldStartSSHListener(options *config.Options) bool {

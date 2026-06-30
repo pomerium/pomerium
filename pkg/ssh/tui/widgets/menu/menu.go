@@ -81,7 +81,7 @@ func (m *Model) Reset(options Options) {
 	m.maxLabelWidth = w
 	mouseMode := tea.MouseModeAllMotion
 	m.interceptor = &messages.ModalInterceptor{
-		Update:            m.Update,
+		Update:            m.update,
 		KeyMap:            m.options.KeyMap,
 		Scrim:             false,
 		MouseModeOverride: &mouseMode,
@@ -89,44 +89,50 @@ func (m *Model) Reset(options Options) {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	return m.update(msg).Cmd
+}
+
+func (m *Model) update(msg tea.Msg) core.Status {
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
 		if !m.focused {
-			return nil
+			return core.NilCmd
 		}
 		global := uv.Pos(msg.Mouse().X, msg.Mouse().Y)
 		local, inBounds := m.Parent().TranslateGlobalToLocalPos(global)
 		if !inBounds {
 			switch msg.(type) {
 			case tea.MouseClickMsg:
-				return m.hide(true)
+				return core.Cmd(m.hide(true))
 			case tea.MouseReleaseMsg:
 				// We may get a mouse release immediately in/around the anchor point
 				if global.In(uv.Rect(m.options.Anchor.X-1, m.options.Anchor.Y-1, 3, 2)) {
-					return nil
+					return core.NilCmd
 				}
-				return m.hide(true)
+				return core.Cmd(m.hide(true))
 			default:
 				// ignore motion/scroll messages outside of the menu
-				return nil
+				return core.Status{
+					Flags: core.SkipNextRender,
+				}
 			}
 		}
 		index, ok := m.hitTest(local)
 		if !ok {
-			return nil
+			return core.NilCmd
 		}
 		switch msg.(type) {
 		case tea.MouseClickMsg:
 			m.hovered = index
 		case tea.MouseReleaseMsg:
 			m.hovered = index
-			return tea.Sequence(m.hide(false), m.options.Entries[m.hovered].OnSelected())
+			return core.Cmd(tea.Sequence(m.hide(false), m.options.Entries[m.hovered].OnSelected()))
 		case tea.MouseMotionMsg:
 			m.hovered = index
 		}
 	case tea.KeyPressMsg:
 		if !m.focused {
-			return nil
+			return core.NilCmd
 		}
 		switch {
 		case key.Matches(msg.Key(), m.options.KeyMap.Prev):
@@ -134,9 +140,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg.Key(), m.options.KeyMap.Next):
 			m.hovered = min(len(m.options.Entries)-1, m.hovered+1)
 		case key.Matches(msg.Key(), m.options.KeyMap.Cancel):
-			return m.hide(false)
+			return core.Cmd(m.hide(false))
 		case key.Matches(msg.Key(), m.options.KeyMap.Select):
-			return tea.Sequence(m.hide(false), m.options.Entries[m.hovered].OnSelected())
+			return core.Cmd(tea.Sequence(m.hide(false), m.options.Entries[m.hovered].OnSelected()))
 		}
 	case uv.PrimaryDeviceAttributesEvent:
 		attrs := core.DeviceAttributes{}
@@ -147,7 +153,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		m.deviceAttributes = attrs
 	}
-	return nil
+	return core.NilCmd
 }
 
 func (m *Model) hitTest(localPos uv.Position) (int, bool) {

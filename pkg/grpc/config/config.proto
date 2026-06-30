@@ -7,10 +7,39 @@ import "google/protobuf/field_mask.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
+import "openapiv3/annotations.proto";
 import "options.proto";
 import "validate/validate.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
+
+option (openapi.v3.document) = {
+  info: {
+    title:       "Pomerium API",
+    description: "API for managing Pomerium configuration.",
+    contact: {
+      name:  "Pomerium",
+      url:   "https://github.com/pomerium",
+      email: "support@pomerium.com",
+    },
+    license: {
+      name: "Apache License 2.0",
+      url:  "https://github.com/pomerium/pomerium/blob/main/LICENSE",
+    },
+  },
+  servers: [{
+    url:         "https://{{host}}",
+    description: "Pomerium Zero API",
+    variables: {
+      additional_properties: [{
+        name: "host",
+        value: {
+          default: "console.pomerium.app",
+        },
+      }],
+    },
+  }],
+};
 
 // A bundle of Pomerium configuration including routes and settings.
 message Config {
@@ -434,17 +463,37 @@ message Route {
   // computed properties
 
   // When the route was created.
-  google.protobuf.Timestamp created_at = 87;
+  google.protobuf.Timestamp created_at = 87 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // When the route was last modified.
-  google.protobuf.Timestamp modified_at = 88;
+  google.protobuf.Timestamp modified_at = 88 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // Policies that are automatically enforced.
   // Not supported in the open source version of Pomerium.
-  repeated EntityInfo enforced_policies = 90;
+  repeated EntityInfo enforced_policies = 90 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // Info about policies assigned to this route.
   // Not supported in the open source version of Pomerium.
-  repeated EntityInfo assigned_policies = 91;
+  repeated EntityInfo assigned_policies = 91 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // The name of the namespace for the route.
-  optional string namespace_name = 92;
+  optional string namespace_name = 92 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
 }
 
 // Configuration for an upstream tunnel. Applies to routes whose upstream is
@@ -573,17 +622,37 @@ message Policy {
   // computed properties
 
   // When the policy was created.
-  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp created_at = 15 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // When the policy was last modified.
-  google.protobuf.Timestamp modified_at = 16;
+  google.protobuf.Timestamp modified_at = 16 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // Routes that are automatically enforced by this policy.
   // Not supported in the open source version of Pomerium.
-  repeated EntityInfo enforced_routes = 17;
+  repeated EntityInfo enforced_routes = 17 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // Info about routes with this policy assigned.
   // Not supported in the open source version of Pomerium.
-  repeated EntityInfo assigned_routes = 18;
+  repeated EntityInfo assigned_routes = 18 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // The name of the namespace for the policy.
-  optional string namespace_name = 19;
+  optional string namespace_name = 19 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
 }
 
 // Global Pomerium configuration settings.
@@ -1027,9 +1096,17 @@ message Settings {
   // computed properties
 
   // When the settings were created.
-  google.protobuf.Timestamp created_at = 169;
+  google.protobuf.Timestamp created_at = 169 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // When the settings were last modified.
-  google.protobuf.Timestamp modified_at = 170;
+  google.protobuf.Timestamp modified_at = 170 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses
@@ -1038,8 +1115,9 @@ message BlobStorageSettings {
   // URI of the object-storage bucket (e.g. "s3://my-bucket",
   // "gs://my-bucket"). Empty disables blob storage.
   optional string bucket_uri = 1;
-  // Optional path prefix within the bucket where Pomerium stores managed
-  // objects, isolating them from other tenants of the same bucket.
+  // Prefix assigned by a connected Pomerium Enterprise instance. End users
+  // should not set or modify this field unless they know exactly what they
+  // are doing or are working around a specific issue.
   optional string managed_prefix = 2;
 }
 
@@ -1126,42 +1204,92 @@ enum KeyPairStatus {
 message KeyPair {
   // ID of the key pair.
   optional string id = 1 [
-    (validate.rules).string.min_len = 1
+    (validate.rules).string.min_len = 1,
+    (openapi.v3.property)           = {
+      example: {
+        yaml: "\"019e8e96-0959-7dc2-b45f-e32dcafcf95b\"",
+      },
+    }
   ];
   // Namespace of the key pair.
   optional string namespace_id = 2 [
-    (validate.rules).string.min_len = 1
+    (validate.rules).string.min_len = 1,
+    (openapi.v3.property)           = {
+      example: {
+        yaml: "\"019e8e96-87b4-78b9-9830-19874b518d60\"",
+      },
+    }
   ];
   // Originator of the key pair.
   optional string originator_id = 3 [
-    (validate.rules).string.min_len = 1
+    (validate.rules).string.min_len = 1,
+    (openapi.v3.property)           = {
+      example: {
+        yaml: "\"your-custom-app\"",
+      },
+    }
   ];
   // The name of the key pair.
   optional string name = 4 [
-    (validate.rules).string.min_len = 1
+    (validate.rules).string.min_len = 1,
+    (openapi.v3.property)           = {
+      example: {
+        yaml: "\"TLS Certificate for www.example.com\"",
+      },
+    }
   ];
   // The key pair certificate raw bytes.
   optional bytes certificate = 5 [
-    (validate.rules).bytes.min_len = 1
+    (validate.rules).bytes.min_len = 1,
+    (openapi.v3.property)          = {
+      example: {
+        yaml: "\"-----BEGIN CERTIFICATE-----\\nEXAMPLE\\n-----END CERTIFICATE-----\"",
+      },
+    }
   ];
   // The key pair private key raw bytes.
   optional bytes key = 6 [
     (validate.rules).bytes.min_len = 1,
-    (sensitive)                    = true
+    (sensitive)                    = true,
+    (openapi.v3.property)          = {
+      example: {
+        yaml: "\"-----BEGIN EC PRIVATE KEY-----\\nEXAMPLE\\n-----END EC PRIVATE KEY-----\"",
+      },
+    }
   ];
 
   // computed properties
 
   // When the key pair was created.
-  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp created_at = 7 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // When the key pair was last modified.
-  google.protobuf.Timestamp modified_at = 8;
+  google.protobuf.Timestamp modified_at = 8 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // The status of the key pair.
-  KeyPairStatus status = 9;
+  KeyPairStatus status = 9 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // The origin of the key pair.
-  KeyPairOrigin origin = 10;
+  KeyPairOrigin origin = 10 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
   // Info about any certificates the key pair has.
-  repeated CertificateInfo certificate_info = 11;
+  repeated CertificateInfo certificate_info = 11 [
+    (openapi.v3.property) = {
+      read_only: true,
+    }
+  ];
 }
 
 // KeyUsage specifies the usage flags set on a signed TLS certificate.
@@ -1627,60 +1755,197 @@ message UpdateSettingsResponse {
   Settings settings = 1;
 }
 
+// Manages configuration in Pomerium.
 service ConfigService {
-  rpc CreateKeyPair(CreateKeyPairRequest) returns (CreateKeyPairResponse);
-  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
-  rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse);
-  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse);
+  // Creates a new key pair.
+  rpc CreateKeyPair(CreateKeyPairRequest) returns (CreateKeyPairResponse) {
+    option (openapi.v3.operation) = {
+      description: "Creates a key pair",
+      tags:        ["KeyPair"],
+    };
+  }
+  // Creates a new policy.
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse) {
+    option (openapi.v3.operation) = {
+      description: "Creates a policy",
+      tags:        ["Policy"],
+    };
+  }
+  // Creates a new route.
+  rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse) {
+    option (openapi.v3.operation) = {
+      description: "Creates a route",
+      tags:        ["Route"],
+    };
+  }
+  // Creates a new service account.
+  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse) {
+    option (openapi.v3.operation) = {
+      description: "Creates a service account",
+      tags:        ["ServiceAccount"],
+    };
+  }
 
-  rpc DeleteKeyPair(DeleteKeyPairRequest) returns (DeleteKeyPairResponse);
-  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
-  rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
-  rpc DeleteServiceAccount(DeleteServiceAccountRequest) returns (DeleteServiceAccountResponse);
+  // Deletes a key pair.
+  rpc DeleteKeyPair(DeleteKeyPairRequest) returns (DeleteKeyPairResponse) {
+    option (openapi.v3.operation) = {
+      description: "Deletes a key pair",
+      tags:        ["KeyPair"],
+    };
+  }
+  // Deletes a policy.
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse) {
+    option (openapi.v3.operation) = {
+      description: "Deletes a policy",
+      tags:        ["Policy"],
+    };
+  }
+  // Deletes a route.
+  rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse) {
+    option (openapi.v3.operation) = {
+      description: "Deletes a route",
+      tags:        ["Route"],
+    };
+  }
+  // Deletes a service account.
+  rpc DeleteServiceAccount(DeleteServiceAccountRequest) returns (DeleteServiceAccountResponse) {
+    option (openapi.v3.operation) = {
+      description: "Deletes a service account",
+      tags:        ["ServiceAccount"],
+    };
+  }
 
+  // Gets a key pair.
   rpc GetKeyPair(GetKeyPairRequest) returns (GetKeyPairResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Gets a key pair",
+      tags:        ["KeyPair"],
+    };
   }
+  // Gets a policy.
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Gets a policy",
+      tags:        ["Policy"],
+    };
   }
+  // Gets a route.
   rpc GetRoute(GetRouteRequest) returns (GetRouteResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Gets a route",
+      tags:        ["Route"],
+    };
   }
+  // Gets information about a server.
   rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Gets information about a server",
+    };
   }
+  // Gets a service account.
   rpc GetServiceAccount(GetServiceAccountRequest) returns (GetServiceAccountResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Gets a service account",
+      tags:        ["ServiceAccount"],
+    };
   }
+  // Gets settings.
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Gets settings",
+      tags:        ["Settings"],
+    };
   }
 
+  // Lists all the available log fields.
   rpc ListAvailableLogFields(ListAvailableLogFieldsRequest) returns (ListAvailableLogFieldsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Lists all the available log fields",
+    };
   }
+  // Lists key pairs.
   rpc ListKeyPairs(ListKeyPairsRequest) returns (ListKeyPairsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Lists key pairs",
+      tags:        ["KeyPair"],
+    };
   }
+  // Lists policies.
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Lists policies",
+      tags:        ["Policy"],
+    };
   }
+  // Lists routes.
   rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Lists routes",
+      tags:        ["Route"],
+    };
   }
+  // Lists service accounts.
   rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Lists service accounts",
+      tags:        ["ServiceAccount"],
+    };
   }
+  // Lists settings.
   rpc ListSettings(ListSettingsRequest) returns (ListSettingsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (openapi.v3.operation) = {
+      description: "Lists settings",
+      tags:        ["Settings"],
+    };
   }
 
-  rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse);
-  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
-  rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse);
-  rpc UpdateServiceAccount(UpdateServiceAccountRequest) returns (UpdateServiceAccountResponse);
-  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+  // Updates an existing key pair.
+  rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse) {
+    option (openapi.v3.operation) = {
+      description: "Updates an existing key pair",
+      tags:        ["KeyPair"],
+    };
+  }
+  // Updates an existing policy.
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse) {
+    option (openapi.v3.operation) = {
+      description: "Updates an existing policy",
+      tags:        ["Policy"],
+    };
+  }
+  // Updates an existing route.
+  rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse) {
+    option (openapi.v3.operation) = {
+      description: "Updates an existing route",
+      tags:        ["Route"],
+    };
+  }
+  // Updates an existing service account.
+  rpc UpdateServiceAccount(UpdateServiceAccountRequest) returns (UpdateServiceAccountResponse) {
+    option (openapi.v3.operation) = {
+      description: "Updates an existing service account",
+      tags:        ["ServiceAccount"],
+    };
+  }
+  // Updates existing settings.
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse) {
+    option (openapi.v3.operation) = {
+      description: "Updates existing settings",
+      tags:        ["Settings"],
+    };
+  }
 }
 
 // Definitions are taken from envoy with some modifications.

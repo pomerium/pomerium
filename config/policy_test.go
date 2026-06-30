@@ -532,6 +532,27 @@ func TestPolicy_IsSSH(t *testing.T) {
 	assert.True(t, p2.IsSSH())
 }
 
+func TestPolicy_IsSSHUpstream(t *testing.T) {
+	p1 := Policy{
+		From: "ssh://example.com",
+		To:   mustParseWeightedURLs(t, "ssh://to"),
+	}
+	assert.True(t, p1.IsSSHUpstream())
+
+	p2 := Policy{
+		From:           "ssh://example.com",
+		To:             mustParseWeightedURLs(t, "http://to"),
+		UpstreamTunnel: &UpstreamTunnel{},
+	}
+	assert.True(t, p2.IsSSHUpstream())
+
+	p3 := Policy{
+		From: "http://example.com",
+		To:   mustParseWeightedURLs(t, "http://to"),
+	}
+	assert.False(t, p3.IsSSHUpstream())
+}
+
 func mustParseWeightedURLs(t testing.TB, urls ...string) WeightedURLs {
 	wu, err := ParseWeightedUrls(urls...)
 	require.NoError(t, err)

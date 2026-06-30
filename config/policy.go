@@ -993,6 +993,12 @@ func (p *Policy) IsSSH() bool {
 	return strings.HasPrefix(p.From, "ssh://")
 }
 
+// IsSSHUpstream returns true if the route has an upstream SSH connection or
+// is backed by a reverse tunnel.
+func (p *Policy) IsSSHUpstream() bool {
+	return (len(p.To) > 0 && p.To[0].URL.Scheme == "ssh") || p.UpstreamTunnel != nil
+}
+
 // AllAllowedDomains returns all the allowed domains.
 func (p *Policy) AllAllowedDomains() []string {
 	var ads []string

@@ -183,7 +183,7 @@ func (a *Authorize) getMCPSession(
 	accessToken := auth[len(prefix):]
 	sessionID, sessionRecordVersion, err := a.state.Load().mcp.GetSessionAndVersionFromAccessToken(accessToken)
 	if err != nil {
-		return nil, fmt.Errorf("no session found for access token: %w", sessions.ErrNoSessionFound)
+		return nil, fmt.Errorf("no session found for access token: %w: %w", err, sessions.ErrNoSessionFound)
 	}
 
 	// Read the session with the record version captured when the token was

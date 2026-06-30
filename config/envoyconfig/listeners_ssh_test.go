@@ -100,33 +100,14 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, l.ValidateAll())
 	})
-	t.Run("invalid From url", func(t *testing.T) {
+	t.Run("connection buffer limits", func(t *testing.T) {
 		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "0.0.0.0:22"
 		cfg.Options.Policies = []config.Policy{
-			{From: "ssh://\x7f", To: mustParseWeightedURLs(t, "ssh://to1:22")},
+			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to:22")},
 		}
-		_, err := buildSSHListener(cfg, []string{})
-		assert.Error(t, err)
+		l, err := buildSSHListener(cfg, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, sshConnectionBufferLimit, l.PerConnectionBufferLimitBytes.GetValue())
 	})
-	t.Run("multiple To urls", func(t *testing.T) {
-		cfg := config.New(config.NewDefaultOptions())
-		cfg.Options.SSHAddr = "0.0.0.0:22"
-		cfg.Options.Policies = []config.Policy{
-			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to1:22", "ssh://to2:22")},
-		}
-		_, err := buildSSHListener(cfg, []string{})
-		assert.Error(t, err)
-	})
-	t.Run("To url missing scheme", func(t *testing.T) {
-		cfg := config.New(config.NewDefaultOptions())
-		cfg.Options.SSHAddr = "0.0.0.0:22"
-		cfg.Options.Policies = []config.Policy{
-			{From: "ssh://host1", To: mustParseWeightedURLs(t, "http://to1:22")},
-		}
-		_, err := buildSSHListener(cfg, []string{})
-		assert.Error(t, err)
-	})
-
-	// TODO: tests
 }

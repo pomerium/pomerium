@@ -426,7 +426,7 @@ func (srv *Server) Run(ctx context.Context) error {
 func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
 	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.OnConfigChange")
 	defer span.End()
-
+	srv.updateHealthProviders(ctx, cfg)
 	select {
 	case <-ctx.Done():
 		return context.Cause(ctx)
@@ -597,6 +597,11 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 			health.XDSRouteConfiguration,
 		)
 	}
+
+	if len(cfg.Options.EnvoyDynamicExtensions.Or([]string{})) > 0 {
+		ret = append(ret, health.EnvoyDynamicExtensions)
+	}
+
 	for _, extraCheckers := range srv.extraHealthChecks {
 		ret = append(ret, extraCheckers.GetExpectedHealthChecks()...)
 	}
