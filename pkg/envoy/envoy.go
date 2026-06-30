@@ -2,7 +2,6 @@
 package envoy
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -24,7 +23,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/google/go-cmp/cmp"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
@@ -38,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/ipc"
+	"github.com/pomerium/pomerium/pkg/logutil"
 	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
@@ -453,25 +452,8 @@ func (srv *Server) parseLog(line string) (name string, logLevel string, msg stri
 }
 
 func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
-	defer rc.Close()
-
 	l := log.Ctx(ctx).With().Str("service", "envoy").Logger()
-	bo := backoff.NewExponentialBackOff()
-
-	s := bufio.NewReader(rc)
-	for {
-		ln, err := s.ReadString('\n')
-		if err != nil {
-			if errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) {
-				break
-			}
-			log.Ctx(ctx).Error().Err(err).Msg("failed to read log")
-			time.Sleep(bo.NextBackOff())
-			continue
-		}
-		ln = strings.TrimRight(ln, "\r\n")
-		bo.Reset()
-
+	for ln := range logutil.IterateLines(rc) {
 		name, logLevel, msg := srv.parseLog(ln)
 		if name == "" {
 			name = "envoy"
