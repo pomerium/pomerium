@@ -608,7 +608,7 @@ func (srv *Handler) issueNewPomeriumOauthToken(ctx context.Context, params *auto
 		params.Info.UpstreamURL,
 		params.SessionID,
 		pomeriumIssuer,
-		session.GetExpiresAt().AsTime(),
+		session.GetExpiresAt(),
 	)
 	if putErr := srv.storage.PutUpstreamMCPToken(ctx, token); putErr != nil {
 		return fmt.Errorf("storing Pomerium-issued token: %w", putErr)

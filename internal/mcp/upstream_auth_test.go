@@ -927,7 +927,7 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 		// Pomerium is the AS. While the session that established it is still valid,
 		// GetUpstreamToken must return "" so ext_proc injects nothing and the
 		// request rides the Pomerium session.
-		token := newPomeriumAuthorizationServerToken("user-1", "route-1", "https://api.example.com", "session-1", "https://proxy.example.com", time.Now().Add(time.Hour))
+		token := newPomeriumAuthorizationServerToken("user-1", "route-1", "https://api.example.com", "session-1", "https://proxy.example.com", timestamppb.New(time.Now().Add(time.Hour)))
 
 		var getTokenCalled bool
 		fullStore := &autoDiscoveryTestStorage{
@@ -984,7 +984,7 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 
-				token := newPomeriumAuthorizationServerToken("user-1", "route-1", "https://api.example.com", "session-1", "https://proxy.example.com", time.Now().Add(time.Hour))
+				token := newPomeriumAuthorizationServerToken("user-1", "route-1", "https://api.example.com", "session-1", "https://proxy.example.com", timestamppb.New(time.Now().Add(time.Hour)))
 
 				fullStore := &autoDiscoveryTestStorage{
 					testUpstreamAuthStorage: &testUpstreamAuthStorage{

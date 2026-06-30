@@ -76,14 +76,14 @@ func newPendingUpstreamAuth(p newPendingUpstreamAuthParams, setup *upstreamOAuth
 // newPomeriumAuthorizationServerToken builds a Pomerium-issued token for routes where
 // the upstream has no authorization server of its own and Pomerium acts as the AS. It
 // carries no credential and is tied to the session's lifetime.
-func newPomeriumAuthorizationServerToken(userID, routeID, upstreamServer, sessionID, pomeriumIssuer string, sessionExpiry time.Time) *oauth21proto.UpstreamMCPToken {
+func newPomeriumAuthorizationServerToken(userID, routeID, upstreamServer, sessionID, pomeriumIssuer string, sessionExpiry *timestamppb.Timestamp) *oauth21proto.UpstreamMCPToken {
 	return &oauth21proto.UpstreamMCPToken{
 		UserId:                         userID,
 		RouteId:                        routeID,
 		UpstreamServer:                 upstreamServer,
 		TokenType:                      "Bearer",
 		IssuedAt:                       timestamppb.New(time.Now()),
-		ExpiresAt:                      timestamppb.New(sessionExpiry),
+		ExpiresAt:                      sessionExpiry,
 		AuthorizationServerIssuer:      pomeriumIssuer,
 		PomeriumAuthorizationSessionId: &sessionID,
 	}
