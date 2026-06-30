@@ -132,15 +132,15 @@ type ProtectedResourceMetadata struct {
 	DPoPBoundAccessTokensRequired bool `json:"dpop_bound_access_tokens_required,omitempty"`
 }
 
-func AuthorizationServerMetadataHandler(prefix string) http.HandlerFunc {
-	return getMetadataHandler(getAuthorizationServerMetadata, prefix)
+func AuthorizationServerMetadataHandler(prefix string, dcrEnabled bool) http.HandlerFunc {
+	return getMetadataHandler(getAuthorizationServerMetadata, prefix, dcrEnabled)
 }
 
-func ProtectedResourceMetadataHandler(prefix string) http.HandlerFunc {
-	return getMetadataHandler(getProtectedResourceMetadata, prefix)
+func ProtectedResourceMetadataHandler(prefix string, dcrEnabled bool) http.HandlerFunc {
+	return getMetadataHandler(getProtectedResourceMetadata, prefix, dcrEnabled)
 }
 
-func getAuthorizationServerMetadata(r *http.Request, prefix string) AuthorizationServerMetadata {
+func getAuthorizationServerMetadata(r *http.Request, prefix string, dcrEnabled bool) AuthorizationServerMetadata {
 	baseURL := url.URL{
 		Scheme: "https",
 		Host:   r.Host,
@@ -153,7 +153,7 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string) Authorizatio
 
 	issuer := (&url.URL{Scheme: "https", Host: r.Host}).String()
 
-	return AuthorizationServerMetadata{
+	md := AuthorizationServerMetadata{
 		Issuer:                                 issuer,
 		ServiceDocumentation:                   "https://pomerium.com/docs",
 		AuthorizationEndpoint:                  P(path.Join(prefix, authorizationEndpoint)),
@@ -164,12 +164,15 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string) Authorizatio
 		GrantTypesSupported:                    []string{"authorization_code", "refresh_token"},
 		RevocationEndpoint:                     P(path.Join(prefix, revocationEndpoint)),
 		RevocationEndpointAuthMethodsSupported: []string{"client_secret_post"},
-		RegistrationEndpoint:                   P(path.Join(prefix, registerEndpoint)),
 		ClientIDMetadataDocumentSupported:      true,
 	}
+	if dcrEnabled {
+		md.RegistrationEndpoint = P(path.Join(prefix, registerEndpoint))
+	}
+	return md
 }
 
-func getProtectedResourceMetadata(r *http.Request, _ string) ProtectedResourceMetadata {
+func getProtectedResourceMetadata(r *http.Request, _ string, _ bool) ProtectedResourceMetadata {
 	return ProtectedResourceMetadata{
 		Resource: (&url.URL{
 			Scheme: "https",
@@ -185,7 +188,7 @@ func getProtectedResourceMetadata(r *http.Request, _ string) ProtectedResourceMe
 	}
 }
 
-func getMetadataHandler[T any](fn func(r *http.Request, prefix string) T, prefix string) http.HandlerFunc {
+func getMetadataHandler[T any](fn func(r *http.Request, prefix string, dcrEnabled bool) T, prefix string, dcrEnabled bool) http.HandlerFunc {
 	c := cors.New(cors.Options{
 		AllowedMethods: []string{http.MethodGet, http.MethodOptions},
 		AllowedOrigins: []string{"*"},
@@ -197,7 +200,7 @@ func getMetadataHandler[T any](fn func(r *http.Request, prefix string) T, prefix
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		meta := fn(r, prefix)
+		meta := fn(r, prefix, dcrEnabled)
 		_ = json.NewEncoder(w).Encode(meta)
 	})
 	r.Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

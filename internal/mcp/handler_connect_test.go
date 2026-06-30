@@ -234,6 +234,7 @@ func TestResolveAutoDiscoveryAuth_ClientSecret(t *testing.T) {
 		hosts:                   hosts,
 		httpClient:              upstreamSrv.Client(),
 		asMetadataDomainMatcher: allowLocalhost(),
+		dcrEnabled:              true,
 	}
 
 	params := &autoDiscoveryAuthParams{
@@ -262,7 +263,8 @@ func TestGetOrRegisterUpstreamOAuthClient_EmptyRegistrationEndpoint(t *testing.T
 	t.Parallel()
 
 	srv := &Handler{
-		storage: &testConnectStorage{},
+		storage:    &testConnectStorage{},
+		dcrEnabled: true,
 	}
 
 	_, err := srv.getOrRegisterUpstreamOAuthClient(
@@ -276,6 +278,27 @@ func TestGetOrRegisterUpstreamOAuthClient_EmptyRegistrationEndpoint(t *testing.T
 	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "registration_endpoint")
+}
+
+func TestGetOrRegisterUpstreamOAuthClient_DcrDisabled(t *testing.T) {
+	t.Parallel()
+
+	srv := &Handler{
+		storage:    &testConnectStorage{},
+		dcrEnabled: false,
+	}
+
+	_, err := srv.getOrRegisterUpstreamOAuthClient(
+		t.Context(),
+		&discoveryResult{
+			Issuer:               "https://auth.example.com",
+			RegistrationEndpoint: "https://registration.example.com",
+		},
+		"proxy.example.com",
+		"https://proxy.example.com/callback",
+	)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "disabled")
 }
 
 func TestRegisterWithUpstreamAS_EmptyClientID(t *testing.T) {
@@ -301,6 +324,7 @@ func TestRegisterWithUpstreamAS_EmptyClientID(t *testing.T) {
 				return nil
 			},
 		},
+		dcrEnabled: true,
 	}
 
 	_, err := srv.getOrRegisterUpstreamOAuthClient(

@@ -582,6 +582,9 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 	downstreamHost string,
 	redirectURI string,
 ) (*oauth21proto.UpstreamOAuthClient, error) {
+	if !srv.dcrEnabled {
+		return nil, fmt.Errorf("dynamic client registration is disabled")
+	}
 	if discovery == nil {
 		return nil, fmt.Errorf("discovery result is nil")
 	}
