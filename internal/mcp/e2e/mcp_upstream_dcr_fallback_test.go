@@ -38,6 +38,7 @@ func TestMCPUpstreamOAuthDCRFallback(t *testing.T) {
 			cfg.Options.RuntimeFlags = make(config.RuntimeFlags)
 		}
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
+		cfg.Options.RuntimeFlags[config.RuntimeFlagMCPDynamicClientRegistration] = true
 		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
 		cfg.Options.MCPAllowedASMetadataDomains = []string{"127.0.0.1", "localhost"}
 	}))
