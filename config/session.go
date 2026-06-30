@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -354,39 +355,8 @@ func (c *incomingIDPTokenSessionCreator) createSessionForJWT(
 
 	audiences := cfg.GetJWTAllowedAudiencesForPolicy(policy)
 
-	res, err, _ := c.singleflight.Do(rawJWT, func() (any, error) {
-		vres, verr := resolver.Verify(ctx, rawJWT, audiences)
-		if verr != nil {
-			return nil, fmt.Errorf("%w: %v", sessions.ErrInvalidSession, verr)
-		}
-		sessionID := jwtIssuerSessionID(vres.Issuer, rawJWT)
-
-		s, err := c.getSession(ctx, sessionID)
-		if err == nil {
-			c.identityTokenSessionsCachedCount.Add(ctx, 1)
-			return s, nil
-		} else if !storage.IsNotFound(err) {
-			return nil, err
-		}
-
-		s = c.newSessionFromIDPClaims(cfg, vres.Issuer, sessionID, vres.Claims)
-		s.SetRawIDToken(rawJWT)
-
-		u, err := c.getUser(ctx, s.GetUserId())
-		if errors.Is(err, storage.ErrNotFound) {
-			u = &user.User{Id: s.GetUserId()}
-		} else if err != nil {
-			return nil, fmt.Errorf("error retrieving existing user: %w", err)
-		}
-		c.fillUserFromIDPClaims(u, vres.Claims)
-
-		err = c.putSessionAndUser(ctx, s, u)
-		if err != nil {
-			return nil, fmt.Errorf("error saving session and user: %w", err)
-		}
-
-		c.identityTokenSessionsCreatedCount.Add(ctx, 1)
-		return s, nil
+	res, err, _ := c.singleflight.Do(jwtSingleflightKey(rawJWT, audiences), func() (any, error) {
+		return c.verifyJWTAndCreateSession(ctx, cfg, resolver, rawJWT, audiences)
 	})
 	if err != nil {
 		return nil, op.Failure(err)
@@ -394,6 +364,75 @@ func (c *incomingIDPTokenSessionCreator) createSessionForJWT(
 
 	c.identityTokenCreateSessionDuration.Record(ctx, time.Since(start).Milliseconds())
 	return res.(*session.Session), nil
+}
+
+// verifyJWTAndCreateSession verifies rawJWT against resolver (enforcing
+// allowedAudiences, fail-closed) and returns the cached-or-newly-created
+// session. This is the body executed under singleflight in createSessionForJWT;
+// it is split out so it can be unit-tested without the singleflight wrapper.
+func (c *incomingIDPTokenSessionCreator) verifyJWTAndCreateSession(
+	ctx context.Context,
+	cfg *Config,
+	resolver *JWTIssuerResolver,
+	rawJWT string,
+	allowedAudiences []string,
+) (*session.Session, error) {
+	vres, verr := resolver.Verify(ctx, rawJWT, allowedAudiences)
+	if verr != nil {
+		return nil, fmt.Errorf("%w: %v", sessions.ErrInvalidSession, verr)
+	}
+	sessionID := jwtIssuerSessionID(vres.Issuer, rawJWT)
+
+	s, err := c.getSession(ctx, sessionID)
+	if err == nil {
+		c.identityTokenSessionsCachedCount.Add(ctx, 1)
+		return s, nil
+	} else if !storage.IsNotFound(err) {
+		return nil, err
+	}
+
+	s = c.newSessionFromIDPClaims(cfg, vres.Issuer, sessionID, vres.Claims)
+	s.SetRawIDToken(rawJWT)
+
+	u, err := c.getUser(ctx, s.GetUserId())
+	if errors.Is(err, storage.ErrNotFound) {
+		u = &user.User{Id: s.GetUserId()}
+	} else if err != nil {
+		return nil, fmt.Errorf("error retrieving existing user: %w", err)
+	}
+	c.fillUserFromIDPClaims(u, vres.Claims)
+
+	err = c.putSessionAndUser(ctx, s, u)
+	if err != nil {
+		return nil, fmt.Errorf("error saving session and user: %w", err)
+	}
+
+	c.identityTokenSessionsCreatedCount.Add(ctx, 1)
+	return s, nil
+}
+
+// jwtSingleflightNamespace seeds jwtSingleflightKey. Distinct from
+// jwtIssuerSessionNamespace so the de-dup key and the stored session id never
+// coincide.
+var jwtSingleflightNamespace = uuid.MustParse("0195a000-a000-7000-8000-00000000a01b")
+
+// jwtSingleflightKey derives the singleflight de-dup key for a JWT bearer
+// verification. It MUST fold in the route's audience allowlist: two
+// verifications that share a token but differ in allowed audiences must not
+// collapse, or a follower would inherit the leader's audience check
+// (per-route audience-binding bypass). Audiences are sorted so equivalent
+// allowlists in a different order still share a flight, then chained as nested
+// SHA-1 namespaces (collision-safe, no separator) before folding in the token —
+// mirroring getAccessTokenSessionID/jwtIssuerSessionID and avoiding the cost of
+// URL-escaping the (large) raw token on every request.
+func jwtSingleflightKey(rawJWT string, allowedAudiences []string) string {
+	auds := slices.Clone(allowedAudiences)
+	slices.Sort(auds)
+	ns := jwtSingleflightNamespace
+	for _, aud := range auds {
+		ns = uuid.NewSHA1(ns, []byte(aud))
+	}
+	return uuid.NewSHA1(ns, []byte(rawJWT)).String()
 }
 
 // jwtIssuerSessionID derives a stable session id from (issuer, raw_token).

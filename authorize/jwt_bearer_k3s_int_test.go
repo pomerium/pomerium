@@ -1,5 +1,3 @@
-//go:build k3s_integration
-
 // Package authorize_test contains the extended Kubernetes integration test
 // for the external-JWT identity provider. It spins up a real k3s cluster via
 // testcontainers, mints a real ServiceAccount token through the apiserver's
@@ -67,7 +65,6 @@ func TestExternalJWTBearer_K3s(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping k3s integration test in -short mode")
 	}
-	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()

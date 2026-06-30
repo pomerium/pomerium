@@ -203,3 +203,62 @@ func TestVerify_AlgAllowlist_ES256_OnJWKSPath(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// TestVerify_BadSignature verifies that a structurally-valid token signed by a
+// key that is NOT in the JWKS is rejected. This is the core security property
+// of the verifier: a well-formed token with the right iss/aud/exp must still
+// fail if the signature can't be traced to a published key.
+func TestVerify_BadSignature(t *testing.T) {
+	t.Parallel()
+
+	// JWKS server publishes one ES256 key...
+	published, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	jwk := jose.JSONWebKey{
+		Key:       &published.PublicKey,
+		Algorithm: "ES256",
+		Use:       "sig",
+	}
+	thumb, _ := jwk.Thumbprint(crypto.SHA256)
+	jwk.KeyID = hex.EncodeToString(thumb)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(&jose.JSONWebKeySet{Keys: []jose.JSONWebKey{jwk}})
+	}))
+	t.Cleanup(srv.Close)
+
+	issuer := "https://my-issuer.example.com"
+
+	// ...but the token is signed by a different, unpublished key.
+	attacker, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.ES256, Key: attacker}, (&jose.SignerOptions{}).WithType("JWT"))
+	require.NoError(t, err)
+	tok, err := jwt.Signed(signer).Claims(stdClaims(issuer, "sub", "aud", time.Now())).CompactSerialize()
+	require.NoError(t, err)
+
+	p, err := extjwt.New(extjwt.Config{
+		Issuer:        issuer,
+		JWKSURL:       srv.URL,
+		SupportedAlgs: []string{"ES256"},
+	})
+	require.NoError(t, err)
+	_, err = p.Verify(t.Context(), tok, []string{"aud"})
+	require.Error(t, err)
+}
+
+// TestVerify_DiscoveryFailure verifies that when OIDC discovery is used (no
+// JWKSURL) and the issuer serves no discovery document, Verify surfaces the
+// failure rather than succeeding or panicking.
+func TestVerify_DiscoveryFailure(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+
+	p := newProvider(t, srv.URL, nil)
+	_, err := p.Verify(t.Context(), "irrelevant", []string{"aud"})
+	require.Error(t, err)
+}

@@ -517,3 +517,84 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		assert.True(t, s.GetRefreshDisabled())
 	})
 }
+
+// TestJWTSingleflightKey is the root-cause regression check: the singleflight
+// de-dup key for a JWT bearer verification MUST fold in the route's audience
+// allowlist. If it doesn't, two concurrent verifications of one token on routes
+// with different jwt_allowed_audiences collapse into a single Verify and a
+// follower inherits the leader's audience check (per-route audience bypass).
+func TestJWTSingleflightKey(t *testing.T) {
+	t.Parallel()
+
+	const tok = "header.payload.sig"
+
+	// Same token, different audiences must NOT share a key (the bug).
+	assert.NotEqual(t,
+		jwtSingleflightKey(tok, []string{"api-a"}),
+		jwtSingleflightKey(tok, []string{"api-b"}),
+		"different audiences must produce different keys, else they collapse")
+
+	// Same token, same audiences in a different order SHARE a key (legitimate
+	// de-dup still works).
+	assert.Equal(t,
+		jwtSingleflightKey(tok, []string{"api-a", "api-b"}),
+		jwtSingleflightKey(tok, []string{"api-b", "api-a"}),
+		"audience order must not affect the key")
+
+	// Different token, same audiences must NOT share a key.
+	assert.NotEqual(t,
+		jwtSingleflightKey("other.token.sig", []string{"api-a"}),
+		jwtSingleflightKey(tok, []string{"api-a"}),
+		"different tokens must produce different keys")
+}
+
+// TestVerifyJWTAndCreateSession exercises the verify-and-create body factored
+// out of the singleflight wrapper. Each call must enforce its own audience
+// allowlist independently: a token minted for api-a is accepted with audiences
+// ["api-a"] and rejected with ["api-b"]. This is the per-call guarantee the
+// audience-folded singleflight key relies on.
+func TestVerifyJWTAndCreateSession(t *testing.T) {
+	t.Parallel()
+
+	idp := mockidp.New(mockidp.Config{})
+	issuer := idp.Start(t)
+
+	ctx := testutil.GetContext(t, time.Minute)
+	cfg := New(NewDefaultOptions())
+	cfg.Options.JWTAllowedIssuers = []JWTAllowedIssuer{{
+		Issuer:        issuer,
+		SupportedAlgs: []string{"ES256"},
+	}}
+	resolver, err := cfg.JWTIssuerResolver()
+	require.NoError(t, err)
+	require.NotNil(t, resolver)
+
+	now := time.Now()
+	tok := idp.SignJWT(map[string]any{
+		"iss": issuer,
+		"sub": "U1",
+		"aud": []string{"api-a"},
+		"exp": now.Add(time.Hour).Unix(),
+		"iat": now.Unix(),
+		"nbf": now.Unix(),
+	})
+
+	c := NewIncomingIDPTokenSessionCreator(
+		noop.NewTracerProvider(),
+		func(_ context.Context, _, _ string) (*databroker.Record, error) {
+			return nil, storage.ErrNotFound
+		},
+		func(_ context.Context, _ []*databroker.Record) error { return nil },
+	).(*incomingIDPTokenSessionCreator)
+
+	t.Run("matching audience accepted", func(t *testing.T) {
+		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok, []string{"api-a"})
+		require.NoError(t, err)
+		assert.Equal(t, "U1", s.GetUserId())
+	})
+
+	t.Run("non-matching audience rejected", func(t *testing.T) {
+		_, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok, []string{"api-b"})
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+	})
+}
