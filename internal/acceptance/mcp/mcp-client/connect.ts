@@ -32,6 +32,8 @@ export interface ConnectOptions {
 
 export interface ConnectedClient {
   client: Client;
+  /** The connected transport (exposes the negotiated `protocolVersion`). */
+  transport: StreamableHTTPClientTransport;
   close(): Promise<void>;
 }
 
@@ -52,7 +54,7 @@ export async function connectWithBrowserAuth(opts: ConnectOptions): Promise<Conn
     try {
       await probeClient.connect(probeTransport);
       // Unexpected for our protected route, but handle it: already authorized.
-      return { client: probeClient, close: () => probeClient.close() };
+      return { client: probeClient, transport: probeTransport, close: () => probeClient.close() };
     } catch (err) {
       if (!(err instanceof UnauthorizedError)) throw err;
     }
@@ -74,7 +76,7 @@ export async function connectWithBrowserAuth(opts: ConnectOptions): Promise<Conn
     const transport = new StreamableHTTPClientTransport(url, { authProvider });
     const client = new Client(CLIENT_INFO);
     await client.connect(transport);
-    return { client, close: () => client.close() };
+    return { client, transport, close: () => client.close() };
   } finally {
     callback.close();
   }

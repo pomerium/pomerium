@@ -113,6 +113,7 @@ export async function startStack(): Promise<Stack> {
         .withNetworkAliases(
           "authenticate.localhost.pomerium.io",
           "mcp.localhost.pomerium.io",
+          "mcp-filtered.localhost.pomerium.io",
         )
         .withExposedPorts({ container: 8443, host: 8443 })
         .withBindMounts([
@@ -144,8 +145,12 @@ export async function stopStack(): Promise<void> {
   const s = started;
   started = undefined;
   if (!s) return;
-  await s.pomerium.stop().catch(() => {});
-  await s.upstream.stop().catch(() => {});
-  await s.keycloak.stop().catch(() => {});
+  // Stop the containers concurrently; the network can only be removed once they
+  // have all detached from it.
+  await Promise.all([
+    s.pomerium.stop().catch(() => {}),
+    s.upstream.stop().catch(() => {}),
+    s.keycloak.stop().catch(() => {}),
+  ]);
   await s.network.stop().catch(() => {});
 }

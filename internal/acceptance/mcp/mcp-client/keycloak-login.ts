@@ -8,9 +8,9 @@
 // types and global state.
 
 import { expect, type Page } from "@playwright/test";
+import { KEYCLOAK_HOST } from "./constants.js";
 import type { TestUser } from "../../browser/fixtures/users.js";
 
-const KEYCLOAK_HOST = "keycloak.localhost.pomerium.io";
 const REALM_AUTH_PATH = "/realms/pomerium-e2e/protocol/openid-connect/auth";
 
 /** Wait until the browser is on the Keycloak login page. */

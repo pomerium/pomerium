@@ -63,11 +63,45 @@ in global setup and stopped in global teardown.
 
 ## What the tests cover
 
+End-to-end behavior (real browser sign-in):
+
 - **`tests/mcp-happy-path.spec.ts`** — alice (group `admins`) signs in through the
   browser; the client lists tools and calls `add(2, 3)` through Pomerium, asserting `5`.
 - **`tests/mcp-enforcement.spec.ts`** — an unauthenticated request is rejected with
   `401` + `WWW-Authenticate`; charlie (group `engineering`, not `admins`) is denied
   by the route policy.
+
+### MCP 2025-11-25 spec conformance (downstream authorization server)
+
+These verify that the official `pomerium/pomerium` image, acting as the OAuth 2.1
+authorization server in front of an MCP resource, conforms to the
+[MCP 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)
+authorization spec, and cover the downstream-side items from the *MCP: remote
+upstreams* project (ENG-3638 test plan).
+
+| Spec file | Covers | Issue / spec |
+|-----------|--------|--------------|
+| `spec-as-metadata.spec.ts` | PRM (RFC 9728) + AS metadata shape: `code_challenge_methods_supported=[S256]`, `registration_endpoint`, `client_id_metadata_document_supported`, response/grant types | MCP 2025-11-25 §Authorization |
+| `spec-www-authenticate.spec.ts` | 401 `WWW-Authenticate` carries a `resource_metadata` URI that round-trips; root has no trailing slash | ENG-3638 R1–R6 |
+| `spec-prm-normalization.spec.ts` | PRM `resource` path normalization: root, sub/nested paths, trailing-slash strip, `//`→`/` | ENG-3638 P1–P10 |
+| `spec-protocol.spec.ts` | client/server negotiate `protocolVersion 2025-11-25` through Pomerium; `MCP-Protocol-Version` forwarded | MCP 2025-11-25 transport |
+| `spec-dcr.spec.ts` | Dynamic Client Registration returns an opaque `client_id`; malformed metadata → 400 `invalid_client_metadata` | RFC 7591 |
+| `spec-security.spec.ts` | **PKCE cannot be bypassed with empty challenge/verifier** (hard-fail); auth codes single-use; loopback redirect port ignored | **ENG-3976**, ENG-3857 |
+| `spec-tools.spec.ts` | `tools/list`, structured (`outputSchema`) output, invalid-input → tool error (SEP-1303), tool-level policy denial (`mcp_tool`) | MCP 2025-11-25 tools |
+
+Quarantined (`test.fixme` / `test.skip`, documented in-file): `%2F` path preservation
+(Envoy normalizes before the route — ENG-4094), invalid-`Origin` 403 (the MCP *server's*
+responsibility, not the proxy), and negative `expires_in` (ENG-3982, needs expired-session
+timing). As of `pomerium:main` the PKCE-bypass (ENG-3976) and loopback-port (ENG-3857)
+checks **pass** — those bugs are fixed there.
+
+### Not covered here (container-only boundary)
+
+`InsecureSkipMCPMetadataSSRFCheck` is code-only, so the official image always blocks
+metadata fetches to internal hosts. That makes **CIMD**, the **remote-upstream OAuth**
+flow (the core of *MCP: remote upstreams* — Linear/Notion/etc.), and the
+`mcp_allowed_as_metadata_domains` matrix (ENG-3638 A/B/C/D) **not automatable in this
+suite** — they need in-process Go tests. This suite covers the *downstream* side only.
 
 ## Test users (from the reused realm; password `password123`)
 
