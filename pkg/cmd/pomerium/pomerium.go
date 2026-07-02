@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
+	"github.com/pomerium/pomerium/pkg/enterprise"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -147,6 +148,9 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 
 	// trigger changes when underlying files are changed
 	src = config.NewFileWatcherSource(ctx, src)
+
+	// possibly run the embedded enterprise console
+	src = enterprise.New(src)
 
 	src, err = autocert.New(ctx, src)
 	if err != nil {
