@@ -33,6 +33,10 @@ var (
 	// RuntimeFlagMCP enables the MCP services for the authorize service
 	RuntimeFlagMCP = runtimeFlag("mcp", false)
 
+	// RuntimeFlagMCPDynamicClientRegistration enables Dynamic Client Registration as an authorization
+	// method for upstream MCP servers
+	RuntimeFlagMCPDynamicClientRegistration = runtimeFlag("mcp_dynamic_client_registration", false)
+
 	// RuntimeFlagPomeriumJWTEndpoint enables the /.pomerium/jwt endpoint, for retrieving
 	// signed user info claims from an upstream single-page web application. This endpoint
 	// is deprecated pending removal in a future release, but this flag allows a temporary

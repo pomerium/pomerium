@@ -28,14 +28,23 @@ import (
 // These tests verify security-critical behavior that maps to the MCP conformance suite:
 // https://github.com/modelcontextprotocol/conformance
 func TestMCPConformance(t *testing.T) {
+	for _, mode := range registrationModes {
+		t.Run(mode.name, func(t *testing.T) {
+			runMCPConformance(t, mode)
+		})
+	}
+}
+
+func runMCPConformance(t *testing.T, mode registrationMode) {
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-		if cfg.Options.RuntimeFlags == nil {
-			cfg.Options.RuntimeFlags = make(config.RuntimeFlags)
+		enableMCP(cfg, mode.dcr)
+		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
+		if !mode.dcr {
+			// CIMD fetches reach test servers on localhost.
+			cfg.Options.InsecureSkipMCPMetadataSSRFCheck = true
 		}
-		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
-		cfg.Options.MCPAllowedClientIDDomains = []string{"*"}
 	}))
 
 	idp := scenarios.NewIDP([]*scenarios.User{
@@ -63,12 +72,27 @@ func TestMCPConformance(t *testing.T) {
 	serverUpstream.Handle("/", serverHandler.ServeHTTP)
 
 	serverRoute := serverUpstream.Route().
-		From(env.SubdomainURL("mcp-conformance")).
+		From(env.SubdomainURL("mcp-conformance-" + mode.name)).
 		Policy(func(p *config.Policy) {
 			p.AllowedDomains = []string{"example.com"}
 			p.MCP = &config.MCP{Server: &config.MCPServer{}}
 		})
 	env.AddUpstream(serverUpstream)
+
+	// In CIMD mode clients register by hosting a metadata document on a
+	// publicly accessible upstream rather than via the /register endpoint.
+	var clientMetadataUpstream upstreams.HTTPUpstream
+	var clientMetadataBaseURL func() string
+	if !mode.dcr {
+		clientMetadataUpstream = upstreams.HTTP(nil, upstreams.WithDisplayName("Client Metadata Server"))
+		route := clientMetadataUpstream.Route().
+			From(env.SubdomainURL("client-metadata-" + mode.name)).
+			PPL(`- allow:
+    or:
+      - accept: true`)
+		env.AddUpstream(clientMetadataUpstream)
+		clientMetadataBaseURL = func() string { return route.URL().Value() }
+	}
 
 	env.Start()
 	snippets.WaitStartupComplete(env)
@@ -97,29 +121,22 @@ func TestMCPConformance(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&asMetadata))
 	resp.Body.Close()
 
-	// Helper: register a client with specific auth method
-	registerClient := func(t *testing.T, authMethod string) (clientID, clientSecret string) {
-		t.Helper()
-		clientMetadata := map[string]any{
-			"redirect_uris":              []string{"http://localhost:8080/callback"},
-			"client_name":                "Conformance Test Client",
-			"token_endpoint_auth_method": authMethod,
-			"grant_types":                []string{"authorization_code", "refresh_token"},
-			"response_types":             []string{"code"},
-		}
-		body, _ := json.Marshal(clientMetadata)
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, asMetadata.RegistrationEndpoint, strings.NewReader(string(body)))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := baseHTTPClient().Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-		require.Equal(t, http.StatusOK, resp.StatusCode)
-		var regResp map[string]any
-		require.NoError(t, json.NewDecoder(resp.Body).Decode(&regResp))
-		clientID, _ = regResp["client_id"].(string)
-		clientSecret, _ = regResp["client_secret"].(string)
-		return clientID, clientSecret
+	// When DCR is disabled the registration_endpoint MUST NOT be advertised,
+	// while CIMD support remains advertised.
+	if mode.dcr {
+		require.NotEmpty(t, asMetadata.RegistrationEndpoint, "expected registration_endpoint when DCR enabled")
+	} else {
+		require.Empty(t, asMetadata.RegistrationEndpoint, "registration_endpoint must not be advertised when DCR disabled")
+	}
+
+	const redirectURI = "http://localhost:8080/callback"
+
+	// registerClient obtains a client per the active registration mode.
+	var registerClient clientRegistrar
+	if mode.dcr {
+		registerClient = newDCRRegistrar(ctx, &asMetadata, baseHTTPClient, redirectURI)
+	} else {
+		registerClient = newCIMDRegistrar(clientMetadataUpstream, clientMetadataBaseURL(), redirectURI)
 	}
 
 	// Helper: get authorization code via full auth flow
@@ -127,7 +144,6 @@ func TestMCPConformance(t *testing.T) {
 		t.Helper()
 		codeChallenge := generateS256Challenge(codeVerifier)
 		state := cryptutil.NewRandomStringN(32)
-		redirectURI := "http://localhost:8080/callback"
 
 		authParams := url.Values{
 			"response_type":         {"code"},
@@ -182,63 +198,68 @@ func TestMCPConformance(t *testing.T) {
 	// ============================================================================
 	// Test #1: Token Endpoint Authentication Methods (client_secret_basic)
 	// Conformance: https://github.com/modelcontextprotocol/conformance/blob/main/src/scenarios/client/auth/token-endpoint-auth.ts
+	//
+	// Confidential clients only — CIMD clients are public, so this is skipped in
+	// CIMD mode.
 	// ============================================================================
-	t.Run("token_endpoint_auth_client_secret_basic", func(t *testing.T) {
-		clientID, clientSecret := registerClient(t, "client_secret_basic")
-		codeVerifier := cryptutil.NewRandomStringN(64)
-		authCode := getAuthCode(t, clientID, codeVerifier)
+	if mode.confidential {
+		t.Run("token_endpoint_auth_client_secret_basic", func(t *testing.T) {
+			clientID, clientSecret := registerClient(t, "client_secret_basic")
+			codeVerifier := cryptutil.NewRandomStringN(64)
+			authCode := getAuthCode(t, clientID, codeVerifier)
 
-		t.Run("valid_basic_auth_succeeds", func(t *testing.T) {
-			params := url.Values{
-				"grant_type":    {"authorization_code"},
-				"code":          {authCode},
-				"redirect_uri":  {"http://localhost:8080/callback"},
-				"client_id":     {clientID},
-				"code_verifier": {codeVerifier},
-			}
-			resp, result := doTokenRequest(t, params, &[2]string{clientID, clientSecret})
-			assert.Equal(t, http.StatusOK, resp.StatusCode)
-			assert.NotEmpty(t, result["access_token"])
-			assert.Equal(t, "Bearer", result["token_type"])
+			t.Run("valid_basic_auth_succeeds", func(t *testing.T) {
+				params := url.Values{
+					"grant_type":    {"authorization_code"},
+					"code":          {authCode},
+					"redirect_uri":  {redirectURI},
+					"client_id":     {clientID},
+					"code_verifier": {codeVerifier},
+				}
+				resp, result := doTokenRequest(t, params, &[2]string{clientID, clientSecret})
+				assert.Equal(t, http.StatusOK, resp.StatusCode)
+				assert.NotEmpty(t, result["access_token"])
+				assert.Equal(t, "Bearer", result["token_type"])
+			})
+
+			t.Run("missing_basic_auth_fails", func(t *testing.T) {
+				t.Skip("TODO: client_secret_basic validation not yet implemented in handler_token.go")
+
+				// Need a new auth code since the previous one was consumed
+				newCodeVerifier := cryptutil.NewRandomStringN(64)
+				newAuthCode := getAuthCode(t, clientID, newCodeVerifier)
+
+				params := url.Values{
+					"grant_type":    {"authorization_code"},
+					"code":          {newAuthCode},
+					"redirect_uri":  {redirectURI},
+					"client_id":     {clientID},
+					"code_verifier": {newCodeVerifier},
+				}
+				resp, result := doTokenRequest(t, params, nil) // No auth header
+				assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+				assert.Equal(t, "invalid_request", result["error"])
+			})
+
+			t.Run("wrong_secret_fails", func(t *testing.T) {
+				t.Skip("TODO: client_secret_basic validation not yet implemented in handler_token.go")
+
+				newCodeVerifier := cryptutil.NewRandomStringN(64)
+				newAuthCode := getAuthCode(t, clientID, newCodeVerifier)
+
+				params := url.Values{
+					"grant_type":    {"authorization_code"},
+					"code":          {newAuthCode},
+					"redirect_uri":  {redirectURI},
+					"client_id":     {clientID},
+					"code_verifier": {newCodeVerifier},
+				}
+				resp, result := doTokenRequest(t, params, &[2]string{clientID, "wrong-secret"})
+				assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+				assert.Equal(t, "invalid_request", result["error"])
+			})
 		})
-
-		t.Run("missing_basic_auth_fails", func(t *testing.T) {
-			t.Skip("TODO: client_secret_basic validation not yet implemented in handler_token.go")
-
-			// Need a new auth code since the previous one was consumed
-			newCodeVerifier := cryptutil.NewRandomStringN(64)
-			newAuthCode := getAuthCode(t, clientID, newCodeVerifier)
-
-			params := url.Values{
-				"grant_type":    {"authorization_code"},
-				"code":          {newAuthCode},
-				"redirect_uri":  {"http://localhost:8080/callback"},
-				"client_id":     {clientID},
-				"code_verifier": {newCodeVerifier},
-			}
-			resp, result := doTokenRequest(t, params, nil) // No auth header
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-			assert.Equal(t, "invalid_request", result["error"])
-		})
-
-		t.Run("wrong_secret_fails", func(t *testing.T) {
-			t.Skip("TODO: client_secret_basic validation not yet implemented in handler_token.go")
-
-			newCodeVerifier := cryptutil.NewRandomStringN(64)
-			newAuthCode := getAuthCode(t, clientID, newCodeVerifier)
-
-			params := url.Values{
-				"grant_type":    {"authorization_code"},
-				"code":          {newAuthCode},
-				"redirect_uri":  {"http://localhost:8080/callback"},
-				"client_id":     {clientID},
-				"code_verifier": {newCodeVerifier},
-			}
-			resp, result := doTokenRequest(t, params, &[2]string{clientID, "wrong-secret"})
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-			assert.Equal(t, "invalid_request", result["error"])
-		})
-	})
+	}
 
 	// ============================================================================
 	// Test #2: PKCE Code Verifier Validation
@@ -257,7 +278,7 @@ func TestMCPConformance(t *testing.T) {
 			params := url.Values{
 				"grant_type":    {"authorization_code"},
 				"code":          {authCode},
-				"redirect_uri":  {"http://localhost:8080/callback"},
+				"redirect_uri":  {redirectURI},
 				"client_id":     {clientID},
 				"code_verifier": {"completely-different-verifier-that-does-not-match"},
 			}
@@ -273,7 +294,7 @@ func TestMCPConformance(t *testing.T) {
 			params := url.Values{
 				"grant_type":   {"authorization_code"},
 				"code":         {authCode},
-				"redirect_uri": {"http://localhost:8080/callback"},
+				"redirect_uri": {redirectURI},
 				"client_id":    {clientID},
 				// code_verifier intentionally omitted
 			}
@@ -289,7 +310,7 @@ func TestMCPConformance(t *testing.T) {
 			params := url.Values{
 				"grant_type":    {"authorization_code"},
 				"code":          {authCode},
-				"redirect_uri":  {"http://localhost:8080/callback"},
+				"redirect_uri":  {redirectURI},
 				"client_id":     {clientID},
 				"code_verifier": {""},
 			}
@@ -315,7 +336,7 @@ func TestMCPConformance(t *testing.T) {
 			params := url.Values{
 				"grant_type":    {"authorization_code"},
 				"code":          {authCode},
-				"redirect_uri":  {"http://localhost:8080/callback"},
+				"redirect_uri":  {redirectURI},
 				"client_id":     {clientID},
 				"code_verifier": {codeVerifier},
 			}
@@ -344,7 +365,7 @@ func TestMCPConformance(t *testing.T) {
 			params := url.Values{
 				"grant_type":    {"authorization_code"},
 				"code":          {authCode},
-				"redirect_uri":  {"http://localhost:8080/callback"},
+				"redirect_uri":  {redirectURI},
 				"client_id":     {client2ID}, // Different client!
 				"code_verifier": {codeVerifier},
 			}
@@ -371,7 +392,7 @@ func TestMCPConformance(t *testing.T) {
 		params := url.Values{
 			"grant_type":    {"authorization_code"},
 			"code":          {authCode},
-			"redirect_uri":  {"http://localhost:8080/callback"},
+			"redirect_uri":  {redirectURI},
 			"client_id":     {clientID},
 			"code_verifier": {codeVerifier},
 		}
@@ -421,7 +442,7 @@ func TestMCPConformance(t *testing.T) {
 			params := url.Values{
 				"grant_type":    {"authorization_code"},
 				"code":          {code},
-				"redirect_uri":  {"http://localhost:8080/callback"},
+				"redirect_uri":  {redirectURI},
 				"client_id":     {client1ID},
 				"code_verifier": {verifier},
 			}
@@ -496,7 +517,7 @@ func TestMCPConformance(t *testing.T) {
 			params := url.Values{
 				"grant_type":    {"authorization_code"},
 				"code":          {authCode},
-				"redirect_uri":  {"http://localhost:8080/callback"},
+				"redirect_uri":  {redirectURI},
 				"client_id":     {clientID},
 				"code_verifier": {codeVerifier},
 			}

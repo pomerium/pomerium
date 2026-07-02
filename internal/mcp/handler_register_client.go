@@ -35,6 +35,12 @@ func (srv *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !srv.dcrEnabled {
+		log.Ctx(ctx).Debug().Msg("mcp/register: dynamic client registration is disabled")
+		clientRegistrationDisabled(w)
+		return
+	}
+
 	src := io.LimitReader(r.Body, maxClientRegistrationPayload)
 	defer r.Body.Close()
 
@@ -89,6 +95,22 @@ func (srv *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 	log.Ctx(ctx).Debug().
 		Str("client-id", id).
 		Msg("mcp/register: registration response sent")
+}
+
+func clientRegistrationDisabled(w http.ResponseWriter) {
+	v := struct {
+		Error            string `json:"error"`
+		ErrorDescription string `json:"error_description"`
+	}{
+		Error:            "access_denied",
+		ErrorDescription: "dynamic client registration is disabled on this server",
+	}
+	data, _ := json.Marshal(v)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(http.StatusForbidden)
+	_, _ = w.Write(data)
 }
 
 func clientRegistrationBadRequest(w http.ResponseWriter, err error) {

@@ -28,15 +28,23 @@ import (
 
 // TestMCPAuthorizationFlow tests the complete MCP authorization flow
 func TestMCPAuthorizationFlow(t *testing.T) {
+	for _, mode := range registrationModes {
+		t.Run(mode.name, func(t *testing.T) {
+			runMCPAuthorizationFlow(t, mode)
+		})
+	}
+}
+
+func runMCPAuthorizationFlow(t *testing.T, mode registrationMode) {
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-		if cfg.Options.RuntimeFlags == nil {
-			cfg.Options.RuntimeFlags = make(config.RuntimeFlags)
+		enableMCP(cfg, mode.dcr)
+		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
+		if !mode.dcr {
+			// CIMD fetches reach test servers on localhost.
+			cfg.Options.InsecureSkipMCPMetadataSSRFCheck = true
 		}
-		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
-		// Allow all domains for testing - in production this should be restricted
-		cfg.Options.MCPAllowedClientIDDomains = []string{"*"}
 	}))
 
 	idp := scenarios.NewIDP([]*scenarios.User{
@@ -66,7 +74,7 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 	serverUpstream.Handle("/", serverHandler.ServeHTTP)
 
 	serverRoute := serverUpstream.Route().
-		From(env.SubdomainURL("mcp-auth-test")).
+		From(env.SubdomainURL("mcp-auth-test-" + mode.name)).
 		Policy(func(p *config.Policy) {
 			p.AllowedDomains = []string{"example.com"}
 			p.MCP = &config.MCP{
@@ -74,6 +82,21 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 			}
 		})
 	env.AddUpstream(serverUpstream)
+
+	// In CIMD mode the client registers by hosting a metadata document on a
+	// publicly accessible upstream rather than via the /register endpoint.
+	var clientMetadataUpstream upstreams.HTTPUpstream
+	var clientMetadataBaseURL func() string
+	if !mode.dcr {
+		clientMetadataUpstream = upstreams.HTTP(nil, upstreams.WithDisplayName("Client Metadata Server"))
+		route := clientMetadataUpstream.Route().
+			From(env.SubdomainURL("client-metadata-auth-" + mode.name)).
+			PPL(`- allow:
+    or:
+      - accept: true`)
+		env.AddUpstream(clientMetadataUpstream)
+		clientMetadataBaseURL = func() string { return route.URL().Value() }
+	}
 
 	env.Start()
 	snippets.WaitStartupComplete(env)
@@ -156,7 +179,12 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 		require.NoError(t, err)
 		t.Logf("Authorization Server Metadata: %+v", ts.asMetadata)
 
-		require.NotEmpty(t, ts.asMetadata.RegistrationEndpoint, "expected registration_endpoint")
+		// registration_endpoint is advertised only when downstream DCR is enabled.
+		if mode.dcr {
+			require.NotEmpty(t, ts.asMetadata.RegistrationEndpoint, "expected registration_endpoint when DCR enabled")
+		} else {
+			require.Empty(t, ts.asMetadata.RegistrationEndpoint, "registration_endpoint must not be advertised when DCR disabled")
+		}
 		require.NotEmpty(t, ts.asMetadata.AuthorizationEndpoint, "expected authorization_endpoint")
 		require.NotEmpty(t, ts.asMetadata.TokenEndpoint, "expected token_endpoint")
 		require.Contains(t, ts.asMetadata.CodeChallengeMethodsSupported, "S256", "expected S256 PKCE support")
@@ -167,34 +195,16 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 			"issuer in AS metadata must match authorization_servers entry from protected resource metadata")
 	})
 
-	t.Run("step 4: dynamic client registration (RFC 7591)", func(t *testing.T) {
-		clientMetadata := map[string]any{
-			"redirect_uris":              []string{"http://localhost:8080/callback"},
-			"client_name":                "Test MCP Client",
-			"token_endpoint_auth_method": "none",
-			"grant_types":                []string{"authorization_code"},
-			"response_types":             []string{"code"},
+	t.Run("step 4: client registration", func(t *testing.T) {
+		const redirectURI = "http://localhost:8080/callback"
+		var register clientRegistrar
+		if mode.dcr {
+			register = newDCRRegistrar(ctx, &ts.asMetadata, func() *http.Client { return ts.httpClient }, redirectURI)
+		} else {
+			register = newCIMDRegistrar(clientMetadataUpstream, clientMetadataBaseURL(), redirectURI)
 		}
-		clientMetadataJSON, err := json.Marshal(clientMetadata)
-		require.NoError(t, err)
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, ts.asMetadata.RegistrationEndpoint,
-			strings.NewReader(string(clientMetadataJSON)))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := ts.httpClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-		require.Equal(t, http.StatusOK, resp.StatusCode)
-
-		var registrationResponse map[string]any
-		err = json.NewDecoder(resp.Body).Decode(&registrationResponse)
-		require.NoError(t, err)
-		t.Logf("Client Registration Response: %+v", registrationResponse)
-
-		var ok bool
-		ts.clientID, ok = registrationResponse["client_id"].(string)
-		require.True(t, ok && ts.clientID != "", "expected client_id in registration response")
+		ts.clientID, _ = register(t, "none")
+		require.NotEmpty(t, ts.clientID, "expected client_id from registration")
 		t.Logf("Registered client_id: %s", ts.clientID)
 	})
 
