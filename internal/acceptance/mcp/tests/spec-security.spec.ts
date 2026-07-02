@@ -1,7 +1,6 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
 import { startCallbackServer } from "../mcp-client/callback-server.js";
-import { submitLoginForm } from "../mcp-client/keycloak-login.js";
 import {
   discoverAS,
   registerClient,
@@ -10,7 +9,7 @@ import {
   exchangeCode,
   pkce,
 } from "../mcp-client/oauth-raw.js";
-import { MCP_ORIGIN, MCP_SERVER_URL, KEYCLOAK_HOST } from "../mcp-client/constants.js";
+import { MCP_ORIGIN, MCP_SERVER_URL } from "../mcp-client/constants.js";
 import { testUsers } from "../../browser/fixtures/users.js";
 
 // Downstream OAuth security regressions. Per the hybrid policy, the PKCE-bypass
@@ -18,67 +17,32 @@ import { testUsers } from "../../browser/fixtures/users.js";
 // to test.fixme("ENG-####: …") if they fail against the current image.
 
 test.describe("downstream OAuth security", () => {
-  test("PKCE cannot be bypassed with an empty challenge/verifier (ENG-3976)", async ({
-    page,
-    request,
-  }) => {
-    const cb = await startCallbackServer();
-    try {
-      const as = await discoverAS(request, MCP_ORIGIN);
-      const reg = await registerClient(
-        request,
-        as.registration_endpoint!,
-        publicClientMetadata(cb.redirectUrl),
-      );
-      const clientId = reg.body?.client_id as string;
-      expect(clientId).toBeTruthy();
+  test("PKCE cannot be bypassed with an empty verifier (ENG-3976)", async ({ page, request }) => {
+    // Drive a fully valid authorization first, using a real S256 challenge. The
+    // AS metadata guarantees S256 is advertised, so this reliably reaches
+    // Keycloak and yields a code bound to that challenge. Probing the bypass at
+    // /authorize instead (empty challenge + `plain`) is unreliable: if Pomerium
+    // only supports S256 it rejects the request before a code is ever issued,
+    // and the security assertion below would then pass vacuously — succeeding
+    // even if the /token endpoint did NOT actually verify PKCE.
+    const flow = await validAuthorize(page, request, testUsers.alice);
+    expect(flow.code, "a valid authorize must yield a code to attempt the bypass").toBeTruthy();
 
-      // Authorization request with an EMPTY code_challenge.
-      const authUrl = new URL(as.authorization_endpoint);
-      authUrl.searchParams.set("response_type", "code");
-      authUrl.searchParams.set("client_id", clientId);
-      authUrl.searchParams.set("redirect_uri", cb.redirectUrl);
-      authUrl.searchParams.set("state", "pkce-bypass");
-      authUrl.searchParams.set("code_challenge", "");
-      authUrl.searchParams.set("code_challenge_method", "plain");
-      authUrl.searchParams.set("resource", MCP_SERVER_URL);
-
-      await page.goto(authUrl.toString());
-      const reachedKeycloak = await page
-        .waitForURL((u) => u.hostname === KEYCLOAK_HOST, { timeout: 15000 })
-        .then(() => true)
-        .catch(() => false);
-
-      let code: string | undefined;
-      if (reachedKeycloak) {
-        await submitLoginForm(page, testUsers.alice);
-        code = await cb.waitForCode(15000).catch(() => undefined);
-      }
-
-      // Invariant: an empty-PKCE flow must NEVER produce a usable access token,
-      // whether Pomerium rejects it at /authorize (no code issued) or at /token
-      // (empty code_verifier). The final assertion runs in EVERY branch, so the
-      // test can't silently pass without actually checking anything.
-      let accessToken: unknown;
-      let tokenStatus: number | undefined;
-      if (code) {
-        const tok = await exchangeCode(request, as.token_endpoint, {
-          code,
-          clientId,
-          redirectUri: cb.redirectUrl,
-          codeVerifier: "",
-          resource: MCP_SERVER_URL,
-        });
-        accessToken = tok.body.access_token;
-        tokenStatus = tok.status;
-      }
-      expect(accessToken, "empty PKCE must not yield an access token (ENG-3976)").toBeFalsy();
-      if (tokenStatus !== undefined) {
-        expect(tokenStatus, "empty-verifier token exchange must not return 200").not.toBe(200);
-      }
-    } finally {
-      cb.close();
-    }
+    // Invariant: a code bound to a PKCE challenge MUST NOT be redeemable with an
+    // empty code_verifier. This exchange always runs, so the test can never pass
+    // without actually exercising the token endpoint's PKCE check.
+    const tok = await exchangeCode(request, flow.as.token_endpoint, {
+      code: flow.code,
+      clientId: flow.clientId,
+      redirectUri: flow.redirectUri,
+      codeVerifier: "",
+      resource: MCP_SERVER_URL,
+    });
+    expect(
+      tok.body.access_token,
+      "empty verifier must not yield an access token (ENG-3976)",
+    ).toBeFalsy();
+    expect(tok.status, "empty-verifier token exchange must not return 200").not.toBe(200);
   });
 
   test("authorization codes are single-use (replay rejected)", async ({ page, request }) => {

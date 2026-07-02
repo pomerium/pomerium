@@ -59,19 +59,26 @@ export async function connectWithBrowserAuth(opts: ConnectOptions): Promise<Conn
       if (!(err instanceof UnauthorizedError)) throw err;
     }
 
-    const authorizationUrl = authProvider.authorizationUrl;
-    if (!authorizationUrl) {
-      throw new Error("MCP SDK did not produce an authorization URL after the 401 challenge");
+    // From here the probe is only kept alive to complete the token exchange, so
+    // make sure it's torn down whether finishAuth succeeds or throws.
+    try {
+      const authorizationUrl = authProvider.authorizationUrl;
+      if (!authorizationUrl) {
+        throw new Error("MCP SDK did not produce an authorization URL after the 401 challenge");
+      }
+
+      // Step 2: browser sign-in.
+      await page.goto(authorizationUrl.toString());
+      await waitForLoginPage(page);
+      await submitLoginForm(page, user);
+      const code = await callback.waitForCode(authTimeoutMs);
+
+      // Step 3: exchange the code, then reconnect with the stored token.
+      await probeTransport.finishAuth(code);
+    } finally {
+      // Closing the client also closes its underlying transport.
+      await probeClient.close();
     }
-
-    // Step 2: browser sign-in.
-    await page.goto(authorizationUrl.toString());
-    await waitForLoginPage(page);
-    await submitLoginForm(page, user);
-    const code = await callback.waitForCode(authTimeoutMs);
-
-    // Step 3: exchange the code, then reconnect with the stored token.
-    await probeTransport.finishAuth(code);
 
     const transport = new StreamableHTTPClientTransport(url, { authProvider });
     const client = new Client(CLIENT_INFO);
