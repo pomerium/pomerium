@@ -281,43 +281,20 @@ func (srv *debugServer) databrokerHandler() http.HandlerFunc {
 		}
 		client := (*clientPtr).GetLocalDatabrokerServiceClient()
 
-		path := r.URL.Path
-		if r.URL.RawPath != "" {
-			path = r.URL.RawPath
-		}
-		path = strings.TrimPrefix(path, "/databroker/")
-		parts := strings.Split(path, "/")
+		recordType := r.FormValue("type")
+		recordID := r.FormValue("id")
 
-		var cleanParts []string
-		for _, p := range parts {
-			if p != "" {
-				cleanParts = append(cleanParts, p)
-			}
-		}
-		parts = cleanParts
-
-		if len(parts) == 0 {
-			srv.serveDatabrokerIndex(w, r, client)
+		if recordType != "" && recordID != "" {
+			srv.serveDatabrokerRecord(w, r, client, recordType, recordID)
 			return
 		}
 
-		recordType, err := url.PathUnescape(parts[0])
-		if err != nil {
-			http.Error(w, "invalid record type encoding", http.StatusBadRequest)
-			return
-		}
-
-		if len(parts) == 1 {
+		if recordType != "" {
 			srv.serveDatabrokerList(w, r, client, recordType)
 			return
 		}
 
-		recordID, err := url.PathUnescape(parts[1])
-		if err != nil {
-			http.Error(w, "invalid record id encoding", http.StatusBadRequest)
-			return
-		}
-		srv.serveDatabrokerRecord(w, r, client, recordType, recordID)
+		srv.serveDatabrokerIndex(w, r, client)
 	}
 }
 
@@ -353,11 +330,14 @@ func (srv *debugServer) serveDatabrokerIndex(w http.ResponseWriter, r *http.Requ
 	sort.Strings(typeList)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<html><head><title>Databroker Types</title></head><body><ul>")
+	fmt.Fprintf(w, "<html><head><title>Databroker Types</title></head><body>")
+	fmt.Fprintf(w, `<div><a href="/">Home</a> · Databroker</div>`)
+	fmt.Fprintf(w, "<ul>")
 	for _, t := range typeList {
-		fmt.Fprintf(w, "<li><a href=\"/databroker/%s\">%s (%d)</a></li>", url.PathEscape(t), html.EscapeString(t), types[t])
+		fmt.Fprintf(w, "<li><a href=\"/databroker/?type=%s\">%s (%d)</a></li>", url.QueryEscape(t), html.EscapeString(t), types[t])
 	}
-	fmt.Fprintf(w, "</ul></body></html>")
+	fmt.Fprintf(w, "</ul>")
+	fmt.Fprintf(w, "</body></html>")
 }
 
 func (srv *debugServer) serveDatabrokerList(w http.ResponseWriter, r *http.Request, client databroker.DataBrokerServiceClient, recordType string) {
@@ -370,8 +350,9 @@ func (srv *debugServer) serveDatabrokerList(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<html><head><title>Databroker %s</title></head><body><ul>", html.EscapeString(recordType))
-
+	fmt.Fprintf(w, "<html><head><title>Databroker %s</title></head><body>", html.EscapeString(recordType))
+	fmt.Fprintf(w, `<div><a href="/">Home</a> · <a href="/databroker/">Databroker</a> · %s</div>`, html.EscapeString(recordType))
+	fmt.Fprintf(w, "<ul>")
 	for {
 		res, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -384,11 +365,12 @@ func (srv *debugServer) serveDatabrokerList(w http.ResponseWriter, r *http.Reque
 		switch r := res.Response.(type) {
 		case *databroker.SyncLatestResponse_Record:
 			if r.Record != nil {
-				fmt.Fprintf(w, "<li><a href=\"/databroker/%s/%s\">%s</a></li>", url.PathEscape(recordType), url.PathEscape(r.Record.Id), html.EscapeString(r.Record.Id))
+				fmt.Fprintf(w, "<li><a href=\"/databroker/?type=%s&id=%s\">%s</a></li>", url.QueryEscape(recordType), url.QueryEscape(r.Record.Id), html.EscapeString(r.Record.Id))
 			}
 		}
 	}
-	fmt.Fprintf(w, "</ul></body></html>")
+	fmt.Fprintf(w, "</ul>")
+	fmt.Fprintf(w, "</body></html>")
 }
 
 func (srv *debugServer) serveDatabrokerOptions(w http.ResponseWriter, r *http.Request, client databroker.DataBrokerServiceClient, recordType string) {
