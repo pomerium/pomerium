@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
@@ -583,7 +584,10 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 	redirectURI string,
 ) (*oauth21proto.UpstreamOAuthClient, error) {
 	if !srv.dcrEnabled {
-		return nil, fmt.Errorf("dynamic client registration is disabled")
+		return nil, &DiscoveryError{Err: fmt.Errorf(
+			"dynamic client registration is disabled, enable the runtime flag : `%s`",
+			config.RuntimeFlagMCPDynamicClientRegistration,
+		)}
 	}
 	if discovery == nil {
 		return nil, fmt.Errorf("discovery result is nil")
