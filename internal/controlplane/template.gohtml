@@ -1,0 +1,40 @@
+{{ define "Layout" -}}
+<!doctype html>
+<html>
+  <head><title>Pomerium Debug</title></head>
+  <body>
+    {{- . }}
+  </body>
+</html>
+{{- end }}
+
+{{ define "Index" -}}
+<ul>
+  <li><a href="/config_dump">Config Dump</a></li>
+  <li><a href="/versioned_config">Versioned Config</a></li>
+  <li><a href="/version">Version</a></li>
+  <li><a href="/databroker/">Databroker</a></li>
+  <li><a href="/options"> Databroker (options)</a></li>
+  <li><a href="/raft">Raft</li>
+  <li><a href="/debug/pprof/">Go PProf</a></li>
+  <li><a href="/channelz">ChannelZ</li>
+</ul>
+{{- end }}
+
+{{ define "DatabrokerListRecords" -}}
+<div><a href="/">Home</a> · <a href="/databroker/">Databroker</a> · {{.type}}</div>
+<ul>
+{{- range .records }}
+  <li><a href="{{.Link}}">{{.ID}}</a></li>
+{{- end }}
+</ul>
+{{- end }}
+
+{{ define "DatabrokerListTypes" -}}
+<div><a href="/">Home</a> · Databroker</div>
+<ul>
+{{- range .records }}
+  <li><a href="{{.Link}}">{{.Type}}</a> ({{.Count}})</li>
+{{- end }}
+</ul>
+{{- end }}
