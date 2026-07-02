@@ -177,26 +177,8 @@ func (srv *debugServer) versionedConfigHandler() http.HandlerFunc {
 }
 
 func (srv *debugServer) indexHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, `<html>
-<head>
-<title>Pomerium Debug</title>
-</head>
-<body>
-		<ul>
-			<li><a href="/config_dump">Config Dump</a></li>
-			<li><a href="/versioned_config">Versioned Config</a></li>
-			<li><a href="/version">Version</a></li>
-			<li><a href="/databroker/">Databroker</a></li>
-			<li><a href="/options"> Databroker (options)</a></li>
-			<li><a href="/raft">Raft</li>
-			<li><a href="/debug/pprof/">Go PProf</a></li>
-			<li><a href="/channelz">ChannelZ</li>
-		</ul>
-</body>
-`)
+	return func(w http.ResponseWriter, r *http.Request) {
+		srv.render(w, r, "Index", map[string]any{})
 	}
 }
 
@@ -329,15 +311,25 @@ func (srv *debugServer) serveDatabrokerIndex(w http.ResponseWriter, r *http.Requ
 	}
 	sort.Strings(typeList)
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<html><head><title>Databroker Types</title></head><body>")
-	fmt.Fprintf(w, `<div><a href="/">Home</a> · Databroker</div>`)
-	fmt.Fprintf(w, "<ul>")
-	for _, t := range typeList {
-		fmt.Fprintf(w, "<li><a href=\"/databroker/?type=%s\">%s (%d)</a></li>", url.QueryEscape(t), html.EscapeString(t), types[t])
+	type Record struct {
+		Type  string
+		Link  string
+		Count int
 	}
-	fmt.Fprintf(w, "</ul>")
-	fmt.Fprintf(w, "</body></html>")
+	var records []Record
+	for _, t := range typeList {
+		records = append(records, Record{
+			Type: t,
+			Link: "/databroker/?" + (url.Values{
+				"type": {t},
+			}).Encode(),
+			Count: types[t],
+		})
+	}
+
+	srv.render(w, r, "DatabrokerListTypes", map[string]any{
+		"records": records,
+	})
 }
 
 func (srv *debugServer) serveDatabrokerList(w http.ResponseWriter, r *http.Request, client databroker.DataBrokerServiceClient, recordType string) {
@@ -349,28 +341,37 @@ func (srv *debugServer) serveDatabrokerList(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<html><head><title>Databroker %s</title></head><body>", html.EscapeString(recordType))
-	fmt.Fprintf(w, `<div><a href="/">Home</a> · <a href="/databroker/">Databroker</a> · %s</div>`, html.EscapeString(recordType))
-	fmt.Fprintf(w, "<ul>")
+	type Record struct {
+		ID   string
+		Link string
+	}
+	var records []Record
 	for {
 		res, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
 			break
-		}
-		if err != nil {
-			fmt.Fprintf(w, "<li>error: %s</li>", html.EscapeString(err.Error()))
-			break
+		} else if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		switch r := res.Response.(type) {
 		case *databroker.SyncLatestResponse_Record:
 			if r.Record != nil {
-				fmt.Fprintf(w, "<li><a href=\"/databroker/?type=%s&id=%s\">%s</a></li>", url.QueryEscape(recordType), url.QueryEscape(r.Record.Id), html.EscapeString(r.Record.Id))
+				records = append(records, Record{
+					ID: r.Record.Id,
+					Link: "/databroker/?" + (url.Values{
+						"type": {recordType},
+						"id":   {r.Record.Id},
+					}).Encode(),
+				})
 			}
 		}
 	}
-	fmt.Fprintf(w, "</ul>")
-	fmt.Fprintf(w, "</body></html>")
+
+	srv.render(w, r, "DatabrokerListRecords", map[string]any{
+		"type":    recordType,
+		"records": records,
+	})
 }
 
 func (srv *debugServer) serveDatabrokerOptions(w http.ResponseWriter, r *http.Request, client databroker.DataBrokerServiceClient, recordType string) {
