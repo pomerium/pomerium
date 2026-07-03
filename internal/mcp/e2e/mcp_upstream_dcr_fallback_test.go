@@ -99,6 +99,7 @@ func TestMCPUpstreamOAuthDCRFallback(t *testing.T) {
 			q := u.Query()
 			q.Set("code", code)
 			q.Set("state", state)
+			q.Set("iss", asServer.URL)
 			u.RawQuery = q.Encode()
 			http.Redirect(w, r, u.String(), http.StatusFound)
 		case "/token":
