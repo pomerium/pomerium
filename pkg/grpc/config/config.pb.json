@@ -1077,6 +1077,18 @@
               "isoneof": false,
               "oneofdecl": "",
               "defaultValue": ""
+            },
+            {
+              "name": "remove_from_any_assigned_routes",
+              "description": "For a policy with 'enforced' set to false, it may not be deleted while it\nis assigned to a route. However if 'remove_from_any_assigned_routes' is\nset to true, the policy will be automatically removed from any routes to\nwhich it is assigned and then deleted.",
+              "label": "",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
             }
           ]
         },
