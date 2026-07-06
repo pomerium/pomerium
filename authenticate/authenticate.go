@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/oidcprovider"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
@@ -58,6 +59,8 @@ type Authenticate struct {
 	tracer         oteltrace.Tracer
 
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
+
+	oidcHandlers *oidcprovider.Handlers
 }
 
 // New validates and creates a new authenticate service from a set of Options.

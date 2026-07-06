@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/handlers"
+	"github.com/pomerium/pomerium/internal/oidcprovider"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -53,7 +54,8 @@ type authenticateState struct {
 
 	csrf *csrfCookieValidation
 
-	pkceStore *pkceStore
+	pkceStore            *pkceStore
+	oidcProviderHandlers *oidcprovider.Handlers
 }
 
 func newAuthenticateStateFromConfig(
@@ -147,6 +149,16 @@ func newAuthenticateStateFromConfig(
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	// XXX: add a runtime flag check for this as well
+	if cfg.Options.Provider != "" {
+		handlers, err := oidcprovider.NewHandlers(
+			ctx, cookieStore.ReadSessionHandle, state.flow.GetUserInfoData, cfg.Options)
+		if err != nil {
+			return nil, err
+		}
+		state.oidcProviderHandlers = handlers
 	}
 
 	return state, nil

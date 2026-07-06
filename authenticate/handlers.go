@@ -40,6 +40,10 @@ func (a *Authenticate) Handler() http.Handler {
 func (a *Authenticate) Mount(r *mux.Router) {
 	r.StrictSlash(true)
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
+
+	// XXX: or maybe this is the place to add a runtime flag check?
+	a.mountOIDCProviderHandlers(r)
+
 	// disable csrf checking for these endpoints
 	r.Use(func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

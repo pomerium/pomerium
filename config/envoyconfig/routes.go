@@ -111,6 +111,8 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 				b.buildControlPlanePathRoute(options, endpoints.PathAuthenticateCallback),
 				b.buildControlPlanePathRoute(options, "/"),
 				b.buildControlPlanePathRoute(options, endpoints.PathRobotsTxt),
+				b.buildControlPlanePrefixRoute(options, "/oidc/"),
+				b.buildControlPlanePrefixRoute(options, "/.well-known/"),
 			}, nil
 		}
 	}
