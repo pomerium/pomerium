@@ -9,15 +9,12 @@
  */
 
 import { test, expect, type Browser } from "@playwright/test";
-import { newContextWithCert } from "../helpers/mtls.js";
-import type { ClientCertType } from "../helpers/mtls.js";
-import { waitForKeycloakLoginPage, submitLoginForm } from "../helpers/login.js";
+import { newContextWithCert, type ClientCertType } from "../helpers/mtls.js";
+import { signInOnMtlsRoute } from "../helpers/login.js";
 import { fingerprint, spkiHash } from "../helpers/fixtures.js";
 import { startPomerium, type StartedPomerium } from "../setup/containers.js";
-import { generateConfig, CONTAINER_CERTS } from "../setup/pomerium-config.js";
-import { MTLS_URL, TEST_USER } from "../setup/constants.js";
-
-const mtlsHostname = new URL(MTLS_URL).hostname;
+import { buildRoute, generateConfig, CONTAINER_CERTS } from "../setup/pomerium-config.js";
+import { MTLS_URL } from "../setup/constants.js";
 
 /** Sign in through Keycloak with the given client certificate, then return
  * the status of a fresh navigation to the mTLS route. */
@@ -25,10 +22,7 @@ async function loginAndGetStatus(browser: Browser, cert: ClientCertType): Promis
   const context = await newContextWithCert(browser, cert, MTLS_URL);
   try {
     const page = await context.newPage();
-    await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
-    await waitForKeycloakLoginPage(page);
-    await submitLoginForm(page, TEST_USER.email, TEST_USER.password);
-    await page.waitForURL((url) => url.hostname === mtlsHostname);
+    await signInOnMtlsRoute(page);
     const response = await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
     return response!.status();
   } finally {
@@ -38,10 +32,7 @@ async function loginAndGetStatus(browser: Browser, cert: ClientCertType): Promis
 
 function policyRoute(clientCertificate: Record<string, unknown>): unknown[] {
   return [
-    {
-      from: MTLS_URL,
-      to: "http://upstream:80",
-      pass_identity_headers: true,
+    buildRoute({
       policy: [
         {
           allow: {
@@ -49,7 +40,7 @@ function policyRoute(clientCertificate: Record<string, unknown>): unknown[] {
           },
         },
       ],
-    },
+    }),
   ];
 }
 

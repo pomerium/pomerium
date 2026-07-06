@@ -15,8 +15,9 @@
 #   mtls/client-san-mismatch.*            SANs matching no configured pattern
 #   mtls/client-revoked.* + mtls/crl-root.pem        CRL / revocation tests
 #   mtls/crl-intermediate.pem                        empty CRL (full-chain CRL cases)
-#   mtls/<leaf>.fp / mtls/<leaf>.spki     lowercase SHA-256 fingerprint / base64
-#                                         SPKI hash for PPL + header assertions
+#
+# Fingerprints / SPKI hashes for PPL + header assertions are computed from the
+# .crt files at test time (helpers/fixtures.ts).
 set -e
 
 CERTS_DIR="${CERTS_DIR:-/certs}"
@@ -75,19 +76,6 @@ EOF
         -extfile "$MTLS_DIR/$name-ext.cnf" 2>/dev/null
 }
 
-# write_hashes <name>
-# Records the leaf's lowercase SHA-256 fingerprint (PPL short form) and its
-# base64-encoded SHA-256 SPKI hash, exactly as the docs' openssl commands do.
-write_hashes() {
-    name=$1
-    openssl x509 -in "$MTLS_DIR/$name.crt" -noout -fingerprint -sha256 \
-        | cut -d= -f2 | tr -d ':' | tr 'A-F' 'a-f' > "$MTLS_DIR/$name.fp"
-    openssl x509 -in "$MTLS_DIR/$name.crt" -noout -pubkey \
-        | openssl pkey -pubin -outform DER \
-        | openssl dgst -sha256 -binary \
-        | openssl enc -base64 > "$MTLS_DIR/$name.spki"
-}
-
 # --- SAN-variant client certificates (match_subject_alt_names tests) --------
 issue_client_cert client-san-dns      san-dns      "DNS:client.san-test.example"
 issue_client_cert client-san-email    san-email    "email:san-user@san-test.example"
@@ -141,15 +129,9 @@ gen_crl intermediate-ca "$MTLS_DIR/crl-intermediate.pem" "$MTLS_DIR/client-chain
 # revoked by the root's CRL, client-chain-revoked by the intermediate's).
 cat "$MTLS_DIR/crl-root.pem" "$MTLS_DIR/crl-intermediate.pem" > "$MTLS_DIR/crl-chain.pem"
 
-# --- Hash material for PPL / header assertions -------------------------------
-write_hashes client-valid
-write_hashes client-san-dns
-
 # --- Cleanup ------------------------------------------------------------------
-rm -f "$MTLS_DIR"/client-san-*.csr "$MTLS_DIR"/client-san-*-ext.cnf \
-      "$MTLS_DIR"/client-revoked.csr "$MTLS_DIR"/client-revoked-ext.cnf \
-      "$MTLS_DIR"/client-chain-revoked.csr "$MTLS_DIR"/client-chain-revoked-ext.cnf
+rm -f "$MTLS_DIR"/client-*.csr "$MTLS_DIR"/client-*-ext.cnf
 
 echo ""
 echo "Suite-specific fixtures generated:"
-ls "$MTLS_DIR" | grep -E "san|revoked|crl|\.fp$|\.spki$"
+ls "$MTLS_DIR" | grep -E "san|revoked|crl"

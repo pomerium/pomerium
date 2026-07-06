@@ -14,7 +14,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { apiContext } from "../helpers/api.js";
+import { withCert } from "../helpers/api.js";
 import { fingerprint } from "../helpers/fixtures.js";
 import { startPomerium } from "../setup/containers.js";
 import { CONTAINER_CERTS, generateConfig } from "../setup/pomerium-config.js";
@@ -37,17 +37,14 @@ test.describe("Group G: certificate-derived request headers", () => {
       }),
     });
     try {
-      const ctx = await apiContext("valid");
-      try {
+      await withCert("valid", async (ctx) => {
         const res = await ctx.get(MTLS_URL);
         expect(res.status()).toBe(200);
         const body = await res.text(); // whoami echoes the request headers
         const line = headerLine(body, "X-Client-Cert");
         expect(line, "upstream must receive X-Client-Cert").toBeTruthy();
         expect(line!.toLowerCase()).toContain(fingerprint("valid"));
-      } finally {
-        await ctx.dispose();
-      }
+      });
     } finally {
       await pomerium.stop();
     }
@@ -69,8 +66,7 @@ test.describe("Group G: certificate-derived request headers", () => {
       }),
     });
     try {
-      const ctx = await apiContext("valid");
-      try {
+      await withCert("valid", async (ctx) => {
         // Request to the route root is allowed and reaches the backend...
         const res = await ctx.get(MTLS_URL);
         expect(res.status()).toBe(200);
@@ -81,9 +77,7 @@ test.describe("Group G: certificate-derived request headers", () => {
         );
         expect(headerLine(body, "X-Client-Cert-San-Dns")).toContain("alice.company.com");
         expect(headerLine(body, "X-Client-Cert-San-Email")).toContain("alice@company.com");
-      } finally {
-        await ctx.dispose();
-      }
+      });
     } finally {
       await pomerium.stop();
     }

@@ -7,20 +7,11 @@
  * CA's empty CRL; crl-chain.pem bundles both.
  */
 
-import { test, type APIRequestContext } from "@playwright/test";
-import { apiContext, expectDenied495, expectUpstreamReached } from "../helpers/api.js";
+import { test } from "@playwright/test";
+import { expectDenied495, expectUpstreamReached, withCert } from "../helpers/api.js";
 import { rootCRLBase64 } from "../helpers/fixtures.js";
 import { startPomerium, type PomeriumOptions, type StartedPomerium } from "../setup/containers.js";
 import { CONTAINER_CERTS, generateConfig } from "../setup/pomerium-config.js";
-
-async function withCert<T>(cert: Parameters<typeof apiContext>[0], fn: (ctx: APIRequestContext) => Promise<T>): Promise<T> {
-  const ctx = await apiContext(cert);
-  try {
-    return await fn(ctx);
-  } finally {
-    await ctx.dispose();
-  }
-}
 
 test.describe("Group C: certificate revocation lists", () => {
   // TC-CC-09 (crl_file) + TC-CC-11 (crl inline / env vars): the same CRL is

@@ -75,8 +75,9 @@ run, torn down in global teardown):
 3. **Upstream** (`traefik/whoami`, alias `upstream`): echoes request headers,
    which makes Pomerium's injected identity headers assertable.
 4. **Pomerium** (aliases `authenticate.localhost.pomerium.io`,
-   `mtls.localhost.pomerium.io`, host port 8443): the official image with
-   `pomerium/config.yaml` and `.certs/` mounted read-only.
+   `mtls.localhost.pomerium.io`, host port 8443): the official image with a
+   generated config (`setup/pomerium-config.ts`, written into `.gen/`) and
+   `.certs/` mounted read-only.
 
 Tests run serially (`workers: 1`) because the stack is shared and the ports
 are fixed.
