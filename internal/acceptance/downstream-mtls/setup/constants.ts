@@ -21,6 +21,9 @@ export const SUITE_DIR = path.resolve(__dirname, "..");
 export const CERTS_DIR = path.join(SUITE_DIR, ".certs");
 export const MTLS_CERTS_DIR = path.join(CERTS_DIR, "mtls");
 
+/** CA that signs the server TLS leaf; used to verify Pomerium's certificate. */
+export const SERVER_CA_FILE = path.join(CERTS_DIR, "ca.crt");
+
 /** Test user from the shared acceptance realm (../keycloak). The mTLS client
  * certificates are issued to the same identity (SAN email alice@company.com). */
 export const TEST_USER = {

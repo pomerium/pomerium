@@ -8,6 +8,7 @@
 import * as fs from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 import * as tls from "node:tls";
+import { SERVER_CA_FILE } from "../setup/constants.js";
 
 // Dial target: *.localhost.pomerium.io resolves to 127.0.0.1, Pomerium binds 8443.
 const HOST = "127.0.0.1";
@@ -43,8 +44,8 @@ function readPem(file: string): Buffer {
 
 /**
  * Perform a TLS handshake (optionally presenting a client certificate) and a
- * minimal HTTP/1.1 request. Server certificate verification is disabled - the
- * stack uses a per-run test CA.
+ * minimal HTTP/1.1 request. The server certificate is verified against the
+ * suite's per-run CA (SERVER_CA_FILE); only the client-cert side varies.
  */
 export function rawTLSProbe(opts: RawTLSOptions): Promise<RawTLSResult> {
   const { servername, certPath, keyPath, timeoutMs = 10_000 } = opts;
@@ -62,7 +63,10 @@ export function rawTLSProbe(opts: RawTLSOptions): Promise<RawTLSResult> {
       host: HOST,
       port: PORT,
       servername,
-      rejectUnauthorized: false,
+      // Verify Pomerium's server cert against the suite CA. servername is the
+      // FQDN (a SAN on the leaf), so hostname verification holds even though we
+      // dial 127.0.0.1.
+      ca: readPem(SERVER_CA_FILE),
       cert: certPath ? readPem(certPath) : undefined,
       key: keyPath ? readPem(keyPath) : undefined,
     });
