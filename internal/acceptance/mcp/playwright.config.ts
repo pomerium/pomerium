@@ -17,6 +17,10 @@ export default defineConfig({
   reporter: [
     ["list"],
     ["html", { outputFolder: "playwright-report", open: "never" }],
+    // Machine-readable results consumed by the shared acceptance summary
+    // aggregator (internal/acceptance/scripts/generate-summary.mjs), which
+    // merges every harness's results.json into one Feature Coverage table.
+    ["json", { outputFile: "results.json" }],
   ],
   outputDir: "test-results",
 

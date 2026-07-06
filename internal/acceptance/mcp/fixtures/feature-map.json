@@ -1,0 +1,23 @@
+{
+  "_comment": "Feature map fragment for the container-based MCP e2e harness. Merged with the other harnesses' fragments by internal/acceptance/scripts/generate-summary.mjs into one Feature Coverage table. File keys are relative to this harness's Playwright testDir (./tests).",
+  "categories": {
+    "MCP": {
+      "description": "MCP 2025-11-25 downstream authorization server conformance",
+      "files": {
+        "mcp-happy-path.spec.ts": ["OAuth 2.1 Sign-in", "Tool Call"],
+        "mcp-enforcement.spec.ts": ["Unauthenticated 401", "Policy Denial"],
+        "spec-as-metadata.spec.ts": ["AS Metadata", "PKCE S256", "DCR Support"],
+        "spec-www-authenticate.spec.ts": ["WWW-Authenticate", "Resource Metadata"],
+        "spec-prm-normalization.spec.ts": ["PRM Normalization"],
+        "spec-protocol.spec.ts": ["Protocol 2025-11-25"],
+        "spec-dcr.spec.ts": ["Dynamic Client Registration"],
+        "spec-security.spec.ts": [
+          "PKCE Bypass Rejected",
+          "Single-use Codes",
+          "Loopback Redirect"
+        ],
+        "spec-tools.spec.ts": ["tools/list", "Structured Output", "mcp_tool Policy"]
+      }
+    }
+  }
+}

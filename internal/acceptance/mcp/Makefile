@@ -40,4 +40,4 @@ test-debug: certs
 	$(NODE_CA) npx playwright test --debug
 
 clean:
-	rm -rf $(CERTS_DIR) test-results playwright-report
+	rm -rf $(CERTS_DIR) test-results playwright-report results.json
