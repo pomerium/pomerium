@@ -1,3 +1,4 @@
-artifacts/*
-!artifacts/.gitkeep
-browser/node_modules/
+.certs/
+node_modules/
+test-results/
+playwright-report/

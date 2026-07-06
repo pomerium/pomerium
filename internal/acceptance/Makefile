@@ -28,9 +28,9 @@ help:
 	@echo "  make artifacts    - Collect artifacts"
 	@echo "  make clean        - Stop stack and remove artifacts"
 	@echo ""
-	@echo "Downstream mTLS suite (testcontainers, official pomerium image):"
-	@echo "  make deps-downstream-mtls        - Pull images and install browser deps"
-	@echo "  make test-downstream-mtls        - Run the downstream mTLS suite"
+	@echo "Downstream mTLS suite (testcontainers, self-contained - does NOT use the compose stack):"
+	@echo "  make deps-downstream-mtls        - Install suite deps + Chromium, refresh pomerium image"
+	@echo "  make test-downstream-mtls        - Run the downstream mTLS e2e suite (headless)"
 	@echo "  make test-downstream-mtls-headed - Run it with a visible browser"
 	@echo ""
 	@echo "Aliases: test-headed, test-debug, test-authn, test-authz, test-headers"
@@ -81,7 +81,13 @@ test-headers: test-suite-headers
 test-go: up
 	go test -tags=acceptance -v -timeout=20m ./...
 
-# Downstream mTLS suite (see downstream-mtls/README.md)
+# ---------------------------------------------------------------------------
+# Downstream mTLS e2e suite (internal/acceptance/downstream-mtls):
+# testcontainers-based and entirely self-contained - it boots its own Keycloak
+# + upstream + Pomerium (official image) and does NOT use the compose stack
+# above. Do not run `make up` and `make test-downstream-mtls` at the same
+# time: both bind host ports 8443/8080.
+# ---------------------------------------------------------------------------
 deps-downstream-mtls:
 	$(MAKE) -C downstream-mtls deps
 
