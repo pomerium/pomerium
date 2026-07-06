@@ -16,12 +16,16 @@ import (
 
 // Run runs the pomerium zero command.
 func Run(ctx context.Context, configFile string) error {
+	return RunWithToken(ctx, getToken(configFile))
+}
+
+// Run runs the pomerium zero command using the given cluster token.
+func RunWithToken(ctx context.Context, token string) error {
 	err := setupLogger()
 	if err != nil {
 		return fmt.Errorf("error setting up logger: %w", err)
 	}
 
-	token := getToken(configFile)
 	if token == "" {
 		return errors.New("no token provided")
 	}

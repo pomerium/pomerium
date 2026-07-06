@@ -16,6 +16,8 @@ import (
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
+	_ "github.com/pomerium/pomerium/internal/zero/bootstrap/writers/filesystem"
+	_ "github.com/pomerium/pomerium/internal/zero/bootstrap/writers/k8s"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/controller/usagereporter"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
