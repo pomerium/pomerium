@@ -70,6 +70,7 @@ func newPendingUpstreamAuth(p newPendingUpstreamAuthParams, setup *upstreamOAuth
 		CreatedAt:                 timestamppb.New(now),
 		ExpiresAt:                 timestamppb.New(now.Add(pendingAuthExpiry)),
 		ResourceParam:             setup.Discovery.Resource,
+		MustValidateIssuer:        setup.Discovery.MustValidateIssuer,
 	}
 }
 

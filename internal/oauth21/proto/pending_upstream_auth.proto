@@ -89,4 +89,7 @@ message PendingUpstreamAuth {
   // Used in both authorization and token exchange requests.
   // Falls back to upstream_server if empty (backwards compatibility).
   string resource_param = 19;
+
+  // Whether the issuer presented in the callback must be validated per RFC 9207.
+  bool must_validate_issuer = 20;
 }

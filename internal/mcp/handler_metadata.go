@@ -87,7 +87,7 @@ type AuthorizationServerMetadata struct {
 
 	// AuthorizationResponseISSParameterSupported is OPTIONAL. Boolean value indicating whether the authorization server
 	// provides the iss parameter in the authorization response as defined in RFC 9207. If omitted, the default value is false.
-	AuthorizationResponseISSParameterSupported bool `json:"authorization_response_iss_parameter_supported"`
+	AuthorizationResponseISSParameterSupported bool `json:"authorization_response_iss_parameter_supported,omitempty"`
 }
 
 // ProtectedResourceMetadata represents OAuth Protected Resource Metadata.

@@ -72,20 +72,25 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// RFC 9207: validate a present iss against the recorded issuer.
-	if iss != "" &&
-		// The issuer is only empty when the oauth2 parameters are specified on the route and
-		// do not have to go through discovery
-		pending.AuthorizationServerIssuer != "" &&
-		iss != pending.AuthorizationServerIssuer {
-		log.Ctx(ctx).Error().Str("state_id", stateID).
-			Str("issuer", pending.AuthorizationServerIssuer).
-			Str("received-issuer", iss).
-			Msg("mcp/client-oauth-callback: issuer mismatch")
-		if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, pending.UserId, pending.DownstreamHost); delErr != nil {
-			log.Ctx(ctx).Warn().Err(delErr).Str("state_id", stateID).Msg("mcp/client-oauth-callback: failed to clean up expired pending auth state")
+	if pending.MustValidateIssuer {
+		if pending.AuthorizationServerIssuer == "" || iss == "" {
+			log.Ctx(ctx).Error().Str("state_id", stateID).
+				Str("issuer", pending.AuthorizationServerIssuer).
+				Str("received-issuer", iss).
+				Msg("mcp/client-oauth-callback: issuer not specified")
+			http.Error(w, "Invalid issuer", http.StatusBadRequest)
 		}
-		http.Error(w, "Invalid issuer", http.StatusBadRequest)
-		return
+		if pending.AuthorizationServerIssuer != "" && iss != pending.AuthorizationServerIssuer {
+			log.Ctx(ctx).Error().Str("state_id", stateID).
+				Str("issuer", pending.AuthorizationServerIssuer).
+				Str("received-issuer", iss).
+				Msg("mcp/client-oauth-callback: issuer mismatch")
+			if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, pending.UserId, pending.DownstreamHost); delErr != nil {
+				log.Ctx(ctx).Warn().Err(delErr).Str("state_id", stateID).Msg("mcp/client-oauth-callback: failed to clean up expired pending auth state")
+			}
+			http.Error(w, "Invalid issuer", http.StatusBadRequest)
+			return
+		}
 	}
 
 	// Exchange authorization code for tokens
