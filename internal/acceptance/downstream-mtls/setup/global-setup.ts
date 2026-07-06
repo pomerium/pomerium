@@ -5,15 +5,14 @@
 
 import type { FullConfig } from "@playwright/test";
 import { startBaseStack } from "./containers.js";
-import { AUTHENTICATE_URL, MTLS_URL } from "./constants.js";
+import { AUTHENTICATE_URL, KEYCLOAK_REALM_URL, MTLS_URL } from "./constants.js";
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
   console.log("\n=== Pomerium downstream mTLS e2e — booting base stack (testcontainers) ===");
-  const stack = await startBaseStack();
+  await startBaseStack();
 
   console.log(`  mTLS route:      ${MTLS_URL}`);
   console.log(`  Authenticate:    ${AUTHENTICATE_URL}`);
-  console.log("  Keycloak realm:  http://keycloak.localhost.pomerium.io:8080/realms/pomerium-e2e");
-  console.log(`  Certificates:    ${stack.certs.certsDir}`);
+  console.log(`  Keycloak realm:  ${KEYCLOAK_REALM_URL}`);
   console.log("=== base stack ready (Pomerium boots per spec file) ===\n");
 }

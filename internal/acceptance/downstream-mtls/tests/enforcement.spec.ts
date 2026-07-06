@@ -4,14 +4,18 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { apiContext, expectDenied495, getNoRedirect } from "../helpers/api.js";
+import { setTimeout as sleep } from "node:timers/promises";
+import {
+  expectDenied495,
+  expectLoginRedirect,
+  getNoRedirect,
+  withCert,
+} from "../helpers/api.js";
 import { certPaths } from "../helpers/mtls.js";
 import { rawTLSProbe } from "../helpers/raw-tls.js";
 import { startPomerium } from "../setup/containers.js";
-import { CONTAINER_CERTS, generateConfig } from "../setup/pomerium-config.js";
-import { MTLS_URL } from "../setup/constants.js";
-
-const mtlsHost = new URL(MTLS_URL).hostname;
+import { buildRoute, CONTAINER_CERTS, generateConfig } from "../setup/pomerium-config.js";
+import { MTLS_HOSTNAME, MTLS_URL } from "../setup/constants.js";
 
 test.describe("Group D: enforcement modes", () => {
   test("TC-CC-12: policy_with_default_deny - 495 on routes, internal pages exempt", async () => {
@@ -25,8 +29,7 @@ test.describe("Group D: enforcement modes", () => {
       }),
     });
     try {
-      const ctx = await apiContext(null);
-      try {
+      await withCert(null, async (ctx) => {
         // User-defined route: denied with the 495 error page.
         await expectDenied495(ctx, MTLS_URL);
         // Internal Pomerium pages remain reachable without a certificate.
@@ -34,9 +37,7 @@ test.describe("Group D: enforcement modes", () => {
         expect(healthz.status()).toBe(200);
         const internal = await getNoRedirect(ctx, `${MTLS_URL}/.pomerium/`);
         expect(internal.status()).not.toBe(495);
-      } finally {
-        await ctx.dispose();
-      }
+      });
     } finally {
       await pomerium.stop();
     }
@@ -49,51 +50,32 @@ test.describe("Group D: enforcement modes", () => {
         downstreamMtls: { ca_file: CONTAINER_CERTS.rootCA, enforcement: "policy" },
         routes: [
           // Route with an explicit deny rule for untrusted client certs.
-          {
-            from: MTLS_URL,
-            to: "http://upstream:80",
+          buildRoute({
             prefix: "/guarded",
             policy: [
               { deny: { or: [{ invalid_client_certificate: true }] } },
               { allow: { or: [{ authenticated_user: true }] } },
             ],
-          },
+          }),
           // Route with a normal policy only.
-          {
-            from: MTLS_URL,
-            to: "http://upstream:80",
-            policy: [{ allow: { or: [{ authenticated_user: true }] } }],
-          },
+          buildRoute({}),
         ],
       }),
     });
     try {
-      const noCert = await apiContext(null);
-      try {
+      await withCert(null, async (ctx) => {
         // Without the default deny rule, a certificate-less request is no
         // longer blocked at the mTLS layer - normal policy applies (redirect
         // into the login flow, not 495).
-        const open = await getNoRedirect(noCert, MTLS_URL);
-        expect(open.status()).toBe(302);
-        expect(open.headers()["location"] ?? "").toMatch(
-          /authenticate\.localhost\.pomerium\.io|\.pomerium\/sign_in/,
-        );
+        await expectLoginRedirect(ctx, MTLS_URL);
 
         // The explicit invalid_client_certificate deny rule still blocks.
-        await expectDenied495(noCert, `${MTLS_URL}/guarded`);
-      } finally {
-        await noCert.dispose();
-      }
+        await expectDenied495(ctx, `${MTLS_URL}/guarded`);
+      });
 
       // With a trusted certificate the guarded route is not blocked by the
       // deny rule (it proceeds to the normal login flow).
-      const valid = await apiContext("valid");
-      try {
-        const guarded = await getNoRedirect(valid, `${MTLS_URL}/guarded`);
-        expect(guarded.status()).toBe(302);
-      } finally {
-        await valid.dispose();
-      }
+      await withCert("valid", (ctx) => expectLoginRedirect(ctx, `${MTLS_URL}/guarded`));
     } finally {
       await pomerium.stop();
     }
@@ -113,7 +95,7 @@ test.describe("Group D: enforcement modes", () => {
     });
     try {
       // Let the readiness probe's own log entries drain before capturing.
-      await new Promise((r) => setTimeout(r, 1_000));
+      await sleep(1_000);
       pomerium.clearLogs();
 
       // No certificate: the connection is rejected at the TLS layer - there
@@ -121,22 +103,22 @@ test.describe("Group D: enforcement modes", () => {
       // ERR_BAD_SSL_CLIENT_AUTH_CERT). This applies to internal routes too
       // (the probe requests /healthz, which TC-CC-12 proved is exempt in the
       // default mode).
-      const noCert = await rawTLSProbe({ servername: mtlsHost });
+      const noCert = await rawTLSProbe({ servername: MTLS_HOSTNAME });
       expect(noCert.ok, `expected TLS-level rejection, got: ${noCert.statusLine}`).toBe(false);
 
       // Untrusted certificate: same TLS-level rejection.
-      const wrongCA = await rawTLSProbe({ servername: mtlsHost, ...pathsFor("wrong-ca") });
+      const wrongCA = await rawTLSProbe({ servername: MTLS_HOSTNAME, ...certPaths("wrong-ca") });
       expect(wrongCA.ok, `expected TLS-level rejection, got: ${wrongCA.statusLine}`).toBe(false);
 
       // The rejected connections never reach the authorize service: no
       // access/authorize log entries are produced for them.
-      await new Promise((r) => setTimeout(r, 2_000));
+      await sleep(2_000);
       const logs = pomerium.logs().join("\n");
       expect(logs).not.toMatch(/client-certificate-required|invalid-client-certificate/);
       expect(logs).not.toMatch(/"path":/);
 
       // A trusted certificate completes the handshake and gets a response.
-      const valid = await rawTLSProbe({ servername: mtlsHost, ...pathsFor("valid") });
+      const valid = await rawTLSProbe({ servername: MTLS_HOSTNAME, ...certPaths("valid") });
       expect(valid.ok, valid.error).toBe(true);
       expect(valid.statusLine).toContain("200");
     } finally {
@@ -144,8 +126,3 @@ test.describe("Group D: enforcement modes", () => {
     }
   });
 });
-
-function pathsFor(cert: "valid" | "wrong-ca") {
-  const { certPath, keyPath } = certPaths(cert);
-  return { certPath, keyPath };
-}

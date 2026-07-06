@@ -19,6 +19,7 @@
 // the fixed 8443 port is never contended.
 
 import * as path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   GenericContainer,
   Network,
@@ -26,13 +27,12 @@ import {
   type StartedTestContainer,
   type StartedNetwork,
 } from "testcontainers";
-import { ensureCerts, type CertPaths } from "./certs.js";
+import { certPaths } from "../helpers/mtls.js";
 import { waitForTLS } from "../helpers/raw-tls.js";
+import { ensureCerts, type CertPaths } from "./certs.js";
+import { AUTHENTICATE_HOSTNAME, KEYCLOAK_HOSTNAME, MTLS_HOSTNAME, SUITE_DIR } from "./constants.js";
 
-const SETUP_DIR = __dirname;
-const SUITE_DIR = path.resolve(SETUP_DIR, "..");
 const ACCEPTANCE_DIR = path.resolve(SUITE_DIR, "..");
-
 const KEYCLOAK_IMPORT_DIR = path.join(ACCEPTANCE_DIR, "keycloak");
 
 const KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.5.2";
@@ -53,7 +53,6 @@ export interface BaseStack {
   network: StartedNetwork;
   keycloak: StartedTestContainer;
   upstream: StartedTestContainer;
-  certs: CertPaths;
 }
 
 let base: BaseStack | undefined;
@@ -78,22 +77,21 @@ function withLogs(c: GenericContainer, prefix: string): GenericContainer {
 export async function startBaseStack(): Promise<BaseStack> {
   if (base) return base;
 
-  const certPaths = certs();
+  certs(); // generate the PKI up front so workers hit the freshness fast path
   const network = await new Network().start();
-  const launched: StartedTestContainer[] = [];
 
   try {
     // --- Keycloak (IdP) ----------------------------------------------------
-    const keycloak = await withLogs(
+    const keycloakContainer = withLogs(
       new GenericContainer(KEYCLOAK_IMAGE)
         .withNetwork(network)
-        .withNetworkAliases("keycloak.localhost.pomerium.io")
+        .withNetworkAliases(KEYCLOAK_HOSTNAME)
         .withExposedPorts({ container: 8080, host: 8080 }, 9000)
         .withEnvironment({
           KC_BOOTSTRAP_ADMIN_USERNAME: "admin",
           KC_BOOTSTRAP_ADMIN_PASSWORD: "admin",
           KC_HTTP_ENABLED: "true",
-          KC_HOSTNAME: "keycloak.localhost.pomerium.io",
+          KC_HOSTNAME: KEYCLOAK_HOSTNAME,
           KC_HOSTNAME_STRICT: "false",
           KC_PROXY_HEADERS: "xforwarded",
         })
@@ -104,29 +102,42 @@ export async function startBaseStack(): Promise<BaseStack> {
         .withWaitStrategy(Wait.forHttp("/health/ready", 9000).forStatusCode(200))
         .withStartupTimeout(STARTUP_TIMEOUT_MS),
       "keycloak",
-    ).start();
-    launched.push(keycloak);
+    );
 
     // --- Upstream echo server ----------------------------------------------
     // whoami echoes the request headers, which makes Pomerium's injected
     // headers assertable. Built FROM scratch, so wait on its log.
-    const upstream = await withLogs(
+    const upstreamContainer = withLogs(
       new GenericContainer(UPSTREAM_IMAGE)
         .withNetwork(network)
         .withNetworkAliases("upstream")
         .withWaitStrategy(Wait.forLogMessage(/Starting up on port/))
         .withStartupTimeout(STARTUP_TIMEOUT_MS),
       "upstream",
-    ).start();
-    launched.push(upstream);
+    );
+
+    // The two services are independent; boot them concurrently (Keycloak
+    // dominates the wall time) and clean up whichever started if one fails.
+    const results = await Promise.allSettled([keycloakContainer.start(), upstreamContainer.start()]);
+    const rejected = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (rejected) {
+      await Promise.allSettled(
+        results
+          .filter((r): r is PromiseFulfilledResult<StartedTestContainer> => r.status === "fulfilled")
+          .map((r) => r.value.stop()),
+      );
+      throw rejected.reason;
+    }
+    const [keycloak, upstream] = (results as PromiseFulfilledResult<StartedTestContainer>[]).map(
+      (r) => r.value,
+    );
 
     // Hand the network to the worker processes (they inherit process.env).
     process.env[NETWORK_ENV] = network.getName();
 
-    base = { network, keycloak, upstream, certs: certPaths };
+    base = { network, keycloak, upstream };
     return base;
   } catch (err) {
-    await Promise.allSettled(launched.reverse().map((c) => c.stop()));
     await network.stop().catch(() => {});
     throw err;
   }
@@ -156,7 +167,6 @@ export interface PomeriumOptions {
 }
 
 export interface StartedPomerium {
-  container: StartedTestContainer;
   /** Lines captured from the container's stdout/stderr since start. */
   logs(): string[];
   clearLogs(): void;
@@ -172,7 +182,7 @@ let currentPomerium: StartedPomerium | undefined;
  * reach the shared network via the name exported by global setup.
  */
 export async function startPomerium(opts: PomeriumOptions): Promise<StartedPomerium> {
-  const networkName = process.env[NETWORK_ENV] ?? base?.network.getName();
+  const networkName = process.env[NETWORK_ENV];
   if (!networkName) {
     throw new Error(
       `${NETWORK_ENV} is not set - the base stack (global setup) must run before startPomerium`,
@@ -182,17 +192,17 @@ export async function startPomerium(opts: PomeriumOptions): Promise<StartedPomer
     await currentPomerium.stop();
   }
 
-  const certPaths = certs();
+  const certMaterial = certs();
   const lines: string[] = [];
 
   let container = new GenericContainer(POMERIUM_IMAGE)
     .withNetworkMode(networkName)
-    .withNetworkAliases("authenticate.localhost.pomerium.io", "mtls.localhost.pomerium.io")
+    .withNetworkAliases(AUTHENTICATE_HOSTNAME, MTLS_HOSTNAME)
     .withExposedPorts({ container: 8443, host: 8443 })
     .withEnvironment(opts.env ?? {})
     .withBindMounts([
       { source: opts.configFile, target: "/pomerium/config.yaml", mode: "ro" },
-      { source: certPaths.certsDir, target: "/certs", mode: "ro" },
+      { source: certMaterial.certsDir, target: "/certs", mode: "ro" },
     ])
     .withLogConsumer((stream) => {
       stream.on("data", (line: string) => {
@@ -224,13 +234,12 @@ export async function startPomerium(opts: PomeriumOptions): Promise<StartedPomer
       } catch (err) {
         const message = String(err);
         if (attempt >= 10 || !/port is already allocated/.test(message)) throw err;
-        await new Promise((r) => setTimeout(r, 1_000));
+        await sleep(1_000);
       }
     }
   })();
 
   const started: StartedPomerium = {
-    container: startedContainer,
     logs: () => [...lines],
     clearLogs: () => {
       lines.length = 0;
@@ -244,11 +253,7 @@ export async function startPomerium(opts: PomeriumOptions): Promise<StartedPomer
 
   if (opts.wait === "client-cert-tls") {
     try {
-      await waitForTLS({
-        servername: "mtls.localhost.pomerium.io",
-        certPath: path.join(certPaths.mtlsDir, "client-valid.crt"),
-        keyPath: path.join(certPaths.mtlsDir, "client-valid.key"),
-      });
+      await waitForTLS({ servername: MTLS_HOSTNAME, ...certPaths("valid") });
     } catch (err) {
       await started.stop();
       throw err;

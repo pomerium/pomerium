@@ -11,22 +11,20 @@
  * - Control-plane routes (/healthz, /.pomerium/, the authenticate host) are
  *   exempt from the default deny.
  * - TLS-level rejection only happens under `enforcement: reject_connection`
- *   (future spec; see isTLSHandshakeError in ../helpers/mtls.js).
+ *   (covered by TC-CC-14 in enforcement.spec.ts).
  */
 
 import { test, expect } from "@playwright/test";
-import { newContextWithCert, newContextWithoutCert } from "../helpers/mtls.js";
-import { waitForKeycloakLoginPage, submitLoginForm } from "../helpers/login.js";
+import { newContextWithCert, type ClientCertType } from "../helpers/mtls.js";
+import { signInOnMtlsRoute } from "../helpers/login.js";
 import { startPomerium, type StartedPomerium } from "../setup/containers.js";
-import { BASE_CONFIG_FILE } from "../setup/pomerium-config.js";
-import { MTLS_URL, TEST_USER } from "../setup/constants.js";
-
-const mtlsHostname = new URL(MTLS_URL).hostname;
+import { baseConfigFile } from "../setup/pomerium-config.js";
+import { MTLS_HOSTNAME, MTLS_URL } from "../setup/constants.js";
 
 let pomerium: StartedPomerium;
 
 test.beforeAll(async () => {
-  pomerium = await startPomerium({ configFile: BASE_CONFIG_FILE });
+  pomerium = await startPomerium({ configFile: baseConfigFile() });
 });
 
 test.afterAll(async () => {
@@ -40,13 +38,9 @@ test.describe("downstream mTLS (enforcement: policy_with_default_deny)", () => {
       const page = await context.newPage();
 
       // First navigation: TLS handshake presents the client certificate,
-      // then the OIDC redirect chain leads to the Keycloak login form.
-      await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
-      await waitForKeycloakLoginPage(page);
-      await submitLoginForm(page, TEST_USER.email, TEST_USER.password);
-
-      // The auth round trip ends back on the mTLS route.
-      await page.waitForURL((url) => url.hostname === mtlsHostname);
+      // then the OIDC redirect chain leads through the Keycloak login form
+      // and back to the mTLS route.
+      await signInOnMtlsRoute(page);
 
       // Fresh navigation with an established session: whoami echoes the
       // request headers, which must include the identity header Pomerium
@@ -60,39 +54,32 @@ test.describe("downstream mTLS (enforcement: policy_with_default_deny)", () => {
     }
   });
 
-  test("no client cert is denied with 495 before any IdP redirect", async ({ browser }) => {
-    const context = await newContextWithoutCert(browser);
-    try {
-      const page = await context.newPage();
-      const response = await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
-      expect(response).not.toBeNull();
-      expect(response!.status()).toBe(495);
-      // Denied at the edge: no redirect to Keycloak happened.
-      expect(new URL(page.url()).hostname).toBe(mtlsHostname);
-      await expect(page.locator("body")).toContainText(/client certificate/i);
-    } finally {
-      await context.close();
-    }
-  });
+  // The handshake ACCEPTS a missing or untrusted certificate by design in
+  // this enforcement mode; the request is then denied by authorize.
+  const denied: Array<{ title: string; cert: ClientCertType | null }> = [
+    { title: "no client cert", cert: null },
+    { title: "client cert from an untrusted CA", cert: "wrong-ca" },
+  ];
 
-  test("client cert from an untrusted CA is denied with 495", async ({ browser }) => {
-    const context = await newContextWithCert(browser, "wrong-ca", MTLS_URL);
-    try {
-      const page = await context.newPage();
-      // The handshake ACCEPTS the untrusted certificate by design in this
-      // enforcement mode; the request is then denied by authorize.
-      const response = await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
-      expect(response).not.toBeNull();
-      expect(response!.status()).toBe(495);
-      expect(new URL(page.url()).hostname).toBe(mtlsHostname);
-      await expect(page.locator("body")).toContainText(/client certificate/i);
-    } finally {
-      await context.close();
-    }
-  });
+  for (const { title, cert } of denied) {
+    test(`${title} is denied with 495 before any IdP redirect`, async ({ browser }) => {
+      const context = await newContextWithCert(browser, cert, MTLS_URL);
+      try {
+        const page = await context.newPage();
+        const response = await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
+        expect(response).not.toBeNull();
+        expect(response!.status()).toBe(495);
+        // Denied at the edge: no redirect to Keycloak happened.
+        expect(new URL(page.url()).hostname).toBe(MTLS_HOSTNAME);
+        await expect(page.locator("body")).toContainText(/client certificate/i);
+      } finally {
+        await context.close();
+      }
+    });
+  }
 
   test("control-plane /healthz is exempt from the default deny", async ({ browser }) => {
-    const context = await newContextWithoutCert(browser);
+    const context = await newContextWithCert(browser, null, MTLS_URL);
     try {
       const page = await context.newPage();
       const response = await page.goto(`${MTLS_URL}/healthz`, {

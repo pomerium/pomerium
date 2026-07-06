@@ -13,20 +13,30 @@ import { certPaths, type ClientCertType } from "./mtls.js";
  * Create an APIRequestContext that presents the given client certificate
  * (or none, for the "declined certificate" case).
  */
-export async function apiContext(
-  certType: ClientCertType | null,
-  originUrl: string = MTLS_URL,
-): Promise<APIRequestContext> {
+export async function apiContext(certType: ClientCertType | null): Promise<APIRequestContext> {
   return request.newContext({
     ignoreHTTPSErrors: true,
     ...(certType
       ? {
           clientCertificates: [
-            { origin: new URL(originUrl).origin, ...certPaths(certType) },
+            { origin: new URL(MTLS_URL).origin, ...certPaths(certType) },
           ],
         }
       : {}),
   });
+}
+
+/** Run `fn` with a request context presenting the given certificate, then dispose it. */
+export async function withCert<T>(
+  certType: ClientCertType | null,
+  fn: (ctx: APIRequestContext) => Promise<T>,
+): Promise<T> {
+  const ctx = await apiContext(certType);
+  try {
+    return await fn(ctx);
+  } finally {
+    await ctx.dispose();
+  }
 }
 
 /** Fetch without following redirects, so 30x responses stay observable. */
@@ -61,19 +71,29 @@ export async function expectUpstreamReached(
   return res;
 }
 
+/** Assert the request entered the normal login flow (302 toward the IdP). */
+export async function expectLoginRedirect(
+  ctx: APIRequestContext,
+  url: string = MTLS_URL,
+): Promise<APIResponse> {
+  const res = await getNoRedirect(ctx, url);
+  expect(res.status(), "request must enter the login flow").toBe(302);
+  expect(res.headers()["location"] ?? "").toMatch(
+    /authenticate\.localhost\.pomerium\.io|\.pomerium\/sign_in/,
+  );
+  return res;
+}
+
 /** Poll a predicate over captured Pomerium logs (log writes are async). */
 export async function waitForLogLine(
   logs: () => string[],
   match: RegExp,
   timeoutMs = 10_000,
-): Promise<string> {
-  const start = Date.now();
-  for (;;) {
-    const line = logs().find((l) => match.test(l));
-    if (line) return line;
-    if (Date.now() - start > timeoutMs) {
-      throw new Error(`no log line matching ${match} within ${timeoutMs}ms`);
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
+): Promise<void> {
+  await expect
+    .poll(() => logs().some((l) => match.test(l)), {
+      message: `no log line matching ${match}`,
+      timeout: timeoutMs,
+    })
+    .toBe(true);
 }

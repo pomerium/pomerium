@@ -9,7 +9,7 @@
  */
 
 import { test } from "@playwright/test";
-import { apiContext, expectDenied495, expectUpstreamReached } from "../helpers/api.js";
+import { expectDenied495, expectUpstreamReached, withCert } from "../helpers/api.js";
 import type { ClientCertType } from "../helpers/mtls.js";
 import { startPomerium, type StartedPomerium } from "../setup/containers.js";
 import { CONTAINER_CERTS, generateConfig } from "../setup/pomerium-config.js";
@@ -47,32 +47,17 @@ test.describe("Group E: match_subject_alt_names", () => {
 
   for (const { san, cert } of matching) {
     test(`TC-CC-15: ${san} matcher - certificate with matching SAN is allowed`, async () => {
-      const ctx = await apiContext(cert);
-      try {
-        await expectUpstreamReached(ctx);
-      } finally {
-        await ctx.dispose();
-      }
+      await withCert(cert, (ctx) => expectUpstreamReached(ctx));
     });
   }
 
   test("TC-CC-15: certificate with non-matching SANs is rejected", async () => {
-    const ctx = await apiContext("san-mismatch");
-    try {
-      await expectDenied495(ctx);
-    } finally {
-      await ctx.dispose();
-    }
+    await withCert("san-mismatch", (ctx) => expectDenied495(ctx));
   });
 
   test("TC-CC-15: trusted certificate without any matching SAN is rejected", async () => {
     // client-valid is signed by the trusted CA but its SANs
     // (alice.company.com / alice@company.com) match no configured pattern.
-    const ctx = await apiContext("valid");
-    try {
-      await expectDenied495(ctx);
-    } finally {
-      await ctx.dispose();
-    }
+    await withCert("valid", (ctx) => expectDenied495(ctx));
   });
 });

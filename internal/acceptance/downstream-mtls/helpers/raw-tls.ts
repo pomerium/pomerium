@@ -6,12 +6,15 @@
 // the probe always attempts a minimal HTTP exchange and classifies the result.
 
 import * as fs from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
 import * as tls from "node:tls";
 
+// Dial target: *.localhost.pomerium.io resolves to 127.0.0.1, Pomerium binds 8443.
+const HOST = "127.0.0.1";
+const PORT = 8443;
+
 export interface RawTLSOptions {
-  host?: string; // dial target (default 127.0.0.1 - *.localhost.pomerium.io)
   servername: string; // SNI / Host header
-  port?: number;
   certPath?: string;
   keyPath?: string;
   timeoutMs?: number;
@@ -26,20 +29,25 @@ export interface RawTLSResult {
   error?: string;
 }
 
+// Certificates are stable for the lifetime of the process; the readiness poll
+// probes repeatedly, so avoid re-reading the same PEMs on every attempt.
+const pemCache = new Map<string, Buffer>();
+function readPem(file: string): Buffer {
+  let pem = pemCache.get(file);
+  if (!pem) {
+    pem = fs.readFileSync(file);
+    pemCache.set(file, pem);
+  }
+  return pem;
+}
+
 /**
  * Perform a TLS handshake (optionally presenting a client certificate) and a
  * minimal HTTP/1.1 request. Server certificate verification is disabled - the
  * stack uses a per-run test CA.
  */
 export function rawTLSProbe(opts: RawTLSOptions): Promise<RawTLSResult> {
-  const {
-    host = "127.0.0.1",
-    servername,
-    port = 8443,
-    certPath,
-    keyPath,
-    timeoutMs = 10_000,
-  } = opts;
+  const { servername, certPath, keyPath, timeoutMs = 10_000 } = opts;
 
   return new Promise((resolve) => {
     let settled = false;
@@ -51,12 +59,12 @@ export function rawTLSProbe(opts: RawTLSOptions): Promise<RawTLSResult> {
     };
 
     const socket = tls.connect({
-      host,
-      port,
+      host: HOST,
+      port: PORT,
       servername,
       rejectUnauthorized: false,
-      cert: certPath ? fs.readFileSync(certPath) : undefined,
-      key: keyPath ? fs.readFileSync(keyPath) : undefined,
+      cert: certPath ? readPem(certPath) : undefined,
+      key: keyPath ? readPem(keyPath) : undefined,
     });
 
     socket.setTimeout(timeoutMs, () => done({ ok: false, error: "timeout" }));
@@ -80,7 +88,7 @@ export async function waitForTLS(opts: RawTLSOptions, deadlineMs = 60_000): Prom
   while (Date.now() - start < deadlineMs) {
     last = await rawTLSProbe({ ...opts, timeoutMs: 3_000 });
     if (last.ok) return;
-    await new Promise((r) => setTimeout(r, 500));
+    await sleep(500);
   }
   throw new Error(`TLS endpoint not ready after ${deadlineMs}ms: ${last.error}`);
 }

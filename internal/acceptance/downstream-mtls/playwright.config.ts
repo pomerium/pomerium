@@ -3,10 +3,11 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * Playwright configuration for the container-based downstream mTLS e2e suite.
  *
- * A single shared container stack (Keycloak + whoami upstream + Pomerium) is
- * booted once in global setup and torn down in global teardown. Tests run
- * serially with a single worker because the stack binds fixed host ports
- * (8443 / 8080) and is shared across tests.
+ * The config-invariant services (Keycloak + whoami upstream) are booted once
+ * in global setup and torn down in global teardown; Pomerium itself starts
+ * per spec file with that group's configuration. Tests run serially with a
+ * single worker because the stack binds fixed host ports (8443 / 8080) and
+ * is shared across tests.
  */
 export default defineConfig({
   testDir: "./tests",

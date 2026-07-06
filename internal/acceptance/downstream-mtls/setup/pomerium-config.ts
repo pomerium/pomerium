@@ -6,14 +6,15 @@
 // into the Pomerium container by startPomerium. Files are written as JSON,
 // which is valid YAML - no YAML dependency needed.
 //
-// The static pomerium/config.yaml remains the canonical base configuration
-// used by the original browser specs; generateConfig() mirrors its settings.
+// The defaults produce the suite's base configuration: trust root is the ROOT
+// CA only (not ca-chain.crt), so chain-depth behavior stays testable via
+// max_verify_depth; enforcement stays at policy_with_default_deny (handshake
+// accepts any certificate, requests without a valid one get HTTP 495).
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
-import { AUTHENTICATE_URL, MTLS_URL } from "./constants.js";
+import { AUTHENTICATE_URL, KEYCLOAK_REALM_URL, MTLS_URL, SUITE_DIR, UPSTREAM_URL } from "./constants.js";
 
-const SUITE_DIR = path.resolve(__dirname, "..");
 const GEN_DIR = path.join(SUITE_DIR, ".gen");
 
 /** In-container paths of the mounted certificate material (see certs.ts). */
@@ -27,8 +28,6 @@ export const CONTAINER_CERTS = {
 } as const;
 
 export interface RouteOptions {
-  /** Route source URL; defaults to the mTLS route. */
-  from?: string;
   /** Path prefix (for multiple routes on the same host). */
   prefix?: string;
   /** PPL policy blocks. Ignored when publicAccess is set. */
@@ -36,7 +35,6 @@ export interface RouteOptions {
   /** Use allow_public_unauthenticated_access instead of a policy. */
   publicAccess?: boolean;
   setRequestHeaders?: Record<string, string>;
-  passIdentityHeaders?: boolean;
 }
 
 export interface PomeriumConfigOptions {
@@ -56,11 +54,11 @@ export interface PomeriumConfigOptions {
 
 export function buildRoute(opts: RouteOptions = {}): Record<string, unknown> {
   const route: Record<string, unknown> = {
-    from: opts.from ?? MTLS_URL,
-    to: "http://upstream:80",
+    from: MTLS_URL,
+    to: UPSTREAM_URL,
   };
   if (opts.prefix) route.prefix = opts.prefix;
-  if (opts.passIdentityHeaders !== false) route.pass_identity_headers = true;
+  route.pass_identity_headers = true;
   if (opts.setRequestHeaders) route.set_request_headers = opts.setRequestHeaders;
   if (opts.publicAccess) {
     route.allow_public_unauthenticated_access = true;
@@ -76,16 +74,17 @@ export function generateConfig(opts: PomeriumConfigOptions): string {
     address: ":8443",
     authenticate_service_url: AUTHENTICATE_URL,
     idp_provider: "oidc",
-    idp_provider_url: "http://keycloak.localhost.pomerium.io:8080/realms/pomerium-e2e",
+    idp_provider_url: KEYCLOAK_REALM_URL,
     idp_client_id: "pomerium",
     idp_client_secret: "pomerium-e2e-secret",
     idp_scopes: ["openid", "profile", "email", "groups", "offline_access"],
     certificate_file: CONTAINER_CERTS.serverCert,
     certificate_key_file: CONTAINER_CERTS.serverKey,
-    // Test-only secrets, same values as pomerium/config.yaml.
+    // Test-only secrets (reproducible tests) - NEVER use them in production.
     cookie_secret: "dj5y7E03ULP9YebCgHNIXmxWnWfYlVXCgwbm9IEdysI=",
     shared_secret: "0CdEkgO02jgxmgSC2AdkqIbFELAN4CGw0v0RY85xNr4=",
     log_level: "debug",
+    jwt_claims_headers: { "X-Pomerium-Claim-Email": "email" },
   };
 
   if (opts.downstreamMtls !== null) {
@@ -100,5 +99,7 @@ export function generateConfig(opts: PomeriumConfigOptions): string {
   return file;
 }
 
-/** Host path of the static base config used by the original browser specs. */
-export const BASE_CONFIG_FILE = path.join(SUITE_DIR, "pomerium", "config.yaml");
+/** The suite's base configuration: root-CA trust, one auth-requiring route. */
+export function baseConfigFile(): string {
+  return generateConfig({ name: "base" });
+}
