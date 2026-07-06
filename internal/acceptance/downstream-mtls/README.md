@@ -5,87 +5,83 @@ E2E tests for Pomerium's global [`downstream_mtls` settings](https://www.pomeriu
 **official published Pomerium Docker image** with a real Keycloak IdP and a
 real browser.
 
-This suite complements the parent acceptance suite with a different harness:
+The suite is **Playwright-native**, following the same architecture as the
+sibling MCP suite (`internal/acceptance/mcp`): `npx playwright test` is the
+only entrypoint, and a Playwright global setup boots the whole container stack
+via [testcontainers](https://node.testcontainers.org/) before the specs run.
+It complements the parent acceptance suite with a different harness:
 
 |                     | `internal/acceptance` (parent) | this suite |
 |---------------------|--------------------------------|------------|
-| Orchestration       | docker-compose                 | testcontainers-go |
+| Orchestration       | docker-compose                 | testcontainers (from Playwright global setup) |
 | Pomerium            | built from source              | official image (`pomerium/pomerium:main`) |
-| Playwright          | on the host (npm)              | in a container, specs bind-mounted |
 | mTLS coverage       | deprecated per-route `tls_downstream_client_ca_file` | global `downstream_mtls` + IdP login combined |
 
 Everything is injected into containers as **volume mounts**: the Pomerium
-config, the OpenSSL cert-gen script, the Keycloak realm fixtures and the
-Playwright specs. Shared assets (cert scripts, realm JSON) are mounted
-directly from the parent suite - single source of truth, nothing copied.
+config, the OpenSSL cert-gen script and the Keycloak realm fixtures. Shared
+assets (cert scripts, realm JSON) are mounted directly from the parent suite -
+single source of truth, nothing copied.
 
 ## Running
 
-Prerequisites: **Docker and Go**. No host node/npm/openssl needed for the
-default (containerized) mode; headed/host mode additionally needs Node.js 22+.
+Prerequisites: **Docker and Node.js 22+**.
 
 From `internal/acceptance`:
 
 ```sh
-make deps-downstream-mtls          # pull images (refreshes pomerium:main), install browser deps
-make test-downstream-mtls          # run the suite (Playwright in a container)
-make test-downstream-mtls-headed   # run with a visible browser (Playwright on the host)
+make deps-downstream-mtls          # npm ci + Chromium + refresh the pomerium image
+make test-downstream-mtls          # run the suite headless
+make test-downstream-mtls-headed   # run with a visible browser
 ```
 
 Or from this directory: `make deps` / `make test` / `make test-headed` /
-`make test-host` (host-run Playwright, headless), or directly
-`go test -tags e2e -v -timeout 30m ./...`.
+`make test-debug`, or directly `npx playwright test [--headed|--debug|--ui]`.
 
-First run pulls images (Playwright ~2 GB, Keycloak ~450 MB, Pomerium ~120 MB).
-The test itself only pulls images that are missing locally, so run
-`make deps-downstream-mtls` to refresh the rolling `pomerium:main` tag.
-The suite is opt-in via the `e2e` build tag and never runs as part of
-`go test ./...` or the parent `acceptance` tag.
-
-### Headed / host mode
-
-A visible browser cannot run inside the Linux Playwright container, so
-`test-headed` (env `E2E_HEADED=1`, or `E2E_PLAYWRIGHT_MODE=host` for headless)
-runs the same specs with `npx playwright test` on the host against the same
-containerized stack. In this mode Pomerium and Keycloak are published on fixed
-host ports **8443** and **8080** (`*.localhost.pomerium.io` resolves to
-127.0.0.1, so all URLs are identical to container mode). Those ports must be
-free - stop the parent acceptance compose stack first if it is running.
+The stack binds fixed host ports **8443** (Pomerium) and **8080** (Keycloak) -
+do not run it at the same time as the parent compose stack (`make up`) or the
+MCP suite, which bind the same ports. `*.localhost.pomerium.io` resolves to
+127.0.0.1 and the same names are Docker network aliases, so every URL is valid
+from the browser on the host and from inside the containers alike.
 
 ### Environment knobs
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `POMERIUM_IMAGE` | `pomerium/pomerium:main` | Image under test (`:latest`, `git-<sha>`, ... for bisecting) |
-| `KEYCLOAK_IMAGE` | `quay.io/keycloak/keycloak:26.5.2` | IdP image |
-| `UPSTREAM_IMAGE` | `traefik/whoami:v1.11` | Upstream echo server |
-| `PLAYWRIGHT_IMAGE` | `mcr.microsoft.com/playwright:v1.61.1-noble` | Runner; **must match** the `@playwright/test` pin in `browser/package.json` - bump them together (`make lockfile` after) |
-| `E2E_KEEP_ARTIFACTS` | unset | Keep the per-run workspace even on success |
+| `MTLS_E2E_LOGS` | unset | Stream container + cert-gen logs to the console |
+| `CERTS_DIR` | `.certs/mtls` | Override the client-cert location used by the specs |
+
+testcontainers only pulls images that are missing locally; `make deps`
+refreshes the rolling `pomerium:main` tag.
 
 ## How it works
 
-One Go test (`e2e_test.go`) stands up, on a dedicated Docker network:
+`playwright.config.ts` registers `setup/global-setup.ts`, which boots (once per
+run, torn down in global teardown):
 
-1. **cert-gen** (one-shot `alpine:3.21`): runs `scripts/gen-certs.sh`, a thin
-   wrapper over the parent suite's OpenSSL scripts. Produces the Pomerium
-   server cert plus an mTLS root CA, an intermediate CA, and client certs
-   (valid / intermediate-signed / untrusted-CA) in the run workspace.
-2. **keycloak** (alias `keycloak.localhost.pomerium.io`): `start-dev
+1. **Certificates** (`setup/certs.ts`): a one-shot `alpine:3.21` container runs
+   `scripts/gen-certs.sh`, a thin wrapper over the parent suite's OpenSSL
+   scripts. Produces the Pomerium server cert plus an mTLS root CA, an
+   intermediate CA, and client certs (valid / intermediate-signed /
+   untrusted-CA) under `.certs/`. Idempotent - skipped while existing certs
+   are valid. Unlike the MCP suite this does NOT use mkcert: downstream mTLS
+   needs a client-cert PKI (second untrusted CA, intermediate chain) that
+   mkcert cannot produce, and the browser ignores HTTPS errors so no host
+   trust is needed.
+2. **Keycloak** (`quay.io/keycloak/keycloak`, alias
+   `keycloak.localhost.pomerium.io`, host port 8080): `start-dev
    --import-realm` with the parent suite's `pomerium-e2e` realm (users
    alice/bob/charlie/diana, password `password123`).
-3. **upstream** (`traefik/whoami`, alias `upstream`): echoes request headers,
+3. **Upstream** (`traefik/whoami`, alias `upstream`): echoes request headers,
    which makes Pomerium's injected identity headers assertable.
-4. **pomerium** (aliases `authenticate.localhost.pomerium.io`,
-   `mtls.localhost.pomerium.io`): the official image with
-   `pomerium/config.yaml` and the generated certs mounted read-only.
-5. **playwright runner**: `browser/` is mounted read-only, copied to `/work`,
-   `npm ci && npx playwright test`. Reports/traces are written to the mounted
-   `/artifacts` directory.
+4. **Pomerium** (aliases `authenticate.localhost.pomerium.io`,
+   `mtls.localhost.pomerium.io`, host port 8443): the official image with
+   `pomerium/config.yaml` and `.certs/` mounted read-only.
 
-All browser traffic stays inside the Docker network (fixed port `:8443`,
-matching the realm's redirect URIs), resolved via network aliases.
+Tests run serially (`workers: 1`) because the stack is shared and the ports
+are fixed.
 
-## Scenarios (`browser/tests/downstream-mtls.spec.ts`)
+## Scenarios (`tests/downstream-mtls.spec.ts`)
 
 Enforcement mode under test: `policy_with_default_deny` (the default).
 
@@ -114,10 +110,9 @@ Enforcement mode under test: `policy_with_default_deny` (the default).
 
 - `enforcement: reject_connection`: expect `page.goto` to reject with
   `net::ERR_SSL_CLIENT_AUTH_*` (see `isTLSHandshakeError` in
-  `browser/helpers/mtls.ts`). **Note:** the Go-side `/healthz` wait must then
-  present a client certificate via `tls.Config.Certificates`, or switch to
-  `wait.ForListeningPort("8443/tcp").SkipInternalCheck()` (the distroless
-  image has no `/bin/sh` for the internal check).
+  `helpers/mtls.ts`). **Note:** the Pomerium `/healthz` wait in
+  `setup/containers.ts` would then fail without a client certificate - switch
+  that variant to a log-based wait.
 - `enforcement: policy` + a route-level `deny` rule with
   `invalid_client_certificate`.
 - `max_verify_depth: 2` with the pre-generated intermediate-signed client
@@ -125,24 +120,21 @@ Enforcement mode under test: `policy_with_default_deny` (the default).
 - `match_subject_alt_names` (the valid client cert carries SAN
   `email:alice@company.com` and `DNS:alice.company.com`).
 - PPL `client_certificate` criteria (`fingerprint` is pre-computed in
-  `certs/mtls/client-valid.fingerprint`).
+  `.certs/mtls/client-valid.fingerprint`).
 - CRL revocation via `crl_file`.
 
-Each of these needs its own Pomerium container/config variant; add a config
-under `pomerium/` and a spec under `browser/tests/`.
+Each of these needs its own Pomerium config variant; add a config under
+`pomerium/` and boot a second Pomerium container (different port/aliases) or a
+separate Playwright project.
 
 ## Debugging
 
-- The per-run workspace `artifacts/run-<ts>/` (kept on failure) contains:
-  - `logs/pomerium.log`, `logs/keycloak.log` - full container logs
-  - `playwright/report/index.html` - Playwright HTML report
-  - `playwright/test-results/` - traces, screenshots, videos
-  - `certs/` - all generated certificates
-- Playwright output streams live into `go test -v`.
-- The Pomerium host-mapped port is logged at startup
-  (`*.localhost.pomerium.io` resolves to `127.0.0.1`, so you can curl it from
-  the host; the full login flow only works in-network, though, because
-  redirects use port 8443).
-- Using colima/podman instead of Docker Desktop: you may need
-  `TESTCONTAINERS_RYUK_DISABLED=true`; container cleanup is handled by the
-  test itself, Ryuk is the safety net.
+- `npx playwright test --headed`, `--debug` (inspector) or `--ui` work
+  directly - the stack boots either way.
+- `playwright-report/index.html` - HTML report; `test-results/` - traces,
+  screenshots, videos (retained on failure).
+- `MTLS_E2E_LOGS=1` streams Keycloak/Pomerium/cert-gen output live.
+- The stack is reachable from the host while tests run:
+  `curl -k https://mtls.localhost.pomerium.io:8443/healthz`.
+- Certificates persist in `.certs/` between runs (regenerated when expired);
+  `make clean` removes them.

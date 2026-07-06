@@ -17,18 +17,7 @@
 import { test, expect } from "@playwright/test";
 import { newContextWithCert, newContextWithoutCert } from "../helpers/mtls.js";
 import { waitForKeycloakLoginPage, submitLoginForm } from "../helpers/login.js";
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`missing required environment variable ${name}`);
-  }
-  return value;
-}
-
-const MTLS_URL = requireEnv("MTLS_URL");
-const TEST_USER_EMAIL = requireEnv("TEST_USER_EMAIL");
-const TEST_USER_PASSWORD = requireEnv("TEST_USER_PASSWORD");
+import { MTLS_URL, TEST_USER } from "../setup/constants.js";
 
 const mtlsHostname = new URL(MTLS_URL).hostname;
 
@@ -42,7 +31,7 @@ test.describe("downstream mTLS (enforcement: policy_with_default_deny)", () => {
       // then the OIDC redirect chain leads to the Keycloak login form.
       await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
       await waitForKeycloakLoginPage(page);
-      await submitLoginForm(page, TEST_USER_EMAIL, TEST_USER_PASSWORD);
+      await submitLoginForm(page, TEST_USER.email, TEST_USER.password);
 
       // The auth round trip ends back on the mTLS route.
       await page.waitForURL((url) => url.hostname === mtlsHostname);

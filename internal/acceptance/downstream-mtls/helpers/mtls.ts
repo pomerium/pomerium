@@ -1,7 +1,7 @@
 /**
  * Client-certificate helpers for the downstream mTLS e2e suite.
- * Adapted from internal/acceptance/browser/helpers/mtls.ts for the
- * containerized runner (cert locations come from CERTS_DIR).
+ * Adapted from internal/acceptance/browser/helpers/mtls.ts; certificates are
+ * generated into .certs/ by setup/certs.ts (CERTS_DIR overrides).
  */
 
 import { Browser, BrowserContext } from "@playwright/test";
@@ -13,7 +13,8 @@ export type ClientCertType =
   | "chain" // signed by the intermediate CA (depth > 1)
   | "wrong-ca"; // signed by an untrusted CA
 
-const CERTS_DIR = process.env.CERTS_DIR ?? "/certs/mtls";
+const CERTS_DIR =
+  process.env.CERTS_DIR ?? path.resolve(__dirname, "..", ".certs", "mtls");
 
 export function certPaths(certType: ClientCertType): {
   certPath: string;
