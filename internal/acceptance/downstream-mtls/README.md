@@ -21,16 +21,36 @@ directly from the parent suite - single source of truth, nothing copied.
 
 ## Running
 
-Prerequisites: **Docker and Go**. No host node/npm/openssl needed.
+Prerequisites: **Docker and Go**. No host node/npm/openssl needed for the
+default (containerized) mode; headed/host mode additionally needs Node.js 22+.
+
+From `internal/acceptance`:
 
 ```sh
-make test
-# or: go test -tags e2e -v -timeout 30m ./...
+make deps-downstream-mtls          # pull images (refreshes pomerium:main), install browser deps
+make test-downstream-mtls          # run the suite (Playwright in a container)
+make test-downstream-mtls-headed   # run with a visible browser (Playwright on the host)
 ```
 
-First run pulls images (Playwright ~2 GB, Keycloak ~450 MB, Pomerium ~120 MB);
-warm runs take ~3-4 minutes. The suite is opt-in via the `e2e` build tag and
-never runs as part of `go test ./...` or the parent `acceptance` tag.
+Or from this directory: `make deps` / `make test` / `make test-headed` /
+`make test-host` (host-run Playwright, headless), or directly
+`go test -tags e2e -v -timeout 30m ./...`.
+
+First run pulls images (Playwright ~2 GB, Keycloak ~450 MB, Pomerium ~120 MB).
+The test itself only pulls images that are missing locally, so run
+`make deps-downstream-mtls` to refresh the rolling `pomerium:main` tag.
+The suite is opt-in via the `e2e` build tag and never runs as part of
+`go test ./...` or the parent `acceptance` tag.
+
+### Headed / host mode
+
+A visible browser cannot run inside the Linux Playwright container, so
+`test-headed` (env `E2E_HEADED=1`, or `E2E_PLAYWRIGHT_MODE=host` for headless)
+runs the same specs with `npx playwright test` on the host against the same
+containerized stack. In this mode Pomerium and Keycloak are published on fixed
+host ports **8443** and **8080** (`*.localhost.pomerium.io` resolves to
+127.0.0.1, so all URLs are identical to container mode). Those ports must be
+free - stop the parent acceptance compose stack first if it is running.
 
 ### Environment knobs
 

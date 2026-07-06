@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -137,4 +138,40 @@ type testLogConsumer struct {
 
 func (c *testLogConsumer) Accept(l testcontainers.Log) {
 	c.t.Logf("[%s] %s", c.prefix, bytes.TrimRight(l.Content, "\n"))
+}
+
+// runHostPlaywright runs the Playwright specs with npx on the host instead of
+// in a container. Required for headed mode: a visible browser cannot run
+// inside the Linux container. Expects Pomerium/Keycloak published on their
+// fixed in-network ports (see hostPlaywright in TestDownstreamMTLS) so the
+// browser URLs are identical to container mode.
+func runHostPlaywright(t *testing.T, ctx context.Context, browserDir string, env map[string]string, headed bool) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(browserDir, "node_modules")); err != nil {
+		t.Log("browser/node_modules missing; installing npm dependencies...")
+		runHostCommand(t, ctx, browserDir, nil, "npm", "ci", "--no-audit", "--no-fund")
+	}
+	// No-op when the browser is already installed.
+	runHostCommand(t, ctx, browserDir, nil, "npx", "playwright", "install", "chromium")
+
+	args := []string{"playwright", "test"}
+	if headed {
+		args = append(args, "--headed")
+	}
+	runHostCommand(t, ctx, browserDir, env, "npx", args...)
+}
+
+// runHostCommand runs a command on the host, streaming its output.
+func runHostCommand(t *testing.T, ctx context.Context, dir string, env map[string]string, name string, args ...string) {
+	t.Helper()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	cmd.Env = os.Environ()
+	for k, v := range env {
+		cmd.Env = append(cmd.Env, k+"="+v)
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	t.Logf("running: %s %v", name, args)
+	require.NoError(t, cmd.Run(), "%s %v failed (see output above; artifacts: %s)", name, args, env["ARTIFACTS_DIR"])
 }
