@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	tcnetwork "github.com/testcontainers/testcontainers-go/network"
@@ -66,6 +67,16 @@ func TestDownstreamMTLS(t *testing.T) {
 	parentDir := filepath.Dir(suiteDir)
 
 	ws := newWorkspace(t, suiteDir)
+
+	// Playwright execution mode. By default the specs run inside the
+	// Playwright container. E2E_PLAYWRIGHT_MODE=host runs them with npx on
+	// the host instead, and E2E_HEADED=1 implies host mode (a visible browser
+	// cannot run inside the Linux container). Host mode publishes Pomerium
+	// and Keycloak on their fixed in-network ports (8443/8080) so that -
+	// thanks to *.localhost.pomerium.io resolving to 127.0.0.1 - the browser
+	// URLs are identical in both modes.
+	headed := os.Getenv("E2E_HEADED") != ""
+	hostPlaywright := headed || envOr("E2E_PLAYWRIGHT_MODE", "container") == "host"
 
 	nw, err := tcnetwork.New(ctx)
 	require.NoError(t, err)
@@ -114,6 +125,13 @@ func TestDownstreamMTLS(t *testing.T) {
 				hc.Binds = append(hc.Binds,
 					filepath.Join(parentDir, "keycloak")+":/opt/keycloak/data/import:ro",
 				)
+				if hostPlaywright {
+					// The host browser reaches Keycloak at
+					// keycloak.localhost.pomerium.io:8080 (127.0.0.1).
+					hc.PortBindings = network.PortMap{
+						network.MustParsePort("8080/tcp"): {{HostPort: "8080"}},
+					}
+				}
 			}),
 			// 9000 is the management interface serving /health/ready; the
 			// HTTP wait strategy probes it through the host-mapped port.
@@ -153,6 +171,13 @@ func TestDownstreamMTLS(t *testing.T) {
 				filepath.Join(suiteDir, "pomerium", "config.yaml")+":/pomerium/config.yaml:ro",
 				ws.certsDir+":/certs:ro",
 			)
+			if hostPlaywright {
+				// The host browser reaches Pomerium at
+				// *.localhost.pomerium.io:8443 (127.0.0.1).
+				hc.PortBindings = network.PortMap{
+					network.MustParsePort("8443/tcp"): {{HostPort: "8443"}},
+				}
+			}
 		}),
 		testcontainers.WithExposedPorts("8443/tcp"),
 		testcontainers.WithLogConsumers(newFileLogConsumer(t, ws.logsDir, "pomerium")),
@@ -171,9 +196,29 @@ func TestDownstreamMTLS(t *testing.T) {
 		t.Logf("pomerium reachable from the host at https://localhost:%s (in-network port 8443)", port.Port())
 	}
 
-	// Phase 3: containerized Playwright runner. The browser project is
-	// mounted read-only and copied inside the container so npm never writes
-	// into the repo; reports and traces land in the workspace via /artifacts.
+	// Phase 3: run the Playwright specs.
+	specEnv := map[string]string{
+		"MTLS_URL":           mtlsURL,
+		"AUTHENTICATE_URL":   authenticateURL,
+		"TEST_USER_EMAIL":    "alice@company.com",
+		"TEST_USER_PASSWORD": "password123",
+	}
+
+	if hostPlaywright {
+		// Host mode (required for headed debugging): npx on the host against
+		// the published ports, same URLs as container mode.
+		specEnv["ARTIFACTS_DIR"] = ws.playwrightDir
+		specEnv["CERTS_DIR"] = filepath.Join(ws.certsDir, "mtls")
+		runHostPlaywright(t, ctx, filepath.Join(suiteDir, "browser"), specEnv, headed)
+		return
+	}
+
+	// Container mode (default): the browser project is mounted read-only and
+	// copied inside the container so npm never writes into the repo; reports
+	// and traces land in the workspace via /artifacts.
+	specEnv["CI"] = "true"
+	specEnv["ARTIFACTS_DIR"] = "/artifacts"
+	specEnv["CERTS_DIR"] = "/certs/mtls"
 	runScript := `set -x
 cp -r /suite /work || exit 1
 cd /work || exit 1
@@ -185,15 +230,7 @@ exit $rc`
 	runner := runContainer(t, ctx, envOr("PLAYWRIGHT_IMAGE", defaultPlaywrightImage),
 		tcnetwork.WithNetwork([]string{"playwright"}, nw),
 		testcontainers.WithCmd("/bin/bash", "-c", runScript),
-		testcontainers.WithEnv(map[string]string{
-			"CI":                 "true",
-			"ARTIFACTS_DIR":      "/artifacts",
-			"CERTS_DIR":          "/certs/mtls",
-			"MTLS_URL":           mtlsURL,
-			"AUTHENTICATE_URL":   authenticateURL,
-			"TEST_USER_EMAIL":    "alice@company.com",
-			"TEST_USER_PASSWORD": "password123",
-		}),
+		testcontainers.WithEnv(specEnv),
 		testcontainers.WithHostConfigModifier(func(hc *container.HostConfig) {
 			hc.ShmSize = 2 << 30 // Chromium needs generous shared memory
 			hc.Binds = append(hc.Binds,

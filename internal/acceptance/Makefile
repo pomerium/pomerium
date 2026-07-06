@@ -1,6 +1,6 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed
+.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
@@ -33,6 +33,11 @@ help:
 	@echo "  make deps-mcp        - Install MCP suite deps + Chromium"
 	@echo "  make test-mcp        - Run the container-based MCP e2e suite (headless)"
 	@echo "  make test-mcp-headed - Run the MCP e2e suite with a visible browser"
+	@echo ""
+	@echo "Downstream mTLS suite (testcontainers, official pomerium image):"
+	@echo "  make deps-downstream-mtls        - Pull images and install browser deps"
+	@echo "  make test-downstream-mtls        - Run the downstream mTLS suite"
+	@echo "  make test-downstream-mtls-headed - Run it with a visible browser"
 	@echo ""
 	@echo "Aliases: test-headed, test-debug, test-authn, test-authz, test-headers"
 
@@ -81,6 +86,16 @@ test-headers: test-suite-headers
 # Run tests via Go test wrapper
 test-go: up
 	go test -tags=acceptance -v -timeout=20m ./...
+
+# Downstream mTLS suite (see downstream-mtls/README.md)
+deps-downstream-mtls:
+	$(MAKE) -C downstream-mtls deps
+
+test-downstream-mtls:
+	$(MAKE) -C downstream-mtls test
+
+test-downstream-mtls-headed:
+	$(MAKE) -C downstream-mtls test-headed
 
 # View container logs
 logs:
