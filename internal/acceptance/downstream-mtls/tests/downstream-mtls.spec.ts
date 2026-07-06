@@ -17,9 +17,21 @@
 import { test, expect } from "@playwright/test";
 import { newContextWithCert, newContextWithoutCert } from "../helpers/mtls.js";
 import { waitForKeycloakLoginPage, submitLoginForm } from "../helpers/login.js";
+import { startPomerium, type StartedPomerium } from "../setup/containers.js";
+import { BASE_CONFIG_FILE } from "../setup/pomerium-config.js";
 import { MTLS_URL, TEST_USER } from "../setup/constants.js";
 
 const mtlsHostname = new URL(MTLS_URL).hostname;
+
+let pomerium: StartedPomerium;
+
+test.beforeAll(async () => {
+  pomerium = await startPomerium({ configFile: BASE_CONFIG_FILE });
+});
+
+test.afterAll(async () => {
+  await pomerium?.stop();
+});
 
 test.describe("downstream mTLS (enforcement: policy_with_default_deny)", () => {
   test("valid client cert + Keycloak login reaches the upstream", async ({ browser }) => {

@@ -1,10 +1,10 @@
-// Playwright global teardown: stop the container stack. Shares module state
-// with global-setup via the cached containers.ts module in the same runner
-// process.
+// Playwright global teardown: stop the base stack. Per-spec Pomerium
+// containers are stopped by their spec files (and by the testcontainers
+// reaper as a fallback).
 
-import { stopStack } from "./containers.js";
+import { stopBaseStack } from "./containers.js";
 
 export default async function globalTeardown(): Promise<void> {
-  console.log("\n=== Pomerium downstream mTLS e2e — stopping containers ===");
-  await stopStack();
+  console.log("\n=== Pomerium downstream mTLS e2e — stopping base stack ===");
+  await stopBaseStack();
 }
