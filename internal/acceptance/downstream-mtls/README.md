@@ -81,17 +81,35 @@ run, torn down in global teardown):
 Tests run serially (`workers: 1`) because the stack is shared and the ports
 are fixed.
 
-## Scenarios (`tests/downstream-mtls.spec.ts`)
+## Scenarios
 
-Enforcement mode under test: `policy_with_default_deny` (the default).
+`tests/downstream-mtls.spec.ts` — the original browser smoke specs (base
+config, default enforcement): valid cert + Keycloak login → 200 with
+`X-Pomerium-Claim-Email` echoed; no cert → **HTTP 495**; untrusted CA → 495;
+`/healthz` exempt.
 
-1. Valid client cert + Keycloak login → upstream responds 200 and echoes
-   `X-Pomerium-Claim-Email: alice@company.com` (mTLS + OIDC + identity
-   headers, end to end).
-2. No client cert → **HTTP 495** error page, no IdP redirect.
-3. Client cert from an untrusted CA → HTTP 495.
-4. `/healthz` without a cert → 200 (control-plane routes are exempt from the
-   default deny).
+The remaining spec files implement the **Client Certificates (mTLS) automated
+test plan** (Notion → QA → Test Plans → Core → `Core.Client Certificates`).
+Most cases boot their own Pomerium configuration via `startPomerium` +
+`setup/pomerium-config.ts`; non-browser cases use Playwright's request API
+(`helpers/api.ts`) and raw `node:tls` probes (`helpers/raw-tls.ts`).
+
+| Test case | Spec file | Coverage |
+|---|---|---|
+| TC-CC-01..04 | `error-handling.spec.ts` | 495 + no IdP redirect for untrusted/absent certs; no mTLS mention when disabled; `client-certificate-required` vs `invalid-client-certificate` deny reasons (authorize logs) |
+| TC-CC-05..08 | `ca-config.spec.ts` | trust root via `ca_file` / `ca` / `DOWNSTREAM_MTLS_CA_FILE` / `DOWNSTREAM_MTLS_CA` |
+| TC-CC-09..11 | `crl.spec.ts` | revoked leaf rejected via `crl_file` / `crl` / both env vars; leaf-issuer-only CRL semantics (see deviation below) |
+| TC-CC-12..14 | `enforcement.spec.ts` | `policy_with_default_deny` (internal pages exempt), `policy` (+ explicit `invalid_client_certificate` deny rule), `reject_connection` (TLS-handshake rejection, all routes, no authorize logs) |
+| TC-CC-15 | `san-matching.spec.ts` | `match_subject_alt_names` per SAN type (dns/email/ip_address/uri) + non-matching rejection |
+| TC-CC-16 | `verify-depth.spec.ts` | `max_verify_depth` ∈ {default(1), 2, 3, 0=unlimited} + env var |
+| TC-CC-17..18 | `cert-headers.spec.ts` | `$pomerium.client_cert_fingerprint`, `client_cert_san_dns`, `client_cert_san_email` request headers (the only supported variables) |
+| TC-CC-19..20 | `ppl-client-certificate.spec.ts` | PPL `client_certificate` by fingerprint list and fingerprint+`spki_hash`, with real Keycloak sign-in (unlisted trusted cert → 403, not 495) |
+
+**Deviation from the manual plan (TC-CC-10):** the plan expected a CRL for any
+CA in the chain to require CRLs for all CAs. The implementation deliberately
+checks the **leaf's direct issuer only** (`OnlyVerifyLeafCertCrl` in
+`config/envoyconfig/tls.go`; mirrored in `authorize/evaluator/functions.go`),
+so partial CRL coverage is allowed and the spec asserts that contract.
 
 ### Behavior gotchas encoded in the specs
 
@@ -108,24 +126,15 @@ Enforcement mode under test: `policy_with_default_deny` (the default).
 
 ## Extension points
 
-- `enforcement: reject_connection`: expect `page.goto` to reject with
-  `net::ERR_SSL_CLIENT_AUTH_*` (see `isTLSHandshakeError` in
-  `helpers/mtls.ts`). **Note:** the Pomerium `/healthz` wait in
-  `setup/containers.ts` would then fail without a client certificate - switch
-  that variant to a log-based wait.
-- `enforcement: policy` + a route-level `deny` rule with
-  `invalid_client_certificate`.
-- `max_verify_depth: 2` with the pre-generated intermediate-signed client
-  cert (`client-chain-full.crt`).
-- `match_subject_alt_names` (the valid client cert carries SAN
-  `email:alice@company.com` and `DNS:alice.company.com`).
-- PPL `client_certificate` criteria (`fingerprint` is pre-computed in
-  `.certs/mtls/client-valid.fingerprint`).
-- CRL revocation via `crl_file`.
+To add a scenario with its own Pomerium configuration, generate it with
+`generateConfig(...)` (`setup/pomerium-config.ts`) and boot it via
+`startPomerium(...)` in the spec's `beforeAll` (or per test) - see any of the
+test-plan spec files for the pattern. Ideas not yet covered:
 
-Each of these needs its own Pomerium config variant; add a config under
-`pomerium/` and boot a second Pomerium container (different port/aliases) or a
-separate Playwright project.
+- PPL `client_certificate` SAN matchers (`san_dns` / `san_email` / `san_uri`).
+- CRL freshness under `reject_connection` (`thisUpdate`/`nextUpdate` expiry).
+- Multiple trusted client CAs in one bundle.
+- Browser-facing UX of the 495 error page (screenshot/content assertions).
 
 ## Debugging
 

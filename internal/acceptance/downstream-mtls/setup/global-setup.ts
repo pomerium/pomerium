@@ -1,16 +1,19 @@
-// Playwright global setup: boot the whole container stack once before any test.
+// Playwright global setup: boot the config-invariant services (network,
+// Keycloak, upstream) once before any test. Pomerium itself is started per
+// spec file via startPomerium, because most test groups need their own
+// downstream_mtls configuration.
 
 import type { FullConfig } from "@playwright/test";
-import { startStack } from "./containers.js";
+import { startBaseStack } from "./containers.js";
 import { AUTHENTICATE_URL, MTLS_URL } from "./constants.js";
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
-  console.log("\n=== Pomerium downstream mTLS e2e — booting containers (testcontainers) ===");
-  const stack = await startStack();
+  console.log("\n=== Pomerium downstream mTLS e2e — booting base stack (testcontainers) ===");
+  const stack = await startBaseStack();
 
   console.log(`  mTLS route:      ${MTLS_URL}`);
   console.log(`  Authenticate:    ${AUTHENTICATE_URL}`);
   console.log("  Keycloak realm:  http://keycloak.localhost.pomerium.io:8080/realms/pomerium-e2e");
   console.log(`  Certificates:    ${stack.certs.certsDir}`);
-  console.log("=== containers ready ===\n");
+  console.log("=== base stack ready (Pomerium boots per spec file) ===\n");
 }
