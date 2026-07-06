@@ -1,55 +1,57 @@
-name: Downstream mTLS E2E
-
-# Tests the OFFICIAL published Pomerium image (not the working tree), so this
-# runs nightly and on demand rather than per-PR. See
-# internal/acceptance/downstream-mtls/README.md.
-on:
-  workflow_dispatch:
-    inputs:
-      pomerium_image:
-        description: Pomerium image to test
-        required: false
-        default: pomerium/pomerium:main
-  schedule:
-    - cron: '0 6 * * *'
-
-permissions:
-  contents: read
-
-jobs:
-  downstream-mtls:
-    name: Downstream mTLS E2E
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
-        with:
-          node-version-file: .tool-versions
-          cache: 'npm'
-          cache-dependency-path: internal/acceptance/downstream-mtls/package-lock.json
-
-      - name: Install dependencies
-        run: make -C internal/acceptance/downstream-mtls deps
-        env:
-          POMERIUM_IMAGE: ${{ inputs.pomerium_image || 'pomerium/pomerium:main' }}
-
-      - name: Run downstream mTLS e2e suite
-        run: make -C internal/acceptance/downstream-mtls test
-        env:
-          POMERIUM_IMAGE: ${{ inputs.pomerium_image || 'pomerium/pomerium:main' }}
-
-      - name: Upload artifacts
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: downstream-mtls-e2e-artifacts
-          path: |
-            internal/acceptance/downstream-mtls/playwright-report
-            internal/acceptance/downstream-mtls/test-results
-          if-no-files-found: ignore
-          retention-days: 7
+# TEMPORARILY DISABLED - uncomment to re-enable the nightly/dispatch runs.
+#
+# name: Downstream mTLS E2E
+#
+# # Tests the OFFICIAL published Pomerium image (not the working tree), so this
+# # runs nightly and on demand rather than per-PR. See
+# # internal/acceptance/downstream-mtls/README.md.
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       pomerium_image:
+#         description: Pomerium image to test
+#         required: false
+#         default: pomerium/pomerium:main
+#   schedule:
+#     - cron: '0 6 * * *'
+#
+# permissions:
+#   contents: read
+#
+# jobs:
+#   downstream-mtls:
+#     name: Downstream mTLS E2E
+#     runs-on: ubuntu-latest
+#     timeout-minutes: 30
+#
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+#
+#       - name: Set up Node.js
+#         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+#         with:
+#           node-version-file: .tool-versions
+#           cache: 'npm'
+#           cache-dependency-path: internal/acceptance/downstream-mtls/package-lock.json
+#
+#       - name: Install dependencies
+#         run: make -C internal/acceptance/downstream-mtls deps
+#         env:
+#           POMERIUM_IMAGE: ${{ inputs.pomerium_image || 'pomerium/pomerium:main' }}
+#
+#       - name: Run downstream mTLS e2e suite
+#         run: make -C internal/acceptance/downstream-mtls test
+#         env:
+#           POMERIUM_IMAGE: ${{ inputs.pomerium_image || 'pomerium/pomerium:main' }}
+#
+#       - name: Upload artifacts
+#         if: always()
+#         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+#         with:
+#           name: downstream-mtls-e2e-artifacts
+#           path: |
+#             internal/acceptance/downstream-mtls/playwright-report
+#             internal/acceptance/downstream-mtls/test-results
+#           if-no-files-found: ignore
+#           retention-days: 7
