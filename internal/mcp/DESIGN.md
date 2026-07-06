@@ -154,7 +154,7 @@ sequenceDiagram
     UpstreamAS->>UpstreamAS: User consent
     UpstreamAS->>PomHTTP: Redirect callback?code=XXX&state=YYY
 
-    Note over PomHTTP: ClientOAuthCallback():<br/>1. Look up PendingUpstreamAuth by state<br/>2. Exchange code for tokens (+ resource param)<br/>3. Store UpstreamMCPToken<br/>4. Delete PendingUpstreamAuth<br/>5. Complete Pomerium auth flow (issue auth code)
+    Note over PomHTTP: ClientOAuthCallback():<br/>1. Look up PendingUpstreamAuth by state<br/>2. Validate iss vs recorded issuer (RFC 9207)<br/>3. Exchange code for tokens (+ resource param)<br/>4. Store UpstreamMCPToken<br/>5. Delete PendingUpstreamAuth<br/>6. Complete Pomerium auth flow (issue auth code)
 
     PomHTTP->>Client: 302 Redirect with Pomerium auth code
     Client->>PomHTTP: POST /.pomerium/mcp/token (exchange code)
@@ -186,6 +186,46 @@ callback was initiated through the MCP client's OAuth flow against Pomerium
 (proactive), while its absence indicates the callback was triggered by
 ext_proc intercepting a 401 from the upstream (reactive).
 
+---
+
+## Issuer Validation (RFC 9207)
+
+[RFC 9207](https://datatracker.ietf.org/doc/html/rfc9207) defines the `iss`
+authorization-response parameter, which lets an OAuth client detect mix-up
+attacks where an authorization response is replayed against the wrong
+authorization server. Per the MCP spec ([SEP-2468]), an AS **SHOULD** include
+`iss` in authorization responses, and a client **MUST** validate a present
+`iss` against the recorded issuer before redeeming the code. Because Pomerium
+plays both OAuth roles, it acts on `iss` in both directions.
+
+[SEP-2468]: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2468
+
+### Pomerium as Authorization Server (downstream)
+
+When Pomerium issues an authorization code back to the MCP client
+(`AuthorizationResponse` in `handler_authorization.go`), it appends
+`iss=https://{downstream_host}` to the redirect. This value is identical to the
+`issuer` Pomerium advertises in its AS metadata, so the MCP client's RFC 9207
+check succeeds. Pomerium also advertises
+`authorization_response_iss_parameter_supported: true` in its AS metadata
+(`handler_metadata.go`) so spec-aware clients know to expect and validate the
+parameter.
+
+`AuthorizationResponse` is reached from both the plain downstream authorize
+path and the upstream-callback completion path (proactive flow); in both cases
+the request host is the Pomerium downstream host, so the emitted `iss` is
+consistent.
+
+### Pomerium as OAuth Client (upstream)
+
+When the upstream AS redirects back to
+`/.pomerium/mcp/client/oauth/callback`, `ClientOAuthCallback` validates any
+`iss` query parameter against `PendingUpstreamAuth.AuthorizationServerIssuer`
+(the issuer recorded from the upstream AS metadata during discovery). On
+mismatch the pending state is deleted and the callback fails with `400`.
+
+In fully-static mode the route supplies the OAuth endpoints directly, so
+discovery never runs and no issuer is recorded. Issuer validation is disregarded.
 ---
 
 ## Downstream Token Refresh Lifecycle
