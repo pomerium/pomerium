@@ -1,5 +1,3 @@
-//go:build e2e
-
 // Package authorize_test contains the extended Kubernetes integration test
 // for the external-JWT identity provider. It spins up a real k3s cluster via
 // testcontainers, mints a real ServiceAccount token through the apiserver's
@@ -17,21 +15,19 @@
 //   - It demonstrates the Pomerium-specific audience scheme: only tokens
 //     minted with audience "pomerium.example.com" pass.
 //
-// This test belongs to the `e2e` build-tag group and must run in isolation: it
-// is slow, requires Docker (~2GB RAM), and mutates the process-global OTel
-// tracer, so running it in the same `go test` process as the other
-// testenv-based tests trips testenv's global-tracer panic guard. It is excluded
-// from the default build by the `e2e` tag AND additionally gated behind a
-// per-test env var named after the test (RUN_<test name>), so no `-tags e2e`
-// run fires it (or any sibling e2e test) without explicit opt-in. Run it via
-// its dedicated Makefile target, which sets the env var and isolates it in its
-// own process:
+// This test must run in isolation: it is slow, requires Docker (~2GB RAM), and
+// mutates the process-global OTel tracer, so running it in the same `go test`
+// process as the other testenv-based tests trips testenv's global-tracer panic
+// guard. It is gated behind a per-test env var named after the test
+// (RUN_<test name>), so it is skipped by default and never runs alongside a
+// sibling e2e test. Run it via its dedicated Makefile target, which sets the
+// env var and isolates it in its own process:
 //
 //	make test-e2e-k3s
 //
 // or directly:
 //
-//	RUN_TestExternalJWTBearer_K3s=1 go test -tags e2e -timeout=15m \
+//	RUN_TestExternalJWTBearer_K3s=1 go test -timeout=15m \
 //	    -run '^TestExternalJWTBearer_K3s$' ./authorize/
 
 package authorize_test
