@@ -55,12 +55,15 @@ type Authorize struct {
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 	*ratelimit.RateLimiter
 	recordingServer atomic.Pointer[recording.Server]
+
+	dataBrokerClientOverride databroker.DataBrokerServiceClient
 }
 
 type options struct {
 	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
 	cliController     ssh_cli.InternalCLIController
 	rls               envoy_service_ratelimit_v3.RateLimitServiceServer
+	dataBrokerClient  databroker.DataBrokerServiceClient
 }
 
 // Option configures the Authorize service.
@@ -83,6 +86,13 @@ func WithInternalCLIController(cliCtrl ssh_cli.InternalCLIController) Option {
 func WithRateLimitServer(rls envoy_service_ratelimit_v3.RateLimitServiceServer) Option {
 	return func(o *options) {
 		o.rls = rls
+	}
+}
+
+// WithDataBrokerServiceClient overrides the databroker client used by the authorize service.
+func WithDataBrokerServiceClient(client databroker.DataBrokerServiceClient) Option {
+	return func(o *options) {
+		o.dataBrokerClient = client
 	}
 }
 
@@ -113,9 +123,11 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		tracerProvider:  tracerProvider,
 		tracer:          tracer,
 		recordingServer: atomic.Pointer[recording.Server]{},
+
+		dataBrokerClientOverride: o.dataBrokerClient,
 	}
 	a.currentConfig.Store(cfg)
-	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn)
+	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn, a.dataBrokerClientOverride)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +260,7 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentConfig.Store(cfg)
-	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store, &a.outboundGrpcConn); err != nil {
+	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store, &a.outboundGrpcConn, a.dataBrokerClientOverride); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(newState)

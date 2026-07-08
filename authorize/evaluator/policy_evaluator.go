@@ -22,11 +22,12 @@ import (
 
 // PolicyRequest is the input to policy evaluation.
 type PolicyRequest struct {
-	HTTP                     RequestHTTP    `json:"http"`
-	SSH                      RequestSSH     `json:"ssh"`
-	MCP                      RequestMCP     `json:"mcp"`
-	Session                  RequestSession `json:"session"`
-	IsValidClientCertificate bool           `json:"is_valid_client_certificate"`
+	HTTP                     RequestHTTP     `json:"http"`
+	SSH                      RequestSSH      `json:"ssh"`
+	Postgres                 RequestPostgres `json:"postgres"`
+	MCP                      RequestMCP      `json:"mcp"`
+	Session                  RequestSession  `json:"session"`
+	IsValidClientCertificate bool            `json:"is_valid_client_certificate"`
 }
 
 // PolicyResponse is the result of evaluating a policy.

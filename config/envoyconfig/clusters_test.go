@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v9"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -51,6 +52,30 @@ func Test_BuildClusters(t *testing.T) {
 			Pipe.Path = "ENVOY_ADMIN_SOCKET"
 	}
 	testutil.AssertProtoJSONFileEqual(t, "testdata/clusters.json", clusters)
+}
+
+func TestBuildClustersSkipsPostgresPolicies(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.New(&config.Options{
+		Services: config.ServiceProxy,
+		Policies: []config.Policy{
+			{
+				From: "postgres://db.example.com",
+				To:   mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432"),
+			},
+		},
+	})
+	ctx := t.Context()
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+	clusters, err := b.BuildClusters(ctx, cfg)
+	require.NoError(t, err)
+	for _, cluster := range clusters {
+		data, err := protojson.Marshal(cluster)
+		require.NoError(t, err)
+		require.NotContains(t, string(data), "postgres.internal")
+		require.NotContains(t, string(data), "secret")
+	}
 }
 
 func Test_buildPolicyTransportSocket(t *testing.T) {

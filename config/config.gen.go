@@ -86,6 +86,7 @@ type GlobalOptions struct {
 	MergeSlashes                 Value[bool]                                  `json:"merge_slashes,omitzero" mapstructure:"merge_slashes" yaml:"merge_slashes,omitempty"`
 	NormalizePath                Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
 	PathWithEscapedSlashesAction Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
+	PostgresAddress              Value[string]                                `json:"postgres_address,omitzero" mapstructure:"postgres_address" yaml:"postgres_address,omitempty"`
 	SessionRecordingConcurrency  Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
 }
 
@@ -445,6 +446,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.MergeSlashes, src.MergeSlashes),
 		setNullableBoolFromProto(&dst.NormalizePath, src.NormalizePath),
 		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
+		setNullableStringFromProto(&dst.PostgresAddress, src.PostgresAddress),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
@@ -888,6 +890,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.MergeSlashes, src.MergeSlashes),
 		setNullableBoolToProto(&obj.NormalizePath, src.NormalizePath),
 		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
+		setNullableStringToProto(&obj.PostgresAddress, src.PostgresAddress),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }

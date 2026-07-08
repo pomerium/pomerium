@@ -431,6 +431,49 @@ func TestStatefulRevokeSession(t *testing.T) {
 	}, authenticator.revokedToken)
 }
 
+func TestStatefulSessionBindingPreservesRequestedProtocol(t *testing.T) {
+	flow := &Stateful{}
+	h := &session.Handle{
+		Id:                 "session-id",
+		UserId:             "user-id",
+		IdentityProviderId: "idp-id",
+		Iat:                timestamppb.New(time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)),
+	}
+	sbr := &session.SessionBindingRequest{
+		Protocol: session.ProtocolPostgres,
+		Key:      "postgrescert-SHA256:abc",
+	}
+
+	identityRecord := flow.associateIdentity(sbr.Key, h, sbr.Protocol)
+	var identityBinding session.IdentityBinding
+	require.NoError(t, identityRecord.GetData().UnmarshalTo(&identityBinding))
+	require.Equal(t, session.ProtocolPostgres, identityBinding.Protocol)
+
+	ctrl := gomock.NewController(t)
+	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+	flow.dataBrokerClient = client
+	client.EXPECT().Get(t.Context(), matchers.ProtoEq(&databroker.GetRequest{
+		Type: "type.googleapis.com/session.Session",
+		Id:   "session-id",
+	})).Return(&databroker.GetResponse{
+		Record: &databroker.Record{
+			Type: "type.googleapis.com/session.Session",
+			Id:   "session-id",
+			Data: protoutil.NewAny(&session.Session{
+				Id:        "session-id",
+				UserId:    "user-id",
+				ExpiresAt: timestamppb.New(time.Date(2026, 7, 8, 12, 0, 0, 0, time.UTC)),
+			}),
+		},
+	}, nil)
+
+	sessionRecord, _, err := flow.associateSessionBinding(t.Context(), h, sbr)
+	require.NoError(t, err)
+	var binding session.SessionBinding
+	require.NoError(t, sessionRecord.GetData().UnmarshalTo(&binding))
+	require.Equal(t, session.ProtocolPostgres, binding.Protocol)
+}
+
 func TestPersistSession(t *testing.T) {
 	timeNow = func() time.Time { return time.Unix(1721965100, 0) }
 	t.Cleanup(func() { timeNow = time.Now })

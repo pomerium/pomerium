@@ -40,6 +40,7 @@ type Request struct {
 	Policy             *config.Policy
 	HTTP               RequestHTTP
 	SSH                RequestSSH
+	Postgres           RequestPostgres
 	MCP                RequestMCP
 	Session            RequestSession
 	EnvoyRouteChecksum uint64
@@ -139,6 +140,17 @@ type RequestSSH struct {
 	PublicKey []byte `json:"publickey"`
 
 	ReverseTunnel bool `json:"-"`
+}
+
+type RequestPostgres struct {
+	Hostname         string `json:"hostname"`
+	Database         string `json:"database"`
+	Username         string `json:"username"`
+	ApplicationName  string `json:"application_name"`
+	StatementClass   string `json:"statement_class"`
+	QueryProtocol    string `json:"query_protocol"`
+	RouteID          string `json:"route_id"`
+	SessionBindingID string `json:"session_binding_id"`
 }
 
 // RequestSession is the session field in the request.
@@ -394,6 +406,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 	return policyEvaluator.Evaluate(ctx, &PolicyRequest{
 		HTTP:                     req.HTTP,
 		SSH:                      req.SSH,
+		Postgres:                 req.Postgres,
 		MCP:                      req.MCP,
 		Session:                  req.Session,
 		IsValidClientCertificate: isValidClientCertificate,

@@ -227,6 +227,8 @@ type Options struct {
 
 	// Address/Port to bind to for the SSH server. If unset, SSH will be disabled.
 	SSHAddr string `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
+	// Address/Port to bind to for the PostgreSQL server. If unset, PostgreSQL protocol support will be disabled.
+	PostgresAddr string `mapstructure:"postgres_address" yaml:"postgres_address,omitempty"`
 	// List of host key files for the SSH server.
 	// Files must not be group/world-readable on disk.
 	// If multiple keys are given, they must each have unique algorithms.
@@ -810,7 +812,39 @@ func (o *Options) Validate() error {
 			}
 		}
 	}
+	if err := o.validatePostgresRoutes(); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func (o *Options) validatePostgresRoutes() error {
+	postgresRouteHosts := map[string]string{}
+	for p := range o.GetAllPolicies() {
+		if !p.IsPostgres() {
+			continue
+		}
+		u, err := url.Parse(p.From)
+		if err != nil {
+			return fmt.Errorf("config: bad postgres route source url %s: %w", p.From, err)
+		}
+		host := strings.ToLower(u.Hostname())
+		if previous, ok := postgresRouteHosts[host]; ok {
+			return fmt.Errorf("config: postgres route hostname %q is already used by %s", host, previous)
+		}
+		postgresRouteHosts[host] = p.From
+	}
+	if o.PostgresAddr != "" &&
+		o.IsRuntimeFlagSet(RuntimeFlagPostgres) &&
+		!o.HasAnyDownstreamMTLSClientCA() {
+		return fmt.Errorf("config: postgres listener requires downstream mTLS client CA")
+	}
+	if o.PostgresAddr != "" &&
+		o.IsRuntimeFlagSet(RuntimeFlagPostgres) &&
+		!IsAuthorize(o.Services) {
+		return fmt.Errorf("config: native postgres requires the authorize service in this preview")
+	}
 	return nil
 }
 
@@ -1073,6 +1107,26 @@ func (o *Options) GetRouteForSSHHostname(hostname string) *Policy {
 	from := "ssh://" + hostname
 	for r := range o.GetAllPolicies() {
 		if r.From == from {
+			return r
+		}
+	}
+	return nil
+}
+
+func (o *Options) GetRouteForPostgresHostname(hostname string) *Policy {
+	if hostname == "" {
+		return nil
+	}
+	hostname = strings.ToLower(hostname)
+	for r := range o.GetAllPolicies() {
+		if !r.IsPostgres() {
+			continue
+		}
+		fromURL, err := urlutil.ParseAndValidateURL(r.From)
+		if err != nil {
+			continue
+		}
+		if strings.ToLower(fromURL.Hostname()) == hostname {
 			return r
 		}
 	}
@@ -1351,8 +1405,8 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, map[string]bool, error) 
 	// policy urls
 	if IsProxy(o.Services) {
 		for policy := range o.GetAllPolicies() {
-			if policy.IsSSH() {
-				// SSH routes are not part of the main route configuration
+			if policy.IsSSH() || policy.IsPostgres() {
+				// Native protocol routes are not part of the main HTTP route configuration.
 				continue
 			}
 			fromURL, err := urlutil.ParseAndValidateURL(policy.From)
@@ -1679,6 +1733,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 		o.CircuitBreakerThresholds = CircuitBreakerThresholdsFromPB(settings.CircuitBreakerThresholds)
 	}
 	set(&o.SSHAddr, settings.SshAddress)
+	set(&o.PostgresAddr, settings.PostgresAddress)
 	setStringList(&o.SSHHostKeyFiles, settings.SshHostKeyFiles)
 	setStringList(&o.SSHHostKeys, settings.SshHostKeys)
 	set(&o.SSHUserCAKeyFile, settings.SshUserCaKeyFile)
@@ -1810,6 +1865,7 @@ func (o *Options) ToProto() *configpb.Config {
 		settings.CircuitBreakerThresholds = CircuitBreakerThresholdsToPB(o.CircuitBreakerThresholds)
 	}
 	copySrcToOptionalDest(&settings.SshAddress, &o.SSHAddr)
+	copySrcToOptionalDest(&settings.PostgresAddress, &o.PostgresAddr)
 	copyOptionalStringList(&settings.SshHostKeyFiles, o.SSHHostKeyFiles)
 	copyOptionalStringList(&settings.SshHostKeys, o.SSHHostKeys)
 	copySrcToOptionalDest(&settings.SshUserCaKeyFile, &o.SSHUserCAKeyFile)

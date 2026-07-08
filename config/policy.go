@@ -713,6 +713,24 @@ func (p *Policy) Validate() error {
 	if _, hasUnixPlusHTTPS := toSchemes["https+unix"]; hasUnixPlusHTTPS && len(toSchemes) > 1 {
 		return fmt.Errorf("config: cannot mix unix and non-unix To URLs")
 	}
+	if p.IsPostgres() {
+		if len(p.To) != 1 || p.To[0].URL.Scheme != "postgres" {
+			return fmt.Errorf("config: postgres routes require exactly one postgres upstream")
+		}
+		upstream := p.To[0].URL
+		if upstream.Host == "" {
+			return fmt.Errorf("config: postgres upstream host is required")
+		}
+		password, ok := upstream.User.Password()
+		if upstream.User == nil || upstream.User.Username() == "" || !ok || password == "" {
+			return fmt.Errorf("config: postgres upstream credentials are required")
+		}
+		switch sslmode := upstream.Query().Get("sslmode"); sslmode {
+		case "", "disable", "require", "verify-full":
+		default:
+			return fmt.Errorf("config: postgres upstream sslmode %q is not supported", sslmode)
+		}
+	}
 
 	if err := p.Redirect.validate(); err != nil {
 		return fmt.Errorf("config: %w", err)
@@ -993,10 +1011,20 @@ func (p *Policy) IsSSH() bool {
 	return strings.HasPrefix(p.From, "ssh://")
 }
 
+// IsPostgres returns true if the route is for PostgreSQL.
+func (p *Policy) IsPostgres() bool {
+	return strings.HasPrefix(p.From, "postgres://")
+}
+
 // IsSSHUpstream returns true if the route has an upstream SSH connection or
 // is backed by a reverse tunnel.
 func (p *Policy) IsSSHUpstream() bool {
 	return (len(p.To) > 0 && p.To[0].URL.Scheme == "ssh") || p.UpstreamTunnel != nil
+}
+
+// IsPostgresUpstream returns true if the route has a PostgreSQL upstream.
+func (p *Policy) IsPostgresUpstream() bool {
+	return len(p.To) > 0 && p.To[0].URL.Scheme == "postgres"
 }
 
 // AllAllowedDomains returns all the allowed domains.

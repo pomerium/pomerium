@@ -33,6 +33,10 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 				From: "ssh://should-be-ignored",
 				To:   mustParseWeightedURLs(t, "ssh://ignored:22"),
 			},
+			{
+				From: "postgres://db.example.com",
+				To:   mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432"),
+			},
 		},
 	})
 	b := New("connect", "grpc", "http", "debug", "metrics", filemgr.NewManager(), nil, true)

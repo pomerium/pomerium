@@ -1,7 +1,8 @@
 package session
 
 const (
-	ProtocolSSH = "ssh"
+	ProtocolSSH      = "ssh"
+	ProtocolPostgres = "postgres"
 )
 
 const (

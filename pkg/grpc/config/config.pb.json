@@ -6990,6 +6990,18 @@
               "defaultValue": ""
             },
             {
+              "name": "postgres_address",
+              "description": "Address (host:port) on which Pomerium listens for PostgreSQL traffic.\nEmpty disables the PostgreSQL proxy.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_postgres_address",
+              "defaultValue": ""
+            },
+            {
               "name": "ssh_host_key_files",
               "description": "Paths to host-key files Pomerium reads at startup to authenticate\nitself to SSH clients.",
               "label": "optional",

@@ -134,6 +134,9 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 
 	if config.IsProxy(cfg.Options.Services) {
 		for policy := range cfg.Options.GetAllPolicies() {
+			if policy.IsPostgres() {
+				continue
+			}
 			if len(policy.To) > 0 {
 				cluster, err := b.buildPolicyCluster(ctx, cfg, policy)
 				if err != nil {

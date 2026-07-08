@@ -238,9 +238,14 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		return fmt.Errorf("setting up registry reporter: %w", err)
 	}
 
+	var postgresServer *postgresService
 	if config.IsProxy(src.GetConfig().Options.Services) {
 		controlPlaneChecks = append(controlPlaneChecks, health.ProxyService)
 		if err := setupProxy(ctx, src, controlPlane); err != nil {
+			return err
+		}
+		postgresServer, err = setupPostgres(ctx, src, authorizeServer)
+		if err != nil {
 			return err
 		}
 	}
@@ -254,6 +259,11 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 			health.ReportRunning(health.AuthorizationService)
 			defer health.ReportTerminating(health.AuthorizationService)
 			return authorizeServer.Run(ctx)
+		})
+	}
+	if postgresServer != nil {
+		p.errGroup.Go(func() error {
+			return postgresServer.Run(ctx)
 		})
 	}
 	p.errGroup.Go(func() error {

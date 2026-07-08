@@ -47,6 +47,7 @@ func newAuthorizeStateFromConfig(
 	cfg *config.Config,
 	store *store.Store,
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
+	dataBrokerClientOverride databroker.DataBrokerServiceClient,
 ) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
@@ -85,23 +86,27 @@ func newAuthorizeStateFromConfig(
 		return nil, err
 	}
 
-	cacheInvalidator := databroker.NewCacheInvalidator(storage.GlobalCache)
-	cc, err := outboundGrpcConn.Get(ctx,
-		&grpc.OutboundOptions{
-			OutboundPort:   cfg.OutboundPort,
-			InstallationID: cfg.Options.InstallationID,
-			ServiceName:    cfg.Options.Services,
-			SignedJWTKey:   sharedKey,
-		},
-		googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),
-		googlegrpc.WithChainUnaryInterceptor(cacheInvalidator.UnaryClientInterceptor),
-		googlegrpc.WithChainStreamInterceptor(cacheInvalidator.StreamClientInterceptor),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("authorize: error creating databroker connection: %w", err)
+	if dataBrokerClientOverride != nil {
+		state.dataBrokerClient = dataBrokerClientOverride
+	} else {
+		cacheInvalidator := databroker.NewCacheInvalidator(storage.GlobalCache)
+		cc, err := outboundGrpcConn.Get(ctx,
+			&grpc.OutboundOptions{
+				OutboundPort:   cfg.OutboundPort,
+				InstallationID: cfg.Options.InstallationID,
+				ServiceName:    cfg.Options.Services,
+				SignedJWTKey:   sharedKey,
+			},
+			googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),
+			googlegrpc.WithChainUnaryInterceptor(cacheInvalidator.UnaryClientInterceptor),
+			googlegrpc.WithChainStreamInterceptor(cacheInvalidator.StreamClientInterceptor),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: error creating databroker connection: %w", err)
+		}
+		state.dataBrokerClientConnection = cc
+		state.dataBrokerClient = databroker.NewDataBrokerServiceClient(cc)
 	}
-	state.dataBrokerClientConnection = cc
-	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(cc)
 
 	state.sessionStore, err = config.NewSessionStore(cfg.Options)
 	if err != nil {

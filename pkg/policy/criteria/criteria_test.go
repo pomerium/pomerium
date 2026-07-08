@@ -30,11 +30,12 @@ var testingNow = time.Date(2021, 5, 11, 13, 43, 0, 0, time.Local)
 
 type (
 	Input struct {
-		HTTP                     InputHTTP    `json:"http"`
-		SSH                      InputSSH     `json:"ssh"`
-		Session                  InputSession `json:"session"`
-		MCP                      InputMCP     `json:"mcp"`
-		IsValidClientCertificate bool         `json:"is_valid_client_certificate"`
+		HTTP                     InputHTTP     `json:"http"`
+		SSH                      InputSSH      `json:"ssh"`
+		Postgres                 InputPostgres `json:"postgres"`
+		Session                  InputSession  `json:"session"`
+		MCP                      InputMCP      `json:"mcp"`
+		IsValidClientCertificate bool          `json:"is_valid_client_certificate"`
 	}
 	InputHTTP struct {
 		Method            string                `json:"method"`
@@ -46,6 +47,14 @@ type (
 	InputSSH struct {
 		Username  string `json:"username"`
 		PublicKey []byte `json:"publickey"`
+	}
+	InputPostgres struct {
+		Hostname        string `json:"hostname"`
+		Database        string `json:"database"`
+		Username        string `json:"username"`
+		ApplicationName string `json:"application_name"`
+		StatementClass  string `json:"statement_class"`
+		QueryProtocol   string `json:"query_protocol"`
 	}
 	InputSession struct {
 		ID string `json:"id"`

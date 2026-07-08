@@ -280,7 +280,7 @@ func (s *Stateful) AuthenticatePendingSession(
 
 	recordsToProcess := []*databroker.Record{}
 	if createIdentityBinding {
-		recordsToProcess = append(recordsToProcess, s.associateIdentity(sbr.Key, h))
+		recordsToProcess = append(recordsToProcess, s.associateIdentity(sbr.Key, h, sbr.Protocol))
 	}
 	// code confirmed or identity was already persisted.
 	authenticated := confirmed || identityBinding != nil
@@ -361,9 +361,9 @@ func (s *Stateful) hasIdentityBinding(
 	return &identityBinding, true, nil
 }
 
-func (s *Stateful) associateIdentity(bindingID string, h *session.Handle) *databroker.Record {
+func (s *Stateful) associateIdentity(bindingID string, h *session.Handle, protocol string) *databroker.Record {
 	ib := session.IdentityBinding{
-		Protocol: session.ProtocolSSH,
+		Protocol: protocol,
 		UserId:   h.UserId,
 		IdpId:    h.IdentityProviderId,
 	}
@@ -409,7 +409,7 @@ func (s *Stateful) associateSessionBinding(
 		Type: "type.googleapis.com/session.SessionBinding",
 		Id:   sessionID,
 		Data: protoutil.NewAny(&session.SessionBinding{
-			Protocol:  session.ProtocolSSH,
+			Protocol:  sbr.Protocol,
 			SessionId: h.Id,
 			IssuedAt:  timestamppb.New(h.Iat.AsTime()),
 			ExpiresAt: timestamppb.New(*expiry),

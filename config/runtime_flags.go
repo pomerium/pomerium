@@ -37,6 +37,9 @@ var (
 	// method for upstream MCP servers
 	RuntimeFlagMCPDynamicClientRegistration = runtimeFlag("mcp_dynamic_client_registration", false)
 
+	// RuntimeFlagPostgres enables native PostgreSQL protocol support.
+	RuntimeFlagPostgres = runtimeFlag("postgres", false)
+
 	// RuntimeFlagPomeriumJWTEndpoint enables the /.pomerium/jwt endpoint, for retrieving
 	// signed user info claims from an upstream single-page web application. This endpoint
 	// is deprecated pending removal in a future release, but this flag allows a temporary

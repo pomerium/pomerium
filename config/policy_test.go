@@ -35,6 +35,9 @@ func Test_PolicyValidate(t *testing.T) {
 		{"empty from scheme", Policy{From: "httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.example")}, true},
 		{"empty to scheme", Policy{From: "https://httpbin.corp.example", To: []WeightedURL{{URL: url.URL{Host: "httpbin.corp.example"}}}}, true},
 		{"path in from", Policy{From: "https://httpbin.corp.example/some/path", To: mustParseWeightedURLs(t, "https://httpbin.corp.example")}, true},
+		{"postgres route", Policy{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")}, false},
+		{"postgres route missing upstream credentials", Policy{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://postgres.internal:5432")}, true},
+		{"postgres route unsupported sslmode", Policy{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432?sslmode=prefer")}, true},
 		{"cors policy", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.notatld"), CORSAllowPreflight: true}, false},
 		{"public policy", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.notatld"), AllowPublicUnauthenticatedAccess: true}, false},
 		{"public and whitelist", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.notatld"), AllowPublicUnauthenticatedAccess: true, AllowedUsers: []string{"test@domain.example"}}, true},
@@ -532,6 +535,14 @@ func TestPolicy_IsSSH(t *testing.T) {
 	assert.True(t, p2.IsSSH())
 }
 
+func TestPolicy_IsPostgres(t *testing.T) {
+	p1 := Policy{From: "https://example.com"}
+	assert.False(t, p1.IsPostgres())
+
+	p2 := Policy{From: "postgres://db.example.com"}
+	assert.True(t, p2.IsPostgres())
+}
+
 func TestPolicy_IsSSHUpstream(t *testing.T) {
 	p1 := Policy{
 		From: "ssh://example.com",
@@ -551,6 +562,26 @@ func TestPolicy_IsSSHUpstream(t *testing.T) {
 		To:   mustParseWeightedURLs(t, "http://to"),
 	}
 	assert.False(t, p3.IsSSHUpstream())
+}
+
+func TestPolicy_IsPostgresUpstream(t *testing.T) {
+	p1 := Policy{
+		From: "postgres://db.example.com",
+		To:   mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432"),
+	}
+	assert.True(t, p1.IsPostgresUpstream())
+
+	p2 := Policy{
+		From: "postgres://db.example.com",
+		To:   mustParseWeightedURLs(t, "https://postgres.internal"),
+	}
+	assert.False(t, p2.IsPostgresUpstream())
+
+	p3 := Policy{
+		From: "https://example.com",
+		To:   mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432"),
+	}
+	assert.True(t, p3.IsPostgresUpstream())
 }
 
 func mustParseWeightedURLs(t testing.TB, urls ...string) WeightedURLs {

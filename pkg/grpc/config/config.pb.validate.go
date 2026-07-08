@@ -4364,6 +4364,10 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for SshAddress
 	}
 
+	if m.PostgresAddress != nil {
+		// no validation rules for PostgresAddress
+	}
+
 	if m.SshHostKeyFiles != nil {
 
 		if all {

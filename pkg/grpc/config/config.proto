@@ -1029,6 +1029,9 @@ message Settings {
   // Address (host:port) on which Pomerium listens for SSH traffic.
   // Empty disables the SSH proxy.
   optional string ssh_address = 141;
+  // Address (host:port) on which Pomerium listens for PostgreSQL traffic.
+  // Empty disables the PostgreSQL proxy.
+  optional string postgres_address = 188;
   // Paths to host-key files Pomerium reads at startup to authenticate
   // itself to SSH clients.
   optional StringList ssh_host_key_files = 142;

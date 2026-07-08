@@ -100,6 +100,32 @@ func Test_Validate(t *testing.T) {
 	goodAuthorizeLogFields.AuthorizeLogFields = []logfields.AuthorizeLogField{"request-id"}
 	badAuthorizeLogFields := testOptions()
 	badAuthorizeLogFields.AuthorizeLogFields = []logfields.AuthorizeLogField{"zzzzzzzzzzz"}
+	duplicatePostgresRouteHosts := testOptions()
+	duplicatePostgresRouteHosts.Policies = []Policy{
+		{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres-1.internal:5432")},
+		{From: "postgres://db.example.com:5432", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres-2.internal:5432")},
+	}
+	missingPostgresClientCA := testOptions()
+	missingPostgresClientCA.PostgresAddr = "127.0.0.1:15432"
+	missingPostgresClientCA.RuntimeFlags[RuntimeFlagPostgres] = true
+	missingPostgresClientCA.Policies = []Policy{
+		{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")},
+	}
+	goodPostgresListener := testOptions()
+	goodPostgresListener.PostgresAddr = "127.0.0.1:15432"
+	goodPostgresListener.RuntimeFlags[RuntimeFlagPostgres] = true
+	goodPostgresListener.DownstreamMTLS.CA = "ZmFrZSBDQQ=="
+	goodPostgresListener.Policies = []Policy{
+		{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")},
+	}
+	proxyOnlyPostgresListener := testOptions()
+	proxyOnlyPostgresListener.Services = ServiceProxy
+	proxyOnlyPostgresListener.PostgresAddr = "127.0.0.1:15432"
+	proxyOnlyPostgresListener.RuntimeFlags[RuntimeFlagPostgres] = true
+	proxyOnlyPostgresListener.DownstreamMTLS.CA = "ZmFrZSBDQQ=="
+	proxyOnlyPostgresListener.Policies = []Policy{
+		{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")},
+	}
 
 	tests := []struct {
 		name     string
@@ -121,6 +147,10 @@ func Test_Validate(t *testing.T) {
 		{"bad access log field", badAccessLogFields, false},
 		{"good authorize log field", goodAuthorizeLogFields, false},
 		{"bad authorize log field", badAuthorizeLogFields, false},
+		{"duplicate postgres route hosts", duplicatePostgresRouteHosts, true},
+		{"missing postgres client ca", missingPostgresClientCA, true},
+		{"good postgres listener", goodPostgresListener, false},
+		{"proxy-only postgres listener", proxyOnlyPostgresListener, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -909,12 +939,14 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 	assert.NoError(t, p3.Validate())
 	p4 := Policy{From: "https://from4.example.com", MCP: &MCP{Server: &MCPServer{}}, To: to}
 	assert.NoError(t, p4.Validate())
+	p5 := Policy{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")}
+	assert.NoError(t, p5.Validate())
 
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
 		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
-		Policies:              []Policy{p1, p2, p3, p4},
+		Policies:              []Policy{p1, p2, p3, p4, p5},
 		Services:              "all",
 	}
 	hosts, mcpHosts, err := opts.GetAllRouteableHTTPHosts()
@@ -935,6 +967,21 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 		"from4.example.com",
 		"from4.example.com:443",
 	}, hosts)
+}
+
+func TestOptions_GetRouteForPostgresHostname(t *testing.T) {
+	opts := &Options{
+		Policies: []Policy{
+			{From: "https://app.example.com", To: mustParseWeightedURLs(t, "https://app.internal")},
+			{From: "postgres://db.example.com:5432", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")},
+		},
+	}
+
+	assert.Equal(t, &opts.Policies[1], opts.GetRouteForPostgresHostname("db.example.com"))
+	assert.Equal(t, &opts.Policies[1], opts.GetRouteForPostgresHostname("DB.EXAMPLE.COM"))
+	assert.Nil(t, opts.GetRouteForPostgresHostname("app.example.com"))
+	assert.Nil(t, opts.GetRouteForPostgresHostname(""))
+	assert.Nil(t, opts.GetRouteForPostgresHostname("missing.example.com"))
 }
 
 func TestOptions_ApplySettings(t *testing.T) {
@@ -1068,15 +1115,18 @@ func TestOptions_ApplySettings(t *testing.T) {
 
 		options := NewDefaultOptions()
 		assert.Empty(t, options.SSHAddr)
+		assert.Empty(t, options.PostgresAddr)
 		assert.Nil(t, options.SSHHostKeyFiles)
 		assert.Nil(t, options.SSHHostKeys)
 		assert.Empty(t, options.SSHUserCAKeyFile)
 		assert.Empty(t, options.SSHUserCAKey)
 
 		options.ApplySettings(ctx, nil, &configpb.Settings{
-			SshAddress: new("SSH_ADDRESS"),
+			SshAddress:      new("SSH_ADDRESS"),
+			PostgresAddress: new("POSTGRES_ADDRESS"),
 		})
 		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
+		assert.Equal(t, "POSTGRES_ADDRESS", options.PostgresAddr)
 		assert.Nil(t, options.SSHHostKeyFiles)
 		assert.Nil(t, options.SSHHostKeys)
 		assert.Empty(t, options.SSHUserCAKeyFile)
