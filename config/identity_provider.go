@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/extjwt"
@@ -71,16 +71,30 @@ func (p IdentityProvider) Validate() error {
 	if p.Issuer == "" {
 		return fmt.Errorf("identity_providers: issuer is required")
 	}
-	if _, err := url.Parse(p.Issuer); err != nil {
+	// The issuer must be an absolute URL: it selects the provider for an
+	// incoming token (exact `iss` match) and, on the discovery path, is where
+	// the discovery document and JWKS are fetched. A bare/relative string like
+	// "foo" is a config error, not a runtime discovery failure.
+	iu, err := url.Parse(p.Issuer)
+	if err != nil {
 		return fmt.Errorf("identity_providers[%s]: invalid issuer URL: %w", p.Issuer, err)
+	}
+	if !iu.IsAbs() || iu.Host == "" {
+		return fmt.Errorf("identity_providers[%s]: issuer must be an absolute URL (scheme://host)", p.Issuer)
+	}
+	// Signing keys must not be fetched over plaintext HTTP: an on-path attacker
+	// could substitute the JWKS and forge acceptable tokens. Require https,
+	// permitting http only for loopback (local development / tests).
+	if !isSecureKeyURL(iu) {
+		return fmt.Errorf("identity_providers[%s]: issuer must use https (http allowed only for loopback)", p.Issuer)
 	}
 	if p.JWKSURL != "" {
 		u, err := url.Parse(p.JWKSURL)
 		if err != nil {
 			return fmt.Errorf("identity_providers[%s]: invalid jwks_url: %w", p.Issuer, err)
 		}
-		if u.Scheme != "http" && u.Scheme != "https" {
-			return fmt.Errorf("identity_providers[%s]: jwks_url must be http(s)", p.Issuer)
+		if !u.IsAbs() || u.Host == "" || !isSecureKeyURL(u) {
+			return fmt.Errorf("identity_providers[%s]: jwks_url must be an https URL (http allowed only for loopback)", p.Issuer)
 		}
 	}
 	if len(p.Audiences) == 0 {
@@ -93,6 +107,28 @@ func (p IdentityProvider) Validate() error {
 		}
 	}
 	return nil
+}
+
+// isSecureKeyURL reports whether u is safe to fetch signing-key material from:
+// https always, or http only when the host is loopback (local dev / tests).
+func isSecureKeyURL(u *url.URL) bool {
+	if u.Scheme == "https" {
+		return true
+	}
+	return u.Scheme == "http" && isLoopbackHost(u.Hostname())
+}
+
+// isLoopbackHost reports whether host is a loopback address or name
+// (127.0.0.0/8, ::1, localhost, *.localhost).
+func isLoopbackHost(host string) bool {
+	if host == "" {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+	h := strings.ToLower(host)
+	return h == "localhost" || strings.HasSuffix(h, ".localhost")
 }
 
 // EffectiveSupportedAlgs returns p.SupportedAlgs or the default allowlist.
@@ -340,8 +376,13 @@ func (cfg *Config) IdentityProviderResolver() (*IdentityProviderResolver, error)
 		return nil, nil
 	}
 	cfg.identityProviderResolverOnce.Do(func() {
+		client, err := cfg.identityProviderHTTPClient()
+		if err != nil {
+			cfg.identityProviderResolverErr = err
+			return
+		}
 		cfg.identityProviderResolver, cfg.identityProviderResolverErr = NewIdentityProviderResolver(
-			cfg.Options.IdentityProviders, cfg.identityProviderHTTPClient())
+			cfg.Options.IdentityProviders, client)
 	})
 	return cfg.identityProviderResolver, cfg.identityProviderResolverErr
 }
@@ -349,25 +390,29 @@ func (cfg *Config) IdentityProviderResolver() (*IdentityProviderResolver, error)
 // identityProviderHTTPClient builds the HTTP client used for JWKS/discovery
 // fetches. When a global certificate_authority / certificate_authority_file is
 // configured (e.g. Kubernetes' cluster CA), it returns a CA-aware client;
-// otherwise it returns nil so go-oidc uses its default client with system
-// roots. On a bad CA it warns and falls back to system defaults, mirroring
-// NewPolicyHTTPTransport.
-func (cfg *Config) identityProviderHTTPClient() *http.Client {
+// when neither is set it returns nil so go-oidc uses its default client with
+// system roots.
+//
+// A CA that is explicitly configured but fails to load is a hard error, not a
+// silent fallback: falling back to system roots would make the intended
+// private-CA issuer's JWKS/discovery fetch fail with "unknown authority" and
+// silently reject every token, with only a single startup log line. The
+// misconfiguration must surface to the caller instead.
+func (cfg *Config) identityProviderHTTPClient() (*http.Client, error) {
 	o := cfg.Options
 	if o.CA == "" && o.CAFile == "" {
-		return nil
+		return nil, nil
 	}
 	rootCAs, err := cryptutil.GetCertPool(o.CA, o.CAFile)
 	if err != nil {
-		log.Error().Err(err).Msg("config: identity_providers: error getting ca cert pool, using system defaults")
-		return nil
+		return nil, fmt.Errorf("config: identity_providers: error building CA cert pool: %w", err)
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{
 		RootCAs:    rootCAs,
 		MinVersion: tls.VersionTLS12,
 	}
-	return &http.Client{Transport: transport}
+	return &http.Client{Transport: transport}, nil
 }
 
 // unverifiedIssuer extracts the `iss` claim from the JWT payload WITHOUT

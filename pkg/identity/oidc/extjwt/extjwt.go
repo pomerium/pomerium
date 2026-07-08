@@ -132,8 +132,16 @@ func (p *Provider) getVerifier(ctx context.Context) (*go_oidc.IDTokenVerifier, e
 
 	// Inject the CA-aware HTTP client (if any) as a context value. go-oidc
 	// honors it on both the discovery (NewProvider) and explicit-JWKS
-	// (NewRemoteKeySet) paths, and RemoteKeySet retains the context for later
-	// key refreshes.
+	// (NewRemoteKeySet) paths.
+	//
+	// The verifier is memoized for the Provider's lifetime, so it outlives this
+	// (request-scoped) ctx. That is safe because go-oidc's RemoteKeySet stores
+	// the context as context.WithoutCancel(ctx) (oidc/jwks.go): it retains only
+	// the values (our HTTP client) for later JWKS key refreshes, NOT the cancel
+	// signal — so cancelling the first request cannot break future refreshes.
+	// This depends on go-oidc >= the version that adopted WithoutCancel; a
+	// downgrade would reintroduce a permanent fail-closed on key rotation
+	// (regression-tested by TestProvider_KeyRefreshAfterInitContextCancelled).
 	if p.cfg.HTTPClient != nil {
 		ctx = go_oidc.ClientContext(ctx, p.cfg.HTTPClient)
 	}

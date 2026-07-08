@@ -66,14 +66,20 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return mkDeniedCheckResponse(http.StatusNoContent, headers, ""), nil
 	}
 
-	// Cookie + Authorization: Bearer are mutually exclusive trust contexts.
-	// Cookies come from a browser; bearer tokens come from an M2M client.
-	// A request carrying both is either a misconfigured client or an
-	// attempt at confusion, so we reject it with a 400.
-	if hasCookieAndBearer(hreq, a.currentConfig.Load().Options.CookieName) {
+	// Cookie + Authorization: Bearer are mutually exclusive trust contexts,
+	// but only on routes where Pomerium itself consumes the bearer token
+	// (bearer_token_format access/identity/jwt). Cookies come from a browser;
+	// a consumed bearer token comes from an M2M client, so a request carrying
+	// both is a misconfigured client or a confusion attempt — reject with 400.
+	// On ordinary cookie-SSO / pass-through routes the Authorization header is
+	// forwarded to the upstream untouched, so a browser session that also
+	// carries an upstream bearer must NOT be rejected here.
+	cfg := a.currentConfig.Load()
+	if cfg.PolicyConsumesBearerToken(req.Policy) &&
+		hasCookieAndBearer(hreq, cfg.Options.CookieName) {
 		log.Ctx(ctx).Info().
 			Str("request-id", requestID).
-			Msg("request carried both a session cookie and an Authorization: Bearer header; rejecting as 400")
+			Msg("request carried both a session cookie and an Authorization: Bearer header on a bearer-token route; rejecting as 400")
 		return a.deniedResponse(ctx, in, int32(http.StatusBadRequest), http.StatusText(http.StatusBadRequest), nil)
 	}
 

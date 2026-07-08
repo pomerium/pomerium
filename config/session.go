@@ -602,6 +602,22 @@ func (c *incomingIDPTokenSessionCreator) putSessionAndUser(ctx context.Context, 
 	return nil
 }
 
+// PolicyConsumesBearerToken reports whether the effective bearer_token_format
+// for the policy causes Pomerium to interpret the Authorization: Bearer token
+// itself (access/identity/jwt) rather than pass it through to the upstream.
+// On pass-through routes (UNKNOWN/DEFAULT) the header belongs to the upstream,
+// so callers must not treat a bearer token as a Pomerium credential there.
+func (cfg *Config) PolicyConsumesBearerToken(policy *Policy) bool {
+	switch cfg.GetBearerTokenFormatForPolicy(policy) {
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN,
+		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN,
+		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT:
+		return true
+	default:
+		return false
+	}
+}
+
 // GetBearerTokenFormatForPolicy resolves the effective bearer_token_format for
 // the policy: per-route override, else the global default, else UNKNOWN.
 func (cfg *Config) GetBearerTokenFormatForPolicy(policy *Policy) config.BearerTokenFormat {
