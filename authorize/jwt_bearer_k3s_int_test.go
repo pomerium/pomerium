@@ -15,12 +15,13 @@
 //   - It demonstrates the Pomerium-specific audience scheme: only tokens
 //     minted with audience "pomerium.example.com" pass.
 //
-// Run with:
+// This test is opt-in: it is slow, requires Docker (~2GB RAM), and mutates the
+// process-global OTel tracer, so it is skipped unless POMERIUM_K3S_INTEGRATION
+// is set (running it in the same `go test` process as the other testenv tests
+// would otherwise trip testenv's global-tracer guard). Run with:
 //
-//	go test -tags=k3s_integration -count=1 -timeout=15m \
+//	POMERIUM_K3S_INTEGRATION=1 go test -count=1 -timeout=15m \
 //	    -run TestExternalJWTBearer_K3s ./authorize/
-//
-// Requires Docker and ~2GB of RAM.
 
 package authorize_test
 
@@ -30,6 +31,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -62,8 +64,8 @@ const (
 )
 
 func TestExternalJWTBearer_K3s(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping k3s integration test in -short mode")
+	if os.Getenv("POMERIUM_K3S_INTEGRATION") == "" {
+		t.Skip("set POMERIUM_K3S_INTEGRATION=1 to run the k3s integration test (requires Docker)")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
