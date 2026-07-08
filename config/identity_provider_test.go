@@ -45,6 +45,29 @@ func TestIdentityProvider_Validate(t *testing.T) {
 		ip.JWKSURL = "ftp://bad"
 		assert.Error(t, ip.Validate())
 	})
+	t.Run("issuer must be an absolute URL", func(t *testing.T) {
+		ip := valid()
+		ip.Issuer = "foo"
+		assert.Error(t, ip.Validate())
+	})
+	t.Run("plaintext-http issuer rejected", func(t *testing.T) {
+		// Fetching signing keys over http lets an on-path attacker substitute
+		// the JWKS and forge acceptable tokens.
+		ip := valid()
+		ip.Issuer = "http://issuer.example.com"
+		assert.Error(t, ip.Validate())
+	})
+	t.Run("plaintext-http jwks_url rejected", func(t *testing.T) {
+		ip := valid()
+		ip.JWKSURL = "http://issuer.example.com/keys"
+		assert.Error(t, ip.Validate())
+	})
+	t.Run("loopback http allowed for local dev", func(t *testing.T) {
+		ip := valid()
+		ip.Issuer = "http://127.0.0.1:8080"
+		ip.JWKSURL = "http://localhost:8080/keys"
+		assert.NoError(t, ip.Validate())
+	})
 	t.Run("empty audiences fail-closed", func(t *testing.T) {
 		ip := valid()
 		ip.Audiences = nil

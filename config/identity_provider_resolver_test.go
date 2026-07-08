@@ -250,3 +250,21 @@ func TestIdentityProviderResolver_CustomCA(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// TestIdentityProviderResolver_BadCASurfacesError verifies that an explicitly
+// configured certificate_authority that fails to load is a hard error, not a
+// silent fallback to system roots. Falling back would make the intended
+// private-CA issuer's JWKS/discovery fetch fail with "unknown authority" and
+// silently reject every token, with only a single startup log line.
+func TestIdentityProviderResolver_BadCASurfacesError(t *testing.T) {
+	t.Parallel()
+
+	providers := map[string]IdentityProvider{
+		"k8s": {Issuer: "https://issuer.example.com", Audiences: []string{"aud"}, SupportedAlgs: []string{"ES256"}},
+	}
+	// certificate_authority is set but malformed (not valid base64-encoded PEM).
+	cfg := New(&Options{CA: "@@@not-valid-base64-or-pem@@@", IdentityProviders: providers})
+
+	_, err := cfg.IdentityProviderResolver()
+	require.Error(t, err)
+}

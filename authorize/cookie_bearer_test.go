@@ -18,25 +18,21 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 )
 
-// TestCheck_CookiePlusBearerOnNonJWTRoute_Regression is the regression test for
-// Greptile PR-review finding #1: the hasCookieAndBearer guard in
-// authorize/grpc.go must NOT reject requests on routes that do not consume the
-// bearer token themselves.
+// TestCookieAndBearer_NonJWTRoutePassthrough asserts that on a route that does
+// not itself consume the bearer token (bearer_token_format not set), a
+// cookie-authenticated browser request may also carry an Authorization: Bearer
+// header meant for the upstream. Pomerium must authenticate via the session
+// cookie and forward the header untouched — a common pattern for a browser app
+// behind Pomerium SSO that also calls an API wanting its own bearer token.
 //
-// On a normal cookie-SSO route (bearer_token_format NOT set), the expected
-// behavior is: authenticate via the session cookie and forward the
-// Authorization header untouched to the upstream. That is a common pattern —
-// a browser app behind Pomerium that also talks to an API wanting its own
-// bearer token. Before the fix, the guard fired unconditionally in Check()
-// (before loadSession, with no reference to bearer_token_format), so such a
-// request was hard-rejected with 400. The fix scopes the guard to routes where
-// Pomerium consumes the bearer (Config.PolicyConsumesBearerToken).
+// The cookie+bearer mutual-exclusion guard (see the CookieAndBearerCollision
+// test) only applies to routes where Pomerium consumes the bearer itself.
 //
-// This test logs in normally (populating the route client's cookie jar), then
+// The test logs in normally (populating the route client's cookie jar), then
 // issues a second request on the same route that additionally carries an
-// Authorization: Bearer header for the upstream, and asserts it still
-// succeeds (200) with the header forwarded to the upstream.
-func TestCheck_CookiePlusBearerOnNonJWTRoute_Regression(t *testing.T) {
+// Authorization: Bearer header, and asserts it succeeds (200) with the header
+// forwarded to the upstream.
+func TestCookieAndBearer_NonJWTRoutePassthrough(t *testing.T) {
 	env := testenv.New(t)
 	env.Add(scenarios.NewIDP([]*mockidp.User{
 		{Email: "foo@example.com", FirstName: "Foo", LastName: "Bar"},

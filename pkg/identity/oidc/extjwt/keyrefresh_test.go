@@ -75,16 +75,19 @@ func (r *rotatableJWKS) sign(t *testing.T, issuer, sub, aud string) string {
 	return tok
 }
 
-// TestProvider_KeyRefreshAfterInitContextCancelled is the adversarial red test
-// proposed in the Greptile PR review (finding #2): it claims that because
-// getVerifier builds the RemoteKeySet with the FIRST inbound request's context,
-// cancelling that context permanently breaks future JWKS key refreshes.
+// TestProvider_KeyRefreshAfterInitContextCancelled guards a subtle lifetime
+// property: getVerifier builds the RemoteKeySet with the FIRST inbound
+// request's context, and the verifier is then memoized for the Provider's
+// lifetime. Cancelling that first request's context must NOT break later JWKS
+// key refreshes — go-oidc stores the constructor context as
+// context.WithoutCancel(ctx) (oidc/jwks.go), retaining only its values (the
+// injected HTTP client), not its cancellation.
 //
-// It does NOT break: go-oidc v3.17.0 stores the constructor context as
-// `context.WithoutCancel(ctx)` (jwks.go:71) — cancellation is stripped, only
-// the values (the injected HTTP client) are retained. This test proves the
-// finding is a FALSE POSITIVE by driving exactly the scenario the review
-// describes and asserting the second verify SUCCEEDS.
+// The test drives that scenario end to end — verify, cancel the init context,
+// rotate the issuer's signing key (a new kid forces a real cache-miss JWKS
+// re-fetch), then verify a new token with a fresh context — and asserts the
+// second verify still succeeds. A go-oidc downgrade that dropped WithoutCancel
+// would reintroduce a permanent fail-closed on key rotation, which this catches.
 func TestProvider_KeyRefreshAfterInitContextCancelled(t *testing.T) {
 	t.Parallel()
 
