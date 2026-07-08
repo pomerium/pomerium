@@ -15,13 +15,15 @@
 //   - It demonstrates the Pomerium-specific audience scheme: only tokens
 //     minted with audience "pomerium.example.com" pass.
 //
-// This test is opt-in: it is slow, requires Docker (~2GB RAM), and mutates the
-// process-global OTel tracer, so it is skipped unless POMERIUM_K3S_INTEGRATION
-// is set (running it in the same `go test` process as the other testenv tests
-// would otherwise trip testenv's global-tracer guard). Run with:
+// This test is opt-in AND must run in isolation: it is slow, requires Docker
+// (~2GB RAM), and mutates the process-global OTel tracer, so running it in the
+// same `go test` process as the other testenv-based tests trips testenv's
+// global-tracer panic guard. It is therefore gated behind a per-test env var
+// named after the test (RUN_<test name>), so enabling it never silently
+// enables any other test. Run it on its own:
 //
-//	POMERIUM_K3S_INTEGRATION=1 go test -count=1 -timeout=15m \
-//	    -run TestExternalJWTBearer_K3s ./authorize/
+//	RUN_TestExternalJWTBearer_K3s=1 go test -count=1 -timeout=15m \
+//	    -run '^TestExternalJWTBearer_K3s$' ./authorize/
 
 package authorize_test
 
@@ -63,10 +65,23 @@ const (
 	idpName           = "k3s-test"
 )
 
-func TestExternalJWTBearer_K3s(t *testing.T) {
-	if os.Getenv("POMERIUM_K3S_INTEGRATION") == "" {
-		t.Skip("set POMERIUM_K3S_INTEGRATION=1 to run the k3s integration test (requires Docker)")
+// gateExclusiveIntegrationTest skips t unless an env var named after the test
+// (RUN_<test name>) is set. Use it for heavyweight, non-hermetic tests that
+// must run on their own — e.g. this one mutates the process-global OTel tracer
+// and would trip testenv's global-tracer guard if run alongside other tests.
+// The per-test env var keeps the gate granular: enabling one exclusive test
+// never enables another.
+func gateExclusiveIntegrationTest(t *testing.T) {
+	t.Helper()
+	envVar := "RUN_" + t.Name()
+	if os.Getenv(envVar) == "" {
+		t.Skipf("skipping %s: run it in isolation with %s=1 go test -run '^%s$' ./authorize/",
+			t.Name(), envVar, t.Name())
 	}
+}
+
+func TestExternalJWTBearer_K3s(t *testing.T) {
+	gateExclusiveIntegrationTest(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
