@@ -40,8 +40,13 @@ func stdSAClaims(issuer, sub, aud string, now time.Time) map[string]any {
 	}
 }
 
-// configureJWTIdp wires a mock OIDC issuer into Pomerium's jwt_allowed_issuers
-// list and returns the IDP plus its URL.
+// jwtBearerAudience is the audience the mock identity providers accept and the
+// tests mint tokens for.
+const jwtBearerAudience = "pomerium.example.com"
+
+// configureJWTIdp wires a mock OIDC issuer into Pomerium's identity_providers
+// map under the given name (audiences are per-provider) and returns the IDP
+// plus its URL.
 func configureJWTIdp(t *testing.T, env testenv.Environment, idpName string) (*mockidp.IDP, values.Value[string]) {
 	t.Helper()
 
@@ -55,22 +60,25 @@ func configureJWTIdp(t *testing.T, env testenv.Environment, idpName string) (*mo
 	})
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-		cfg.Options.JWTAllowedIssuers = append(cfg.Options.JWTAllowedIssuers, config.JWTAllowedIssuer{
+		if cfg.Options.IdentityProviders == nil {
+			cfg.Options.IdentityProviders = map[string]config.IdentityProvider{}
+		}
+		cfg.Options.IdentityProviders[idpName] = config.IdentityProvider{
 			Issuer:        idpURL.Value(),
+			Audiences:     []string{jwtBearerAudience},
 			SupportedAlgs: []string{"ES256"}, // mockidp signs with ES256
-			Name:          idpName,
-		})
+		}
 	}))
 
 	return idp, idpURL
 }
 
-// useJWTBearer configures a route to verify JWT bearer tokens (against the
-// globally-trusted issuers) with the given allowed audiences.
-func useJWTBearer(p *config.Policy, audiences ...string) {
+// useJWTBearer configures a route to verify JWT bearer tokens. The optional
+// providerNames set the route's identity-provider allowlist; when none are
+// given the route accepts tokens from any configured provider.
+func useJWTBearer(p *config.Policy, providerNames ...string) {
 	p.BearerTokenFormat = nullable.From(configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT)
-	auds := audiences
-	p.JWTAllowedAudiences = &auds
+	p.IdentityProviders = providerNames
 }
 
 // TestExternalJWTBearer_HappyPath asserts a JWT-bearer authenticated request
@@ -93,7 +101,7 @@ func TestExternalJWTBearer_HappyPath(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			useJWTBearer(p, audience)
+			useJWTBearer(p)
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {
@@ -142,7 +150,7 @@ func TestExternalJWTBearer_KubernetesNamespacePolicy(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			useJWTBearer(p, audience)
+			useJWTBearer(p)
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {
@@ -225,7 +233,7 @@ func TestExternalJWTBearer_WrongAudience(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			useJWTBearer(p, "pomerium.example.com")
+			useJWTBearer(p)
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {"and": [{"claim/sub": "system:serviceaccount:default:my-sa"}]}
@@ -267,7 +275,7 @@ func TestExternalJWTBearer_NoBearerNoFallthrough(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			useJWTBearer(p, "pomerium.example.com")
+			useJWTBearer(p)
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {"and": [{"claim/sub": "system:serviceaccount:default:my-sa"}]}
@@ -314,7 +322,7 @@ func TestExternalJWTBearer_CookieAndBearerCollision(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			useJWTBearer(p, "pomerium.example.com")
+			useJWTBearer(p)
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(`{
 				"allow": {"and": [{"claim/sub": "system:serviceaccount:default:my-sa"}]}
@@ -345,4 +353,81 @@ func TestExternalJWTBearer_CookieAndBearerCollision(t *testing.T) {
 	io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode,
 		"cookie + bearer must be rejected as 400")
+}
+
+// TestExternalJWTBearer_RouteProviderScoping asserts a route's
+// identity_providers allowlist scopes which providers it accepts: a route
+// allowing only idp-a rejects an idp-b token, while a route with no allowlist
+// accepts tokens from either configured provider. (The session's IdpId ==
+// provider name is asserted at the unit level in config's
+// TestVerifyJWTAndCreateSession / TestCreateSessionForJWT_RouteProviderScoping.)
+func TestExternalJWTBearer_RouteProviderScoping(t *testing.T) {
+	env := testenv.New(t)
+	idpA, idpAURL := configureJWTIdp(t, env, "idp-a")
+	idpB, idpBURL := configureJWTIdp(t, env, "idp-b")
+
+	up := upstreams.HTTP(nil, upstreams.WithDisplayName("Echo"))
+	up.Handle("/echo", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprintln(w, "ok")
+	})
+
+	newPPL := func() *config.PPLPolicy {
+		var ppl config.PPLPolicy
+		require.NoError(t, ppl.UnmarshalJSON([]byte(`{"allow":{"and":[{"claim/sub":"svc"}]}}`)))
+		return &ppl
+	}
+	toAddr := values.Bind(up.Addr(), func(addr string) string {
+		return fmt.Sprintf("http://%s", addr)
+	})
+
+	// Route A: only idp-a is allowed.
+	routeA := up.Route().
+		From(env.SubdomainURL("api-a")).
+		To(toAddr).
+		Policy(func(p *config.Policy) {
+			useJWTBearer(p, "idp-a")
+			p.Policy = newPPL()
+		})
+	// Route B: no allowlist -> any configured provider is accepted.
+	routeB := up.Route().
+		From(env.SubdomainURL("api-b")).
+		To(toAddr).
+		Policy(func(p *config.Policy) {
+			useJWTBearer(p)
+			p.Policy = newPPL()
+		})
+
+	env.AddUpstream(up)
+	env.Start()
+	snippets.WaitStartupComplete(env)
+
+	now := time.Now()
+	mkTok := func(idp *mockidp.IDP, iss string) string {
+		return idp.SignJWT(map[string]any{
+			"iss": iss,
+			"sub": "svc",
+			"aud": []string{jwtBearerAudience},
+			"exp": now.Add(time.Hour).Unix(),
+			"iat": now.Unix(),
+			"nbf": now.Unix(),
+		})
+	}
+	tokA := mkTok(idpA, idpAURL.Value())
+	tokB := mkTok(idpB, idpBURL.Value())
+
+	status := func(route testenv.Route, tok string) int {
+		resp, err := up.Get(route,
+			upstreams.Path("/echo"),
+			upstreams.Headers(map[string]string{"Authorization": "Bearer " + tok}),
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		io.ReadAll(resp.Body)
+		return resp.StatusCode
+	}
+
+	assert.Equal(t, http.StatusOK, status(routeA, tokA), "route allowing idp-a must accept idp-a token")
+	assert.NotEqual(t, http.StatusOK, status(routeA, tokB), "route allowing only idp-a must reject idp-b token")
+	assert.Equal(t, http.StatusOK, status(routeB, tokA), "route with no allowlist must accept idp-a token")
+	assert.Equal(t, http.StatusOK, status(routeB, tokB), "route with no allowlist must accept idp-b token")
 }

@@ -2,8 +2,8 @@
 // for the external-JWT identity provider. It spins up a real k3s cluster via
 // testcontainers, mints a real ServiceAccount token through the apiserver's
 // TokenRequest API, and verifies that an in-process Pomerium (driven by
-// testenv) accepts that token end-to-end via bearer_token_format: jwt +
-// jwt_allowed_issuers + jwt_allowed_audiences.
+// testenv) accepts that token end-to-end via bearer_token_format: jwt + a named
+// entry in identity_providers (with per-provider audiences).
 //
 // Why this test exists:
 //   - It exercises the JWKSURL override path (the default k3s issuer
@@ -130,12 +130,15 @@ func TestExternalJWTBearer_K3s(t *testing.T) {
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-		cfg.Options.JWTAllowedIssuers = append(cfg.Options.JWTAllowedIssuers, config.JWTAllowedIssuer{
+		if cfg.Options.IdentityProviders == nil {
+			cfg.Options.IdentityProviders = map[string]config.IdentityProvider{}
+		}
+		cfg.Options.IdentityProviders[idpName] = config.IdentityProvider{
 			Issuer:        k3sDefaultIssuer,
 			JWKSURL:       jwksSrv.URL,
+			Audiences:     []string{pomeriumAudience},
 			SupportedAlgs: []string{"RS256"}, // k3s default signing algorithm
-			Name:          idpName,
-		})
+		}
 	}))
 
 	up := upstreams.HTTP(nil, upstreams.WithDisplayName("EchoK3s"))
@@ -150,7 +153,7 @@ func TestExternalJWTBearer_K3s(t *testing.T) {
 			return fmt.Sprintf("http://%s", addr)
 		})).
 		Policy(func(p *config.Policy) {
-			useJWTBearer(p, pomeriumAudience)
+			useJWTBearer(p, idpName)
 			var ppl config.PPLPolicy
 			require.NoError(t, ppl.UnmarshalJSON([]byte(fmt.Sprintf(`{
 				"allow": {"and": [{"claim/sub": %q}]}

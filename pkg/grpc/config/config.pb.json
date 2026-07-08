@@ -38,7 +38,7 @@
             {
               "name": "BEARER_TOKEN_FORMAT_JWT",
               "number": "4",
-              "description": "The bearer token will be verified as a JWT issued by one of the trusted\nissuers declared in jwt_allowed_issuers, scoped to jwt_allowed_audiences.\nAuthorization on the verified claims is left to PPL (claim/...)."
+              "description": "The bearer token will be verified as a JWT issued by one of the configured\nidentity_providers (selected by the token's `iss`), with audience binding\nenforced per-provider. Authorization on the verified claims is left to PPL\n(claim/...)."
             }
           ]
         },
@@ -2138,18 +2138,18 @@
           ]
         },
         {
-          "name": "JwtAllowedIssuer",
-          "longName": "JwtAllowedIssuer",
-          "fullName": "pomerium.config.JwtAllowedIssuer",
-          "description": "JwtAllowedIssuer declares a trusted JWT issuer. Pomerium verifies JWT bearer\ntokens against any of these issuers on routes whose bearer_token_format is\nBEARER_TOKEN_FORMAT_JWT. Audience binding is enforced separately via\njwt_allowed_audiences; authorization on the verified claims is left to PPL.",
+          "name": "IdentityProvider",
+          "longName": "IdentityProvider",
+          "fullName": "pomerium.config.IdentityProvider",
+          "description": "IdentityProvider declares an additional identity provider. Today it is\nusable only to verify JWT bearer tokens issued by non-interactive workloads\n(Kubernetes projected service-account tokens, GitHub Actions OIDC, SPIFFE\nJWT-SVIDs, …) on routes whose bearer_token_format is BEARER_TOKEN_FORMAT_JWT.\nIt does not replace the interactive SSO identity provider (the idp_* fields).\n\nProviders are declared as a map in Settings; the map key is the provider\nname, referenced from Route.identity_providers. Authorization on the verified\nclaims is left to PPL (claim/...).",
           "hasExtensions": false,
           "hasFields": true,
-          "hasOneofs": true,
+          "hasOneofs": false,
           "extensions": [],
           "fields": [
             {
               "name": "issuer",
-              "description": "The `iss` claim that tokens must carry. Required. Used both to select the\nmatching issuer for an incoming token and (with OIDC discovery) to fetch\nthe signing keys.",
+              "description": "The `iss` claim tokens must carry. Required, and unique across providers.\nUsed both to select the matching provider for an incoming token and (with\nOIDC discovery) to fetch the signing keys.",
               "label": "",
               "type": "string",
               "longType": "string",
@@ -2173,7 +2173,7 @@
             },
             {
               "name": "supported_algs",
-              "description": "Allowed JWT signing algorithms. When empty, defaults to {RS256, ES256, EdDSA}.",
+              "description": "Allowed JWT signing algorithms. When empty, defaults to {RS256, ES256,\nEdDSA}. `none` and HMAC (HS*) algorithms are rejected.",
               "label": "repeated",
               "type": "string",
               "longType": "string",
@@ -2184,15 +2184,15 @@
               "defaultValue": ""
             },
             {
-              "name": "name",
-              "description": "Optional human-readable identifier, used only for audit logging.",
-              "label": "optional",
+              "name": "audiences",
+              "description": "Audiences accepted on tokens from this provider. Required and non-empty:\nat least one must intersect the token's `aud` claim. Fail-closed — an\nempty set rejects all tokens.",
+              "label": "repeated",
               "type": "string",
               "longType": "string",
               "fullType": "string",
               "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_name",
+              "isoneof": false,
+              "oneofdecl": "",
               "defaultValue": ""
             }
           ]
@@ -4819,15 +4819,15 @@
               "defaultValue": ""
             },
             {
-              "name": "jwt_allowed_audiences",
-              "description": "Allowed audiences for verifying JWT bearer tokens on this route (when\nbearer_token_format is BEARER_TOKEN_FORMAT_JWT). At least one must\nintersect the token's `aud` claim. Fail-closed: an empty effective set\nrejects all tokens. When unset, the global jwt_allowed_audiences is used.",
-              "label": "optional",
-              "type": "StringList",
-              "longType": "Route.StringList",
-              "fullType": "pomerium.config.Route.StringList",
+              "name": "identity_providers",
+              "description": "Names of the identity_providers whose JWT bearer tokens this route accepts\n(when bearer_token_format is BEARER_TOKEN_FORMAT_JWT). Each entry must be a\nkey in Settings.identity_providers. When empty, all configured providers\nare accepted.",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
               "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_jwt_allowed_audiences",
+              "isoneof": false,
+              "oneofdecl": "",
               "defaultValue": ""
             },
             {
@@ -6059,27 +6059,15 @@
               "defaultValue": ""
             },
             {
-              "name": "jwt_allowed_issuers",
-              "description": "Globally declared trusted JWT issuers. Routes whose bearer_token_format\nis BEARER_TOKEN_FORMAT_JWT verify incoming tokens against these.",
+              "name": "identity_providers",
+              "description": "Additional identity providers, keyed by provider name. Currently usable\nonly to verify JWT bearer tokens from non-interactive workloads on routes\nwhose bearer_token_format is BEARER_TOKEN_FORMAT_JWT; the interactive SSO\nprovider is still configured via the idp_* fields.",
               "label": "repeated",
-              "type": "JwtAllowedIssuer",
-              "longType": "JwtAllowedIssuer",
-              "fullType": "pomerium.config.JwtAllowedIssuer",
-              "ismap": false,
+              "type": "IdentityProvidersEntry",
+              "longType": "Settings.IdentityProvidersEntry",
+              "fullType": "pomerium.config.Settings.IdentityProvidersEntry",
+              "ismap": true,
               "isoneof": false,
               "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
-              "name": "jwt_allowed_audiences",
-              "description": "Cluster-wide default allowed audiences for JWT bearer tokens. Routes may\noverride via Route.jwt_allowed_audiences.",
-              "label": "optional",
-              "type": "StringList",
-              "longType": "Settings.StringList",
-              "fullType": "pomerium.config.Settings.StringList",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_jwt_allowed_audiences",
               "defaultValue": ""
             },
             {
@@ -7469,6 +7457,42 @@
               "type": "DataBrokerClusterNode",
               "longType": "Settings.DataBrokerClusterNode",
               "fullType": "pomerium.config.Settings.DataBrokerClusterNode",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "IdentityProvidersEntry",
+          "longName": "Settings.IdentityProvidersEntry",
+          "fullName": "pomerium.config.Settings.IdentityProvidersEntry",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "value",
+              "description": "",
+              "label": "",
+              "type": "IdentityProvider",
+              "longType": "IdentityProvider",
+              "fullType": "pomerium.config.IdentityProvider",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",

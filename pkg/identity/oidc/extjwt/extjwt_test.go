@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -261,4 +262,86 @@ func TestVerify_DiscoveryFailure(t *testing.T) {
 	p := newProvider(t, srv.URL, nil)
 	_, err := p.Verify(t.Context(), "irrelevant", []string{"aud"})
 	require.Error(t, err)
+}
+
+// tlsIssuer starts a mock OIDC issuer served over HTTPS with a self-signed
+// certificate. The returned client trusts that certificate; the default HTTP
+// client does not. This lets the custom-HTTP-client tests prove that key
+// fetching honors the injected client on both constructor paths.
+func tlsIssuer(t *testing.T) (issuer string, client *http.Client, idp *mockidp.IDP) {
+	t.Helper()
+	idp = mockidp.New(mockidp.Config{})
+	r := mux.NewRouter()
+	idp.Register(r)
+	srv := httptest.NewTLSServer(r)
+	t.Cleanup(srv.Close)
+	return srv.URL, srv.Client(), idp
+}
+
+// TestVerify_CustomHTTPClient_JWKSPath proves that on the explicit-JWKS-URL
+// path, JWKS fetching uses Config.HTTPClient: with the CA-trusting client the
+// self-signed JWKS server is reachable and verification succeeds; without it
+// the fetch fails on certificate validation.
+func TestVerify_CustomHTTPClient_JWKSPath(t *testing.T) {
+	t.Parallel()
+
+	issuer, client, idp := tlsIssuer(t)
+	jwksURL := issuer + "/.well-known/jwks.json"
+	tok := idp.SignJWT(stdClaims(issuer, "sub", "aud", time.Now()))
+
+	t.Run("with custom client succeeds", func(t *testing.T) {
+		p, err := extjwt.New(extjwt.Config{
+			Issuer:        issuer,
+			JWKSURL:       jwksURL,
+			SupportedAlgs: []string{"ES256"},
+			HTTPClient:    client,
+		})
+		require.NoError(t, err)
+		claims, err := p.Verify(t.Context(), tok, []string{"aud"})
+		require.NoError(t, err)
+		assert.Equal(t, "sub", claims["sub"])
+	})
+
+	t.Run("without custom client fails on TLS", func(t *testing.T) {
+		p, err := extjwt.New(extjwt.Config{
+			Issuer:        issuer,
+			JWKSURL:       jwksURL,
+			SupportedAlgs: []string{"ES256"},
+		})
+		require.NoError(t, err)
+		_, err = p.Verify(t.Context(), tok, []string{"aud"})
+		require.Error(t, err)
+	})
+}
+
+// TestVerify_CustomHTTPClient_DiscoveryPath proves the same for the OIDC
+// discovery path (no JWKSURL): both the discovery document fetch and the
+// subsequent JWKS fetch must use Config.HTTPClient.
+func TestVerify_CustomHTTPClient_DiscoveryPath(t *testing.T) {
+	t.Parallel()
+
+	issuer, client, idp := tlsIssuer(t)
+	tok := idp.SignJWT(stdClaims(issuer, "sub", "aud", time.Now()))
+
+	t.Run("with custom client succeeds", func(t *testing.T) {
+		p, err := extjwt.New(extjwt.Config{
+			Issuer:        issuer,
+			SupportedAlgs: []string{"ES256"},
+			HTTPClient:    client,
+		})
+		require.NoError(t, err)
+		claims, err := p.Verify(t.Context(), tok, []string{"aud"})
+		require.NoError(t, err)
+		assert.Equal(t, "sub", claims["sub"])
+	})
+
+	t.Run("without custom client fails on TLS", func(t *testing.T) {
+		p, err := extjwt.New(extjwt.Config{
+			Issuer:        issuer,
+			SupportedAlgs: []string{"ES256"},
+		})
+		require.NoError(t, err)
+		_, err = p.Verify(t.Context(), tok, []string{"aud"})
+		require.Error(t, err)
+	})
 }

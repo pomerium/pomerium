@@ -154,16 +154,12 @@ type Options struct {
 	Scopes                         []string  `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
 	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
 
-	// JWTAllowedIssuers declares globally-trusted JWT issuers. Routes whose
-	// BearerTokenFormat is BEARER_TOKEN_FORMAT_JWT verify incoming bearer
-	// tokens against these.
-	JWTAllowedIssuers []JWTAllowedIssuer `mapstructure:"jwt_allowed_issuers" yaml:"jwt_allowed_issuers,omitempty"`
-
-	// JWTAllowedAudiences is the cluster-wide default audience allowlist for
-	// JWT bearer tokens (BEARER_TOKEN_FORMAT_JWT). Routes may override via
-	// Policy.JWTAllowedAudiences. Fail-closed: an empty effective set rejects
-	// all tokens.
-	JWTAllowedAudiences *[]string `mapstructure:"jwt_allowed_audiences" yaml:"jwt_allowed_audiences,omitempty"`
+	// IdentityProviders declares additional identity providers, keyed by
+	// provider name. Currently usable only to verify JWT bearer tokens from
+	// non-interactive workloads on routes whose BearerTokenFormat is
+	// BEARER_TOKEN_FORMAT_JWT; the interactive SSO provider is still configured
+	// via the flat idp_* options above.
+	IdentityProviders map[string]IdentityProvider `mapstructure:"identity_providers" yaml:"identity_providers,omitempty"`
 
 	// RequestParams are custom request params added to the signin request as
 	// part of an Oauth2 code flow.
@@ -809,7 +805,7 @@ func (o *Options) Validate() error {
 	}
 
 	// Validate JWT bearer-token options (BEARER_TOKEN_FORMAT_JWT).
-	if err := o.validateJWTBearerTokens(); err != nil {
+	if err := o.validateIdentityProviders(); err != nil {
 		return err
 	}
 
@@ -1620,8 +1616,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setSlice(&o.Scopes, settings.Scopes)
 	setMap(&o.RequestParams, settings.RequestParams)
 	setStringList(&o.IDPAccessTokenAllowedAudiences, settings.IdpAccessTokenAllowedAudiences)
-	setJWTAllowedIssuers(&o.JWTAllowedIssuers, settings.JwtAllowedIssuers)
-	setStringList(&o.JWTAllowedAudiences, settings.JwtAllowedAudiences)
+	setIdentityProviders(&o.IdentityProviders, settings.IdentityProviders)
 	setSlice(&o.AuthorizeURLStrings, settings.AuthorizeServiceUrls)
 	set(&o.AuthorizeInternalURLString, settings.AuthorizeInternalServiceUrl)
 	set(&o.OverrideCertificateName, settings.OverrideCertificateName)
@@ -1746,8 +1741,7 @@ func (o *Options) ToProto() *configpb.Config {
 	settings.Scopes = o.Scopes
 	settings.RequestParams = o.RequestParams
 	copyOptionalStringList(&settings.IdpAccessTokenAllowedAudiences, o.IDPAccessTokenAllowedAudiences)
-	settings.JwtAllowedIssuers = jwtAllowedIssuersToProto(o.JWTAllowedIssuers)
-	copyOptionalStringList(&settings.JwtAllowedAudiences, o.JWTAllowedAudiences)
+	settings.IdentityProviders = identityProvidersToProto(o.IdentityProviders)
 	settings.AuthorizeServiceUrls = o.AuthorizeURLStrings
 	copySrcToOptionalDest(&settings.AuthorizeInternalServiceUrl, &o.AuthorizeInternalURLString)
 	copySrcToOptionalDest(&settings.OverrideCertificateName, &o.OverrideCertificateName)

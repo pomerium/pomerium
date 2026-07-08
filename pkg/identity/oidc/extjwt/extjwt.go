@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"sync"
 
@@ -54,6 +55,12 @@ type Config struct {
 	// {"RS256","ES256","EdDSA"}). go-oidc would otherwise default to
 	// RS256-only, silently rejecting ES256 / EdDSA tokens.
 	SupportedAlgs []string
+	// HTTPClient, when non-nil, is the HTTP client used to fetch the OIDC
+	// discovery document and JWKS. It is injected via oidc.ClientContext, so
+	// both the discovery and explicit-JWKS-URL paths honor it. Use it to
+	// supply a CA-aware client for issuers behind a private CA (e.g.
+	// Kubernetes' cluster CA). When nil, go-oidc's default client is used.
+	HTTPClient *http.Client
 }
 
 // Provider verifies JWTs against a single trusted issuer.
@@ -121,6 +128,14 @@ func (p *Provider) getVerifier(ctx context.Context) (*go_oidc.IDTokenVerifier, e
 
 	if p.verifier != nil {
 		return p.verifier, nil
+	}
+
+	// Inject the CA-aware HTTP client (if any) as a context value. go-oidc
+	// honors it on both the discovery (NewProvider) and explicit-JWKS
+	// (NewRemoteKeySet) paths, and RemoteKeySet retains the context for later
+	// key refreshes.
+	if p.cfg.HTTPClient != nil {
+		ctx = go_oidc.ClientContext(ctx, p.cfg.HTTPClient)
 	}
 
 	cfg := &go_oidc.Config{

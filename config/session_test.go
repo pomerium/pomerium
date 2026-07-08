@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -192,6 +193,7 @@ func Test_getTokenSessionID(t *testing.T) {
 	assert.Equal(t, "e0b8096c-54dd-5623-8098-5488f9c302db", getIdentityTokenSessionID(nil, "TOKEN"))
 	assert.Equal(t, "9c99d1d0-805e-51cb-b808-772ab654268b", getAccessTokenSessionID(&identitypb.Provider{Id: "IDP1"}, "TOKEN"))
 	assert.Equal(t, "0fe0e289-40bb-5ffe-b328-e290e043a652", getIdentityTokenSessionID(&identitypb.Provider{Id: "IDP1"}, "TOKEN"))
+	assert.Equal(t, "9175ce67-7b36-5d30-a901-26314c546a5a", jwtProviderSessionID("k8s-prod", "TOKEN"))
 }
 
 func TestGetIncomingBearerToken(t *testing.T) {
@@ -472,17 +474,19 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 
 		ctx := testutil.GetContext(t, time.Minute)
 		cfg := New(NewDefaultOptions())
-		cfg.Options.JWTAllowedIssuers = []JWTAllowedIssuer{{
-			Issuer:        issuer,
-			SupportedAlgs: []string{"ES256"},
-		}}
+		cfg.Options.IdentityProviders = map[string]IdentityProvider{
+			"prod": {
+				Issuer:        issuer,
+				Audiences:     []string{"pomerium.example.com"},
+				SupportedAlgs: []string{"ES256"},
+			},
+		}
 
-		audiences := []string{"pomerium.example.com"}
 		route := &Policy{
 			RouteOptions: RouteOptions{
 				BearerTokenFormat: nullable.From(config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT),
 			},
-			JWTAllowedAudiences: &audiences,
+			IdentityProviders: []string{"prod"},
 		}
 
 		now := time.Now()
@@ -513,46 +517,41 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		)
 		s, err := c.CreateSession(ctx, cfg, route, req)
 		assert.NoError(t, err)
-		assert.Equal(t, "U1", s.GetUserId())
+		assert.Equal(t, "prod/U1", s.GetUserId())
+		assert.Equal(t, "prod", s.GetIdpId())
 		assert.True(t, s.GetRefreshDisabled())
 	})
 }
 
-// TestJWTSingleflightKey is the root-cause regression check: the singleflight
-// de-dup key for a JWT bearer verification MUST fold in the route's audience
-// allowlist. If it doesn't, two concurrent verifications of one token on routes
-// with different jwt_allowed_audiences collapse into a single Verify and a
-// follower inherits the leader's audience check (per-route audience bypass).
+// TestJWTSingleflightKey checks the de-dup key is keyed on (provider name, raw
+// token): the same token under different providers must not collapse, and
+// different tokens must not collapse. Audiences are per-provider now, so they
+// are no longer part of the key — the provider name already scopes them.
 func TestJWTSingleflightKey(t *testing.T) {
 	t.Parallel()
 
 	const tok = "header.payload.sig"
 
-	// Same token, different audiences must NOT share a key (the bug).
 	assert.NotEqual(t,
-		jwtSingleflightKey(tok, []string{"api-a"}),
-		jwtSingleflightKey(tok, []string{"api-b"}),
-		"different audiences must produce different keys, else they collapse")
+		jwtSingleflightKey("prod", tok),
+		jwtSingleflightKey("staging", tok),
+		"same token under different providers must not share a key")
 
-	// Same token, same audiences in a different order SHARE a key (legitimate
-	// de-dup still works).
+	assert.NotEqual(t,
+		jwtSingleflightKey("prod", tok),
+		jwtSingleflightKey("prod", "other.token.sig"),
+		"different tokens must not share a key")
+
 	assert.Equal(t,
-		jwtSingleflightKey(tok, []string{"api-a", "api-b"}),
-		jwtSingleflightKey(tok, []string{"api-b", "api-a"}),
-		"audience order must not affect the key")
-
-	// Different token, same audiences must NOT share a key.
-	assert.NotEqual(t,
-		jwtSingleflightKey("other.token.sig", []string{"api-a"}),
-		jwtSingleflightKey(tok, []string{"api-a"}),
-		"different tokens must produce different keys")
+		jwtSingleflightKey("prod", tok),
+		jwtSingleflightKey("prod", tok),
+		"same (provider, token) must be stable")
 }
 
 // TestVerifyJWTAndCreateSession exercises the verify-and-create body factored
-// out of the singleflight wrapper. Each call must enforce its own audience
-// allowlist independently: a token minted for api-a is accepted with audiences
-// ["api-a"] and rejected with ["api-b"]. This is the per-call guarantee the
-// audience-folded singleflight key relies on.
+// out of the singleflight wrapper: provider-namespaced identity, mandatory
+// `sub`, per-provider audience binding, the TTL cap, and non-persistence of the
+// raw JWT.
 func TestVerifyJWTAndCreateSession(t *testing.T) {
 	t.Parallel()
 
@@ -561,40 +560,176 @@ func TestVerifyJWTAndCreateSession(t *testing.T) {
 
 	ctx := testutil.GetContext(t, time.Minute)
 	cfg := New(NewDefaultOptions())
-	cfg.Options.JWTAllowedIssuers = []JWTAllowedIssuer{{
-		Issuer:        issuer,
-		SupportedAlgs: []string{"ES256"},
-	}}
-	resolver, err := cfg.JWTIssuerResolver()
+	cfg.Options.CookieExpire = time.Hour // makes the TTL cap observable
+	cfg.Options.IdentityProviders = map[string]IdentityProvider{
+		"prod": {Issuer: issuer, Audiences: []string{"api-a"}, SupportedAlgs: []string{"ES256"}},
+	}
+	resolver, err := cfg.IdentityProviderResolver()
 	require.NoError(t, err)
 	require.NotNil(t, resolver)
 
 	now := time.Now()
-	tok := idp.SignJWT(map[string]any{
-		"iss": issuer,
-		"sub": "U1",
-		"aud": []string{"api-a"},
+	mkToken := func(sub string, aud []string, exp time.Time) string {
+		claims := map[string]any{
+			"iss": issuer,
+			"aud": aud,
+			"exp": exp.Unix(),
+			"iat": now.Unix(),
+			"nbf": now.Unix(),
+		}
+		if sub != "" {
+			claims["sub"] = sub
+		}
+		return idp.SignJWT(claims)
+	}
+	newCreator := func() *incomingIDPTokenSessionCreator {
+		return NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
+			func(_ context.Context, _, _ string) (*databroker.Record, error) {
+				return nil, storage.ErrNotFound
+			},
+			func(_ context.Context, _ []*databroker.Record) error { return nil },
+		).(*incomingIDPTokenSessionCreator)
+	}
+
+	t.Run("happy path sets provider-namespaced identity", func(t *testing.T) {
+		c := newCreator()
+		c.timeNow = func() time.Time { return now }
+		tok := mkToken("U1", []string{"api-a"}, now.Add(time.Hour))
+		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		require.NoError(t, err)
+		assert.Equal(t, "prod", s.GetIdpId())
+		assert.Equal(t, "prod/U1", s.GetUserId())
+		assert.Equal(t, jwtProviderSessionID("prod", tok), s.GetId())
+		assert.True(t, s.GetRefreshDisabled())
+		assert.Empty(t, s.GetIdToken().GetRaw(), "raw JWT must not be persisted")
+	})
+
+	t.Run("missing sub rejected", func(t *testing.T) {
+		c := newCreator()
+		tok := mkToken("", []string{"api-a"}, now.Add(time.Hour))
+		_, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+	})
+
+	t.Run("wrong audience for provider rejected", func(t *testing.T) {
+		c := newCreator()
+		tok := mkToken("U1", []string{"api-b"}, now.Add(time.Hour))
+		_, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+	})
+
+	t.Run("ttl capped at now+CookieExpire", func(t *testing.T) {
+		c := newCreator()
+		c.timeNow = func() time.Time { return now }
+		tok := mkToken("U1", []string{"api-a"}, now.Add(100*time.Hour)) // far beyond CookieExpire
+		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		require.NoError(t, err)
+		assert.WithinDuration(t, now.Add(time.Hour), s.GetExpiresAt().AsTime(), time.Second)
+	})
+
+	t.Run("ttl uses token exp when earlier than cap", func(t *testing.T) {
+		c := newCreator()
+		c.timeNow = func() time.Time { return now }
+		exp := now.Add(5 * time.Minute)
+		tok := mkToken("U1", []string{"api-a"}, exp)
+		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		require.NoError(t, err)
+		assert.WithinDuration(t, exp, s.GetExpiresAt().AsTime(), time.Second)
+	})
+
+	// A cached session whose capped TTL has lapsed must NOT be returned stale
+	// (authorize would reject it as expired) — it is re-minted, so a still-valid
+	// token longer-lived than CookieExpire keeps working.
+	t.Run("expired cached session is re-minted", func(t *testing.T) {
+		tok := mkToken("U1", []string{"api-a"}, now.Add(100*time.Hour))
+		sessionID := jwtProviderSessionID("prod", tok)
+
+		stale := session.New("prod", sessionID)
+		stale.UserId = "prod/STALE"
+		stale.ExpiresAt = timestamppb.New(now.Add(-time.Hour)) // already lapsed
+		anyStale, err := anypb.New(stale)
+		require.NoError(t, err)
+
+		c := NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
+			func(_ context.Context, _, id string) (*databroker.Record, error) {
+				if id == sessionID {
+					return &databroker.Record{Id: id, Data: anyStale}, nil
+				}
+				return nil, storage.ErrNotFound
+			},
+			func(_ context.Context, _ []*databroker.Record) error { return nil },
+		).(*incomingIDPTokenSessionCreator)
+		c.timeNow = func() time.Time { return now }
+
+		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		require.NoError(t, err)
+		assert.True(t, s.GetExpiresAt().AsTime().After(now), "re-minted session must have a future expiry")
+		assert.Equal(t, "prod/U1", s.GetUserId(), "must re-mint, not return the stale cached session")
+	})
+}
+
+// TestCreateSessionForJWT_RouteProviderScoping verifies the route's
+// identity_providers allowlist is enforced (on the unverified issuer, before
+// verification): a route allowing only idp-a rejects an idp-b token, while a
+// route with an empty allowlist accepts any configured provider.
+func TestCreateSessionForJWT_RouteProviderScoping(t *testing.T) {
+	t.Parallel()
+
+	idpA := mockidp.New(mockidp.Config{})
+	issuerA := idpA.Start(t)
+	idpB := mockidp.New(mockidp.Config{})
+	issuerB := idpB.Start(t)
+
+	ctx := testutil.GetContext(t, time.Minute)
+	cfg := New(NewDefaultOptions())
+	cfg.Options.IdentityProviders = map[string]IdentityProvider{
+		"idp-a": {Issuer: issuerA, Audiences: []string{"api"}, SupportedAlgs: []string{"ES256"}},
+		"idp-b": {Issuer: issuerB, Audiences: []string{"api"}, SupportedAlgs: []string{"ES256"}},
+	}
+
+	now := time.Now()
+	tokB := idpB.SignJWT(map[string]any{
+		"iss": issuerB,
+		"sub": "svc",
+		"aud": []string{"api"},
 		"exp": now.Add(time.Hour).Unix(),
 		"iat": now.Unix(),
 		"nbf": now.Unix(),
 	})
 
-	c := NewIncomingIDPTokenSessionCreator(
-		noop.NewTracerProvider(),
-		func(_ context.Context, _, _ string) (*databroker.Record, error) {
-			return nil, storage.ErrNotFound
-		},
-		func(_ context.Context, _ []*databroker.Record) error { return nil },
-	).(*incomingIDPTokenSessionCreator)
-
-	t.Run("matching audience accepted", func(t *testing.T) {
-		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok, []string{"api-a"})
+	newCreator := func() *incomingIDPTokenSessionCreator {
+		return NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
+			func(_ context.Context, _, _ string) (*databroker.Record, error) {
+				return nil, storage.ErrNotFound
+			},
+			func(_ context.Context, _ []*databroker.Record) error { return nil },
+		).(*incomingIDPTokenSessionCreator)
+	}
+	mkReq := func() *http.Request {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.example.com", nil)
 		require.NoError(t, err)
-		assert.Equal(t, "U1", s.GetUserId())
+		req.Header.Set("Authorization", "Bearer "+tokB)
+		return req
+	}
+	jwtRoute := func(providers ...string) *Policy {
+		return &Policy{
+			RouteOptions:      RouteOptions{BearerTokenFormat: nullable.From(config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT)},
+			IdentityProviders: providers,
+		}
+	}
+
+	t.Run("route allowing only idp-a rejects idp-b token", func(t *testing.T) {
+		_, err := newCreator().CreateSession(ctx, cfg, jwtRoute("idp-a"), mkReq())
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
 	})
 
-	t.Run("non-matching audience rejected", func(t *testing.T) {
-		_, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok, []string{"api-b"})
-		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+	t.Run("route with empty allowlist accepts idp-b token", func(t *testing.T) {
+		s, err := newCreator().CreateSession(ctx, cfg, jwtRoute(), mkReq())
+		require.NoError(t, err)
+		assert.Equal(t, "idp-b/svc", s.GetUserId())
+		assert.Equal(t, "idp-b", s.GetIdpId())
 	})
 }

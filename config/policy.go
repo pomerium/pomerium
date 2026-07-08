@@ -188,11 +188,11 @@ type Policy struct {
 	IDPClientSecret string `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
 	// IDPAccessTokenAllowedAudiences are the allowed audiences for idp access token validation.
 	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
-	// JWTAllowedAudiences are the allowed audiences for verifying JWT bearer
-	// tokens on this route (when BearerTokenFormat is BEARER_TOKEN_FORMAT_JWT).
-	// Overrides the global Options.JWTAllowedAudiences. Fail-closed: an empty
-	// effective set rejects all tokens.
-	JWTAllowedAudiences *[]string `mapstructure:"jwt_allowed_audiences" yaml:"jwt_allowed_audiences,omitempty"`
+	// IdentityProviders is the allowlist of identity-provider names (keys in
+	// Options.IdentityProviders) whose JWT bearer tokens this route accepts
+	// (when BearerTokenFormat is BEARER_TOKEN_FORMAT_JWT). Empty means all
+	// configured providers are accepted.
+	IdentityProviders []string `mapstructure:"identity_providers" yaml:"identity_providers,omitempty"`
 
 	// ShowErrorDetails indicates whether or not additional error details should be displayed.
 	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
@@ -443,12 +443,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	} else {
 		p.IDPAccessTokenAllowedAudiences = nil
 	}
-	if pb.JwtAllowedAudiences != nil {
-		values := slices.Clone(pb.JwtAllowedAudiences.Values)
-		p.JWTAllowedAudiences = &values
-	} else {
-		p.JWTAllowedAudiences = nil
-	}
+	p.IdentityProviders = slices.Clone(pb.IdentityProviders)
 	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
 			HTTPSRedirect:  pb.Redirect.HttpsRedirect,
@@ -629,13 +624,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	} else {
 		pb.IdpAccessTokenAllowedAudiences = nil
 	}
-	if p.JWTAllowedAudiences != nil {
-		pb.JwtAllowedAudiences = &configpb.Route_StringList{
-			Values: slices.Clone(*p.JWTAllowedAudiences),
-		}
-	} else {
-		pb.JwtAllowedAudiences = nil
-	}
+	pb.IdentityProviders = slices.Clone(p.IdentityProviders)
 	if p.Redirect != nil {
 		pb.Redirect = &configpb.RouteRedirect{
 			HttpsRedirect:  p.Redirect.HTTPSRedirect,

@@ -2445,25 +2445,16 @@ components:
              necessarily contiguous.
       title: TcpHealthCheck
       additionalProperties: false
-    pomerium.config.IssuerFormat:
-      type: string
-      title: IssuerFormat
-      enum:
-        - IssuerHostOnly
-        - IssuerURI
-      description: |-
-        Format used for the `iss` claim of JWTs Pomerium issues for upstream
-         requests.
-    pomerium.config.JwtAllowedIssuer:
+    pomerium.config.IdentityProvider:
       type: object
       properties:
         issuer:
           type: string
           title: issuer
           description: |-
-            The `iss` claim that tokens must carry. Required. Used both to select the
-             matching issuer for an incoming token and (with OIDC discovery) to fetch
-             the signing keys.
+            The `iss` claim tokens must carry. Required, and unique across providers.
+             Used both to select the matching provider for an incoming token and (with
+             OIDC discovery) to fetch the signing keys.
         jwksUrl:
           type: string
           title: jwks_url
@@ -2476,20 +2467,39 @@ components:
           items:
             type: string
           title: supported_algs
-          description: Allowed JWT signing algorithms. When empty, defaults to {RS256, ES256, EdDSA}.
-        name:
-          type:
-            - string
-            - "null"
-          title: name
-          description: Optional human-readable identifier, used only for audit logging.
-      title: JwtAllowedIssuer
+          description: |-
+            Allowed JWT signing algorithms. When empty, defaults to {RS256, ES256,
+             EdDSA}. `none` and HMAC (HS*) algorithms are rejected.
+        audiences:
+          type: array
+          items:
+            type: string
+          title: audiences
+          description: |-
+            Audiences accepted on tokens from this provider. Required and non-empty:
+             at least one must intersect the token's `aud` claim. Fail-closed — an
+             empty set rejects all tokens.
+      title: IdentityProvider
       additionalProperties: false
       description: |-
-        JwtAllowedIssuer declares a trusted JWT issuer. Pomerium verifies JWT bearer
-         tokens against any of these issuers on routes whose bearer_token_format is
-         BEARER_TOKEN_FORMAT_JWT. Audience binding is enforced separately via
-         jwt_allowed_audiences; authorization on the verified claims is left to PPL.
+        IdentityProvider declares an additional identity provider. Today it is
+         usable only to verify JWT bearer tokens issued by non-interactive workloads
+         (Kubernetes projected service-account tokens, GitHub Actions OIDC, SPIFFE
+         JWT-SVIDs, …) on routes whose bearer_token_format is BEARER_TOKEN_FORMAT_JWT.
+         It does not replace the interactive SSO identity provider (the idp_* fields).
+
+         Providers are declared as a map in Settings; the map key is the provider
+         name, referenced from Route.identity_providers. Authorization on the verified
+         claims is left to PPL (claim/...).
+    pomerium.config.IssuerFormat:
+      type: string
+      title: IssuerFormat
+      enum:
+        - IssuerHostOnly
+        - IssuerURI
+      description: |-
+        Format used for the `iss` claim of JWTs Pomerium issues for upstream
+         requests.
     pomerium.config.KeyPair:
       type: object
       properties:
@@ -3965,16 +3975,16 @@ components:
           description: |-
             Allowed audiences for validating IdP-issued access tokens for this
              route.
-        jwtAllowedAudiences:
-          oneOf:
-            - $ref: '#/components/schemas/pomerium.config.Route.StringList'
-            - type: "null"
-          title: jwt_allowed_audiences
+        identityProviders:
+          type: array
+          items:
+            type: string
+          title: identity_providers
           description: |-
-            Allowed audiences for verifying JWT bearer tokens on this route (when
-             bearer_token_format is BEARER_TOKEN_FORMAT_JWT). At least one must
-             intersect the token's `aud` claim. Fail-closed: an empty effective set
-             rejects all tokens. When unset, the global jwt_allowed_audiences is used.
+            Names of the identity_providers whose JWT bearer tokens this route accepts
+             (when bearer_token_format is BEARER_TOKEN_FORMAT_JWT). Each entry must be a
+             key in Settings.identity_providers. When empty, all configured providers
+             are accepted.
         showErrorDetails:
           type: boolean
           title: show_error_details
@@ -4638,22 +4648,17 @@ components:
           description: |-
             Audiences Pomerium accepts on IdP-issued access tokens. Required when
              BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN routes exist.
-        jwtAllowedIssuers:
-          type: array
-          items:
-            $ref: '#/components/schemas/pomerium.config.JwtAllowedIssuer'
-          title: jwt_allowed_issuers
+        identityProviders:
+          type: object
+          title: identity_providers
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/pomerium.config.IdentityProvider'
           description: |-
-            Globally declared trusted JWT issuers. Routes whose bearer_token_format
-             is BEARER_TOKEN_FORMAT_JWT verify incoming tokens against these.
-        jwtAllowedAudiences:
-          oneOf:
-            - $ref: '#/components/schemas/pomerium.config.Settings.StringList'
-            - type: "null"
-          title: jwt_allowed_audiences
-          description: |-
-            Cluster-wide default allowed audiences for JWT bearer tokens. Routes may
-             override via Route.jwt_allowed_audiences.
+            Additional identity providers, keyed by provider name. Currently usable
+             only to verify JWT bearer tokens from non-interactive workloads on routes
+             whose bearer_token_format is BEARER_TOKEN_FORMAT_JWT; the interactive SSO
+             provider is still configured via the idp_* fields.
         scopes:
           type: array
           items:
@@ -5489,6 +5494,17 @@ components:
       title: DataBrokerClusterNodes
       additionalProperties: false
       description: Aggregate list of databroker cluster peers.
+    pomerium.config.Settings.IdentityProvidersEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          title: value
+          $ref: '#/components/schemas/pomerium.config.IdentityProvider'
+      title: IdentityProvidersEntry
+      additionalProperties: false
     pomerium.config.Settings.JwtClaimsHeadersEntry:
       type: object
       properties:

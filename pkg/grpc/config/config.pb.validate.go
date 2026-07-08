@@ -984,22 +984,22 @@ var _ interface {
 	ErrorName() string
 } = EntityInfoValidationError{}
 
-// Validate checks the field values on JwtAllowedIssuer with the rules defined
+// Validate checks the field values on IdentityProvider with the rules defined
 // in the proto definition for this message. If any rules are violated, the
 // first error encountered is returned, or nil if there are no violations.
-func (m *JwtAllowedIssuer) Validate() error {
+func (m *IdentityProvider) Validate() error {
 	return m.validate(false)
 }
 
-// ValidateAll checks the field values on JwtAllowedIssuer with the rules
+// ValidateAll checks the field values on IdentityProvider with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the result is a list of violation errors wrapped in
-// JwtAllowedIssuerMultiError, or nil if none found.
-func (m *JwtAllowedIssuer) ValidateAll() error {
+// IdentityProviderMultiError, or nil if none found.
+func (m *IdentityProvider) ValidateAll() error {
 	return m.validate(true)
 }
 
-func (m *JwtAllowedIssuer) validate(all bool) error {
+func (m *IdentityProvider) validate(all bool) error {
 	if m == nil {
 		return nil
 	}
@@ -1010,24 +1010,20 @@ func (m *JwtAllowedIssuer) validate(all bool) error {
 
 	// no validation rules for JwksUrl
 
-	if m.Name != nil {
-		// no validation rules for Name
-	}
-
 	if len(errors) > 0 {
-		return JwtAllowedIssuerMultiError(errors)
+		return IdentityProviderMultiError(errors)
 	}
 
 	return nil
 }
 
-// JwtAllowedIssuerMultiError is an error wrapping multiple validation errors
-// returned by JwtAllowedIssuer.ValidateAll() if the designated constraints
+// IdentityProviderMultiError is an error wrapping multiple validation errors
+// returned by IdentityProvider.ValidateAll() if the designated constraints
 // aren't met.
-type JwtAllowedIssuerMultiError []error
+type IdentityProviderMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
-func (m JwtAllowedIssuerMultiError) Error() string {
+func (m IdentityProviderMultiError) Error() string {
 	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
@@ -1036,11 +1032,11 @@ func (m JwtAllowedIssuerMultiError) Error() string {
 }
 
 // AllErrors returns a list of validation violation errors.
-func (m JwtAllowedIssuerMultiError) AllErrors() []error { return m }
+func (m IdentityProviderMultiError) AllErrors() []error { return m }
 
-// JwtAllowedIssuerValidationError is the validation error returned by
-// JwtAllowedIssuer.Validate if the designated constraints aren't met.
-type JwtAllowedIssuerValidationError struct {
+// IdentityProviderValidationError is the validation error returned by
+// IdentityProvider.Validate if the designated constraints aren't met.
+type IdentityProviderValidationError struct {
 	field  string
 	reason string
 	cause  error
@@ -1048,22 +1044,22 @@ type JwtAllowedIssuerValidationError struct {
 }
 
 // Field function returns field value.
-func (e JwtAllowedIssuerValidationError) Field() string { return e.field }
+func (e IdentityProviderValidationError) Field() string { return e.field }
 
 // Reason function returns reason value.
-func (e JwtAllowedIssuerValidationError) Reason() string { return e.reason }
+func (e IdentityProviderValidationError) Reason() string { return e.reason }
 
 // Cause function returns cause value.
-func (e JwtAllowedIssuerValidationError) Cause() error { return e.cause }
+func (e IdentityProviderValidationError) Cause() error { return e.cause }
 
 // Key function returns key value.
-func (e JwtAllowedIssuerValidationError) Key() bool { return e.key }
+func (e IdentityProviderValidationError) Key() bool { return e.key }
 
 // ErrorName returns error name.
-func (e JwtAllowedIssuerValidationError) ErrorName() string { return "JwtAllowedIssuerValidationError" }
+func (e IdentityProviderValidationError) ErrorName() string { return "IdentityProviderValidationError" }
 
 // Error satisfies the builtin error interface
-func (e JwtAllowedIssuerValidationError) Error() string {
+func (e IdentityProviderValidationError) Error() string {
 	cause := ""
 	if e.cause != nil {
 		cause = fmt.Sprintf(" | caused by: %v", e.cause)
@@ -1075,14 +1071,14 @@ func (e JwtAllowedIssuerValidationError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"invalid %sJwtAllowedIssuer.%s: %s%s",
+		"invalid %sIdentityProvider.%s: %s%s",
 		key,
 		e.field,
 		e.reason,
 		cause)
 }
 
-var _ error = JwtAllowedIssuerValidationError{}
+var _ error = IdentityProviderValidationError{}
 
 var _ interface {
 	Field() string
@@ -1090,7 +1086,7 @@ var _ interface {
 	Key() bool
 	Cause() error
 	ErrorName() string
-} = JwtAllowedIssuerValidationError{}
+} = IdentityProviderValidationError{}
 
 // Validate checks the field values on SessionRecording with the rules defined
 // in the proto definition for this message. If any rules are violated, the
@@ -1816,39 +1812,6 @@ func (m *Route) validate(all bool) error {
 			if err := v.Validate(); err != nil {
 				return RouteValidationError{
 					field:  "IdpAccessTokenAllowedAudiences",
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
-		}
-
-	}
-
-	if m.JwtAllowedAudiences != nil {
-
-		if all {
-			switch v := interface{}(m.GetJwtAllowedAudiences()).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, RouteValidationError{
-						field:  "JwtAllowedAudiences",
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, RouteValidationError{
-						field:  "JwtAllowedAudiences",
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(m.GetJwtAllowedAudiences()).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return RouteValidationError{
-					field:  "JwtAllowedAudiences",
 					reason: "embedded message failed validation",
 					cause:  err,
 				}
@@ -3419,38 +3382,50 @@ func (m *Settings) validate(all bool) error {
 
 	}
 
-	for idx, item := range m.GetJwtAllowedIssuers() {
-		_, _ = idx, item
-
-		if all {
-			switch v := interface{}(item).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, SettingsValidationError{
-						field:  fmt.Sprintf("JwtAllowedIssuers[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, SettingsValidationError{
-						field:  fmt.Sprintf("JwtAllowedIssuers[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return SettingsValidationError{
-					field:  fmt.Sprintf("JwtAllowedIssuers[%v]", idx),
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
+	{
+		sorted_keys := make([]string, len(m.GetIdentityProviders()))
+		i := 0
+		for key := range m.GetIdentityProviders() {
+			sorted_keys[i] = key
+			i++
 		}
+		sort.Slice(sorted_keys, func(i, j int) bool { return sorted_keys[i] < sorted_keys[j] })
+		for _, key := range sorted_keys {
+			val := m.GetIdentityProviders()[key]
+			_ = val
 
+			// no validation rules for IdentityProviders[key]
+
+			if all {
+				switch v := interface{}(val).(type) {
+				case interface{ ValidateAll() error }:
+					if err := v.ValidateAll(); err != nil {
+						errors = append(errors, SettingsValidationError{
+							field:  fmt.Sprintf("IdentityProviders[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				case interface{ Validate() error }:
+					if err := v.Validate(); err != nil {
+						errors = append(errors, SettingsValidationError{
+							field:  fmt.Sprintf("IdentityProviders[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				}
+			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
+				if err := v.Validate(); err != nil {
+					return SettingsValidationError{
+						field:  fmt.Sprintf("IdentityProviders[%v]", key),
+						reason: "embedded message failed validation",
+						cause:  err,
+					}
+				}
+			}
+
+		}
 	}
 
 	// no validation rules for RequestParams
@@ -3986,39 +3961,6 @@ func (m *Settings) validate(all bool) error {
 			if err := v.Validate(); err != nil {
 				return SettingsValidationError{
 					field:  "IdpAccessTokenAllowedAudiences",
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
-		}
-
-	}
-
-	if m.JwtAllowedAudiences != nil {
-
-		if all {
-			switch v := interface{}(m.GetJwtAllowedAudiences()).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, SettingsValidationError{
-						field:  "JwtAllowedAudiences",
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, SettingsValidationError{
-						field:  "JwtAllowedAudiences",
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(m.GetJwtAllowedAudiences()).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return SettingsValidationError{
-					field:  "JwtAllowedAudiences",
 					reason: "embedded message failed validation",
 					cause:  err,
 				}
