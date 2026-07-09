@@ -58,10 +58,10 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 const (
-	k3sImage          = "rancher/k3s:v1.31.0-k3s1"
 	k3sDefaultIssuer  = "https://kubernetes.default.svc.cluster.local"
 	pomeriumAudience  = "pomerium.example.com"
 	testNamespace     = "default"
@@ -92,7 +92,7 @@ func TestExternalJWTBearer_K3s(t *testing.T) {
 	defer cancel()
 
 	// 1. Spin up k3s.
-	k3sCtr, err := tck3s.Run(ctx, k3sImage)
+	k3sCtr, err := tck3s.Run(ctx, testutil.K3sImage(t))
 	require.NoError(t, err, "failed to start k3s testcontainer")
 	t.Cleanup(func() {
 		// testenv installs a panic-tracer as the global tracer provider.
