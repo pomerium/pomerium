@@ -80,14 +80,14 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	root.Handle(endpoints.PathWellKnownPomerium+"/", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
 	root.Path(endpoints.PathJWKS).Methods(http.MethodGet).Handler(traceHandler(handlers.JWKSHandler(signingKey)))
 	root.Path(endpoints.PathHPKEPublicKey).Methods(http.MethodGet).Handler(traceHandler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey)))
-
+	dcrEnabled := cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCPDynamicClientRegistration)
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		root.Path(mcp.WellKnownAuthorizationServerEndpoint).
 			Methods(http.MethodGet, http.MethodOptions).
-			Handler(mcp.AuthorizationServerMetadataHandler(mcp.DefaultPrefix))
+			Handler(mcp.AuthorizationServerMetadataHandler(mcp.DefaultPrefix, dcrEnabled))
 		root.PathPrefix(mcp.WellKnownProtectedResourceEndpoint).
 			Methods(http.MethodGet, http.MethodOptions).
-			Handler(mcp.ProtectedResourceMetadataHandler(mcp.DefaultPrefix))
+			Handler(mcp.ProtectedResourceMetadataHandler(mcp.DefaultPrefix, dcrEnabled))
 	}
 
 	return nil

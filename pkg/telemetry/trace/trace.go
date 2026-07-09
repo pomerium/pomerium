@@ -10,6 +10,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	otelsdk "go.opentelemetry.io/otel/sdk"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
@@ -73,17 +74,14 @@ func NewTracerProvider(ctx context.Context, serviceName string, opts ...sdktrace
 	if err != nil {
 		panic(err)
 	}
-	r, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			attribute.String("provider.created_at", fmt.Sprintf("%s:%d", file, line)),
-		),
+	r := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.TelemetrySDKName("opentelemetry"),      // resource.telemetrySDK
+		semconv.TelemetrySDKLanguageGo,                 // resource.telemetrySDK
+		semconv.TelemetrySDKVersion(otelsdk.Version()), // resource.telemetrySDK
+		semconv.ServiceName(serviceName),
+		attribute.String("provider.created_at", fmt.Sprintf("%s:%d", file, line)),
 	)
-	if err != nil {
-		panic(err)
-	}
 	options := []sdktrace.TracerProviderOption{}
 	if sys.options.DebugFlags.Check(TrackSpanCallers) {
 		options = append(options, sdktrace.WithSpanProcessor(&stackTraceProcessor{}))

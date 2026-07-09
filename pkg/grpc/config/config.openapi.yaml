@@ -1799,6 +1799,14 @@ components:
           type: string
           title: id
           description: ID of the policy to delete.
+        removeFromAnyAssignedRoutes:
+          type: boolean
+          title: remove_from_any_assigned_routes
+          description: |-
+            For a policy with 'enforced' set to false, it may not be deleted while it
+             is assigned to a route. However if 'remove_from_any_assigned_routes' is
+             set to true, the policy will be automatically removed from any routes to
+             which it is assigned and then deleted.
       title: DeletePolicyRequest
       additionalProperties: false
     pomerium.config.DeletePolicyResponse:

@@ -1,14 +1,24 @@
-name: Lint
+name: govulncheck
 permissions:
   contents: read
 on:
   push:
     branches:
       - main
-  pull_request: {}
+  pull_request:
+    paths:
+      - "**/go.mod"
+      - "**/go.sum"
+      - go.work
+      - go.work.sum
+      - Makefile
+      - .github/workflows/govulncheck.yaml
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch: {}
 
 jobs:
-  lint:
+  govulncheck:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -20,7 +30,4 @@ jobs:
 
       - run: make deps-build
 
-      - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20
-        with:
-          version-file: .tool-versions
-          args: --timeout=10m
+      - run: make govulncheck

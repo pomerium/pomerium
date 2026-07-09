@@ -1531,6 +1531,12 @@ message DeleteKeyPairResponse {}
 message DeletePolicyRequest {
   // ID of the policy to delete.
   string id = 1;
+
+  // For a policy with 'enforced' set to false, it may not be deleted while it
+  // is assigned to a route. However if 'remove_from_any_assigned_routes' is
+  // set to true, the policy will be automatically removed from any routes to
+  // which it is assigned and then deleted.
+  bool remove_from_any_assigned_routes = 2;
 }
 
 message DeletePolicyResponse {}

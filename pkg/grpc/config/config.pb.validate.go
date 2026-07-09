@@ -7566,6 +7566,8 @@ func (m *DeletePolicyRequest) validate(all bool) error {
 
 	// no validation rules for Id
 
+	// no validation rules for RemoveFromAnyAssignedRoutes
+
 	if len(errors) > 0 {
 		return DeletePolicyRequestMultiError(errors)
 	}

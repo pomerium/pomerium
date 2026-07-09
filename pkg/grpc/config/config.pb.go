@@ -5952,9 +5952,14 @@ func (*DeleteKeyPairResponse) Descriptor() ([]byte, []int) {
 type DeletePolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ID of the policy to delete.
-	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// For a policy with 'enforced' set to false, it may not be deleted while it
+	// is assigned to a route. However if 'remove_from_any_assigned_routes' is
+	// set to true, the policy will be automatically removed from any routes to
+	// which it is assigned and then deleted.
+	RemoveFromAnyAssignedRoutes bool `protobuf:"varint,2,opt,name=remove_from_any_assigned_routes,json=removeFromAnyAssignedRoutes,proto3" json:"remove_from_any_assigned_routes,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *DeletePolicyRequest) Reset() {
@@ -5992,6 +5997,13 @@ func (x *DeletePolicyRequest) GetId() string {
 		return x.Id
 	}
 	return ""
+}
+
+func (x *DeletePolicyRequest) GetRemoveFromAnyAssignedRoutes() bool {
+	if x != nil {
+		return x.RemoveFromAnyAssignedRoutes
+	}
+	return false
 }
 
 type DeletePolicyResponse struct {
@@ -10222,9 +10234,10 @@ const file_config_proto_rawDesc = "" +
 	"\x03jwt\x18\x02 \x01(\tB\x04\xe8\xd6,\x01R\x03jwt\"&\n" +
 	"\x14DeleteKeyPairRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x17\n" +
-	"\x15DeleteKeyPairResponse\"%\n" +
+	"\x15DeleteKeyPairResponse\"k\n" +
 	"\x13DeletePolicyRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x16\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12D\n" +
+	"\x1fremove_from_any_assigned_routes\x18\x02 \x01(\bR\x1bremoveFromAnyAssignedRoutes\"\x16\n" +
 	"\x14DeletePolicyResponse\"$\n" +
 	"\x12DeleteRouteRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x15\n" +

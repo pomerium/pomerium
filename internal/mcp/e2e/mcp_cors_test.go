@@ -46,6 +46,7 @@ func TestMCPCORSHeaders(t *testing.T) {
 			cfg.Options.RuntimeFlags = make(config.RuntimeFlags)
 		}
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
+		cfg.Options.RuntimeFlags[config.RuntimeFlagMCPDynamicClientRegistration] = true
 		cfg.Options.MCPAllowedClientIDDomains = []string{"*"}
 	}))
 

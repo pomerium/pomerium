@@ -147,6 +147,14 @@ lint:
 	$(GO) run ./pkg/tools/get-tools.go && \
 	./bin/golangci-lint run --fix --timeout=10m ./...
 
+.PHONY: govulncheck
+govulncheck: ## Scan for known Go vulnerabilities (all workspace modules)
+	@echo "==> $@"
+	@for dir in $$($(GO) list -m -f '{{.Dir}}'); do \
+		echo "==> govulncheck $$dir"; \
+		( cd "$$dir" && $(GO) run golang.org/x/vuln/cmd/govulncheck@v1.5.0 ./... ) || exit 1; \
+	done
+
 .PHONY: test
 test: get-envoy ## Runs the go tests.
 	@echo "==> $@"
