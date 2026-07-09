@@ -139,7 +139,7 @@ func TestExternalJWTBearer_K3s(t *testing.T) {
 	tokReq := &authnv1.TokenRequest{
 		Spec: authnv1.TokenRequestSpec{
 			Audiences:         []string{pomeriumAudience},
-			ExpirationSeconds: ptr[int64](tokenLifetimeSecs),
+			ExpirationSeconds: new(int64(tokenLifetimeSecs)),
 		},
 	}
 	tokResp, err := kc.CoreV1().ServiceAccounts(testNamespace).
@@ -177,9 +177,9 @@ func TestExternalJWTBearer_K3s(t *testing.T) {
 		Policy(func(p *config.Policy) {
 			useJWTBearer(p, idpName)
 			var ppl config.PPLPolicy
-			require.NoError(t, ppl.UnmarshalJSON([]byte(fmt.Sprintf(`{
+			require.NoError(t, ppl.UnmarshalJSON(fmt.Appendf(nil, `{
 				"allow": {"and": [{"claim/sub": %q}]}
-			}`, expectedSub))))
+			}`, expectedSub)))
 			p.Policy = &ppl
 		})
 	env.AddUpstream(up)
@@ -204,7 +204,7 @@ func TestExternalJWTBearer_K3s(t *testing.T) {
 	tokReq2 := &authnv1.TokenRequest{
 		Spec: authnv1.TokenRequestSpec{
 			Audiences:         []string{"someone-else"},
-			ExpirationSeconds: ptr[int64](tokenLifetimeSecs),
+			ExpirationSeconds: new(int64(tokenLifetimeSecs)),
 		},
 	}
 	tokResp2, err := kc.CoreV1().ServiceAccounts(testNamespace).
@@ -221,5 +221,3 @@ func TestExternalJWTBearer_K3s(t *testing.T) {
 	assert.NotEqual(t, http.StatusOK, resp2.StatusCode,
 		"wrong-audience token must not be accepted")
 }
-
-func ptr[T any](v T) *T { return &v }
