@@ -56,6 +56,7 @@ updates:
           - "github.com/atotto/clipboard"
           - "github.com/sahilm/fuzzy"
           - "github.com/creack/pty"
+          - "k8s.io/*"
       otel:
         patterns:
           - "go.opentelemetry.io/*"
@@ -73,6 +74,13 @@ updates:
           - "github.com/atotto/clipboard"
           - "github.com/sahilm/fuzzy"
           - "github.com/creack/pty"
+      kubernetes:
+        # Grouped and isolated from the general "go" bumps: the k8s.io/* modules
+        # release in lockstep (so they bump together) and drive the k3s e2e
+        # test's server image (see testutil.K3sImage), so keeping them in their
+        # own PR avoids a k8s bump blocking unrelated dependency updates.
+        patterns:
+          - "k8s.io/*"
   - package-ecosystem: "gomod"
     directory: "/pkg/grpc/config/"
     schedule:
