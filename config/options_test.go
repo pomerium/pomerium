@@ -137,6 +137,19 @@ func Test_bindEnvs(t *testing.T) {
 	o := new(Options)
 	o.viper = viper.New()
 	v := viper.New()
+	// os.Clearenv wipes the entire process environment, not just this test's
+	// vars. Without restoring it, later tests in this package run with an empty
+	// environment (no HOME, no cache dirs), which breaks env-dependent helpers
+	// such as Hegel's uv installer. Snapshot and restore around the clear.
+	saved := os.Environ()
+	t.Cleanup(func() {
+		os.Clearenv()
+		for _, kv := range saved {
+			if k, val, ok := strings.Cut(kv, "="); ok {
+				_ = os.Setenv(k, val)
+			}
+		}
+	})
 	os.Clearenv()
 	t.Setenv("POLICY", "LSBmcm9tOiBodHRwczovL2h0dHBiaW4ubG9jYWxob3N0LnBvbWVyaXVtLmlvCiAgdG86IAogICAgLSBodHRwOi8vbG9jYWxob3N0OjgwODEsMQo=")
 	t.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
