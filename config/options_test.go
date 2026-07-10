@@ -146,7 +146,8 @@ func Test_bindEnvs(t *testing.T) {
 		os.Clearenv()
 		for _, kv := range saved {
 			if k, val, ok := strings.Cut(kv, "="); ok {
-				_ = os.Setenv(k, val)
+				// t.Setenv can't restore a full snapshot from within a cleanup.
+				_ = os.Setenv(k, val) //nolint:usetesting
 			}
 		}
 	})
