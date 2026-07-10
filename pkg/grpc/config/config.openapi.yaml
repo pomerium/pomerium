@@ -3455,6 +3455,53 @@ components:
           $ref: '#/components/schemas/google.protobuf.ListValue'
       title: AllowedIdpClaimsEntry
       additionalProperties: false
+    pomerium.config.PostgresAuthenticationMode:
+      type: string
+      title: PostgresAuthenticationMode
+      enum:
+        - POSTGRES_AUTHENTICATION_MODE_UNSPECIFIED
+        - POSTGRES_AUTHENTICATION_MODE_MANAGED
+        - POSTGRES_AUTHENTICATION_MODE_CLIENT
+      description: Determines how a native PostgreSQL route authenticates to its upstream.
+    pomerium.config.PostgresRouteSettings:
+      type: object
+      properties:
+        authenticationMode:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.PostgresAuthenticationMode'
+            - type: "null"
+          title: authentication_mode
+          description: Determines whether Pomerium or the client authenticates to the upstream.
+        username:
+          type: string
+          title: username
+          description: The PostgreSQL role used for managed upstream authentication.
+        database:
+          type: string
+          title: database
+          description: The PostgreSQL database selected for managed upstream connections.
+        password:
+          type: string
+          title: password
+          description: The password used for managed upstream authentication.
+        upstreamTlsMode:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.PostgresUpstreamTLSMode'
+            - type: "null"
+          title: upstream_tls_mode
+          description: Determines whether and how the upstream connection uses TLS.
+      title: PostgresRouteSettings
+      additionalProperties: false
+      description: Configuration for a native PostgreSQL route.
+    pomerium.config.PostgresUpstreamTLSMode:
+      type: string
+      title: PostgresUpstreamTLSMode
+      enum:
+        - POSTGRES_UPSTREAM_TLS_MODE_UNSPECIFIED
+        - POSTGRES_UPSTREAM_TLS_MODE_VERIFY_FULL
+        - POSTGRES_UPSTREAM_TLS_MODE_REQUIRE
+        - POSTGRES_UPSTREAM_TLS_MODE_DISABLE
+      description: Determines how a native PostgreSQL route protects its upstream connection.
     pomerium.config.Route:
       type: object
       properties:
@@ -4000,6 +4047,12 @@ components:
           description: |-
             Configures session recording behaviour on this route.
              SSH specific.
+        postgres:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.PostgresRouteSettings'
+            - type: "null"
+          title: postgres
+          description: Configures native PostgreSQL upstream authentication and transport.
         createdAt:
           title: created_at
           description: When the route was created.

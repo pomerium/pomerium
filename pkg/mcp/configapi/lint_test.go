@@ -97,6 +97,7 @@ func sensitive(fd protoreflect.FieldDescriptor) bool {
 // declassification): remove from this set. The two operations always go
 // together — that's the lint's whole purpose.
 var expectedSensitiveFields = map[string]struct{}{
+	"pomerium.config.PostgresRouteSettings.password":         {},
 	"pomerium.config.Route.tls_client_key":                   {},
 	"pomerium.config.Route.kubernetes_service_account_token": {},
 	"pomerium.config.Route.idp_client_secret":                {},

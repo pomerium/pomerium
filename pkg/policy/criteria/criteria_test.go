@@ -49,12 +49,9 @@ type (
 		PublicKey []byte `json:"publickey"`
 	}
 	InputPostgres struct {
-		Hostname        string `json:"hostname"`
-		Database        string `json:"database"`
-		Username        string `json:"username"`
-		ApplicationName string `json:"application_name"`
-		StatementClass  string `json:"statement_class"`
-		QueryProtocol   string `json:"query_protocol"`
+		Hostname         string `json:"hostname"`
+		RouteID          string `json:"route_id"`
+		SessionBindingID string `json:"session_binding_id"`
 	}
 	InputSession struct {
 		ID string `json:"id"`

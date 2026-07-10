@@ -150,3 +150,98 @@ func TestAllDBConfigs(t *testing.T) {
 		versionedConfig3.Config,
 	}, slices.Collect(src.allSortedDBConfigsLocked()))
 }
+
+func TestConfigSourceSettingsRuntimeFlagsOverlay(t *testing.T) {
+	t.Parallel()
+
+	authenticationMode := configpb.PostgresAuthenticationMode_POSTGRES_AUTHENTICATION_MODE_MANAGED
+	upstreamTLSMode := configpb.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_VERIFY_FULL
+	postgresRoute := &configpb.Route{
+		From: "postgres://db.example.com",
+		To:   []string{"postgres://postgres.internal:5432"},
+		Postgres: &configpb.PostgresRouteSettings{
+			AuthenticationMode: &authenticationMode,
+			Username:           "application-role",
+			Database:           "application-db",
+			Password:           "secret",
+			UpstreamTlsMode:    &upstreamTLSMode,
+		},
+	}
+
+	options := config.NewDefaultOptions()
+	options.RuntimeFlags[config.RuntimeFlagPostgres] = true
+	underlying := config.New(options)
+	address := "127.0.0.1:15432"
+	src := &ConfigSource{
+		underlyingConfig: underlying,
+		dbConfigs: map[string]dbConfig{
+			"dashboard-settings": {
+				Config: &configpb.Config{
+					Settings: &configpb.Settings{PostgresAddress: &address},
+				},
+			},
+			"dashboard-route-postgres": {
+				Config: &configpb.Config{Routes: []*configpb.Route{postgresRoute}},
+			},
+		},
+		dbVersionedConfigs:  map[string]dbConfig{},
+		standardConfigReady: true,
+		enableValidation:    true,
+	}
+
+	rebuild := func(t *testing.T) *config.Config {
+		t.Helper()
+		computed := underlying.Clone()
+		require.NoError(t, src.buildNewConfigLocked(t.Context(), computed))
+		assert.Equal(t, address, computed.Options.PostgresAddr)
+		assert.NotNil(t, computed.Options.GetRouteForPostgresHostname("db.example.com"))
+		return computed
+	}
+	assertUnderlyingUnchanged := func(t *testing.T) {
+		t.Helper()
+		assert.True(t, underlying.Options.IsRuntimeFlagSet(config.RuntimeFlagPostgres))
+		assert.False(t, underlying.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP))
+		assert.Empty(t, underlying.Options.PostgresAddr)
+		assert.Empty(t, underlying.Options.AdditionalPolicies)
+	}
+
+	t.Run("absent", func(t *testing.T) {
+		computed := rebuild(t)
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagPostgres))
+		assertUnderlyingUnchanged(t)
+	})
+
+	t.Run("explicit override is removed", func(t *testing.T) {
+		src.dbConfigs["runtime-flags"] = dbConfig{Config: &configpb.Config{
+			Settings: &configpb.Settings{RuntimeFlags: map[string]bool{
+				string(config.RuntimeFlagPostgres): false,
+			}},
+		}}
+		computed := rebuild(t)
+		assert.False(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagPostgres))
+		assertUnderlyingUnchanged(t)
+
+		delete(src.dbConfigs, "runtime-flags")
+		computed = rebuild(t)
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagPostgres))
+		assertUnderlyingUnchanged(t)
+	})
+
+	t.Run("unrelated override is removed", func(t *testing.T) {
+		src.dbConfigs["runtime-flags"] = dbConfig{Config: &configpb.Config{
+			Settings: &configpb.Settings{RuntimeFlags: map[string]bool{
+				string(config.RuntimeFlagMCP): true,
+			}},
+		}}
+		computed := rebuild(t)
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagPostgres))
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP))
+		assertUnderlyingUnchanged(t)
+
+		delete(src.dbConfigs, "runtime-flags")
+		computed = rebuild(t)
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagPostgres))
+		assert.False(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP))
+		assertUnderlyingUnchanged(t)
+	})
+}

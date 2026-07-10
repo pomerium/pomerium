@@ -22,6 +22,7 @@ _dirs=(
 	config
 	databroker
 	device
+	enterprise
 	events
 	health
 	identity

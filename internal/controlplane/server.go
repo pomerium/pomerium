@@ -597,6 +597,11 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 			health.XDSRouteConfiguration,
 		)
 	}
+	if config.IsProxy(services) && config.IsAuthorize(services) &&
+		cfg.Options.PostgresAddr != "" &&
+		cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagPostgres) {
+		ret = append(ret, health.PostgresListener)
+	}
 
 	if len(cfg.Options.EnvoyDynamicExtensions.Or([]string{})) > 0 {
 		ret = append(ret, health.EnvoyDynamicExtensions)

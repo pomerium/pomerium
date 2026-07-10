@@ -160,6 +160,23 @@ test: get-envoy ## Runs the go tests.
 	@echo "==> $@"
 	$(GO) test $(GO_TESTFLAGS) -tags "$(BUILDTAGS)" ./...
 
+.PHONY: test-postgres-cli-e2e
+test-postgres-cli-e2e: get-envoy ## Runs the Linux-only external CLI to real PostgreSQL release gate.
+	@echo "==> $@"
+	@test "$(GOOS)" = "linux" || { echo "test-postgres-cli-e2e requires Linux" >&2; exit 1; }
+	@test -n "$(POMERIUM_CLI_BIN)" || { echo "POMERIUM_CLI_BIN must name the pomerium-cli binary under test" >&2; exit 1; }
+	@set -eu; \
+		output="$$(mktemp "$${TMPDIR:-/tmp}/postgres-cli-e2e.XXXXXX")"; \
+		trap 'rm -f "$$output"' EXIT INT TERM; \
+		POMERIUM_CLI_BIN="$(POMERIUM_CLI_BIN)" $(GO) test \
+			-tags postgres_cli_e2e -count=1 -v \
+			-run '^TestPostgresCLILoginBindsAndRunsPSQL$$' \
+			./internal/testenv/selftests | tee "$$output"; \
+		grep -q '^--- PASS: TestPostgresCLILoginBindsAndRunsPSQL ' "$$output" || { \
+			echo "required PostgreSQL CLI E2E did not pass (a skip is a failure)" >&2; \
+			exit 1; \
+		}
+
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage
 	@echo "==> $@"

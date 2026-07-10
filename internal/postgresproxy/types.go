@@ -3,10 +3,24 @@ package postgresproxy
 import (
 	"context"
 	"crypto/tls"
+	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgproto3"
 )
+
+type relayHandler func(
+	context.Context,
+	*Session,
+	*pgproto3.Backend,
+	net.Conn,
+	*pgproto3.Frontend,
+	net.Conn,
+	Recorder,
+) error
 
 type Server struct {
 	UpstreamAddr         string
@@ -15,13 +29,26 @@ type Server struct {
 	DownstreamTLS        *tls.Config
 	ReauthorizeInterval  time.Duration
 	AuthorizationTimeout time.Duration
+	StartupTimeout       time.Duration
+	UpstreamTimeout      time.Duration
+	CancelTimeout        time.Duration
+	IdleTimeout          time.Duration
+	MaxConnectionAge     time.Duration
+	MaxConnections       int
 	Identity             Identity
-	Policy               Policy
-	Recorder             Recorder
+	Policy               SessionPolicy
 	Now                  func() time.Time
+
+	// relayForTest is an unexported seam used by the legacy query-governance
+	// tests. Production callers cannot select the governed relay.
+	relayForTest       relayHandler
+	queryPolicyForTest queryPolicy
+	recorderForTest    Recorder
 
 	cancelMu   sync.Mutex
 	cancelKeys map[string]pgproto3CancelRequest
+	active     atomic.Int64
+	random     io.Reader
 }
 
 type pgproto3CancelRequest struct {
@@ -45,8 +72,13 @@ type UpstreamTarget struct {
 	TLSConfig *tls.Config
 }
 
-type Policy interface {
+type SessionPolicy interface {
 	AuthorizeSession(context.Context, *Session) error
+}
+
+// queryPolicy is parked with the governed relay for its legacy tests. It is
+// deliberately unexported and cannot be selected by production callers.
+type queryPolicy interface {
 	AuthorizeQuery(context.Context, QueryRequest) (*Decision, error)
 }
 
@@ -84,6 +116,22 @@ type Session struct {
 	ClientCertSHA256  string
 	ClientCertPEM     string
 	StartedAt         time.Time
+	ExpiresAt         time.Time
+
+	// identityValidated is set only by Server after Identity.Authenticate
+	// succeeds for the TLS-derived AuthRequest. It is deliberately unexported:
+	// policy adapters may inspect the marker but cannot mint it.
+	identityValidated bool
+}
+
+func (s *Session) markIdentityValidated() {
+	s.identityValidated = true
+}
+
+// IdentityValidated reports whether the protocol server accepted this session
+// from its identity adapter for the current TLS connection.
+func (s *Session) IdentityValidated() bool {
+	return s != nil && s.identityValidated
 }
 
 type UpstreamCredentials struct {

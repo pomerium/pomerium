@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
+	"github.com/pomerium/pomerium/pkg/postgresapi"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -748,6 +749,7 @@ func TestEvaluator_EvaluateInternal(t *testing.T) {
 		"/.pomerium/jwt",
 		"/.pomerium/user",
 		"/.pomerium/webauthn",
+		postgresapi.SessionBindingsPath,
 	} {
 		t.Run(path, func(t *testing.T) {
 			req := Request{

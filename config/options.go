@@ -38,6 +38,7 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/postgresidentity"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -825,11 +826,10 @@ func (o *Options) validatePostgresRoutes() error {
 		if !p.IsPostgres() {
 			continue
 		}
-		u, err := url.Parse(p.From)
+		host, err := postgresRouteSourceHostname(p.From)
 		if err != nil {
-			return fmt.Errorf("config: bad postgres route source url %s: %w", p.From, err)
+			return fmt.Errorf("config: bad postgres route source %s: %w", p.From, err)
 		}
-		host := strings.ToLower(u.Hostname())
 		if previous, ok := postgresRouteHosts[host]; ok {
 			return fmt.Errorf("config: postgres route hostname %q is already used by %s", host, previous)
 		}
@@ -837,15 +837,22 @@ func (o *Options) validatePostgresRoutes() error {
 	}
 	if o.PostgresAddr != "" &&
 		o.IsRuntimeFlagSet(RuntimeFlagPostgres) &&
-		!o.HasAnyDownstreamMTLSClientCA() {
-		return fmt.Errorf("config: postgres listener requires downstream mTLS client CA")
-	}
-	if o.PostgresAddr != "" &&
-		o.IsRuntimeFlagSet(RuntimeFlagPostgres) &&
 		!IsAuthorize(o.Services) {
-		return fmt.Errorf("config: native postgres requires the authorize service in this preview")
+		return fmt.Errorf("config: native postgres requires the authorize service")
 	}
 	return nil
+}
+
+func postgresRouteSourceHostname(from string) (string, error) {
+	u, err := url.Parse(from)
+	if err != nil {
+		return "", err
+	}
+	if !strings.EqualFold(u.Scheme, "postgres") || u.User != nil || u.Port() != "" ||
+		u.Path != "" || u.RawPath != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		return "", errors.New("source must be postgres:// followed by one exact DNS hostname")
+	}
+	return postgresidentity.ValidateRouteHostname(u.Hostname())
 }
 
 // GetDeriveInternalDomain returns an optional internal domain name to use for gRPC endpoint
@@ -1117,16 +1124,19 @@ func (o *Options) GetRouteForPostgresHostname(hostname string) *Policy {
 	if hostname == "" {
 		return nil
 	}
-	hostname = strings.ToLower(hostname)
+	hostname, err := postgresidentity.ValidateRouteHostname(hostname)
+	if err != nil {
+		return nil
+	}
 	for r := range o.GetAllPolicies() {
 		if !r.IsPostgres() {
 			continue
 		}
-		fromURL, err := urlutil.ParseAndValidateURL(r.From)
+		routeHostname, err := postgresRouteSourceHostname(r.From)
 		if err != nil {
 			continue
 		}
-		if strings.ToLower(fromURL.Hostname()) == hostname {
+		if routeHostname == hostname {
 			return r
 		}
 	}
@@ -1723,7 +1733,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	if settings.HasBrandingOptions() {
 		o.BrandingOptions = settings
 	}
-	copyMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
+	mergeMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
 		return RuntimeFlag(k), v
 	})
 	if settings.Http3AdvertisePort != nil {
@@ -2142,6 +2152,25 @@ func copyMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1
 		k1, v1 := convert(k, v)
 		(*dst)[k1] = v1
 	}
+}
+
+func mergeMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1 ~map[T1Key]T1Value, TMap2 ~map[T2Key]T2Value](
+	dst *TMap1,
+	src TMap2,
+	convert func(T2Key, T2Value) (T1Key, T1Value),
+) {
+	if len(src) == 0 {
+		return
+	}
+	next := maps.Clone(*dst)
+	if next == nil {
+		next = make(TMap1, len(src))
+	}
+	for k, v := range src {
+		k1, v1 := convert(k, v)
+		next[k1] = v1
+	}
+	*dst = next
 }
 
 func setCertificate(

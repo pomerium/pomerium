@@ -1,17 +1,26 @@
 package configapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	statuspb "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
 
 // TestParseConnectError_AllCodes round-trips every documented connect.Code
@@ -242,6 +251,211 @@ func TestScrubSensitive_NilAndInvalid(t *testing.T) {
 	// Same shape for the sensitive-fields collector.
 	assert.Nil(t, SensitiveFieldsSet(nil))
 	assert.Nil(t, SensitiveFieldsSet(route))
+}
+
+func TestSensitiveAnyTraversal(t *testing.T) {
+	const canary = "NESTED_ANY_POSTGRES_PASSWORD_CANARY"
+
+	tests := []struct {
+		name     string
+		newMsg   func(*anypb.Any) proto.Message
+		wantPath string
+	}{
+		{
+			name:     "direct",
+			newMsg:   func(a *anypb.Any) proto.Message { return a },
+			wantPath: "routes[].postgres.password",
+		},
+		{
+			name: "map",
+			newMsg: func(a *anypb.Any) proto.Message {
+				return &registrypb.RegisterRequest{Metadata: map[string]*anypb.Any{"config": a}}
+			},
+			wantPath: "metadata[].routes[].postgres.password",
+		},
+		{
+			name: "list",
+			newMsg: func(a *anypb.Any) proto.Message {
+				return &statuspb.Status{Details: []*anypb.Any{a}}
+			},
+			wantPath: "details[].routes[].postgres.password",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			first := tt.newMsg(mustSensitiveConfigAny(t, canary))
+			second := tt.newMsg(mustSensitiveConfigAny(t, canary))
+
+			assert.Contains(t, SensitiveFieldsSet(first), tt.wantPath)
+			ScrubSensitive(first)
+			ScrubSensitive(second)
+
+			firstJSON, err := protojson.Marshal(first)
+			require.NoError(t, err)
+			assert.NotContains(t, string(firstJSON), canary)
+			firstWire, err := proto.MarshalOptions{Deterministic: true}.Marshal(first)
+			require.NoError(t, err)
+			secondWire, err := proto.MarshalOptions{Deterministic: true}.Marshal(second)
+			require.NoError(t, err)
+			assert.Equal(t, firstWire, secondWire, "Any payload repacking must be deterministic")
+		})
+	}
+}
+
+func TestScrubSensitiveAnyFailsClosedAtBounds(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  *anypb.Any
+	}{
+		{
+			name: "unknown type",
+			msg: &anypb.Any{
+				TypeUrl: "type.googleapis.com/unknown.Secret",
+				Value:   []byte("UNKNOWN_ANY_SECRET_CANARY"),
+			},
+		},
+		{
+			name: "malformed payload",
+			msg: &anypb.Any{
+				TypeUrl: mustSensitiveConfigAny(t, "").TypeUrl,
+				Value:   []byte{0xff},
+			},
+		},
+		{
+			name: "oversized payload",
+			msg: &anypb.Any{
+				TypeUrl: mustSensitiveConfigAny(t, "").TypeUrl,
+				Value:   bytes.Repeat([]byte{'x'}, maxSensitiveAnyBytes+1),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Empty(t, SensitiveFieldsSet(tt.msg))
+			ScrubSensitive(tt.msg)
+			assert.Empty(t, tt.msg.Value)
+		})
+	}
+}
+
+func TestScrubSensitiveAnyFailsClosedBeyondDepthBound(t *testing.T) {
+	const canary = "OVER_DEPTH_ANY_POSTGRES_PASSWORD_CANARY"
+	var msg proto.Message = sensitiveConfig(canary)
+	for range maxSensitiveAnyDepth + 1 {
+		var err error
+		msg, err = anypb.New(msg)
+		require.NoError(t, err)
+	}
+	outer := msg.(*anypb.Any)
+
+	assert.Empty(t, SensitiveFieldsSet(outer))
+	ScrubSensitive(outer)
+	wire, err := proto.MarshalOptions{Deterministic: true}.Marshal(outer)
+	require.NoError(t, err)
+	assert.NotContains(t, string(wire), canary)
+}
+
+func TestScrubSensitiveAnyEnforcesCumulativeByteBound(t *testing.T) {
+	largeName := strings.Repeat("x", maxSensitiveAnyBytes/2+1)
+	newLargeAny := func(password string) *anypb.Any {
+		cfg := sensitiveConfig(password)
+		cfg.Routes[0].Name = &largeName
+		return mustSensitiveConfigAnyFromMessage(t, cfg)
+	}
+	msg := &statuspb.Status{Details: []*anypb.Any{
+		newLargeAny("FIRST_ANY_PASSWORD_CANARY"),
+		newLargeAny("SECOND_ANY_PASSWORD_CANARY"),
+	}}
+
+	ScrubSensitive(msg)
+	require.NotEmpty(t, msg.Details[0].Value)
+	assert.Empty(t, msg.Details[1].Value, "aggregate Any input beyond the byte budget must fail closed")
+	wire, err := proto.MarshalOptions{Deterministic: true}.Marshal(msg)
+	require.NoError(t, err)
+	assert.NotContains(t, string(wire), "FIRST_ANY_PASSWORD_CANARY")
+	assert.NotContains(t, string(wire), "SECOND_ANY_PASSWORD_CANARY")
+}
+
+func TestScrubSensitiveDropsUnknownWireFields(t *testing.T) {
+	tests := []struct {
+		name      string
+		newMsg    func(string) proto.Message
+		unknownAt func(proto.Message) protoreflect.Message
+	}{
+		{
+			name:   "root",
+			newMsg: func(string) proto.Message { return sensitiveConfig("") },
+			unknownAt: func(msg proto.Message) protoreflect.Message {
+				return msg.ProtoReflect()
+			},
+		},
+		{
+			name:   "nested",
+			newMsg: func(string) proto.Message { return sensitiveConfig("") },
+			unknownAt: func(msg proto.Message) protoreflect.Message {
+				return msg.(*configpb.Config).Routes[0].ProtoReflect()
+			},
+		},
+		{
+			name: "Any payload",
+			newMsg: func(canary string) proto.Message {
+				cfg := sensitiveConfig("")
+				cfg.ProtoReflect().SetUnknown(sensitiveUnknownWire(canary))
+				return mustSensitiveConfigAnyFromMessage(t, cfg)
+			},
+			unknownAt: func(msg proto.Message) protoreflect.Message {
+				var cfg configpb.Config
+				require.NoError(t, msg.(*anypb.Any).UnmarshalTo(&cfg))
+				return cfg.ProtoReflect()
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			canary := "UNKNOWN_WIRE_SECRET_CANARY_" + tt.name
+			first := tt.newMsg(canary)
+			second := tt.newMsg(canary)
+			if tt.name != "Any payload" {
+				tt.unknownAt(first).SetUnknown(sensitiveUnknownWire(canary))
+				tt.unknownAt(second).SetUnknown(sensitiveUnknownWire(canary))
+			}
+
+			assert.Empty(t, SensitiveFieldsSet(first), "unknown fields cannot produce a trustworthy redaction path")
+			ScrubSensitive(first)
+			ScrubSensitive(second)
+
+			assert.Empty(t, tt.unknownAt(first).GetUnknown())
+			firstWire, err := proto.MarshalOptions{Deterministic: true}.Marshal(first)
+			require.NoError(t, err)
+			secondWire, err := proto.MarshalOptions{Deterministic: true}.Marshal(second)
+			require.NoError(t, err)
+			assert.Equal(t, firstWire, secondWire)
+			assert.NotContains(t, string(firstWire), canary)
+		})
+	}
+}
+
+func mustSensitiveConfigAny(t testing.TB, password string) *anypb.Any {
+	t.Helper()
+	return mustSensitiveConfigAnyFromMessage(t, sensitiveConfig(password))
+}
+
+func mustSensitiveConfigAnyFromMessage(t testing.TB, msg proto.Message) *anypb.Any {
+	t.Helper()
+	a, err := anypb.New(msg)
+	require.NoError(t, err)
+	return a
+}
+
+func sensitiveConfig(password string) *configpb.Config {
+	return &configpb.Config{Routes: []*configpb.Route{{
+		Postgres: &configpb.PostgresRouteSettings{Password: password},
+	}}}
+}
+
+func sensitiveUnknownWire(value string) []byte {
+	wire := protowire.AppendTag(nil, 65000, protowire.BytesType)
+	return protowire.AppendBytes(wire, []byte(value))
 }
 
 // TestParseConnectError_PreservesCodeWhenMessageEmpty locks the contract

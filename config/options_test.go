@@ -101,22 +101,33 @@ func Test_Validate(t *testing.T) {
 	badAuthorizeLogFields := testOptions()
 	badAuthorizeLogFields.AuthorizeLogFields = []logfields.AuthorizeLogField{"zzzzzzzzzzz"}
 	duplicatePostgresRouteHosts := testOptions()
+	duplicatePostgresRoute1 := newManagedPostgresPolicy(t, "postgres://postgres-1.internal:5432")
+	duplicatePostgresRoute2 := newManagedPostgresPolicy(t, "postgres://postgres-2.internal:5432")
+	duplicatePostgresRoute2.From = "postgres://DB.EXAMPLE.COM."
 	duplicatePostgresRouteHosts.Policies = []Policy{
-		{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres-1.internal:5432")},
-		{From: "postgres://db.example.com:5432", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres-2.internal:5432")},
+		duplicatePostgresRoute1,
+		duplicatePostgresRoute2,
+	}
+	duplicateAbsolutePostgresRouteHosts := testOptions()
+	duplicateAbsolutePostgresRoute1 := newManagedPostgresPolicy(t, "postgres://postgres-1.internal:5432")
+	duplicateAbsolutePostgresRoute2 := newManagedPostgresPolicy(t, "postgres://postgres-2.internal:5432")
+	duplicateAbsolutePostgresRoute2.From = "postgres://db.example.com."
+	duplicateAbsolutePostgresRouteHosts.Policies = []Policy{
+		duplicateAbsolutePostgresRoute1,
+		duplicateAbsolutePostgresRoute2,
 	}
 	missingPostgresClientCA := testOptions()
 	missingPostgresClientCA.PostgresAddr = "127.0.0.1:15432"
 	missingPostgresClientCA.RuntimeFlags[RuntimeFlagPostgres] = true
 	missingPostgresClientCA.Policies = []Policy{
-		{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")},
+		newManagedPostgresPolicy(t, "postgres://postgres.internal:5432"),
 	}
 	goodPostgresListener := testOptions()
 	goodPostgresListener.PostgresAddr = "127.0.0.1:15432"
 	goodPostgresListener.RuntimeFlags[RuntimeFlagPostgres] = true
 	goodPostgresListener.DownstreamMTLS.CA = "ZmFrZSBDQQ=="
 	goodPostgresListener.Policies = []Policy{
-		{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")},
+		newManagedPostgresPolicy(t, "postgres://postgres.internal:5432"),
 	}
 	proxyOnlyPostgresListener := testOptions()
 	proxyOnlyPostgresListener.Services = ServiceProxy
@@ -124,7 +135,7 @@ func Test_Validate(t *testing.T) {
 	proxyOnlyPostgresListener.RuntimeFlags[RuntimeFlagPostgres] = true
 	proxyOnlyPostgresListener.DownstreamMTLS.CA = "ZmFrZSBDQQ=="
 	proxyOnlyPostgresListener.Policies = []Policy{
-		{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")},
+		newManagedPostgresPolicy(t, "postgres://postgres.internal:5432"),
 	}
 
 	tests := []struct {
@@ -148,7 +159,8 @@ func Test_Validate(t *testing.T) {
 		{"good authorize log field", goodAuthorizeLogFields, false},
 		{"bad authorize log field", badAuthorizeLogFields, false},
 		{"duplicate postgres route hosts", duplicatePostgresRouteHosts, true},
-		{"missing postgres client ca", missingPostgresClientCA, true},
+		{"duplicate absolute postgres route hosts", duplicateAbsolutePostgresRouteHosts, true},
+		{"postgres listener without client ca", missingPostgresClientCA, false},
 		{"good postgres listener", goodPostgresListener, false},
 		{"proxy-only postgres listener", proxyOnlyPostgresListener, true},
 	}
@@ -939,7 +951,7 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 	assert.NoError(t, p3.Validate())
 	p4 := Policy{From: "https://from4.example.com", MCP: &MCP{Server: &MCPServer{}}, To: to}
 	assert.NoError(t, p4.Validate())
-	p5 := Policy{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")}
+	p5 := newManagedPostgresPolicy(t, "postgres://postgres.internal:5432")
 	assert.NoError(t, p5.Validate())
 
 	opts := &Options{
@@ -970,18 +982,61 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 }
 
 func TestOptions_GetRouteForPostgresHostname(t *testing.T) {
+	postgresRoute := newManagedPostgresPolicy(t, "postgres://postgres.internal:5432")
+	postgresRoute.From = "postgres://db.example.com"
 	opts := &Options{
 		Policies: []Policy{
 			{From: "https://app.example.com", To: mustParseWeightedURLs(t, "https://app.internal")},
-			{From: "postgres://db.example.com:5432", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")},
+			postgresRoute,
 		},
 	}
 
 	assert.Equal(t, &opts.Policies[1], opts.GetRouteForPostgresHostname("db.example.com"))
 	assert.Equal(t, &opts.Policies[1], opts.GetRouteForPostgresHostname("DB.EXAMPLE.COM"))
+	assert.Equal(t, &opts.Policies[1], opts.GetRouteForPostgresHostname("DB.EXAMPLE.COM."))
 	assert.Nil(t, opts.GetRouteForPostgresHostname("app.example.com"))
 	assert.Nil(t, opts.GetRouteForPostgresHostname(""))
 	assert.Nil(t, opts.GetRouteForPostgresHostname("missing.example.com"))
+}
+
+func TestOptionsValidatePostgresRouteSourceIsExactDNSName(t *testing.T) {
+	tests := []string{
+		"postgres://*.example.com",
+		"postgres://127.0.0.1",
+		"postgres://[::1]",
+		"postgres://bad_host.example.com",
+		"postgres://bad..example.com",
+		"postgres://-bad.example.com",
+		"postgres://bad-.example.com",
+		"postgres://db.example.com..",
+		"postgres://user@db.example.com",
+		"postgres://db.example.com:5432",
+		"postgres://db.example.com/path",
+		"postgres://db.example.com?option=value",
+		"postgres://db.example.com#fragment",
+	}
+	for _, from := range tests {
+		t.Run(from, func(t *testing.T) {
+			policy := newManagedPostgresPolicy(t, "postgres://postgres.internal:5432")
+			policy.From = from
+			err := (&Options{Policies: []Policy{policy}}).validatePostgresRoutes()
+			require.Error(t, err)
+		})
+	}
+
+	t.Run("valid absolute mixed-case name", func(t *testing.T) {
+		policy := newManagedPostgresPolicy(t, "postgres://postgres.internal:5432")
+		policy.From = "postgres://DB.Example.COM."
+		require.NoError(t, (&Options{Policies: []Policy{policy}}).validatePostgresRoutes())
+	})
+	t.Run("canonical duplicate is rejected", func(t *testing.T) {
+		first := newManagedPostgresPolicy(t, "postgres://postgres-1.internal:5432")
+		second := newManagedPostgresPolicy(t, "postgres://postgres-2.internal:5432")
+		second.From = "postgres://DB.EXAMPLE.COM."
+		first.IDPClientID = "idp-one"
+		second.IDPClientID = "idp-two"
+		require.Error(t, (&Options{Policies: []Policy{first, second}}).validatePostgresRoutes())
+	})
 }
 
 func TestOptions_ApplySettings(t *testing.T) {
@@ -1108,6 +1163,33 @@ func TestOptions_ApplySettings(t *testing.T) {
 		options.ApplySettings(ctx, nil, &configpb.Settings{})
 		assert.Equal(t, &CircuitBreakerThresholds{MaxConnections: null.Uint32From(3)}, options.CircuitBreakerThresholds,
 			"should not erase existing circuit breaker thresholds")
+	})
+
+	t.Run("runtime_flags overlay", func(t *testing.T) {
+		t.Parallel()
+
+		options := NewDefaultOptions()
+		options.RuntimeFlags[RuntimeFlagPostgres] = true
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			PostgresAddress: new("127.0.0.1:15432"),
+		})
+		assert.True(t, options.IsRuntimeFlagSet(RuntimeFlagPostgres),
+			"settings without runtime flags should preserve the static postgres flag")
+		assert.Equal(t, "127.0.0.1:15432", options.PostgresAddr)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			RuntimeFlags: map[string]bool{string(RuntimeFlagMCP): true},
+		})
+		assert.True(t, options.IsRuntimeFlagSet(RuntimeFlagPostgres),
+			"an unrelated settings flag should not clear the static postgres flag")
+		assert.True(t, options.IsRuntimeFlagSet(RuntimeFlagMCP))
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			RuntimeFlags: map[string]bool{string(RuntimeFlagPostgres): false},
+		})
+		assert.False(t, options.IsRuntimeFlagSet(RuntimeFlagPostgres),
+			"an explicit settings value should override the static postgres flag")
 	})
 
 	t.Run("ssh", func(t *testing.T) {

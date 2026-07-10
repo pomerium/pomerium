@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	mathrand "math/rand/v2"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -35,9 +37,9 @@ func Test_PolicyValidate(t *testing.T) {
 		{"empty from scheme", Policy{From: "httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.example")}, true},
 		{"empty to scheme", Policy{From: "https://httpbin.corp.example", To: []WeightedURL{{URL: url.URL{Host: "httpbin.corp.example"}}}}, true},
 		{"path in from", Policy{From: "https://httpbin.corp.example/some/path", To: mustParseWeightedURLs(t, "https://httpbin.corp.example")}, true},
-		{"postgres route", Policy{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432")}, false},
-		{"postgres route missing upstream credentials", Policy{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://postgres.internal:5432")}, true},
-		{"postgres route unsupported sslmode", Policy{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432?sslmode=prefer")}, true},
+		{"postgres route", newManagedPostgresPolicy(t, "postgres://postgres.internal:5432"), false},
+		{"postgres route missing structured settings", Policy{From: "postgres://db.example.com", To: mustParseWeightedURLs(t, "postgres://postgres.internal:5432")}, true},
+		{"postgres route rejects URL options", newManagedPostgresPolicy(t, "postgres://postgres.internal:5432?sslmode=prefer"), true},
 		{"cors policy", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.notatld"), CORSAllowPreflight: true}, false},
 		{"public policy", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.notatld"), AllowPublicUnauthenticatedAccess: true}, false},
 		{"public and whitelist", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.notatld"), AllowPublicUnauthenticatedAccess: true, AllowedUsers: []string{"test@domain.example"}}, true},
@@ -543,6 +545,284 @@ func TestPolicy_IsPostgres(t *testing.T) {
 	assert.True(t, p2.IsPostgres())
 }
 
+func TestPolicy_ValidatePostgresRoute(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		mutate  func(*Policy)
+		wantErr string
+	}{
+		{name: "verified TLS default"},
+		{
+			name: "verified TLS explicit",
+			mutate: func(p *Policy) {
+				p.Postgres.Value.UpstreamTlsMode = nullable.From(config.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_VERIFY_FULL)
+			},
+		},
+		{
+			name: "multiple upstreams",
+			mutate: func(p *Policy) {
+				p.To = append(p.To, mustParseWeightedURLs(t, "postgres://other.internal:5432")...)
+			},
+			wantErr: "exactly one postgres upstream",
+		},
+		{
+			name: "credentials in URL",
+			mutate: func(p *Policy) {
+				p.To = mustParseWeightedURLs(t, "postgres://dbuser:url-secret@postgres.internal:5432")
+			},
+			wantErr: "credentials must be configured in postgres settings",
+		},
+		{
+			name: "query options",
+			mutate: func(p *Policy) {
+				p.To = mustParseWeightedURLs(t, "postgres://postgres.internal:5432?options=-csearch_path%3Dpublic")
+			},
+			wantErr: "must not contain query parameters or options",
+		},
+		{
+			name: "path",
+			mutate: func(p *Policy) {
+				p.To = mustParseWeightedURLs(t, "postgres://postgres.internal:5432/appdb")
+			},
+			wantErr: "must not contain a path",
+		},
+		{
+			name: "fragment",
+			mutate: func(p *Policy) {
+				p.To = mustParseWeightedURLs(t, "postgres://postgres.internal:5432#fragment")
+			},
+			wantErr: "must not contain a fragment",
+		},
+		{
+			name: "malformed host",
+			mutate: func(p *Policy) {
+				p.To[0].URL.Host = "postgres.internal:"
+			},
+			wantErr: "upstream host is invalid",
+		},
+		{
+			name: "missing settings",
+			mutate: func(p *Policy) {
+				p.Postgres = nullable.Value[PostgresRouteSettings]{}
+			},
+			wantErr: "postgres settings are required",
+		},
+		{
+			name: "unspecified authentication mode",
+			mutate: func(p *Policy) {
+				p.Postgres.Value.AuthenticationMode = nullable.Value[config.PostgresAuthenticationMode]{}
+			},
+			wantErr: "authentication mode must be explicitly set",
+		},
+		{
+			name: "reserved client mode",
+			mutate: func(p *Policy) {
+				p.Postgres.Value.AuthenticationMode = nullable.From(config.PostgresAuthenticationMode_POSTGRES_AUTHENTICATION_MODE_CLIENT)
+			},
+			wantErr: "client authentication mode is reserved",
+		},
+		{
+			name: "missing username",
+			mutate: func(p *Policy) {
+				p.Postgres.Value.Username = nullable.From("")
+			},
+			wantErr: "require username, database, and password",
+		},
+		{
+			name: "missing database",
+			mutate: func(p *Policy) {
+				p.Postgres.Value.Database = nullable.From("")
+			},
+			wantErr: "require username, database, and password",
+		},
+		{
+			name: "missing password",
+			mutate: func(p *Policy) {
+				p.Postgres.Value.Password = nullable.From("")
+			},
+			wantErr: "require username, database, and password",
+		},
+		{
+			name: "require TLS on non-loopback",
+			mutate: func(p *Policy) {
+				p.Postgres.Value.UpstreamTlsMode = nullable.From(config.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_REQUIRE)
+			},
+			wantErr: "insecure postgres upstream TLS modes are restricted to loopback",
+		},
+		{
+			name: "disable TLS on non-loopback",
+			mutate: func(p *Policy) {
+				p.Postgres.Value.UpstreamTlsMode = nullable.From(config.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_DISABLE)
+			},
+			wantErr: "insecure postgres upstream TLS modes are restricted to loopback",
+		},
+		{
+			name: "skip verify on non-loopback",
+			mutate: func(p *Policy) {
+				p.TLSSkipVerify = true
+			},
+			wantErr: "tls_skip_verify for postgres routes is restricted to loopback",
+		},
+		{
+			name: "downstream client CA",
+			mutate: func(p *Policy) {
+				p.TLSDownstreamClientCA = base64.StdEncoding.EncodeToString([]byte("unused-postgres-client-ca"))
+			},
+			wantErr: "postgres routes do not support tls_downstream_client_ca",
+		},
+		{
+			name: "downstream client CA file",
+			mutate: func(p *Policy) {
+				p.TLSDownstreamClientCAFile = "unused-postgres-client-ca.pem"
+			},
+			wantErr: "postgres routes do not support tls_downstream_client_ca",
+		},
+		{
+			name: "require TLS on IPv4 loopback range",
+			mutate: func(p *Policy) {
+				p.To = mustParseWeightedURLs(t, "postgres://127.42.0.9:5432")
+				p.Postgres.Value.UpstreamTlsMode = nullable.From(config.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_REQUIRE)
+			},
+		},
+		{
+			name: "disable TLS on IPv6 loopback",
+			mutate: func(p *Policy) {
+				p.To = mustParseWeightedURLs(t, "postgres://[::1]:5432")
+				p.Postgres.Value.UpstreamTlsMode = nullable.From(config.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_DISABLE)
+			},
+		},
+		{
+			name: "skip verify on localhost hostname",
+			mutate: func(p *Policy) {
+				p.To = mustParseWeightedURLs(t, "postgres://localhost:5432")
+				p.TLSSkipVerify = true
+			},
+			wantErr: "tls_skip_verify for postgres routes is restricted to loopback",
+		},
+		{
+			name: "postgres settings on HTTP route",
+			mutate: func(p *Policy) {
+				p.From = "https://db.example.com"
+				p.To = mustParseWeightedURLs(t, "https://postgres.internal:5432")
+			},
+			wantErr: "postgres settings require a postgres route",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newManagedPostgresPolicy(t, "postgres://postgres.internal:5432")
+			if tt.mutate != nil {
+				tt.mutate(&p)
+			}
+			err := p.Validate()
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestPolicy_PostgresProtoYAMLAndRedaction(t *testing.T) {
+	const canary = "POSTGRES_PASSWORD_CANARY"
+
+	p := newManagedPostgresPolicy(t, "postgres://postgres.internal:5432")
+	p.Postgres.Value.Password = nullable.From(canary)
+	p.Postgres.Value.UpstreamTlsMode = nullable.From(config.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_VERIFY_FULL)
+
+	pb, err := p.ToProto()
+	require.NoError(t, err)
+	require.NotNil(t, pb.GetPostgres())
+	assert.Equal(t, canary, pb.GetPostgres().GetPassword(), "runtime protobuf must retain the credential")
+	passwordField := pb.GetPostgres().ProtoReflect().Descriptor().Fields().ByName("password")
+	isSensitive, ok := proto.GetExtension(passwordField.Options(), config.E_Sensitive).(bool)
+	require.True(t, ok)
+	assert.True(t, isSensitive, "config distribution must classify the password as sensitive")
+
+	roundTrip, err := NewPolicyFromProto(pb)
+	require.NoError(t, err)
+	assert.Equal(t, canary, roundTrip.Postgres.Value.Password.Value)
+	assert.NotContains(t, p.String(), canary)
+
+	credentialURL := mustParseWeightedURLs(t, "postgres://dbuser:"+canary+"@postgres.internal:5432")[0]
+	assert.NotContains(t, credentialURL.String(), canary)
+	assert.Contains(t, credentialURL.String(), "xxxxx")
+	p.To = WeightedURLs{credentialURL}
+	err = p.Validate()
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), canary)
+	assert.NotContains(t, p.String(), canary)
+
+	_, err = ParseWeightedURL("postgres://dbuser:" + canary + "@[::1")
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), canary)
+
+	v := viper.New()
+	v.SetConfigType("yaml")
+	require.NoError(t, v.ReadConfig(strings.NewReader(`
+from: postgres://db.example.com
+to:
+  - postgres://postgres.internal:5432
+postgres:
+  authentication_mode: managed
+  username: yaml-user
+  database: yaml-db
+  password: yaml-password
+  upstream_tls_mode: verify_full
+`)))
+	var fromYAML Policy
+	require.NoError(t, v.Unmarshal(&fromYAML, ViperPolicyHooks))
+	require.NoError(t, fromYAML.Validate())
+	assert.Equal(t, config.PostgresAuthenticationMode_POSTGRES_AUTHENTICATION_MODE_MANAGED, fromYAML.Postgres.Value.AuthenticationMode.Value)
+	assert.Equal(t, "yaml-user", fromYAML.Postgres.Value.Username.Value)
+	assert.Equal(t, "yaml-db", fromYAML.Postgres.Value.Database.Value)
+	assert.Equal(t, "yaml-password", fromYAML.Postgres.Value.Password.Value)
+	assert.Equal(t, config.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_VERIFY_FULL, fromYAML.Postgres.Value.UpstreamTlsMode.Value)
+}
+
+func TestPolicy_PostgresRouteRevision(t *testing.T) {
+	p := newManagedPostgresPolicy(t, "postgres://127.0.0.1:5432")
+	p.ID = "stable-route-id"
+
+	want, err := p.PostgresRouteRevision()
+	require.NoError(t, err)
+	again, err := p.PostgresRouteRevision()
+	require.NoError(t, err)
+	assert.Equal(t, want, again)
+	rotated := p
+	rotated.Postgres.Value.Password = nullable.From("rotated")
+	assert.NotEqual(t, p.Checksum(), rotated.Checksum(), "managed credential changes must trigger config reloads")
+
+	tests := []struct {
+		name   string
+		mutate func(*Policy)
+	}{
+		{"password", func(p *Policy) { p.Postgres.Value.Password = nullable.From("rotated") }},
+		{"username", func(p *Policy) { p.Postgres.Value.Username = nullable.From("other-user") }},
+		{"database", func(p *Policy) { p.Postgres.Value.Database = nullable.From("other-db") }},
+		{"upstream TLS mode", func(p *Policy) {
+			p.Postgres.Value.UpstreamTlsMode = nullable.From(config.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_REQUIRE)
+		}},
+		{"skip verify", func(p *Policy) { p.TLSSkipVerify = true }},
+		{"server name", func(p *Policy) { p.TLSUpstreamServerName = "db.internal" }},
+		{"custom CA", func(p *Policy) { p.TLSCustomCA = "Y2E=" }},
+		{"client key", func(p *Policy) { p.TLSClientKey = "client-key" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			changed := p
+			tt.mutate(&changed)
+			got, err := changed.PostgresRouteRevision()
+			require.NoError(t, err)
+			assert.NotEqual(t, want, got)
+		})
+	}
+}
+
 func TestPolicy_IsSSHUpstream(t *testing.T) {
 	p1 := Policy{
 		From: "ssh://example.com",
@@ -567,7 +847,7 @@ func TestPolicy_IsSSHUpstream(t *testing.T) {
 func TestPolicy_IsPostgresUpstream(t *testing.T) {
 	p1 := Policy{
 		From: "postgres://db.example.com",
-		To:   mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432"),
+		To:   mustParseWeightedURLs(t, "postgres://postgres.internal:5432"),
 	}
 	assert.True(t, p1.IsPostgresUpstream())
 
@@ -579,7 +859,7 @@ func TestPolicy_IsPostgresUpstream(t *testing.T) {
 
 	p3 := Policy{
 		From: "https://example.com",
-		To:   mustParseWeightedURLs(t, "postgres://dbuser:secret@postgres.internal:5432"),
+		To:   mustParseWeightedURLs(t, "postgres://postgres.internal:5432"),
 	}
 	assert.True(t, p3.IsPostgresUpstream())
 }
@@ -588,6 +868,21 @@ func mustParseWeightedURLs(t testing.TB, urls ...string) WeightedURLs {
 	wu, err := ParseWeightedUrls(urls...)
 	require.NoError(t, err)
 	return wu
+}
+
+func newManagedPostgresPolicy(t testing.TB, upstream string) Policy {
+	return Policy{
+		From: "postgres://db.example.com",
+		To:   mustParseWeightedURLs(t, upstream),
+		RouteOptions: RouteOptions{
+			Postgres: nullable.From(PostgresRouteSettings{
+				AuthenticationMode: nullable.From(config.PostgresAuthenticationMode_POSTGRES_AUTHENTICATION_MODE_MANAGED),
+				Username:           nullable.From("dbuser"),
+				Database:           nullable.From("appdb"),
+				Password:           nullable.From("secret"),
+			}),
+		},
+	}
 }
 
 func TestRouteID(t *testing.T) {

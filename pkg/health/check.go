@@ -13,6 +13,8 @@ const (
 	EnvoyServer = Check("envoy.server")
 	// ProxyService checks if the proxy server is up and running
 	ProxyService = Check("proxy.service")
+	// PostgresListener checks whether the native PostgreSQL listener is accepting connections.
+	PostgresListener = Check("postgres.listener")
 
 	// BlobStorage checks if the blob store is valid and healthy
 	BlobStorage = Check("storage.blob")

@@ -31,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	mcpconfigapi "github.com/pomerium/pomerium/pkg/mcp/configapi"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -98,13 +99,15 @@ func (srv *debugServer) Update(cfg *config.Config) {
 
 func (srv *debugServer) configDumpHandler(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
+		presentation := cfg.Options.ToProto()
+		mcpconfigapi.ScrubSensitive(presentation)
 		o := protojson.MarshalOptions{
 			Multiline:     true,
 			Indent:        "  ",
 			AllowPartial:  true,
 			UseProtoNames: true,
 		}
-		bs, err := o.Marshal(cfg.Options.ToProto())
+		bs, err := o.Marshal(presentation)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -422,13 +425,24 @@ func (srv *debugServer) serveDatabrokerRecord(w http.ResponseWriter, r *http.Req
 		AllowPartial:  true,
 		UseProtoNames: true,
 	}
-	bs, err := o.Marshal(res.Record)
+	presentation, err := scrubSensitiveDatabrokerRecord(res.Record)
+	if err != nil {
+		http.Error(w, "could not prepare record for presentation", http.StatusInternalServerError)
+		return
+	}
+	bs, err := o.Marshal(presentation)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_, _ = w.Write(bs)
+}
+
+func scrubSensitiveDatabrokerRecord(record *databroker.Record) (*databroker.Record, error) {
+	presentation := proto.Clone(record).(*databroker.Record)
+	mcpconfigapi.ScrubSensitive(presentation)
+	return presentation, nil
 }
 
 type versionedConfigData struct {
@@ -531,6 +545,7 @@ func (v *versionedConfigData) RenderVersionedConfig(cfg *configpb.VersionedConfi
 	conditions := cfg.Conditions
 	cfg = proto.Clone(cfg).(*configpb.VersionedConfig)
 	cfg.Conditions = nil
+	mcpconfigapi.ScrubSensitive(cfg)
 
 	marshaled, err := protojson.MarshalOptions{
 		Multiline:     true,

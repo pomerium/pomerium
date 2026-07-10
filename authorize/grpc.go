@@ -251,7 +251,10 @@ func (a *Authorize) getMatchingPolicy(routeID string) *config.Policy {
 }
 
 func (a *Authorize) withQuerierForCheckRequest(ctx context.Context) context.Context {
-	state := a.state.Load()
+	return withQuerierForAuthorizeState(ctx, a.state.Load())
+}
+
+func withQuerierForAuthorizeState(ctx context.Context, state *authorizeState) context.Context {
 	q := storage.NewQuerier(state.dataBrokerClient)
 	// if sync queriers are enabled, use those
 	if len(state.syncQueriers) > 0 {

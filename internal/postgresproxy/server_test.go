@@ -46,7 +46,7 @@ func TestProxySimpleQueryDenyAndRecord(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -74,7 +74,7 @@ func TestProxyRejectsMultiStatementSimpleQuery(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -103,7 +103,7 @@ func TestProxyNestedBlockCommentBypassSimpleDenied(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -133,7 +133,7 @@ func TestProxyNestedBlockCommentBypassExtendedDenied(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeCacheStatement)
@@ -153,7 +153,7 @@ func TestProxyNestedBlockCommentBypassExtendedDenied(t *testing.T) {
 func TestProxyRejectsMissingClientCertificate(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
 	defer stop()
 
 	conn, err := connectPGXWithOptions(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol, "alice", false)
@@ -174,7 +174,7 @@ func TestProxySessionPolicyDeniesDatabaseUser(t *testing.T) {
 			return nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, &memoryRecorder{}, nil)
 	defer stop()
 
 	conn, err := connectPGXWithOptions(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol, "blocked", true)
@@ -190,7 +190,7 @@ func TestProxySessionPolicyDeniesDatabaseUser(t *testing.T) {
 func TestProxyStaticCredentialInjectionUsesUpstreamPassword(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -199,6 +199,134 @@ func TestProxyStaticCredentialInjectionUsesUpstreamPassword(t *testing.T) {
 	var currentUser string
 	require.NoError(t, conn.QueryRow(context.Background(), "select current_user").Scan(&currentUser))
 	require.Equal(t, "pomeriumtest", currentUser)
+}
+
+func TestProxyNeutralRelayForwardsCommonPostgresOperations(t *testing.T) {
+	upstreamAddr := startPasswordPostgres(t)
+	certs := newTestCerts(t)
+	var queryPolicyCalls atomic.Int32
+	var reauthorizeCalls atomic.Int32
+	identity := &fakeIdentity{
+		upstream: UpstreamCredentials{
+			Username: "pomeriumtest",
+			Password: "pomeriumtest",
+			Database: "pomeriumtest",
+		},
+		reauthorize: func(context.Context, *Session) error {
+			reauthorizeCalls.Add(1)
+			return nil
+		},
+	}
+	policy := &fakePolicy{
+		query: func(context.Context, QueryRequest) (*Decision, error) {
+			queryPolicyCalls.Add(1)
+			return &Decision{Action: DecisionDeny, Reason: "neutral relay must not call query policy"}, nil
+		},
+	}
+	recorder := &memoryRecorder{}
+	proxyAddr, stop := startProxyWithIdentityAndOptions(t, upstreamAddr, certs, identity, policy, recorder, nil)
+	defer stop()
+
+	ctx := context.Background()
+	simple := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
+	defer simple.Close(ctx)
+
+	_, err := simple.Exec(ctx, `
+		drop table if exists neutral_relay_rows;
+		create table neutral_relay_rows (id int primary key, value text not null)
+	`)
+	require.NoError(t, err)
+
+	rows, err := simple.CopyFrom(
+		ctx,
+		pgx.Identifier{"neutral_relay_rows"},
+		[]string{"id", "value"},
+		pgx.CopyFromRows([][]any{{1, "one"}, {2, "two"}}),
+	)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), rows)
+
+	var copied bytes.Buffer
+	tag, err := simple.PgConn().CopyTo(ctx, &copied, "copy neutral_relay_rows to stdout with (format csv)")
+	require.NoError(t, err)
+	require.Equal(t, int64(2), tag.RowsAffected())
+	require.Equal(t, "1,one\n2,two\n", copied.String())
+
+	var total int
+	require.NoError(t, simple.QueryRow(ctx, "with values_as_rows(n) as (values (1), (2)) select sum(n) from values_as_rows").Scan(&total))
+	require.Equal(t, 3, total)
+
+	extended := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeCacheStatement)
+	defer extended.Close(ctx)
+	var value string
+	require.NoError(t, extended.QueryRow(ctx, "select value from neutral_relay_rows where id = $1", 2).Scan(&value))
+	require.Equal(t, "two", value)
+
+	require.Zero(t, queryPolicyCalls.Load(), "production relay must not call query policy")
+	require.Empty(t, recorder.records(), "production relay must not record queries")
+	require.Zero(t, recorder.beginCalls.Load(), "production relay must not start recording")
+	require.Zero(t, recorder.endCalls.Load(), "production relay must not finish recording")
+	require.GreaterOrEqual(t, reauthorizeCalls.Load(), int32(7))
+}
+
+func TestProxyNeutralRelayForwardsExtendedPipelinesAndFunctionCall(t *testing.T) {
+	upstreamAddr := startPasswordPostgres(t)
+	certs := newTestCerts(t)
+	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
+	defer stop()
+
+	t.Run("multiple execute messages", func(t *testing.T) {
+		frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
+		defer conn.Close()
+
+		frontend.Send(&pgproto3.Parse{Name: "series", Query: "select generate_series(1, 2)"})
+		frontend.Send(&pgproto3.Bind{DestinationPortal: "series_portal", PreparedStatement: "series"})
+		frontend.Send(&pgproto3.Execute{Portal: "series_portal", MaxRows: 1})
+		frontend.Send(&pgproto3.Execute{Portal: "series_portal"})
+		frontend.Send(&pgproto3.Sync{})
+		require.NoError(t, frontend.Flush())
+
+		result := readMessagesUntilReady(t, frontend)
+		require.Empty(t, result.errors)
+		require.Equal(t, []string{"1", "2"}, result.values)
+		require.Contains(t, result.types, "PortalSuspended")
+		require.Contains(t, result.types, "CommandComplete")
+	})
+
+	t.Run("flush before sync", func(t *testing.T) {
+		frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
+		defer conn.Close()
+
+		frontend.Send(&pgproto3.Parse{Name: "series", Query: "select generate_series(1, 2)"})
+		frontend.Send(&pgproto3.Bind{DestinationPortal: "series_portal", PreparedStatement: "series"})
+		frontend.Send(&pgproto3.Execute{Portal: "series_portal", MaxRows: 1})
+		frontend.Send(&pgproto3.Flush{})
+		require.NoError(t, frontend.Flush())
+
+		result := readMessagesUntilPortalSuspended(t, frontend)
+		require.Empty(t, result.errors)
+		require.Equal(t, []string{"1"}, result.values)
+
+		frontend.Send(&pgproto3.Execute{Portal: "series_portal"})
+		frontend.Send(&pgproto3.Sync{})
+		require.NoError(t, frontend.Flush())
+		result = readMessagesUntilReady(t, frontend)
+		require.Empty(t, result.errors)
+		require.Equal(t, []string{"2"}, result.values)
+	})
+
+	t.Run("function call", func(t *testing.T) {
+		frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
+		defer conn.Close()
+		require.NoError(t, conn.SetDeadline(time.Now().Add(5*time.Second)))
+
+		frontend.Send(&pgproto3.FunctionCall{Function: 0})
+		require.NoError(t, frontend.Flush())
+		result := readMessagesUntilReady(t, frontend)
+		require.Len(t, result.errors, 1)
+		require.NotEqual(t, "42501", result.errors[0].Code)
+		require.NotContains(t, result.errors[0].Message, "query denied")
+	})
 }
 
 func TestProxyStepUpFailsClosedAndRecords(t *testing.T) {
@@ -213,7 +341,7 @@ func TestProxyStepUpFailsClosedAndRecords(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -239,7 +367,7 @@ func TestProxyUnknownPolicyDecisionFailsClosed(t *testing.T) {
 			return &Decision{Action: DecisionAction("typo")}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -264,7 +392,7 @@ func TestProxyQueryPolicyErrorFailsClosedBeforeUpstream(t *testing.T) {
 			return nil, errors.New("policy backend unavailable")
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -290,14 +418,15 @@ func TestNormalizeDecisionDefaultsToDeny(t *testing.T) {
 }
 
 func TestAuthorizeQueryUsesAuthorizationTimeout(t *testing.T) {
+	policy := &fakePolicy{
+		query: func(ctx context.Context, _ QueryRequest) (*Decision, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
 	s := &Server{
 		AuthorizationTimeout: 10 * time.Millisecond,
-		Policy: &fakePolicy{
-			query: func(ctx context.Context, _ QueryRequest) (*Decision, error) {
-				<-ctx.Done()
-				return nil, ctx.Err()
-			},
-		},
+		queryPolicyForTest:   policy,
 	}
 
 	started := time.Now()
@@ -325,7 +454,7 @@ func TestProxyQueryPolicyTimeoutFailsClosed(t *testing.T) {
 					return nil, ctx.Err()
 				},
 			}
-			proxyAddr, stop := startProxyWithOptions(t, upstreamAddr, certs, policy, rec, nil, func(server *Server) {
+			proxyAddr, stop := startGovernedProxyWithOptions(t, upstreamAddr, certs, policy, rec, nil, func(server *Server) {
 				server.AuthorizationTimeout = 10 * time.Millisecond
 			})
 			defer stop()
@@ -378,7 +507,7 @@ func TestProxyExtendedQueryRecordsRedactedParameters(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeCacheStatement)
@@ -403,7 +532,7 @@ func TestProxyFunctionCallFailsClosedAndRecords(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -425,7 +554,7 @@ func TestProxyFunctionCallFailsClosedAndRecords(t *testing.T) {
 func TestProxyUnsupportedFrontendMessageFailsVisible(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -444,7 +573,7 @@ func TestProxyUnsupportedFrontendMessageFailsVisible(t *testing.T) {
 func TestProxyExtendedUnsupportedMessageBeforeSyncFailsVisible(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -474,7 +603,7 @@ func TestProxyExtendedDenyDoesNotDesyncConnection(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeCacheStatement)
@@ -498,7 +627,7 @@ func TestProxyExtendedDenyDoesNotDesyncConnection(t *testing.T) {
 func TestProxyExtendedBackendErrorDoesNotCommitPendingState(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -527,7 +656,7 @@ func TestProxyExtendedPartialBatchParseErrorCommitsOnlyConfirmedStatementsForAud
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -570,7 +699,7 @@ func TestProxyExtendedPartialBatchErrorDoesNotRecordSkippedExecute(t *testing.T)
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -604,7 +733,7 @@ func TestProxyExtendedExecuteErrorPreservesPreparedStatementForAudit(t *testing.
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -655,7 +784,7 @@ func TestProxyExtendedCloseStatementKeepsBoundPortalForAudit(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -700,7 +829,7 @@ func TestProxyUnnamedParseErrorClearsPreviousUnnamedStatementForAudit(t *testing
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -739,7 +868,7 @@ func TestProxySimpleQueryClearsUnnamedExtendedStateForAudit(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -788,7 +917,7 @@ func TestProxyDescribeErrorBeforeUnnamedParseKeepsPreviousUnnamedStatementForAud
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -826,7 +955,7 @@ func TestProxyInvalidCloseBeforeUnnamedParseKeepsPreviousUnnamedStatementForAudi
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -871,7 +1000,7 @@ func TestProxyExtendedDescribeWithoutExecuteAuthorizesBeforeMetadata(t *testing.
 			return &Decision{Action: DecisionDeny, Reason: "metadata denied"}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -917,7 +1046,7 @@ func TestProxyExtendedMixedBatchDescribeAuthorizesForbiddenStatementBeforeMetada
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -962,7 +1091,7 @@ func TestProxyExtendedParseWithoutExecuteAuthorizesBeforeUpstream(t *testing.T) 
 			return &Decision{Action: DecisionDeny, Reason: "parse denied"}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -994,7 +1123,7 @@ func TestProxyExtendedPortalSuspendedRecordsExecute(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1074,7 +1203,7 @@ func TestProxyDenyInsideTransactionAbortsClientTransaction(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1145,7 +1274,7 @@ func TestProxyExtendedDenyInsideTransactionAbortsClientTransaction(t *testing.T)
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1205,7 +1334,7 @@ func TestProxyExtendedDenyInsideTransactionAbortsClientTransaction(t *testing.T)
 func TestProxyDirectTLSStartup(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1234,7 +1363,7 @@ func TestProxyDirectTLSStartup(t *testing.T) {
 func TestProxyExtendedFlushBeforeSyncFailsVisible(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1260,7 +1389,7 @@ func TestProxyExtendedFlushBeforeSyncFailsVisible(t *testing.T) {
 func TestProxyExtendedMultipleExecuteBeforeSyncFailsVisible(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1285,7 +1414,7 @@ func TestProxyExtendedMessageAfterExecuteBeforeSyncFailsVisible(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1318,7 +1447,7 @@ func TestProxyExtendedRowCapRejectsChunkedPortalExecution(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, &memoryRecorder{}, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, &memoryRecorder{}, nil)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1341,8 +1470,7 @@ func TestProxyExtendedRowCapRejectsChunkedPortalExecution(t *testing.T) {
 func TestProxyCancelRequestForwarded(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, nil)
 	defer stop()
 
 	frontend, conn, key := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1384,11 +1512,6 @@ func TestProxyCancelRequestForwarded(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("cancel request did not interrupt the active query")
 	}
-
-	records := rec.records()
-	require.Len(t, records, 1)
-	require.Equal(t, "error", records[0].Status)
-	require.Equal(t, "57014", records[0].ErrorCode)
 }
 
 func TestStartPostgresTLSForCancelNegotiatesSSLRequest(t *testing.T) {
@@ -1463,7 +1586,7 @@ func TestProxyCopyFromStdinFailsClosedUntilSQLParserLands(t *testing.T) {
 	execUpstream(t, upstreamAddr, "create table copy_target (n int)")
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -1494,7 +1617,7 @@ func TestProxyCopyToStdoutFailsClosedUntilSQLParserLands(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -1517,7 +1640,7 @@ func TestProxyWrapperStatementsFailClosedUntilSQLParserLands(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -1585,7 +1708,7 @@ func TestProxyExtendedWrapperStatementsFailClosedUntilSQLParserLands(t *testing.
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	rec := &memoryRecorder{}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeCacheStatement)
@@ -1633,7 +1756,7 @@ func TestProxyExtendedParserRequiredStatementDoesNotCallPolicy(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeCacheStatement)
@@ -1653,7 +1776,7 @@ func TestProxyExtendedReauthBeforeExecute(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	var revoked atomic.Bool
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, &revoked)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, &revoked)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1677,7 +1800,7 @@ func TestProxyExtendedExecuteFirstCycleReauthRevokesBeforeUpstream(t *testing.T)
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
 	var revoked atomic.Bool
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, &revoked)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, &revoked)
 	defer stop()
 
 	frontend, conn, _ := connectDirectTLSFrontend(t, proxyAddr, certs)
@@ -1740,22 +1863,18 @@ func TestExtendedBatchMessageCountLimitIsDockerIndependent(t *testing.T) {
 }
 
 func TestProxyDoesNotMutateUpstreamCredentialPointer(t *testing.T) {
-	upstreamAddr := startPasswordPostgres(t)
-	certs := newTestCerts(t)
 	identity := &fakeIdentity{
 		upstream: UpstreamCredentials{
 			Password: "pomeriumtest",
 		},
 	}
-	proxyAddr, stop := startProxyWithIdentity(t, upstreamAddr, certs, identity, &fakePolicy{}, &memoryRecorder{})
-	defer stop()
-
-	conn, err := connectPGXWithOptions(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol, "pomeriumtest", true)
-	require.NoError(t, err)
-	defer conn.Close(context.Background())
-
-	var n int
-	require.NoError(t, conn.QueryRow(context.Background(), "select 1").Scan(&n))
+	server := &Server{UpstreamAddr: "127.0.0.1:5432", Identity: identity}
+	client := pgproto3.NewBackend(bytes.NewReader(nil), io.Discard)
+	_, _, _, err := server.connectUpstream(t.Context(), &Session{
+		Database:     "client_db",
+		DatabaseUser: "client_user",
+	}, pgproto3.ProtocolVersion30, client)
+	require.ErrorContains(t, err, "managed upstream credentials are incomplete")
 	require.Empty(t, identity.upstream.Username)
 	require.Empty(t, identity.upstream.Database)
 }
@@ -1770,6 +1889,9 @@ func TestConnectUpstreamDoesNotDialPGEnvFallback(t *testing.T) {
 	t.Setenv("PGTARGETSESSIONATTRS", "read-write")
 	t.Setenv("PGOPTIONS", "-c search_path=env_schema")
 	t.Setenv("PGAPPNAME", "env-app")
+	t.Setenv("PGSSLSNI", "0")
+	t.Setenv("PGCHANNELBINDING", "require")
+	t.Setenv("PGREQUIREAUTH", "scram-sha-256")
 
 	deadPrimary, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -1817,7 +1939,7 @@ func TestProxyRowCapFailsVisibly(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -1853,7 +1975,7 @@ func TestProxyRowCapNonSelectFailsClosed(t *testing.T) {
 			return &Decision{Action: DecisionAllow}, nil
 		},
 	}
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, policy, rec, nil)
+	proxyAddr, stop := startGovernedProxy(t, upstreamAddr, certs, policy, rec, nil)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -1873,9 +1995,8 @@ func TestProxyRowCapNonSelectFailsClosed(t *testing.T) {
 func TestProxyLiveRevocation(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	rec := &memoryRecorder{}
 	var revoked atomic.Bool
-	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, rec, &revoked)
+	proxyAddr, stop := startProxy(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, &revoked)
 	defer stop()
 
 	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
@@ -1885,15 +2006,38 @@ func TestProxyLiveRevocation(t *testing.T) {
 	require.NoError(t, conn.QueryRow(context.Background(), "select 1").Scan(&n))
 	revoked.Store(true)
 	_, err := conn.Exec(context.Background(), "select 2")
-	require.Errorf(t, err, "expected active session revocation to fail the next query; records=%+v revoked=%t", rec.records(), revoked.Load())
+	require.Error(t, err, "expected active session revocation to fail the next query")
+}
+
+func TestProxyAuthoritativeExpiryClosesActiveConnection(t *testing.T) {
+	upstreamAddr := startPasswordPostgres(t)
+	certs := newTestCerts(t)
+	expiresAt := time.Now().Add(2 * time.Second)
+	identity := &fakeIdentity{
+		upstream: UpstreamCredentials{
+			Username: "pomeriumtest",
+			Password: "pomeriumtest",
+			Database: "pomeriumtest",
+		},
+		expiresAt: expiresAt,
+	}
+	proxyAddr, stop := startProxyWithIdentityAndOptions(
+		t, upstreamAddr, certs, identity, &fakePolicy{}, &memoryRecorder{}, nil)
+	defer stop()
+
+	conn := connectPGX(t, proxyAddr, certs, pgx.QueryExecModeSimpleProtocol)
+	defer conn.Close(context.Background())
+	_, err := conn.Exec(context.Background(), "select pg_sleep(10)")
+	require.Error(t, err)
+	require.WithinDuration(t, expiresAt, time.Now(), time.Second,
+		"active connection should close at its authoritative expiry")
 }
 
 func TestProxyPeriodicRevocationClosesActiveQuery(t *testing.T) {
 	upstreamAddr := startPasswordPostgres(t)
 	certs := newTestCerts(t)
-	rec := &memoryRecorder{}
 	var revoked atomic.Bool
-	proxyAddr, stop := startProxyWithOptions(t, upstreamAddr, certs, &fakePolicy{}, rec, &revoked, func(server *Server) {
+	proxyAddr, stop := startProxyWithOptions(t, upstreamAddr, certs, &fakePolicy{}, &memoryRecorder{}, &revoked, func(server *Server) {
 		server.ReauthorizeInterval = 50 * time.Millisecond
 	})
 	defer stop()
@@ -2079,12 +2223,44 @@ func requireUpstreamTableCount(t *testing.T, addr string, table string, want int
 	require.Equal(t, want, got, "unexpected upstream row count for %q", table)
 }
 
-func startProxy(t *testing.T, upstreamAddr string, certs testCerts, policy Policy, rec Recorder, revoked *atomic.Bool) (string, func()) {
+func startGovernedProxy(t *testing.T, upstreamAddr string, certs testCerts, policy SessionPolicy, rec Recorder, revoked *atomic.Bool) (string, func()) {
+	t.Helper()
+	return startGovernedProxyWithOptions(t, upstreamAddr, certs, policy, rec, revoked, nil)
+}
+
+func startGovernedProxyWithOptions(t *testing.T, upstreamAddr string, certs testCerts, policy SessionPolicy, rec Recorder, revoked *atomic.Bool, configure func(*Server)) (string, func()) {
+	t.Helper()
+	return startGovernedProxyWithIdentityAndOptions(t, upstreamAddr, certs, &fakeIdentity{
+		upstream: UpstreamCredentials{
+			Username: "pomeriumtest",
+			Password: "pomeriumtest",
+			Database: "pomeriumtest",
+		},
+		revoked: revoked,
+	}, policy, rec, configure)
+}
+
+func startGovernedProxyWithIdentity(t *testing.T, upstreamAddr string, certs testCerts, identity Identity, policy SessionPolicy, rec Recorder) (string, func()) {
+	t.Helper()
+	return startGovernedProxyWithIdentityAndOptions(t, upstreamAddr, certs, identity, policy, rec, nil)
+}
+
+func startGovernedProxyWithIdentityAndOptions(t *testing.T, upstreamAddr string, certs testCerts, identity Identity, policy SessionPolicy, rec Recorder, configure func(*Server)) (string, func()) {
+	t.Helper()
+	return startProxyWithIdentityAndOptions(t, upstreamAddr, certs, identity, policy, rec, func(server *Server) {
+		server.relayForTest = server.relayGoverned
+		if configure != nil {
+			configure(server)
+		}
+	})
+}
+
+func startProxy(t *testing.T, upstreamAddr string, certs testCerts, policy SessionPolicy, rec Recorder, revoked *atomic.Bool) (string, func()) {
 	t.Helper()
 	return startProxyWithOptions(t, upstreamAddr, certs, policy, rec, revoked, nil)
 }
 
-func startProxyWithOptions(t *testing.T, upstreamAddr string, certs testCerts, policy Policy, rec Recorder, revoked *atomic.Bool, configure func(*Server)) (string, func()) {
+func startProxyWithOptions(t *testing.T, upstreamAddr string, certs testCerts, policy SessionPolicy, rec Recorder, revoked *atomic.Bool, configure func(*Server)) (string, func()) {
 	t.Helper()
 	return startProxyWithIdentityAndOptions(t, upstreamAddr, certs, &fakeIdentity{
 		upstream: UpstreamCredentials{
@@ -2096,12 +2272,7 @@ func startProxyWithOptions(t *testing.T, upstreamAddr string, certs testCerts, p
 	}, policy, rec, configure)
 }
 
-func startProxyWithIdentity(t *testing.T, upstreamAddr string, certs testCerts, identity Identity, policy Policy, rec Recorder) (string, func()) {
-	t.Helper()
-	return startProxyWithIdentityAndOptions(t, upstreamAddr, certs, identity, policy, rec, nil)
-}
-
-func startProxyWithIdentityAndOptions(t *testing.T, upstreamAddr string, certs testCerts, identity Identity, policy Policy, rec Recorder, configure func(*Server)) (string, func()) {
+func startProxyWithIdentityAndOptions(t *testing.T, upstreamAddr string, certs testCerts, identity Identity, policy SessionPolicy, rec Recorder, configure func(*Server)) (string, func()) {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -2113,10 +2284,11 @@ func startProxyWithIdentityAndOptions(t *testing.T, upstreamAddr string, certs t
 			ClientCAs:    certs.clientPool,
 			ClientAuth:   tls.RequireAndVerifyClientCert,
 		},
-		Identity: identity,
-		Policy:   policy,
-		Recorder: rec,
+		Identity:        identity,
+		Policy:          policy,
+		recorderForTest: rec,
 	}
+	server.queryPolicyForTest, _ = policy.(queryPolicy)
 	if configure != nil {
 		configure(server)
 	}
@@ -2268,6 +2440,25 @@ func readMessagesUntilReady(t *testing.T, frontend *pgproto3.Frontend) frontendR
 	}
 }
 
+func readMessagesUntilPortalSuspended(t *testing.T, frontend *pgproto3.Frontend) frontendReadResult {
+	t.Helper()
+	var result frontendReadResult
+	for {
+		msg, err := frontend.Receive()
+		require.NoError(t, err)
+		result.types = append(result.types, strings.TrimPrefix(fmt.Sprintf("%T", msg), "*pgproto3."))
+		switch m := msg.(type) {
+		case *pgproto3.DataRow:
+			require.Len(t, m.Values, 1)
+			result.values = append(result.values, string(m.Values[0]))
+		case *pgproto3.ErrorResponse:
+			result.errors = append(result.errors, m)
+		case *pgproto3.PortalSuspended:
+			return result
+		}
+	}
+}
+
 func readRowsUntilReady(t *testing.T, frontend *pgproto3.Frontend) []string {
 	t.Helper()
 	result := readMessagesUntilReady(t, frontend)
@@ -2309,10 +2500,21 @@ func requireFrontendSimpleQuery(t *testing.T, frontend *pgproto3.Frontend, sql s
 	}
 }
 
+func TestServerAuthenticateMarksValidatedIdentity(t *testing.T) {
+	server := &Server{Identity: &fakeIdentity{}}
+	session, err := server.authenticate(t.Context(), AuthRequest{
+		ClientAddr:       &net.TCPAddr{},
+		ClientCertSHA256: "validated-fingerprint",
+	})
+	require.NoError(t, err)
+	require.True(t, session.IdentityValidated())
+}
+
 type fakeIdentity struct {
 	upstream    UpstreamCredentials
 	revoked     *atomic.Bool
 	reauthorize func(context.Context, *Session) error
+	expiresAt   time.Time
 }
 
 func (f *fakeIdentity) Authenticate(_ context.Context, req AuthRequest) (*Session, error) {
@@ -2328,6 +2530,7 @@ func (f *fakeIdentity) Authenticate(_ context.Context, req AuthRequest) (*Sessio
 		ApplicationName:  req.ApplicationName,
 		ClientAddr:       req.ClientAddr.String(),
 		ClientCertSHA256: req.ClientCertSHA256,
+		ExpiresAt:        f.expiresAt,
 	}, nil
 }
 
@@ -2365,11 +2568,16 @@ func (f *fakePolicy) AuthorizeQuery(ctx context.Context, req QueryRequest) (*Dec
 }
 
 type memoryRecorder struct {
-	mu      sync.Mutex
-	queries []QueryRecord
+	mu         sync.Mutex
+	queries    []QueryRecord
+	beginCalls atomic.Int32
+	endCalls   atomic.Int32
 }
 
-func (r *memoryRecorder) BeginSession(context.Context, *Session) error { return nil }
+func (r *memoryRecorder) BeginSession(context.Context, *Session) error {
+	r.beginCalls.Add(1)
+	return nil
+}
 
 func (r *memoryRecorder) RecordQuery(_ context.Context, q QueryRecord) error {
 	r.mu.Lock()
@@ -2378,7 +2586,10 @@ func (r *memoryRecorder) RecordQuery(_ context.Context, q QueryRecord) error {
 	return nil
 }
 
-func (r *memoryRecorder) EndSession(context.Context, *Session, error) error { return nil }
+func (r *memoryRecorder) EndSession(context.Context, *Session, error) error {
+	r.endCalls.Add(1)
+	return nil
+}
 
 func (r *memoryRecorder) records() []QueryRecord {
 	r.mu.Lock()

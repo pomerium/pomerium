@@ -1,11 +1,14 @@
 package config
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -693,7 +696,7 @@ func (p *Policy) Validate() error {
 	toSchemes := make(map[string]struct{})
 	for _, u := range p.To {
 		if err = u.Validate(); err != nil {
-			return fmt.Errorf("config: %s: %w", u.URL.String(), err)
+			return fmt.Errorf("config: %s: %w", u.URL.Redacted(), err)
 		}
 		toSchemes[u.URL.Scheme] = struct{}{}
 	}
@@ -713,23 +716,8 @@ func (p *Policy) Validate() error {
 	if _, hasUnixPlusHTTPS := toSchemes["https+unix"]; hasUnixPlusHTTPS && len(toSchemes) > 1 {
 		return fmt.Errorf("config: cannot mix unix and non-unix To URLs")
 	}
-	if p.IsPostgres() {
-		if len(p.To) != 1 || p.To[0].URL.Scheme != "postgres" {
-			return fmt.Errorf("config: postgres routes require exactly one postgres upstream")
-		}
-		upstream := p.To[0].URL
-		if upstream.Host == "" {
-			return fmt.Errorf("config: postgres upstream host is required")
-		}
-		password, ok := upstream.User.Password()
-		if upstream.User == nil || upstream.User.Username() == "" || !ok || password == "" {
-			return fmt.Errorf("config: postgres upstream credentials are required")
-		}
-		switch sslmode := upstream.Query().Get("sslmode"); sslmode {
-		case "", "disable", "require", "verify-full":
-		default:
-			return fmt.Errorf("config: postgres upstream sslmode %q is not supported", sslmode)
-		}
+	if err := p.validatePostgresRoute(); err != nil {
+		return err
 	}
 
 	if err := p.Redirect.validate(); err != nil {
@@ -844,6 +832,75 @@ func (p *Policy) Validate() error {
 	return nil
 }
 
+func (p *Policy) validatePostgresRoute() error {
+	if !p.IsPostgres() {
+		if p.Postgres.IsSet {
+			return fmt.Errorf("config: postgres settings require a postgres route")
+		}
+		return nil
+	}
+
+	if len(p.To) != 1 || p.To[0].URL.Scheme != "postgres" {
+		return fmt.Errorf("config: postgres routes require exactly one postgres upstream")
+	}
+	upstream := p.To[0].URL
+	if upstream.Host == "" || upstream.Hostname() == "" || upstream.OmitHost ||
+		strings.HasSuffix(upstream.Host, ":") {
+		return fmt.Errorf("config: postgres upstream host is invalid")
+	}
+	if upstream.User != nil {
+		return fmt.Errorf("config: postgres upstream credentials must be configured in postgres settings, not in the upstream URL")
+	}
+	if upstream.Opaque != "" || upstream.Path != "" || upstream.RawPath != "" {
+		return fmt.Errorf("config: postgres upstream URL must not contain a path or opaque data")
+	}
+	if upstream.RawQuery != "" || upstream.ForceQuery {
+		return fmt.Errorf("config: postgres upstream URL must not contain query parameters or options")
+	}
+	if upstream.Fragment != "" || upstream.RawFragment != "" {
+		return fmt.Errorf("config: postgres upstream URL must not contain a fragment")
+	}
+
+	if !p.Postgres.IsSet {
+		return fmt.Errorf("config: postgres settings are required")
+	}
+	if p.TLSDownstreamClientCA != "" || p.TLSDownstreamClientCAFile != "" {
+		return fmt.Errorf("config: postgres routes do not support tls_downstream_client_ca or tls_downstream_client_ca_file")
+	}
+	settings := p.Postgres.Value
+	switch settings.AuthenticationMode.Value {
+	case configpb.PostgresAuthenticationMode_POSTGRES_AUTHENTICATION_MODE_MANAGED:
+		if settings.Username.Value == "" || settings.Database.Value == "" || settings.Password.Value == "" {
+			return fmt.Errorf("config: managed postgres routes require username, database, and password")
+		}
+	case configpb.PostgresAuthenticationMode_POSTGRES_AUTHENTICATION_MODE_CLIENT:
+		return fmt.Errorf("config: postgres client authentication mode is reserved and not yet supported")
+	case configpb.PostgresAuthenticationMode_POSTGRES_AUTHENTICATION_MODE_UNSPECIFIED:
+		return fmt.Errorf("config: postgres authentication mode must be explicitly set")
+	default:
+		return fmt.Errorf("config: postgres authentication mode %d is not supported", settings.AuthenticationMode.Value)
+	}
+
+	upstreamIP := net.ParseIP(upstream.Hostname())
+	loopback := upstreamIP != nil && upstreamIP.IsLoopback()
+	switch settings.UpstreamTlsMode.Value {
+	case configpb.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_UNSPECIFIED,
+		configpb.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_VERIFY_FULL:
+	case configpb.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_REQUIRE,
+		configpb.PostgresUpstreamTLSMode_POSTGRES_UPSTREAM_TLS_MODE_DISABLE:
+		if !loopback {
+			return fmt.Errorf("config: insecure postgres upstream TLS modes are restricted to loopback destinations")
+		}
+	default:
+		return fmt.Errorf("config: postgres upstream TLS mode %d is not supported", settings.UpstreamTlsMode.Value)
+	}
+	if p.TLSSkipVerify && !loopback {
+		return fmt.Errorf("config: tls_skip_verify for postgres routes is restricted to loopback destinations")
+	}
+
+	return nil
+}
+
 // Checksum returns the xxh3 hash for the policy.
 func (p *Policy) Checksum() uint64 {
 	return hashutil.MustHash(p)
@@ -863,6 +920,74 @@ func (p *Policy) RouteID() (string, error) {
 	}
 
 	return p.generateRouteID()
+}
+
+// PostgresRouteRevision returns a deterministic revision for the PostgreSQL
+// route properties that bind an authenticated session to an upstream. Unlike
+// RouteID, it changes when credentials or TLS settings change, even when the
+// route has an explicit ID.
+func (p *Policy) PostgresRouteRevision() (string, error) {
+	if err := p.validatePostgresRoute(); err != nil {
+		return "", err
+	}
+
+	settings := p.Postgres.Value
+	hash := sha256.New()
+	writeString := func(value string) {
+		var size [8]byte
+		binary.LittleEndian.PutUint64(size[:], uint64(len(value)))
+		_, _ = hash.Write(size[:])
+		_, _ = hash.Write([]byte(value))
+	}
+	writeBool := func(value bool) {
+		if value {
+			_, _ = hash.Write([]byte{1})
+		} else {
+			_, _ = hash.Write([]byte{0})
+		}
+	}
+	writeInt32 := func(value int32) {
+		var data [4]byte
+		binary.LittleEndian.PutUint32(data[:], uint32(value))
+		_, _ = hash.Write(data[:])
+	}
+	writeUint32 := func(value uint32) {
+		var data [4]byte
+		binary.LittleEndian.PutUint32(data[:], value)
+		_, _ = hash.Write(data[:])
+	}
+
+	writeString(p.ID)
+	writeString(p.From)
+	writeString(p.Prefix)
+	writeString(p.Path)
+	writeString(p.Regex)
+	writeString(p.To[0].URL.String())
+	writeUint32(p.To[0].LbWeight)
+	writeBool(settings.AuthenticationMode.IsSet)
+	writeInt32(int32(settings.AuthenticationMode.Value))
+	writeBool(settings.Username.IsSet)
+	writeString(settings.Username.Value)
+	writeBool(settings.Database.IsSet)
+	writeString(settings.Database.Value)
+	writeBool(settings.Password.IsSet)
+	writeString(settings.Password.Value)
+	writeBool(settings.UpstreamTlsMode.IsSet)
+	writeInt32(int32(settings.UpstreamTlsMode.Value))
+	writeBool(p.TLSSkipVerify)
+	writeString(p.TLSServerName)
+	writeString(p.TLSUpstreamServerName)
+	writeString(p.TLSDownstreamServerName)
+	writeString(p.TLSCustomCA)
+	writeString(p.TLSCustomCAFile)
+	writeString(p.TLSClientCert)
+	writeString(p.TLSClientKey)
+	writeString(p.TLSClientCertFile)
+	writeString(p.TLSClientKeyFile)
+	writeString(p.TLSDownstreamClientCA)
+	writeString(p.TLSDownstreamClientCAFile)
+	writeBool(p.TLSUpstreamAllowRenegotiation)
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func (p *Policy) generateRouteID() (string, error) {
@@ -930,7 +1055,7 @@ func (p *Policy) String() string {
 	if len(p.To) > 0 {
 		var dsts []string
 		for _, dst := range p.To {
-			dsts = append(dsts, dst.URL.String())
+			dsts = append(dsts, dst.URL.Redacted())
 		}
 		to = strings.Join(dsts, ",")
 	}

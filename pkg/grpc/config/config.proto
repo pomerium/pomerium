@@ -459,6 +459,8 @@ message Route {
   // Configures session recording behaviour on this route.
   // SSH specific.
   optional SessionRecording session_recording = 94;
+  // Configures native PostgreSQL upstream authentication and transport.
+  optional PostgresRouteSettings postgres = 95;
 
   // computed properties
 
@@ -2665,4 +2667,41 @@ message OutlierDetection {
   // If enabled, at least one host is ejected regardless of the value of :ref:`max_ejection_percent<envoy_v3_api_field_config.cluster.v3.OutlierDetection.max_ejection_percent>`.
   // Defaults to false.
   google.protobuf.BoolValue always_eject_one_host = 25;
+}
+
+// Determines how a native PostgreSQL route authenticates to its upstream.
+enum PostgresAuthenticationMode {
+  POSTGRES_AUTHENTICATION_MODE_UNSPECIFIED = 0;
+  // Pomerium supplies the configured upstream credentials.
+  POSTGRES_AUTHENTICATION_MODE_MANAGED = 1;
+  // The client authenticates directly to the upstream. Reserved for a future
+  // core protocol-access mode.
+  POSTGRES_AUTHENTICATION_MODE_CLIENT = 2;
+}
+
+// Determines how a native PostgreSQL route protects its upstream connection.
+enum PostgresUpstreamTLSMode {
+  // Defaults to verified TLS.
+  POSTGRES_UPSTREAM_TLS_MODE_UNSPECIFIED = 0;
+  // Require TLS and verify both the certificate chain and server hostname.
+  POSTGRES_UPSTREAM_TLS_MODE_VERIFY_FULL = 1;
+  // Require TLS without verifying the upstream certificate. This mode is
+  // restricted to literal loopback destinations.
+  POSTGRES_UPSTREAM_TLS_MODE_REQUIRE = 2;
+  // Do not use TLS. This mode is restricted to literal loopback destinations.
+  POSTGRES_UPSTREAM_TLS_MODE_DISABLE = 3;
+}
+
+// Configuration for a native PostgreSQL route.
+message PostgresRouteSettings {
+  // Determines whether Pomerium or the client authenticates to the upstream.
+  optional PostgresAuthenticationMode authentication_mode = 1;
+  // The PostgreSQL role used for managed upstream authentication.
+  string username = 2;
+  // The PostgreSQL database selected for managed upstream connections.
+  string database = 3;
+  // The password used for managed upstream authentication.
+  string password = 4 [(sensitive) = true];
+  // Determines whether and how the upstream connection uses TLS.
+  optional PostgresUpstreamTLSMode upstream_tls_mode = 5;
 }

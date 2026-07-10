@@ -16,7 +16,9 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/postgresapi"
 )
 
 // registerDashboardHandlers returns the proxy service's ServeMux
@@ -84,6 +86,12 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 					return nil
 				}
 				return p.routesPortalJSON(w, r)
+			case postgresapi.SessionBindingsPath:
+				if r.Method != http.MethodPost {
+					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+					return nil
+				}
+				return p.createPostgresSessionBinding(w, r)
 			}
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return nil
@@ -125,7 +133,16 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 		return httputil.NewError(http.StatusBadRequest, errors.New("invalid redirect uri"))
 	}
 
-	idp, err := options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
+	var idp *identitypb.Provider
+	if routeHost := r.FormValue(postgresapi.LoginRouteQuery); routeHost != "" {
+		route, _ := postgresRouteForHostname(options, routeHost)
+		if route == nil || !options.IsRuntimeFlagSet(config.RuntimeFlagPostgres) {
+			return httputil.NewError(http.StatusNotFound, errors.New("postgres route not found"))
+		}
+		idp, err = options.GetIdentityProviderForPolicy(route)
+	} else {
+		idp, err = options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
+	}
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}

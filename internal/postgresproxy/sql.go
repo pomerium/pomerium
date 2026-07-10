@@ -58,9 +58,9 @@ func classifySQL(sql string) string {
 	return first
 }
 
-func sqlKeywordTokens(sql string, max int) []string {
+func sqlKeywordTokens(sql string, maxTokens int) []string {
 	var tokens []string
-	for i := 0; i < len(sql) && (max <= 0 || len(tokens) < max); {
+	for i := 0; i < len(sql) && (maxTokens <= 0 || len(tokens) < maxTokens); {
 		switch {
 		case isSQLSpace(sql[i]) || sql[i] == '(' || sql[i] == ')' || sql[i] == ',' || sql[i] == ';':
 			i++

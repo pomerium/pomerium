@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
+	"github.com/pomerium/pomerium/pkg/enterprise/capability"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -41,6 +42,7 @@ type Options struct {
 	authorizeServerOptions     []authorize.Option
 	authenticateServiceOptions []authenticate.Option
 	controlPlaneServerOptions  []controlplane.Option
+	postgresManagedVerifier    capability.ManagedPostgresVerifier
 }
 
 type Option func(*Options)
@@ -244,7 +246,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		if err := setupProxy(ctx, src, controlPlane); err != nil {
 			return err
 		}
-		postgresServer, err = setupPostgres(ctx, src, authorizeServer)
+		postgresServer, err = setupPostgres(ctx, src, authorizeServer, p.postgresManagedVerifier)
 		if err != nil {
 			return err
 		}

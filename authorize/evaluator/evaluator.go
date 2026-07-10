@@ -25,12 +25,14 @@ import (
 	"github.com/pomerium/pomerium/internal/errgrouputil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/postgresproxy"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/postgresapi"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -143,14 +145,10 @@ type RequestSSH struct {
 }
 
 type RequestPostgres struct {
-	Hostname         string `json:"hostname"`
-	Database         string `json:"database"`
-	Username         string `json:"username"`
-	ApplicationName  string `json:"application_name"`
-	StatementClass   string `json:"statement_class"`
-	QueryProtocol    string `json:"query_protocol"`
-	RouteID          string `json:"route_id"`
-	SessionBindingID string `json:"session_binding_id"`
+	Hostname         string                 `json:"hostname"`
+	RouteID          string                 `json:"route_id"`
+	SessionBindingID string                 `json:"session_binding_id"`
+	ProtocolSession  *postgresproxy.Session `json:"-"`
 }
 
 // RequestSession is the session field in the request.
@@ -357,6 +355,7 @@ var internalPathsNeedingLogin = set.From([]string{
 	endpoints.PathPomeriumMCPAuthorize,
 	endpoints.PathPomeriumMCPConnect,
 	endpoints.PathPomeriumMCPRoutes,
+	postgresapi.SessionBindingsPath,
 })
 
 func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {
@@ -397,10 +396,20 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 		return nil, err
 	}
 
-	isValidClientCertificate, err := isValidClientCertificate(
-		clientCA, string(e.clientCRL), req.HTTP.ClientCertificate, e.clientCertConstraints)
-	if err != nil {
-		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
+	// Native PostgreSQL validates its constrained self-signed certificate
+	// against the live SessionBinding before evaluation. Do not re-interpret
+	// that certificate through the unrelated HTTP downstream client CA.
+	validClientCertificate := req.Postgres.ProtocolSession != nil &&
+		req.Postgres.ProtocolSession.IdentityValidated() &&
+		req.Postgres.ProtocolSession.SessionBindingID == req.Postgres.SessionBindingID &&
+		req.Postgres.ProtocolSession.Hostname == req.Postgres.Hostname &&
+		req.Postgres.ProtocolSession.PomeriumSessionID == req.Session.ID
+	if !validClientCertificate {
+		validClientCertificate, err = isValidClientCertificate(
+			clientCA, string(e.clientCRL), req.HTTP.ClientCertificate, e.clientCertConstraints)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
+		}
 	}
 
 	return policyEvaluator.Evaluate(ctx, &PolicyRequest{
@@ -409,7 +418,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 		Postgres:                 req.Postgres,
 		MCP:                      req.MCP,
 		Session:                  req.Session,
-		IsValidClientCertificate: isValidClientCertificate,
+		IsValidClientCertificate: validClientCertificate,
 	})
 }
 

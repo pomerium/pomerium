@@ -341,6 +341,57 @@
           ]
         },
         {
+          "name": "PostgresAuthenticationMode",
+          "longName": "PostgresAuthenticationMode",
+          "fullName": "pomerium.config.PostgresAuthenticationMode",
+          "description": "Determines how a native PostgreSQL route authenticates to its upstream.",
+          "values": [
+            {
+              "name": "POSTGRES_AUTHENTICATION_MODE_UNSPECIFIED",
+              "number": "0",
+              "description": ""
+            },
+            {
+              "name": "POSTGRES_AUTHENTICATION_MODE_MANAGED",
+              "number": "1",
+              "description": "Pomerium supplies the configured upstream credentials."
+            },
+            {
+              "name": "POSTGRES_AUTHENTICATION_MODE_CLIENT",
+              "number": "2",
+              "description": "The client authenticates directly to the upstream. Reserved for a future\ncore protocol-access mode."
+            }
+          ]
+        },
+        {
+          "name": "PostgresUpstreamTLSMode",
+          "longName": "PostgresUpstreamTLSMode",
+          "fullName": "pomerium.config.PostgresUpstreamTLSMode",
+          "description": "Determines how a native PostgreSQL route protects its upstream connection.",
+          "values": [
+            {
+              "name": "POSTGRES_UPSTREAM_TLS_MODE_UNSPECIFIED",
+              "number": "0",
+              "description": "Defaults to verified TLS."
+            },
+            {
+              "name": "POSTGRES_UPSTREAM_TLS_MODE_VERIFY_FULL",
+              "number": "1",
+              "description": "Require TLS and verify both the certificate chain and server hostname."
+            },
+            {
+              "name": "POSTGRES_UPSTREAM_TLS_MODE_REQUIRE",
+              "number": "2",
+              "description": "Require TLS without verifying the upstream certificate. This mode is\nrestricted to literal loopback destinations."
+            },
+            {
+              "name": "POSTGRES_UPSTREAM_TLS_MODE_DISABLE",
+              "number": "3",
+              "description": "Do not use TLS. This mode is restricted to literal loopback destinations."
+            }
+          ]
+        },
+        {
           "name": "SANType",
           "longName": "SANMatcher.SANType",
           "fullName": "pomerium.config.SANMatcher.SANType",
@@ -3895,6 +3946,78 @@
           ]
         },
         {
+          "name": "PostgresRouteSettings",
+          "longName": "PostgresRouteSettings",
+          "fullName": "pomerium.config.PostgresRouteSettings",
+          "description": "Configuration for a native PostgreSQL route.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "authentication_mode",
+              "description": "Determines whether Pomerium or the client authenticates to the upstream.",
+              "label": "optional",
+              "type": "PostgresAuthenticationMode",
+              "longType": "PostgresAuthenticationMode",
+              "fullType": "pomerium.config.PostgresAuthenticationMode",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_authentication_mode",
+              "defaultValue": ""
+            },
+            {
+              "name": "username",
+              "description": "The PostgreSQL role used for managed upstream authentication.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "database",
+              "description": "The PostgreSQL database selected for managed upstream connections.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "password",
+              "description": "The password used for managed upstream authentication.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "upstream_tls_mode",
+              "description": "Determines whether and how the upstream connection uses TLS.",
+              "label": "optional",
+              "type": "PostgresUpstreamTLSMode",
+              "longType": "PostgresUpstreamTLSMode",
+              "fullType": "pomerium.config.PostgresUpstreamTLSMode",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_upstream_tls_mode",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "Route",
           "longName": "Route",
           "fullName": "pomerium.config.Route",
@@ -4883,6 +5006,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_session_recording",
+              "defaultValue": ""
+            },
+            {
+              "name": "postgres",
+              "description": "Configures native PostgreSQL upstream authentication and transport.",
+              "label": "optional",
+              "type": "PostgresRouteSettings",
+              "longType": "PostgresRouteSettings",
+              "fullType": "pomerium.config.PostgresRouteSettings",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_postgres",
               "defaultValue": ""
             },
             {

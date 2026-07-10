@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -24,9 +25,11 @@ type authenticateFlow interface {
 	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 	RevokeSessionBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 	RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
+	CreatePostgresSessionBinding(ctx context.Context, h *session.Handle, expectedIDP, bindingID, routeHostname string, certificateExpiresAt time.Time) (*session.SessionBinding, error)
 }
 
 type proxyState struct {
+	options                  *config.Options
 	authenticateURL          *url.URL
 	authenticateDashboardURL *url.URL
 	authenticateSigninURL    *url.URL
@@ -46,6 +49,7 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 	}
 
 	state := new(proxyState)
+	state.options = cfg.Options
 
 	state.authenticateURL, err = cfg.Options.GetAuthenticateURL()
 	if err != nil {

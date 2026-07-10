@@ -41,11 +41,20 @@ type OutlierDetection struct {
 	SuccessfulActiveHealthCheckUnejectHost Value[bool]          `json:"successful_active_health_check_uneject_host,omitzero" mapstructure:"successful_active_health_check_uneject_host" yaml:"successful_active_health_check_uneject_host,omitempty"`
 }
 
+type PostgresRouteSettings struct {
+	AuthenticationMode Value[configpb.PostgresAuthenticationMode] `json:"authentication_mode,omitzero" mapstructure:"authentication_mode" yaml:"authentication_mode,omitempty"`
+	Database           Value[string]                              `json:"database,omitzero" mapstructure:"database" yaml:"database,omitempty"`
+	Password           Value[string]                              `json:"password,omitzero" mapstructure:"password" yaml:"password,omitempty"`
+	UpstreamTlsMode    Value[configpb.PostgresUpstreamTLSMode]    `json:"upstream_tls_mode,omitzero" mapstructure:"upstream_tls_mode" yaml:"upstream_tls_mode,omitempty"`
+	Username           Value[string]                              `json:"username,omitzero" mapstructure:"username" yaml:"username,omitempty"`
+}
+
 type RouteOptions struct {
 	AllowUpgrades       Value[[]string]                     `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
 	BearerTokenFormat   Value[configpb.BearerTokenFormat]   `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 	JWTIssuerFormat     Value[configpb.IssuerFormat]        `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 	LoadBalancingPolicy Value[configpb.LoadBalancingPolicy] `json:"load_balancing_policy,omitzero" mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty"`
+	Postgres            Value[PostgresRouteSettings]        `json:"postgres,omitzero" mapstructure:"postgres" yaml:"postgres,omitempty"`
 	SessionRecording    Value[SessionRecording]             `json:"session_recording,omitzero" mapstructure:"session_recording" yaml:"session_recording,omitempty"`
 }
 
@@ -204,6 +213,47 @@ func setOutlierDetectionFromProto(dst *OutlierDetection, src *configpb.OutlierDe
 	)
 }
 
+func setNullablePostgresRouteSettingsFromProto(dst *Value[PostgresRouteSettings], src *configpb.PostgresRouteSettings) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setPostgresRouteSettingsFromProto(&obj, src)
+	if err != nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfPostgresRouteSettingsFromProto(dst *Value[[]PostgresRouteSettings], src []*configpb.PostgresRouteSettings) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]PostgresRouteSettings, len(src))
+	for i := range src {
+		err := setPostgresRouteSettingsFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setPostgresRouteSettingsFromProto(dst *PostgresRouteSettings, src *configpb.PostgresRouteSettings) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		setNullablePostgresAuthenticationModeFromProto(&dst.AuthenticationMode, src.AuthenticationMode),
+		setNullableStringFromProto(&dst.Database, &src.Database),
+		setNullableStringFromProto(&dst.Password, &src.Password),
+		setNullablePostgresUpstreamTLSModeFromProto(&dst.UpstreamTlsMode, src.UpstreamTlsMode),
+		setNullableStringFromProto(&dst.Username, &src.Username),
+	)
+}
+
 func setNullableRouteOptionsFromProto(dst *Value[RouteOptions], src *configpb.Route) error {
 	if src == nil {
 		return nil
@@ -241,6 +291,7 @@ func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
 		setNullableLoadBalancingPolicyFromProto(&dst.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullablePostgresRouteSettingsFromProto(&dst.Postgres, src.Postgres),
 		setNullableSessionRecordingFromProto(&dst.SessionRecording, src.SessionRecording),
 	)
 }
@@ -660,6 +711,45 @@ func setOutlierDetectionToProto(dst **configpb.OutlierDetection, src *OutlierDet
 	)
 }
 
+func setNullablePostgresRouteSettingsToProto(dst **configpb.PostgresRouteSettings, src Value[PostgresRouteSettings]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setPostgresRouteSettingsToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfPostgresRouteSettingsToProto(dst *[]*configpb.PostgresRouteSettings, src Value[[]PostgresRouteSettings]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.PostgresRouteSettings, len(src.Value))
+	for i := range src.Value {
+		err := setPostgresRouteSettingsToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setPostgresRouteSettingsToProto(dst **configpb.PostgresRouteSettings, src *PostgresRouteSettings) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.PostgresRouteSettings)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullablePostgresAuthenticationModeToProto(&obj.AuthenticationMode, src.AuthenticationMode),
+		setStringToProto(&obj.Database, src.Database),
+		setStringToProto(&obj.Password, src.Password),
+		setNullablePostgresUpstreamTLSModeToProto(&obj.UpstreamTlsMode, src.UpstreamTlsMode),
+		setStringToProto(&obj.Username, src.Username),
+	)
+}
+
 func setNullableRouteOptionsToProto(dst **configpb.Route, src Value[RouteOptions]) error {
 	if !src.IsSet {
 		return nil
@@ -695,6 +785,7 @@ func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
 		setNullableLoadBalancingPolicyToProto(&obj.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullablePostgresRouteSettingsToProto(&obj.Postgres, src.Postgres),
 		setNullableSessionRecordingToProto(&obj.SessionRecording, src.SessionRecording),
 	)
 }
@@ -2003,6 +2094,38 @@ func setNullablePathWithEscapedSlashesActionFromProto(dst *Value[configpb.PathWi
 }
 
 func setNullablePathWithEscapedSlashesActionToProto(dst **configpb.PathWithEscapedSlashesAction, src Value[configpb.PathWithEscapedSlashesAction]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullablePostgresAuthenticationModeFromProto(dst *Value[configpb.PostgresAuthenticationMode], src *configpb.PostgresAuthenticationMode) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullablePostgresAuthenticationModeToProto(dst **configpb.PostgresAuthenticationMode, src Value[configpb.PostgresAuthenticationMode]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullablePostgresUpstreamTLSModeFromProto(dst *Value[configpb.PostgresUpstreamTLSMode], src *configpb.PostgresUpstreamTLSMode) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullablePostgresUpstreamTLSModeToProto(dst **configpb.PostgresUpstreamTLSMode, src Value[configpb.PostgresUpstreamTLSMode]) error {
 	if !src.IsSet {
 		return nil
 	}

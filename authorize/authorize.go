@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sync"
 	"sync/atomic"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -45,6 +46,8 @@ type Authorize struct {
 	state         atomic.Pointer[authorizeState]
 	store         *store.Store
 	currentConfig atomic.Pointer[config.Config]
+	postgresMu    sync.RWMutex
+	postgres      postgresAuthorizeGeneration
 	accessTracker *AccessTracker
 	ssh           *ssh.StreamManager
 	policyIndexer ssh.PolicyIndexer
@@ -57,6 +60,16 @@ type Authorize struct {
 	recordingServer atomic.Pointer[recording.Server]
 
 	dataBrokerClientOverride databroker.DataBrokerServiceClient
+
+	// postgresConfigBuildHook is a deterministic test seam called while the
+	// PostgreSQL generation is closed and before the next state is built.
+	postgresConfigBuildHook func(*config.Config)
+}
+
+type postgresAuthorizeGeneration struct {
+	config *config.Config
+	state  *authorizeState
+	ready  bool
 }
 
 type options struct {
@@ -132,6 +145,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		return nil, err
 	}
 	a.state.Store(state)
+	a.postgres = postgresAuthorizeGeneration{config: cfg, state: state, ready: true}
 	rls := ratelimit.NewRateLimiter(trace.NewTracerProvider(ctx, "RLS"), o.rls)
 	a.RateLimiter = rls
 	codeIssuer := code.NewIssuer(ctx, a)
@@ -258,12 +272,23 @@ func newPolicyEvaluator(
 
 // OnConfigChange updates internal structures based on config.Options
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	a.postgresMu.Lock()
+	defer a.postgresMu.Unlock()
+
+	// Evaluator construction mutates the shared OPA store. Close PostgreSQL
+	// authorization for the full build so no request can combine a new store or
+	// config with the previous compiled evaluator. A failed build remains closed.
+	a.postgres.ready = false
+	if a.postgresConfigBuildHook != nil {
+		a.postgresConfigBuildHook(cfg)
+	}
 	currentState := a.state.Load()
 	a.currentConfig.Store(cfg)
 	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store, &a.outboundGrpcConn, a.dataBrokerClientOverride); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(newState)
+		a.postgres = postgresAuthorizeGeneration{config: cfg, state: newState, ready: true}
 	}
 	a.ssh.OnConfigChange(cfg)
 }

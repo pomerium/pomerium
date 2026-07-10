@@ -28,7 +28,9 @@ type portalState struct {
 	responseOpIndex int
 }
 
-func (s *Server) relay(ctx context.Context, session *Session, client *pgproto3.Backend, upstream *pgproto3.Frontend, upstreamConn net.Conn, recorder Recorder) error {
+// relayGoverned is the legacy query-governance engine. It is retained as
+// unexported migration material and is selected only through relayForTest.
+func (s *Server) relayGoverned(ctx context.Context, session *Session, client *pgproto3.Backend, _ net.Conn, upstream *pgproto3.Frontend, upstreamConn net.Conn, recorder Recorder) error {
 	statements := map[string]preparedStatement{}
 	portals := map[string]portalState{}
 	txStatus := byte('I')

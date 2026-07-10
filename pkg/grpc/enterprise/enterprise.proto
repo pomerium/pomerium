@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package pomerium.enterprise;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/enterprise";
+
+// Capability identifies an Enterprise capability granted by a verified license.
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_POSTGRES_MANAGED_CREDENTIALS = 1;
+}
+
+// EncryptedKeygenEvidence contains a versioned, installation-bound encrypted
+// Keygen validation response. The decrypted response must still be verified
+// against Keygen's signing key before any capability is trusted.
+message EncryptedKeygenEvidence {
+  uint32 version = 1;
+  uint64 validation_nonce = 2;
+  bytes nonce = 3;
+  bytes ciphertext = 4;
+}
+
+// EncryptedOfflineKeyEvidence contains a versioned, installation-bound
+// encrypted Keygen ED25519_SIGN key. The signed offline payload is not bound to
+// an installation; the authenticated encryption envelope prevents ciphertext
+// replay across Core installations that use different installation IDs.
+message EncryptedOfflineKeyEvidence {
+  uint32 version = 1;
+  bytes nonce = 2;
+  bytes ciphertext = 3;
+}
+
+// CapabilityLease transports encrypted license evidence to one Pomerium
+// installation. Capabilities and expires_at are untrusted declarations until
+// the encrypted evidence has been opened and independently verified.
+message CapabilityLease {
+  string installation_id = 1;
+  repeated Capability capabilities = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  EncryptedKeygenEvidence keygen_evidence = 4;
+  EncryptedOfflineKeyEvidence offline_key_evidence = 5;
+}
