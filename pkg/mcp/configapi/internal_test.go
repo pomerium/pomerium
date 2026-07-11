@@ -488,9 +488,11 @@ func TestSensitiveFieldsSetReportsClearedNestedAny(t *testing.T) {
 		Value:   []byte("UNKNOWN_ANY_SECRET_CANARY"),
 	}}}
 
-	assert.Equal(t, []string{"details[].value"}, SensitiveFieldsSet(msg))
+	redacted := SensitiveFieldsSet(msg)
+	assert.Equal(t, []string{"details[].value"}, redacted)
 	ScrubSensitive(msg)
 	assert.Empty(t, msg.GetDetails()[0].GetValue())
+	assert.Equal(t, []string{"details[].value"}, buildMeta(nil, nil, msg, redacted, nil)["scrubbedFields"])
 }
 
 func TestScrubSensitiveAnyEnforcesCumulativeByteBound(t *testing.T) {
