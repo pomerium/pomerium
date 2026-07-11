@@ -355,13 +355,13 @@ func TestScrubSensitiveRouteUpstreamsAcrossDescriptors(t *testing.T) {
 
 	t.Run("dashboard route", func(t *testing.T) {
 		file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
-			Syntax:  proto.String("proto3"),
-			Name:    proto.String("dashboard_route_test.proto"),
-			Package: proto.String("pomerium.dashboard"),
+			Syntax:  new("proto3"),
+			Name:    new("dashboard_route_test.proto"),
+			Package: new("pomerium.dashboard"),
 			MessageType: []*descriptorpb.DescriptorProto{{
-				Name: proto.String("Route"),
+				Name: new("Route"),
 				Field: []*descriptorpb.FieldDescriptorProto{{
-					Name:   proto.String("to"),
+					Name:   new("to"),
 					Number: proto.Int32(1),
 					Label:  descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
 					Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),

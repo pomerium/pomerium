@@ -64,14 +64,12 @@ func TestConfigDumpConcurrentScrubbingDoesNotMutateLiveConfig(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range 16 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			recorder := httptest.NewRecorder()
 			handler(recorder, httptest.NewRequest(http.MethodGet, "/config_dump", nil))
 			assert.Equal(t, http.StatusOK, recorder.Code)
 			assert.NotContains(t, recorder.Body.String(), canary)
-		}()
+		})
 	}
 	wg.Wait()
 	require.Equal(t, canary, cfg.Options.Policies[0].IDPClientSecret)
