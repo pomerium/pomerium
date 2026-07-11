@@ -151,6 +151,10 @@ func TestGetRouteScrubsNestedOAuthClientSecret(t *testing.T) {
 	impl.stored.Store(&configpb.Route{
 		Id:   &id,
 		Name: new("github"),
+		To: []string{
+			"https://upstream-user-canary:upstream-password-canary@one.example.com",
+			"https://upstream-token-canary@two.example.com",
+		},
 		Mcp: &configpb.MCP{
 			Mode: &configpb.MCP_Server{
 				Server: &configpb.MCPServer{
@@ -179,6 +183,9 @@ func TestGetRouteScrubsNestedOAuthClientSecret(t *testing.T) {
 
 	assert.NotContains(t, body, secret,
 		"upstreamOauth2.client_secret VALUE leaked through MCP — sensitive scrub failed for the nested oneof + non-optional scalar case")
+	assert.NotContains(t, body, "upstream-user-canary")
+	assert.NotContains(t, body, "upstream-password-canary")
+	assert.NotContains(t, body, "upstream-token-canary")
 
 	require.NotNil(t, resp.StructuredContent)
 	structured := resp.StructuredContent.(map[string]any)
@@ -191,6 +198,8 @@ func TestGetRouteScrubsNestedOAuthClientSecret(t *testing.T) {
 	}
 	assert.Contains(t, paths, "route.mcp.server.upstreamOauth2.clientSecret",
 		"the redacted-fields list must name the path even when the value is properly scrubbed")
+	assert.Contains(t, paths, "route.to[]",
+		"MCP metadata must declare hidden upstream URL userinfo")
 }
 
 type routeCRUDForGet struct {
@@ -278,6 +287,7 @@ func TestUpdatePreservesExistingSensitive(t *testing.T) {
 	impl.stored.Store(&configpb.Route{
 		Id:              &id,
 		From:            "https://existing.example",
+		To:              []string{"https://upstream-user:upstream-password@upstream.example.com/path?q=1"},
 		Description:     &existingDesc,
 		TlsClientKey:    "PRIVATE-KEY-XYZ",
 		IdpClientSecret: &existingClientSecret,
@@ -303,8 +313,60 @@ func TestUpdatePreservesExistingSensitive(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, "updated", got.GetDescription(), "description should be updated")
 	assert.Equal(t, "https://existing.example", got.GetFrom(), "from should be preserved (sparse patch)")
+	assert.Equal(t, []string{"https://upstream-user:upstream-password@upstream.example.com/path?q=1"}, got.GetTo(),
+		"omitted to must preserve the credential-bearing runtime upstream")
 	assert.Equal(t, "PRIVATE-KEY-XYZ", got.GetTlsClientKey(), "tls_client_key must be preserved")
 	assert.Equal(t, existingClientSecret, got.GetIdpClientSecret(), "idp_client_secret must be preserved")
+}
+
+func TestUpdateRouteRestoresRedactedUpstreamRoundTrip(t *testing.T) {
+	const (
+		id               = "route-upstream-roundtrip"
+		passwordUpstream = "https://user-secret:password-secret@one.example.com/path?q=1"
+		tokenUpstream    = "https://token-secret@two.example.com/other?q=2"
+		maskedPassword   = "https://xxxxx@one.example.com/path?q=1"
+		maskedToken      = "https://xxxxx@two.example.com/other?q=2"
+	)
+
+	t.Run("unchanged masked values restore by index", func(t *testing.T) {
+		impl := &routeCRUDWithUpdate{}
+		impl.stored.Store(&configpb.Route{Id: new(id), To: []string{passwordUpstream, tokenUpstream}})
+		session := connectMCP(t, newTestServer(t, impl))
+
+		resp, err := session.CallTool(t.Context(), &mcp.CallToolParams{
+			Name: "update_route",
+			Arguments: map[string]any{"route": map[string]any{
+				"id": id,
+				"to": []string{maskedPassword, maskedToken},
+			}},
+		})
+		require.NoError(t, err)
+		require.False(t, resp.IsError, "%+v", resp.Content)
+		assert.Equal(t, []string{passwordUpstream, tokenUpstream}, impl.stored.Load().GetTo())
+	})
+
+	t.Run("destination edit cannot inherit credentials", func(t *testing.T) {
+		impl := &routeCRUDWithUpdate{}
+		impl.stored.Store(&configpb.Route{Id: new(id), To: []string{passwordUpstream}})
+		session := connectMCP(t, newTestServer(t, impl))
+
+		resp, err := session.CallTool(t.Context(), &mcp.CallToolParams{
+			Name: "update_route",
+			Arguments: map[string]any{"route": map[string]any{
+				"id": id,
+				"to": []string{"https://xxxxx@attacker.example.com/path?q=1"},
+			}},
+		})
+		require.NoError(t, err)
+		require.True(t, resp.IsError, "mismatched placeholder must fail closed")
+		require.NotEmpty(t, resp.Content)
+		errorText := resp.Content[0].(*mcp.TextContent).Text
+		assert.Contains(t, errorText, "index 0")
+		assert.NotContains(t, errorText, "attacker.example.com")
+		assert.NotContains(t, errorText, "password-secret")
+		assert.Equal(t, []string{passwordUpstream}, impl.stored.Load().GetTo(),
+			"failed merge must not dispatch an update")
+	})
 }
 
 // TestUpdatePreservesNestedSensitive_OAuthClientSecret pins down the

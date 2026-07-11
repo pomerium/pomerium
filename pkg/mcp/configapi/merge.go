@@ -313,6 +313,17 @@ func mergeInto(merged, incoming protoreflect.Message, keyTree jsonKeyNode, pathP
 			merged.Clear(fd)
 			continue
 		}
+		if isRouteMessage(merged.Descriptor()) && fd.Name() == "to" && fd.IsList() && fd.Kind() == protoreflect.StringKind {
+			restored, err := RestoreRedactedRouteUpstreams(
+				stringList(merged.Get(fd).List()),
+				stringList(incoming.Get(fd).List()),
+			)
+			if err != nil {
+				return fmt.Errorf("cannot sparse-update field %q: %w", joinPath(pathPrefix, fd.JSONName()), err)
+			}
+			setStringList(merged.Mutable(fd).List(), restored)
+			continue
+		}
 		if sub != nil && fd.Kind() == protoreflect.MessageKind && !fd.IsList() && !fd.IsMap() {
 			if err := mergeInto(
 				merged.Mutable(fd).Message(),
@@ -327,6 +338,21 @@ func mergeInto(merged, incoming protoreflect.Message, keyTree jsonKeyNode, pathP
 		merged.Set(fd, incoming.Get(fd))
 	}
 	return nil
+}
+
+func stringList(list protoreflect.List) []string {
+	values := make([]string, list.Len())
+	for i := 0; i < list.Len(); i++ {
+		values[i] = list.Get(i).String()
+	}
+	return values
+}
+
+func setStringList(list protoreflect.List, values []string) {
+	list.Truncate(0)
+	for _, value := range values {
+		list.Append(protoreflect.ValueOfString(value))
+	}
 }
 
 // messageHasSensitiveDescendant reports whether md or any message reachable

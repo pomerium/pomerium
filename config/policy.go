@@ -693,7 +693,7 @@ func (p *Policy) Validate() error {
 	toSchemes := make(map[string]struct{})
 	for _, u := range p.To {
 		if err = u.Validate(); err != nil {
-			return fmt.Errorf("config: %s: %w", u.URL.String(), err)
+			return fmt.Errorf("config: %s: %w", urlutil.Redacted(&u.URL), err)
 		}
 		toSchemes[u.URL.Scheme] = struct{}{}
 	}
@@ -912,7 +912,7 @@ func (p *Policy) String() string {
 	if len(p.To) > 0 {
 		var dsts []string
 		for _, dst := range p.To {
-			dsts = append(dsts, dst.URL.String())
+			dsts = append(dsts, urlutil.Redacted(&dst.URL))
 		}
 		to = strings.Join(dsts, ",")
 	}
