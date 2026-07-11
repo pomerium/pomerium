@@ -150,3 +150,121 @@ func TestAllDBConfigs(t *testing.T) {
 		versionedConfig3.Config,
 	}, slices.Collect(src.allSortedDBConfigsLocked()))
 }
+
+func TestConfigSourceSettingsRuntimeFlagsOverlay(t *testing.T) {
+	t.Parallel()
+
+	route := &configpb.Route{
+		From: "https://app.example.com",
+		To:   []string{"https://app.internal"},
+	}
+
+	options := config.NewDefaultOptions()
+	options.RuntimeFlags[config.RuntimeFlagMCP] = true
+	underlying := config.New(options)
+	address := "127.0.0.1:2222"
+	src := &ConfigSource{
+		underlyingConfig: underlying,
+		dbConfigs: map[string]dbConfig{
+			"dashboard-settings": {
+				Config: &configpb.Config{
+					Settings: &configpb.Settings{SshAddress: &address},
+				},
+			},
+			"dashboard-route": {
+				Config: &configpb.Config{Routes: []*configpb.Route{route}},
+			},
+		},
+		dbVersionedConfigs:  map[string]dbConfig{},
+		standardConfigReady: true,
+		enableValidation:    true,
+	}
+
+	rebuild := func(t *testing.T) *config.Config {
+		t.Helper()
+		computed := underlying.Clone()
+		require.NoError(t, src.buildNewConfigLocked(t.Context(), computed))
+		assert.Equal(t, address, computed.Options.SSHAddr)
+		assert.Len(t, computed.Options.AdditionalPolicies, 1)
+		return computed
+	}
+	assertUnderlyingUnchanged := func(t *testing.T) {
+		t.Helper()
+		assert.True(t, underlying.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP))
+		assert.False(t, underlying.Options.IsRuntimeFlagSet(config.RuntimeFlagAllowAnySignOutRedirectURI))
+		assert.Empty(t, underlying.Options.SSHAddr)
+		assert.Empty(t, underlying.Options.AdditionalPolicies)
+	}
+
+	t.Run("absent", func(t *testing.T) {
+		computed := rebuild(t)
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP))
+		assertUnderlyingUnchanged(t)
+	})
+
+	t.Run("explicit override is removed", func(t *testing.T) {
+		src.dbConfigs["runtime-flags"] = dbConfig{Config: &configpb.Config{
+			Settings: &configpb.Settings{RuntimeFlags: map[string]bool{
+				string(config.RuntimeFlagMCP): false,
+			}},
+		}}
+		computed := rebuild(t)
+		assert.False(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP))
+		assertUnderlyingUnchanged(t)
+
+		delete(src.dbConfigs, "runtime-flags")
+		computed = rebuild(t)
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP))
+		assertUnderlyingUnchanged(t)
+	})
+
+	t.Run("unrelated override is removed", func(t *testing.T) {
+		src.dbConfigs["runtime-flags"] = dbConfig{Config: &configpb.Config{
+			Settings: &configpb.Settings{RuntimeFlags: map[string]bool{
+				string(config.RuntimeFlagAllowAnySignOutRedirectURI): true,
+			}},
+		}}
+		computed := rebuild(t)
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP))
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagAllowAnySignOutRedirectURI))
+		assertUnderlyingUnchanged(t)
+
+		delete(src.dbConfigs, "runtime-flags")
+		computed = rebuild(t)
+		assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP))
+		assert.False(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagAllowAnySignOutRedirectURI))
+		assertUnderlyingUnchanged(t)
+	})
+}
+
+func TestConfigSourceSettingsRuntimeFlagsSortedPrecedence(t *testing.T) {
+	t.Parallel()
+
+	underlying := config.New(config.NewDefaultOptions())
+	src := &ConfigSource{
+		underlyingConfig: underlying,
+		dbConfigs: map[string]dbConfig{
+			"z-later": {Config: &configpb.Config{Settings: &configpb.Settings{RuntimeFlags: map[string]bool{
+				string(config.RuntimeFlagAllowAnySignOutRedirectURI): true,
+				string(config.RuntimeFlagPomeriumJWTEndpoint):        true,
+			}}}},
+			"a-first": {Config: &configpb.Config{Settings: &configpb.Settings{RuntimeFlags: map[string]bool{
+				string(config.RuntimeFlagAllowAnySignOutRedirectURI): false,
+				string(config.RuntimeFlagMCP):                        true,
+			}}}},
+		},
+		dbVersionedConfigs:  map[string]dbConfig{},
+		standardConfigReady: true,
+	}
+
+	computed := underlying.Clone()
+	require.NoError(t, src.buildNewConfigLocked(t.Context(), computed))
+	assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP),
+		"disjoint flags from earlier records must accumulate")
+	assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagPomeriumJWTEndpoint),
+		"disjoint flags from later records must accumulate")
+	assert.True(t, computed.Options.IsRuntimeFlagSet(config.RuntimeFlagAllowAnySignOutRedirectURI),
+		"the later lexically sorted settings record must win conflicts")
+	assert.False(t, underlying.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP),
+		"building the computed snapshot must not mutate the shared underlying map")
+}

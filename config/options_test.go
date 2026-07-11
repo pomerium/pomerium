@@ -1063,6 +1063,33 @@ func TestOptions_ApplySettings(t *testing.T) {
 			"should not erase existing circuit breaker thresholds")
 	})
 
+	t.Run("runtime_flags overlay", func(t *testing.T) {
+		t.Parallel()
+
+		options := NewDefaultOptions()
+		options.RuntimeFlags[RuntimeFlagMCP] = true
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			SshAddress: new("127.0.0.1:2222"),
+		})
+		assert.True(t, options.IsRuntimeFlagSet(RuntimeFlagMCP),
+			"settings without runtime flags should preserve a static flag")
+		assert.Equal(t, "127.0.0.1:2222", options.SSHAddr)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			RuntimeFlags: map[string]bool{string(RuntimeFlagAllowAnySignOutRedirectURI): true},
+		})
+		assert.True(t, options.IsRuntimeFlagSet(RuntimeFlagMCP),
+			"an unrelated settings flag should not clear the static flag")
+		assert.True(t, options.IsRuntimeFlagSet(RuntimeFlagAllowAnySignOutRedirectURI))
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			RuntimeFlags: map[string]bool{string(RuntimeFlagMCP): false},
+		})
+		assert.False(t, options.IsRuntimeFlagSet(RuntimeFlagMCP),
+			"an explicit settings value should override the static flag")
+	})
+
 	t.Run("ssh", func(t *testing.T) {
 		t.Parallel()
 
