@@ -29,6 +29,26 @@ func TestParseWeightedURLRedactsCredentialsOnError(t *testing.T) {
 	assert.NotContains(t, err.Error(), canary)
 }
 
+func TestParseWeightedURLErrorCategories(t *testing.T) {
+	const canary = "UPSTREAM_URL_PASSWORD_CANARY"
+	cases := []struct {
+		name    string
+		in      string
+		wantErr error
+	}{
+		{"missing scheme", "upstream.example.com", errSchemeMustBeSpecified},
+		{"missing hostname with userinfo", "https://user:" + canary + "@", errHostnameMustBeSpecified},
+		{"missing hostname with port only", "https://:8080", errHostnameMustBeSpecified},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseWeightedURL(tc.in)
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.NotContains(t, err.Error(), canary)
+		})
+	}
+}
+
 func TestParseWeightedURLRedactsCredentialsOnInvalidWeight(t *testing.T) {
 	const canary = "UPSTREAM_WEIGHT_PARSE_SECRET_CANARY"
 	_, err := ParseWeightedURL("https://user:prefix," + canary + "@upstream.example.com")
@@ -46,6 +66,9 @@ func TestWeightedURLStringRedactsCredentials(t *testing.T) {
 	assert.NotContains(t, u.String(), usernameCanary)
 	assert.NotContains(t, u.String(), passwordCanary)
 	assert.Contains(t, u.String(), "xxxxx")
+
+	u.LbWeight = 0
+	assert.Equal(t, "https://xxxxx@upstream.example.com", u.String())
 }
 
 func TestJWTClaimHeaders_UnmarshalJSON(t *testing.T) {

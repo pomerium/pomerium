@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
@@ -276,6 +277,7 @@ func TestRestoreRedactedRouteUpstreams(t *testing.T) {
 		{name: "reordered", original: []string{password, token}, incoming: []string{maskedToken, maskedPassword}, wantErr: true},
 		{name: "insert shifts masked entries", original: []string{password, token}, incoming: []string{"https://new.example.com", maskedPassword, maskedToken}, wantErr: true},
 		{name: "delete shifts masked entries", original: []string{password, token}, incoming: []string{maskedToken}, wantErr: true},
+		{name: "no original entry for redacted placeholder", original: nil, incoming: []string{"https://xxxxx@one.example.com/path"}, wantErr: true},
 		{
 			name: "duplicate presentations stay index bound",
 			original: []string{
@@ -312,6 +314,12 @@ func TestRestoreRedactedRouteUpstreams(t *testing.T) {
 			assert.Equal(t, incomingBefore, tt.incoming, "incoming presentation values must not be mutated")
 		})
 	}
+
+	t.Run("unmatched index is named in the error", func(t *testing.T) {
+		_, err := RestoreRedactedRouteUpstreams(nil, []string{"https://xxxxx@one.example.com/path"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unmatched redacted route upstream at index 0")
+	})
 }
 
 func TestRestoreRedactedRouteUpstreamsErrorsDoNotEchoInput(t *testing.T) {
@@ -616,4 +624,343 @@ func TestParseConnectError_PreservesCodeWhenMessageEmpty(t *testing.T) {
 	require.True(t, errors.As(err, &ce),
 		"parseConnectError must return a typed *connect.Error when wire.Code is set")
 	assert.Equal(t, connect.CodeUnauthenticated, ce.Code())
+}
+
+// TestScrubSensitiveAnyAtExactDepthBound pins the passing side of the Any
+// nesting bound: exactly maxSensitiveAnyDepth layers still unpacks, scrubs,
+// and repacks every layer in place. TestScrubSensitiveAnyFailsClosedBeyondDepthBound
+// pins the failing side one layer deeper.
+func TestScrubSensitiveAnyAtExactDepthBound(t *testing.T) {
+	const canary = "DEPTH_BOUND_CANARY"
+	var msg proto.Message = sensitiveConfig(canary)
+	for range maxSensitiveAnyDepth {
+		var err error
+		msg, err = anypb.New(msg)
+		require.NoError(t, err)
+	}
+	outer := msg.(*anypb.Any)
+
+	ScrubSensitive(outer)
+
+	layer := outer
+	for i := range maxSensitiveAnyDepth - 1 {
+		require.NotEmptyf(t, layer.GetValue(), "layer %d must be scrubbed in place, not wholesale-cleared", i)
+		var next anypb.Any
+		require.NoError(t, layer.UnmarshalTo(&next))
+		layer = &next
+	}
+	require.NotEmpty(t, layer.GetValue())
+	var cfg configpb.Config
+	require.NoError(t, layer.UnmarshalTo(&cfg))
+	assert.Empty(t, cfg.GetRoutes()[0].GetIdpClientSecret())
+}
+
+// TestScrubSensitiveAnyAtExactByteBound pins the passing side of the
+// cumulative Any byte budget: a Value exactly maxSensitiveAnyBytes long is
+// still unpacked, scrubbed, and repacked, since unpackAny's budget check is
+// a strict ">" and only fails closed once the input exceeds the bound.
+func TestScrubSensitiveAnyAtExactByteBound(t *testing.T) {
+	const canary = "BYTE_BOUND_CANARY"
+	cfgBytes, err := proto.Marshal(sensitiveConfig(canary))
+	require.NoError(t, err)
+
+	const unknownField protowire.Number = 65000
+	tagSize := protowire.SizeTag(unknownField)
+	remaining := maxSensitiveAnyBytes - len(cfgBytes) - tagSize
+
+	// SizeBytes(n) = SizeVarint(n) + n is a step function of n, so solve for
+	// the payload length whose own varint-size is self-consistent with the
+	// remaining budget.
+	var payloadLen int
+	found := false
+	for varintSize := 1; varintSize <= 10; varintSize++ {
+		n := remaining - varintSize
+		if n >= 0 && protowire.SizeVarint(uint64(n)) == varintSize {
+			payloadLen = n
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "could not compute an exact padding length")
+
+	wire := protowire.AppendTag(append([]byte(nil), cfgBytes...), unknownField, protowire.BytesType)
+	wire = protowire.AppendBytes(wire, bytes.Repeat([]byte{'p'}, payloadLen))
+	require.Len(t, wire, maxSensitiveAnyBytes)
+
+	a := &anypb.Any{
+		TypeUrl: mustSensitiveConfigAny(t, "").TypeUrl,
+		Value:   wire,
+	}
+
+	ScrubSensitive(a)
+
+	assert.NotEmpty(t, a.Value)
+	assert.Less(t, len(a.Value), maxSensitiveAnyBytes, "discarding the unknown padding field must shrink the repacked value")
+	assert.NotContains(t, string(a.Value), canary)
+}
+
+// TestScrubSensitiveMapBudgetIsDeterministicAcrossWalkers pins that
+// SensitiveFieldsSet and ScrubSensitive, run in production order over the
+// same map, spend their independent byte budgets identically. Map iteration
+// order is otherwise undefined, so without rangeMessageMap's key sort the two
+// walks could fail closed on different entries and scrubbedFields metadata
+// would misreport what ScrubSensitive actually cleared.
+func TestScrubSensitiveMapBudgetIsDeterministicAcrossWalkers(t *testing.T) {
+	largeName := strings.Repeat("x", maxSensitiveAnyBytes/2+1)
+	newLargeAny := func(password string) *anypb.Any {
+		cfg := sensitiveConfig(password)
+		cfg.Routes[0].Name = &largeName
+		return mustSensitiveConfigAnyFromMessage(t, cfg)
+	}
+	build := func() *registrypb.RegisterRequest {
+		return &registrypb.RegisterRequest{Metadata: map[string]*anypb.Any{
+			"a": newLargeAny("MAP_BUDGET_A_CANARY"),
+			"b": newLargeAny("MAP_BUDGET_B_CANARY"),
+		}}
+	}
+
+	first := build()
+	paths := SensitiveFieldsSet(first)
+	assert.Contains(t, paths, "metadata[].value", "sorted key order charges \"b\" second, so it fails closed and reports as opaque")
+	ScrubSensitive(first)
+
+	require.NotEmpty(t, first.Metadata["a"].Value, "sorted key order charges \"a\" first")
+	assert.Empty(t, first.Metadata["b"].Value, "\"b\" exhausts the shared budget after \"a\"")
+
+	wire, err := proto.MarshalOptions{Deterministic: true}.Marshal(first)
+	require.NoError(t, err)
+	assert.NotContains(t, string(wire), "MAP_BUDGET_A_CANARY")
+	assert.NotContains(t, string(wire), "MAP_BUDGET_B_CANARY")
+
+	second := build()
+	ScrubSensitive(second)
+	secondWire, err := proto.MarshalOptions{Deterministic: true}.Marshal(second)
+	require.NoError(t, err)
+	assert.Equal(t, wire, secondWire, "the budget walk must be deterministic across separately-built instances")
+}
+
+// TestScrubSensitiveEmptyAnyIsNoOp pins that an Any with a TypeUrl but no
+// Value (m.Has(valueField) is false for an empty byte string) is treated as
+// "nothing embedded" rather than a decode failure: unpackAny returns ok=true
+// with a nil embedded message, so neither field is touched.
+func TestScrubSensitiveEmptyAnyIsNoOp(t *testing.T) {
+	typeURL := mustSensitiveConfigAny(t, "").TypeUrl
+	a := &anypb.Any{TypeUrl: typeURL}
+
+	assert.Nil(t, SensitiveFieldsSet(a))
+	ScrubSensitive(a)
+	assert.Equal(t, typeURL, a.TypeUrl)
+	assert.Empty(t, a.Value)
+}
+
+// TestScrubSensitiveAnyMissingTypeURLFailsClosed pins that an Any carrying a
+// Value but no TypeUrl fails closed: with no type to resolve, the payload
+// cannot be classified, so ScrubSensitive clears it and SensitiveFieldsSet
+// reports it as a redacted "value" path rather than passing it through.
+func TestScrubSensitiveAnyMissingTypeURLFailsClosed(t *testing.T) {
+	a := &anypb.Any{Value: []byte("NO_TYPE_URL_SECRET_CANARY")}
+
+	assert.Equal(t, []string{"value"}, SensitiveFieldsSet(a))
+	ScrubSensitive(a)
+	assert.Empty(t, a.Value)
+}
+
+// TestScrubSensitiveInvalidRouteUpstream pins that an unparseable "to" entry
+// is reported as sensitive (it may be hiding credentials the parser could
+// not recover) and is replaced with a fixed placeholder rather than echoed
+// back verbatim.
+func TestScrubSensitiveInvalidRouteUpstream(t *testing.T) {
+	const canary = "invalid-canary"
+	route := &configpb.Route{To: []string{"https://user:" + canary + "@[::1"}}
+
+	assert.Contains(t, SensitiveFieldsSet(route), "to[]")
+	ScrubSensitive(route)
+	require.Len(t, route.GetTo(), 1)
+	assert.Equal(t, "invalid upstream URL", route.GetTo()[0])
+}
+
+// TestRangeMessageMapKeyKindOrdering directly pins rangeMessageMap's sort
+// order for the three integer-ish map key kinds it special-cases: bool
+// (false before true), signed (ascending, including negatives), and
+// unsigned (ascending). ScrubSensitive and SensitiveFieldsSet only exercise
+// this through string- and message-keyed config maps; this covers the
+// dynamic-descriptor path for the others directly.
+func TestRangeMessageMapKeyKindOrdering(t *testing.T) {
+	const pkg = "pomerium.configapi.maptest"
+	mapEntry := func(name string, keyType descriptorpb.FieldDescriptorProto_Type) *descriptorpb.DescriptorProto {
+		return &descriptorpb.DescriptorProto{
+			Name: new(name),
+			Field: []*descriptorpb.FieldDescriptorProto{
+				{
+					Name:   new("key"),
+					Number: proto.Int32(1),
+					Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+					Type:   keyType.Enum(),
+				},
+				{
+					Name:     new("value"),
+					Number:   proto.Int32(2),
+					Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+					Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
+					TypeName: new("." + pkg + ".Container.Inner"),
+				},
+			},
+			Options: &descriptorpb.MessageOptions{MapEntry: new(true)},
+		}
+	}
+
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Syntax:  new("proto3"),
+		Name:    new("range_message_map_test.proto"),
+		Package: new(pkg),
+		MessageType: []*descriptorpb.DescriptorProto{{
+			Name: new("Container"),
+			Field: []*descriptorpb.FieldDescriptorProto{
+				{
+					Name:     new("bool_map"),
+					Number:   proto.Int32(1),
+					Label:    descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
+					Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
+					TypeName: new("." + pkg + ".Container.BoolMapEntry"),
+				},
+				{
+					Name:     new("int64_map"),
+					Number:   proto.Int32(2),
+					Label:    descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
+					Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
+					TypeName: new("." + pkg + ".Container.Int64MapEntry"),
+				},
+				{
+					Name:     new("uint64_map"),
+					Number:   proto.Int32(3),
+					Label:    descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
+					Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
+					TypeName: new("." + pkg + ".Container.Uint64MapEntry"),
+				},
+			},
+			NestedType: []*descriptorpb.DescriptorProto{
+				{
+					Name: new("Inner"),
+					Field: []*descriptorpb.FieldDescriptorProto{{
+						Name:   new("tag"),
+						Number: proto.Int32(1),
+						Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+						Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
+					}},
+				},
+				mapEntry("BoolMapEntry", descriptorpb.FieldDescriptorProto_TYPE_BOOL),
+				mapEntry("Int64MapEntry", descriptorpb.FieldDescriptorProto_TYPE_INT64),
+				mapEntry("Uint64MapEntry", descriptorpb.FieldDescriptorProto_TYPE_UINT64),
+			},
+		}},
+	}, nil)
+	require.NoError(t, err)
+
+	containerDesc := file.Messages().ByName("Container")
+	innerDesc := containerDesc.Messages().ByName("Inner")
+	tagField := innerDesc.Fields().ByName("tag")
+	container := dynamicpb.NewMessage(containerDesc)
+	fields := container.Descriptor().Fields()
+
+	setEntry := func(fieldName string, key protoreflect.Value, tag string) {
+		fd := fields.ByName(protoreflect.Name(fieldName))
+		inner := dynamicpb.NewMessage(innerDesc)
+		inner.Set(tagField, protoreflect.ValueOfString(tag))
+		container.Mutable(fd).Map().Set(key.MapKey(), protoreflect.ValueOfMessage(inner))
+	}
+
+	// Insert out of sorted order so a passing test can only be explained by
+	// rangeMessageMap doing the sorting, not incidental map iteration order.
+	setEntry("bool_map", protoreflect.ValueOfBool(true), "true")
+	setEntry("bool_map", protoreflect.ValueOfBool(false), "false")
+	setEntry("int64_map", protoreflect.ValueOfInt64(5), "5")
+	setEntry("int64_map", protoreflect.ValueOfInt64(-3), "-3")
+	setEntry("int64_map", protoreflect.ValueOfInt64(0), "0")
+	setEntry("uint64_map", protoreflect.ValueOfUint64(42), "42")
+	setEntry("uint64_map", protoreflect.ValueOfUint64(1), "1")
+	setEntry("uint64_map", protoreflect.ValueOfUint64(1000), "1000")
+
+	visit := func(fieldName string) []string {
+		fd := fields.ByName(protoreflect.Name(fieldName))
+		var order []string
+		rangeMessageMap(container.Get(fd).Map(), fd.MapKey().Kind(), func(_ protoreflect.MapKey, v protoreflect.Value) {
+			order = append(order, v.Message().Get(tagField).String())
+		})
+		return order
+	}
+
+	assert.Equal(t, []string{"false", "true"}, visit("bool_map"))
+	assert.Equal(t, []string{"-3", "0", "5"}, visit("int64_map"))
+	assert.Equal(t, []string{"1", "42", "1000"}, visit("uint64_map"))
+}
+
+// TestScrubSensitiveAnyOverUnmarshalRecursionLimitFailsClosed pins that a
+// plain (non-Any) message nested far beyond proto's default unmarshal
+// recursion limit fails closed rather than panicking. Plain-message
+// recursion has no depth counter of its own in scrubMessage; proto's
+// unmarshal recursion limit is the guard that actually bites here, since
+// unpackAny re-decodes the embedded bytes with DiscardUnknown rather than
+// walking the already-parsed message.
+func TestScrubSensitiveAnyOverUnmarshalRecursionLimitFailsClosed(t *testing.T) {
+	inner := &structpb.Struct{Fields: map[string]*structpb.Value{"k": structpb.NewNumberValue(1)}}
+	for range 10000 {
+		inner = &structpb.Struct{Fields: map[string]*structpb.Value{"k": structpb.NewStructValue(inner)}}
+	}
+
+	a, err := anypb.New(inner)
+	require.NoError(t, err)
+
+	ScrubSensitive(a)
+	assert.Empty(t, a.Value)
+}
+
+// TestScrubSensitiveSkipsScalarMaps pins that a scalar-valued map (string ->
+// string, not message-valued) is left alone by both walkers: fd.MapValue().Kind()
+// is not MessageKind, so it can never carry a nested sensitive field, and
+// scrubMessage's map branch explicitly skips it rather than trying to
+// recurse into a non-message value.
+func TestScrubSensitiveSkipsScalarMaps(t *testing.T) {
+	secret := "SCALAR_MAP_CANARY"
+	route := &configpb.Route{
+		IdpClientSecret:   &secret,
+		SetRequestHeaders: map[string]string{"X-Foo": "bar"},
+	}
+
+	assert.Equal(t, []string{"idpClientSecret"}, SensitiveFieldsSet(route))
+
+	ScrubSensitive(route)
+	assert.Empty(t, route.GetIdpClientSecret())
+	assert.Equal(t, map[string]string{"X-Foo": "bar"}, route.GetSetRequestHeaders())
+}
+
+// TestScrubSensitiveRouteMessageWithMalformedToField pins the defensive
+// guard shared by scrubConfigRouteUpstreams and collectRouteUpstreamSensitive:
+// isRouteMessage matches pomerium.config.Route/pomerium.dashboard.Route by
+// name only, so a hand-built or version-skewed descriptor that carries that
+// name but whose "to" field isn't a repeated string must be left alone
+// rather than assumed safe to redact.
+func TestScrubSensitiveRouteMessageWithMalformedToField(t *testing.T) {
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Syntax:  new("proto3"),
+		Name:    new("malformed_dashboard_route_test.proto"),
+		Package: new("pomerium.dashboard"),
+		MessageType: []*descriptorpb.DescriptorProto{{
+			Name: new("Route"),
+			Field: []*descriptorpb.FieldDescriptorProto{{
+				Name:   new("to"),
+				Number: proto.Int32(1),
+				Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(), // singular, not repeated
+				Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
+			}},
+		}},
+	}, nil)
+	require.NoError(t, err)
+	route := dynamicpb.NewMessage(file.Messages().ByName("Route"))
+	toField := route.Descriptor().Fields().ByName("to")
+	const canary = "https://user:MALFORMED_TO_FIELD_CANARY@example.com"
+	route.Set(toField, protoreflect.ValueOfString(canary))
+
+	assert.Nil(t, SensitiveFieldsSet(route))
+	ScrubSensitive(route)
+	assert.Equal(t, canary, route.Get(toField).String())
 }

@@ -8,6 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRedactedNilAndNoUserInfo(t *testing.T) {
+	assert.Empty(t, Redacted(nil))
+
+	u, err := url.Parse("https://upstream.example.com/path?q=1")
+	require.NoError(t, err)
+	assert.Equal(t, "https://upstream.example.com/path?q=1", Redacted(u))
+}
+
 func TestRedactedRemovesAllUserInfo(t *testing.T) {
 	for _, raw := range []string{
 		"https://username-canary:password-canary@upstream.example.com/path",

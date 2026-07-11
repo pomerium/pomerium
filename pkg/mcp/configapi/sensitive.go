@@ -3,6 +3,7 @@ package configapi
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 
@@ -37,7 +38,7 @@ var sensitiveConfigMessageDescriptors = func() map[protoreflect.FullName]protore
 	descriptors := make(map[protoreflect.FullName]protoreflect.MessageDescriptor)
 	var add func(protoreflect.MessageDescriptors)
 	add = func(messages protoreflect.MessageDescriptors) {
-		for i := 0; i < messages.Len(); i++ {
+		for i := range messages.Len() {
 			message := messages.Get(i)
 			descriptors[message.FullName()] = message
 			add(message.Messages())
@@ -96,7 +97,7 @@ func scrubMessage(m protoreflect.Message, anyDepth int, traversal *sensitiveTrav
 	}
 	scrubConfigRouteUpstreams(m)
 	fields := m.Descriptor().Fields()
-	for i := 0; i < fields.Len(); i++ {
+	for i := range fields.Len() {
 		fd := fields.Get(i)
 		if IsSensitive(fd) {
 			m.Clear(fd)
@@ -118,7 +119,7 @@ func scrubMessage(m protoreflect.Message, anyDepth int, traversal *sensitiveTrav
 				continue
 			}
 			list := m.Get(fd).List()
-			for i := 0; i < list.Len(); i++ {
+			for i := range list.Len() {
 				scrubMessage(list.Get(i).Message(), anyDepth, traversal)
 			}
 		case fd.Kind() == protoreflect.MessageKind:
@@ -136,7 +137,7 @@ func scrubConfigRouteUpstreams(m protoreflect.Message) {
 		return
 	}
 	to := m.Get(toField).List()
-	for i := 0; i < to.Len(); i++ {
+	for i := range to.Len() {
 		redacted, _, ok := redactedRouteUpstream(to.Get(i).String())
 		if !ok {
 			to.Set(i, protoreflect.ValueOfString("invalid upstream URL"))
@@ -278,6 +279,12 @@ func setAnyValue(m protoreflect.Message, value []byte) {
 	}
 }
 
+// rangeMessageMap visits m in sorted key order. ScrubSensitive and
+// SensitiveFieldsSet are separate walks, each accumulating its own
+// sensitiveTraversal.anyBytes budget over the same message; deterministic
+// order is what keeps them charging Any payloads in the same sequence, so
+// they agree on which entry crosses the budget and gets dropped, and the
+// scrubbedFields metadata matches what ScrubSensitive actually clears.
 func rangeMessageMap(
 	m protoreflect.Map,
 	keyKind protoreflect.Kind,
@@ -333,7 +340,7 @@ func SensitiveFieldsSet(msg proto.Message) []string {
 	for p := range out {
 		paths = append(paths, p)
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths
 }
 
@@ -361,7 +368,7 @@ func collectSensitive(
 	}
 	collectRouteUpstreamSensitive(m, prefix, out)
 	fields := m.Descriptor().Fields()
-	for i := 0; i < fields.Len(); i++ {
+	for i := range fields.Len() {
 		fd := fields.Get(i)
 		path := joinPath(prefix, fd.JSONName())
 
@@ -396,7 +403,7 @@ func collectSensitive(
 			}
 			child := joinPath(path, "[]")
 			list := m.Get(fd).List()
-			for i := 0; i < list.Len(); i++ {
+			for i := range list.Len() {
 				collectSensitive(list.Get(i).Message(), child, anyDepth, traversal, out)
 			}
 		case fd.Kind() == protoreflect.MessageKind:
@@ -414,7 +421,7 @@ func collectRouteUpstreamSensitive(m protoreflect.Message, prefix string, out ma
 		return
 	}
 	to := m.Get(toField).List()
-	for i := 0; i < to.Len(); i++ {
+	for i := range to.Len() {
 		_, hadUserInfo, ok := redactedRouteUpstream(to.Get(i).String())
 		if !ok || hadUserInfo {
 			out[joinPath(prefix, "to[]")] = struct{}{}
