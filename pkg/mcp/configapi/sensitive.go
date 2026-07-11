@@ -312,11 +312,11 @@ func rangeMessageMap(
 // carry a sensitive sub-field collapse to a glob ("certificates[].keyBytes")
 // rather than per-index paths, which would balloon under large lists and
 // don't tell the LLM anything actionable beyond "some elements have it".
-// Bounded google.protobuf.Any payloads are transparent to path construction;
-// payloads that cannot be inspected safely contribute no paths and are cleared
-// by the subsequent ScrubSensitive pass. Unknown wire fields likewise
-// contribute no paths and are removed by ScrubSensitive because their missing
-// descriptors make sensitivity impossible to determine safely.
+// Bounded google.protobuf.Any payloads are transparent to path construction.
+// Payloads that cannot be inspected safely report their value path because the
+// subsequent ScrubSensitive pass clears that opaque payload. Unknown wire
+// fields contribute no paths and are removed by ScrubSensitive because their
+// missing descriptors make sensitivity impossible to determine safely.
 //
 // Returns nil when no sensitive fields are populated. Result is sorted for
 // stable presentation.
@@ -349,7 +349,11 @@ func collectSensitive(
 	}
 	if m.Descriptor().FullName() == anyMessageFullName {
 		embedded, ok := traversal.unpackAny(m, anyDepth)
-		if !ok || embedded == nil {
+		if !ok {
+			out[joinPath(prefix, "value")] = struct{}{}
+			return
+		}
+		if embedded == nil {
 			return
 		}
 		collectSensitive(embedded.ProtoReflect(), prefix, anyDepth+1, traversal, out)

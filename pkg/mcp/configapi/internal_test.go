@@ -458,7 +458,7 @@ func TestScrubSensitiveAnyFailsClosedAtBounds(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Empty(t, SensitiveFieldsSet(tt.msg))
+			assert.Equal(t, []string{"value"}, SensitiveFieldsSet(tt.msg))
 			ScrubSensitive(tt.msg)
 			assert.Empty(t, tt.msg.Value)
 		})
@@ -475,11 +475,22 @@ func TestScrubSensitiveAnyFailsClosedBeyondDepthBound(t *testing.T) {
 	}
 	outer := msg.(*anypb.Any)
 
-	assert.Empty(t, SensitiveFieldsSet(outer))
+	assert.Equal(t, []string{"value"}, SensitiveFieldsSet(outer))
 	ScrubSensitive(outer)
 	wire, err := proto.MarshalOptions{Deterministic: true}.Marshal(outer)
 	require.NoError(t, err)
 	assert.NotContains(t, string(wire), canary)
+}
+
+func TestSensitiveFieldsSetReportsClearedNestedAny(t *testing.T) {
+	msg := &statuspb.Status{Details: []*anypb.Any{{
+		TypeUrl: "type.googleapis.com/unknown.Secret",
+		Value:   []byte("UNKNOWN_ANY_SECRET_CANARY"),
+	}}}
+
+	assert.Equal(t, []string{"details[].value"}, SensitiveFieldsSet(msg))
+	ScrubSensitive(msg)
+	assert.Empty(t, msg.GetDetails()[0].GetValue())
 }
 
 func TestScrubSensitiveAnyEnforcesCumulativeByteBound(t *testing.T) {
