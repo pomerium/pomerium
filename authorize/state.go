@@ -38,6 +38,29 @@ type authorizeState struct {
 	authenticateFlow           authenticateFlow
 	syncQueriers               map[string]storage.Querier
 	mcp                        *mcp.Handler
+	policiesByRouteID          map[string]*config.Policy
+}
+
+// indexPoliciesByRouteID builds a route ID -> policy index so that per-request
+// policy lookups don't scan every policy computing its route ID. The first
+// policy wins for duplicate route IDs, matching the linear scan it replaces.
+// Policies whose route ID can't be computed are skipped. The old scan ignored
+// the error and could select such a policy for an empty route ID, which is used
+// by internal routes but does not identify a policy.
+func indexPoliciesByRouteID(ctx context.Context, options *config.Options) map[string]*config.Policy {
+	m := make(map[string]*config.Policy, options.NumPolicies())
+	for p := range options.GetAllPolicies() {
+		id, err := p.RouteID()
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Str("policy", p.String()).
+				Msg("authorize: skipping policy with invalid route id")
+			continue
+		}
+		if _, ok := m[id]; !ok {
+			m[id] = p
+		}
+	}
+	return m
 }
 
 func newAuthorizeStateFromConfig(
@@ -53,6 +76,7 @@ func newAuthorizeStateFromConfig(
 	}
 
 	state := new(authorizeState)
+	state.policiesByRouteID = indexPoliciesByRouteID(ctx, cfg.Options)
 
 	var err error
 	var previousEvaluator *evaluator.Evaluator
