@@ -85,6 +85,16 @@ func (b *Builder) buildMainRouteConfiguration(
 		return nil, err
 	}
 
+	// index policies by host once so that adding policy routes to a virtual
+	// host doesn't require scanning every policy
+	var policyIdx policyHostIndex
+	if config.IsProxy(cfg.Options.Services) {
+		policyIdx, err = indexPoliciesByHost(cfg.Options)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, host := range allHosts {
 		vh, err := b.buildVirtualHost(cfg.Options, host, host, mcpHosts[host])
@@ -106,7 +116,7 @@ func (b *Builder) buildMainRouteConfiguration(
 
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(cfg.Options.Services) {
-			rs, err := b.buildRoutesForPoliciesWithHost(cfg, host)
+			rs, err := b.buildRoutesForPoliciesWithHost(cfg, policyIdx, host)
 			if err != nil {
 				return nil, err
 			}
@@ -123,7 +133,7 @@ func (b *Builder) buildMainRouteConfiguration(
 		return nil, err
 	}
 	if config.IsProxy(cfg.Options.Services) {
-		rs, err := b.buildRoutesForPoliciesWithCatchAll(cfg)
+		rs, err := b.buildRoutesForPoliciesWithCatchAll(cfg, policyIdx)
 		if err != nil {
 			return nil, err
 		}
