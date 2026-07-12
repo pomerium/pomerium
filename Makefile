@@ -177,11 +177,19 @@ BENCHSTAT ?= golang.org/x/perf/cmd/benchstat@v0.0.0-20260709024250-82a0b07e230d
 bench: ## Runs hot-path benchmarks and compares against the committed baseline
 	@echo "==> $@"
 	@tmp="$$(mktemp "$${TMPDIR:-/tmp}/pomerium-bench-new.XXXXXX")"; trap 'rm -f "$$tmp"' EXIT; \
+		if [ ! -r "$(BENCH_BASELINE)" ]; then \
+			echo "benchmark baseline is not readable: $(BENCH_BASELINE)"; \
+			exit 1; \
+		fi; \
 		if ! $(GO) test -p=1 -run '^$$' -short -tags "$(BUILDTAGS)" -bench '$(BENCH)' -benchmem -count $(BENCH_COUNT) -timeout 60m $(BENCH_PKGS) > "$$tmp"; then \
 			cat "$$tmp"; \
 			exit 1; \
 		fi; \
-		$(GO) run $(BENCHSTAT) "$(BENCH_BASELINE)" "$$tmp"
+		if ! $(GO) run $(BENCHSTAT) "$(BENCH_BASELINE)" "$$tmp"; then \
+			echo "benchmark output preserved at $$tmp"; \
+			trap - EXIT; \
+			exit 1; \
+		fi
 
 .PHONY: bench-baseline
 bench-baseline: ## Regenerates the committed benchmark baseline (same-machine reference)
