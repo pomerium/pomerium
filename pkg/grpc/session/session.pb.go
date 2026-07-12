@@ -7,6 +7,7 @@
 package session
 
 import (
+	_ "github.com/pomerium/pomerium/pkg/grpc/config"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -830,22 +831,22 @@ var File_session_proto protoreflect.FileDescriptor
 
 const file_session_proto_rawDesc = "" +
 	"\n" +
-	"\rsession.proto\x12\asession\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc1\x01\n" +
+	"\rsession.proto\x12\asession\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\roptions.proto\"\xc7\x01\n" +
 	"\aIDToken\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x18\n" +
 	"\asubject\x18\x02 \x01(\tR\asubject\x129\n" +
 	"\n" +
 	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x127\n" +
-	"\tissued_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bissuedAt\x12\x10\n" +
-	"\x03raw\x18\x05 \x01(\tR\x03raw\"\xae\x01\n" +
+	"\tissued_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bissuedAt\x12\x16\n" +
+	"\x03raw\x18\x05 \x01(\tB\x04\xe8\xd6,\x01R\x03raw\"\xba\x01\n" +
 	"\n" +
-	"OAuthToken\x12!\n" +
-	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12\x1d\n" +
+	"OAuthToken\x12'\n" +
+	"\faccess_token\x18\x01 \x01(\tB\x04\xe8\xd6,\x01R\vaccessToken\x12\x1d\n" +
 	"\n" +
 	"token_type\x18\x02 \x01(\tR\ttokenType\x129\n" +
 	"\n" +
-	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12#\n" +
-	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\"\xfd\x06\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12)\n" +
+	"\rrefresh_token\x18\x04 \x01(\tB\x04\xe8\xd6,\x01R\frefreshToken\"\xfd\x06\n" +
 	"\aSession\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x17\n" +

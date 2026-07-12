@@ -18,6 +18,18 @@ var (
 	RuntimeFlagConfigHotReload = runtimeFlag("config_hot_reload", true)
 
 	// RuntimeFlagDebugAdminEndpoints enables the admin endpoints for the debug listener.
+	//
+	// These endpoints are an operator-facing diagnostic surface, off by
+	// default and served from a listener bound to 127.0.0.1 (reachable beyond
+	// loopback only if the operator explicitly exposes it via debug_address).
+	// They intentionally expose internal state — config dumps, databroker
+	// records, raft status — to the operator who opted in, who already has
+	// full access to the host, its config, and its secrets. Internal state
+	// being reachable through these endpoints is by design and is not, by
+	// itself, an information-disclosure vulnerability: there is no trust
+	// boundary between the debug listener and the local operator. Fields
+	// annotated [(pomerium.config.sensitive) = true] are still redacted in
+	// rendered output so secrets don't leak into copy-pasted diagnostics.
 	RuntimeFlagDebugAdminEndpoints = runtimeFlag("debug_admin_endpoints", false)
 
 	// RuntimeFlagEnvoyResourceManager enables Envoy overload settings based on
