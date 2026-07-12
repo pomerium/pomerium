@@ -124,13 +124,9 @@ func New(
 	// Create domain matcher from config for client ID metadata URL validation
 	domainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedClientIDDomains)
 
-	// Use the SSRF-safe client by default; skip for testing environments
-	// where test servers run on localhost.
-	var cimdHTTPClient *http.Client
-	if cfg.Options.InsecureSkipMCPMetadataSSRFCheck {
-		cimdHTTPClient = http.DefaultClient
-	} else {
-		cimdHTTPClient = NewSSRFSafeClient()
+	ssrfHTTPClient, err := NewSSRFSafeClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("create ssrf-protected http client: %w", err)
 	}
 
 	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
@@ -140,10 +136,10 @@ func New(
 		trace:                   tracerProvider,
 		storage:                 NewStorage(client),
 		cipher:                  cipher,
-		hosts:                   NewHostInfo(cfg, http.DefaultClient),
-		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
+		hosts:                   NewHostInfo(cfg),
+		clientMetadataFetcher:   NewClientMetadataFetcher(ssrfHTTPClient, domainMatcher),
 		sessionExpiry:           cfg.Options.CookieExpire,
-		httpClient:              http.DefaultClient,
+		httpClient:              ssrfHTTPClient,
 		asMetadataDomainMatcher: asDomainMatcher,
 		dcrEnabled: cfg.Options.IsRuntimeFlagSet(
 			config.RuntimeFlagMCPDynamicClientRegistration,

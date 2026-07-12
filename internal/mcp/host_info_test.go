@@ -104,7 +104,7 @@ func TestHostInfo_IsMCPClientForHost(t *testing.T) {
 		},
 	})
 
-	hostInfo := mcp.NewHostInfo(cfg, nil)
+	hostInfo := mcp.NewHostInfo(cfg)
 
 	require.True(t, hostInfo.IsMCPClientForHost("client.example.com"))
 	require.False(t, hostInfo.IsMCPClientForHost("server.example.com"))
@@ -317,7 +317,7 @@ func TestHostInfo_UsesAutoDiscovery(t *testing.T) {
 		},
 	})
 
-	hostInfo := mcp.NewHostInfo(cfg, nil)
+	hostInfo := mcp.NewHostInfo(cfg)
 
 	tests := []struct {
 		name     string
@@ -376,7 +376,7 @@ func TestHostInfo_GetServerHostInfo(t *testing.T) {
 		},
 	})
 
-	hostInfo := mcp.NewHostInfo(cfg, nil)
+	hostInfo := mcp.NewHostInfo(cfg)
 
 	t.Run("returns info for MCP server host", func(t *testing.T) {
 		info, ok := hostInfo.GetServerHostInfo("mcp.example.com")
@@ -483,7 +483,7 @@ func TestServerHostInfo_UpstreamURL(t *testing.T) {
 			},
 		})
 
-		hostInfo := mcp.NewHostInfo(cfg, nil)
+		hostInfo := mcp.NewHostInfo(cfg)
 		info, ok := hostInfo.GetServerHostInfo("proxy.example.com")
 		require.True(t, ok)
 		require.Equal(t, "https://api.upstream.com", info.UpstreamURL)
