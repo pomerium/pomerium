@@ -16,7 +16,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { login, clearAuthState } from "../../helpers/authn-flow.js";
+import { login } from "../../helpers/authn-flow.js";
 import {
   connectWebSocket,
   sendWebSocketEcho,
@@ -37,10 +37,6 @@ const wsRoutes = {
 };
 
 test.describe("WebSocket Upgrade", () => {
-  test.beforeEach(async ({ page }) => {
-    await clearAuthState(page);
-  });
-
   test("should upgrade authenticated connection to WebSocket", async ({ page }) => {
     const user = testUsers.alice;
 
