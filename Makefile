@@ -160,6 +160,39 @@ test: get-envoy ## Runs the go tests.
 	@echo "==> $@"
 	$(GO) test $(GO_TESTFLAGS) -tags "$(BUILDTAGS)" ./...
 
+BENCH ?= BenchmarkGetMatchingPolicy|BenchmarkWithQuerierForCheckRequest|BenchmarkStoreGetDataBrokerRecord|BenchmarkCachingQuerier|BenchmarkEvaluate$$|BenchmarkHeadersEvaluator|BenchmarkPolicyChecksum|BenchmarkBuildRouteConfigurations|BenchmarkGetAllRouteableHTTPHosts|BenchmarkDiscoveryResourceEncoding
+BENCH_PKGS ?= ./authorize ./authorize/internal/store ./authorize/evaluator ./pkg/storage ./config ./config/envoyconfig ./internal/controlplane
+BENCH_COUNT ?= 10
+BENCH_BASELINE ?= internal/benchmarks/baseline.txt
+BENCHSTAT ?= golang.org/x/perf/cmd/benchstat@v0.0.0-20260709024250-82a0b07e230d
+
+# Benchmarks run without -race on every platform and with -short, which skips
+# the slowest route-scaling cases (drop -short for ad-hoc quadratic runs).
+# benchstat deltas are only meaningful against a baseline generated on
+# the same machine: regenerate with `make bench-baseline` before comparing.
+# -p=1 serializes package benchmark binaries so they don't compete for CPU.
+# A failed `go test` is printed and aborts before truncated output can reach
+# benchstat (or replace the committed baseline).
+.PHONY: bench
+bench: ## Runs hot-path benchmarks and compares against the committed baseline
+	@echo "==> $@"
+	@tmp="$$(mktemp "$${TMPDIR:-/tmp}/pomerium-bench-new.XXXXXX")"; trap 'rm -f "$$tmp"' EXIT; \
+		if ! $(GO) test -p=1 -run '^$$' -short -tags "$(BUILDTAGS)" -bench '$(BENCH)' -benchmem -count $(BENCH_COUNT) -timeout 60m $(BENCH_PKGS) > "$$tmp"; then \
+			cat "$$tmp"; \
+			exit 1; \
+		fi; \
+		$(GO) run $(BENCHSTAT) "$(BENCH_BASELINE)" "$$tmp"
+
+.PHONY: bench-baseline
+bench-baseline: ## Regenerates the committed benchmark baseline (same-machine reference)
+	@echo "==> $@"
+	@tmp="$$(mktemp "$(BENCH_BASELINE).tmp.XXXXXX")"; trap 'rm -f "$$tmp"' EXIT; \
+		if ! $(GO) test -p=1 -run '^$$' -short -tags "$(BUILDTAGS)" -bench '$(BENCH)' -benchmem -count $(BENCH_COUNT) -timeout 60m $(BENCH_PKGS) > "$$tmp"; then \
+			cat "$$tmp"; \
+			exit 1; \
+		fi; \
+		mv "$$tmp" "$(BENCH_BASELINE)"
+
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage
 	@echo "==> $@"
