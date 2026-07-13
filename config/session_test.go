@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -508,6 +510,62 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		cfg.Options.ClientID = "CLIENT_ID_1"
 		bearerTokenFormatIDPIdentityToken := BearerTokenFormatIDPIdentityToken
 		cfg.Options.BearerTokenFormat = &bearerTokenFormatIDPIdentityToken
+		route := &Policy{}
+		route.IDPClientSecret = "CLIENT_SECRET_2"
+		route.IDPClientID = "CLIENT_ID_2"
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.example.com", nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer IDENTITY_TOKEN")
+		c := NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
+			func(_ context.Context, _, _ string) (*databroker.Record, error) {
+				return nil, storage.ErrNotFound
+			},
+			func(_ context.Context, records []*databroker.Record) error {
+				if assert.Len(t, records, 2, "should put session and user") {
+					assert.Equal(t, "type.googleapis.com/session.Session", records[0].Type)
+					assert.Equal(t, "type.googleapis.com/user.User", records[1].Type)
+				}
+				return nil
+			},
+		)
+		s, err := c.CreateSession(ctx, cfg, route, req)
+		assert.NoError(t, err)
+		assert.Equal(t, "U1", s.GetUserId())
+		assert.True(t, s.GetRefreshDisabled())
+	})
+	t.Run("proxy_protocol", func(t *testing.T) {
+		t.Parallel()
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("/.pomerium/verify-identity-token", func(w http.ResponseWriter, _ *http.Request) {
+			json.NewEncoder(w).Encode(&authenticateapi.VerifyTokenResponse{
+				Valid:  true,
+				Claims: jwtutil.Claims{"sub": "U1"},
+			})
+		})
+		li, err := net.Listen("tcp", ":0")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = li.Close() })
+		li = &proxyproto.Listener{
+			Listener: li,
+			ConnPolicy: func(_ proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
+				return proxyproto.REQUIRE, nil
+			},
+		}
+		srv := &httptest.Server{
+			Listener: li,
+			Config:   &http.Server{Handler: mux},
+		}
+		srv.Start()
+
+		ctx := testutil.GetContext(t, time.Minute)
+		cfg := New(NewDefaultOptions())
+		cfg.Options.AuthenticateURLString = srv.URL
+		cfg.Options.ClientSecret = "CLIENT_SECRET_1"
+		cfg.Options.ClientID = "CLIENT_ID_1"
+		cfg.Options.BearerTokenFormat = nullable.From(*config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN.Enum())
+		cfg.Options.UseProxyProtocol = true
 		route := &Policy{}
 		route.IDPClientSecret = "CLIENT_SECRET_2"
 		route.IDPClientID = "CLIENT_ID_2"
