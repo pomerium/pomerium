@@ -13,11 +13,13 @@ import (
 	"net/http/httptrace"
 	"net/url"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/pires/go-proxyproto"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -392,6 +394,30 @@ func (h *httpUpstream) newClient(options *RequestOptions) *http.Client {
 		Certificates: options.clientCerts,
 	}
 	transport.DialTLSContext = nil
+	if h.Env().Config().Options.UseProxyProtocol {
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			var zeroDialer net.Dialer
+			conn, err := zeroDialer.DialContext(ctx, network, addr)
+			if err != nil {
+				return nil, err
+			}
+
+			// if this is a proxy connection, use the haproxy proxy protocol
+			if _, p, _ := net.SplitHostPort(addr); p == strconv.Itoa(h.Env().Ports().ProxyHTTP.Value()) {
+				header := &proxyproto.Header{
+					Version: 2,
+					Command: proxyproto.LOCAL,
+				}
+				_, err = header.WriteTo(conn)
+				if err != nil {
+					_ = conn.Close()
+					return nil, err
+				}
+			}
+
+			return conn, nil
+		}
+	}
 	c := http.Client{
 		Transport: &Transport{
 			Transport: otelhttp.NewTransport(transport,
