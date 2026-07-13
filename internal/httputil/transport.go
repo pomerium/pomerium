@@ -48,6 +48,7 @@ func NewLocalProxyProtocolTransport(base *http.Transport) *http.Transport {
 			}
 			_, err = header.WriteTo(conn)
 			if err != nil {
+				_ = conn.Close()
 				return nil, err
 			}
 		}
