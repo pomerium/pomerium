@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
@@ -238,7 +240,7 @@ func (cfg *Config) GetCertificatePool() (*x509.CertPool, error) {
 
 // GetAuthenticateKeyFetcher returns a key fetcher for the authenticate service
 func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
-	authenticateURL, transport, err := cfg.resolveAuthenticateURL()
+	authenticateURL, transport, err := cfg.resolveAuthenticateURL(otel.GetTracerProvider())
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +250,7 @@ func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
 	return hpke.NewKeyFetcher(hpkeURL, transport), nil
 }
 
-func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error) {
+func (cfg *Config) resolveAuthenticateURL(tracerProvider oteltrace.TracerProvider) (*url.URL, http.RoundTripper, error) {
 	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid authenticate service url: %w", err)
@@ -269,7 +271,7 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error)
 	if cfg.Options.UseProxyProtocol {
 		transport = httputil.NewLocalProxyProtocolTransport(transport)
 	}
-	return authenticateURL, otelhttp.NewTransport(transport), nil
+	return authenticateURL, otelhttp.NewTransport(transport, otelhttp.WithTracerProvider(tracerProvider)), nil
 }
 
 func getOneOf[OneOfContainer, OneOf, Value any](container OneOfContainer, _ OneOf, value Value) *Value {

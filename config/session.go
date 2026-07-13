@@ -207,7 +207,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForAccessToken(
 			return nil, err
 		}
 
-		authenticateURL, transport, err := cfg.resolveAuthenticateURL()
+		authenticateURL, transport, err := cfg.resolveAuthenticateURL(c.telemetry.GetTracerProvider())
 		if err != nil {
 			return nil, fmt.Errorf("error resolving authenticate url to verify access token: %w", err)
 		}
@@ -279,7 +279,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 			return nil, err
 		}
 
-		authenticateURL, transport, err := cfg.resolveAuthenticateURL()
+		authenticateURL, transport, err := cfg.resolveAuthenticateURL(c.telemetry.GetTracerProvider())
 		if err != nil {
 			return nil, fmt.Errorf("error resolving authenticate url to verify identity token: %w", err)
 		}
