@@ -190,47 +190,68 @@ func getClusterStatsName(policy *config.Policy) string {
 	return policy.Name
 }
 
-func (b *Builder) buildRoutesForPoliciesWithHost(
-	cfg *config.Config,
-	host string,
-) ([]*envoy_config_route_v3.Route, error) {
-	var routes []*envoy_config_route_v3.Route
-	for i, p := range cfg.Options.GetAllPoliciesIndexed() {
-		policy := p
+// An indexedPolicy is a policy along with its position in the list of all
+// policies and its parsed From URL.
+type indexedPolicy struct {
+	policy  *config.Policy
+	fromURL *url.URL
+	index   int
+}
+
+// A policyHostIndex indexes policies by the domains their From URL matches so
+// that building routes for a host is a map lookup instead of a scan over
+// every policy. Slices preserve policy order.
+type policyHostIndex struct {
+	byHost   map[string][]indexedPolicy
+	catchAll []indexedPolicy // policies with a wildcard in the From host
+}
+
+func indexPoliciesByHost(options *config.Options) (policyHostIndex, error) {
+	idx := policyHostIndex{byHost: make(map[string][]indexedPolicy)}
+	for i, policy := range options.GetAllPoliciesIndexed() {
 		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
 		if err != nil {
-			return nil, err
+			return policyHostIndex{}, err
 		}
 
-		if !urlMatchesHost(fromURL, host) {
-			continue
+		ip := indexedPolicy{policy: policy, fromURL: fromURL, index: i}
+		// the same domains urlMatchesHost compares against
+		domains := urlutil.GetDomainsForURL(fromURL, true)
+		for j, domain := range domains {
+			if slices.Contains(domains[:j], domain) {
+				continue // index each (policy, domain) pair at most once
+			}
+			idx.byHost[domain] = append(idx.byHost[domain], ip)
 		}
-
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, policy, fmt.Sprintf("policy-%d", i))
-		if err != nil {
-			return nil, err
+		if strings.Contains(fromURL.Host, "*") {
+			idx.catchAll = append(idx.catchAll, ip)
 		}
-
-		routes = append(routes, policyRoutes...)
 	}
-	return routes, nil
+	return idx, nil
+}
+
+func (b *Builder) buildRoutesForPoliciesWithHost(
+	cfg *config.Config,
+	idx policyHostIndex,
+	host string,
+) ([]*envoy_config_route_v3.Route, error) {
+	return b.buildRoutesForIndexedPolicies(cfg, idx.byHost[host])
 }
 
 func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 	cfg *config.Config,
+	idx policyHostIndex,
+) ([]*envoy_config_route_v3.Route, error) {
+	return b.buildRoutesForIndexedPolicies(cfg, idx.catchAll)
+}
+
+func (b *Builder) buildRoutesForIndexedPolicies(
+	cfg *config.Config,
+	policies []indexedPolicy,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
-	for i, policy := range cfg.Options.GetAllPoliciesIndexed() {
-		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
-		if err != nil {
-			return nil, err
-		}
-
-		if !strings.Contains(fromURL.Host, "*") {
-			continue
-		}
-
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, policy, fmt.Sprintf("policy-%d", i))
+	for _, ip := range policies {
+		policyRoutes, err := b.buildRoutesForPolicy(cfg, ip.policy, ip.fromURL, fmt.Sprintf("policy-%d", ip.index))
 		if err != nil {
 			return nil, err
 		}
@@ -243,25 +264,21 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 func (b *Builder) buildRoutesForPolicy(
 	cfg *config.Config,
 	policy *config.Policy,
+	fromURL *url.URL,
 	name string,
 ) ([]*envoy_config_route_v3.Route, error) {
-	fromURL, err := urlutil.ParseAndValidateURL(policy.From)
-	if err != nil {
-		return nil, err
-	}
-
 	var routes []*envoy_config_route_v3.Route
 	if strings.Contains(fromURL.Host, "*") {
 		// we have to match '*.example.com' and '*.example.com:443', so there are two routes
 		for _, host := range urlutil.GetDomainsForURL(fromURL, !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)) {
-			route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatchForHost(cfg.Options, policy, host))
+			route, err := b.buildRouteForPolicyAndMatch(cfg, policy, fromURL, name, mkRouteMatchForHost(cfg.Options, policy, host))
 			if err != nil {
 				return nil, err
 			}
 			routes = append(routes, route)
 		}
 	} else {
-		route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatch(policy))
+		route, err := b.buildRouteForPolicyAndMatch(cfg, policy, fromURL, name, mkRouteMatch(policy))
 		if err != nil {
 			return nil, err
 		}
@@ -273,14 +290,10 @@ func (b *Builder) buildRoutesForPolicy(
 func (b *Builder) buildRouteForPolicyAndMatch(
 	cfg *config.Config,
 	policy *config.Policy,
+	fromURL *url.URL,
 	name string,
 	match *envoy_config_route_v3.RouteMatch,
 ) (*envoy_config_route_v3.Route, error) {
-	fromURL, err := urlutil.ParseAndValidateURL(policy.From)
-	if err != nil {
-		return nil, err
-	}
-
 	routeID, err := policy.RouteID()
 	if err != nil {
 		return nil, err

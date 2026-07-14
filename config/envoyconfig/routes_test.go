@@ -19,6 +19,16 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
+// buildRoutesForHost indexes cfg's policies and builds the routes for host,
+// mirroring what buildMainRouteConfiguration does per virtual host.
+func buildRoutesForHost(b *Builder, cfg *config.Config, host string) ([]*envoy_config_route_v3.Route, error) {
+	idx, err := indexPoliciesByHost(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+	return b.buildRoutesForPoliciesWithHost(cfg, idx, host)
+}
+
 func policyNameFunc() func(*config.Policy) string {
 	i := 0
 	return func(*config.Policy) string {
@@ -284,7 +294,7 @@ func TestTimeouts(t *testing.T) {
 		if tc.mcpServer {
 			policy.MCP = &config.MCP{Server: &config.MCPServer{}}
 		}
-		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+		routes, err := buildRoutesForHost(b, config.New(&config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
@@ -432,7 +442,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
-	routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+	routes, err := buildRoutesForHost(b, config.New(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		SharedKey:              cryptutil.NewBase64Key(),
@@ -1056,7 +1066,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	`, routes)
 
 	t.Run("fronting-authenticate", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+		routes, err := buildRoutesForHost(b, config.New(&config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
@@ -1146,7 +1156,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("tcp", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+		routes, err := buildRoutesForHost(b, config.New(&config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
@@ -1329,7 +1339,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("udp", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+		routes, err := buildRoutesForHost(b, config.New(&config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
@@ -1428,7 +1438,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("remove-pomerium-headers", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+		routes, err := buildRoutesForHost(b, config.New(&config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
@@ -1532,7 +1542,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("kubernetes", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+		routes, err := buildRoutesForHost(b, config.New(&config.Options{
 			AuthenticateURLString: "https://authenticate.example.com",
 			Services:              "proxy",
 			CookieName:            "pomerium",
@@ -1655,7 +1665,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 	}(GetClusterID)
 	GetClusterID = policyNameFunc()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+	routes, err := buildRoutesForHost(b, config.New(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		SharedKey:              cryptutil.NewBase64Key(),
