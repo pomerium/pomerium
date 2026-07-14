@@ -1,4 +1,4 @@
-FROM golang:1.26-bookworm AS build-env
+FROM golang:1.26.5-bookworm@sha256:349ad04971da5f200a537641ae2c70774a592ca21fad4b513b65f813f546781a AS build-env
 
 WORKDIR /go/src/app
 ADD . /go/src/app
