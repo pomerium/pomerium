@@ -1,6 +1,6 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean
+.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
@@ -27,6 +27,11 @@ help:
 	@echo "  make report       - Show Playwright report"
 	@echo "  make artifacts    - Collect artifacts"
 	@echo "  make clean        - Stop stack and remove artifacts"
+	@echo ""
+	@echo "Downstream mTLS suite (testcontainers, self-contained - does NOT use the compose stack):"
+	@echo "  make deps-downstream-mtls        - Install suite deps + Chromium, refresh pomerium image"
+	@echo "  make test-downstream-mtls        - Run the downstream mTLS e2e suite (headless)"
+	@echo "  make test-downstream-mtls-headed - Run it with a visible browser"
 	@echo ""
 	@echo "Aliases: test-headed, test-debug, test-authn, test-authz, test-headers"
 
@@ -75,6 +80,22 @@ test-headers: test-suite-headers
 # Run tests via Go test wrapper
 test-go: up
 	go test -tags=acceptance -v -timeout=20m ./...
+
+# ---------------------------------------------------------------------------
+# Downstream mTLS e2e suite (internal/acceptance/downstream-mtls):
+# testcontainers-based and entirely self-contained - it boots its own Keycloak
+# + upstream + Pomerium (official image) and does NOT use the compose stack
+# above. Do not run `make up` and `make test-downstream-mtls` at the same
+# time: both bind host ports 8443/8080.
+# ---------------------------------------------------------------------------
+deps-downstream-mtls:
+	$(MAKE) -C downstream-mtls deps
+
+test-downstream-mtls:
+	$(MAKE) -C downstream-mtls test
+
+test-downstream-mtls-headed:
+	$(MAKE) -C downstream-mtls test-headed
 
 # View container logs
 logs:
