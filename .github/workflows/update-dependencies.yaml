@@ -10,14 +10,26 @@ jobs:
   update-dependencies:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Update Latest Release Dependencies
-        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+      - name: Get Latest Release
+        uses: rez0n/actions-github-release@05fabbd6b2b3ce3383299555ea518faea69b736d
+        id: latest_release
         with:
-          workflow: update-branch-dependencies.yaml
-          inputs: '{"branch":"0-33-0"}'
+          repository: ${{ github.repository }}
+          type: "stable"
 
-      - name: Trigger Update Main Dependencies
-        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
-        with:
-          workflow: update-branch-dependencies.yaml
-          inputs: '{"branch":"main"}'
+      - name: Get Latest Release Branch
+        run: |
+          latest_release_branch="$(echo ${{ steps.latest_release.outputs.release }} | sed -E 's/^v?([0-9]+)[.]([0-9]+)[.].*$/\1-\2-0/')"
+          echo "latest_release_branch=$latest_release_branch" >> "$GITHUB_OUTPUT"
+
+      # - name: Trigger Update Latest Release Dependencies
+      #   uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+      #   with:
+      #     workflow: update-branch-dependencies.yaml
+      #     inputs: '{"branch":"0-33-0"}'
+
+      # - name: Trigger Update Main Dependencies
+      #   uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+      #   with:
+      #     workflow: update-branch-dependencies.yaml
+      #     inputs: '{"branch":"main"}'
