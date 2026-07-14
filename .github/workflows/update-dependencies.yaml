@@ -23,17 +23,14 @@ jobs:
           latest_release_branch="$(echo ${{ steps.latest_release.outputs.release }} | sed -E 's/^v?([0-9]+)[.]([0-9]+)[.].*$/\1-\2-0/')"
           echo "value=$latest_release_branch" >> "$GITHUB_OUTPUT"
 
-      - name: test
-        run: echo ${{ steps.latest_release_branch.outputs.value }}
+      - name: Trigger Update Latest Release Dependencies
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+        with:
+          workflow: update-branch-dependencies.yaml
+          inputs: '{"branch":"${{ steps.latest_release_branch.outputs.value }}"}'
 
-      # - name: Trigger Update Latest Release Dependencies
-      #   uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
-      #   with:
-      #     workflow: update-branch-dependencies.yaml
-      #     inputs: '{"branch":"0-33-0"}'
-
-      # - name: Trigger Update Main Dependencies
-      #   uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
-      #   with:
-      #     workflow: update-branch-dependencies.yaml
-      #     inputs: '{"branch":"main"}'
+      - name: Trigger Update Main Dependencies
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+        with:
+          workflow: update-branch-dependencies.yaml
+          inputs: '{"branch":"main"}'
