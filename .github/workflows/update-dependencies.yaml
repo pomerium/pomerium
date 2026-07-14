@@ -10,6 +10,12 @@ jobs:
   update-dependencies:
     runs-on: ubuntu-latest
     steps:
+      - name: Trigger Update Latest Release Dependencies
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+        with:
+          workflow: update-branch-dependencies.yaml
+          inputs: '{"branch":"0-33-0"}'
+
       - name: Trigger Update Main Dependencies
         uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
         with:
