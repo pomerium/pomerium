@@ -9,35 +9,27 @@ jobs:
   update-dependencies:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - name: Get Latest Release
+        uses: rez0n/actions-github-release@05fabbd6b2b3ce3383299555ea518faea69b736d
+        id: latest_release
         with:
-          fetch-depth: 0
-          fetch-tags: true
+          repository: ${{ github.repository }}
+          type: "stable"
 
-      - name: Setup ASDF
-        uses: asdf-vm/actions/install@b7bcd026f18772e44fe1026d729e1611cc435d47
+      - name: Get Latest Release Branch
+        id: latest_release_branch
+        run: |
+          latest_release_branch="$(echo ${{ steps.latest_release.outputs.release }} | sed -E 's/^v?([0-9]+)[.]([0-9]+)[.].*$/\1-\2-0/')"
+          echo "value=$latest_release_branch" >> "$GITHUB_OUTPUT"
 
-      - name: Update Tools
-        run: ./scripts/update-dependencies tools
-
-      - name: Update Docker Dependencies
-        run: ./scripts/update-dependencies docker
-
-      - name: Update Pomerium Dependencies
-        run: ./scripts/update-dependencies pomerium
-
-      - name: Proto
-        run: make proto
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
+      - name: Trigger Update Latest Release Dependencies
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
         with:
-          author: GitHub Actions <apparitor@users.noreply.github.com>
-          body: "This PR updates dependencies not managed by dependabot."
-          branch: ci/update-core
-          commit-message: "ci: update dependencies"
-          delete-branch: true
-          labels: ci
-          title: "ci: update dependencies"
-          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+          workflow: update-branch-dependencies.yaml
+          inputs: '{"branch":"${{ steps.latest_release_branch.outputs.value }}"}'
+
+      - name: Trigger Update Main Dependencies
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+        with:
+          workflow: update-branch-dependencies.yaml
+          inputs: '{"branch":"main"}'
