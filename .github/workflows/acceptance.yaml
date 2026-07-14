@@ -10,9 +10,31 @@ permissions:
   contents: read
   pull-requests: write
 
+# A new push to a branch cancels an in-flight acceptance run for that branch.
+concurrency:
+  group: acceptance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ---------------------------------------------------------------------------
+# Each e2e harness runs as an INDEPENDENT job (own runner, own stack, own
+# timeout) so they run in parallel and can't break each other. Every harness
+# uploads an `e2e-results-<name>` artifact containing its Playwright
+# results.json. The `summary` job fans in: it downloads every results artifact,
+# merges each harness's committed feature-map.json fragment, and renders ONE
+# Feature Coverage table (Authentication / Authorization / Headers / MCP / ...)
+# posted as a single sticky PR comment.
+#
+# To add a harness (e.g. downstream-mtls): add a job below that uploads an
+# `e2e-results-<name>` artifact, drop a feature-map.json fragment in its
+# directory, and add the new job to the `summary` job's `needs:` list. That
+# `needs:` entry is the ONLY required edit — the aggregator auto-discovers the
+# new results + fragment, and the failure check reads `needs.*.result`
+# generically, so neither needs touching.
+# ---------------------------------------------------------------------------
+
 jobs:
-  acceptance:
-    name: E2E Acceptance Tests
+  browser:
+    name: E2E — browser
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -46,23 +68,24 @@ jobs:
           # Accept self-signed certificates in test environment
           NODE_TLS_REJECT_UNAUTHORIZED: "0"
 
-      - name: Generate acceptance summary
-        if: always()
-        working-directory: internal/acceptance/browser
-        run: |
-          node scripts/generate-summary.mjs >> $GITHUB_STEP_SUMMARY
-          node scripts/generate-summary.mjs --output ../artifacts/playwright/summary.md
-
       - name: Collect artifacts
         if: always()
         working-directory: internal/acceptance
         run: ./scripts/collect-artifacts.sh
 
+      - name: Upload results (for summary)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: e2e-results-browser
+          path: internal/acceptance/artifacts/playwright/results.json
+          if-no-files-found: warn
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: playwright-report
+          name: playwright-report-browser
           path: internal/acceptance/artifacts/playwright/
           retention-days: 30
 
@@ -82,14 +105,108 @@ jobs:
           path: internal/acceptance/artifacts/diagnostics/
           retention-days: 7
 
-      - name: Post PR comment
-        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
-        with:
-          header: acceptance-summary
-          path: internal/acceptance/artifacts/playwright/summary.md
-
       - name: Stop test stack
         if: always()
         working-directory: internal/acceptance
         run: docker compose down -v
+
+  mcp:
+    name: E2E — mcp
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .tool-versions
+          cache: 'npm'
+          cache-dependency-path: internal/acceptance/mcp/package-lock.json
+
+      - name: Install mkcert
+        # Pinned + checksum-verified (upstream is frozen at v1.4.4, 2022). We do
+        # NOT run `mkcert -install`: generating the leaf auto-creates the local
+        # CA + rootCA.pem, which is all the MCP client needs via
+        # NODE_EXTRA_CA_CERTS (see internal/acceptance/mcp/setup/certs.ts).
+        run: |
+          MKCERT_VERSION=v1.4.4
+          MKCERT_SHA256=6d31c65b03972c6dc4a14ab429f2928300518b26503f58723e532d1b0a3bbb52
+          curl -fsSL -o mkcert \
+            "https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64"
+          echo "${MKCERT_SHA256}  mkcert" | sha256sum -c -
+          chmod +x mkcert
+          sudo mv mkcert /usr/local/bin/mkcert
+
+      - name: Install Playwright dependencies
+        working-directory: internal/acceptance/mcp
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Run MCP e2e suite
+        working-directory: internal/acceptance/mcp
+        run: make test
+        env:
+          CI: true
+
+      - name: Upload results (for summary)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: e2e-results-mcp
+          path: internal/acceptance/mcp/results.json
+          if-no-files-found: warn
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-report-mcp
+          path: internal/acceptance/mcp/playwright-report/
+          retention-days: 30
+
+  summary:
+    name: E2E — summary
+    needs: [browser, mcp]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .tool-versions
+
+      - name: Download harness results
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          pattern: e2e-results-*
+          path: e2e-results
+
+      - name: Generate combined summary
+        run: |
+          node internal/acceptance/scripts/generate-summary.mjs \
+            --results-dir e2e-results \
+            --feature-maps-dir internal/acceptance \
+            --output summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
+        with:
+          header: acceptance-summary
+          path: summary.md
+
+      - name: Fail if any harness did not succeed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "One or more e2e harnesses did not succeed:"
+          echo '${{ toJSON(needs) }}'
+          exit 1

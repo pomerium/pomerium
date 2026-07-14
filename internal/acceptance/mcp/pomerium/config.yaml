@@ -1,0 +1,82 @@
+# Pomerium configuration for the container-based MCP e2e suite.
+#
+# Runs all-in-one (authenticate + proxy + authorize + databroker) in a single
+# official pomerium/pomerium container. Mounted read-only at /pomerium/config.yaml.
+#
+# Hostnames are *.localhost.pomerium.io (public DNS -> 127.0.0.1) and are ALSO
+# registered as Docker network aliases, so the OIDC issuer URL is identical from
+# the host (browser front-channel) and from inside this container (back-channel).
+# Ports are fixed and identical on host and container (8443 here, 8080 Keycloak).
+
+address: :8443
+authenticate_service_url: https://authenticate.localhost.pomerium.io:8443
+
+# Identity Provider — the Keycloak container, reusing the existing acceptance realm.
+idp_provider: oidc
+idp_provider_url: http://keycloak.localhost.pomerium.io:8080/realms/pomerium-e2e
+idp_client_id: pomerium
+idp_client_secret: pomerium-e2e-secret
+idp_scopes:
+  - openid
+  - profile
+  - email
+  - groups
+  - offline_access
+
+# TLS — mkcert-generated wildcard leaf for *.localhost.pomerium.io, mounted at /certs.
+certificate_file: /certs/pomerium.crt
+certificate_key_file: /certs/pomerium.key
+
+# Test-only secrets (NEVER use in production) — same values as the acceptance suite
+# for reproducibility.
+cookie_secret: dj5y7E03ULP9YebCgHNIXmxWnWfYlVXCgwbm9IEdysI=
+shared_secret: 0CdEkgO02jgxmgSC2AdkqIbFELAN4CGw0v0RY85xNr4=
+
+log_level: debug
+
+# Enable the MCP service surface (authorize service feature flag).
+runtime_flags:
+  mcp: true
+  # Advertise the DCR `registration_endpoint` in the authorization-server
+  # metadata. As of #6483 (ENG-4184) the official image gates inbound Dynamic
+  # Client Registration behind this flag (default off); without it the SDK and
+  # raw clients get no registration_endpoint and every DCR-dependent test fails.
+  mcp_dynamic_client_registration: true
+
+# Allow CIMD-style client_id URLs from our test domain. The MCP TypeScript SDK uses
+# Dynamic Client Registration by default (opaque client_id, not subject to this), so
+# this is a permissive safety net.
+mcp_allowed_client_id_domains:
+  - '*.localhost.pomerium.io'
+
+routes:
+  # MCP server route: Pomerium fronts the upstream MCP server as an OAuth 2.1
+  # authorization server. The `mcp.server` block marks the route as an MCP server
+  # (Policy.MCP.Server). Access requires the "admins" group claim, so alice
+  # (admins) is allowed and charlie (engineering only) is denied.
+  - from: https://mcp.localhost.pomerium.io:8443
+    to: http://mcp-upstream:8080
+    name: mcp-add-server
+    mcp:
+      server: {}
+    policy:
+      - allow:
+          and:
+            - claim/groups: admins
+
+  # Tool-level policy route (same upstream) used by spec-tools: admins are
+  # allowed, but every tool except `echo` is denied via the mcp_tool criterion.
+  # Proves Pomerium filters tools/list and denies tools/call per policy.
+  - from: https://mcp-filtered.localhost.pomerium.io:8443
+    to: http://mcp-upstream:8080
+    name: mcp-echo-only
+    mcp:
+      server: {}
+    policy:
+      - allow:
+          and:
+            - claim/groups: admins
+      - deny:
+          or:
+            - mcp_tool:
+                not: echo

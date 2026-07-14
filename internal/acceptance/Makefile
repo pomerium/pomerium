@@ -1,10 +1,11 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean
+.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
 BROWSER_DIR ?= browser
+MCP_DIR ?= mcp
 ARTIFACTS_DIR ?= artifacts
 
 COMPOSE := docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT)
@@ -27,6 +28,11 @@ help:
 	@echo "  make report       - Show Playwright report"
 	@echo "  make artifacts    - Collect artifacts"
 	@echo "  make clean        - Stop stack and remove artifacts"
+	@echo ""
+	@echo "MCP suite (testcontainers, self-contained - does NOT use the compose stack):"
+	@echo "  make deps-mcp        - Install MCP suite deps + Chromium"
+	@echo "  make test-mcp        - Run the container-based MCP e2e suite (headless)"
+	@echo "  make test-mcp-headed - Run the MCP e2e suite with a visible browser"
 	@echo ""
 	@echo "Aliases: test-headed, test-debug, test-authn, test-authz, test-headers"
 
@@ -102,3 +108,18 @@ status:
 	@curl -sfk https://authenticate.localhost.pomerium.io:8443/healthz && echo "Pomerium: healthy" || echo "Pomerium: unhealthy"
 	@curl -sf http://localhost:8000/ > /dev/null && echo "Upstream: healthy" || echo "Upstream: unhealthy"
 	@curl -sf http://localhost:8081/health > /dev/null && echo "WebSocket: healthy" || echo "WebSocket: unhealthy"
+
+# ---------------------------------------------------------------------------
+# MCP e2e suite (internal/acceptance/mcp): testcontainers-based and entirely
+# self-contained - it boots its own Keycloak + upstream + Pomerium and does NOT
+# use the compose stack above. Do not run `make up` and `make test-mcp` at the
+# same time: both bind host ports 8443/8080.
+# ---------------------------------------------------------------------------
+deps-mcp:
+	$(MAKE) -C $(MCP_DIR) deps
+
+test-mcp:
+	$(MAKE) -C $(MCP_DIR) test
+
+test-mcp-headed:
+	$(MAKE) -C $(MCP_DIR) test-headed

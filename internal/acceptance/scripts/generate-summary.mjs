@@ -1,31 +1,60 @@
 #!/usr/bin/env node
 /**
- * Generate acceptance test summary from Playwright results.
+ * Aggregate the acceptance-test summary across every e2e harness.
  *
- * Usage: node scripts/generate-summary.mjs [--output file.md]
+ * Each harness (browser, mcp, ...) runs independently in its own CI job and
+ * emits two things:
+ *   - a Playwright `results.json` (uploaded as the `e2e-results-<harness>`
+ *     artifact and downloaded into --results-dir), and
+ *   - a committed `feature-map.json` fragment declaring its category/feature
+ *     coverage (discovered under --feature-maps-dir).
  *
- * Reads: ../artifacts/playwright/results.json
- * Writes: stdout (for GITHUB_STEP_SUMMARY) or specified file
+ * This script globs every results.json + every feature-map fragment, merges
+ * them, and renders ONE combined Feature Coverage table containing all modules.
+ * Adding a new harness needs no change here: drop a feature-map.json in the new
+ * harness dir and upload its results.json as another e2e-results-* artifact.
+ *
+ * Usage:
+ *   node generate-summary.mjs [--results-dir <dir>] [--feature-maps-dir <dir>] [--output <file>]
+ *
+ * Defaults keep a single-harness local run working (e.g. after `make test`):
+ *   --results-dir       internal/acceptance   (recurses for results.json)
+ *   --feature-maps-dir  internal/acceptance   (recurses for feature-map.json)
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const RESULTS_PATH = join(__dirname, '../../artifacts/playwright/results.json');
-const FEATURE_MAP_PATH = join(__dirname, '../fixtures/feature-map.json');
+// Directories that never contain harness results or fragments — skipping them
+// keeps discovery fast and avoids picking up dependencies' stray JSON.
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'test-results',
+  'report',
+  'playwright-report',
+  '.certs',
+  'dist',
+]);
 
 /**
  * Parse command line arguments.
  */
 function parseArgs() {
   const args = process.argv.slice(2);
-  const result = { output: null };
+  const result = {
+    output: null,
+    resultsDir: 'internal/acceptance',
+    featureMapsDir: 'internal/acceptance',
+  };
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--output' && args[i + 1]) {
       result.output = args[++i];
+    } else if (args[i] === '--results-dir' && args[i + 1]) {
+      result.resultsDir = args[++i];
+    } else if (args[i] === '--feature-maps-dir' && args[i + 1]) {
+      result.featureMapsDir = args[++i];
     }
   }
 
@@ -33,8 +62,90 @@ function parseArgs() {
 }
 
 /**
+ * Recursively find files named `fileName` under `root`, skipping SKIP_DIRS.
+ */
+function findFiles(root, fileName) {
+  const found = [];
+  if (!existsSync(root)) return found;
+
+  function walk(dir) {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!SKIP_DIRS.has(entry.name)) walk(full);
+      } else if (entry.isFile() && entry.name === fileName) {
+        found.push(full);
+      }
+    }
+  }
+
+  if (statSync(root).isDirectory()) walk(root);
+
+  return found.sort();
+}
+
+/**
+ * Merge every feature-map fragment into one { categories } object. Fragments
+ * that declare the same category name have their `files` maps merged.
+ */
+function mergeFeatureMaps(paths) {
+  const merged = { categories: {} };
+
+  for (const path of paths) {
+    let fragment;
+    try {
+      fragment = JSON.parse(readFileSync(path, 'utf8'));
+    } catch (err) {
+      console.error(`Warning: skipping unparseable feature map ${path}: ${err.message}`);
+      continue;
+    }
+    for (const [name, data] of Object.entries(fragment.categories || {})) {
+      if (!merged.categories[name]) merged.categories[name] = { files: {} };
+      Object.assign(merged.categories[name].files, data.files || {});
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Combine every results.json into one { suites, stats } shape. Stats are summed
+ * so the top-line totals reflect all harnesses together.
+ */
+function combineResults(paths) {
+  const suites = [];
+  const stats = { expected: 0, unexpected: 0, skipped: 0, flaky: 0, duration: 0 };
+
+  for (const path of paths) {
+    let data;
+    try {
+      data = JSON.parse(readFileSync(path, 'utf8'));
+    } catch (err) {
+      console.error(`Warning: skipping unparseable results file ${path}: ${err.message}`);
+      continue;
+    }
+    if (Array.isArray(data.suites)) suites.push(...data.suites);
+    const s = data.stats || {};
+    stats.expected += s.expected || 0;
+    stats.unexpected += s.unexpected || 0;
+    stats.skipped += s.skipped || 0;
+    stats.flaky += s.flaky || 0;
+    stats.duration += s.duration || 0;
+  }
+
+  // Empty suites (nothing parsed) render as the "no results" summary downstream.
+  return { suites, stats };
+}
+
+/**
  * Extract test file path from spec location.
- * Playwright results.json uses paths relative to testDir (e.g., "authn/login.spec.ts")
+ * Playwright results.json uses paths relative to testDir (e.g., "authn/login.spec.ts").
  */
 function getTestFilePath(spec) {
   const file = spec.file || '';
@@ -57,19 +168,19 @@ function getStatusEmoji(status) {
   switch (status) {
     case 'passed':
     case 'expected':
-      return '\u2705';
+      return '✅';
     case 'failed':
     case 'unexpected':
-      return '\u274c';
+      return '❌';
     case 'skipped':
-      return '\u2298';
+      return '⊘';
     case 'flaky':
-      return '\u26a0\ufe0f';
+      return '⚠️';
     case 'timedOut':
     case 'interrupted':
-      return '\u23f0';
+      return '⏰';
     default:
-      return '\u2753';
+      return '❓';
   }
 }
 
@@ -114,7 +225,6 @@ function aggregateByCategory(suites, featureMap) {
   // Initialize categories from feature map
   for (const [categoryName, categoryData] of Object.entries(featureMap.categories)) {
     categories[categoryName] = {
-      description: categoryData.description,
       files: {},
       tests: [],
       passed: 0,
@@ -150,7 +260,7 @@ function aggregateByCategory(suites, featureMap) {
       if (spec.tests) {
         // This is a test with actual results
         for (const testResult of spec.tests) {
-          const fullTitle = suiteTitle ? `${suiteTitle} \u203a ${spec.title}` : spec.title;
+          const fullTitle = suiteTitle ? `${suiteTitle} › ${spec.title}` : spec.title;
           const test = {
             title: spec.title,
             file: filePath,
@@ -191,7 +301,7 @@ function aggregateByCategory(suites, featureMap) {
       }
       if (spec.suites) {
         for (const suite of spec.suites) {
-          const nestedSuiteTitle = suiteTitle ? `${suiteTitle} \u203a ${suite.title}` : suite.title;
+          const nestedSuiteTitle = suiteTitle ? `${suiteTitle} › ${suite.title}` : suite.title;
           processSpecs(suite.specs || [], filePath, nestedSuiteTitle);
           if (suite.suites) {
             processSuites(suite.suites, filePath, nestedSuiteTitle);
@@ -204,7 +314,7 @@ function aggregateByCategory(suites, featureMap) {
   function processSuites(suites, parentFile = null, parentSuiteTitle = '') {
     for (const suite of suites) {
       const filePath = getTestFilePath(suite) || parentFile;
-      const suiteTitle = parentSuiteTitle ? `${parentSuiteTitle} \u203a ${suite.title}` : suite.title;
+      const suiteTitle = parentSuiteTitle ? `${parentSuiteTitle} › ${suite.title}` : suite.title;
 
       if (suite.specs) {
         processSpecs(suite.specs, filePath, suiteTitle);
@@ -238,7 +348,7 @@ function generateMarkdown(results, featureMap) {
 
   // Handle missing or empty results
   if (!results || !results.suites || results.suites.length === 0) {
-    lines.push('## \u26a0\ufe0f Acceptance Test Summary\n');
+    lines.push('## ⚠️ Acceptance Test Summary\n');
     lines.push('No test results found. Playwright may have crashed before producing output.\n');
     return lines.join('\n');
   }
@@ -246,29 +356,24 @@ function generateMarkdown(results, featureMap) {
   // Aggregate data
   const { categories, unmappedFiles, allTests } = aggregateByCategory(results.suites, featureMap);
 
-  // Calculate totals
-  const stats = results.stats || {};
-  const passed = stats.expected || allTests.filter((t) => categorizeStatus(t.status) === 'passed').length;
-  const failed = (stats.unexpected || 0) + allTests.filter((t) => ['timedOut', 'interrupted'].includes(t.status)).length ||
-    allTests.filter((t) => categorizeStatus(t.status) === 'failed').length;
-  const skipped = stats.skipped || allTests.filter((t) => categorizeStatus(t.status) === 'skipped').length;
-  const flaky = stats.flaky || allTests.filter((t) => categorizeStatus(t.status) === 'flaky').length;
-  const duration = stats.duration || allTests.reduce((sum, t) => sum + t.duration, 0);
+  // Totals come from the summed Playwright stats produced by combineResults
+  // (Playwright counts timed-out/interrupted tests as `unexpected`).
+  const { expected: passed, unexpected: failed, skipped, flaky, duration } = results.stats;
 
   // Header with overall status
-  const overallStatus = failed > 0 ? '\u274c' : flaky > 0 ? '\u26a0\ufe0f' : '\u2705';
+  const overallStatus = failed > 0 ? '❌' : flaky > 0 ? '⚠️' : '✅';
   lines.push(`## ${overallStatus} Acceptance Test Summary\n`);
 
   // Summary table
   lines.push('| Result | Count |');
   lines.push('|--------|-------|');
-  lines.push(`| \u2705 Passed | ${passed} |`);
-  lines.push(`| \u274c Failed | ${failed} |`);
+  lines.push(`| ✅ Passed | ${passed} |`);
+  lines.push(`| ❌ Failed | ${failed} |`);
   if (flaky > 0) {
-    lines.push(`| \u26a0\ufe0f Flaky | ${flaky} |`);
+    lines.push(`| ⚠️ Flaky | ${flaky} |`);
   }
-  lines.push(`| \u2298 Skipped | ${skipped} |`);
-  lines.push(`| \u23f1\ufe0f Duration | ${formatDuration(duration)} |`);
+  lines.push(`| ⊘ Skipped | ${skipped} |`);
+  lines.push(`| ⏱️ Duration | ${formatDuration(duration)} |`);
   lines.push('');
 
   // Feature coverage table
@@ -278,7 +383,7 @@ function generateMarkdown(results, featureMap) {
 
   for (const [categoryName, data] of Object.entries(categories)) {
     const total = data.passed + data.failed + data.skipped + data.flaky;
-    const status = data.failed > 0 ? '\u274c' : data.flaky > 0 ? '\u26a0\ufe0f' : data.passed > 0 ? '\u2705' : '\u2298';
+    const status = data.failed > 0 ? '❌' : data.flaky > 0 ? '⚠️' : data.passed > 0 ? '✅' : '⊘';
     const features = Array.from(data.features).slice(0, 6).join(', ');
     lines.push(`| ${categoryName} | ${total} | ${status} | ${features} |`);
   }
@@ -287,7 +392,7 @@ function generateMarkdown(results, featureMap) {
   // Slowest tests
   const slowest = findSlowestTests(allTests, 3);
   if (slowest.length > 0) {
-    lines.push('### \u23f1\ufe0f Slowest Tests\n');
+    lines.push('### ⏱️ Slowest Tests\n');
     slowest.forEach((test, i) => {
       lines.push(`${i + 1}. \`${test.fullTitle}\` (${formatDuration(test.duration)})`);
     });
@@ -296,15 +401,15 @@ function generateMarkdown(results, featureMap) {
 
   // Warn about unmapped files
   if (unmappedFiles.length > 0) {
-    lines.push('### \u26a0\ufe0f Unmapped Test Files\n');
-    lines.push('The following test files are not in `fixtures/feature-map.json`:\n');
+    lines.push('### ⚠️ Unmapped Test Files\n');
+    lines.push('The following test files are not in any harness `feature-map.json`:\n');
     unmappedFiles.forEach((f) => lines.push(`- \`${f}\``));
     lines.push('');
   }
 
   // Detailed breakdown in collapsible section
   lines.push('<details>');
-  lines.push('<summary>\ud83d\udccb All Tests by Category</summary>\n');
+  lines.push('<summary>📋 All Tests by Category</summary>\n');
 
   for (const [categoryName, data] of Object.entries(categories)) {
     const total = data.passed + data.failed + data.skipped + data.flaky;
@@ -329,51 +434,34 @@ function generateMarkdown(results, featureMap) {
 function main() {
   const args = parseArgs();
 
-  // Check if results.json exists
-  if (!existsSync(RESULTS_PATH)) {
-    const noResults = '## \u26a0\ufe0f Acceptance Test Summary\n\nNo results found. Playwright may have crashed before producing output.\n';
+  // Discover feature-map fragments and results files.
+  const featureMapPaths = findFiles(args.featureMapsDir, 'feature-map.json');
+  const resultsPaths = findFiles(args.resultsDir, 'results.json');
+
+  const emit = (markdown) => {
     if (args.output) {
       mkdirSync(dirname(args.output), { recursive: true });
-      writeFileSync(args.output, noResults);
+      writeFileSync(args.output, markdown);
+      console.log(`Summary written to ${args.output}`);
     } else {
-      console.log(noResults);
+      console.log(markdown);
     }
+  };
+
+  if (resultsPaths.length === 0) {
+    emit('## ⚠️ Acceptance Test Summary\n\nNo results found. Playwright may have crashed before producing output.\n');
     process.exit(0);
   }
 
-  // Check if feature map exists
-  if (!existsSync(FEATURE_MAP_PATH)) {
-    console.error(`Error: Feature map not found at ${FEATURE_MAP_PATH}`);
+  if (featureMapPaths.length === 0) {
+    console.error(`Error: no feature-map.json fragments found under ${args.featureMapsDir}`);
     process.exit(1);
   }
 
-  // Load files
-  let results, featureMap;
-  try {
-    results = JSON.parse(readFileSync(RESULTS_PATH, 'utf8'));
-  } catch (err) {
-    console.error(`Error parsing results.json: ${err.message}`);
-    process.exit(1);
-  }
+  const featureMap = mergeFeatureMaps(featureMapPaths);
+  const results = combineResults(resultsPaths);
 
-  try {
-    featureMap = JSON.parse(readFileSync(FEATURE_MAP_PATH, 'utf8'));
-  } catch (err) {
-    console.error(`Error parsing feature-map.json: ${err.message}`);
-    process.exit(1);
-  }
-
-  // Generate markdown
-  const markdown = generateMarkdown(results, featureMap);
-
-  // Output
-  if (args.output) {
-    mkdirSync(dirname(args.output), { recursive: true });
-    writeFileSync(args.output, markdown);
-    console.log(`Summary written to ${args.output}`);
-  } else {
-    console.log(markdown);
-  }
+  emit(generateMarkdown(results, featureMap));
 }
 
 main();

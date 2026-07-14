@@ -1,0 +1,8 @@
+node_modules/
+.certs/
+test-results/
+playwright-report/
+results.json
+artifacts/
+upstream/node_modules/
+*.log
