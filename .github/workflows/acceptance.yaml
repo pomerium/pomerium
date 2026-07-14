@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 # A new push to a branch cancels an in-flight acceptance run for that branch.
 concurrency:
@@ -22,7 +21,7 @@ concurrency:
 # results.json. The `summary` job fans in: it downloads every results artifact,
 # merges each harness's committed feature-map.json fragment, and renders ONE
 # Feature Coverage table (Authentication / Authorization / Headers / MCP / ...)
-# posted as a single sticky PR comment.
+# written to the workflow run summary.
 #
 # To add a harness (e.g. downstream-mtls): add a job below that uploads an
 # `e2e-results-<name>` artifact, drop a feature-map.json fragment in its
@@ -79,7 +78,7 @@ jobs:
         with:
           name: e2e-results-browser
           path: internal/acceptance/artifacts/playwright/results.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Upload Playwright report
         if: always()
@@ -158,7 +157,7 @@ jobs:
         with:
           name: e2e-results-mcp
           path: internal/acceptance/mcp/results.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Upload Playwright report
         if: always()
@@ -183,6 +182,9 @@ jobs:
         with:
           node-version-file: .tool-versions
 
+      - name: Test summary generator
+        run: node --test internal/acceptance/scripts/generate-summary.test.mjs
+
       - name: Download harness results
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
@@ -190,19 +192,21 @@ jobs:
           path: e2e-results
 
       - name: Generate combined summary
+        if: always()
+        id: summary
+        env:
+          HARNESS_RESULTS: ${{ toJSON(needs) }}
         run: |
+          expected_results=$(node -e 'console.log(Object.keys(JSON.parse(process.env.HARNESS_RESULTS)).length)')
           node internal/acceptance/scripts/generate-summary.mjs \
             --results-dir e2e-results \
             --feature-maps-dir internal/acceptance \
+            --expected-results "$expected_results" \
             --output summary.md
-          cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Post PR comment
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
-        with:
-          header: acceptance-summary
-          path: summary.md
+      - name: Show combined summary
+        if: always()
+        run: cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail if any harness did not succeed
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
