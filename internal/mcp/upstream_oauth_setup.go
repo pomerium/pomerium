@@ -489,7 +489,7 @@ func runDiscoveryFromFallbackAS(
 		Issuer:                            asm.Issuer,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
 		Resource:                          resource,
-		MustValidateIssuer:                true,
+		MustValidateIssuer:                asm.AuthorizationResponseISSParameterSupported,
 	}, nil
 }
 

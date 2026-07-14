@@ -78,7 +78,11 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 				Str("issuer", pending.AuthorizationServerIssuer).
 				Str("received-issuer", iss).
 				Msg("mcp/client-oauth-callback: issuer not specified")
+			if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, pending.UserId, pending.DownstreamHost); delErr != nil {
+				log.Ctx(ctx).Warn().Err(delErr).Str("state_id", stateID).Msg("mcp/client-oauth-callback: failed to clean up expired pending auth state")
+			}
 			http.Error(w, "Invalid issuer", http.StatusBadRequest)
+			return
 		}
 		if pending.AuthorizationServerIssuer != "" && iss != pending.AuthorizationServerIssuer {
 			log.Ctx(ctx).Error().Str("state_id", stateID).

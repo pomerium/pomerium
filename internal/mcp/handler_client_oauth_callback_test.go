@@ -455,7 +455,7 @@ func TestClientOAuthCallback(t *testing.T) {
 		}
 
 		req := httptest.NewRequest(http.MethodGet,
-			"/oauth_callback?code=code123&state=test-state-id&issuer=https://malicious.example.com", nil)
+			"/oauth_callback?code=code123&state=test-state-id&iss=https://malicious.example.com", nil)
 		rr := httptest.NewRecorder()
 		srv.ClientOAuthCallback(rr, req)
 
