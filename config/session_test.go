@@ -538,7 +538,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		t.Parallel()
 
 		mux := http.NewServeMux()
-		mux.HandleFunc("/.pomerium/verify-identity-token", func(w http.ResponseWriter, _ *http.Request) {
+		mux.HandleFunc("/.pomerium/verify-access-token", func(w http.ResponseWriter, _ *http.Request) {
 			json.NewEncoder(w).Encode(&authenticateapi.VerifyTokenResponse{
 				Valid:  true,
 				Claims: jwtutil.Claims{"sub": "U1"},
@@ -560,11 +560,12 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		srv.Start()
 
 		ctx := testutil.GetContext(t, time.Minute)
-		cfg := New(NewDefaultOptions())
+		cfg := &Config{Options: NewDefaultOptions()}
 		cfg.Options.AuthenticateURLString = srv.URL
 		cfg.Options.ClientSecret = "CLIENT_SECRET_1"
 		cfg.Options.ClientID = "CLIENT_ID_1"
-		cfg.Options.BearerTokenFormat = nullable.From(*config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN.Enum())
+		bearerTokenFormatIDPAccessToken := BearerTokenFormatIDPAccessToken
+		cfg.Options.BearerTokenFormat = &bearerTokenFormatIDPAccessToken
 		cfg.Options.UseProxyProtocol = true
 		route := &Policy{}
 		route.IDPClientSecret = "CLIENT_SECRET_2"
