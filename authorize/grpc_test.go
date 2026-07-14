@@ -17,6 +17,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -49,19 +50,22 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	t.Parallel()
 
 	a := &Authorize{}
-	a.currentConfig.Store(config.New(&config.Options{
+	options := &config.Options{
 		Policies: []config.Policy{{
+			ID:   "route-id-1",
 			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
 		}},
-	}))
-	a.state.Store(new(authorizeState))
+	}
+	a.currentConfig.Store(config.New(options))
+	a.state.Store(&authorizeState{policiesByRouteID: indexPoliciesByRouteID(t.Context(), options)})
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),
+	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(), a.state.Load(),
 		&envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
+				ContextExtensions: envoyconfig.MakeExtAuthzContextExtensions(false, "route-id-1", 0),
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
 					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 						Id:     "id-1234",
@@ -92,7 +96,8 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
-		Policy: &a.currentConfig.Load().Options.Policies[0],
+		Policy:       &a.currentConfig.Load().Options.Policies[0],
+		EnvoyRouteID: "route-id-1",
 		HTTP: evaluator.RequestHTTP{
 			Method:   http.MethodGet,
 			Host:     "example.com",
@@ -121,19 +126,22 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	t.Parallel()
 
 	a := &Authorize{}
-	a.currentConfig.Store(config.New(&config.Options{
+	options := &config.Options{
 		Policies: []config.Policy{{
+			ID:   "route-id-1",
 			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
 		}},
-	}))
-	a.state.Store(new(authorizeState))
+	}
+	a.currentConfig.Store(config.New(options))
+	a.state.Store(&authorizeState{policiesByRouteID: indexPoliciesByRouteID(t.Context(), options)})
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),
+	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(), a.state.Load(),
 		&envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
+				ContextExtensions: envoyconfig.MakeExtAuthzContextExtensions(false, "route-id-1", 0),
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
 					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 						Id:     "id-1234",
@@ -152,8 +160,9 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		}, false) // mcp disabled
 	require.NoError(t, err)
 	expect := &evaluator.Request{
-		Policy:  &a.currentConfig.Load().Options.Policies[0],
-		Session: evaluator.RequestSession{},
+		Policy:       &a.currentConfig.Load().Options.Policies[0],
+		EnvoyRouteID: "route-id-1",
+		Session:      evaluator.RequestSession{},
 		HTTP: evaluator.RequestHTTP{
 			Method:   http.MethodGet,
 			Host:     "example.com:80",
@@ -268,4 +277,83 @@ func (m mockDataBrokerServiceClient) Patch(ctx context.Context, in *databroker.P
 		ServerVersion: putResponse.GetServerVersion(),
 		Records:       putResponse.GetRecords(),
 	}, nil
+}
+
+func TestGetMatchingPolicy_OnConfigChange(t *testing.T) {
+	t.Parallel()
+
+	p1 := config.Policy{From: "https://route-1.example.com", To: mustParseWeightedURLs(t, "https://to-1.example.com")}
+	p2 := config.Policy{From: "https://route-2.example.com", To: mustParseWeightedURLs(t, "https://to-2.example.com")}
+	require.NoError(t, p1.Validate())
+	require.NoError(t, p2.Validate())
+	id1, err := p1.RouteID()
+	require.NoError(t, err)
+	id2, err := p2.RouteID()
+	require.NoError(t, err)
+
+	newConfig := func(policies ...config.Policy) *config.Config {
+		return config.New(&config.Options{
+			AuthenticateURLString: "https://authn.example.com",
+			DataBroker:            config.DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
+			CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
+			SharedKey:             "2p/Wi2Q6bYDfzmoSEbKqYKtg+DUoLWTEHHs7vOhvL7w=",
+			Policies:              policies,
+		})
+	}
+
+	a, err := New(t.Context(), newConfig(p1))
+	require.NoError(t, err)
+
+	matched := a.state.Load().getMatchingPolicy(id1)
+	require.NotNil(t, matched)
+	assert.Equal(t, p1.From, matched.From)
+	assert.Nil(t, a.state.Load().getMatchingPolicy(id2))
+
+	a.OnConfigChange(t.Context(), newConfig(p2))
+
+	assert.Nil(t, a.state.Load().getMatchingPolicy(id1))
+	matched = a.state.Load().getMatchingPolicy(id2)
+	require.NotNil(t, matched)
+	assert.Equal(t, p2.From, matched.From)
+}
+
+func TestGetEvaluatorRequestUsesStateSnapshot(t *testing.T) {
+	t.Parallel()
+
+	oldOptions := &config.Options{Policies: []config.Policy{{
+		ID:           "shared-route-id",
+		From:         "https://old.example.com",
+		To:           mustParseWeightedURLs(t, "https://old-upstream.example.com"),
+		AllowedUsers: []string{"old@example.com"},
+	}}}
+	newOptions := &config.Options{Policies: []config.Policy{{
+		ID:           "shared-route-id",
+		From:         "https://new.example.com",
+		To:           mustParseWeightedURLs(t, "https://new-upstream.example.com"),
+		AllowedUsers: []string{"new@example.com"},
+	}}}
+
+	a := new(Authorize)
+	// Simulate the window in OnConfigChange after currentConfig advances but
+	// before the derived authorizeState is swapped.
+	a.currentConfig.Store(config.New(newOptions))
+	oldState := &authorizeState{policiesByRouteID: indexPoliciesByRouteID(t.Context(), oldOptions)}
+
+	checkRequest := &envoy_service_auth_v3.CheckRequest{
+		Attributes: &envoy_service_auth_v3.AttributeContext{
+			ContextExtensions: envoyconfig.MakeExtAuthzContextExtensions(false, "shared-route-id", 0),
+			Request: &envoy_service_auth_v3.AttributeContext_Request{
+				Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{},
+			},
+		},
+	}
+
+	req, err := a.getEvaluatorRequestFromCheckRequest(t.Context(), oldState, checkRequest, false)
+	require.NoError(t, err)
+	require.Same(t, &oldOptions.Policies[0], req.Policy)
+
+	newState := &authorizeState{policiesByRouteID: indexPoliciesByRouteID(t.Context(), newOptions)}
+	req, err = a.getEvaluatorRequestFromCheckRequest(t.Context(), newState, checkRequest, false)
+	require.NoError(t, err)
+	require.Same(t, &newOptions.Policies[0], req.Policy)
 }

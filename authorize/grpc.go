@@ -45,7 +45,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 	ctx = requestid.WithValue(ctx, requestID)
 
-	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, mcpEnabled)
+	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, state, in, mcpEnabled)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error building evaluator request")
 		return nil, err
@@ -211,6 +211,7 @@ func (a *Authorize) getMCPSession(
 
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	ctx context.Context,
+	state *authorizeState,
 	in *envoy_service_auth_v3.CheckRequest,
 	mcpEnabled bool,
 ) (*evaluator.Request, error) {
@@ -221,7 +222,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 		EnvoyRouteChecksum: envoyconfig.ExtAuthzContextExtensionsRouteChecksum(attrs.GetContextExtensions()),
 		EnvoyRouteID:       envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()),
 	}
-	req.Policy = a.getMatchingPolicy(req.EnvoyRouteID)
+	req.Policy = state.getMatchingPolicy(req.EnvoyRouteID)
 
 	if mcpEnabled && req.Policy.IsMCPServer() {
 		var err error
@@ -237,17 +238,10 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	return req, nil
 }
 
-func (a *Authorize) getMatchingPolicy(routeID string) *config.Policy {
-	options := a.currentConfig.Load().Options
-
-	for p := range options.GetAllPolicies() {
-		id, _ := p.RouteID()
-		if id == routeID {
-			return p
-		}
-	}
-
-	return nil
+// getMatchingPolicy returns the policy for the request's route ID, using the
+// index built from the same config snapshot as the rest of this state.
+func (s *authorizeState) getMatchingPolicy(routeID string) *config.Policy {
+	return s.policiesByRouteID[routeID]
 }
 
 func (a *Authorize) withQuerierForCheckRequest(ctx context.Context) context.Context {

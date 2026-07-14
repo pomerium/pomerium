@@ -7,9 +7,8 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-// BenchmarkGetMatchingPolicy measures a.getMatchingPolicy, which linearly
-// scans every configured policy computing its RouteID until it finds the one
-// matching the request's route ID.
+// BenchmarkGetMatchingPolicy measures getMatchingPolicy, the per-request
+// lookup of the policy matching the request's route ID.
 func BenchmarkGetMatchingPolicy(b *testing.B) {
 	for _, idType := range []struct {
 		name     string
@@ -37,10 +36,12 @@ func BenchmarkGetMatchingPolicy(b *testing.B) {
 					}
 
 					a := &Authorize{}
-					a.currentConfig.Store(config.New(&config.Options{Policies: policies}))
+					a.state.Store(&authorizeState{
+						policiesByRouteID: indexPoliciesByRouteID(b.Context(), &config.Options{Policies: policies}),
+					})
 
 					// Look up a route in the middle of the set so every benchmark
-					// pays for roughly half of a full scan.
+					// pays for roughly half of a full scan when the lookup is linear.
 					mid := n / 2
 					routeID, err := policies[mid].RouteID()
 					if err != nil {
@@ -50,7 +51,7 @@ func BenchmarkGetMatchingPolicy(b *testing.B) {
 					b.ReportAllocs()
 					b.ResetTimer()
 					for b.Loop() {
-						if p := a.getMatchingPolicy(routeID); p != &policies[mid] {
+						if p := a.state.Load().getMatchingPolicy(routeID); p != &policies[mid] {
 							b.Fatal("matched the wrong policy")
 						}
 					}
