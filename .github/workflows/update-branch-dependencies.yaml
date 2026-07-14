@@ -28,7 +28,7 @@ jobs:
         run: ./scripts/update-dependencies docker
 
       - name: Update Pomerium Dependencies
-        if: ${{ inputs.branch == "main" }}
+        if: ${{ inputs.branch == 'main' }}
         run: ./scripts/update-dependencies pomerium
 
       - name: Proto
