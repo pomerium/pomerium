@@ -45,5 +45,5 @@ jobs:
           commit-message: "ci: update dependencies"
           delete-branch: true
           labels: ci
-          title: "ci: update dependencies"
+          title: "ci: update ${{ inputs.branch }} dependencies"
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
