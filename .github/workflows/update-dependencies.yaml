@@ -18,9 +18,13 @@ jobs:
           type: "stable"
 
       - name: Get Latest Release Branch
+        id: latest_release_branch
         run: |
           latest_release_branch="$(echo ${{ steps.latest_release.outputs.release }} | sed -E 's/^v?([0-9]+)[.]([0-9]+)[.].*$/\1-\2-0/')"
-          echo "latest_release_branch=$latest_release_branch" >> "$GITHUB_OUTPUT"
+          echo "value=$latest_release_branch" >> "$GITHUB_OUTPUT"
+
+      - name: test
+        run: echo ${{ steps.latest_release_branch.outputs.value }}
 
       # - name: Trigger Update Latest Release Dependencies
       #   uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
