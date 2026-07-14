@@ -5,6 +5,7 @@ package identity
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 
@@ -78,6 +79,23 @@ func init() {
 func NewAuthenticator(ctx context.Context, tracerProvider oteltrace.TracerProvider, o oauth.Options) (a Authenticator, err error) {
 	if o.ProviderName == "" {
 		return nil, fmt.Errorf("identity: provider is not defined")
+	}
+
+	hadAuthCodeOptions := len(o.AuthCodeOptions) > 0
+	o.AuthCodeOptions = maps.Clone(o.AuthCodeOptions)
+	for _, key := range []string{
+		"client_id",
+		"response_type",
+		"redirect_uri",
+		"scope",
+		"state",
+		"code_challenge",
+		"code_challenge_method",
+	} {
+		delete(o.AuthCodeOptions, key)
+	}
+	if hadAuthCodeOptions && len(o.AuthCodeOptions) == 0 {
+		o.AuthCodeOptions = nil
 	}
 
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
