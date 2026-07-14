@@ -7,6 +7,7 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
@@ -16,6 +17,12 @@ type ChannelControlInterface interface {
 	SendControlAction(*extensions_ssh.SSHChannelControlAction) error
 	SendMessage(any) error
 	RecvMsg() (any, error)
+}
+
+type AccessRequestManagerInterface interface {
+	ListPendingRequests(filter []common.RouteInfo) []*session.StreamAccessRequest
+	ApproveRequest(ctx context.Context, requestID string, arbitrator *session.Session) error
+	DenyRequest(ctx context.Context, requestID string, arbitrator *session.Session) error
 }
 
 type StreamHandlerInterface interface {
@@ -28,10 +35,13 @@ type StreamHandlerInterface interface {
 	DownstreamSourceAddress() string
 	DownstreamPublicKeyFingerprint() []byte
 	PortForwardManager() *portforward.Manager
+	AccessRequestManager() AccessRequestManagerInterface
 
 	ChannelDataModel() *models.ChannelModel
 	PermissionDataModel() *models.PermissionModel
 	RouteDataModel() *models.RouteModel
+
+	GetArbitrationAuthorizedRoutes(ctx context.Context) []common.RouteInfo
 }
 
 type SSHPtyInfo interface {

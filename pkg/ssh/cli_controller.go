@@ -34,6 +34,7 @@ func (cc *DefaultCLIController) Configure(root *cobra.Command, ic cli.InternalCL
 	}
 	root.AddCommand(commands.NewLogoutCommand(ic))
 	root.AddCommand(commands.NewWhoamiCommand(ic, ctrl))
+	root.AddCommand(commands.NewAdminCommand(ic, ctrl))
 	root.AddCommand(commands.NewTunnelCommand(ic, ctrl, cc.defaultTheme, cc.preferencesStore))
 }
 

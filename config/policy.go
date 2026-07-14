@@ -200,7 +200,8 @@ type Policy struct {
 	MCP                      *MCP                      `mapstructure:"mcp" yaml:"mcp,omitempty" json:"mcp,omitempty"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds,omitempty" json:"circuit_breaker_thresholds,omitempty"`
 
-	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
+	UpstreamTunnel    *UpstreamTunnel    `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
+	TwoPersonApproval *TwoPersonApproval `mapstructure:"two_person_approval" yaml:"two_person_approval,omitempty" json:"two_person_approval,omitempty"`
 
 	OutlierDetection      *configpb.OutlierDetection `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
 	HealthChecks          []*configpb.HealthCheck    `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
@@ -210,6 +211,12 @@ type Policy struct {
 type UpstreamTunnel struct {
 	SSHPolicy     *PPLPolicy `mapstructure:"ssh_policy" yaml:"ssh_policy,omitempty" json:"ssh_policy,omitempty"`
 	SSHPolicyRego []string   `mapstructure:"ssh_policy_rego" yaml:"ssh_policy_rego,omitempty" json:"ssh_policy_rego,omitempty"`
+}
+
+type TwoPersonApproval struct {
+	ArbitratorPolicy     *PPLPolicy     `mapstructure:"arbitrator_policy" yaml:"arbitrator_policy,omitempty" json:"arbitrator_policy,omitempty"`
+	ArbitratorPolicyRego []string       `mapstructure:"arbitrator_policy_rego" yaml:"arbitrator_policy_rego,omitempty" json:"arbitrator_policy_rego,omitempty"`
+	Timeout              *time.Duration `mapstructure:"timeout" yaml:"timeout,omitempty" json:"timeout,omitempty"`
 }
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration

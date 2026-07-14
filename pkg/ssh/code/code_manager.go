@@ -27,6 +27,7 @@ type codeManager struct {
 	clientB          databroker.ClientGetter
 	accessMu         *sync.RWMutex
 	codeByExpiration *btree.BTreeG[Status]
+	codeTTL          time.Duration
 }
 
 var _ databrokerutil.SyncerHandler = (*codeManager)(nil)
@@ -43,6 +44,7 @@ func (c *codeManager) GetDataBrokerServiceClient() databroker.DataBrokerServiceC
 
 func newCodeManager(
 	client databroker.ClientGetter,
+	codeTTL time.Duration,
 ) *codeManager {
 	return &codeManager{
 		clientB:  client,
@@ -54,6 +56,7 @@ func newCodeManager(
 				cmp.Compare(a.BindingKey, b.BindingKey),
 			) < 0
 		}),
+		codeTTL: codeTTL,
 	}
 }
 
@@ -86,7 +89,7 @@ func (c *codeManager) GetByCodeID(codeID string) (Status, bool) {
 func (c *codeManager) clearExpiredLocked() {
 	toRemove := []Status{}
 	c.codeByExpiration.AscendLessThan(Status{
-		ExpiresAt: time.Now().Add(-DefaultCodeTTL),
+		ExpiresAt: time.Now().Add(-c.codeTTL),
 	}, func(item Status) bool {
 		toRemove = append(toRemove, item)
 		return true

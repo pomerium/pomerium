@@ -8,6 +8,7 @@ import (
 	datav3 "github.com/envoyproxy/go-control-plane/envoy/data/core/v3"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
@@ -25,7 +26,7 @@ const (
 )
 
 type Route struct {
-	portforward.RouteInfo
+	common.RouteInfo
 	Status string
 	Health string
 }
@@ -85,7 +86,7 @@ func (m *RouteModel) HandleClusterEndpointsUpdate(added map[string]portforward.R
 	}
 }
 
-func (m *RouteModel) HandleRoutesUpdate(routes []portforward.RouteInfo) {
+func (m *RouteModel) HandleRoutesUpdate(routes []common.RouteInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	items := make([]Route, len(routes))

@@ -455,3 +455,5 @@ ignore (
 	./ospkg
 	./ui/node_modules
 )
+
+replace github.com/pomerium/envoy-custom => ../envoy-custom.w1

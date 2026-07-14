@@ -12,7 +12,7 @@ package mock_ssh
 import (
 	reflect "reflect"
 
-	portforward "github.com/pomerium/pomerium/pkg/ssh/portforward"
+	common "github.com/pomerium/pomerium/pkg/ssh/common"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -40,38 +40,38 @@ func (m *MockPolicyIndexSubscriber) EXPECT() *MockPolicyIndexSubscriberMockRecor
 	return m.recorder
 }
 
-// UpdateAuthorizedRoutes mocks base method.
-func (m *MockPolicyIndexSubscriber) UpdateAuthorizedRoutes(routes []portforward.RouteInfo) {
+// UpdateArbitrationAuthorizedRoutes mocks base method.
+func (m *MockPolicyIndexSubscriber) UpdateArbitrationAuthorizedRoutes(routes []common.RouteInfo) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "UpdateAuthorizedRoutes", routes)
+	m.ctrl.Call(m, "UpdateArbitrationAuthorizedRoutes", routes)
 }
 
-// UpdateAuthorizedRoutes indicates an expected call of UpdateAuthorizedRoutes.
-func (mr *MockPolicyIndexSubscriberMockRecorder) UpdateAuthorizedRoutes(routes any) *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
+// UpdateArbitrationAuthorizedRoutes indicates an expected call of UpdateArbitrationAuthorizedRoutes.
+func (mr *MockPolicyIndexSubscriberMockRecorder) UpdateArbitrationAuthorizedRoutes(routes any) *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAuthorizedRoutes", reflect.TypeOf((*MockPolicyIndexSubscriber)(nil).UpdateAuthorizedRoutes), routes)
-	return &MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall{Call: call}
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateArbitrationAuthorizedRoutes", reflect.TypeOf((*MockPolicyIndexSubscriber)(nil).UpdateArbitrationAuthorizedRoutes), routes)
+	return &MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall{Call: call}
 }
 
-// MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall wrap *gomock.Call
-type MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall struct {
+// MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall wrap *gomock.Call
+type MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall struct {
 	*gomock.Call
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall) Return() *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
+func (c *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall) Return() *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall {
 	c.Call = c.Call.Return()
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall) Do(f func([]portforward.RouteInfo)) *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
+func (c *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall) Do(f func([]common.RouteInfo)) *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall) DoAndReturn(f func([]portforward.RouteInfo)) *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
+func (c *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall) DoAndReturn(f func([]common.RouteInfo)) *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
@@ -108,6 +108,42 @@ func (c *MockPolicyIndexSubscriberUpdateEnabledStaticPortsCall) Do(f func([]uint
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
 func (c *MockPolicyIndexSubscriberUpdateEnabledStaticPortsCall) DoAndReturn(f func([]uint)) *MockPolicyIndexSubscriberUpdateEnabledStaticPortsCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// UpdateTunnelAuthorizedRoutes mocks base method.
+func (m *MockPolicyIndexSubscriber) UpdateTunnelAuthorizedRoutes(routes []common.RouteInfo) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "UpdateTunnelAuthorizedRoutes", routes)
+}
+
+// UpdateTunnelAuthorizedRoutes indicates an expected call of UpdateTunnelAuthorizedRoutes.
+func (mr *MockPolicyIndexSubscriberMockRecorder) UpdateTunnelAuthorizedRoutes(routes any) *MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTunnelAuthorizedRoutes", reflect.TypeOf((*MockPolicyIndexSubscriber)(nil).UpdateTunnelAuthorizedRoutes), routes)
+	return &MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall{Call: call}
+}
+
+// MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall wrap *gomock.Call
+type MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall) Return() *MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall {
+	c.Call = c.Call.Return()
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall) Do(f func([]common.RouteInfo)) *MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall) DoAndReturn(f func([]common.RouteInfo)) *MockPolicyIndexSubscriberUpdateTunnelAuthorizedRoutesCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

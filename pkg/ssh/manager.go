@@ -313,6 +313,11 @@ func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uin
 		return status.Errorf(codes.Internal, "stream %d already has an associated session", streamID)
 	}
 
+	// sanity check: this should only be called with valid session IDs
+	if req.SessionBindingID == "" || req.SessionID == "" {
+		panic("bug: call to OnStreamAuthenticated with missing SessionBindingID or SessionID")
+	}
+
 	if sm.sessionStreams[req.SessionID] == nil {
 		sm.sessionStreams[req.SessionID] = map[uint64]struct{}{}
 	}
@@ -484,7 +489,10 @@ func (sm *StreamManager) NewStreamHandler(
 		Endpoints:          map[string]struct{}{},
 		PortForwardManager: portForwardMgr,
 	}
-	sm.indexer.AddStream(streamID, portForwardMgr)
+	sm.indexer.AddStream(streamID, &PolicyIndexSubscriberSet{
+		Tunnel:      portForwardMgr,
+		Arbitration: sh,
+	})
 	return sh
 }
 

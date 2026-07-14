@@ -43,6 +43,45 @@ func (m *MockSSHEvaluator) EXPECT() *MockSSHEvaluatorMockRecorder {
 	return m.recorder
 }
 
+// EvaluateAccessRequestArbitration mocks base method.
+func (m *MockSSHEvaluator) EvaluateAccessRequestArbitration(ctx context.Context, req ssh.AuthRequest, route *config.Policy) (*evaluator.Result, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EvaluateAccessRequestArbitration", ctx, req, route)
+	ret0, _ := ret[0].(*evaluator.Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EvaluateAccessRequestArbitration indicates an expected call of EvaluateAccessRequestArbitration.
+func (mr *MockSSHEvaluatorMockRecorder) EvaluateAccessRequestArbitration(ctx, req, route any) *MockSSHEvaluatorEvaluateAccessRequestArbitrationCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluateAccessRequestArbitration", reflect.TypeOf((*MockSSHEvaluator)(nil).EvaluateAccessRequestArbitration), ctx, req, route)
+	return &MockSSHEvaluatorEvaluateAccessRequestArbitrationCall{Call: call}
+}
+
+// MockSSHEvaluatorEvaluateAccessRequestArbitrationCall wrap *gomock.Call
+type MockSSHEvaluatorEvaluateAccessRequestArbitrationCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockSSHEvaluatorEvaluateAccessRequestArbitrationCall) Return(arg0 *evaluator.Result, arg1 error) *MockSSHEvaluatorEvaluateAccessRequestArbitrationCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockSSHEvaluatorEvaluateAccessRequestArbitrationCall) Do(f func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)) *MockSSHEvaluatorEvaluateAccessRequestArbitrationCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockSSHEvaluatorEvaluateAccessRequestArbitrationCall) DoAndReturn(f func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)) *MockSSHEvaluatorEvaluateAccessRequestArbitrationCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // EvaluateSSH mocks base method.
 func (m *MockSSHEvaluator) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.AuthRequest, initialAuthComplete bool) (*evaluator.Result, error) {
 	m.ctrl.T.Helper()

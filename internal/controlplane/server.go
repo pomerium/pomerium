@@ -404,6 +404,7 @@ func (srv *Server) Run(ctx context.Context) error {
 	}
 
 	// apply configuration changes
+	// FIXME race condition here on config update
 	eg.Go(func() error {
 		for {
 			select {

@@ -141,9 +141,10 @@ func (q *policyQuery) prepareQuery(ctx context.Context, store *store.Store) erro
 
 // A PolicyEvaluator evaluates policies.
 type PolicyEvaluator struct {
-	queries             []policyQuery
-	upstreamTunnelQuery []policyQuery
-	policyChecksum      uint64
+	queries                       []policyQuery
+	upstreamTunnelQuery           []policyQuery
+	accessRequestArbitrationQuery []policyQuery
+	policyChecksum                uint64
 }
 
 // NewPolicyEvaluator creates a new PolicyEvaluator.
@@ -219,15 +220,43 @@ func NewPolicyEvaluator(
 		e.upstreamTunnelQuery = []policyQuery{q}
 	}
 
+	// prepare any access request arbitration policy for evaluation as well
+
+	if configPolicy.TwoPersonApproval != nil && len(configPolicy.TwoPersonApproval.ArbitratorPolicyRego) > 0 {
+		for _, r := range configPolicy.TwoPersonApproval.ArbitratorPolicyRego {
+			q := policyQuery{script: r}
+			if err := q.prepareQuery(ctx, store); err != nil {
+				return nil, err
+			}
+			e.accessRequestArbitrationQuery = append(e.accessRequestArbitrationQuery, q)
+		}
+	} else if ppl := configPolicy.AccessRequestArbitrationPPL(); ppl != nil {
+		r, err := policy.GenerateRegoFromPolicy(ppl)
+		if err != nil {
+			return nil, err
+		}
+		q := policyQuery{script: r}
+		if err := q.prepareQuery(ctx, store); err != nil {
+			return nil, err
+		}
+		e.accessRequestArbitrationQuery = []policyQuery{q}
+	}
+
 	return e, nil
 }
 
 // Evaluate evaluates the policy rego scripts.
 func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*PolicyResponse, error) {
-	if req.SSH.ReverseTunnel {
+	switch req.SSH.Mode {
+	case EvalModeDefault:
+		return evaluateQueries(ctx, req, e.queries)
+	case EvalModeReverseTunnel:
 		return evaluateQueries(ctx, req, e.upstreamTunnelQuery)
+	case EvalModeAccessRequestArbitration:
+		return evaluateQueries(ctx, req, e.accessRequestArbitrationQuery)
+	default:
+		panic("invalid eval mode")
 	}
-	return evaluateQueries(ctx, req, e.queries)
 }
 
 func evaluateQueries(ctx context.Context, req *PolicyRequest, queries []policyQuery) (*PolicyResponse, error) {

@@ -13,6 +13,7 @@ func (p *Policy) ToPPL() *parser.Policy {
 	ppl := &parser.Policy{}
 
 	allowRule := parser.Rule{Action: parser.ActionAllow}
+	denyRule := parser.Rule{Action: parser.ActionDeny}
 	if p.AllowPublicUnauthenticatedAccess {
 		allowRule.Or = append(allowRule.Or,
 			parser.Criterion{
@@ -77,12 +78,22 @@ func (p *Policy) ToPPL() *parser.Policy {
 				},
 			})
 	}
+	if p.TwoPersonApproval != nil && p.IsSSH() {
+		denyRule.Or = append(denyRule.Or, parser.Criterion{
+			Name: "ssh_access_request_not_approved",
+			Data: parser.Boolean(true),
+		})
+	}
 
 	hasEmbeddedPolicy := (p.Policy != nil && p.Policy.Policy != nil)
 	// omit the default allow rule if it is empty and there is an embedded policy
 	if len(allowRule.Or) > 0 || !hasEmbeddedPolicy {
 		ppl.Rules = append(ppl.Rules, allowRule)
 	}
+	if len(denyRule.Or) > 0 {
+		ppl.Rules = append(ppl.Rules, denyRule)
+	}
+
 	// append embedded PPL policy rules
 	if hasEmbeddedPolicy {
 		ppl.Rules = append(ppl.Rules, p.Policy.Policy.Rules...)
@@ -98,4 +109,13 @@ func (p *Policy) UpstreamTunnelPPL() *parser.Policy {
 		return nil
 	}
 	return p.UpstreamTunnel.SSHPolicy.Policy
+}
+
+func (p *Policy) AccessRequestArbitrationPPL() *parser.Policy {
+	if p.TwoPersonApproval == nil {
+		return nil
+	} else if p.TwoPersonApproval.ArbitratorPolicy == nil {
+		return nil
+	}
+	return p.TwoPersonApproval.ArbitratorPolicy.Policy
 }
