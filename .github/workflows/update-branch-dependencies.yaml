@@ -1,4 +1,5 @@
 name: Update Branch Dependencies
+run-name: Update ${{ inputs.branch }} Dependencies
 
 on:
   workflow_dispatch:
