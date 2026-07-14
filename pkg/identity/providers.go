@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -83,16 +84,11 @@ func NewAuthenticator(ctx context.Context, tracerProvider oteltrace.TracerProvid
 
 	hadAuthCodeOptions := len(o.AuthCodeOptions) > 0
 	o.AuthCodeOptions = maps.Clone(o.AuthCodeOptions)
-	for _, key := range []string{
-		"client_id",
-		"response_type",
-		"redirect_uri",
-		"scope",
-		"state",
-		"code_challenge",
-		"code_challenge_method",
-	} {
-		delete(o.AuthCodeOptions, key)
+	for key := range o.AuthCodeOptions {
+		switch strings.ToLower(key) {
+		case "client_id", "response_type", "redirect_uri", "scope", "state", "code_challenge", "code_challenge_method":
+			delete(o.AuthCodeOptions, key)
+		}
 	}
 	if hadAuthCodeOptions && len(o.AuthCodeOptions) == 0 {
 		o.AuthCodeOptions = nil

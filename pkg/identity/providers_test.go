@@ -24,6 +24,7 @@ func TestNewAuthenticatorRemovesReservedAuthCodeOptions(t *testing.T) {
 
 	requestParams := map[string]string{
 		"client_id":             "client_id",
+		"Client_ID":             "client_id",
 		"response_type":         "response_type",
 		"redirect_uri":          "https://example.com/callback",
 		"scope":                 "openid",
