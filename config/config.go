@@ -236,15 +236,17 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error determining if authenticate service will have a certificate name: %w", err)
 	}
-	if !ok {
-		return authenticateURL, httputil.GetInsecureTransport(), nil
+	var transport *http.Transport
+	if ok {
+		transport, err = GetTLSClientTransport(cfg)
+		if err != nil {
+			return nil, nil, fmt.Errorf("get tls client config: %w", err)
+		}
+	} else {
+		transport = httputil.GetInsecureTransport()
 	}
-
-	transport, err := GetTLSClientTransport(cfg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("get tls client config: %w", err)
+	if cfg.Options.UseProxyProtocol {
+		transport = httputil.NewLocalProxyProtocolTransport(transport)
 	}
-
-	transport = otelhttp.NewTransport(transport)
-	return authenticateURL, transport, nil
+	return authenticateURL, otelhttp.NewTransport(transport), nil
 }
