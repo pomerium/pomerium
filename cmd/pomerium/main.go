@@ -19,6 +19,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
+	_ "github.com/pomerium/pomerium/pkg/zero/bootstrapwriters/filesystem"
+	_ "github.com/pomerium/pomerium/pkg/zero/bootstrapwriters/k8s"
 )
 
 func main() {
