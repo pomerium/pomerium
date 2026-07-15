@@ -365,10 +365,10 @@ func TestSampling(t *testing.T) {
 func TestExternalSpans(t *testing.T) {
 	type testcase struct {
 		name          string
-		envAndResults func() (env testenv.Environment, external *otlptrace.Exporter, externalTracerProvider *sdktrace.TracerProvider, getResults func() *TraceResults)
+		envAndResults func(t *testing.T) (env testenv.Environment, external *otlptrace.Exporter, externalTracerProvider *sdktrace.TracerProvider, getResults func() *TraceResults)
 	}
-	scenarioSetup := func(mcpEnabled bool) func() (testenv.Environment, *otlptrace.Exporter, *sdktrace.TracerProvider, func() *TraceResults) {
-		return func() (testenv.Environment, *otlptrace.Exporter, *sdktrace.TracerProvider, func() *TraceResults) {
+	scenarioSetup := func(mcpEnabled bool) func(t *testing.T) (testenv.Environment, *otlptrace.Exporter, *sdktrace.TracerProvider, func() *TraceResults) {
+		return func(t *testing.T) (testenv.Environment, *otlptrace.Exporter, *sdktrace.TracerProvider, func() *TraceResults) {
 			srv := scenarios.NewOTLPTraceReceiver()
 
 			// set up external tracer
@@ -409,7 +409,7 @@ func TestExternalSpans(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			env, external, externalTracerProvider, getResults := tc.envAndResults()
+			env, external, externalTracerProvider, getResults := tc.envAndResults(t)
 
 			up := upstreams.HTTP(nil, upstreams.WithNoClientTracing())
 			up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {
