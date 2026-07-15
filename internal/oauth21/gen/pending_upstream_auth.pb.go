@@ -70,8 +70,10 @@ type PendingUpstreamAuth struct {
 	// Used in both authorization and token exchange requests.
 	// Falls back to upstream_server if empty (backwards compatibility).
 	ResourceParam string `protobuf:"bytes,19,opt,name=resource_param,json=resourceParam,proto3" json:"resource_param,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Whether the issuer presented in the callback must be validated per RFC 9207.
+	MustValidateIssuer bool `protobuf:"varint,20,opt,name=must_validate_issuer,json=mustValidateIssuer,proto3" json:"must_validate_issuer,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PendingUpstreamAuth) Reset() {
@@ -237,11 +239,18 @@ func (x *PendingUpstreamAuth) GetResourceParam() string {
 	return ""
 }
 
+func (x *PendingUpstreamAuth) GetMustValidateIssuer() bool {
+	if x != nil {
+		return x.MustValidateIssuer
+	}
+	return false
+}
+
 var File_pending_upstream_auth_proto protoreflect.FileDescriptor
 
 const file_pending_upstream_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x1bpending_upstream_auth.proto\x12\aoauth21\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd1\x06\n" +
+	"\x1bpending_upstream_auth.proto\x12\aoauth21\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x83\a\n" +
 	"\x13PendingUpstreamAuth\x12%\n" +
 	"\bstate_id\x18\x01 \x01(\tB\n" +
 	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\astateId\x12#\n" +
@@ -271,7 +280,8 @@ const file_pending_upstream_auth_proto_rawDesc = "" +
 	"\vauth_req_id\x18\x10 \x01(\tR\tauthReqId\x12%\n" +
 	"\x0epkce_challenge\x18\x11 \x01(\tR\rpkceChallenge\x12#\n" +
 	"\rclient_secret\x18\x12 \x01(\tR\fclientSecret\x12%\n" +
-	"\x0eresource_param\x18\x13 \x01(\tR\rresourceParamB\x96\x01\n" +
+	"\x0eresource_param\x18\x13 \x01(\tR\rresourceParam\x120\n" +
+	"\x14must_validate_issuer\x18\x14 \x01(\bR\x12mustValidateIssuerB\x96\x01\n" +
 	"\vcom.oauth21B\x18PendingUpstreamAuthProtoP\x01Z1github.com/pomerium/pomerium/internal/oauth21/gen\xa2\x02\x03OXX\xaa\x02\aOauth21\xca\x02\aOauth21\xe2\x02\x13Oauth21\\GPBMetadata\xea\x02\aOauth21b\x06proto3"
 
 var (

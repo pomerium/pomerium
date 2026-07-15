@@ -224,7 +224,7 @@ func TestMCPServer_AcceptsExternalClientCIMD(t *testing.T) {
 		defer resp.Body.Close()
 
 		var returnedState string
-		ts.authCode, returnedState = parseCallbackParams(t, resp.Header.Get("Location"))
+		ts.authCode, returnedState, _ = parseCallbackParams(t, resp.Header.Get("Location"))
 		require.NotEmpty(t, ts.authCode, "expected authorization code")
 		assert.Equal(t, ts.state, returnedState, "state parameter should match")
 		t.Logf("Received authorization code: %s", ts.authCode)

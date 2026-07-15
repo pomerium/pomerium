@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -414,5 +415,74 @@ func TestClientOAuthCallback(t *testing.T) {
 		r2 := httptest.NewRequest(http.MethodGet, "/callback?code=auth-code&state=test-state-id", nil)
 		srv.ClientOAuthCallback(w2, r2)
 		assert.Equal(t, http.StatusBadRequest, w2.Code)
+	})
+
+	t.Run("happy path authorization server issuer comparison", func(t *testing.T) {
+		storage := setupTestDatabroker(ctx, t)
+		tokenServer, _ := newTokenServer(t, successfulTokenResponse)
+		pending := newTestPendingAuth(tokenServer.URL)
+		pending.MustValidateIssuer = true
+		require.NoError(t, storage.PutPendingUpstreamAuth(ctx, pending))
+
+		srv := &Handler{
+			storage:    storage,
+			httpClient: tokenServer.Client(),
+		}
+
+		req := httptest.NewRequest(
+			http.MethodGet,
+			fmt.Sprintf("/oauth_callback?code=code123&state=test-state-id&iss=%s", pending.AuthorizationServerIssuer),
+			nil,
+		)
+		rr := httptest.NewRecorder()
+		srv.ClientOAuthCallback(rr, req)
+
+		require.Equal(t, http.StatusFound, rr.Code)
+	})
+
+	t.Run("issuer mismatch from remote should be rejected", func(t *testing.T) {
+		storage := setupTestDatabroker(ctx, t)
+		tokenServer, _ := newTokenServer(t, successfulTokenResponse)
+
+		pending := newTestPendingAuth(tokenServer.URL)
+		pending.MustValidateIssuer = true
+
+		require.NoError(t, storage.PutPendingUpstreamAuth(ctx, pending))
+
+		srv := &Handler{
+			storage:    storage,
+			httpClient: tokenServer.Client(),
+		}
+
+		req := httptest.NewRequest(http.MethodGet,
+			"/oauth_callback?code=code123&state=test-state-id&iss=https://malicious.example.com", nil)
+		rr := httptest.NewRecorder()
+		srv.ClientOAuthCallback(rr, req)
+
+		require.Equal(t, http.StatusBadRequest, rr.Code,
+			"mismatched iss with a known issuer must be rejected (RFC 9207 MUST)")
+	})
+
+	t.Run("absent issuer from remote should be rejected", func(t *testing.T) {
+		storage := setupTestDatabroker(ctx, t)
+		tokenServer, _ := newTokenServer(t, successfulTokenResponse)
+
+		pending := newTestPendingAuth(tokenServer.URL)
+		pending.MustValidateIssuer = true
+
+		require.NoError(t, storage.PutPendingUpstreamAuth(ctx, pending))
+
+		srv := &Handler{
+			storage:    storage,
+			httpClient: tokenServer.Client(),
+		}
+
+		req := httptest.NewRequest(http.MethodGet,
+			"/oauth_callback?code=code123&state=test-state-id", nil)
+		rr := httptest.NewRecorder()
+		srv.ClientOAuthCallback(rr, req)
+
+		require.Equal(t, http.StatusBadRequest, rr.Code,
+			"absent iss with a known issuer should be rejected (RFC 9207 SHOULD)")
 	})
 }

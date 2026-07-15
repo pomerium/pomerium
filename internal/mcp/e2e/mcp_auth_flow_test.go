@@ -193,6 +193,11 @@ func runMCPAuthorizationFlow(t *testing.T, mode registrationMode) {
 		// authorization server identifier the client discovered (authorization_servers[0]).
 		require.Equal(t, authServerIssuer, ts.asMetadata.Issuer,
 			"issuer in AS metadata must match authorization_servers entry from protected resource metadata")
+
+		// RFC 9207: the AS advertises that it includes the iss parameter in
+		// authorization responses so clients know to validate it.
+		require.True(t, ts.asMetadata.AuthorizationResponseISSParameterSupported,
+			"AS metadata must advertise authorization_response_iss_parameter_supported (RFC 9207)")
 	})
 
 	t.Run("step 4: client registration", func(t *testing.T) {
@@ -243,11 +248,17 @@ func runMCPAuthorizationFlow(t *testing.T, mode registrationMode) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		var returnedState string
-		ts.authCode, returnedState = parseCallbackParams(t, resp.Header.Get("Location"))
+		var returnedState, returnedIss string
+		ts.authCode, returnedState, returnedIss = parseCallbackParams(t, resp.Header.Get("Location"))
 		require.NotEmpty(t, ts.authCode, "expected authorization code")
 		assert.Equal(t, ts.state, returnedState, "state parameter should match")
-		t.Logf("Received authorization code: %s", ts.authCode)
+
+		// RFC 9207 / SEP-2468: the AS MUST include the iss parameter in the
+		// authorization response, and it MUST equal the recorded issuer so the
+		// client can validate it before redeeming the code.
+		assert.Equal(t, ts.asMetadata.Issuer, returnedIss,
+			"authorization response iss must match the AS metadata issuer (RFC 9207)")
+		t.Logf("Received authorization code: %s (iss=%s)", ts.authCode, returnedIss)
 	})
 
 	t.Run("step 6: exchange authorization code for token", func(t *testing.T) {
@@ -327,7 +338,7 @@ func parseResourceMetadataFromWWWAuthenticate(t *testing.T, header string) strin
 	return ""
 }
 
-func parseCallbackParams(t *testing.T, callbackURL string) (code, state string) {
+func parseCallbackParams(t *testing.T, callbackURL string) (code, state, iss string) {
 	t.Helper()
 	t.Logf("Parsing callback URL: %s", callbackURL)
 
@@ -336,5 +347,6 @@ func parseCallbackParams(t *testing.T, callbackURL string) (code, state string) 
 
 	code = parsed.Query().Get("code")
 	state = parsed.Query().Get("state")
-	return code, state
+	iss = parsed.Query().Get("iss")
+	return code, state, iss
 }

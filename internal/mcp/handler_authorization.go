@@ -304,6 +304,7 @@ func (srv *Handler) AuthorizationResponse(
 	q := to.Query()
 	q.Set("code", code)
 	q.Set("state", req.GetState())
+	q.Set("iss", (&url.URL{Scheme: "https", Host: r.Host}).String())
 	to.RawQuery = q.Encode()
 
 	log.Ctx(ctx).Debug().

@@ -84,6 +84,10 @@ type AuthorizationServerMetadata struct {
 	// ClientIDMetadataDocumentSupported is OPTIONAL. Boolean value specifying whether the authorization server
 	// supports retrieving client metadata from a client_id URL as described in draft-ietf-oauth-client-id-metadata-document.
 	ClientIDMetadataDocumentSupported bool `json:"client_id_metadata_document_supported,omitempty"`
+
+	// AuthorizationResponseISSParameterSupported is OPTIONAL. Boolean value indicating whether the authorization server
+	// provides the iss parameter in the authorization response as defined in RFC 9207. If omitted, the default value is false.
+	AuthorizationResponseISSParameterSupported bool `json:"authorization_response_iss_parameter_supported,omitempty"`
 }
 
 // ProtectedResourceMetadata represents OAuth Protected Resource Metadata.
@@ -154,17 +158,18 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string, dcrEnabled b
 	issuer := (&url.URL{Scheme: "https", Host: r.Host}).String()
 
 	md := AuthorizationServerMetadata{
-		Issuer:                                 issuer,
-		ServiceDocumentation:                   "https://pomerium.com/docs",
-		AuthorizationEndpoint:                  P(path.Join(prefix, authorizationEndpoint)),
-		ResponseTypesSupported:                 []string{"code"},
-		CodeChallengeMethodsSupported:          []string{"S256"},
-		TokenEndpoint:                          P(path.Join(prefix, tokenEndpoint)),
-		TokenEndpointAuthMethodsSupported:      []string{"client_secret_basic", "none"},
-		GrantTypesSupported:                    []string{"authorization_code", "refresh_token"},
-		RevocationEndpoint:                     P(path.Join(prefix, revocationEndpoint)),
-		RevocationEndpointAuthMethodsSupported: []string{"client_secret_post"},
-		ClientIDMetadataDocumentSupported:      true,
+		Issuer:                                     issuer,
+		ServiceDocumentation:                       "https://pomerium.com/docs",
+		AuthorizationEndpoint:                      P(path.Join(prefix, authorizationEndpoint)),
+		ResponseTypesSupported:                     []string{"code"},
+		CodeChallengeMethodsSupported:              []string{"S256"},
+		TokenEndpoint:                              P(path.Join(prefix, tokenEndpoint)),
+		TokenEndpointAuthMethodsSupported:          []string{"client_secret_basic", "none"},
+		GrantTypesSupported:                        []string{"authorization_code", "refresh_token"},
+		RevocationEndpoint:                         P(path.Join(prefix, revocationEndpoint)),
+		RevocationEndpointAuthMethodsSupported:     []string{"client_secret_post"},
+		ClientIDMetadataDocumentSupported:          true,
+		AuthorizationResponseISSParameterSupported: true,
 	}
 	if dcrEnabled {
 		md.RegistrationEndpoint = P(path.Join(prefix, registerEndpoint))

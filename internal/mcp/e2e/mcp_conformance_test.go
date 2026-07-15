@@ -170,7 +170,7 @@ func runMCPConformance(t *testing.T, mode registrationMode) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		code, _ := parseCallbackParams(t, resp.Header.Get("Location"))
+		code, _, _ := parseCallbackParams(t, resp.Header.Get("Location"))
 		require.NotEmpty(t, code)
 		return code
 	}

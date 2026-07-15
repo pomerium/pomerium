@@ -313,7 +313,7 @@ func TestMCPCORSHeaders(t *testing.T) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		authCode, returnedState := parseCallbackParams(t, resp.Header.Get("Location"))
+		authCode, returnedState, _ := parseCallbackParams(t, resp.Header.Get("Location"))
 		require.NotEmpty(t, authCode, "expected authorization code")
 		assert.Equal(t, state, returnedState, "state parameter should match")
 

@@ -232,6 +232,8 @@ type discoveryResult struct {
 	// When PRM is available, this is prm.Resource (authoritative).
 	// When PRM is unavailable (fallback), this is the origin of the upstream URL.
 	Resource string
+	// Indicates whether the upstream oauth server responds with its issuer
+	MustValidateIssuer bool
 }
 
 // runDiscovery fetches Protected Resource Metadata (RFC 9728) and Authorization Server Metadata.
@@ -443,6 +445,7 @@ func runDiscoveryFromPRM(
 		ScopesSupported:                   prm.ScopesSupported,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
 		Resource:                          prm.Resource,
+		MustValidateIssuer:                asm.AuthorizationResponseISSParameterSupported,
 	}, nil
 }
 
@@ -486,6 +489,7 @@ func runDiscoveryFromFallbackAS(
 		Issuer:                            asm.Issuer,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
 		Resource:                          resource,
+		MustValidateIssuer:                asm.AuthorizationResponseISSParameterSupported,
 	}, nil
 }
 
