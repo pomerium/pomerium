@@ -31,7 +31,7 @@ var (
 	RuntimeFlagMatchAnyIncomingPort = runtimeFlag("match_any_incoming_port", true)
 
 	// RuntimeFlagMCP enables the MCP services for the authorize service
-	RuntimeFlagMCP = runtimeFlag("mcp", false)
+	RuntimeFlagMCP = runtimeFlag("mcp", true)
 
 	// RuntimeFlagMCPDynamicClientRegistration enables Dynamic Client Registration as an authorization
 	// method for upstream MCP servers
