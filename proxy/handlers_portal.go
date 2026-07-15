@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sync"
 
 	"github.com/pomerium/pomerium/config"
@@ -97,6 +98,12 @@ func (p *Proxy) fillMCPPortalRoutes(ctx context.Context, u handlers.UserInfoData
 	mcpSrv := p.mcp.Load()
 	if mcpSrv == nil {
 		log.Ctx(ctx).Debug().Msg("portal: MCP handler not loaded, skipping MCP route info")
+		return ""
+	}
+
+	if !slices.ContainsFunc(portalRoutes, func(r portal.Route) bool {
+		return r.Type == portal.RouteTypeMCP
+	}) {
 		return ""
 	}
 
