@@ -33,6 +33,12 @@ type IdentityProvider struct {
 	// Issuer is the `iss` claim tokens must carry. Required, and unique across
 	// providers. Used both to select the matching provider for an incoming
 	// token and (with OIDC discovery) to fetch the signing keys.
+	//
+	// The special value `kubernetes:///` selects the API server of the
+	// Kubernetes cluster Pomerium runs in: the real issuer and JWKS URL are
+	// discovered from the standard in-cluster pod environment, and the fetches
+	// are authenticated with the pod's ServiceAccount token (see
+	// identity_provider_kubernetes.go).
 	Issuer string `mapstructure:"issuer" yaml:"issuer"`
 	// JWKSURL is an optional explicit JWKS URL. When set, OIDC discovery is
 	// skipped — keys are fetched directly from this URL. Useful when the issuer
@@ -79,22 +85,33 @@ func (p IdentityProvider) Validate() error {
 	if err != nil {
 		return fmt.Errorf("identity_providers[%s]: invalid issuer URL: %w", p.Issuer, err)
 	}
-	if !iu.IsAbs() || iu.Host == "" {
-		return fmt.Errorf("identity_providers[%s]: issuer must be an absolute URL (scheme://host)", p.Issuer)
-	}
-	// Signing keys must not be fetched over plaintext HTTP: an on-path attacker
-	// could substitute the JWKS and forge acceptable tokens. Require https,
-	// permitting http only for loopback (local development / tests).
-	if !isSecureKeyURL(iu) {
-		return fmt.Errorf("identity_providers[%s]: issuer must use https (http allowed only for loopback)", p.Issuer)
-	}
-	if p.JWKSURL != "" {
-		u, err := url.Parse(p.JWKSURL)
-		if err != nil {
-			return fmt.Errorf("identity_providers[%s]: invalid jwks_url: %w", p.Issuer, err)
+	if iu.Scheme == kubernetesIssuerScheme {
+		// kubernetes:// selects the in-cluster API server as the issuer; the
+		// real issuer URL and JWKS URL are discovered from the pod environment
+		// at resolver-build time, so there is no https/host to validate here.
+		// An explicit jwks_url would be silently ignored on that path — reject
+		// the combination instead.
+		if p.JWKSURL != "" {
+			return fmt.Errorf("identity_providers[%s]: jwks_url must not be set with a kubernetes:// issuer (the JWKS URL is discovered in-cluster)", p.Issuer)
 		}
-		if !u.IsAbs() || u.Host == "" || !isSecureKeyURL(u) {
-			return fmt.Errorf("identity_providers[%s]: jwks_url must be an https URL (http allowed only for loopback)", p.Issuer)
+	} else {
+		if !iu.IsAbs() || iu.Host == "" {
+			return fmt.Errorf("identity_providers[%s]: issuer must be an absolute URL (scheme://host)", p.Issuer)
+		}
+		// Signing keys must not be fetched over plaintext HTTP: an on-path attacker
+		// could substitute the JWKS and forge acceptable tokens. Require https,
+		// permitting http only for loopback (local development / tests).
+		if !isSecureKeyURL(iu) {
+			return fmt.Errorf("identity_providers[%s]: issuer must use https (http allowed only for loopback)", p.Issuer)
+		}
+		if p.JWKSURL != "" {
+			u, err := url.Parse(p.JWKSURL)
+			if err != nil {
+				return fmt.Errorf("identity_providers[%s]: invalid jwks_url: %w", p.Issuer, err)
+			}
+			if !u.IsAbs() || u.Host == "" || !isSecureKeyURL(u) {
+				return fmt.Errorf("identity_providers[%s]: jwks_url must be an https URL (http allowed only for loopback)", p.Issuer)
+			}
 		}
 	}
 	if len(p.Audiences) == 0 {
@@ -285,9 +302,16 @@ type IdentityProviderResolver struct {
 
 // NewIdentityProviderResolver builds a resolver from the given providers, keyed
 // by name. httpClient (if non-nil) is used for all JWKS/discovery fetches — e.g.
-// a CA-aware client for issuers behind a private CA. Returns an error if any
-// provider is invalid or two share the same issuer.
-func NewIdentityProviderResolver(providers map[string]IdentityProvider, httpClient *http.Client) (*IdentityProviderResolver, error) {
+// a CA-aware client for issuers behind a private CA. Providers with a
+// kubernetes:// issuer are an exception: their real issuer is discovered from
+// the in-cluster API server (a bounded network call at build time) and their
+// fetches use a dedicated ServiceAccount-authenticated client instead. Returns
+// an error if any provider is invalid or two share the same (resolved) issuer.
+func NewIdentityProviderResolver(providers map[string]IdentityProvider, httpClient *http.Client, opts ...identityProviderResolverOption) (*IdentityProviderResolver, error) {
+	var rc identityProviderResolverConfig
+	for _, opt := range opts {
+		opt(&rc)
+	}
 	r := &IdentityProviderResolver{
 		byIssuer: make(map[string]resolvedIdentityProvider, len(providers)),
 	}
@@ -298,20 +322,43 @@ func NewIdentityProviderResolver(providers map[string]IdentityProvider, httpClie
 		if err := ip.Validate(); err != nil {
 			return nil, fmt.Errorf("identity_providers[%s]: %w", name, err)
 		}
-		if existing, dup := r.byIssuer[ip.Issuer]; dup {
+		issuer, jwksURL, client := ip.Issuer, ip.JWKSURL, httpClient
+		if isK8s, apiHost := parseKubernetesIssuer(ip.Issuer); isK8s {
+			// kubernetes:// issuer: discover the real issuer from the in-cluster
+			// API server, eagerly. This is a network call at config-load time,
+			// acceptable because the in-cluster API is a hard dependency of the
+			// pod; it is bounded by kubernetesDiscoveryTimeout and fails with a
+			// clear error instead of silently rejecting every token later.
+			params := defaultKubernetesInClusterParams(apiHost)
+			if rc.kubernetesParams != nil {
+				params = *rc.kubernetesParams
+			}
+			kc, err := newKubernetesHTTPClient(params)
+			if err != nil {
+				return nil, fmt.Errorf("identity_providers[%s]: %w", name, err)
+			}
+			issuer, jwksURL, err = resolveKubernetesIssuer(context.Background(), kc, params)
+			if err != nil {
+				return nil, fmt.Errorf("identity_providers[%s]: %w", name, err)
+			}
+			client = kc
+		}
+		// Dedup by the RESOLVED issuer: it is the byIssuer dispatch key, and a
+		// kubernetes:// provider may collide with an explicitly-configured one.
+		if existing, dup := r.byIssuer[issuer]; dup {
 			return nil, fmt.Errorf("identity_providers: issuer %q used by both %q and %q",
-				ip.Issuer, existing.Name, name)
+				issuer, existing.Name, name)
 		}
 		p, err := extjwt.New(extjwt.Config{
-			Issuer:        ip.Issuer,
-			JWKSURL:       ip.JWKSURL,
+			Issuer:        issuer,
+			JWKSURL:       jwksURL,
 			SupportedAlgs: ip.EffectiveSupportedAlgs(),
-			HTTPClient:    httpClient,
+			HTTPClient:    client,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("identity_providers[%s]: %w", name, err)
 		}
-		r.byIssuer[ip.Issuer] = resolvedIdentityProvider{
+		r.byIssuer[issuer] = resolvedIdentityProvider{
 			Name:      name,
 			Audiences: slices.Clone(ip.Audiences),
 			Provider:  p,
