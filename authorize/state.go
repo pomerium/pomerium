@@ -60,21 +60,6 @@ func newAuthorizeStateFromConfig(
 		previousEvaluator = previousState.evaluator
 	}
 
-	var evaluatorOptions []evaluator.Option
-	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: failed to create mcp handler: %w", err)
-		}
-		state.mcp = mcp
-		evaluatorOptions = append(evaluatorOptions, evaluator.WithMCPAccessTokenProvider(mcp))
-	}
-
-	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluatorOptions...)
-	if err != nil {
-		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
-	}
-
 	state.sharedKey, err = cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
@@ -102,6 +87,21 @@ func newAuthorizeStateFromConfig(
 	}
 	state.dataBrokerClientConnection = cc
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(cc)
+
+	var evaluatorOptions []evaluator.Option
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: failed to create mcp handler: %w", err)
+		}
+		state.mcp = mcp
+		evaluatorOptions = append(evaluatorOptions, evaluator.WithMCPAccessTokenProvider(mcp))
+	}
+
+	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluatorOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
+	}
 
 	state.sessionStore, err = config.NewSessionStore(cfg.Options)
 	if err != nil {
