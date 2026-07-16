@@ -23,7 +23,8 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 
 // Directories that never contain harness results or fragments — skipping them
 // keeps discovery fast and avoids picking up dependencies' stray JSON.
@@ -36,6 +37,7 @@ const SKIP_DIRS = new Set([
   '.certs',
   'dist',
 ]);
+const ATTEMPT_OUTCOMES = new Set(['passed', 'failed', 'skipped', 'timedOut', 'interrupted']);
 
 /**
  * Parse command line arguments.
@@ -46,6 +48,7 @@ function parseArgs() {
     output: null,
     resultsDir: 'internal/acceptance',
     featureMapsDir: 'internal/acceptance',
+    expectedResults: null,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -55,6 +58,8 @@ function parseArgs() {
       result.resultsDir = args[++i];
     } else if (args[i] === '--feature-maps-dir' && args[i + 1]) {
       result.featureMapsDir = args[++i];
+    } else if (args[i] === '--expected-results' && args[i + 1]) {
+      result.expectedResults = Number(args[++i]);
     }
   }
 
@@ -119,6 +124,7 @@ function mergeFeatureMaps(paths) {
  * so the top-line totals reflect all harnesses together.
  */
 function combineResults(paths) {
+  const errors = [];
   const suites = [];
   const stats = { expected: 0, unexpected: 0, skipped: 0, flaky: 0, duration: 0 };
 
@@ -128,9 +134,23 @@ function combineResults(paths) {
       data = JSON.parse(readFileSync(path, 'utf8'));
     } catch (err) {
       console.error(`Warning: skipping unparseable results file ${path}: ${err.message}`);
+      errors.push({ message: `Could not parse ${path}` });
       continue;
     }
-    if (Array.isArray(data.suites)) suites.push(...data.suites);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      errors.push({ message: `${path} is not a Playwright report object` });
+      continue;
+    }
+    if (!Array.isArray(data.suites) || data.suites.length === 0) {
+      errors.push({ message: `${path} contains no test suites` });
+    } else {
+      suites.push(...data.suites);
+    }
+    if (data.errors !== undefined && !Array.isArray(data.errors)) {
+      errors.push({ message: `${path} has an invalid error list` });
+    } else if (data.errors?.length > 0) {
+      errors.push(...data.errors);
+    }
     const s = data.stats || {};
     stats.expected += s.expected || 0;
     stats.unexpected += s.unexpected || 0;
@@ -140,7 +160,7 @@ function combineResults(paths) {
   }
 
   // Empty suites (nothing parsed) render as the "no results" summary downstream.
-  return { suites, stats };
+  return { errors, suites, stats };
 }
 
 /**
@@ -189,13 +209,9 @@ function getStatusEmoji(status) {
  */
 function categorizeStatus(status) {
   switch (status) {
-    case 'passed':
     case 'expected':
       return 'passed';
-    case 'failed':
     case 'unexpected':
-    case 'timedOut':
-    case 'interrupted':
       return 'failed';
     case 'skipped':
       return 'skipped';
@@ -265,7 +281,10 @@ function aggregateByCategory(suites, featureMap) {
             title: spec.title,
             file: filePath,
             status: testResult.status,
-            duration: testResult.results?.reduce((sum, r) => sum + (r.duration || 0), 0) || 0,
+            attempts: Array.isArray(testResult.results) ? testResult.results : [],
+            duration: Array.isArray(testResult.results)
+              ? testResult.results.reduce((sum, result) => sum + (result.duration || 0), 0)
+              : 0,
             fullTitle,
           };
 
@@ -343,22 +362,70 @@ function findSlowestTests(allTests, count = 3) {
 /**
  * Generate the markdown summary.
  */
-function generateMarkdown(results, featureMap) {
+function generateSummary(results, featureMap) {
   const lines = [];
 
-  // Handle missing or empty results
-  if (!results || !results.suites || results.suites.length === 0) {
-    lines.push('## ⚠️ Acceptance Test Summary\n');
-    lines.push('No test results found. Playwright may have crashed before producing output.\n');
-    return lines.join('\n');
+  if (!results || !Array.isArray(results.suites) || results.suites.length === 0) {
+    return unavailableResultsSummary('No Playwright test results were recorded. The test run may have crashed before producing output.');
   }
 
-  // Aggregate data
-  const { categories, unmappedFiles, allTests } = aggregateByCategory(results.suites, featureMap);
+  if (results.errors !== undefined && !Array.isArray(results.errors)) {
+    return unavailableResultsSummary('The Playwright report has an invalid top-level error list, so the test outcome cannot be trusted.');
+  }
 
-  // Totals come from the summed Playwright stats produced by combineResults
-  // (Playwright counts timed-out/interrupted tests as `unexpected`).
-  const { expected: passed, unexpected: failed, skipped, flaky, duration } = results.stats;
+  if (results.errors?.length > 0) {
+    return unavailableResultsSummary(
+      `Playwright reported ${results.errors.length} top-level ${results.errors.length === 1 ? 'error' : 'errors'} (for example, a global setup failure), so the test outcome cannot be trusted.`,
+    );
+  }
+
+  let aggregate;
+  try {
+    aggregate = aggregateByCategory(results.suites, featureMap);
+  } catch (err) {
+    return unavailableResultsSummary(`The Playwright report has an invalid structure: ${err.message}`);
+  }
+  const { categories, unmappedFiles, allTests } = aggregate;
+  if (allTests.length === 0) {
+    return unavailableResultsSummary('No Playwright test outcomes were recorded. The test run may have crashed before producing output.');
+  }
+
+  const unknownOutcomes = allTests.filter(
+    (test) => categorizeStatus(test.status) === 'other' ||
+      !ATTEMPT_OUTCOMES.has(test.attempts.at(-1)?.status),
+  );
+  if (unknownOutcomes.length > 0) {
+    return unavailableResultsSummary(
+      `Playwright recorded ${unknownOutcomes.length} test ${unknownOutcomes.length === 1 ? 'outcome' : 'outcomes'} with a missing or unknown status.`,
+      unknownOutcomes,
+    );
+  }
+
+  const interruptedFinalAttempts = allTests.filter(
+    (test) => test.attempts.at(-1)?.status === 'interrupted',
+  );
+  if (interruptedFinalAttempts.length > 0) {
+    return unavailableResultsSummary(
+      `Playwright recorded ${interruptedFinalAttempts.length} interrupted final ${interruptedFinalAttempts.length === 1 ? 'attempt' : 'attempts'}, so the test run did not complete.`,
+      interruptedFinalAttempts,
+    );
+  }
+
+  const incompleteFlakyTests = allTests.filter(
+    (test) => test.status === 'flaky' && test.attempts.at(-1).status !== 'passed',
+  );
+  if (incompleteFlakyTests.length > 0) {
+    return unavailableResultsSummary(
+      `Playwright recorded ${incompleteFlakyTests.length} flaky ${incompleteFlakyTests.length === 1 ? 'outcome' : 'outcomes'} without a passing final attempt.`,
+      incompleteFlakyTests,
+    );
+  }
+
+  const passed = allTests.filter((test) => categorizeStatus(test.status) === 'passed').length;
+  const failed = allTests.filter((test) => categorizeStatus(test.status) === 'failed').length;
+  const skipped = allTests.filter((test) => categorizeStatus(test.status) === 'skipped').length;
+  const flaky = allTests.filter((test) => categorizeStatus(test.status) === 'flaky').length;
+  const duration = results.stats?.duration || allTests.reduce((sum, test) => sum + test.duration, 0);
 
   // Header with overall status
   const overallStatus = failed > 0 ? '❌' : flaky > 0 ? '⚠️' : '✅';
@@ -425,7 +492,33 @@ function generateMarkdown(results, featureMap) {
 
   lines.push('</details>');
 
-  return lines.join('\n');
+  return { markdown: lines.join('\n'), failed: failed > 0 };
+}
+
+/**
+ * Build an actionable summary when the Playwright output cannot be used.
+ */
+function unavailableResultsSummary(message, affectedTests = []) {
+  const affectedTestsMarkdown = affectedTests.length === 0
+    ? ''
+    : [
+      '### Affected Tests\n',
+      ...affectedTests.map((test) => {
+        const file = test.file ? ` in \`${test.file}\`` : '';
+        return `- \`${test.fullTitle}\`${file}`;
+      }),
+      '',
+    ].join('\n');
+
+  return {
+    failed: true,
+    markdown: [
+      '## ❌ Acceptance Test Results Unavailable\n',
+      `${message}\n`,
+      affectedTestsMarkdown,
+      'Inspect the workflow run and artifacts to determine why the acceptance results were not produced or cannot be trusted.\n',
+    ].join('\n'),
+  };
 }
 
 /**
@@ -438,30 +531,48 @@ function main() {
   const featureMapPaths = findFiles(args.featureMapsDir, 'feature-map.json');
   const resultsPaths = findFiles(args.resultsDir, 'results.json');
 
-  const emit = (markdown) => {
+  const emit = (summary) => {
     if (args.output) {
       mkdirSync(dirname(args.output), { recursive: true });
-      writeFileSync(args.output, markdown);
+      writeFileSync(args.output, summary.markdown);
       console.log(`Summary written to ${args.output}`);
     } else {
-      console.log(markdown);
+      console.log(summary.markdown);
     }
+    process.exitCode = summary.failed ? 1 : 0;
   };
 
   if (resultsPaths.length === 0) {
-    emit('## ⚠️ Acceptance Test Summary\n\nNo results found. Playwright may have crashed before producing output.\n');
-    process.exit(0);
+    emit(unavailableResultsSummary('No Playwright results files were found. A test harness may have crashed before producing output.'));
+    return;
   }
 
   if (featureMapPaths.length === 0) {
-    console.error(`Error: no feature-map.json fragments found under ${args.featureMapsDir}`);
-    process.exit(1);
+    emit(unavailableResultsSummary(`No feature-map.json fragments were found under ${args.featureMapsDir}.`));
+    return;
+  }
+
+  if (args.expectedResults !== null) {
+    if (!Number.isInteger(args.expectedResults) || args.expectedResults < 1) {
+      emit(unavailableResultsSummary('The expected Playwright results count is invalid.'));
+      return;
+    }
+    if (resultsPaths.length !== args.expectedResults) {
+      emit(unavailableResultsSummary(
+        `Expected ${args.expectedResults} Playwright results ${args.expectedResults === 1 ? 'file' : 'files'}, but found ${resultsPaths.length}.`,
+      ));
+      return;
+    }
   }
 
   const featureMap = mergeFeatureMaps(featureMapPaths);
   const results = combineResults(resultsPaths);
 
-  emit(generateMarkdown(results, featureMap));
+  emit(generateSummary(results, featureMap));
 }
 
-main();
+export { generateSummary };
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}
