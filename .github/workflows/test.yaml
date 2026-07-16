@@ -1,5 +1,6 @@
 name: Test
 permissions:
+  actions: read
   contents: read
 on:
   push:
@@ -29,7 +30,7 @@ jobs:
           node-version-file: .tool-versions
 
       - name: set env vars
-        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: build dev docker image
         run: |
@@ -54,6 +55,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
         with:
@@ -80,20 +83,70 @@ jobs:
           max_attempts: 3
           command: make cover
 
-      - uses: jandelgado/gcov2lcov-action@e4612787670fc5b5f49026b8c29c5569921de1db
-        if: matrix.platform == 'ubuntu-latest'
-        name: convert coverage to lcov
+      - name: Upload base coverage
+        if: matrix.platform == 'ubuntu-latest' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          infile: coverage.txt
-          outfile: coverage.lcov
+          name: coverage-profile
+          path: coverage.txt
+          retention-days: 30
 
-      - name: upload to coveralls
-        uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e
-        if: matrix.platform == 'ubuntu-latest'
+      - name: Check for Go changes
+        id: coverage-changes
+        if: matrix.platform == 'ubuntu-latest' && github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          if git diff --quiet HEAD^1 HEAD -- '*.go'; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Find base coverage
+        id: coverage-base
+        if: matrix.platform == 'ubuntu-latest' && github.event_name == 'pull_request' && steps.coverage-changes.outputs.changed == 'true'
+        continue-on-error: true
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: coverage.lcov
-          fail-on-error: false
+          script: |
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'test.yaml',
+              event: 'push',
+              head_sha: process.env.BASE_SHA,
+              status: 'completed',
+              per_page: 10,
+            });
+            const run = data.workflow_runs.find((run) => run.conclusion === 'success');
+            if (run) core.setOutput('run-id', run.id);
+
+      - name: Download base coverage
+        id: coverage-download
+        if: matrix.platform == 'ubuntu-latest' && github.event_name == 'pull_request' && steps.coverage-changes.outputs.changed == 'true' && steps.coverage-base.outputs.run-id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: coverage-profile
+          path: coverage-base
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.coverage-base.outputs.run-id }}
+
+      - name: Summarize material Go coverage changes
+        if: matrix.platform == 'ubuntu-latest' && github.event_name == 'pull_request' && steps.coverage-changes.outputs.changed == 'true' && steps.coverage-download.outcome == 'success'
+        continue-on-error: true
+        run: |
+          go run ./scripts/coverage_delta.go \
+            --base coverage-base/coverage.txt \
+            --head coverage.txt \
+            --module "$(GOWORK=off go list -m -f '{{.Path}}')" \
+            --repository "$GITHUB_REPOSITORY" \
+            --sha "$GITHUB_SHA" \
+            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            >> "$GITHUB_STEP_SUMMARY"
 
   build-docker:
     runs-on: ubuntu-22.04
