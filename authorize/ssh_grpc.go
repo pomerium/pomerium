@@ -132,7 +132,7 @@ func (a *Authorize) EvaluateUpstreamTunnel(ctx context.Context, req ssh.AuthRequ
 
 	evalreq := baseEvaluatorRequestFromSSHRequest(req)
 	evalreq.Policy = route
-	evalreq.SSH.ReverseTunnel = true
+	evalreq.SSH.EvalMode = evaluator.EvalModeReverseTunnel
 
 	res, err := a.state.Load().evaluator.Evaluate(ctx, evalreq)
 	if err != nil {
