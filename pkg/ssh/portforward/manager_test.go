@@ -13,6 +13,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 	mock_portforward "github.com/pomerium/pomerium/pkg/ssh/portforward/mock"
 )
@@ -66,19 +67,19 @@ func TestPortForwardManager(t *testing.T) {
 
 		route1, route2, route3 := &cfg.Options.Routes[0], &cfg.Options.Routes[1], &cfg.Options.Routes[4]
 
-		expectedInfo1 := portforward.RouteInfo{
+		expectedInfo1 := common.RouteInfo{
 			Hostname:  "route-1",
 			Port:      443,
 			ClusterID: envoyconfig.GetClusterID(route1),
 		}
 
-		expectedInfo2 := portforward.RouteInfo{
+		expectedInfo2 := common.RouteInfo{
 			Hostname:  "route-2",
 			Port:      443,
 			ClusterID: envoyconfig.GetClusterID(route2),
 		}
 
-		expectedInfo3 := portforward.RouteInfo{
+		expectedInfo3 := common.RouteInfo{
 			Hostname:  "route-3",
 			Port:      22,
 			ClusterID: envoyconfig.GetClusterID(route3),
@@ -89,7 +90,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		mgr := portforward.NewManager()
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]portforward.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
+		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
 
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
@@ -149,19 +150,19 @@ func TestPortForwardManager(t *testing.T) {
 		cfg.Options.Routes = routes
 		cfg.Options.SSHAddr = "localhost:22"
 		route1, route2, route3 := &cfg.Options.Routes[0], &cfg.Options.Routes[1], &cfg.Options.Routes[4]
-		expectedInfo1 := portforward.RouteInfo{
+		expectedInfo1 := common.RouteInfo{
 			Hostname:  "route-1",
 			Port:      443,
 			ClusterID: envoyconfig.GetClusterID(route1),
 		}
 
-		expectedInfo2 := portforward.RouteInfo{
+		expectedInfo2 := common.RouteInfo{
 			Hostname:  "route-2",
 			Port:      443,
 			ClusterID: envoyconfig.GetClusterID(route2),
 		}
 
-		expectedInfo3 := portforward.RouteInfo{
+		expectedInfo3 := common.RouteInfo{
 			Hostname:  "route-3",
 			Port:      22,
 			ClusterID: envoyconfig.GetClusterID(route3),
@@ -171,7 +172,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		mgr := portforward.NewManager()
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]portforward.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
+		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
@@ -235,13 +236,13 @@ func TestPortForwardManager(t *testing.T) {
 		cfg.Options.SSHAddr = "localhost:22"
 		route1, route2 := &cfg.Options.Routes[0], &cfg.Options.Routes[1]
 
-		expectedInfo1 := portforward.RouteInfo{
+		expectedInfo1 := common.RouteInfo{
 			Hostname:  "route-1",
 			Port:      443,
 			ClusterID: envoyconfig.GetClusterID(route1),
 		}
 
-		expectedInfo2 := portforward.RouteInfo{
+		expectedInfo2 := common.RouteInfo{
 			Hostname:  "route-2",
 			Port:      443,
 			ClusterID: envoyconfig.GetClusterID(route2),
@@ -251,7 +252,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		mgr := portforward.NewManager()
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]portforward.RouteInfo{expectedInfo1, expectedInfo2})
+		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2})
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(2))
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
@@ -315,7 +316,7 @@ func TestPortForwardManager(t *testing.T) {
 		mgr.AddUpdateListener(listener)
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(2))
-		mgr.UpdateAuthorizedRoutes([]portforward.RouteInfo{
+		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{
 			{
 				Hostname:  "route-1",
 				Port:      443,
@@ -380,7 +381,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(1))
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]portforward.RouteInfo{
+		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{
 			{
 				Hostname:  "route-1",
 				Port:      443,
@@ -396,19 +397,19 @@ func TestPortForwardManager(t *testing.T) {
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Routes = routes
 		route1, route2, route3 := &cfg.Options.Routes[0], &cfg.Options.Routes[1], &cfg.Options.Routes[4]
-		expectedInfo1 := portforward.RouteInfo{
+		expectedInfo1 := common.RouteInfo{
 			Hostname:  "route-1",
 			Port:      443,
 			ClusterID: envoyconfig.GetClusterID(route1),
 		}
 
-		expectedInfo2 := portforward.RouteInfo{
+		expectedInfo2 := common.RouteInfo{
 			Hostname:  "route-2",
 			Port:      443,
 			ClusterID: envoyconfig.GetClusterID(route2),
 		}
 
-		expectedInfo3 := portforward.RouteInfo{
+		expectedInfo3 := common.RouteInfo{
 			Hostname:  "route-3",
 			Port:      22,
 			ClusterID: envoyconfig.GetClusterID(route3),
@@ -417,7 +418,7 @@ func TestPortForwardManager(t *testing.T) {
 		listener := mock_portforward.NewMockUpdateListener(ctrl)
 		mgr := portforward.NewManager()
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]portforward.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
+		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))

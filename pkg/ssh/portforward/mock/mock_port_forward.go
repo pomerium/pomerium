@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	config "github.com/pomerium/pomerium/config"
+	common "github.com/pomerium/pomerium/pkg/ssh/common"
 	portforward "github.com/pomerium/pomerium/pkg/ssh/portforward"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -177,7 +178,7 @@ func (c *MockUpdateListenerOnPermissionsUpdatedCall) DoAndReturn(f func([]portfo
 }
 
 // OnRoutesUpdated mocks base method.
-func (m *MockUpdateListener) OnRoutesUpdated(routes []portforward.RouteInfo) {
+func (m *MockUpdateListener) OnRoutesUpdated(routes []common.RouteInfo) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "OnRoutesUpdated", routes)
 }
@@ -201,13 +202,13 @@ func (c *MockUpdateListenerOnRoutesUpdatedCall) Return() *MockUpdateListenerOnRo
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockUpdateListenerOnRoutesUpdatedCall) Do(f func([]portforward.RouteInfo)) *MockUpdateListenerOnRoutesUpdatedCall {
+func (c *MockUpdateListenerOnRoutesUpdatedCall) Do(f func([]common.RouteInfo)) *MockUpdateListenerOnRoutesUpdatedCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockUpdateListenerOnRoutesUpdatedCall) DoAndReturn(f func([]portforward.RouteInfo)) *MockUpdateListenerOnRoutesUpdatedCall {
+func (c *MockUpdateListenerOnRoutesUpdatedCall) DoAndReturn(f func([]common.RouteInfo)) *MockUpdateListenerOnRoutesUpdatedCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

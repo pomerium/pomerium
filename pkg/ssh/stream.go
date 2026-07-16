@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/cli"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
@@ -243,7 +244,7 @@ func (sh *StreamHandler) OnPermissionsUpdated(permissions []portforward.Permissi
 }
 
 // OnRoutesUpdated implements portforward.UpdateListener.
-func (sh *StreamHandler) OnRoutesUpdated(routes []portforward.RouteInfo) {
+func (sh *StreamHandler) OnRoutesUpdated(routes []common.RouteInfo) {
 	sh.routeModel.HandleRoutesUpdate(routes)
 }
 

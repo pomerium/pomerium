@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
@@ -39,6 +40,6 @@ func (ts *Program) OnPermissionsUpdated(permissions []portforward.Permission) {
 }
 
 // OnRoutesUpdated implements portforward.UpdateListener.
-func (ts *Program) OnRoutesUpdated(routes []portforward.RouteInfo) {
+func (ts *Program) OnRoutesUpdated(routes []common.RouteInfo) {
 	go ts.Send(routes)
 }
