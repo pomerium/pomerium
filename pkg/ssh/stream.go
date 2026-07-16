@@ -2,8 +2,8 @@ package ssh
 
 import (
 	"context"
+	"fmt"
 	"iter"
-	"reflect"
 	"sync/atomic"
 	"time"
 
@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
@@ -22,7 +23,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
-	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/cli"
 	"github.com/pomerium/pomerium/pkg/ssh/common"
@@ -45,25 +45,66 @@ type KeyboardInteractiveQuerier interface {
 	Prompt(ctx context.Context, prompts *extensions_ssh.KeyboardInteractiveInfoPrompts) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error)
 }
 
-type AuthMethodResponse[T any] struct {
-	Allow                    *T
-	RequireAdditionalMethods []string
+type AuthMethodResponse struct {
+	AllowMethod              bool
+	NextRequiredAuthMethod   string
+	NoFurtherMethodsRequired bool
+	ContextUpdates           *extensions_ssh.AuthContext
 }
 
-type (
-	PublicKeyAuthMethodResponse           = AuthMethodResponse[extensions_ssh.PublicKeyAllowResponse]
-	KeyboardInteractiveAuthMethodResponse = AuthMethodResponse[extensions_ssh.KeyboardInteractiveAllowResponse]
-)
+func (r *AuthMethodResponse) Validate() {
+	if r.AllowMethod {
+		if r.NextRequiredAuthMethod == "" && !r.NoFurtherMethodsRequired {
+			panic("invalid AuthMethodResponse: either NextRequiredAuthMethod or NoFurtherMethodsRequired must be set if AllowMethod is true")
+		}
+		if r.NextRequiredAuthMethod == MethodPublicKey {
+			// There is currently no situation where we need to restart a successful publickey request, but it is not invalid.
+			// If we ever need to do so, remove this check
+			panic("invalid AuthMethodResponse: unexpected NextRequiredAuthMethod publickey when AllowMethod is true")
+		}
+	} else {
+		if r.ContextUpdates != nil {
+			panic("invalid AuthMethodResponse: ContextUpdates can only be set if AllowMethod is true")
+		}
+		if r.NoFurtherMethodsRequired {
+			panic("invalid AuthMethodResponse: NoFurtherMethodsRequired can only be set if AllowMethod is true")
+		}
+	}
+	if r.NextRequiredAuthMethod != "" {
+		if r.NoFurtherMethodsRequired {
+			panic("invalid AuthMethodResponse: NextRequiredAuthMethod and NoFurtherMethodsRequired are mutually exclusive")
+		}
+		switch r.NextRequiredAuthMethod {
+		case MethodPublicKey:
+		case MethodKeyboardInteractive:
+		default:
+			panic("invalid AuthMethodResponse: unknown auth method name: " + r.NextRequiredAuthMethod)
+		}
+	}
+}
+
+func (r *AuthMethodResponse) String() string {
+	if !r.AllowMethod {
+		if r.NextRequiredAuthMethod != "" {
+			return fmt.Sprintf("unauthorized (retry: %s)", r.NextRequiredAuthMethod)
+		}
+		return "unauthorized"
+	}
+	if !r.NoFurtherMethodsRequired {
+		return fmt.Sprintf("partially authorized (next: %s)", r.NextRequiredAuthMethod)
+	}
+	return fmt.Sprintf("authorized")
+}
 
 //go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_auth_interface.go . AuthInterface
 
 type AuthInterface interface {
-	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
-	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
-	EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) error
-	BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error)
-	GetSession(ctx context.Context, info StreamAuthInfo) (*session.Session, error)
-	DeleteSession(ctx context.Context, info StreamAuthInfo) error
+	HandlePublicKeyMethodRequest(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (AuthMethodResponse, error)
+	HandleKeyboardInteractiveMethodRequest(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (AuthMethodResponse, error)
+	EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) error
+	BuildTargetChannelFilters(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error)
+	GetSession(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo) (*session.Session, error)
+	DeleteSession(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
 }
 
@@ -76,66 +117,31 @@ type EndpointDiscoveryInterface interface {
 	UpdateClusterEndpoints(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{})
 }
 
-type AuthMethodValue[T interface {
-	comparable
-	proto.Message
-}] struct {
-	attempted bool
-	Value     T
+type StreamInfo struct {
+	StreamID            uint64
+	SourceAddress       string
+	ChannelType         string
+	InitialAuthComplete bool
 }
 
-func (v *AuthMethodValue[T]) Update(value T) {
-	v.attempted = true
-	v.Value = value
-}
+type StreamAuthInfo interface {
+	// Public key info
+	GetPublicKey() []byte
+	GetPublicKeyAlg() string
+	GetPublicKeyFingerprintSha256() []byte // No formatting
 
-func (v *AuthMethodValue[T]) IsValid() bool {
-	if v.attempted {
-		// method was attempted - valid iff there is a value
-		return !reflect.ValueOf(v.Value).IsNil()
-	}
-	return true // method was not attempted - valid
-}
-
-func (v *AuthMethodValue[T]) Clone() AuthMethodValue[T] {
-	return AuthMethodValue[T]{
-		attempted: v.attempted,
-		Value:     proto.CloneOf(v.Value),
-	}
-}
-
-type StreamAuthInfo struct {
-	StreamID                   uint64
-	SourceAddress              string
-	ChannelType                string
-	PublicKeyFingerprintSha256 []byte
-	PublicKeyAllow             AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]
-	KeyboardInteractiveAllow   AuthMethodValue[*extensions_ssh.KeyboardInteractiveAllowResponse]
-	InitialAuthComplete        bool
-}
-
-func (i *StreamAuthInfo) Clone() StreamAuthInfo {
-	clone := StreamAuthInfo{
-		StreamID:                   i.StreamID,
-		SourceAddress:              i.SourceAddress,
-		ChannelType:                i.ChannelType,
-		PublicKeyFingerprintSha256: i.PublicKeyFingerprintSha256,
-		PublicKeyAllow:             i.PublicKeyAllow.Clone(),
-		KeyboardInteractiveAllow:   i.KeyboardInteractiveAllow.Clone(),
-		InitialAuthComplete:        i.InitialAuthComplete,
-	}
-	return clone
-}
-
-func (i *StreamAuthInfo) allMethodsValid() bool {
-	return i.PublicKeyAllow.IsValid() && i.KeyboardInteractiveAllow.IsValid()
+	// Session and user IDs
+	GetSessionId() string
+	GetUserId() string
+	GetSessionBindingId() string
 }
 
 type StreamState struct {
-	StreamAuthInfo
-	CurrentUser                     api.UserRequest
-	RemainingUnauthenticatedMethods []string
-	DownstreamChannelInfo           *extensions_ssh.SSHDownstreamChannelInfo
+	StreamInfo
+	AuthContext            *extensions_ssh.AuthContext
+	CurrentUser            api.UserRequest
+	NextRequiredAuthMethod string
+	DownstreamChannelInfo  *extensions_ssh.SSHDownstreamChannelInfo
 }
 
 type InternalChannelRequest struct {
@@ -145,7 +151,8 @@ type InternalChannelRequest struct {
 }
 
 type InternalChannelReply struct {
-	StreamAuthInfo
+	StreamInfo  StreamInfo
+	AuthInfo    StreamAuthInfo
 	CurrentUser api.UserRequest
 }
 
@@ -170,9 +177,11 @@ type StreamHandler struct {
 	terminateC              chan error
 	internalChannelRequestC chan InternalChannelRequest
 	handoffRequestC         chan HandoffRequest
+	terminateFunc           context.CancelCauseFunc
 
-	close   func()
-	runOnce bool
+	close        func()
+	runOnce      bool
+	terminateErr error
 
 	expectingInternalChannel atomic.Bool
 	internalSession          atomic.Pointer[ChannelHandler]
@@ -253,7 +262,10 @@ func (sh *StreamHandler) OnClusterHealthUpdate(_ context.Context, event *datav3.
 }
 
 func (sh *StreamHandler) Terminate(err error) {
-	sh.terminateC <- err
+	sh.terminateErr = err
+	if sh.terminateFunc != nil {
+		sh.terminateFunc(err)
+	}
 }
 
 func (sh *StreamHandler) Close() {
@@ -298,9 +310,9 @@ func (sh *StreamHandler) Prompt(ctx context.Context, prompts *extensions_ssh.Key
 	sh.sendInfoPrompts(prompts)
 	select {
 	case <-ctx.Done():
+		// Important: ctx is expected to be canceled on terminate
+		// TODO sanity check this
 		return nil, context.Cause(ctx)
-	case err := <-sh.terminateC:
-		return nil, err
 	case req := <-sh.readC:
 		switch msg := req.Message.(type) {
 		case *extensions_ssh.ClientMessage_InfoResponse:
@@ -324,9 +336,14 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 		panic("Run called twice")
 	}
 	sh.runOnce = true
+	if sh.terminateErr != nil {
+		return sh.terminateErr
+	}
+	ctx, sh.terminateFunc = context.WithCancelCause(ctx)
+
 	state := &StreamState{
-		RemainingUnauthenticatedMethods: []string{MethodPublicKey},
-		StreamAuthInfo: StreamAuthInfo{
+		NextRequiredAuthMethod: MethodPublicKey,
+		StreamInfo: StreamInfo{
 			StreamID:      sh.downstream.StreamId,
 			SourceAddress: sh.downstream.SourceAddress.GetSocketAddress().GetAddress(),
 		},
@@ -341,8 +358,6 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 			if err := sh.reauth(ctx, state); err != nil {
 				return err
 			}
-		case err := <-sh.terminateC:
-			return err
 		case req := <-sh.readC:
 			switch req := req.Message.(type) {
 			case *extensions_ssh.ClientMessage_Event:
@@ -408,7 +423,7 @@ func (sh *StreamHandler) handleHandoffRequest(ctx context.Context, state *Stream
 		req.Err <- status.Error(codes.InvalidArgument, err.Error())
 		return
 	}
-	err := sh.auth.EvaluateDelayed(ctx, state.StreamAuthInfo, pendingUser)
+	err := sh.auth.EvaluateDelayed(ctx, state.StreamInfo, state.AuthContext, pendingUser)
 	if err != nil {
 		lg.Debug().Err(err).Msg("ssh: handoff request denied")
 		req.Err <- status.Error(codes.PermissionDenied, err.Error())
@@ -417,7 +432,7 @@ func (sh *StreamHandler) handleHandoffRequest(ctx context.Context, state *Stream
 	state.CurrentUser = pendingUser
 	lg.Debug().Msg("ssh: user updated successfully; initiating handoff to upstream")
 
-	addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+	addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamInfo, state.AuthContext, state.CurrentUser)
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("failed to build extensions for filters")
 		filters = []*corev3.TypedExtensionConfig{}
@@ -432,8 +447,9 @@ func (sh *StreamHandler) handleInternalChannelRequest(state *StreamState, c Inte
 	state.DownstreamChannelInfo = c.DownstreamChannelInfo
 	state.ChannelType = c.ChannelType
 	c.Reply <- InternalChannelReply{
-		StreamAuthInfo: state.StreamAuthInfo.Clone(),
-		CurrentUser:    state.CurrentUser,
+		StreamInfo:  state.StreamInfo,
+		AuthInfo:    proto.CloneOf(state.AuthContext),
+		CurrentUser: state.CurrentUser,
 	}
 }
 
@@ -549,13 +565,13 @@ func (sh *StreamHandler) ServeChannel(
 	}
 	select {
 	case reply := <-infoC:
-		reply.ChannelType = msg.ChanType
+		reply.StreamInfo.ChannelType = msg.ChanType
 		if reply.CurrentUser.Hostname() != "" {
 			panic("bug: current hostname is not empty")
 		}
 		currentUsername := reply.CurrentUser.Username()
 		channel := NewChannelImpl(
-			newStreamHandlerInterfaceImpl(sh, currentUsername, downstreamInfo.DownstreamChannelId, reply.StreamAuthInfo),
+			newStreamHandlerInterfaceImpl(sh, currentUsername, downstreamInfo.DownstreamChannelId, reply.StreamInfo, reply.AuthInfo),
 			stream, downstreamInfo)
 		switch msg.ChanType {
 		case ChannelTypeSession:
@@ -607,7 +623,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 	if req.Service != ServiceConnection {
 		return status.Errorf(codes.InvalidArgument, "invalid service: %s", req.Service)
 	}
-	if !slices.Contains(state.RemainingUnauthenticatedMethods, req.AuthMethod) {
+	if req.AuthMethod != state.NextRequiredAuthMethod {
 		return status.Errorf(codes.InvalidArgument, "unexpected auth method: %s", req.AuthMethod)
 	}
 
@@ -615,17 +631,13 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	updateMethods := func(add []string) {
-		state.RemainingUnauthenticatedMethods = slices.Remove(state.RemainingUnauthenticatedMethods, req.AuthMethod)
-		state.RemainingUnauthenticatedMethods = append(state.RemainingUnauthenticatedMethods, add...)
-	}
 	log.Ctx(ctx).Debug().
 		Str("method", req.AuthMethod).
 		Str("username", state.CurrentUser.Username()).
 		Str("hostname", state.CurrentUser.Hostname()).
 		Msg("ssh: handling auth request")
 
-	var partial bool
+	var response AuthMethodResponse
 	switch req.AuthMethod {
 	case MethodPublicKey:
 		methodReq, _ := req.MethodRequest.UnmarshalNew()
@@ -633,46 +645,49 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "invalid public key method request type")
 		}
-		response, err := sh.auth.HandlePublicKeyMethodRequest(ctx, state.StreamAuthInfo, state.CurrentUser, pubkeyReq)
+
+		var err error
+		response, err = sh.auth.HandlePublicKeyMethodRequest(ctx, state.StreamInfo, state.AuthContext, state.CurrentUser, pubkeyReq)
 		if err != nil {
 			return err
-		} else if response.Allow != nil {
-			partial = true
-			state.PublicKeyFingerprintSha256 = pubkeyReq.PublicKeyFingerprintSha256
 		}
-		state.PublicKeyAllow.Update(response.Allow)
-		updateMethods(response.RequireAdditionalMethods)
 	case MethodKeyboardInteractive:
 		methodReq, _ := req.MethodRequest.UnmarshalNew()
 		kbiReq, ok := methodReq.(*extensions_ssh.KeyboardInteractiveMethodRequest)
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "invalid keyboard-interactive method request type")
 		}
-		response, err := sh.auth.HandleKeyboardInteractiveMethodRequest(ctx, state.StreamAuthInfo, state.CurrentUser, kbiReq, sh)
+		var err error
+		response, err = sh.auth.HandleKeyboardInteractiveMethodRequest(ctx, state.StreamInfo, state.AuthContext, state.CurrentUser, kbiReq, sh)
 		if err != nil {
 			return err
 		}
-		partial = response.Allow != nil
-		state.KeyboardInteractiveAllow.Update(response.Allow)
-		updateMethods(response.RequireAdditionalMethods)
 	default:
 		return status.Errorf(codes.Internal, "bug: server requested an unsupported auth method %q", req.AuthMethod)
 	}
+	if response.ContextUpdates != nil {
+		if state.AuthContext == nil {
+			state.AuthContext = &extensions_ssh.AuthContext{}
+		}
+		proto.Merge(state.AuthContext, response.ContextUpdates)
+	}
+	state.NextRequiredAuthMethod = response.NextRequiredAuthMethod
+
 	log.Ctx(ctx).Debug().
 		Str("method", req.AuthMethod).
-		Bool("partial", partial).
-		Strs("methods-remaining", state.RemainingUnauthenticatedMethods).
+		Bool("method-allowed", response.AllowMethod).
+		Str("methods-remaining", state.NextRequiredAuthMethod).
 		Msg("ssh: auth request complete")
 
-	if len(state.RemainingUnauthenticatedMethods) == 0 && state.allMethodsValid() {
-		// If there are no methods remaining, the user is allowed if all attempted
-		// methods have a valid response in the state
+	if response.AllowMethod && state.NextRequiredAuthMethod == "" {
+		// If this method was allowed and there are no methods remaining, auth is
+		// successful
 		state.InitialAuthComplete = true
 		log.Ctx(ctx).Debug().Msg("ssh: all methods valid, sending allow response")
 		sh.sendAllowResponse(ctx, state)
 	} else {
 		log.Ctx(ctx).Debug().Msg("ssh: unauthenticated methods remain, sending deny response")
-		sh.sendDenyResponseWithRemainingMethods(partial, state)
+		sh.sendDenyResponseWithRemainingMethods(response.AllowMethod, state)
 	}
 	return nil
 }
@@ -681,7 +696,7 @@ func (sh *StreamHandler) reauth(ctx context.Context, state *StreamState) error {
 	if !state.InitialAuthComplete {
 		return nil
 	}
-	err := sh.auth.EvaluateDelayed(ctx, state.StreamAuthInfo, state.CurrentUser)
+	err := sh.auth.EvaluateDelayed(ctx, state.StreamInfo, state.AuthContext, state.CurrentUser)
 	if err != nil {
 		return err
 	}
@@ -689,7 +704,7 @@ func (sh *StreamHandler) reauth(ctx context.Context, state *StreamState) error {
 }
 
 func buildHandoffAction(state *StreamState, ptyInfo api.SSHPtyInfo, addr *corev3.SocketAddress, filters []*corev3.TypedExtensionConfig) *extensions_ssh.SSHChannelControlAction {
-	upstreamAllow := buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, addr, filters)
+	upstreamAllow := buildUpstreamAllowResponse(state, addr, filters)
 	var downstreamPtyInfo *extensions_ssh.SSHDownstreamPTYInfo
 	if ptyInfo != nil {
 		downstreamPtyInfo = &extensions_ssh.SSHDownstreamPTYInfo{
@@ -756,13 +771,18 @@ func (sh *StreamHandler) PortForwardManager() *portforward.Manager {
 }
 
 func (sh *StreamHandler) sendDenyResponseWithRemainingMethods(partial bool, state *StreamState) {
+	var methods []string
+	// empty string is not a valid method, it signals lack of next method
+	if state.NextRequiredAuthMethod != "" {
+		methods = append(methods, state.NextRequiredAuthMethod)
+	}
 	sh.writeC <- &extensions_ssh.ServerMessage{
 		Message: &extensions_ssh.ServerMessage_AuthResponse{
 			AuthResponse: &extensions_ssh.AuthenticationResponse{
 				Response: &extensions_ssh.AuthenticationResponse_Deny{
 					Deny: &extensions_ssh.DenyResponse{
 						Partial: partial,
-						Methods: state.RemainingUnauthenticatedMethods,
+						Methods: methods,
 					},
 				},
 			},
@@ -777,14 +797,14 @@ func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamSta
 	}
 	if state.CurrentUser.Hostname() == "" {
 		sh.expectingInternalChannel.Store(true)
-		allow = buildInternalAllowResponse(state.StreamAuthInfo, state.CurrentUser)
+		allow = buildInternalAllowResponse(state)
 	} else {
-		addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+		addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamInfo, state.AuthContext, state.CurrentUser)
 		if err != nil {
 			log.Ctx(ctx).Err(err).Msg("failed to build channel filters")
 			filters = []*corev3.TypedExtensionConfig{}
 		}
-		allow = buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, addr, filters)
+		allow = buildUpstreamAllowResponse(state, addr, filters)
 	}
 
 	sh.writeC <- &extensions_ssh.ServerMessage{
@@ -814,48 +834,51 @@ func (sh *StreamHandler) sendInfoPrompts(prompts *extensions_ssh.KeyboardInterac
 }
 
 func buildUpstreamAllowResponse(
-	info StreamAuthInfo,
-	user api.UserRequest,
+	state *StreamState,
 	address *corev3.SocketAddress,
 	filters []*corev3.TypedExtensionConfig,
 ) *extensions_ssh.AllowResponse {
-	var allowedMethods []*extensions_ssh.AllowedMethod
-	if value := info.PublicKeyAllow.Value; value != nil {
-		allowedMethods = append(allowedMethods, &extensions_ssh.AllowedMethod{
-			Method:     MethodPublicKey,
-			MethodData: protoutil.NewAny(value),
-		})
+	authContext := proto.CloneOf(state.AuthContext)
+	now := time.Now()
+	certOptions := &extensions_ssh.CertificateOptions{
+		PermitPortForwarding:  true,
+		PermitAgentForwarding: true,
+		PermitX11Forwarding:   true,
+		PermitPty:             true,
+		PermitUserRc:          true,
+		// These timestamps are just for the temporary certificate and are only
+		// checked by the upstream at the time of login. The durations aren't
+		// particularly important and don't correspond to pomerium session
+		// validity. The temporary certificates are only used for this connection
+		// and are never shared with the downstream.
+		ValidStartTime: timestamppb.New(now.Add(-1 * time.Minute)),
+		ValidEndTime:   timestamppb.New(now.Add(1 * time.Hour)),
 	}
-	if value := info.KeyboardInteractiveAllow.Value; value != nil {
-		allowedMethods = append(allowedMethods, &extensions_ssh.AllowedMethod{
-			Method:     MethodKeyboardInteractive,
-			MethodData: protoutil.NewAny(value),
-		})
-	}
-
 	return &extensions_ssh.AllowResponse{
-		Username: user.Username(),
+		LoginName:   state.CurrentUser.Username(),
+		AuthContext: authContext,
 		Target: &extensions_ssh.AllowResponse_Upstream{
 			Upstream: &extensions_ssh.UpstreamTarget{
-				Hostname:       user.Hostname(),
-				Address:        address,
-				DirectTcpip:    info.ChannelType == ChannelTypeDirectTcpip,
-				AllowedMethods: allowedMethods,
-				ChannelFilters: filters,
+				Hostname:           state.CurrentUser.Hostname(),
+				Address:            address,
+				DirectTcpip:        state.ChannelType == ChannelTypeDirectTcpip,
+				ChannelFilters:     filters,
+				CertificateOptions: certOptions,
 			},
 		},
 	}
 }
 
-func buildInternalAllowResponse(info StreamAuthInfo, user api.UserRequest) *extensions_ssh.AllowResponse {
+func buildInternalAllowResponse(state *StreamState) *extensions_ssh.AllowResponse {
 	return &extensions_ssh.AllowResponse{
-		Username: user.Username(),
+		LoginName:   state.CurrentUser.Username(),
+		AuthContext: state.AuthContext,
 		Target: &extensions_ssh.AllowResponse_Internal{
 			Internal: &extensions_ssh.InternalTarget{
 				SetMetadata: &corev3.Metadata{
 					TypedFilterMetadata: map[string]*anypb.Any{
 						"com.pomerium.ssh": protoutil.NewAny(&extensions_ssh.FilterMetadata{
-							StreamId: info.StreamID,
+							StreamId: state.StreamID,
 						}),
 					},
 				},
@@ -868,6 +891,7 @@ type streamHandlerInterfaceImpl struct {
 	*StreamHandler
 	username            string
 	downstreamChannelID uint32
+	streamInfo          StreamInfo
 	authInfo            StreamAuthInfo
 }
 
@@ -875,11 +899,12 @@ type streamHandlerInterfaceImpl struct {
 // fields contained in the StreamState which are needed to implement this
 // interface. The StreamState is not stored in the StreamHandler, so it cannot
 // implement this interface itself.
-func newStreamHandlerInterfaceImpl(sh *StreamHandler, username string, downstreamChannelID uint32, authInfo StreamAuthInfo) api.StreamHandlerInterface {
+func newStreamHandlerInterfaceImpl(sh *StreamHandler, username string, downstreamChannelID uint32, streamInfo StreamInfo, authInfo StreamAuthInfo) api.StreamHandlerInterface {
 	return &streamHandlerInterfaceImpl{
 		StreamHandler:       sh,
 		username:            username,
 		downstreamChannelID: downstreamChannelID,
+		streamInfo:          streamInfo,
 		authInfo:            authInfo,
 	}
 }
@@ -891,12 +916,12 @@ func (si *streamHandlerInterfaceImpl) DownstreamChannelID() uint32 {
 
 // DownstreamSourceAddress implements StreamHandlerInterface.
 func (si *streamHandlerInterfaceImpl) DownstreamSourceAddress() string {
-	return si.authInfo.SourceAddress
+	return si.streamInfo.SourceAddress
 }
 
 // DownstreamPublicKeyFingerprint implements StreamHandlerInterface.
 func (si *streamHandlerInterfaceImpl) DownstreamPublicKeyFingerprint() []byte {
-	return si.authInfo.PublicKeyFingerprintSha256
+	return si.authInfo.GetPublicKeyFingerprintSha256()
 }
 
 // Username implements StreamHandlerInterface.
@@ -906,10 +931,10 @@ func (si *streamHandlerInterfaceImpl) Username() string {
 
 // GetSession implements StreamHandlerInterface
 func (si *streamHandlerInterfaceImpl) GetSession(ctx context.Context) (*session.Session, error) {
-	return si.auth.GetSession(ctx, si.authInfo)
+	return si.auth.GetSession(ctx, si.streamInfo, si.authInfo)
 }
 
 // DeleteSession implements StreamHandlerInterface
 func (si *streamHandlerInterfaceImpl) DeleteSession(ctx context.Context) error {
-	return si.auth.DeleteSession(ctx, si.authInfo)
+	return si.auth.DeleteSession(ctx, si.streamInfo, si.authInfo)
 }
