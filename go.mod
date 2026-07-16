@@ -84,9 +84,9 @@ require (
 	github.com/open-policy-agent/opa v1.20.1
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/peterbourgon/ff/v3 v3.4.0
-	github.com/pires/go-proxyproto v0.15.0
-	github.com/pomerium/datasource v0.18.2-0.20260903003835-0e65bb3b87a4
-	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f
+	github.com/pires/go-proxyproto v0.11.0
+	github.com/pomerium/datasource v0.18.2-0.20260712023818-d0e40970f4c4
+	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260716001632-70f126e0d09d
 	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-00010101000000-000000000000
 	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-00010101000000-000000000000
 	github.com/pomerium/protoutil v0.0.0-20260903003736-c0c6cb1eb609
