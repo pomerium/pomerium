@@ -134,11 +134,20 @@ func getClientCertificateInfo(
 	return c
 }
 
+type SSHEvalMode int
+
+const (
+	EvalModeDefault SSHEvalMode = iota
+	EvalModeReverseTunnel
+)
+
 type RequestSSH struct {
 	Username  string `json:"username"`
 	PublicKey []byte `json:"publickey"`
 
 	ReverseTunnel bool `json:"-"`
+
+	Mode SSHEvalMode `json:"-"`
 }
 
 // RequestSession is the session field in the request.

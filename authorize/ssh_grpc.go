@@ -112,7 +112,10 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Au
 
 	allowed := res.Allow.Value && !res.Deny.Value
 
-	if allowed && !initialAuthComplete {
+	// Note: the stream is not considered authenticated until it passes evaluation
+	// with a valid session ID and session binding ID.
+	if allowed && !initialAuthComplete &&
+		req.SessionBindingID != "" && req.SessionID != "" {
 		if err := a.ssh.OnStreamAuthenticated(ctx, streamID, req); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to set session id for stream")
 			return nil, err
@@ -132,7 +135,7 @@ func (a *Authorize) EvaluateUpstreamTunnel(ctx context.Context, req ssh.AuthRequ
 
 	evalreq := baseEvaluatorRequestFromSSHRequest(req)
 	evalreq.Policy = route
-	evalreq.SSH.ReverseTunnel = true
+	evalreq.SSH.Mode = evaluator.EvalModeReverseTunnel
 
 	res, err := a.state.Load().evaluator.Evaluate(ctx, evalreq)
 	if err != nil {

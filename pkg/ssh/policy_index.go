@@ -5,14 +5,19 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 )
 
 //go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_policy_index.go . PolicyIndexSubscriber
 
-type PolicyIndexSubscriber interface {
+// Upstream tunnel callbacks
+type PolicyIndexTunnelSubscriber interface {
 	UpdateEnabledStaticPorts(allowedStaticPorts []uint)
-	UpdateAuthorizedRoutes(routes []portforward.RouteInfo)
+	UpdateTunnelAuthorizedRoutes(routes []common.RouteInfo)
+}
+
+type PolicyIndexSubscriber interface {
+	PolicyIndexTunnelSubscriber
 }
 
 type PolicyIndexer interface {
@@ -56,7 +61,7 @@ type PolicyIndexer interface {
 	//   authenticated and has a valid session. It should only be called again
 	//   if the list of enabled ports changes. The list of enabled ports is
 	//   generally the same for all streams and is unaffected by route policy.
-	// - UpdateAuthorizedRoutes should be called whenever the list of authorized
+	// - UpdateTunnelAuthorizedRoutes should be called whenever the list of authorized
 	//   routes changes.
 	//   The list of authorized routes may be non-empty iff the stream has a valid
 	//   session AND it has been authenticated (i.e. both OnSessionCreated and
@@ -65,7 +70,7 @@ type PolicyIndexer interface {
 	//   been received yet (or has been deleted), the list of authorized routes
 	//   MUST be empty.
 	// - When AddStream is first called, the lists of enabled ports and authorized
-	//   routes are implicitly empty. UpdateAuthorizedRoutes should not be called
+	//   routes are implicitly empty. UpdateTunnelAuthorizedRoutes should not be called
 	//   until the list of authorized routes has at least one entry. Likewise,
 	//   UpdateEnabledStaticPorts should not be called until the list of enabled
 	//   ports has at least one entry.
@@ -84,8 +89,28 @@ type PolicyIndexer interface {
 	// - Iff the most recent call to UpdateEnabledStaticPorts had been given a
 	//   non-empty list of ports, call UpdateEnabledStaticPorts with an empty list
 	//   or nil.
-	// - Iff the most recent call to UpdateAuthorizedRoutes had been called with a
-	//   non-empty list of routes, call UpdateAuthorizedRoutes with an empty list
+	// - Iff the most recent call to UpdateTunnelAuthorizedRoutes had been called with a
+	//   non-empty list of routes, call UpdateTunnelAuthorizedRoutes with an empty list
 	//   or nil.
 	RemoveStream(streamID uint64)
 }
+
+type PolicyIndexSubscriberSet struct {
+	Tunnel PolicyIndexTunnelSubscriber
+}
+
+// UpdateEnabledStaticPorts implements [PolicyIndexSubscriber].
+func (p *PolicyIndexSubscriberSet) UpdateEnabledStaticPorts(allowedStaticPorts []uint) {
+	if p.Tunnel != nil {
+		p.Tunnel.UpdateEnabledStaticPorts(allowedStaticPorts)
+	}
+}
+
+// UpdateTunnelAuthorizedRoutes implements [PolicyIndexSubscriber].
+func (p *PolicyIndexSubscriberSet) UpdateTunnelAuthorizedRoutes(routes []common.RouteInfo) {
+	if p.Tunnel != nil {
+		p.Tunnel.UpdateTunnelAuthorizedRoutes(routes)
+	}
+}
+
+var _ PolicyIndexSubscriber = (*PolicyIndexSubscriberSet)(nil)

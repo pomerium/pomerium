@@ -13,12 +13,13 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 	"github.com/pomerium/protoutil/messages"
 )
 
@@ -105,14 +106,40 @@ func (kr *knownAuthRequest) RemoveActiveStream(streamID uint64) {
 // this is a separate struct so it can be updated in-place in the lru without
 // affecting recentness
 type authorizedRoutesList struct {
-	Entries []portforward.RouteInfo
+	Entries []common.RouteInfo
 }
 
+type (
+	EvaluatorMethod func(SSHEvaluator, context.Context, AuthRequest, *config.Policy) (*evaluator.Result, error)
+	NotifierMethod  func(PolicyIndexSubscriber, []common.RouteInfo)
+)
+
 type authorizedRoutesCache struct {
+	name      string
+	evaluator EvaluatorMethod
+	notifier  NotifierMethod
+	allRoutes func(*inMemoryIndexerState) []knownRoute
+
 	active     map[*knownAuthRequest]*authorizedRoutesList
 	byStreamID map[uint64]*knownAuthRequest
 
 	standby *lru.Cache[*knownAuthRequest, *authorizedRoutesList]
+}
+
+func (c *authorizedRoutesCache) Name() string {
+	return c.name
+}
+
+func (c *authorizedRoutesCache) Evaluator() EvaluatorMethod {
+	return c.evaluator
+}
+
+func (c *authorizedRoutesCache) Notifier() NotifierMethod {
+	return c.notifier
+}
+
+func (c *authorizedRoutesCache) AllRoutes(i *inMemoryIndexerState) []knownRoute {
+	return c.allRoutes(i)
 }
 
 func (c *authorizedRoutesCache) NewKey(authReq AuthRequest, streamID uint64) *knownAuthRequest {
@@ -165,7 +192,7 @@ func (c *authorizedRoutesCache) Keys() iter.Seq[*knownAuthRequest] {
 // Returns cached route entries for an auth request. The auth request must be
 // active (have at least one active stream), otherwise it will be reported as
 // not found.
-func (c *authorizedRoutesCache) Get(knownReq *knownAuthRequest) ([]portforward.RouteInfo, bool) {
+func (c *authorizedRoutesCache) Get(knownReq *knownAuthRequest) ([]common.RouteInfo, bool) {
 	if active, ok := c.active[knownReq]; ok {
 		return active.Entries, true
 	}
@@ -194,7 +221,7 @@ func (c *authorizedRoutesCache) StreamCount() int {
 	return len(c.byStreamID)
 }
 
-func (c *authorizedRoutesCache) Update(k *knownAuthRequest, v []portforward.RouteInfo) {
+func (c *authorizedRoutesCache) Update(k *knownAuthRequest, v []common.RouteInfo) {
 	if l, ok := c.active[k]; ok {
 		l.Entries = v
 	} else if l, ok := c.standby.Peek(k); ok {
@@ -210,7 +237,7 @@ func (c *authorizedRoutesCache) Update(k *knownAuthRequest, v []portforward.Rout
 	}
 }
 
-func (c *authorizedRoutesCache) Peek(k *knownAuthRequest) ([]portforward.RouteInfo, bool) {
+func (c *authorizedRoutesCache) Peek(k *knownAuthRequest) ([]common.RouteInfo, bool) {
 	if active, ok := c.active[k]; ok {
 		return active.Entries, true
 	} else if inactive, ok := c.standby.Peek(k); ok {
@@ -219,7 +246,7 @@ func (c *authorizedRoutesCache) Peek(k *knownAuthRequest) ([]portforward.RouteIn
 	return nil, false
 }
 
-func newAuthorizedRoutesCache(ctx context.Context) *authorizedRoutesCache {
+func newAuthorizedRoutesCache(ctx context.Context, name string, evaluator EvaluatorMethod, notifier NotifierMethod, allRoutes func(*inMemoryIndexerState) []knownRoute) *authorizedRoutesCache {
 	onEvict := func(k *knownAuthRequest, v *authorizedRoutesList) {
 		log.Ctx(ctx).Debug().
 			Str("session-id", k.SessionID).
@@ -231,6 +258,11 @@ func newAuthorizedRoutesCache(ctx context.Context) *authorizedRoutesCache {
 		panic(err)
 	}
 	return &authorizedRoutesCache{
+		name:      name,
+		evaluator: evaluator,
+		notifier:  notifier,
+		allRoutes: allRoutes,
+
 		active:     map[*knownAuthRequest]*authorizedRoutesList{},
 		byStreamID: map[uint64]*knownAuthRequest{},
 		standby:    cache,
@@ -242,35 +274,57 @@ type knownSession struct {
 
 	// Cached list of successful auth requests. These will share the same session
 	// ID, but other parameters in the AuthRequest may differ.
-	AuthorizedRoutesCache *authorizedRoutesCache
+	tunnelAuthorizedRoutesCache *authorizedRoutesCache
+}
+
+func newKnownSession(ctx context.Context, record *session.Session) *knownSession {
+	return &knownSession{
+		Record: record, // can be nil
+		tunnelAuthorizedRoutesCache: newAuthorizedRoutesCache(ctx, "upstream tunnel",
+			SSHEvaluator.EvaluateUpstreamTunnel,
+			PolicyIndexSubscriber.UpdateTunnelAuthorizedRoutes,
+			func(i *inMemoryIndexerState) []knownRoute { return i.AllTunnelEnabledRoutes }),
+	}
+}
+
+func (ks *knownSession) AllCaches() []*authorizedRoutesCache {
+	return []*authorizedRoutesCache{
+		ks.tunnelAuthorizedRoutesCache,
+	}
 }
 
 type knownRoute struct {
-	Info  portforward.RouteInfo
+	Info  common.RouteInfo
 	Route *config.Policy
 }
 
 type inMemoryIndexerState struct {
-	KnownStreams           map[uint64]*knownStream
-	KnownSessions          map[string]*knownSession
-	EnabledStaticPorts     []uint
-	AllTunnelEnabledRoutes []knownRoute
+	KnownStreams                   map[uint64]*knownStream
+	KnownSessions                  map[string]*knownSession
+	EnabledStaticPorts             []uint
+	AllTunnelEnabledRoutes         []knownRoute
+	AllAccessRequestRequiredRoutes []knownRoute
 }
 
 const MaxCachedAuthRequestsPerSession = 5
 
-func (i *InMemoryPolicyIndexer) recomputeSessionAuthorizedRoutes(ctx context.Context, session *knownSession, authRequest *knownAuthRequest) {
+func (i *InMemoryPolicyIndexer) recomputeAuthorizedRoutesCache(
+	ctx context.Context,
+	cache *authorizedRoutesCache,
+	record *session.Session,
+	authRequest *knownAuthRequest,
+) {
 	var updatedAuthorizedRoutes []knownRoute
-	existingRoutes, hasExistingRoutes := session.AuthorizedRoutesCache.Peek(authRequest)
+	existingRoutes, hasExistingRoutes := cache.Peek(authRequest)
 	numExistingAuthorizedRoutes := len(existingRoutes)
-	if session.Record != nil {
+	if record != nil {
 		updatedAuthorizedRoutes = make([]knownRoute, 0, numExistingAuthorizedRoutes)
-		for _, route := range i.state.AllTunnelEnabledRoutes {
-			result, err := i.evaluator.EvaluateUpstreamTunnel(ctx, authRequest.AuthRequest, route.Route)
+		for _, route := range cache.AllRoutes(&i.state) {
+			result, err := cache.Evaluator()(i.evaluator, ctx, authRequest.AuthRequest, route.Route)
 			if err != nil {
 				log.Ctx(ctx).Err(err).
 					Str("route", route.Info.Hostname).
-					Msg("error evaluating upstream tunnel policy")
+					Msgf("error evaluating %s policy", cache.Name())
 				continue
 			}
 			if result.Allow.Value && !result.Deny.Value {
@@ -282,34 +336,34 @@ func (i *InMemoryPolicyIndexer) recomputeSessionAuthorizedRoutes(ctx context.Con
 	if numExistingAuthorizedRoutes == 0 && len(updatedAuthorizedRoutes) == 0 {
 		// session record not received yet, or no auth requests made
 		if !hasExistingRoutes {
-			session.AuthorizedRoutesCache.Update(authRequest, nil)
+			cache.Update(authRequest, nil)
 		}
 		return
 	} else if numExistingAuthorizedRoutes > 0 && len(updatedAuthorizedRoutes) == 0 {
-		session.AuthorizedRoutesCache.Update(authRequest, nil)
+		cache.Update(authRequest, nil)
 		for streamID := range authRequest.ActiveStreams() {
 			if stream, ok := i.state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
 				log.Ctx(ctx).Debug().
 					Uint64("stream-id", streamID).
 					Str("session-id", stream.SessionID).
-					Msgf("clearing authorized routes for stream")
-				stream.Subscriber.UpdateAuthorizedRoutes(nil)
+					Msgf("clearing %s authorized routes for stream", cache.Name())
+				cache.Notifier()(stream.Subscriber, nil)
 			}
 		}
 	} else {
-		routeInfos := make([]portforward.RouteInfo, len(updatedAuthorizedRoutes))
+		routeInfos := make([]common.RouteInfo, len(updatedAuthorizedRoutes))
 		for i, ar := range updatedAuthorizedRoutes {
 			routeInfos[i] = ar.Info
 		}
-		session.AuthorizedRoutesCache.Update(authRequest, routeInfos)
+		cache.Update(authRequest, routeInfos)
 		for streamID := range authRequest.ActiveStreams() {
 			if stream, ok := i.state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
 				log.Ctx(ctx).Debug().
 					Uint64("stream-id", streamID).
 					Str("session-id", stream.SessionID).
 					Int("routes", len(routeInfos)).
-					Msgf("updating authorized routes for stream")
-				stream.Subscriber.UpdateAuthorizedRoutes(routeInfos)
+					Msgf("updating %s authorized routes for stream", cache.Name())
+				cache.Notifier()(stream.Subscriber, routeInfos)
 			}
 		}
 	}
@@ -352,40 +406,43 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 				if !ok {
 					lg.Debug().Msg("policy indexer: tracking new session")
 
-					session = &knownSession{
-						AuthorizedRoutesCache: newAuthorizedRoutesCache(ctx),
-					}
+					session = newKnownSession(ctx, nil)
 					i.state.KnownSessions[event.authRequest.SessionID] = session
 				}
 				if len(i.state.EnabledStaticPorts) > 0 && stream.Subscriber != nil {
 					stream.Subscriber.UpdateEnabledStaticPorts(i.state.EnabledStaticPorts)
 				}
 
-				knownReq := session.AuthorizedRoutesCache.FindKey(event.authRequest)
-				if knownReq == nil {
-					knownReq = session.AuthorizedRoutesCache.NewKey(event.authRequest, event.streamID)
-					if stream.Subscriber != nil {
-						knownReq.AddActiveStream(event.streamID)
-					}
-					lg.Debug().Msg("policy indexer: computing session authorized routes")
-					// If the session is not known from a previous stream, compute its
-					// authorized routes now. We don't need to do this if e.g. the same
-					// user disconnects and reconnects with the same (valid) session
-					// and auth request details
-					// Note: this will add to the session's AuthorizedRoutesCache
-					i.recomputeSessionAuthorizedRoutes(ctx, session, knownReq)
-				} else {
-					lg.Debug().Msg("policy indexer: using cached auth request")
-					if stream.Subscriber != nil {
-						knownReq.AddActiveStream(event.streamID)
-						cachedAuthorizedRoutes, ok := session.AuthorizedRoutesCache.Get(knownReq)
-						if ok && len(cachedAuthorizedRoutes) > 0 {
-							log.Ctx(ctx).Debug().
-								Uint64("stream-id", event.streamID).
-								Str("session-id", stream.SessionID).
-								Int("routes", len(cachedAuthorizedRoutes)).
-								Msgf("updating authorized routes for stream (cached)")
-							stream.Subscriber.UpdateAuthorizedRoutes(cachedAuthorizedRoutes)
+				for _, cache := range session.AllCaches() {
+					knownReq := cache.FindKey(event.authRequest)
+					if knownReq == nil {
+						knownReq = cache.NewKey(event.authRequest, event.streamID)
+						if stream.Subscriber != nil {
+							knownReq.AddActiveStream(event.streamID)
+						}
+						lg.Debug().Msgf("policy indexer: computing %s authorized routes", cache.Name())
+						// If the session is not known from a previous stream, compute its
+						// authorized routes now. We don't need to do this if e.g. the same
+						// user disconnects and reconnects with the same (valid) session
+						// and auth request details
+						// Note: this will add to the session's AuthorizedRoutesCache
+						i.recomputeAuthorizedRoutesCache(ctx,
+							cache,
+							session.Record,
+							knownReq)
+					} else {
+						lg.Debug().Msg("policy indexer: using cached auth request")
+						if stream.Subscriber != nil {
+							knownReq.AddActiveStream(event.streamID)
+							cachedAuthorizedRoutes, ok := cache.Get(knownReq)
+							if ok && len(cachedAuthorizedRoutes) > 0 {
+								log.Ctx(ctx).Debug().
+									Uint64("stream-id", event.streamID).
+									Str("session-id", stream.SessionID).
+									Int("routes", len(cachedAuthorizedRoutes)).
+									Msgf("updating %s authorized routes for stream (cached)", cache.Name())
+								cache.Notifier()(stream.Subscriber, cachedAuthorizedRoutes)
+							}
 						}
 					}
 				}
@@ -405,17 +462,19 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 						if len(i.state.EnabledStaticPorts) > 0 {
 							stream.Subscriber.UpdateEnabledStaticPorts(i.state.EnabledStaticPorts)
 						}
-						authReq := session.AuthorizedRoutesCache.FindKeyForStream(event.streamID)
-						if authReq != nil {
-							authReq.AddActiveStream(event.streamID)
-							cachedAuthorizedRoutes, ok := session.AuthorizedRoutesCache.Get(authReq)
-							if ok && len(cachedAuthorizedRoutes) > 0 {
-								log.Ctx(ctx).Debug().
-									Uint64("stream-id", event.streamID).
-									Str("session-id", stream.SessionID).
-									Int("routes", len(cachedAuthorizedRoutes)).
-									Msgf("updating authorized routes for stream (cached)")
-								stream.Subscriber.UpdateAuthorizedRoutes(cachedAuthorizedRoutes)
+						for _, cache := range session.AllCaches() {
+							authReq := cache.FindKeyForStream(event.streamID)
+							if authReq != nil {
+								authReq.AddActiveStream(event.streamID)
+								cachedAuthorizedRoutes, ok := cache.Get(authReq)
+								if ok && len(cachedAuthorizedRoutes) > 0 {
+									log.Ctx(ctx).Debug().
+										Uint64("stream-id", event.streamID).
+										Str("session-id", stream.SessionID).
+										Int("routes", len(cachedAuthorizedRoutes)).
+										Msgf("updating %s authorized routes for stream (cached)", cache.Name())
+									cache.Notifier()(stream.Subscriber, cachedAuthorizedRoutes)
+								}
 							}
 						}
 					}
@@ -440,17 +499,23 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 							}
 							stream.Subscriber.UpdateEnabledStaticPorts(nil)
 						}
-						if knownAuthReq := session.AuthorizedRoutesCache.FindKeyForStream(event.streamID); knownAuthReq != nil {
-							if routes, ok := session.AuthorizedRoutesCache.Get(knownAuthReq); ok && len(routes) > 0 {
-								log.Ctx(ctx).Debug().
-									Uint64("stream-id", event.streamID).
-									Str("session-id", stream.SessionID).
-									Msgf("clearing authorized routes for stream")
-								stream.Subscriber.UpdateAuthorizedRoutes(nil)
+						sessionReferencesExist := (session.Record != nil)
+						for _, cache := range session.AllCaches() {
+							if knownAuthReq := cache.FindKeyForStream(event.streamID); knownAuthReq != nil {
+								if routes, ok := cache.Get(knownAuthReq); ok && len(routes) > 0 {
+									log.Ctx(ctx).Debug().
+										Uint64("stream-id", event.streamID).
+										Str("session-id", stream.SessionID).
+										Msgf("clearing %s authorized routes for stream", cache.Name())
+									cache.Notifier()(stream.Subscriber, nil)
+								}
+								knownAuthReq.RemoveActiveStream(event.streamID)
 							}
-							knownAuthReq.RemoveActiveStream(event.streamID)
+							if cache.StreamCount() != 0 {
+								sessionReferencesExist = true
+							}
 						}
-						if session.Record == nil && session.AuthorizedRoutesCache.StreamCount() == 0 {
+						if !sessionReferencesExist {
 							lg.Debug().Str("session-id", stream.SessionID).
 								Msg("policy indexer: deleted session has no more references, removing from cache")
 							// There are no remaining references to this session, so it can
@@ -487,16 +552,15 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 					session.Record = event.session
 					if rebuildRoutes {
 						lg.Debug().Msg("policy indexer: rebuilding routes index for modified session")
-						for authReq := range session.AuthorizedRoutesCache.Keys() {
-							i.recomputeSessionAuthorizedRoutes(ctx, session, authReq)
+						for _, cache := range session.AllCaches() {
+							for authReq := range cache.Keys() {
+								i.recomputeAuthorizedRoutesCache(ctx, cache, session.Record, authReq)
+							}
 						}
 					}
 				} else {
 					lg.Debug().Msg("policy indexer: tracking new session")
-					i.state.KnownSessions[event.session.Id] = &knownSession{
-						Record:                event.session,
-						AuthorizedRoutesCache: newAuthorizedRoutesCache(ctx),
-					}
+					i.state.KnownSessions[event.session.Id] = newKnownSession(ctx, event.session)
 				}
 			case sessionDeletedEvent:
 				lg := log.Ctx(ctx).With().
@@ -506,14 +570,20 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 				if session, ok := i.state.KnownSessions[event.sessionID]; ok {
 					lg.Debug().Msg("policy indexer: tracked session removed")
 					session.Record = nil
-					for authReq := range session.AuthorizedRoutesCache.Keys() {
-						i.recomputeSessionAuthorizedRoutes(ctx, session, authReq)
-						// sanity check
-						if routes, ok := session.AuthorizedRoutesCache.Peek(authReq); ok && len(routes) != 0 {
-							panic("bug: clearing session authorized requests failed")
+					var sessionReferencesExist bool
+					for _, cache := range session.AllCaches() {
+						for authReq := range cache.Keys() {
+							i.recomputeAuthorizedRoutesCache(ctx, cache, session.Record, authReq)
+							// sanity check
+							if routes, ok := cache.Peek(authReq); ok && len(routes) != 0 {
+								panic("bug: clearing session authorized requests failed")
+							}
+							if cache.StreamCount() != 0 {
+								sessionReferencesExist = true
+							}
 						}
 					}
-					if session.AuthorizedRoutesCache.StreamCount() == 0 {
+					if !sessionReferencesExist {
 						// If there are any streams referencing this session, it should be
 						// untracked only once those streams exit
 						delete(i.state.KnownSessions, event.sessionID)
@@ -546,7 +616,7 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 					if route.UpstreamTunnel == nil {
 						continue
 					}
-					info := portforward.RouteInfo{
+					info := common.RouteInfo{
 						From:      route.From,
 						To:        route.To,
 						ClusterID: envoyconfig.GetClusterID(route),
@@ -564,16 +634,21 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 						continue
 					}
 					info.Hostname = u.Hostname()
-					i.state.AllTunnelEnabledRoutes = append(i.state.AllTunnelEnabledRoutes, knownRoute{
+					kr := knownRoute{
 						Info:  info,
 						Route: route,
-					})
+					}
+					if route.UpstreamTunnel != nil {
+						i.state.AllTunnelEnabledRoutes = append(i.state.AllTunnelEnabledRoutes, kr)
+					}
 				}
 
 				lg.Debug().Msgf("policy indexer: rebuilding cache for %d sessions", len(i.state.KnownSessions))
 				for _, session := range i.state.KnownSessions {
-					for authReq := range session.AuthorizedRoutesCache.Keys() {
-						i.recomputeSessionAuthorizedRoutes(ctx, session, authReq)
+					for _, cache := range session.AllCaches() {
+						for authReq := range cache.Keys() {
+							i.recomputeAuthorizedRoutesCache(ctx, cache, session.Record, authReq)
+						}
 					}
 				}
 			}

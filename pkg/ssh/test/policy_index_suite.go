@@ -14,8 +14,8 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
-	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
 type OpOrder int
@@ -258,8 +258,8 @@ var orders = [][]OpOrder{
 	23: {ProcessConfigUpdate, OnSessionCreated, OnStreamAuthenticated, AddStream},
 }
 
-func makeRouteInfoFromPolicy(p *config.Policy) portforward.RouteInfo {
-	return portforward.RouteInfo{
+func makeRouteInfoFromPolicy(p *config.Policy) common.RouteInfo {
+	return common.RouteInfo{
 		From:      p.From,
 		To:        p.To,
 		Hostname:  strings.TrimPrefix(p.From, "https://"),
@@ -375,7 +375,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowAll() {
 			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
 			processConfigUpdateArgs{config: cfg},
 			func() {
-				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -417,7 +417,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowSome() {
 			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
 			processConfigUpdateArgs{config: cfg},
 			func() {
-				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 				}))
@@ -500,7 +500,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdateEvalResult() {
 			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
 			processConfigUpdateArgs{config: cfg2},
 			func() {
-				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[0]),
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[1]),
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[2]),
@@ -548,7 +548,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesDenyThenAllow() {
 			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
 			processConfigUpdateArgs{config: cfg2},
 			func() {
-				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[0]),
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[1]),
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[2]),
@@ -590,7 +590,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenDeny() {
 
 		s.index.ProcessConfigUpdate(cfg)
 		expectInitialAuthRoutes := func() {
-			sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+			sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -618,7 +618,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenDeny() {
 					}
 				}},
 				processConfigUpdateArgs{config: cfg2, before: func() {
-					sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+					sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 				}},
 				func() {},
 			)
@@ -659,14 +659,14 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenAllow() {
 		s.index.ProcessConfigUpdate(cfg)
 		if slices.Index(s.order, ProcessConfigUpdate) == 3 {
 			call1 := sub1.EXPECT().
-				UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
 				})).
 				Times(1)
 			sub1.EXPECT().
-				UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[0]),
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[1]),
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[2]),
@@ -674,7 +674,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenAllow() {
 				After(call1)
 		} else {
 			sub1.EXPECT().
-				UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[0]),
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[1]),
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[2]),
@@ -714,7 +714,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleStreamsWithSameSession() {
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
 	sub1.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -726,7 +726,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleStreamsWithSameSession() {
 
 	s.index.AddStream(2, sub2)
 	sub2.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -758,7 +758,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestStreamReconnectSameSession() {
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
 	sub1.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -766,13 +766,13 @@ func (s *PolicyIndexConformanceSuite[T]) TestStreamReconnectSameSession() {
 	s.index.OnSessionCreated(&session.Session{Id: "session1"})
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
-	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+	sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 	s.index.RemoveStream(1)
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 	s.index.AddStream(2, sub1)
 	sub1.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -808,7 +808,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleAuthRequestsForSession() {
 
 		s.index.AddStream(i, sub)
 		sub.EXPECT().
-			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+			UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -827,7 +827,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleAuthRequestsForSession() {
 		}
 		sub := subs[i]
 		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
-		sub.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+		sub.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 		s.index.RemoveStream(i)
 	}
 	for i := range uint64(NumAuthRequests) {
@@ -841,7 +841,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleAuthRequestsForSession() {
 		s.index.AddStream(NumAuthRequests+i, sub)
 
 		sub.EXPECT().
-			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+			UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -880,7 +880,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbo
 
 		s.index.AddStream(i, sub)
 		sub.EXPECT().
-			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+			UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -900,7 +900,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbo
 		}
 		sub := subs[i]
 		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
-		sub.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+		sub.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 		s.index.RemoveStream(i)
 	}
 
@@ -923,7 +923,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbo
 		s.index.AddStream(NumAuthRequests+i, sub)
 
 		sub.EXPECT().
-			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+			UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -969,7 +969,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnect() {
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
 	sub1.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -977,7 +977,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnect() {
 	s.index.OnSessionCreated(&session.Session{Id: "session1"})
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
-	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+	sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 	s.index.RemoveStream(1)
 
 	// update the policy to make the session no longer authorized
@@ -1023,7 +1023,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnectWithOthe
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
 	sub1.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -1035,7 +1035,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnectWithOthe
 
 	s.index.AddStream(2, sub2)
 	sub2.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -1043,13 +1043,13 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnectWithOthe
 	s.index.OnStreamAuthenticated(2, sessionAuthReq1)
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
-	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+	sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 	s.index.RemoveStream(1)
 
 	// Update the policy to make the session no longer authorized. The other
 	// stream currently connected gets the callback immediately, and the
 	// reconnected stream should get no callback.
-	sub2.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+	sub2.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 	s.index.ProcessConfigUpdate(cfg2)
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
@@ -1081,14 +1081,14 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileConnected() {
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
 	sub1.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
 		}))
 	s.index.OnSessionCreated(&session.Session{Id: "session1"})
 
-	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+	sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 	s.index.OnSessionDeleted("session1")
 
 	s.expectedLastKnownStreams = 1
@@ -1116,7 +1116,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedThenStreamsRemoved() 
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
 	sub1.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -1127,15 +1127,15 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedThenStreamsRemoved() 
 	sub2.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 	s.index.AddStream(2, sub2)
 	sub2.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
 		}))
 	s.index.OnStreamAuthenticated(2, sessionAuthReq1)
 
-	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
-	sub2.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+	sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
+	sub2.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 
 	s.index.OnSessionDeleted("session1")
 
@@ -1197,7 +1197,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileDisconnected() {
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
 	sub1.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+		UpdateTunnelAuthorizedRoutes(gomock.Eq([]common.RouteInfo{
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
 			makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
@@ -1205,7 +1205,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileDisconnected() {
 	s.index.OnSessionCreated(&session.Session{Id: "session1"})
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
-	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+	sub1.EXPECT().UpdateTunnelAuthorizedRoutes(gomock.Len(0))
 	s.index.RemoveStream(1)
 
 	// delete the session while no streams are attached

@@ -22,7 +22,7 @@ func newSbr(id string, sbr *session.SessionBindingRequest) *databroker.Record {
 }
 
 func TestCodeManager(t *testing.T) {
-	c := newCodeManager(nil)
+	c := newCodeManager(nil, defaultIssuerCodeTTL)
 
 	all := []*databroker.Record{
 		newSbr("c1", &session.SessionBindingRequest{

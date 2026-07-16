@@ -131,7 +131,7 @@ type StreamHandlerSuite struct {
 func (s *StreamHandlerSuite) SetupTest() {
 	s.ctrl = NewController(s.T())
 	s.mockAuth = mock_ssh.NewMockAuthInterface(s.ctrl)
-	s.mockAuth.EXPECT().BuildTargetChannelFilters(Any(), Any(), Any()).AnyTimes()
+	s.mockAuth.EXPECT().BuildTargetChannelFilters(Any(), Any(), Any(), Any()).AnyTimes()
 	s.cleanup = []func(){}
 	s.errC = make(chan error, 1)
 
@@ -158,7 +158,7 @@ func (s *StreamHandlerSuite) SetupTest() {
 	s.mgr = ssh.NewStreamManager(
 		s.T().Context(),
 		s.mockAuth,
-		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, nil)),
+		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(evalResultAlwaysAllow, nil)),
 		ssh.NewDefaultCLIController(s.cfg, style.NewTheme(style.Ansi16Colors)),
 		s.cfg,
 	)
@@ -359,12 +359,42 @@ func (s *StreamHandlerSuite) validPublicKeyMethodRequest() *anypb.Any {
 	return marshalAny(&extensions_ssh.PublicKeyMethodRequest{
 		PublicKey:                  s.ed25519SshPublicKey.Marshal(),
 		PublicKeyAlg:               s.ed25519SshPublicKey.Type(),
-		PublicKeyFingerprintSha256: []byte(gossh.FingerprintSHA256(s.ed25519SshPublicKey)),
+		PublicKeyFingerprintSha256: RawFingerprintSHA256(s.ed25519SshPublicKey),
 	})
 }
 
 func (s *StreamHandlerSuite) newMockChannelStream() *mockChannelStream {
 	return newMockChannelStream(s.streamCtx, s.T())
+}
+
+func (s *StreamHandlerSuite) newPublicKeyFromRequest(req *extensions_ssh.PublicKeyMethodRequest) gossh.PublicKey {
+	key, err := gossh.ParsePublicKey(req.PublicKey)
+	require.NoError(s.T(), err)
+	return key
+}
+
+func (s *StreamHandlerSuite) authMethodResponsePublicKeyAllow(publicKey gossh.PublicKey) ssh.AuthMethodResponse {
+	return ssh.AuthMethodResponse{
+		AllowMethod:              true,
+		NoFurtherMethodsRequired: true,
+		ContextUpdates: &extensions_ssh.AuthContext{
+			PublicKey:                  publicKey.Marshal(),
+			PublicKeyAlg:               publicKey.Type(),
+			PublicKeyFingerprintSha256: RawFingerprintSHA256(publicKey),
+		},
+	}
+}
+
+func (s *StreamHandlerSuite) authMethodResponsePublicKeyAllowKbdIntNext(publicKey gossh.PublicKey) ssh.AuthMethodResponse {
+	return ssh.AuthMethodResponse{
+		AllowMethod:            true,
+		NextRequiredAuthMethod: ssh.MethodKeyboardInteractive,
+		ContextUpdates: &extensions_ssh.AuthContext{
+			PublicKey:                  publicKey.Marshal(),
+			PublicKeyAlg:               publicKey.Type(),
+			PublicKeyFingerprintSha256: RawFingerprintSHA256(publicKey),
+		},
+	}
 }
 
 //
@@ -473,11 +503,8 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_EmptyHostname() {
 
 	// empty hostname is allowed initially
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
-		Return(ssh.PublicKeyAuthMethodResponse{Allow: &extensions_ssh.PublicKeyAllowResponse{
-			PublicKey:   s.ed25519SshPublicKey.Marshal(),
-			Permissions: &extensions_ssh.Permissions{},
-		}}, nil)
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
+		Return(s.authMethodResponsePublicKeyAllow(s.ed25519SshPublicKey), nil)
 
 	sh.ReadC() <- &extensions_ssh.ClientMessage{
 		Message: &extensions_ssh.ClientMessage_AuthRequest{
@@ -518,11 +545,8 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_ValidPublicKeyMethodRequest()
 	sh := s.startStreamHandler(1)
 
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
-		Return(ssh.PublicKeyAuthMethodResponse{Allow: &extensions_ssh.PublicKeyAllowResponse{
-			PublicKey:   s.ed25519SshPublicKey.Marshal(),
-			Permissions: &extensions_ssh.Permissions{},
-		}}, nil)
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
+		Return(s.authMethodResponsePublicKeyAllow(s.ed25519SshPublicKey), nil)
 
 	sh.ReadC() <- &extensions_ssh.ClientMessage{
 		Message: &extensions_ssh.ClientMessage_AuthRequest{
@@ -544,8 +568,8 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_ValidPublicKeyMethodRequestEr
 	sh := s.startStreamHandler(1)
 
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
-		Return(ssh.PublicKeyAuthMethodResponse{}, errors.New("test error"))
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
+		Return(ssh.AuthMethodResponse{}, errors.New("test error"))
 
 	s.expectError(func() {
 		sh.ReadC() <- &extensions_ssh.ClientMessage{
@@ -568,20 +592,17 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_PublicKeyRetry() {
 
 	i := -1
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
 		MaxTimes(4).
-		DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
+		DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
 			i++
 			switch i {
 			case 0, 1, 2:
-				return ssh.PublicKeyAuthMethodResponse{
-					RequireAdditionalMethods: []string{"publickey"},
+				return ssh.AuthMethodResponse{
+					NextRequiredAuthMethod: "publickey",
 				}, nil
 			case 3:
-				return ssh.PublicKeyAuthMethodResponse{Allow: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey:   s.ed25519SshPublicKey.Marshal(),
-					Permissions: &extensions_ssh.Permissions{},
-				}}, nil
+				return s.authMethodResponsePublicKeyAllow(s.newPublicKeyFromRequest(req)), nil
 			default:
 				panic("unreachable")
 			}
@@ -612,11 +633,11 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_InconsistentUsername() {
 	sh := s.startStreamHandler(1)
 
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
 		Times(1).
-		DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
-			return ssh.PublicKeyAuthMethodResponse{
-				RequireAdditionalMethods: []string{"publickey"},
+		DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+			return ssh.AuthMethodResponse{
+				NextRequiredAuthMethod: "publickey",
 			}, nil
 		})
 	sh.ReadC() <- &extensions_ssh.ClientMessage{
@@ -654,11 +675,11 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_InconsistentHostname() {
 	sh := s.startStreamHandler(1)
 
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
 		Times(1).
-		DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
-			return ssh.PublicKeyAuthMethodResponse{
-				RequireAdditionalMethods: []string{"publickey"},
+		DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+			return ssh.AuthMethodResponse{
+				NextRequiredAuthMethod: "publickey",
 			}, nil
 		})
 	sh.ReadC() <- &extensions_ssh.ClientMessage{
@@ -694,16 +715,10 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_InconsistentEmptyHostname() {
 	sh := s.startStreamHandler(1)
 
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
 		Times(1).
-		DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, _ api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
-			return ssh.PublicKeyAuthMethodResponse{
-				Allow: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey:   req.PublicKey,
-					Permissions: &extensions_ssh.Permissions{},
-				},
-				RequireAdditionalMethods: []string{"keyboard-interactive"},
-			}, nil
+		DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+			return s.authMethodResponsePublicKeyAllowKbdIntNext(s.newPublicKeyFromRequest(req)), nil
 		})
 	sh.ReadC() <- &extensions_ssh.ClientMessage{
 		Message: &extensions_ssh.ClientMessage_AuthRequest{
@@ -754,11 +769,11 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_UnknownAuthMethod() {
 func (s *StreamHandlerSuite) TestHandleAuthRequest_UnimplementedAuthMethod() {
 	sh := s.startStreamHandler(1)
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
 		Times(1).
-		DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
-			return ssh.PublicKeyAuthMethodResponse{
-				RequireAdditionalMethods: []string{"password"},
+		DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+			return ssh.AuthMethodResponse{
+				NextRequiredAuthMethod: "password",
 			}, nil
 		})
 	sh.ReadC() <- &extensions_ssh.ClientMessage{
@@ -792,16 +807,10 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_UnimplementedAuthMethod() {
 func (s *StreamHandlerSuite) TestHandleAuthRequest_WrongClientMessage() {
 	sh := s.startStreamHandler(1)
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
 		Times(1).
-		DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, _ api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
-			return ssh.PublicKeyAuthMethodResponse{
-				Allow: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey:   req.PublicKey,
-					Permissions: &extensions_ssh.Permissions{},
-				},
-				RequireAdditionalMethods: []string{"keyboard-interactive"},
-			}, nil
+		DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+			return s.authMethodResponsePublicKeyAllowKbdIntNext(s.newPublicKeyFromRequest(req)), nil
 		})
 	newMsg := func() *extensions_ssh.ClientMessage_AuthRequest {
 		return &extensions_ssh.ClientMessage_AuthRequest{
@@ -830,16 +839,10 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_KeyboardInteractive_WrongMeth
 	sh := s.startStreamHandler(1)
 
 	s.mockAuth.EXPECT().
-		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
+		HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
 		Times(1).
-		DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, _ api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
-			return ssh.PublicKeyAuthMethodResponse{
-				Allow: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey:   req.PublicKey,
-					Permissions: &extensions_ssh.Permissions{},
-				},
-				RequireAdditionalMethods: []string{"keyboard-interactive"},
-			}, nil
+		DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+			return s.authMethodResponsePublicKeyAllowKbdIntNext(s.newPublicKeyFromRequest(req)), nil
 		})
 	sh.ReadC() <- &extensions_ssh.ClientMessage{
 		Message: &extensions_ssh.ClientMessage_AuthRequest{
@@ -877,39 +880,34 @@ func init() {
 
 		i := -1
 		s.mockAuth.EXPECT().
-			HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
+			HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
 			Times(2).
-			DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
+			DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
 				i++
 				switch i {
 				case 0:
-					return ssh.PublicKeyAuthMethodResponse{
-						RequireAdditionalMethods: []string{"publickey"},
+					return ssh.AuthMethodResponse{
+						NextRequiredAuthMethod: "publickey",
 					}, nil
 				case 1:
-					return ssh.PublicKeyAuthMethodResponse{
-						Allow: &extensions_ssh.PublicKeyAllowResponse{
-							PublicKey:   s.ed25519SshPublicKey.Marshal(),
-							Permissions: &extensions_ssh.Permissions{},
-						},
-						RequireAdditionalMethods: []string{"keyboard-interactive"},
-					}, nil
+					return s.authMethodResponsePublicKeyAllowKbdIntNext(s.newPublicKeyFromRequest(req)), nil
 				default:
 					panic("unreachable")
 				}
 			})
 		s.mockAuth.EXPECT().
-			HandleKeyboardInteractiveMethodRequest(Any(), Any(), Any(), Any(), Any()).
+			HandleKeyboardInteractiveMethodRequest(Any(), Any(), Any(), Any(), Any(), Any()).
 			DoAndReturn(func(
 				ctx context.Context,
-				info ssh.StreamAuthInfo,
+				streamInfo ssh.StreamInfo,
+				authInfo ssh.StreamAuthInfo,
 				user api.UserRequest,
 				_ *extensions_ssh.KeyboardInteractiveMethodRequest,
 				querier ssh.KeyboardInteractiveQuerier,
-			) (ssh.KeyboardInteractiveAuthMethodResponse, error) {
+			) (ssh.AuthMethodResponse, error) {
 				s.Equal("test", user.Username())
 				s.Equal("host1", user.Hostname())
-				s.Equal(uint64(100), info.StreamID)
+				s.Equal(uint64(100), streamInfo.StreamID)
 				resp, err := querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
 					Name:        "test-name",
 					Instruction: "test-instruction",
@@ -923,11 +921,17 @@ func init() {
 				s.Require().Equal(querierErr, err, "unexpected error from querier.Prompt")
 				if querierErr == nil {
 					s.Equal([]string{"test-prompt-response"}, resp.Responses)
-					return ssh.KeyboardInteractiveAuthMethodResponse{
-						Allow: &extensions_ssh.KeyboardInteractiveAllowResponse{},
+					return ssh.AuthMethodResponse{
+						AllowMethod:              true,
+						NoFurtherMethodsRequired: true,
+						ContextUpdates: &extensions_ssh.AuthContext{
+							SessionId:        "fake-session-id",
+							UserId:           "fake-user-id",
+							SessionBindingId: "fake-session-binding-id",
+						},
 					}, nil
 				}
-				return ssh.KeyboardInteractiveAuthMethodResponse{}, err
+				return ssh.AuthMethodResponse{}, err
 			})
 		for range 2 {
 			sh.ReadC() <- &extensions_ssh.ClientMessage{
@@ -1200,18 +1204,12 @@ func init() {
 		sh := s.startStreamHandler(1)
 
 		s.mockAuth.EXPECT().
-			HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any()).
+			HandlePublicKeyMethodRequest(Any(), Any(), Any(), Any(), Any()).
 			Times(1).
-			DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, user api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
+			DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, user api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
 				s.Equal("test", user.Username())
 				s.Equal("", user.Hostname())
-				return ssh.PublicKeyAuthMethodResponse{
-					Allow: &extensions_ssh.PublicKeyAllowResponse{
-						PublicKey:   req.PublicKey,
-						Permissions: &extensions_ssh.Permissions{},
-					},
-					RequireAdditionalMethods: []string{},
-				}, nil
+				return s.authMethodResponsePublicKeyAllow(s.newPublicKeyFromRequest(req)), nil
 			})
 		s.False(sh.IsExpectingInternalChannel())
 		sh.ReadC() <- &extensions_ssh.ClientMessage{
@@ -1548,7 +1546,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Interactive() {
 		IdpId:  "b",
 	}
 	s.mockAuth.EXPECT().
-		GetSession(Any(), Any()).
+		GetSession(Any(), Any(), Any()).
 		Return(session, nil)
 
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
@@ -1834,8 +1832,8 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
 			})
 		case 2:
 			currentFrame++
-			s.mockAuth.EXPECT().EvaluateDelayed(Any(), Any(), Any()).
-				DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, user api.UserRequest) error {
+			s.mockAuth.EXPECT().EvaluateDelayed(Any(), Any(), Any(), Any()).
+				DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, user api.UserRequest) error {
 					s.Equal("test", user.Username())
 					s.Equal("host2", user.Hostname())
 					return nil
@@ -1871,19 +1869,15 @@ LOOP:
 			handoff := sshAction.GetHandOff()
 			s.Require().NotNil(action, "expected handoff action")
 			s.Require().NotNil(handoff.GetUpstreamAuth().GetUpstream(), "expected upstream handoff action")
-			s.Equal("test", handoff.GetUpstreamAuth().Username)
+			s.Equal("test", handoff.GetUpstreamAuth().GetLoginName())
 			s.Equal("host2", handoff.GetUpstreamAuth().GetUpstream().Hostname)
 			s.Equal(uint32(32), handoff.GetDownstreamPtyInfo().GetWidthColumns())
 			s.Equal(uint32(10), handoff.GetDownstreamPtyInfo().GetHeightRows())
-			testutil.AssertProtoEqual(s.T(), []*extensions_ssh.AllowedMethod{
-				{
-					Method: "publickey",
-					MethodData: marshalAny(&extensions_ssh.PublicKeyAllowResponse{
-						PublicKey:   s.ed25519SshPublicKey.Marshal(),
-						Permissions: &extensions_ssh.Permissions{},
-					}),
-				},
-			}, handoff.GetUpstreamAuth().GetUpstream().AllowedMethods)
+
+			s.Equal(s.ed25519SshPublicKey.Marshal(), handoff.GetUpstreamAuth().GetAuthContext().GetPublicKey())
+			s.Equal(s.ed25519SshPublicKey.Type(), handoff.GetUpstreamAuth().GetAuthContext().GetPublicKeyAlg())
+			s.Equal(RawFingerprintSHA256(s.ed25519SshPublicKey), handoff.GetUpstreamAuth().GetAuthContext().GetPublicKeyFingerprintSha256())
+
 			handoffOk = true
 			break LOOP
 		}
@@ -1939,7 +1933,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Whoami() {
 		IdpId:  "b",
 	}
 	s.mockAuth.EXPECT().
-		GetSession(Any(), Any()).
+		GetSession(Any(), Any(), Any()).
 		Return(session, nil)
 
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
@@ -1968,7 +1962,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_WhoamiError() {
 	peerID := resp.MyID
 
 	s.mockAuth.EXPECT().
-		GetSession(Any(), Any()).
+		GetSession(Any(), Any(), Any()).
 		Return(nil, errors.New("test error"))
 
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
@@ -1997,7 +1991,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Logout() {
 	peerID := resp.MyID
 
 	s.mockAuth.EXPECT().
-		DeleteSession(Any(), Any()).
+		DeleteSession(Any(), Any(), Any()).
 		Return(nil)
 
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
@@ -2026,7 +2020,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_LogoutError() {
 	peerID := resp.MyID
 
 	s.mockAuth.EXPECT().
-		DeleteSession(Any(), Any()).
+		DeleteSession(Any(), Any(), Any()).
 		Return(status.Errorf(codes.Aborted, "failed to delete session"))
 
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
@@ -2076,7 +2070,7 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip_BadHostname() {
 func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip_AuthFailed() {
 	if s.directTcpipEnabled() {
 		s.mockAuth.EXPECT().
-			EvaluateDelayed(Any(), Any(), Any()).
+			EvaluateDelayed(Any(), Any(), Any(), Any()).
 			Times(1).
 			Return(errors.New("test error"))
 	}
@@ -2101,7 +2095,7 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 
 	if s.directTcpipEnabled() {
 		s.mockAuth.EXPECT().
-			EvaluateDelayed(Any(), Any(), Any()).
+			EvaluateDelayed(Any(), Any(), Any(), Any()).
 			Times(1).
 			Return(nil)
 	}
@@ -2127,6 +2121,15 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 	s.Require().NotNil(action, "received a message, but it was not a channel control action")
 	handoff := extensions_ssh.SSHChannelControlAction{}
 	s.Require().NoError(action.UnmarshalTo(&handoff))
+
+	actual := handoff.GetHandOff()
+	// Can't compare timestamppb.Timestamp, so check the timestamps directly and
+	// then clear the fields
+	certOptions := actual.UpstreamAuth.GetUpstream().CertificateOptions
+	s.Less(certOptions.ValidStartTime.AsTime(), certOptions.ValidEndTime.AsTime())
+	certOptions.ValidStartTime = nil
+	certOptions.ValidEndTime = nil
+
 	testutil.AssertProtoEqual(s.T(), extensions_ssh.SSHChannelControlAction_HandOffUpstream{
 		DownstreamChannelInfo: &extensions_ssh.SSHDownstreamChannelInfo{
 			ChannelType:               "direct-tcpip",
@@ -2137,24 +2140,28 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 		},
 		DownstreamPtyInfo: nil,
 		UpstreamAuth: &extensions_ssh.AllowResponse{
-			Username: "test",
+			LoginName: "test",
+			AuthContext: &extensions_ssh.AuthContext{
+				PublicKey:                  s.ed25519SshPublicKey.Marshal(),
+				PublicKeyAlg:               s.ed25519SshPublicKey.Type(),
+				PublicKeyFingerprintSha256: RawFingerprintSHA256(s.ed25519SshPublicKey),
+			},
 			Target: &extensions_ssh.AllowResponse_Upstream{
 				Upstream: &extensions_ssh.UpstreamTarget{
 					Hostname:    "host1",
 					DirectTcpip: true,
-					AllowedMethods: []*extensions_ssh.AllowedMethod{
-						{
-							Method: "publickey",
-							MethodData: marshalAny(&extensions_ssh.PublicKeyAllowResponse{
-								PublicKey:   s.ed25519SshPublicKey.Marshal(),
-								Permissions: &extensions_ssh.Permissions{},
-							}),
-						},
+					CertificateOptions: &extensions_ssh.CertificateOptions{
+						PermitPortForwarding:  true,
+						PermitAgentForwarding: true,
+						PermitX11Forwarding:   true,
+						PermitPty:             true,
+						PermitUserRc:          true,
+						// omit start/end time fields
 					},
 				},
 			},
 		},
-	}, handoff.GetHandOff())
+	}, actual)
 }
 
 func (s *StreamHandlerSuite) directTcpipEnabled() bool {
@@ -2268,103 +2275,109 @@ func TestStreamHandlerSuiteWithRuntimeFlags(t *testing.T) {
 	})
 }
 
-func TestAuthMethodValue(t *testing.T) {
-	t.Run("Update to a non-nil value", func(t *testing.T) {
-		var amv ssh.AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]
-		assert.True(t, amv.IsValid())
-		amv.Update(&extensions_ssh.PublicKeyAllowResponse{})
-		assert.True(t, amv.IsValid())
-	})
-	t.Run("Update to a nil value", func(t *testing.T) {
+func TestValidateAuthMethodResponse(t *testing.T) {
+	validResponses := []ssh.AuthMethodResponse{
+		{},
 		{
-			var amv ssh.AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]
-			assert.True(t, amv.IsValid())
-			amv.Update(nil)
-			assert.False(t, amv.IsValid())
-		}
+			AllowMethod:            true,
+			NextRequiredAuthMethod: "keyboard-interactive",
+			ContextUpdates:         &extensions_ssh.AuthContext{},
+		},
 		{
-			var amv ssh.AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]
-			assert.True(t, amv.IsValid())
-			amv.Update(&extensions_ssh.PublicKeyAllowResponse{})
-			assert.True(t, amv.IsValid())
-			amv.Update(nil)
-			assert.False(t, amv.IsValid())
-		}
-	})
-	t.Run("Clone", func(t *testing.T) {
+			AllowMethod:              true,
+			NoFurtherMethodsRequired: true,
+			ContextUpdates:           &extensions_ssh.AuthContext{},
+		},
 		{
-			var amv ssh.AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]
-			clone := amv.Clone()
-			assert.Equal(t, amv, clone)
-		}
+			AllowMethod:            true,
+			NextRequiredAuthMethod: "keyboard-interactive",
+		},
 		{
-			var amv ssh.AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]
-			amv.Update(nil)
-			clone := amv.Clone()
-			assert.Equal(t, amv, clone)
-		}
+			AllowMethod:              true,
+			NoFurtherMethodsRequired: true,
+		},
 		{
-			var amv ssh.AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]
-			value := &extensions_ssh.PublicKeyAllowResponse{
-				PublicKey: []byte("testing"),
-				Permissions: &extensions_ssh.Permissions{
-					PermitPortForwarding: true,
-					PermitX11Forwarding:  true,
-				},
-			}
-			amv.Update(value)
-			clone := amv.Clone()
-			assert.Equal(t, amv.IsValid(), clone.IsValid())
-			assert.NotSame(t, amv.Value, clone.Value)
-			assert.NotSame(t, amv.Value.Permissions, clone.Value.Permissions)
-			testutil.AssertProtoEqual(t, amv.Value, clone.Value)
-		}
-	})
+			AllowMethod:            false,
+			NextRequiredAuthMethod: "publickey",
+		},
+	}
+	invalidResponses := []ssh.AuthMethodResponse{
+		{
+			AllowMethod:    false,
+			ContextUpdates: &extensions_ssh.AuthContext{},
+		},
+		{
+			AllowMethod:              false,
+			NoFurtherMethodsRequired: true,
+		},
+		{
+			AllowMethod:              true,
+			NextRequiredAuthMethod:   "",
+			NoFurtherMethodsRequired: false,
+		},
+		{
+			AllowMethod:              false,
+			NextRequiredAuthMethod:   "keyboard-interactive",
+			NoFurtherMethodsRequired: true,
+		},
+		{
+			AllowMethod:              true,
+			NextRequiredAuthMethod:   "keyboard-interactive",
+			NoFurtherMethodsRequired: true,
+		},
+		{ // See note in Validate()
+			AllowMethod:            true,
+			NextRequiredAuthMethod: "publickey",
+		},
+		{
+			NextRequiredAuthMethod: "nonexistent",
+		},
+		{
+			AllowMethod:            false,
+			NextRequiredAuthMethod: "publickey",
+			ContextUpdates:         &extensions_ssh.AuthContext{},
+		},
+	}
+
+	for _, valid := range validResponses {
+		assert.NotPanics(t, func() { valid.Validate() })
+	}
+	for _, valid := range invalidResponses {
+		assert.Panics(t, func() { valid.Validate() })
+	}
 }
 
-func TestStreamAuthInfo(t *testing.T) {
-	t.Run("AllMethodsValid", func(t *testing.T) {
+func TestAuthMethodResponseString(t *testing.T) {
+	for _, tc := range []struct {
+		resp     ssh.AuthMethodResponse
+		expected string
+	}{
 		{
-			var info ssh.StreamAuthInfo
-			// Note: methods not attempted are considered valid, but allMethodsValid()
-			// is only run when StreamState.RemainingUnauthenticatedMethods is 0, i.e.
-			// when all required methods have had a chance to call Update() (and pass
-			// either a nil or non-nil value)
-			assert.True(t, info.UnexportedAllMethodsValid())
-		}
+			ssh.AuthMethodResponse{},
+			"unauthorized",
+		},
 		{
-			var info ssh.StreamAuthInfo
-			info.KeyboardInteractiveAllow.Update(nil)
-			assert.False(t, info.UnexportedAllMethodsValid())
-		}
+			ssh.AuthMethodResponse{
+				AllowMethod:              true,
+				NoFurtherMethodsRequired: true,
+			},
+			"authorized",
+		},
 		{
-			var info ssh.StreamAuthInfo
-			info.PublicKeyAllow.Update(nil)
-			assert.False(t, info.UnexportedAllMethodsValid())
-		}
+			ssh.AuthMethodResponse{
+				AllowMethod:            true,
+				NextRequiredAuthMethod: "keyboard-interactive",
+			},
+			"partially authorized (next: keyboard-interactive)",
+		},
 		{
-			var info ssh.StreamAuthInfo
-			info.KeyboardInteractiveAllow.Update(nil)
-			info.PublicKeyAllow.Update(nil)
-			assert.False(t, info.UnexportedAllMethodsValid())
-		}
-		{
-			var info ssh.StreamAuthInfo
-			info.KeyboardInteractiveAllow.Update(&extensions_ssh.KeyboardInteractiveAllowResponse{})
-			info.PublicKeyAllow.Update(nil)
-			assert.False(t, info.UnexportedAllMethodsValid())
-		}
-		{
-			var info ssh.StreamAuthInfo
-			info.KeyboardInteractiveAllow.Update(nil)
-			info.PublicKeyAllow.Update(&extensions_ssh.PublicKeyAllowResponse{})
-			assert.False(t, info.UnexportedAllMethodsValid())
-		}
-		{
-			var info ssh.StreamAuthInfo
-			info.KeyboardInteractiveAllow.Update(&extensions_ssh.KeyboardInteractiveAllowResponse{})
-			info.PublicKeyAllow.Update(&extensions_ssh.PublicKeyAllowResponse{})
-			assert.True(t, info.UnexportedAllMethodsValid())
-		}
-	})
+			ssh.AuthMethodResponse{
+				AllowMethod:            false,
+				NextRequiredAuthMethod: "publickey",
+			},
+			"unauthorized (retry: publickey)",
+		},
+	} {
+		assert.Equal(t, tc.expected, tc.resp.String())
+	}
 }
