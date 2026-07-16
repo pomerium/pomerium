@@ -771,12 +771,20 @@ func (q *noopQuerier) Prompt(
 
 type fakeIssuer struct {
 	state *code.Status
+	ttl   time.Duration
 }
 
 var _ code.Issuer = (*fakeIssuer)(nil)
 
 func (f *fakeIssuer) IssueCode() code.CodeID {
 	return ""
+}
+
+func (f *fakeIssuer) CodeTTL() time.Duration {
+	if f.ttl == 0 {
+		return 1 * time.Minute
+	}
+	return f.ttl
 }
 
 func (f *fakeIssuer) AssociateCode(context.Context, code.CodeID, *session.SessionBindingRequest) (code.CodeID, error) {
