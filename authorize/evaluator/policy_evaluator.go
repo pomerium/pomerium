@@ -224,10 +224,14 @@ func NewPolicyEvaluator(
 
 // Evaluate evaluates the policy rego scripts.
 func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*PolicyResponse, error) {
-	if req.SSH.ReverseTunnel {
+	switch req.SSH.EvalMode {
+	case EvalModeDefault:
+		return evaluateQueries(ctx, req, e.queries)
+	case EvalModeReverseTunnel:
 		return evaluateQueries(ctx, req, e.upstreamTunnelQuery)
+	default:
+		panic("invalid eval mode")
 	}
-	return evaluateQueries(ctx, req, e.queries)
 }
 
 func evaluateQueries(ctx context.Context, req *PolicyRequest, queries []policyQuery) (*PolicyResponse, error) {
