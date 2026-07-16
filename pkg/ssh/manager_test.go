@@ -52,7 +52,7 @@ func TestStreamManager(t *testing.T) {
 	m := ssh.NewStreamManager(
 		t.Context(),
 		auth,
-		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient)),
+		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(evalResultAlwaysAllow, databrokerClient)),
 		ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)),
 		cfg,
 	)
@@ -240,24 +240,28 @@ func TestReverseTunnelEDS(t *testing.T) {
 				MethodRequest: marshalAny(&extensions_ssh.PublicKeyMethodRequest{
 					PublicKey:                  key,
 					PublicKeyAlg:               "ssh-ed25519",
-					PublicKeyFingerprintSha256: []byte(gossh.FingerprintSHA256(sshKey)),
+					PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
 				}),
 			},
 		},
 	}
 	auth.EXPECT().
-		HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, api.UserRequest, *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
-			return ssh.PublicKeyAuthMethodResponse{
-				Allow: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey: []byte(gossh.FingerprintSHA256(sshKey)),
+		HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, ssh.StreamInfo, ssh.StreamAuthInfo, api.UserRequest, *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+			return ssh.AuthMethodResponse{
+				AllowMethod:              true,
+				NoFurtherMethodsRequired: true,
+				ContextUpdates: &extensions_ssh.AuthContext{
+					PublicKey:                  sshKey.Marshal(),
+					PublicKeyAlg:               sshKey.Type(),
+					PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
 				},
 			}, nil
 		}).
 		AnyTimes()
 	auth.EXPECT().
-		EvaluateDelayed(gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, api.UserRequest) error {
+		EvaluateDelayed(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, ssh.StreamInfo, ssh.StreamAuthInfo, api.UserRequest) error {
 			return nil
 		}).
 		AnyTimes()
@@ -327,7 +331,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 		databrokerClient := databrokerpb.NewDataBrokerServiceClient(cc)
 		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
-		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
+		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(evalResultAlwaysAllow, databrokerClient))
 		m := ssh.NewStreamManager(t.Context(), auth, indexer, ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)), cfg)
 
 		go indexer.Run(t.Context())
@@ -487,7 +491,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 		databrokerClient := databrokerpb.NewDataBrokerServiceClient(cc)
 		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
-		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
+		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(evalResultAlwaysAllow, databrokerClient))
 		m := ssh.NewStreamManager(t.Context(), auth, indexer, ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)), cfg)
 
 		go indexer.Run(t.Context())
