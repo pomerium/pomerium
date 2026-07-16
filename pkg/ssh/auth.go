@@ -358,7 +358,7 @@ func (a *Auth) handleLogin(
 		Protocol:  session.ProtocolSSH,
 		State:     session.SessionBindingRequestState_InFlight,
 		CreatedAt: now,
-		ExpiresAt: timestamppb.New(now.AsTime().Add(code.DefaultCodeTTL)),
+		ExpiresAt: timestamppb.New(now.AsTime().Add(a.codeIssuer.CodeTTL())),
 		Details: map[string]string{
 			session.DetailSourceAddr: sourceAddr,
 		},

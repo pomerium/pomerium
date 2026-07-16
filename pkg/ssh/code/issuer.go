@@ -37,7 +37,7 @@ func NewIssuer(ctx context.Context, client databroker.ClientGetter) Issuer {
 	i := &issuer{
 		clientB: client,
 		done:    doneC,
-		mgr:     newCodeManager(client),
+		mgr:     newCodeManager(client, defaultIssuerCodeTTL),
 		Reader:  NewReader(client),
 		Revoker: NewRevoker(client),
 	}
@@ -67,6 +67,10 @@ func (i *issuer) IssueCode() CodeID {
 	_, _ = rand.Read(code[:])
 	codeStr := base64.RawURLEncoding.EncodeToString(code[:])
 	return CodeID(codeStr)
+}
+
+func (i *issuer) CodeTTL() time.Duration {
+	return defaultIssuerCodeTTL
 }
 
 func (i *issuer) OnCodeDecision(ctx context.Context, code CodeID) <-chan Status {
