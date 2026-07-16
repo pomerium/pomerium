@@ -94,3 +94,23 @@ type PolicyIndexer interface {
 	//   or nil.
 	RemoveStream(streamID uint64)
 }
+
+type PolicyIndexSubscriberSet struct {
+	Tunnel PolicyIndexTunnelSubscriber
+}
+
+// UpdateEnabledStaticPorts implements [PolicyIndexSubscriber].
+func (p *PolicyIndexSubscriberSet) UpdateEnabledStaticPorts(allowedStaticPorts []uint) {
+	if p.Tunnel != nil {
+		p.Tunnel.UpdateEnabledStaticPorts(allowedStaticPorts)
+	}
+}
+
+// UpdateAuthorizedRoutes implements [PolicyIndexSubscriber].
+func (p *PolicyIndexSubscriberSet) UpdateAuthorizedRoutes(routes []common.RouteInfo) {
+	if p.Tunnel != nil {
+		p.Tunnel.UpdateAuthorizedRoutes(routes)
+	}
+}
+
+var _ PolicyIndexSubscriber = (*PolicyIndexSubscriberSet)(nil)
