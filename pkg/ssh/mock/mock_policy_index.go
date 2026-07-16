@@ -12,7 +12,7 @@ package mock_ssh
 import (
 	reflect "reflect"
 
-	portforward "github.com/pomerium/pomerium/pkg/ssh/portforward"
+	common "github.com/pomerium/pomerium/pkg/ssh/common"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,7 +41,7 @@ func (m *MockPolicyIndexSubscriber) EXPECT() *MockPolicyIndexSubscriberMockRecor
 }
 
 // UpdateAuthorizedRoutes mocks base method.
-func (m *MockPolicyIndexSubscriber) UpdateAuthorizedRoutes(routes []portforward.RouteInfo) {
+func (m *MockPolicyIndexSubscriber) UpdateAuthorizedRoutes(routes []common.RouteInfo) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "UpdateAuthorizedRoutes", routes)
 }
@@ -65,13 +65,13 @@ func (c *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall) Return() *MockPoli
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall) Do(f func([]portforward.RouteInfo)) *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
+func (c *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall) Do(f func([]common.RouteInfo)) *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall) DoAndReturn(f func([]portforward.RouteInfo)) *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
+func (c *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall) DoAndReturn(f func([]common.RouteInfo)) *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
