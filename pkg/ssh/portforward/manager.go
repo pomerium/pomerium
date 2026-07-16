@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 )
 
 //go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_port_forward.go . RouteEvaluator,UpdateListener
@@ -19,16 +20,8 @@ import (
 // forward requests) that can be active at a time.
 const MaxPermissionEntries = 128
 
-type RouteInfo struct {
-	From      string
-	To        config.WeightedURLs
-	Hostname  string // not including port
-	Port      uint32
-	ClusterID string
-}
-
 type RoutePortForwardInfo struct {
-	RouteInfo
+	common.RouteInfo
 	Permission Permission
 }
 
@@ -42,7 +35,7 @@ type RouteEvaluator interface {
 }
 
 type UpdateListener interface {
-	OnRoutesUpdated(routes []RouteInfo)
+	OnRoutesUpdated(routes []common.RouteInfo)
 	OnPermissionsUpdated(permissions []Permission)
 	OnClusterEndpointsUpdated(added map[string]RoutePortForwardInfo, removed map[string]struct{})
 }
@@ -156,7 +149,7 @@ type Manager struct {
 
 	// Cached list of all routes the current session would be authorized to
 	// port-forward.
-	cachedAuthorizedRoutes []RouteInfo
+	cachedAuthorizedRoutes []common.RouteInfo
 	// Contains the most recently built set of endpoints, keyed by cluster ID.
 	// Updated automatically by rebuildEndpoints().
 	cachedEndpoints map[string]RoutePortForwardInfo
@@ -321,7 +314,7 @@ func (pfm *Manager) UpdateEnabledStaticPorts(enabledStaticPorts []uint) {
 	pfm.rebuildEndpoints()
 }
 
-func (pfm *Manager) UpdateAuthorizedRoutes(routes []RouteInfo) {
+func (pfm *Manager) UpdateAuthorizedRoutes(routes []common.RouteInfo) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
 	pfm.cachedAuthorizedRoutes = routes

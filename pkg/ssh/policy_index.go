@@ -5,14 +5,19 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 )
 
 //go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_policy_index.go . PolicyIndexSubscriber
 
-type PolicyIndexSubscriber interface {
+// Upstream tunnel callbacks
+type PolicyIndexTunnelSubscriber interface {
 	UpdateEnabledStaticPorts(allowedStaticPorts []uint)
-	UpdateAuthorizedRoutes(routes []portforward.RouteInfo)
+	UpdateAuthorizedRoutes(routes []common.RouteInfo)
+}
+
+type PolicyIndexSubscriber interface {
+	PolicyIndexTunnelSubscriber
 }
 
 type PolicyIndexer interface {
