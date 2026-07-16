@@ -39,6 +39,50 @@ func TestSummaryShowsMaterialChanges(t *testing.T) {
 	}
 }
 
+func TestSummaryHeadlines(t *testing.T) {
+	tests := []struct {
+		name  string
+		base  map[string]coverage
+		head  map[string]coverage
+		files []fileChange
+		want  string
+	}{
+		{
+			name: "regression",
+			base: map[string]coverage{module + "/pkg/a.go": {covered: 8, total: 10}},
+			head: map[string]coverage{module + "/pkg/a.go": {covered: 7, total: 10}},
+			files: []fileChange{
+				{file: "pkg/a.go", baseFile: "pkg/a.go"},
+			},
+			want: "Changed **-10.0pp** across reported files.",
+		},
+		{
+			name: "offsetting changes",
+			base: map[string]coverage{
+				module + "/pkg/a.go": {covered: 5, total: 10},
+				module + "/pkg/b.go": {covered: 9, total: 10},
+			},
+			head: map[string]coverage{
+				module + "/pkg/a.go": {covered: 6, total: 10},
+				module + "/pkg/b.go": {covered: 8, total: 10},
+			},
+			files: []fileChange{
+				{file: "pkg/a.go", baseFile: "pkg/a.go"},
+				{file: "pkg/b.go", baseFile: "pkg/b.go"},
+			},
+			want: "Material coverage changes in modified files.",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := summary(test.base, test.head, test.files, module, 1, "", "", ""); !strings.Contains(got, test.want) {
+				t.Fatalf("summary missing %q:\n%s", test.want, got)
+			}
+		})
+	}
+}
+
 func TestSummaryOmitsJitter(t *testing.T) {
 	base := map[string]coverage{"github.com/pomerium/pomerium/pkg/a.go": {covered: 800, total: 1000}}
 	head := map[string]coverage{"github.com/pomerium/pomerium/pkg/a.go": {covered: 799, total: 1000}}

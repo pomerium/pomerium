@@ -4,6 +4,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,9 +20,6 @@ type coverage struct {
 }
 
 func (c coverage) percent() float64 {
-	if c.total == 0 {
-		return 0
-	}
 	return 100 * float64(c.covered) / float64(c.total)
 }
 
@@ -155,7 +153,7 @@ func summary(base, head map[string]coverage, files []fileChange, module string, 
 
 	var baseTotal, headTotal coverage
 	for _, row := range rows {
-		if row.base.total == 0 || row.head.total == 0 {
+		if row.base.total == 0 {
 			continue
 		}
 		baseTotal.covered += row.base.covered
@@ -167,7 +165,7 @@ func summary(base, head map[string]coverage, files []fileChange, module string, 
 	var b strings.Builder
 	fmt.Fprintln(&b, "## Go coverage")
 	fmt.Fprintln(&b)
-	if baseTotal.total > 0 && headTotal.total > 0 {
+	if baseTotal.total > 0 {
 		delta := headTotal.percent() - baseTotal.percent()
 		if delta >= threshold {
 			fmt.Fprintf(&b, "Improved **%+.1fpp** across reported files.\n", delta)
@@ -203,7 +201,7 @@ func deltas(base, head map[string]coverage, files []fileChange, module string, t
 		if headCoverage.total == 0 {
 			continue
 		}
-		if baseCoverage.total > 0 && headCoverage.total > 0 && abs(headCoverage.percent()-baseCoverage.percent()) < threshold {
+		if baseCoverage.total > 0 && math.Abs(headCoverage.percent()-baseCoverage.percent()) < threshold {
 			continue
 		}
 		result = append(result, fileDelta{file: change.file, base: baseCoverage, head: headCoverage})
@@ -238,15 +236,8 @@ func formatCoverage(value coverage) string {
 }
 
 func formatDelta(value fileDelta) string {
-	if value.base.total == 0 || value.head.total == 0 {
+	if value.base.total == 0 {
 		return "new"
 	}
 	return fmt.Sprintf("%+.1fpp", value.head.percent()-value.base.percent())
-}
-
-func abs(value float64) float64 {
-	if value < 0 {
-		return -value
-	}
-	return value
 }

@@ -8,6 +8,11 @@ on:
       - main
   pull_request:
 
+# Keep an older PR run from publishing after a newer commit.
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   integration:
     strategy:
@@ -144,7 +149,7 @@ jobs:
             --head coverage.txt \
             --module "$(GOWORK=off go list -m -f '{{.Path}}')" \
             --repository "$GITHUB_REPOSITORY" \
-            --sha "$GITHUB_SHA" \
+            --sha "${{ github.event.pull_request.head.sha }}" \
             --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             >> "$GITHUB_STEP_SUMMARY"
 
