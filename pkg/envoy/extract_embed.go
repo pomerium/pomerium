@@ -9,6 +9,7 @@ import (
 	"hash"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/cespare/xxhash/v2"
@@ -50,6 +51,30 @@ func extract(dstName string) error {
 
 	actual := fmt.Sprintf("%x", hr.Sum(nil))
 	if actual != digest {
+		// Ignore digest mismatch if started from testenv so that integration tests
+		// can be run using development versions of envoy by replacing the binary.
+		//
+		// TODO: starting in go 1.27, debug.BuildInfo for test binaries will have
+		// module deps populated which can be used to check if envoy-custom is
+		// replaced. Then the replacement path can be used in a similar way as
+		// setting the debug_local_envoy build tag and extracting the embedded
+		// binary can be skipped entirely.
+		callers := make([]uintptr, 8)
+		n := runtime.Callers(2, callers)
+		frames := runtime.CallersFrames(callers[:n])
+		for {
+			frame, more := frames.Next()
+			// the actual caller is an anonymous function inside Start (i.e. '.Start.func#')
+			if strings.HasPrefix(frame.Function,
+				"github.com/pomerium/pomerium/internal/testenv.(*environment).Start") {
+				fmt.Fprintf(os.Stderr, "WARNING: envoy digest mismatch ignored in test environment\n")
+				return nil
+			}
+			if !more {
+				break
+			}
+		}
+
 		return fmt.Errorf("expected %s, got %s checksum", digest, actual)
 	}
 	return nil
