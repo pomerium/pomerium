@@ -117,17 +117,27 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         with:
           script: |
+            const { owner, repo } = context.repo;
             const { data } = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner,
+              repo,
               workflow_id: 'test.yaml',
               event: 'push',
               head_sha: process.env.BASE_SHA,
               status: 'completed',
               per_page: 10,
             });
-            const run = data.workflow_runs.find((run) => run.conclusion === 'success');
-            if (run) core.setOutput('run-id', run.id);
+            for (const run of data.workflow_runs.filter((run) => run.conclusion === 'success')) {
+              const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+                owner,
+                repo,
+                run_id: run.id,
+              });
+              if (data.artifacts.some((artifact) => artifact.name === 'coverage-profile' && !artifact.expired)) {
+                core.setOutput('run-id', run.id);
+                break;
+              }
+            }
 
       - name: Download base coverage
         id: coverage-download
