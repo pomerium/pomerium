@@ -7,7 +7,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "ws": "^8.21.0"
+    "ws": "^8.21.1"
   },
   "packageManager": "npm@10.9.4"
 }
