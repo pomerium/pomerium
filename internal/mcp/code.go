@@ -63,7 +63,12 @@ func CreateCodeWithRecordVersion(
 	}
 
 	ciphertext := cryptutil.Encrypt(cipher, b, []byte(ad))
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
+	// Use RawURLEncoding so the code is safe to carry in an
+	// application/x-www-form-urlencoded token request body. StdEncoding's
+	// '+' is decoded back to a space by form parsers when a client fails to
+	// percent-encode it, corrupting the code; the URL-safe alphabet ('-'/'_',
+	// no padding) avoids '+', '/' and '=' entirely.
+	return base64.RawURLEncoding.EncodeToString(ciphertext), nil
 }
 
 func DecryptCode(
@@ -73,9 +78,15 @@ func DecryptCode(
 	ad string,
 	now time.Time,
 ) (*oauth21proto.Code, error) {
-	b, err := base64.StdEncoding.DecodeString(code)
+	// Codes are now emitted with RawURLEncoding; fall back to StdEncoding so
+	// that any codes issued just before the cutover (still using the legacy
+	// alphabet) remain redeemable during the transition window.
+	b, err := base64.RawURLEncoding.DecodeString(code)
 	if err != nil {
-		return nil, fmt.Errorf("base64 decode: %w", err)
+		b, err = base64.StdEncoding.DecodeString(code)
+		if err != nil {
+			return nil, fmt.Errorf("base64 decode: %w", err)
+		}
 	}
 	plaintext, err := cryptutil.Decrypt(cipher, b, []byte(ad))
 	if err != nil {
