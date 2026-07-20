@@ -41,11 +41,15 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
       <Paper sx={{ overflow: "hidden" }}>
         <Stack>
           <Toolbar>
-            <Typography variant="h4" flexGrow={1}>
+            <Typography variant="h4" sx={{ flexGrow: 1 }}>
               Current Session Device Credentials
             </Typography>
 
-            <Stack direction="row" justifyContent="center" spacing={1}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ justifyContent: "center" }}
+            >
               <WebAuthnRegisterButton
                 creationOptions={webAuthnCreationOptions}
                 url={webAuthnUrl}
@@ -72,7 +76,7 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
           <Paper sx={{ overflow: "hidden" }}>
             <Stack>
               <Toolbar>
-                <Typography variant="h4" flexGrow={1}>
+                <Typography variant="h4" sx={{ flexGrow: 1 }}>
                   Other Device Credentials
                 </Typography>
               </Toolbar>

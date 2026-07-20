@@ -5,7 +5,7 @@ import { User } from "react-feather";
 
 type AvatarProps = {
   name: string;
-  url?: string;
+  url?: string | null;
 };
 
 export const Avatar = ({ url, name }: AvatarProps): JSX.Element => {

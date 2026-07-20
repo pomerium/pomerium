@@ -48,16 +48,14 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
-  const userName =
-    get(data, "user.name") ||
+  const userName = (get(data, "user.name") ||
     get(data, "user.claims.given_name") ||
     get(data, "profile.claims.name") ||
     get(data, "profile.claims.given_name") ||
-    "";
-  const userPictureUrl =
-    get(data, "user.claims.picture") ||
+    "") as string;
+  const userPictureUrl = (get(data, "user.claims.picture") ||
     get(data, "profile.claims.picture") ||
-    null;
+    null) as string | null;
   const showAvatar =
     data?.page !== "SignOutConfirm" && data?.page !== "SignedOut";
 
@@ -134,7 +132,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
             <Logo src={data?.logoUrl || LogoURL} />
           </a>
         )}
-        <Box flexGrow={1} />
+        <Box sx={{ flexGrow: 1 }} />
         {showAvatar && (
           <IconButton color="inherit" onClick={handleMenuOpen}>
             <Avatar name={userName} url={userPictureUrl} />
