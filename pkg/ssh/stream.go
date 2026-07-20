@@ -93,7 +93,7 @@ func (r *AuthMethodResponse) String() string {
 	if !r.NoFurtherMethodsRequired {
 		return fmt.Sprintf("partially authorized (next: %s)", r.NextRequiredAuthMethod)
 	}
-	return fmt.Sprintf("authorized")
+	return "authorized"
 }
 
 //go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_auth_interface.go . AuthInterface
