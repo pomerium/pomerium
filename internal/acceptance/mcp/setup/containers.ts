@@ -14,6 +14,7 @@ import * as path from "node:path";
 import {
   GenericContainer,
   Network,
+  PullPolicy,
   Wait,
   type StartedTestContainer,
   type StartedNetwork,
@@ -31,6 +32,29 @@ const UPSTREAM_DIR = path.join(MCP_DIR, "upstream");
 const KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.5.2";
 const NODE_IMAGE = "node:22-alpine";
 const POMERIUM_IMAGE = process.env.POMERIUM_IMAGE || "pomerium/pomerium:main";
+
+// testcontainers reuses an already-present local image and never re-pulls a
+// mutable tag on its own. That silently pins the suite to a stale `:main` (a
+// two-month-old cached image once left `mcp` defaulting off and 404'd every
+// route), so force a fresh pull whenever the image is a moving tag. A pinned
+// version/digest override is immutable, so leave it on the default policy and
+// skip the needless network round-trip.
+//
+// The tag only ever lives in the final path component, so isolate it before
+// inspecting: a registry host can carry a port (registry:5000/pomerium/pomerium)
+// whose `:` would otherwise be mistaken for a tag separator.
+function isMutableTag(image: string): boolean {
+  // A digest pin (@sha256:...) is immutable regardless of any tag.
+  if (image.includes("@")) return false;
+  const lastComponent = image.slice(image.lastIndexOf("/") + 1);
+  const colon = lastComponent.indexOf(":");
+  // No tag → Docker defaults to the mutable `:latest`.
+  if (colon === -1) return true;
+  const tag = lastComponent.slice(colon + 1);
+  return tag === "main" || tag === "latest";
+}
+
+const POMERIUM_MUTABLE_TAG = isMutableTag(POMERIUM_IMAGE);
 
 const STARTUP_TIMEOUT_MS = 240_000;
 const LOGS = !!process.env.MCP_E2E_LOGS;
@@ -107,8 +131,12 @@ export async function startStack(): Promise<Stack> {
     launched.push(upstream);
 
     // --- Pomerium (official image, all-in-one) -----------------------------
+    const pomeriumImage = new GenericContainer(POMERIUM_IMAGE);
+    if (POMERIUM_MUTABLE_TAG) {
+      pomeriumImage.withPullPolicy(PullPolicy.alwaysPull());
+    }
     const pomerium = await withLogs(
-      new GenericContainer(POMERIUM_IMAGE)
+      pomeriumImage
         .withNetwork(network)
         .withNetworkAliases(
           "authenticate.localhost.pomerium.io",
