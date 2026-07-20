@@ -901,7 +901,7 @@ func init() {
 			DoAndReturn(func(
 				ctx context.Context,
 				streamInfo ssh.StreamInfo,
-				authInfo ssh.StreamAuthInfo,
+				_ ssh.StreamAuthInfo,
 				user api.UserRequest,
 				_ *extensions_ssh.KeyboardInteractiveMethodRequest,
 				querier ssh.KeyboardInteractiveQuerier,

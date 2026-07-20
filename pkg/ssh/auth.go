@@ -181,7 +181,7 @@ func authInfoHasSession(info StreamAuthInfo) bool {
 func (a *Auth) handlePublicKeyMethodRequest(
 	ctx context.Context,
 	streamInfo StreamInfo,
-	authInfo StreamAuthInfo,
+	_ StreamAuthInfo,
 	user api.UserRequest,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (AuthMethodResponse, error) {
@@ -211,12 +211,12 @@ func (a *Auth) handlePublicKeyMethodRequest(
 			AllowMethod:            false,
 			NextRequiredAuthMethod: MethodPublicKey,
 		}, nil
-	} else {
-		// The public key is acceptable
-		pendingAuthContextUpdates.PublicKey = req.PublicKey
-		pendingAuthContextUpdates.PublicKeyAlg = req.PublicKeyAlg
-		pendingAuthContextUpdates.PublicKeyFingerprintSha256 = req.PublicKeyFingerprintSha256
 	}
+
+	// The public key is acceptable
+	pendingAuthContextUpdates.PublicKey = req.PublicKey
+	pendingAuthContextUpdates.PublicKeyAlg = req.PublicKeyAlg
+	pendingAuthContextUpdates.PublicKeyFingerprintSha256 = req.PublicKeyFingerprintSha256
 
 	isPomeriumInternalRoute := res.HasReason(criteria.ReasonPomeriumRoute)
 	if !res.HasReason(criteria.ReasonUserUnauthenticated) && !isPomeriumInternalRoute {
@@ -351,6 +351,9 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 		sessionBindingID = authInfo.GetSessionBindingId()
 
 		// (not implemented yet)
+		_ = sessionID
+		_ = userID
+		_ = sessionBindingID
 
 		panic("bug: keyboard-interactive auth request is not valid in this state")
 	}
@@ -533,9 +536,8 @@ func (a *Auth) handleLogin(
 			// if the backoff timed out
 			if errors.Is(err, lastError) {
 				return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, fmt.Sprintf("failed to get matching session binding: %s", err.Error()))
-			} else {
-				return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, fmt.Sprintf("failed to get matching session binding: %s (last error: %s)", err.Error(), lastError.Error()))
 			}
+			return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, fmt.Sprintf("failed to get matching session binding: %s (last error: %s)", err.Error(), lastError.Error()))
 		}
 		l.Info().Msg("successfully authenticated")
 		span.SetStatus(otelcode.Ok, "successfully authenticated")
@@ -663,7 +665,7 @@ func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID 
 	}
 }
 
-func (a *Auth) GetSession(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo) (*session.Session, error) {
+func (a *Auth) GetSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) (*session.Session, error) {
 	_, session, err := a.resolveSession(ctx, authInfo.GetSessionBindingId())
 	if err != nil {
 		return nil, err
@@ -671,7 +673,7 @@ func (a *Auth) GetSession(ctx context.Context, streamInfo StreamInfo, authInfo S
 	return session, nil
 }
 
-func (a *Auth) DeleteSession(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo) error {
+func (a *Auth) DeleteSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) error {
 	binding, _, err := a.resolveSession(ctx, authInfo.GetSessionBindingId())
 	if err != nil {
 		return err
@@ -774,18 +776,8 @@ func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	return "sshkey-SHA256:" + base64.RawStdEncoding.EncodeToString(sha256fingerprint), nil
 }
 
-func (a *Auth) resolveSessionFromFingerprint(ctx context.Context, sha256fingerprint []byte) (*session.SessionBinding, *session.Session, error) {
-	id, err := sessionIDFromFingerprint(sha256fingerprint)
-	if err != nil {
-		return nil, nil, err
-	}
-	return a.resolveSession(ctx, id)
-}
-
-var errMissingPublicKeyInfo = errors.New("public key info missing from auth context")
-
 // Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
-func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (AuthRequest, error) {
+func (a *Auth) sshRequestFromStreamAuthInfo(_ context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (AuthRequest, error) {
 	return AuthRequest{
 		Username:         user.Username(),
 		Hostname:         user.Hostname(),
