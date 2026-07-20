@@ -34,9 +34,9 @@ shared_secret: 0CdEkgO02jgxmgSC2AdkqIbFELAN4CGw0v0RY85xNr4=
 
 log_level: debug
 
-# Enable the MCP service surface (authorize service feature flag).
+# The MCP service surface is enabled by default as of #6521; no `mcp: true`
+# runtime flag is needed.
 runtime_flags:
-  mcp: true
   # Advertise the DCR `registration_endpoint` in the authorization-server
   # metadata. As of #6483 (ENG-4184) the official image gates inbound Dynamic
   # Client Registration behind this flag (default off); without it the SDK and

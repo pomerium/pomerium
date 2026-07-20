@@ -14,6 +14,7 @@ import * as path from "node:path";
 import {
   GenericContainer,
   Network,
+  PullPolicy,
   Wait,
   type StartedTestContainer,
   type StartedNetwork,
@@ -31,6 +32,14 @@ const UPSTREAM_DIR = path.join(MCP_DIR, "upstream");
 const KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.5.2";
 const NODE_IMAGE = "node:22-alpine";
 const POMERIUM_IMAGE = process.env.POMERIUM_IMAGE || "pomerium/pomerium:main";
+
+// testcontainers reuses an already-present local image and never re-pulls a
+// mutable tag on its own. That silently pins the suite to a stale `:main` (a
+// two-month-old cached image once left `mcp` defaulting off and 404'd every
+// route), so force a fresh pull whenever the image is a moving tag. A pinned
+// version/digest override is immutable, so leave it on the default policy and
+// skip the needless network round-trip.
+const POMERIUM_MUTABLE_TAG = /:(main|latest)$/.test(POMERIUM_IMAGE) || !POMERIUM_IMAGE.includes(":");
 
 const STARTUP_TIMEOUT_MS = 240_000;
 const LOGS = !!process.env.MCP_E2E_LOGS;
@@ -107,8 +116,12 @@ export async function startStack(): Promise<Stack> {
     launched.push(upstream);
 
     // --- Pomerium (official image, all-in-one) -----------------------------
+    const pomeriumImage = new GenericContainer(POMERIUM_IMAGE);
+    if (POMERIUM_MUTABLE_TAG) {
+      pomeriumImage.withPullPolicy(PullPolicy.alwaysPull());
+    }
     const pomerium = await withLogs(
-      new GenericContainer(POMERIUM_IMAGE)
+      pomeriumImage
         .withNetwork(network)
         .withNetworkAliases(
           "authenticate.localhost.pomerium.io",
