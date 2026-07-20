@@ -73,7 +73,7 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 	sshKey2 := newPublicKey(t, newSSHKey(t).Public())
 
 	databrokerClient := fakeDataBrokerServiceClient{
-		get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+		get: func(context.Context, *databroker.GetRequest, ...grpc.CallOption) (*databroker.GetResponse, error) {
 			return nil, status.Error(codes.NotFound, "not found")
 		},
 	}
@@ -107,7 +107,7 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 
 	t.Run("error during evaluation", func(t *testing.T) {
 		evaluator := &fakePolicyEvaluator{
-			evaluateSSH: func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
+			evaluateSSH: func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
 				return nil, errors.New("test error")
 			},
 			client: databrokerClient,
@@ -132,12 +132,11 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 						Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized),
 						Deny:  evaluator.NewRuleResult(true),
 					}, nil
-				} else {
-					return &evaluator.Result{
-						Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-						Deny:  evaluator.NewRuleResult(true),
-					}, nil
 				}
+				return &evaluator.Result{
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+					Deny:  evaluator.NewRuleResult(true),
+				}, nil
 			},
 			client: databrokerClient,
 		}
@@ -161,7 +160,7 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 
 	t.Run("source IP denied", func(t *testing.T) {
 		evaluator := &fakePolicyEvaluator{
-			evaluateSSH: func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
+			evaluateSSH: func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
 				return &evaluator.Result{
 					Allow: evaluator.NewRuleResult(false, criteria.ReasonSourceIPUnauthorized),
 					Deny:  evaluator.NewRuleResult(false),
@@ -179,7 +178,7 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 
 	t.Run("ssh username denied", func(t *testing.T) {
 		evaluator := &fakePolicyEvaluator{
-			evaluateSSH: func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
+			evaluateSSH: func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
 				return &evaluator.Result{
 					Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHUsernameUnauthorized),
 					Deny:  evaluator.NewRuleResult(false),
@@ -219,7 +218,7 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 
 	t.Run("invalid fingerprint in request", func(t *testing.T) {
 		evaluator := &fakePolicyEvaluator{
-			evaluateSSH: func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
+			evaluateSSH: func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
 				return &evaluator.Result{
 					Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 					Deny:  evaluator.NewRuleResult(false),
@@ -244,12 +243,12 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 	user := mustNewUserRequest(t, "username", "hostname")
 	sshKey1 := newPublicKey(t, newSSHKey(t).Public())
-	sessionId := uuid.NewString()
-	userId := "user"
+	sessionID := uuid.NewString()
+	userID := "user"
 
 	sessionBindingID := sessionBindingIDFromPublicKey(sshKey1)
 	databrokerClient := fakeDataBrokerServiceClient{
-		get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+		get: func(_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 			switch in.Type {
 			case "type.googleapis.com/session.SessionBinding":
 				assert.Equal(t, sessionBindingID, in.Id)
@@ -260,19 +259,19 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 							Protocol:  session.ProtocolSSH,
 							IssuedAt:  timestamppb.New(time.Now().Add(-1 * time.Minute)),
 							ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 1000)),
-							SessionId: sessionId,
-							UserId:    userId,
+							SessionId: sessionID,
+							UserId:    userID,
 						}),
 					},
 				}, nil
 			case "type.googleapis.com/session.Session":
-				assert.Equal(t, sessionId, in.Id)
+				assert.Equal(t, sessionID, in.Id)
 				return &databroker.GetResponse{
 					Record: &databroker.Record{
 						Type: "type.googleapis.com/session.Session",
 						Data: protoutil.NewAny(&session.Session{
-							Id:     sessionId,
-							UserId: userId,
+							Id:     sessionID,
+							UserId: userID,
 						}),
 					},
 				}, nil
@@ -293,14 +292,13 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 						Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 						Deny:  evaluator.NewRuleResult(false),
 					}, nil
-				} else {
-					assert.Equal(t, sessionBindingID, r.SessionBindingID)
-					assert.Equal(t, sessionId, r.SessionID)
-					return &evaluator.Result{
-						Allow: evaluator.NewRuleResult(true, criteria.ReasonUserOK),
-						Deny:  evaluator.NewRuleResult(false),
-					}, nil
 				}
+				assert.Equal(t, sessionBindingID, r.SessionBindingID)
+				assert.Equal(t, sessionID, r.SessionID)
+				return &evaluator.Result{
+					Allow: evaluator.NewRuleResult(true, criteria.ReasonUserOK),
+					Deny:  evaluator.NewRuleResult(false),
+				}, nil
 			},
 			client: databrokerClient,
 		}
@@ -314,8 +312,8 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 				PublicKey:                  sshKey1.Marshal(),
 				PublicKeyAlg:               sshKey1.Type(),
 				PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey1),
-				SessionId:                  sessionId,
-				UserId:                     userId,
+				SessionId:                  sessionID,
+				UserId:                     userID,
 				SessionBindingId:           sessionBindingID,
 			},
 		}, res)
@@ -333,15 +331,14 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 						Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 						Deny:  evaluator.NewRuleResult(false),
 					}, nil
-				} else {
-					assert.Equal(t, sessionBindingID, r.SessionBindingID)
-					assert.Equal(t, sessionId, r.SessionID)
-					return &evaluator.Result{
-						// ReasonUserUnauthenticated triggers the login flow
-						Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-						Deny:  evaluator.NewRuleResult(false),
-					}, nil
 				}
+				assert.Equal(t, sessionBindingID, r.SessionBindingID)
+				assert.Equal(t, sessionID, r.SessionID)
+				return &evaluator.Result{
+					// ReasonUserUnauthenticated triggers the login flow
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+					Deny:  evaluator.NewRuleResult(false),
+				}, nil
 			},
 			client: databrokerClient,
 		}
@@ -367,9 +364,8 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 						Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 						Deny:  evaluator.NewRuleResult(false),
 					}, nil
-				} else {
-					return nil, errors.New("test error")
 				}
+				return nil, errors.New("test error")
 			},
 			client: databrokerClient,
 		}
@@ -401,9 +397,8 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 								Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 								Deny:  evaluator.NewRuleResult(false),
 							}, nil
-						} else {
-							return result, nil
 						}
+						return result, nil
 					},
 					client: databrokerClient,
 				}
@@ -559,7 +554,7 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 
 			req := newPkMethodRequest(sshKey1)
 			a := ssh.NewAuth(&fakePolicyEvaluator{
-				evaluateSSH: func(ctx context.Context, u uint64, ar ssh.AuthRequest) (*evaluator.Result, error) {
+				evaluateSSH: func(_ context.Context, _ uint64, ar ssh.AuthRequest) (*evaluator.Result, error) {
 					if ar.SessionBindingID == "" || ar.SessionID == "" {
 						return &evaluator.Result{
 							Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
@@ -598,7 +593,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		ShowErrorDetails: true,
 	}
 	sshKey1 := newPublicKey(t, newSSHKey(t).Public())
-	sessionBindingId := sessionBindingIDFromPublicKey(sshKey1)
+	sessionBindingID := sessionBindingIDFromPublicKey(sshKey1)
 	initialAuthContext := func() *extensions_ssh.AuthContext {
 		return &extensions_ssh.AuthContext{
 			PublicKey:                  sshKey1.Marshal(),
@@ -687,10 +682,10 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 			) (*databroker.GetResponse, error) {
 				switch r.Type {
 				case "type.googleapis.com/session.SessionBinding":
-					if r.Id == sessionBindingId {
+					if r.Id == sessionBindingID {
 						return &databroker.GetResponse{
 								Record: &databroker.Record{
-									Id:   sessionBindingId,
+									Id:   sessionBindingID,
 									Type: "type.googleapis.com/session.SessionBinding",
 									Data: protoutil.NewAny(&session.SessionBinding{
 										Protocol:  session.ProtocolSSH,
@@ -734,7 +729,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 			onCodeDecision: func(_ context.Context, id code.CodeID, c chan code.Status) {
 				c <- code.Status{
 					Code:       string(id),
-					BindingKey: sessionBindingId,
+					BindingKey: sessionBindingID,
 					State:      session.SessionBindingRequestState_Accepted,
 					ExpiresAt:  time.Now().Add(time.Hour * 1000),
 				}
@@ -752,7 +747,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 			AllowMethod:              true,
 			NoFurtherMethodsRequired: true,
 			ContextUpdates: &extensions_ssh.AuthContext{
-				SessionBindingId: sessionBindingId,
+				SessionBindingId: sessionBindingID,
 				SessionId:        sessionID,
 				UserId:           "fake.user@example.com",
 			},
@@ -764,7 +759,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
 		a := ssh.NewAuth(&fakePolicyEvaluator{
-			evaluateSSH: func(ctx context.Context, u uint64, ar ssh.AuthRequest) (*evaluator.Result, error) {
+			evaluateSSH: func(_ context.Context, _ uint64, ar ssh.AuthRequest) (*evaluator.Result, error) {
 				if ar.SessionID == "" || ar.SessionBindingID == "" {
 					return &evaluator.Result{
 						Allow: evaluator.NewRuleResult(true),
@@ -778,7 +773,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 			onCodeDecision: func(_ context.Context, id code.CodeID, c chan code.Status) {
 				c <- code.Status{
 					Code:       string(id),
-					BindingKey: sessionBindingId,
+					BindingKey: sessionBindingID,
 					State:      session.SessionBindingRequestState_Accepted,
 					ExpiresAt:  time.Now().Add(time.Hour * 1000),
 				}
@@ -803,7 +798,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 			onCodeDecision: func(_ context.Context, id code.CodeID, c chan code.Status) {
 				c <- code.Status{
 					Code:       string(id),
-					BindingKey: sessionBindingId,
+					BindingKey: sessionBindingID,
 					State:      session.SessionBindingRequestState_Revoked,
 				}
 			},
@@ -885,6 +880,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		a := ssh.NewAuth(&fakePolicyEvaluator{evaluateSSH: pe}, minimalConfig(idpURL), &nooptrace.TracerProvider{}, &fakeIssuer{
 			onCodeDecision: func(_ context.Context, id code.CodeID, c chan code.Status) {
 				c <- code.Status{
+					Code:       string(id),
 					BindingKey: "not the same binding key",
 					State:      session.SessionBindingRequestState_Accepted,
 				}
@@ -907,7 +903,8 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		a := ssh.NewAuth(&fakePolicyEvaluator{evaluateSSH: pe}, minimalConfig(idpURL), &nooptrace.TracerProvider{}, &fakeIssuer{
 			onCodeDecision: func(_ context.Context, id code.CodeID, c chan code.Status) {
 				c <- code.Status{
-					BindingKey: sessionBindingId,
+					Code:       string(id),
+					BindingKey: sessionBindingID,
 					State:      session.SessionBindingRequestState_InFlight, // invalid
 				}
 			},
@@ -928,7 +925,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		idpURL := mockIDP.Start(t)
 		a := ssh.NewAuth(&fakePolicyEvaluator{evaluateSSH: pe}, minimalConfig(idpURL), &nooptrace.TracerProvider{}, &fakeIssuer{}, nil)
 		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), ssh.StreamInfo{}, initialAuthContext(), user, nil, &fakeQuerier{
-			prompt: func(ctx context.Context, p *extensions_ssh.KeyboardInteractiveInfoPrompts) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error) {
+			prompt: func(context.Context, *extensions_ssh.KeyboardInteractiveInfoPrompts) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error) {
 				return nil, fmt.Errorf("test prompt error")
 			},
 		})
@@ -946,7 +943,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
 		a := ssh.NewAuth(&fakePolicyEvaluator{evaluateSSH: pe}, minimalConfig(idpURL), &nooptrace.TracerProvider{}, &fakeIssuer{
-			associateCode: func(ctx context.Context, ci code.CodeID, sbr *session.SessionBindingRequest) (code.CodeID, error) {
+			associateCode: func(context.Context, code.CodeID, *session.SessionBindingRequest) (code.CodeID, error) {
 				return "", fmt.Errorf("test associate code error")
 			},
 		}, nil)
@@ -964,10 +961,10 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 			) (*databroker.GetResponse, error) {
 				switch r.Type {
 				case "type.googleapis.com/session.SessionBinding":
-					if r.Id == sessionBindingId {
+					if r.Id == sessionBindingID {
 						return &databroker.GetResponse{
 								Record: &databroker.Record{
-									Id:   sessionBindingId,
+									Id:   sessionBindingID,
 									Type: "type.googleapis.com/session.SessionBinding",
 									Data: protoutil.NewAny(&session.SessionBinding{
 										Protocol:  session.ProtocolSSH,
@@ -997,7 +994,8 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		a := ssh.NewAuth(staticFakePolicyEvaluator(evalResultAlwaysAllow, client), minimalConfig(idpURL), &nooptrace.TracerProvider{}, &fakeIssuer{
 			onCodeDecision: func(_ context.Context, id code.CodeID, c chan code.Status) {
 				c <- code.Status{
-					BindingKey: sessionBindingId,
+					Code:       string(id),
+					BindingKey: sessionBindingID,
 					State:      session.SessionBindingRequestState_Accepted,
 					ExpiresAt:  time.Now().Add(time.Hour * 1000),
 				}
@@ -1017,10 +1015,10 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 			) (*databroker.GetResponse, error) {
 				switch r.Type {
 				case "type.googleapis.com/session.SessionBinding":
-					if r.Id == sessionBindingId {
+					if r.Id == sessionBindingID {
 						return &databroker.GetResponse{
 								Record: &databroker.Record{
-									Id:   sessionBindingId,
+									Id:   sessionBindingID,
 									Type: "type.googleapis.com/session.SessionBinding",
 									Data: protoutil.NewAny(&session.SessionBinding{
 										Protocol:  session.ProtocolSSH,
@@ -1049,7 +1047,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 			onCodeDecision: func(_ context.Context, id code.CodeID, c chan code.Status) {
 				c <- code.Status{
 					Code:       string(id),
-					BindingKey: sessionBindingId,
+					BindingKey: sessionBindingID,
 					State:      session.SessionBindingRequestState_Accepted,
 					ExpiresAt:  time.Now().Add(time.Hour * 1000),
 				}
@@ -1072,7 +1070,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 					return &databroker.GetResponse{
 						Record: &databroker.Record{
 							Type: "type.googleapis.com/session.SessionBinding",
-							Id:   sessionBindingId,
+							Id:   sessionBindingID,
 							Data: protoutil.NewAny(&session.SessionBinding{
 								Protocol:  session.ProtocolSSH,
 								ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 1000)),
@@ -1112,8 +1110,8 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		}, client), minimalConfig(idpURL), &nooptrace.TracerProvider{}, &fakeIssuer{
 			onCodeDecision: func(_ context.Context, id code.CodeID, c chan code.Status) {
 				c <- code.Status{
-					Code:       "",
-					BindingKey: sessionBindingId,
+					Code:       string(id),
+					BindingKey: sessionBindingID,
 					State:      session.SessionBindingRequestState_Accepted,
 				}
 			},

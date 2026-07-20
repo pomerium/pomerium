@@ -12,6 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	gossh "golang.org/x/crypto/ssh"
+	"google.golang.org/grpc"
+
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -19,10 +24,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	gossh "golang.org/x/crypto/ssh"
-	"google.golang.org/grpc"
 )
 
 type SSHKeys struct {
@@ -190,7 +191,7 @@ func staticFakePolicyEvaluator(result evaluator.Result, client databroker.DataBr
 		evaluateUpstreamTunnel: func(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
 			return &result, nil
 		},
-		evaluateAccessRequestArbitration: func(ctx context.Context, ar ssh.AuthRequest, p *config.Policy) (*evaluator.Result, error) {
+		evaluateAccessRequestArbitration: func(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
 			return &result, nil
 		},
 		client: client,
