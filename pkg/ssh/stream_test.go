@@ -205,12 +205,13 @@ func (s *StreamHandlerSuite) expectError(fn func(), msg string) {
 
 func (s *StreamHandlerSuite) startStreamHandler(streamID uint64) *ssh.StreamHandler {
 	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: streamID})
-	s.errC = make(chan error, 1)
+	errC := make(chan error, 1)
+	s.errC = errC
 	ctx, ca := context.WithCancel(s.T().Context())
 	s.streamCtx = ctx
 	go func() {
-		defer close(s.errC)
-		s.errC <- sh.Run(ctx)
+		defer close(errC)
+		errC <- sh.Run(ctx)
 	}()
 	s.cleanup = append(s.cleanup, func() {
 		start := time.Now()
@@ -223,7 +224,7 @@ func (s *StreamHandlerSuite) startStreamHandler(streamID uint64) *ssh.StreamHand
 		ca()
 		var err error
 		select {
-		case err = <-s.errC:
+		case err = <-errC:
 		case <-time.After(DefaultTimeout):
 			s.Fail("timed out waiting for stream handler to close")
 		}
@@ -1942,6 +1943,19 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Whoami() {
 		GetSession(Any(), Any()).
 		Return(session, nil)
 
+	// The formatted session includes information about session expiry (e.g.,
+	// "expires in 5h20m") and since we are checking to see if the format matches
+	// by running it locally, this test can flake if it is timed precisely such
+	// that Format() runs on the server when the wall clock is at minute N and
+	// the local Format() runs at minute N+1.
+	if now := time.Now(); now.Second() == 59 && now.Nanosecond() >= 900*int(time.Millisecond) {
+		// Wait until the next minute. The routine below takes about 1ms with race
+		// detector enabled, so a window of +/- 100ms should be plenty to account
+		// for CI slowdown
+		s.T().Log("delaying test 200ms")
+		time.Sleep(200 * time.Second)
+	}
+	now := time.Now()
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
 		PeersID:   peerID,
 		Request:   "exec",
@@ -1953,7 +1967,10 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Whoami() {
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 
 	channelData := s.channelDataLoop(peerID, stream, 0)
-	s.Equal(string(session.Format()), channelData.String())
+	expected := string(session.Format())
+	s.T().Logf("duration: %s", time.Since(now))
+	actual := channelData.String()
+	s.Equal(expected, actual)
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_WhoamiError() {

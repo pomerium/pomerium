@@ -184,7 +184,11 @@ func (h *sshUpstream) Run(ctx context.Context) error {
 
 func (h *sshUpstream) handleConnection(ctx context.Context, conn net.Conn) {
 	serverConn, ncc, rc, err := ssh.NewServerConn(conn, &h.serverConfig)
-	h.Env().Require().NoError(err, "ssh connection handshake failed")
+	if err != nil {
+		conn.Close()
+		h.Env().Assert().Fail("ssh connection handshake failed")
+		return
+	}
 	go func() {
 		<-ctx.Done()
 		conn.Close()

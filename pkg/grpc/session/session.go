@@ -177,7 +177,7 @@ func (x *Session) Format() []byte {
 	fmt.Fprintf(&b, "Session ID: %s\n", x.Id)
 	fmt.Fprintf(&b, "Expires at: %s (in %s)\n",
 		x.ExpiresAt.AsTime().String(),
-		time.Until(x.ExpiresAt.AsTime()).Round(time.Second))
+		time.Until(x.ExpiresAt.AsTime()).Round(time.Minute))
 	fmt.Fprintf(&b, "Claims:\n")
 	keys := make([]string, 0, len(x.Claims))
 	for key := range x.Claims {
@@ -195,11 +195,11 @@ func (x *Session) Format() []byte {
 			case "iat":
 				d, _ := vs[0].(float64)
 				t := time.Unix(int64(d), 0)
-				fmt.Fprintf(&b, "%s (%s ago)", t, time.Since(t).Round(time.Second))
+				fmt.Fprintf(&b, "%s (%s ago)", t, time.Since(t).Round(time.Minute))
 			case "exp":
 				d, _ := vs[0].(float64)
 				t := time.Unix(int64(d), 0)
-				fmt.Fprintf(&b, "%s (in %s)", t, time.Until(t).Round(time.Second))
+				fmt.Fprintf(&b, "%s (in %s)", t, time.Until(t).Round(time.Minute))
 			default:
 				fmt.Fprintf(&b, "%#v", vs[0])
 			}

@@ -165,6 +165,7 @@ type StreamHandler struct {
 	writeC                  chan *extensions_ssh.ServerMessage
 	readC                   chan *extensions_ssh.ClientMessage
 	reauthC                 chan struct{}
+	reauthStoppedC          chan struct{}
 	terminateC              chan error
 	internalChannelRequestC chan InternalChannelRequest
 	handoffRequestC         chan HandoffRequest
@@ -214,6 +215,7 @@ func NewStreamHandler(
 		writeC:                  writeC,
 		readC:                   make(chan *extensions_ssh.ClientMessage, 32),
 		reauthC:                 make(chan struct{}),
+		reauthStoppedC:          make(chan struct{}),
 		terminateC:              make(chan error, 1),
 		internalChannelRequestC: make(chan InternalChannelRequest, 1),
 		handoffRequestC:         make(chan HandoffRequest, 1),
@@ -271,7 +273,10 @@ func (sh *StreamHandler) WriteC() <-chan *extensions_ssh.ServerMessage {
 
 // Reauth blocks until authorization policy is reevaluated.
 func (sh *StreamHandler) Reauth() {
-	sh.reauthC <- struct{}{}
+	select {
+	case sh.reauthC <- struct{}{}:
+	case <-sh.reauthStoppedC:
+	}
 }
 
 func (sh *StreamHandler) periodicReauth() (cancel func()) {
@@ -281,7 +286,10 @@ func (sh *StreamHandler) periodicReauth() (cancel func()) {
 			sh.Reauth()
 		}
 	}()
-	return t.Stop
+	return func() {
+		close(sh.reauthStoppedC)
+		t.Stop()
+	}
 }
 
 // Prompt implements KeyboardInteractiveQuerier.
