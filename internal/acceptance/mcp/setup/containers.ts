@@ -39,7 +39,22 @@ const POMERIUM_IMAGE = process.env.POMERIUM_IMAGE || "pomerium/pomerium:main";
 // route), so force a fresh pull whenever the image is a moving tag. A pinned
 // version/digest override is immutable, so leave it on the default policy and
 // skip the needless network round-trip.
-const POMERIUM_MUTABLE_TAG = /:(main|latest)$/.test(POMERIUM_IMAGE) || !POMERIUM_IMAGE.includes(":");
+//
+// The tag only ever lives in the final path component, so isolate it before
+// inspecting: a registry host can carry a port (registry:5000/pomerium/pomerium)
+// whose `:` would otherwise be mistaken for a tag separator.
+function isMutableTag(image: string): boolean {
+  // A digest pin (@sha256:...) is immutable regardless of any tag.
+  if (image.includes("@")) return false;
+  const lastComponent = image.slice(image.lastIndexOf("/") + 1);
+  const colon = lastComponent.indexOf(":");
+  // No tag → Docker defaults to the mutable `:latest`.
+  if (colon === -1) return true;
+  const tag = lastComponent.slice(colon + 1);
+  return tag === "main" || tag === "latest";
+}
+
+const POMERIUM_MUTABLE_TAG = isMutableTag(POMERIUM_IMAGE);
 
 const STARTUP_TIMEOUT_MS = 240_000;
 const LOGS = !!process.env.MCP_E2E_LOGS;
