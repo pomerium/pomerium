@@ -205,12 +205,13 @@ func (s *StreamHandlerSuite) expectError(fn func(), msg string) {
 
 func (s *StreamHandlerSuite) startStreamHandler(streamID uint64) *ssh.StreamHandler {
 	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: streamID})
-	s.errC = make(chan error, 1)
+	errC := make(chan error, 1)
+	s.errC = errC
 	ctx, ca := context.WithCancel(s.T().Context())
 	s.streamCtx = ctx
 	go func() {
-		defer close(s.errC)
-		s.errC <- sh.Run(ctx)
+		defer close(errC)
+		errC <- sh.Run(ctx)
 	}()
 	s.cleanup = append(s.cleanup, func() {
 		start := time.Now()
@@ -223,7 +224,7 @@ func (s *StreamHandlerSuite) startStreamHandler(streamID uint64) *ssh.StreamHand
 		ca()
 		var err error
 		select {
-		case err = <-s.errC:
+		case err = <-errC:
 		case <-time.After(DefaultTimeout):
 			s.Fail("timed out waiting for stream handler to close")
 		}
