@@ -258,14 +258,14 @@ to `POST /.pomerium/mcp/token` with `grant_type=refresh_token`:
    the stored `upstream_refresh_token`
 4. If the upstream IdP rotated the refresh token, updates the record
 5. **Rotates the downstream token**: creates a new `MCPRefreshToken` record,
-   marks the old one as revoked, and returns a new encrypted refresh token
+   deletes the old one, and returns a new encrypted refresh token
 
 ### Key Design Points
 
 - **TTL**: 365 days, decoupled from session lifetime (~14 hours). This allows
   MCP clients to maintain long-lived connections.
-- **Rotation**: Every successful refresh creates a new record and revokes the
-  old one. New record is stored *before* old one is revoked (if revocation
+- **Rotation**: Every successful refresh creates a new record and deletes the
+  old one. New record is stored *before* the old one is deleted (if the delete
   fails, the user still has a valid token).
 - **Encryption**: The refresh token string is encrypted with AES-GCM. The
   client ID is used as Additional Authenticated Data, binding the token to
