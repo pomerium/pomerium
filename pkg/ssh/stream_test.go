@@ -11,6 +11,7 @@ import (
 	"io"
 	"iter"
 	"os"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -32,6 +33,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
@@ -1933,10 +1936,24 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Whoami() {
 	resp := recvChannelMsg[ssh.ChannelOpenConfirmMsg](s, stream)
 	peerID := resp.MyID
 
+	iat := time.Now().Add(-1 * time.Hour)
+	exp := iat.Add(10 * time.Hour)
+
 	session := &session.Session{
-		Id:     "test",
-		UserId: "a",
-		IdpId:  "b",
+		Id:        "test",
+		UserId:    "a",
+		IdpId:     "b",
+		IssuedAt:  timestamppb.New(iat),
+		ExpiresAt: timestamppb.New(exp),
+		Claims: map[string]*structpb.ListValue{
+			"iat": {Values: []*structpb.Value{structpb.NewNumberValue(float64(iat.Unix()))}},
+			"exp": {Values: []*structpb.Value{structpb.NewNumberValue(float64(exp.Unix()))}},
+			"foo": {Values: []*structpb.Value{structpb.NewStringValue("bar")}},
+			"list": {Values: []*structpb.Value{
+				structpb.NewStringValue("item1"),
+				structpb.NewStringValue("item2"),
+			}},
+		},
 	}
 	s.mockAuth.EXPECT().
 		GetSession(Any(), Any()).
@@ -1952,8 +1969,25 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Whoami() {
 	}))
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 
+	// The formatted session includes information about session expiry (e.g.,
+	// "expires in 5h20m1s") and since we are checking to see if the format
+	// matches by running it locally, this test can flake if it is timed precisely
+	// such that the calls to Format() on the server vs the client contain
+	// durations rounded to different seconds.
+
+	// Matches "(in <duration>)" or "(<duration> ago)"
+	// See [time.ParseDuration] for the duration regex
+	durationRegex, err := regexp.Compile(`\((in )?[-+]?([0-9]*(\.[0-9]*)?[a-z]+)+( ago)?\)`)
+	require.NoError(s.T(), err)
+	sanitizeDurations := func(in string) string {
+		return durationRegex.ReplaceAllString(in, "(-snip-)")
+	}
 	channelData := s.channelDataLoop(peerID, stream, 0)
-	s.Equal(string(session.Format()), channelData.String())
+	expected := string(session.Format())
+	expectedSanitized := sanitizeDurations(expected)
+	actual := channelData.String()
+	actualSanitized := sanitizeDurations(actual)
+	s.Equal(expectedSanitized, actualSanitized)
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_WhoamiError() {
