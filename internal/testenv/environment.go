@@ -243,6 +243,11 @@ func (e EnvironmentState) String() string {
 	}
 }
 
+type stateChangeListenerCallback struct {
+	fn     func()
+	source string
+}
+
 type environment struct {
 	EnvironmentOptions
 	t               testing.TB
@@ -270,7 +275,7 @@ type environment struct {
 
 	stateMu              sync.Mutex
 	state                EnvironmentState
-	stateChangeListeners map[EnvironmentState][]func()
+	stateChangeListeners map[EnvironmentState][]stateChangeListenerCallback
 	stateChangeBlockers  sync.WaitGroup
 
 	src *configSource
@@ -485,7 +490,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		tracer:               tracer,
 		logWriter:            writer,
 		taskErrGroup:         taskErrGroup,
-		stateChangeListeners: make(map[EnvironmentState][]func()),
+		stateChangeListeners: make(map[EnvironmentState][]stateChangeListenerCallback),
 		rootSpan:             span,
 		provider:             chP,
 	}
@@ -758,13 +763,16 @@ func (e *environment) Start() {
 		opts = append(opts, e.extraOpts...)
 		pom := pomerium.New(opts...)
 		startDone := make(chan error, 1)
+		waitDone := make(chan error, 1)
 		e.OnStateChanged(Stopping, func() {
+			defer close(waitDone)
 			startErr := <-startDone
 			if startErr != nil {
 				return // Start() failed, so there is nothing to shut down
 			}
 			if err := pom.Shutdown(ctx); err != nil {
 				log.Ctx(ctx).Err(err).Msg("error shutting down pomerium server")
+				waitDone <- err
 			} else {
 				e.debugf("pomerium server shut down without error")
 			}
@@ -772,7 +780,7 @@ func (e *environment) Start() {
 		err := pom.Start(ctx, e.tracerProvider, e.src)
 		startDone <- err
 		require.NoError(e.t, err)
-		return pom.Wait()
+		return (<-waitDone)
 	}))
 
 	for i, task := range e.tasks {
@@ -1071,20 +1079,42 @@ func (e *environment) advanceState(newState EnvironmentState) {
 	e.debugf("state %s -> %s", e.state.String(), newState.String())
 	e.state = newState
 	if len(e.stateChangeListeners[newState]) > 0 {
+		start := time.Now()
 		e.debugf("notifying %d listeners of state change", len(e.stateChangeListeners[newState]))
 		var wg sync.WaitGroup
 		for _, listener := range e.stateChangeListeners[newState] {
-			wg.Add(1)
+			warnTimer := time.NewTicker(2 * time.Second)
+			done := make(chan struct{})
 			go func() {
+				defer warnTimer.Stop()
+				for {
+					select {
+					case <-warnTimer.C:
+						e.debugf("warning: currently blocked waiting for state change listener (elapsed: %s; source: %s)",
+							time.Since(start).Round(time.Second), listener.source)
+					case <-done:
+						if time.Since(start) >= 2*time.Second {
+							e.debugf("warning: slow state change listener took %s (source: %s)",
+								time.Since(start), listener.source)
+						} else {
+							e.debugf("state change listener done after %s (source: %s)",
+								time.Since(start), listener.source)
+						}
+						return
+					}
+				}
+			}()
+			wg.Go(func() {
+				defer close(done)
 				_, span := e.tracer.Start(e.Context(), "State Change Callback")
 				span.SetAttributes(attribute.String("state", newState.String()))
+				span.SetAttributes(attribute.String("source", listener.source))
 				defer span.End()
-				defer wg.Done()
-				listener()
-			}()
+				listener.fn()
+			})
 		}
 		wg.Wait()
-		e.debugf("done notifying state change listeners")
+		e.debugf("done notifying state change listeners (took %s)", time.Since(start))
 	}
 }
 
@@ -1114,11 +1144,14 @@ func (e *environment) OnStateChanged(state EnvironmentState, callback func()) (c
 		return func() bool { return false }
 	default:
 		canceled := &atomic.Bool{}
-		e.stateChangeListeners[state] = append(e.stateChangeListeners[state], func() {
-			if canceled.CompareAndSwap(false, true) {
-				e.debugf("invoking state change callback (caller: %s:%d)", file, line)
-				callback()
-			}
+		e.stateChangeListeners[state] = append(e.stateChangeListeners[state], stateChangeListenerCallback{
+			fn: func() {
+				if canceled.CompareAndSwap(false, true) {
+					e.debugf("invoking state change callback (caller: %s:%d)", file, line)
+					callback()
+				}
+			},
+			source: getCaller(),
 		})
 		return func() bool {
 			e.debugf("stopped state change callback (state: %s, caller: %s:%d)", state.String(), file, line)
