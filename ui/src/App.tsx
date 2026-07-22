@@ -78,7 +78,7 @@ const App: FC = () => {
     for (const link of extraFaviconLinks) {
       link.style.display = data?.faviconUrl ? "none" : "";
     }
-  }, []);
+  }, [data?.faviconUrl]);
 
   return (
     <ThemeProvider theme={theme}>
