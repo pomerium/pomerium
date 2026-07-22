@@ -1,4 +1,4 @@
-import isArray from "lodash/isArray";
+import { isArray } from "lodash-es";
 import type { FC } from "react";
 import React from "react";
 

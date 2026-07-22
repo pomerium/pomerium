@@ -1,6 +1,5 @@
 import { TableCell, TableRow } from "@mui/material";
-import isPlainObject from "lodash/isPlainObject";
-import startCase from "lodash/startCase";
+import { isPlainObject, startCase } from "lodash-es";
 import type { FC } from "react";
 import React from "react";
 

@@ -15,7 +15,7 @@ export default [
     languageOptions: {
       globals: {
         ...globals.browser,
-        ...globals.node, // for scripts/esbuild.ts
+        ...globals.node, // for vite.config.ts
       },
     },
   },
