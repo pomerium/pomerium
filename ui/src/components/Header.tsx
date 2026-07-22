@@ -31,7 +31,7 @@ const DrawerHeader = styled("div")(({ theme }) => ({
 
 type HeaderProps = {
   includeSidebar: boolean;
-  data: PageData;
+  data?: PageData;
 };
 const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
   const theme = useTheme();
@@ -41,23 +41,21 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
   });
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const handleMenuOpen = (e) => {
+  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
+  const handleMenuOpen = (e: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(e.currentTarget);
   };
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
-  const userName =
-    get(data, "user.name") ||
+  const userName = (get(data, "user.name") ||
     get(data, "user.claims.given_name") ||
     get(data, "profile.claims.name") ||
     get(data, "profile.claims.given_name") ||
-    "";
-  const userPictureUrl =
-    get(data, "user.claims.picture") ||
+    "") as string;
+  const userPictureUrl = (get(data, "user.claims.picture") ||
     get(data, "profile.claims.picture") ||
-    null;
+    undefined) as string | undefined;
   const showAvatar =
     data?.page !== "SignOutConfirm" && data?.page !== "SignedOut";
 

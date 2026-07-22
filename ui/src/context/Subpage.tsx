@@ -13,7 +13,7 @@ export const SubpageContext = createContext<SubpageContextValue>({
 
 export type SubpageContextProviderProps = {
   children?: ReactNode;
-  page: string;
+  page?: string;
 };
 export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
   page,

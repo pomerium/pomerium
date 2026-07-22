@@ -55,14 +55,14 @@ function getSectionList(data?: SidebarData): Subpage[] {
 
   return sections;
 }
-type UserSidebarContent = {
-  close: () => void | null;
+type UserSidebarContentProps = {
+  close?: (() => void) | null;
   data?: SidebarData;
 };
-export const UserSidebarContent: FC<UserSidebarContent> = ({
+export const UserSidebarContent: FC<UserSidebarContentProps> = ({
   close,
   data,
-}: UserSidebarContent): JSX.Element => {
+}: UserSidebarContentProps): JSX.Element => {
   const info = useContext(SubpageContext);
   const sectionList = getSectionList(data);
 

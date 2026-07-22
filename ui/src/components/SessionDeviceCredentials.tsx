@@ -26,8 +26,8 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
   webAuthnRequestOptions,
   webAuthnUrl,
 }) => {
-  const currentSessionDeviceCredentialIds = [];
-  const otherDeviceCredentialIds = [];
+  const currentSessionDeviceCredentialIds: string[] = [];
+  const otherDeviceCredentialIds: string[] = [];
   user?.deviceCredentialIds?.forEach((id) => {
     if (session?.deviceCredentials?.find((cred) => cred?.id === id)) {
       currentSessionDeviceCredentialIds.push(id);

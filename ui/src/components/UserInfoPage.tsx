@@ -60,15 +60,20 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
           />
         )}
 
-        {subpage === "Devices Info" && (
-          <SessionDeviceCredentials
-            session={data?.session}
-            user={data?.user}
-            webAuthnCreationOptions={data?.webAuthnCreationOptions}
-            webAuthnRequestOptions={data?.webAuthnRequestOptions}
-            webAuthnUrl={data?.webAuthnUrl}
-          />
-        )}
+        {subpage === "Devices Info" &&
+          data?.session &&
+          data?.user &&
+          data?.webAuthnCreationOptions &&
+          data?.webAuthnRequestOptions &&
+          data?.webAuthnUrl && (
+            <SessionDeviceCredentials
+              session={data.session}
+              user={data.user}
+              webAuthnCreationOptions={data.webAuthnCreationOptions}
+              webAuthnRequestOptions={data.webAuthnRequestOptions}
+              webAuthnUrl={data.webAuthnUrl}
+            />
+          )}
       </Stack>
     </SidebarPage>
   );

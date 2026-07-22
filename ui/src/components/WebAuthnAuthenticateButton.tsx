@@ -40,12 +40,13 @@ export type WebAuthnAuthenticateButtonProps = Omit<
   WebAuthnButtonProps,
   "action" | "enable" | "onClick" | "text"
 > & {
-  requestOptions: WebAuthnRequestOptions;
+  requestOptions?: WebAuthnRequestOptions;
 };
 export const WebAuthnAuthenticateButton: FC<
   WebAuthnAuthenticateButtonProps
 > = ({ requestOptions, ...props }) => {
   async function authenticate(): Promise<unknown> {
+    if (!requestOptions) return;
     const credential = await authenticateCredential(requestOptions);
     return {
       id: credential.id,
@@ -63,7 +64,7 @@ export const WebAuthnAuthenticateButton: FC<
   return (
     <WebAuthnButton
       action="authenticate"
-      enable={requestOptions?.allowCredentials?.length > 0}
+      enable={(requestOptions?.allowCredentials?.length ?? 0) > 0}
       onClick={authenticate}
       text={"Authenticate Existing Device"}
       {...props}

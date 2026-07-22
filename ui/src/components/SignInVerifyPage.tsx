@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import type { FC } from "react";
 import React, { useEffect, useState } from "react";
-import type { SignInVerifyPageData } from "src/types";
+import type { SignInVerifyPageData } from "../types";
 
 import { SmallTooltip } from "./Tooltips";
 

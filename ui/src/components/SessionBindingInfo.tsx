@@ -12,8 +12,8 @@ import {
   TableRow,
 } from "@mui/material";
 import type { FC } from "react";
-import { SmallTooltip } from "src/components/Tooltips";
-import type { SessionBindingInfoPageData } from "src/types";
+import { SmallTooltip } from "./Tooltips";
+import type { SessionBindingInfoPageData } from "../types";
 
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
