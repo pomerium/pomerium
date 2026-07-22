@@ -51,7 +51,8 @@ var metaSchema = map[string]any{
 			"description": "JSON paths of sensitive fields that have values " +
 				"configured on this entity but whose values are not shown here " +
 				"(e.g. 'route.idpClientSecret'). Tell the user these fields are " +
-				"set; they can retrieve or change the values from the console at " +
+				"set; opaque Any payloads removed for safe presentation are also " +
+				"listed. They can retrieve or change values from the console at " +
 				"links.canonical.",
 		},
 		"links": map[string]any{

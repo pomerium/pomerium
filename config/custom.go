@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -310,7 +311,17 @@ func ParseWeightedURL(dst string) (*WeightedURL, error) {
 
 	u, err := urlutil.ParseAndValidateURL(to)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", to, err)
+		// net/url parse errors include the original input, which may contain
+		// credentials. Retain stable, useful categories when they can be
+		// determined without returning the raw input.
+		parsed, parseErr := url.Parse(to)
+		if parseErr == nil && parsed.Scheme == "" {
+			return nil, errSchemeMustBeSpecified
+		}
+		if parseErr == nil && parsed.Hostname() == "" && !urlutil.IsUnixScheme(parsed.Scheme) {
+			return nil, errHostnameMustBeSpecified
+		}
+		return nil, errors.New("invalid upstream URL")
 	}
 
 	if u.Hostname() == "" && !urlutil.IsUnixScheme(u.Scheme) {
@@ -322,7 +333,7 @@ func ParseWeightedURL(dst string) (*WeightedURL, error) {
 
 // String returns the WeightedURL as a string.
 func (u *WeightedURL) String() string {
-	str := u.URL.String()
+	str := urlutil.Redacted(&u.URL)
 	if u.LbWeight == 0 {
 		return str
 	}
@@ -541,7 +552,7 @@ func weightedString(str string) (string, uint32, error) {
 
 	w, err := strconv.ParseUint(str[i+1:], 10, 32)
 	if err != nil {
-		return "", 0, err
+		return "", 0, errInvalidUpstreamWeight
 	}
 
 	if w == 0 {
