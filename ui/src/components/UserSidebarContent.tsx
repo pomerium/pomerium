@@ -5,8 +5,8 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import type { FC, ReactNode, JSX } from "react";
-import { useContext } from "react";
+import type { FC, JSX, ReactNode } from "react";
+import { use } from "react";
 import { Link, Lock, User, Users } from "react-feather";
 
 import { SubpageContext } from "../context/Subpage";
@@ -63,7 +63,7 @@ export const UserSidebarContent: FC<UserSidebarContentProps> = ({
   close,
   data,
 }: UserSidebarContentProps): JSX.Element => {
-  const info = useContext(SubpageContext);
+  const info = use(SubpageContext);
   const sectionList = getSectionList(data);
 
   return (

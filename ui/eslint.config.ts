@@ -1,5 +1,5 @@
-import js from "@eslint/js";
 import eslintReact from "@eslint-react/eslint-plugin";
+import js from "@eslint/js";
 import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";

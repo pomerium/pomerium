@@ -15,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { FC } from "react";
+
 import type { SignInSuccessPageData } from "../types";
 
 type SignInSuccessPageProps = {

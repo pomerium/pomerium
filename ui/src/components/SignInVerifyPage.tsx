@@ -14,8 +14,8 @@ import {
 } from "@mui/material";
 import type { FC } from "react";
 import React, { useEffect, useState } from "react";
-import type { SignInVerifyPageData } from "../types";
 
+import type { SignInVerifyPageData } from "../types";
 import { SmallTooltip } from "./Tooltips";
 
 type SignInVerifyPageProps = {
@@ -33,7 +33,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
   };
 
   const expiresDate = parseToDate(data.expiresAt);
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(() =>
     Math.max(0, Math.round((expiresDate.getTime() - Date.now()) / 1000)),
   );
 
