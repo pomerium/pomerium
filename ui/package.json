@@ -58,7 +58,7 @@
     "importOrderSortSpecifiers": true
   },
   "engines": {
-    "node": ">=22.0.0",
+    "node": ">=22.12.0",
     "yarn": "YARN NO LONGER USED - use npm instead."
   },
   "packageManager": "npm@11.11.0"
