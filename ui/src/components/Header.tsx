@@ -10,7 +10,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import get from "lodash/get";
+import { get } from "lodash-es";
 import type { FC } from "react";
 import React, { useState } from "react";
 import { ChevronLeft, ChevronRight, Menu as MenuIcon } from "react-feather";
