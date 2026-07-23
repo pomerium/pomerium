@@ -27,9 +27,13 @@ func TestVerifyAccessToken(t *testing.T) {
 		assert.Equal(t, "token ACCESS_TOKEN", r.Header.Get("Authorization"))
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		json.NewEncoder(w).Encode(map[string]any{
-			"id":    1234,
-			"login": "LOGIN",
-			"name":  "NAME",
+			"avatar_url": "https://avatars.example.com/u1234.png",
+			"blog":       "https://blog.example.com",
+			"html_url":   "https://users.example.com/u1234",
+			"id":         1234,
+			"login":      "LOGIN",
+			"name":       "NAME",
+			"node_id":    "u1234",
 		})
 	})
 	m.HandleFunc("GET /user/emails", func(w http.ResponseWriter, r *http.Request) {
@@ -37,8 +41,8 @@ func TestVerifyAccessToken(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		json.NewEncoder(w).Encode([]map[string]any{{
 			"email":      "EMAIL",
-			"verified":   true,
 			"primary":    true,
+			"verified":   true,
 			"visibility": "public",
 		}})
 	})
@@ -58,10 +62,14 @@ func TestVerifyAccessToken(t *testing.T) {
 	delete(claims, "iat")
 	delete(claims, "nbf")
 	assert.Equal(t, map[string]any{
-		"email":          "EMAIL",
-		"email_verified": true,
-		"name":           "NAME",
-		"sub":            "LOGIN",
-		"user":           "LOGIN",
+		"email_verified":     true,
+		"email":              "EMAIL",
+		"name":               "NAME",
+		"picture":            "https://avatars.example.com/u1234.png",
+		"preferred_username": "LOGIN",
+		"profile":            "https://users.example.com/u1234",
+		"sub":                "u1234",
+		"user":               "LOGIN",
+		"website":            "https://blog.example.com",
 	}, claims)
 }

@@ -171,10 +171,13 @@ func (p *Provider) userEmail(ctx context.Context, t *oauth2.Token, v any) error 
 
 func (p *Provider) userInfo(ctx context.Context, t *oauth2.Token, v any) error {
 	var response struct {
+		AvatarURL string `json:"avatar_url,omitempty"`
+		Blog      string `json:"blog,omitempty"`
+		HTMLURL   string `json:"html_url,omitempty"`
 		ID        int    `json:"id"`
 		Login     string `json:"login"`
-		Name      string `json:"name"`
-		AvatarURL string `json:"avatar_url,omitempty"`
+		Name      string `json:"name,omitempty"`
+		NodeID    string `json:"node_id"`
 	}
 
 	headers := map[string]string{
@@ -186,24 +189,30 @@ func (p *Provider) userInfo(ctx context.Context, t *oauth2.Token, v any) error {
 		return err
 	}
 	var out struct {
-		Subject string `json:"sub"`
-		Name    string `json:"name,omitempty"`
-		User    string `json:"user"`
-		Picture string `json:"picture,omitempty"`
+		Name              string `json:"name,omitempty"`
+		Picture           string `json:"picture,omitempty"`
+		PreferredUsername string `json:"preferred_username"`
+		Profile           string `json:"profile,omitempty"`
+		Subject           string `json:"sub"`
+		User              string `json:"user"`
+		Website           string `json:"website,omitempty"`
 		// needs to be set manually
 		Expiry    *jwt.NumericDate `json:"exp,omitempty"`
-		NotBefore *jwt.NumericDate `json:"nbf,omitempty"`
 		IssuedAt  *jwt.NumericDate `json:"iat,omitempty"`
+		NotBefore *jwt.NumericDate `json:"nbf,omitempty"`
 	}
 
 	out.Expiry = jwt.NewNumericDate(time.Now().Add(refreshDeadline))
-	out.NotBefore = jwt.NewNumericDate(time.Now())
 	out.IssuedAt = jwt.NewNumericDate(time.Now())
-
-	out.User = response.Login
-	out.Subject = response.Login
 	out.Name = response.Name
+	out.NotBefore = jwt.NewNumericDate(time.Now())
 	out.Picture = response.AvatarURL
+	out.PreferredUsername = response.Login
+	out.Profile = response.HTMLURL
+	out.Subject = response.NodeID
+	out.User = response.Login
+	out.Website = response.Blog
+
 	b, err := json.Marshal(out)
 	if err != nil {
 		return err
