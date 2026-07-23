@@ -354,7 +354,7 @@ message Route {
   // - ${pomerium.client_cert_fingerprint}: Short-form SHA-256 fingerprint of the presented client certificate.
   // - ${pomerium.id_token}: OIDC ID token from the identity provider.
   // - ${pomerium.jwt}: The Pomerium assertion JWT for the logged-in user.
-  map<string, string> set_request_headers = 22;
+  map<string, string> set_request_headers = 22 [(referenceable) = true];
   // Headers to remove from upstream requests. This can be useful if you want to
   // prevent privacy information from being passed to upstream applications.
   repeated string remove_request_headers = 23;
@@ -855,7 +855,7 @@ message Settings {
   optional string metrics_address = 40;
   // HTTP Basic Auth credentials required to access `metrics_address`, of
   // the form "user:password". Empty disables auth.
-  optional string metrics_basic_auth = 64;
+  optional string metrics_basic_auth = 64 [(sensitive) = true];
   // TLS certificate/key pair Pomerium uses on the metrics listener.
   optional Certificate metrics_certificate = 65;
   // PEM-encoded CA bundle used to authenticate clients connecting to the

@@ -30,6 +30,14 @@ var file_options_proto_extTypes = []protoimpl.ExtensionInfo{
 		Tag:           "varint,91501,opt,name=sensitive",
 		Filename:      "options.proto",
 	},
+	{
+		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
+		ExtensionType: (*bool)(nil),
+		Field:         91502,
+		Name:          "pomerium.config.referenceable",
+		Tag:           "varint,91502,opt,name=referenceable",
+		Filename:      "options.proto",
+	},
 }
 
 // Extension fields to descriptorpb.FieldOptions.
@@ -42,6 +50,14 @@ var (
 	//
 	// optional bool sensitive = 91501;
 	E_Sensitive = &file_options_proto_extTypes[0]
+	// referenceable marks a field whose string values may embed ${secret.ID}
+	// references (and the existing ${pomerium.*} references). The resolution
+	// time is field-specific — e.g. set_request_headers resolves in the
+	// authorize service at request time. Fields not marked referenceable must
+	// reject secret references at config validation.
+	//
+	// optional bool referenceable = 91502;
+	E_Referenceable = &file_options_proto_extTypes[1]
 )
 
 var File_options_proto protoreflect.FileDescriptor
@@ -49,17 +65,19 @@ var File_options_proto protoreflect.FileDescriptor
 const file_options_proto_rawDesc = "" +
 	"\n" +
 	"\roptions.proto\x12\x0fpomerium.config\x1a google/protobuf/descriptor.proto:=\n" +
-	"\tsensitive\x12\x1d.google.protobuf.FieldOptions\x18\xed\xca\x05 \x01(\bR\tsensitiveB.Z,github.com/pomerium/pomerium/pkg/grpc/configb\x06proto3"
+	"\tsensitive\x12\x1d.google.protobuf.FieldOptions\x18\xed\xca\x05 \x01(\bR\tsensitive:E\n" +
+	"\rreferenceable\x12\x1d.google.protobuf.FieldOptions\x18\xee\xca\x05 \x01(\bR\rreferenceableB.Z,github.com/pomerium/pomerium/pkg/grpc/configb\x06proto3"
 
 var file_options_proto_goTypes = []any{
 	(*descriptorpb.FieldOptions)(nil), // 0: google.protobuf.FieldOptions
 }
 var file_options_proto_depIdxs = []int32{
 	0, // 0: pomerium.config.sensitive:extendee -> google.protobuf.FieldOptions
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	0, // [0:1] is the sub-list for extension extendee
+	0, // 1: pomerium.config.referenceable:extendee -> google.protobuf.FieldOptions
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	0, // [0:2] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
 }
 
@@ -75,7 +93,7 @@ func file_options_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_options_proto_rawDesc), len(file_options_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   0,
-			NumExtensions: 1,
+			NumExtensions: 2,
 			NumServices:   0,
 		},
 		GoTypes:           file_options_proto_goTypes,
