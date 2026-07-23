@@ -8646,6 +8646,21 @@
       "enums": [],
       "extensions": [
         {
+          "name": "referenceable",
+          "longName": ".google.protobuf.FieldOptions.referenceable",
+          "fullName": ".google.protobuf.FieldOptions.referenceable",
+          "description": "referenceable marks a field whose string values may embed ${secret.ID}\nreferences (and the existing ${pomerium.*} references). The resolution\ntime is field-specific — e.g. set_request_headers resolves in the\nauthorize service at request time. Fields not marked referenceable must\nreject secret references at config validation.",
+          "label": "",
+          "type": "bool",
+          "longType": "bool",
+          "fullType": "bool",
+          "number": 91502,
+          "defaultValue": "",
+          "containingType": "FieldOptions",
+          "containingLongType": ".google.protobuf.FieldOptions",
+          "containingFullType": "google.protobuf.FieldOptions"
+        },
+        {
           "name": "sensitive",
           "longName": ".google.protobuf.FieldOptions.sensitive",
           "fullName": ".google.protobuf.FieldOptions.sensitive",

@@ -110,6 +110,7 @@ var expectedSensitiveFields = map[string]struct{}{
 	"pomerium.config.Settings.autocert_eab_mac_key":          {},
 	"pomerium.config.Settings.ssh_host_keys":                 {},
 	"pomerium.config.Settings.ssh_user_ca_key":               {},
+	"pomerium.config.Settings.metrics_basic_auth":            {},
 	"pomerium.config.KeyPair.key":                            {},
 	"pomerium.config.CreateServiceAccountResponse.jwt":       {},
 	"pomerium.config.UpdateServiceAccountResponse.jwt":       {},
