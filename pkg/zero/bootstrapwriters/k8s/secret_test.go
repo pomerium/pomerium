@@ -19,8 +19,8 @@ import (
 
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
-	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers/k8s/rest"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/zero/bootstrapwriters/k8s/internal/rest"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
