@@ -13,4 +13,11 @@ extend google.protobuf.FieldOptions {
   // ConfigService to such audiences are expected to redact and merge these
   // fields appropriately.
   bool sensitive = 91501;
+
+  // referenceable marks a field whose string values may embed ${secret.ID}
+  // references (and the existing ${pomerium.*} references). The resolution
+  // time is field-specific — e.g. set_request_headers resolves in the
+  // authorize service at request time. Fields not marked referenceable must
+  // reject secret references at config validation.
+  bool referenceable = 91502;
 }
