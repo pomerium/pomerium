@@ -1177,7 +1177,7 @@
           "name": "DownstreamMtlsSettings",
           "longName": "DownstreamMtlsSettings",
           "fullName": "pomerium.config.DownstreamMtlsSettings",
-          "description": "DownstreamMtlsSettings controls how Pomerium validates client certificates\npresented by downstream (end-user) connections.",
+          "description": "",
           "hasExtensions": false,
           "hasFields": true,
           "hasOneofs": true,
@@ -5308,6 +5308,174 @@
           ]
         },
         {
+          "name": "SecretsBinding",
+          "longName": "SecretsBinding",
+          "fullName": "pomerium.config.SecretsBinding",
+          "description": "SecretsBinding is one entry of the binding table.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "url",
+              "description": "Backend reference URL (v1: file:// only).",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "refresh",
+              "description": "Poll interval override for this binding.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_refresh",
+              "defaultValue": ""
+            },
+            {
+              "name": "stale_grace",
+              "description": "Stale grace override for this binding.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_stale_grace",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SecretsDefaults",
+          "longName": "SecretsDefaults",
+          "fullName": "pomerium.config.SecretsDefaults",
+          "description": "SecretsDefaults are the tuning defaults for the binding table.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "refresh",
+              "description": "Poll interval when the provider supplies no TTL.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_refresh",
+              "defaultValue": ""
+            },
+            {
+              "name": "stale_grace",
+              "description": "How long the last-good value keeps being served while refresh is failing.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_stale_grace",
+              "defaultValue": ""
+            },
+            {
+              "name": "negative_ttl",
+              "description": "How long a not-found result is negative-cached.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_negative_ttl",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SecretsSettings",
+          "longName": "SecretsSettings",
+          "fullName": "pomerium.config.SecretsSettings",
+          "description": "DownstreamMtlsSettings controls how Pomerium validates client certificates\npresented by downstream (end-user) connections.\nSecretsSettings is the secret-injection binding table plus tuning defaults.\nBinding IDs, URLs, and tuning are operator config, not secret material, so no\nfield is (sensitive); resolved secret values never touch this message.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "defaults",
+              "description": "Tuning defaults applied to bindings that leave a field unset.",
+              "label": "",
+              "type": "SecretsDefaults",
+              "longType": "SecretsDefaults",
+              "fullType": "pomerium.config.SecretsDefaults",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "bindings",
+              "description": "Binding table, keyed by binding ID.",
+              "label": "repeated",
+              "type": "BindingsEntry",
+              "longType": "SecretsSettings.BindingsEntry",
+              "fullType": "pomerium.config.SecretsSettings.BindingsEntry",
+              "ismap": true,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "BindingsEntry",
+          "longName": "SecretsSettings.BindingsEntry",
+          "fullName": "pomerium.config.SecretsSettings.BindingsEntry",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "value",
+              "description": "",
+              "label": "",
+              "type": "SecretsBinding",
+              "longType": "SecretsBinding",
+              "fullType": "pomerium.config.SecretsBinding",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "ServiceAccount",
           "longName": "ServiceAccount",
           "fullName": "pomerium.config.ServiceAccount",
@@ -7239,6 +7407,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_headers_with_underscores_action",
+              "defaultValue": ""
+            },
+            {
+              "name": "secrets",
+              "description": "Secret injection binding table and tuning defaults.",
+              "label": "optional",
+              "type": "SecretsSettings",
+              "longType": "SecretsSettings",
+              "fullType": "pomerium.config.SecretsSettings",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_secrets",
               "defaultValue": ""
             },
             {

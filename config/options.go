@@ -249,6 +249,9 @@ type Options struct {
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
 
+	// Secrets holds the secret binding table (${secret.ID} injection).
+	Secrets SecretsOptions `mapstructure:"secrets" yaml:"secrets,omitempty"`
+
 	// GoogleCloudServerlessAuthenticationServiceAccount is the service account to use for GCP serverless authentication.
 	// If unset, the GCP metadata server will be used to query for identity tokens.
 	GoogleCloudServerlessAuthenticationServiceAccount string `mapstructure:"google_cloud_serverless_authentication_service_account" yaml:"google_cloud_serverless_authentication_service_account,omitempty"`
@@ -747,6 +750,11 @@ func (o *Options) Validate() error {
 	// validate the DNS options
 	err = o.DNS.Validate()
 	if err != nil {
+		return err
+	}
+
+	// validate the secrets bindings and route references
+	if err := o.validateSecrets(); err != nil {
 		return err
 	}
 
@@ -1642,6 +1650,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setOptional(&o.GRPCInsecure, settings.GrpcInsecure)
 	setDuration(&o.GRPCClientTimeout, settings.GrpcClientTimeout)
 	o.DownstreamMTLS.applySettingsProto(ctx, settings.DownstreamMtls)
+	o.Secrets.applySettingsProto(settings.GetSecrets())
 	set(&o.GoogleCloudServerlessAuthenticationServiceAccount, settings.GoogleCloudServerlessAuthenticationServiceAccount)
 	set(&o.UseProxyProtocol, settings.UseProxyProtocol)
 	set(&o.AutocertOptions.Enable, settings.Autocert)
@@ -1764,6 +1773,7 @@ func (o *Options) ToProto() *configpb.Config {
 	settings.GrpcInsecure = o.GRPCInsecure
 	copyDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)
 	settings.DownstreamMtls = o.DownstreamMTLS.ToProto()
+	settings.Secrets = o.Secrets.ToProto()
 	copySrcToOptionalDest(&settings.GoogleCloudServerlessAuthenticationServiceAccount, &o.GoogleCloudServerlessAuthenticationServiceAccount)
 	copySrcToOptionalDest(&settings.UseProxyProtocol, &o.UseProxyProtocol)
 	copySrcToOptionalDest(&settings.Autocert, &o.AutocertOptions.Enable)
