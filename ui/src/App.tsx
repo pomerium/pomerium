@@ -7,10 +7,10 @@ import Footer from "./components/Footer";
 import Header from "./components/Header";
 import RoutesPage from "./components/RoutesPage";
 import SessionBindingInfoPage from "./components/SessionBindingInfo";
+import SignedOutPage from "./components/SignedOutPage";
 import SignInSuccessPage from "./components/SignInSuccessPage";
 import SignInVerifyPage from "./components/SignInVerifyPage";
 import SignOutConfirmPage from "./components/SignOutConfirmPage";
-import SignedOutPage from "./components/SignedOutPage";
 import { ToolbarOffset } from "./components/ToolbarOffset";
 import UpstreamErrorPage from "./components/UpstreamErrorPage";
 import UserInfoPage from "./components/UserInfoPage";
@@ -79,7 +79,7 @@ const App: FC = () => {
     for (const link of extraFaviconLinks) {
       link.style.display = data?.faviconUrl ? "none" : "";
     }
-  }, []);
+  }, [data?.faviconUrl]);
 
   return (
     <ThemeProvider theme={theme}>

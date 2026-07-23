@@ -1,12 +1,11 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "target": "es2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "strict": false,
     "strictNullChecks": false,
@@ -14,7 +13,6 @@
     "isolatedModules": true,
     "preserveConstEnums": true,
     "noEmit": true,
-    "downlevelIteration": true,
     "jsx": "react-jsx",
     "noFallthroughCasesInSwitch": true
   },
