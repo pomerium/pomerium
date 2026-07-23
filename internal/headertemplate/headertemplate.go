@@ -9,6 +9,25 @@ func Render(src string, fn func(ref []string) string) string {
 	return p.parse()
 }
 
+// References returns every reference the parser finds in src, in order, using
+// the same grammar as Render. It is used by config validation to discover
+// ${secret.ID} (and ${pomerium.*}) references without rendering.
+//
+// Note: on malformed nesting like "${secret.${pomerium.x}}" the outer variable
+// rolls back to literal text but the inner variable still parses, so callers
+// that need to reject the malformed outer form must inspect residue text (see
+// config secret validation), not this list.
+func References(src string) [][]string {
+	var refs [][]string
+	Render(src, func(ref []string) string {
+		cp := make([]string, len(ref))
+		copy(cp, ref)
+		refs = append(refs, cp)
+		return ""
+	})
+	return refs
+}
+
 // This is a hand written parser attempting to model this peg grammar:
 //
 // Grammar <- ( Variable / Text )* !.
