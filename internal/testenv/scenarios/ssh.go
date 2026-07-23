@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/ed25519"
+	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"net/http"
@@ -82,30 +83,32 @@ func (c *EmptyKeyboardInteractiveChallenge) Do(
 }
 
 type CodeExtractorInteractiveChallenge struct {
-	testenv.DefaultAttach
-	user string
+	certPool *x509.CertPool
 }
 
-func NewCodeExtractorChallenge(user string) *CodeExtractorInteractiveChallenge {
+func NewCodeExtractorChallenge(certPool *x509.CertPool) *CodeExtractorInteractiveChallenge {
 	return &CodeExtractorInteractiveChallenge{
-		user: user,
+		certPool: certPool,
 	}
 }
 
-func (c *CodeExtractorInteractiveChallenge) Do(
-	_, instruction string, _ []string, _ []bool,
-) (answers []string, err error) {
-	codeURI := instruction
-	client := c.newClient(c.options())
+func (c *CodeExtractorInteractiveChallenge) Do(ctx context.Context, codeURI string, email string) (answers []string, err error) {
+	requestOpts := &upstreams.RequestOptions{}
+	upstreams.AuthenticateAs(email)(requestOpts)
+	client := upstreams.NewHTTPClient(
+		c.certPool,
+		requestOpts,
+	)
+
 	resp, err := upstreams.DoAuthenticatedRequest(
-		c.Env().Context(),
+		ctx,
 		func(ctx context.Context) (*http.Request, error) {
 			return http.NewRequestWithContext(ctx, http.MethodPost, codeURI, nil)
 		},
 		func(_ context.Context) *http.Client {
 			return client
 		},
-		c.options(),
+		requestOpts,
 	)
 	if err != nil {
 		return nil, err
@@ -120,9 +123,9 @@ func (c *CodeExtractorInteractiveChallenge) Do(
 	formData.Add("confirm", "true")
 
 	formResp, err := upstreams.DoAuthenticatedRequest(
-		c.Env().Context(),
+		ctx,
 		func(ctx context.Context) (*http.Request, error) {
-			req, err := http.NewRequestWithContext(ctx, http.MethodPost, instruction, bytes.NewBufferString(formData.Encode()))
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, codeURI, bytes.NewBufferString(formData.Encode()))
 			if err != nil {
 				return nil, err
 			}
@@ -142,17 +145,4 @@ func (c *CodeExtractorInteractiveChallenge) Do(
 		return nil, fmt.Errorf("unexpected response from code get: %s", resp.Status)
 	}
 	return nil, nil
-}
-
-func (c *CodeExtractorInteractiveChallenge) options() *upstreams.RequestOptions {
-	opts := &upstreams.RequestOptions{}
-	upstreams.AuthenticateAs(c.user)(opts)
-	return opts
-}
-
-func (c *CodeExtractorInteractiveChallenge) newClient(options *upstreams.RequestOptions) *http.Client {
-	return upstreams.NewHTTPClient(
-		c.Env().ServerCAs(),
-		options,
-	)
 }
