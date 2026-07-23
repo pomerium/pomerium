@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	DefaultCodeTTL = time.Minute * 15
+	defaultIssuerCodeTTL = time.Minute * 15
 
 	queryLimit = 100000
 )
@@ -32,6 +32,7 @@ type Issuer interface {
 	IssueCode() CodeID
 	AssociateCode(context.Context, CodeID, *session.SessionBindingRequest) (CodeID, error)
 	OnCodeDecision(context.Context, CodeID) <-chan Status
+	CodeTTL() time.Duration
 	Done() chan struct{}
 }
 
