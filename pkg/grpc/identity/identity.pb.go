@@ -23,17 +23,17 @@ const (
 )
 
 type Provider struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	Id                     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	AuthenticateServiceUrl string                 `protobuf:"bytes,9,opt,name=authenticate_service_url,json=authenticateServiceUrl,proto3" json:"authenticate_service_url,omitempty"`
-	ClientId               string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	ClientSecret           string                 `protobuf:"bytes,3,opt,name=client_secret,json=clientSecret,proto3" json:"client_secret,omitempty"`
-	Type                   string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
-	Scopes                 []string               `protobuf:"bytes,5,rep,name=scopes,proto3" json:"scopes,omitempty"`
-	// string service_account = 6;
-	Url                         string               `protobuf:"bytes,7,opt,name=url,proto3" json:"url,omitempty"`
-	RequestParams               map[string]string    `protobuf:"bytes,8,rep,name=request_params,json=requestParams,proto3" json:"request_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	AccessTokenAllowedAudiences *Provider_StringList `protobuf:"bytes,10,opt,name=access_token_allowed_audiences,json=accessTokenAllowedAudiences,proto3,oneof" json:"access_token_allowed_audiences,omitempty"`
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	Id                          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	AuthenticateServiceUrl      string                 `protobuf:"bytes,9,opt,name=authenticate_service_url,json=authenticateServiceUrl,proto3" json:"authenticate_service_url,omitempty"`
+	ClientId                    string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientSecret                string                 `protobuf:"bytes,3,opt,name=client_secret,json=clientSecret,proto3" json:"client_secret,omitempty"`
+	Type                        string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
+	Version                     int64                  `protobuf:"varint,11,opt,name=version,proto3" json:"version,omitempty"`
+	Scopes                      []string               `protobuf:"bytes,5,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	Url                         string                 `protobuf:"bytes,7,opt,name=url,proto3" json:"url,omitempty"`
+	RequestParams               map[string]string      `protobuf:"bytes,8,rep,name=request_params,json=requestParams,proto3" json:"request_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	AccessTokenAllowedAudiences *Provider_StringList   `protobuf:"bytes,10,opt,name=access_token_allowed_audiences,json=accessTokenAllowedAudiences,proto3,oneof" json:"access_token_allowed_audiences,omitempty"`
 	unknownFields               protoimpl.UnknownFields
 	sizeCache                   protoimpl.SizeCache
 }
@@ -101,6 +101,13 @@ func (x *Provider) GetType() string {
 		return x.Type
 	}
 	return ""
+}
+
+func (x *Provider) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
 }
 
 func (x *Provider) GetScopes() []string {
@@ -247,13 +254,14 @@ var File_identity_proto protoreflect.FileDescriptor
 
 const file_identity_proto_rawDesc = "" +
 	"\n" +
-	"\x0eidentity.proto\x12\x11pomerium.identity\x1a\x1cgoogle/protobuf/struct.proto\"\xa8\x04\n" +
+	"\x0eidentity.proto\x12\x11pomerium.identity\x1a\x1cgoogle/protobuf/struct.proto\"\xc8\x04\n" +
 	"\bProvider\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
 	"\x18authenticate_service_url\x18\t \x01(\tR\x16authenticateServiceUrl\x12\x1b\n" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12#\n" +
 	"\rclient_secret\x18\x03 \x01(\tR\fclientSecret\x12\x12\n" +
-	"\x04type\x18\x04 \x01(\tR\x04type\x12\x16\n" +
+	"\x04type\x18\x04 \x01(\tR\x04type\x12\x18\n" +
+	"\aversion\x18\v \x01(\x03R\aversion\x12\x16\n" +
 	"\x06scopes\x18\x05 \x03(\tR\x06scopes\x12\x10\n" +
 	"\x03url\x18\a \x01(\tR\x03url\x12U\n" +
 	"\x0erequest_params\x18\b \x03(\v2..pomerium.identity.Provider.RequestParamsEntryR\rrequestParams\x12p\n" +
@@ -265,7 +273,7 @@ const file_identity_proto_rawDesc = "" +
 	"\x12RequestParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B!\n" +
-	"\x1f_access_token_allowed_audiences\"\x97\x01\n" +
+	"\x1f_access_token_allowed_audiencesJ\x04\b\x06\x10\a\"\x97\x01\n" +
 	"\aProfile\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x19\n" +
