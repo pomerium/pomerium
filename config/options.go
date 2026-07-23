@@ -307,6 +307,7 @@ type Options struct {
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool                `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
 	BlobStorage                *blob.StorageConfig `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
+	Enterprise                 map[string]any      `mapstructure:"enterprise" yaml:"enterprise,omitempty"`
 }
 
 type certificateFilePair struct {
