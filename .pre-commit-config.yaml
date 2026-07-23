@@ -44,12 +44,10 @@ repos:
       - id: ui-format
         name: ui-format
         language: system
-        entry: bash -c 'cd ui && npm ci --silent && npm run format'
-        files: "^ui/.*\\.(ts|tsx|js|mjs|json)$"
+        entry: bash -c 'cd ui && npm run format'
         pass_filenames: false
       - id: ui-lint
         name: ui-lint
         language: system
-        entry: bash -c 'cd ui && npm ci --silent && npm run lint'
-        files: "^ui/.*\\.(ts|tsx|js|mjs)$"
+        entry: bash -c 'cd ui && npm run lint'
         pass_filenames: false

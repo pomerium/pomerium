@@ -1,26 +1,14 @@
 {
   "name": "pomerium",
   "version": "1.0.0",
-  "main": "src/index.tsx",
   "license": "Apache-2.0",
+  "main": "src/index.tsx",
   "scripts": {
     "build": "vite build",
-    "format": "prettier --write .",
-    "lint": "eslint .",
+    "format": "oxfmt .",
+    "lint": "oxlint .",
     "watch": "vite build --watch --mode development",
     "start": "npm run watch"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
   },
   "dependencies": {
     "@emotion/react": "^11.7.1",
@@ -36,26 +24,27 @@
     "react-feather": "^2.0.10"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/lodash-es": "^4.17.12",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "eslint": "9.39.1",
-    "eslint-plugin-react": "^7.37.0",
     "globals": "^17.6.0",
-    "prettier": "^3.8.3",
+    "oxfmt": "^0.60.0",
+    "oxlint": "^1.75.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1",
     "vite": "^8.1.5"
   },
-  "prettier": {
-    "importOrder": [
-      "^[./]"
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
     ],
-    "importOrderSeparation": true,
-    "importOrderSortSpecifiers": true
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "engines": {
     "node": ">=22.12.0",
