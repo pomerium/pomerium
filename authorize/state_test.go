@@ -37,7 +37,7 @@ func TestNewAuthorizeStateFromConfig_IdentityProviderResolverReuse(t *testing.T)
 	newState := func(t *testing.T, previous *authorizeState, opts *config.Options) *authorizeState {
 		t.Helper()
 		state, err := newAuthorizeStateFromConfig(t.Context(), previous, noop.NewTracerProvider(),
-			config.New(opts), store.New(), new(grpc.CachedOutboundGRPClientConn))
+			config.New(opts), store.New(), nil, new(grpc.CachedOutboundGRPClientConn))
 		require.NoError(t, err)
 		return state
 	}
