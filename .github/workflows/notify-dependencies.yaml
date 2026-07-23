@@ -1,0 +1,34 @@
+name: Notify Dependencies
+
+permissions: {}
+
+on:
+  push:
+    branches:
+      - main
+      - 0-[0-9]+-*
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - cli
+          - hosted-authenticate
+          - ingress-controller
+          - pomerium-console
+          - pomerium-zero
+          - terraform-provider-pomerium
+          - ui
+    steps:
+      - name: Notify
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+        with:
+          ref: main
+          repo: pomerium/${{ matrix.repo }}
+          sync-status: true
+          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+          wait-for-completion: true
+          workflow: update-dependencies.yaml
