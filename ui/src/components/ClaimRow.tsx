@@ -13,7 +13,7 @@ export const ClaimRow: FC<ClaimRowProps> = ({ claimKey, claimValue }) => {
   if (isPlainObject(claimValue)) {
     return (
       <>
-        {Object.entries(claimValue).map(([k, v]) => (
+        {Object.entries(claimValue as Record<string, unknown>).map(([k, v]) => (
           <ClaimRow
             key={`${claimKey}/${k}`}
             claimKey={`${claimKey} ${k}`}

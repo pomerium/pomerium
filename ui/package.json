@@ -36,6 +36,7 @@
     "react-feather": "^2.0.10"
   },
   "devDependencies": {
+    "@eslint-react/eslint-plugin": "^5.17.3",
     "@eslint/js": "^9.0.0",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/lodash-es": "^4.17.12",
@@ -43,14 +44,17 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "9.39.1",
-    "eslint-plugin-react": "^7.37.0",
     "globals": "^17.6.0",
+    "jiti": "^2.7.0",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.1",
     "vite": "^8.1.5"
   },
   "prettier": {
+    "plugins": [
+      "@trivago/prettier-plugin-sort-imports"
+    ],
     "importOrder": [
       "^[./]"
     ],

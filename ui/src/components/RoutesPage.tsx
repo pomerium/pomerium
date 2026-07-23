@@ -173,13 +173,13 @@ type RoutesPageProps = {
   data: RoutesPageData;
 };
 const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
-  const [connectError, setConnectError] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get("connect_error"),
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const error = params.get("connect_error");
-    if (error) {
-      setConnectError(error);
+    if (params.get("connect_error")) {
       // Clean the URL so the error doesn't persist on refresh.
       params.delete("connect_error");
       const clean = params.toString();

@@ -17,10 +17,9 @@ import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
-import type { PageData } from "./types";
 
 const App: FC = () => {
-  const data = (window["POMERIUM_DATA"] || {}) as PageData;
+  const data = window.POMERIUM_DATA;
   const primary = data?.primaryColor || "#6F43E7";
   const secondary = data?.secondaryColor || "#49AAA1";
   const theme = createTheme(primary, secondary);
@@ -75,11 +74,11 @@ const App: FC = () => {
     }
     const extraFaviconLinks = document.getElementsByClassName(
       "pomerium_favicon",
-    ) as HTMLCollectionOf<HTMLAnchorElement> | null;
+    ) as HTMLCollectionOf<HTMLAnchorElement>;
     for (const link of extraFaviconLinks) {
       link.style.display = data?.faviconUrl ? "none" : "";
     }
-  }, []);
+  }, [data?.faviconUrl]);
 
   return (
     <ThemeProvider theme={theme}>

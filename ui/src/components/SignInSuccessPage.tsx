@@ -15,7 +15,8 @@ import {
   Typography,
 } from "@mui/material";
 import type { FC } from "react";
-import type { SignInSuccessPageData } from "src/types";
+
+import type { SignInSuccessPageData } from "../types";
 
 type SignInSuccessPageProps = {
   data: SignInSuccessPageData;
@@ -56,7 +57,7 @@ const SignInSuccessPage: FC<SignInSuccessPageProps> = ({ data }) => {
                   <TableCell component="th" scope="row">
                     Name
                   </TableCell>
-                  <TableCell>{data.user.name}</TableCell>
+                  <TableCell>{data.user?.name}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell component="th" scope="row">

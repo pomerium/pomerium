@@ -90,5 +90,5 @@ export function decode(base64: string, lookup = base64Lookup): ArrayBuffer {
     bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
     bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
   }
-  return bytes;
+  return bytes.buffer;
 }

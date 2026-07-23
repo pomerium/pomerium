@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Runs prettier/eslint over only the staged UI files passed by pre-commit.
+# Usage: ui-precommit <format|lint> <file>...
+# Files are given relative to the repo root (e.g. ui/src/foo.tsx); we strip the
+# leading "ui/" so the tools run from within the ui/ directory.
+set -euo pipefail
+
+mode="$1"
+shift
+
+cd "$(dirname "$0")/../ui"
+
+# Ensure dependencies are present. Unlike `npm ci`, `npm install` is a near
+# no-op when node_modules already matches package-lock.json, so this no longer
+# reinstalls ~355MB on every commit.
+npm install --silent --no-audit --no-fund
+
+# Strip the leading "ui/" from each repo-relative path.
+files=("${@/#ui\//}")
+
+case "$mode" in
+format) exec npx prettier --write "${files[@]}" ;;
+lint) exec npx eslint "${files[@]}" ;;
+*)
+	echo "unknown mode: $mode" >&2
+	exit 1
+	;;
+esac

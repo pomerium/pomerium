@@ -17,8 +17,8 @@ import IDField from "./IDField";
 import Section from "./Section";
 
 export type SessionDetailsProps = {
-  session: Session;
-  profile: Profile;
+  session?: Session;
+  profile?: Profile;
 };
 export const SessionDetails: FC<SessionDetailsProps> = ({
   session,
