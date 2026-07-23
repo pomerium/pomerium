@@ -109,3 +109,21 @@ func (s *Scope) Resolve(id string) (Binding, bool) {
 	}
 	return Binding{}, false
 }
+
+// Effective returns the flattened, leaf-wins set of bindings visible from this
+// scope: one binding per distinct ID, the child's winning over any parent's.
+// The order is unspecified.
+func (s *Scope) Effective() []Binding {
+	seen := make(map[string]struct{})
+	var out []Binding
+	for cur := s; cur != nil; cur = cur.parent {
+		for id, b := range cur.byID {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			out = append(out, b)
+		}
+	}
+	return out
+}
