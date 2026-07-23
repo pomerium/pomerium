@@ -8,7 +8,7 @@ import {
   Stack,
 } from "@mui/material";
 import type { FC } from "react";
-import React, { use, useState } from "react";
+import { use, useState } from "react";
 
 import { SubpageContext } from "../context/Subpage";
 import type { UserInfoData } from "../types";
