@@ -30,6 +30,10 @@ import (
 // Name identifies the GitHub identity provider
 const Name = "github"
 
+// Version identifies the GitHub identity provider version.
+// Version 0 used logins as the user id. Version 1 uses node_ids.
+const Version = 1
+
 const (
 	defaultProviderURL = "https://github.com"
 	githubAPIURL       = "https://api.github.com"
@@ -209,7 +213,7 @@ func (p *Provider) userInfo(ctx context.Context, t *oauth2.Token, v any) error {
 	out.Picture = response.AvatarURL
 	out.PreferredUsername = response.Login
 	out.Profile = response.HTMLURL
-	out.Subject = response.NodeID
+	out.Subject = firstNonZero(response.NodeID, fmt.Sprint(response.ID))
 	out.User = response.Login
 	out.Website = response.Blog
 
@@ -306,4 +310,14 @@ func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string)
 // VerifyIdentityToken verifies an identity token.
 func (p *Provider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
 	return nil, identity.ErrVerifyIdentityTokenNotSupported
+}
+
+func firstNonZero[T comparable](values ...T) T {
+	var zero T
+	for _, value := range values {
+		if value != zero {
+			return value
+		}
+	}
+	return zero
 }

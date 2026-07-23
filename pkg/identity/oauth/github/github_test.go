@@ -5,12 +5,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/github"
@@ -18,8 +16,6 @@ import (
 
 func TestVerifyAccessToken(t *testing.T) {
 	t.Parallel()
-
-	ctx := testutil.GetContext(t, time.Minute)
 
 	var srv *httptest.Server
 	m := http.NewServeMux()
@@ -47,8 +43,9 @@ func TestVerifyAccessToken(t *testing.T) {
 		}})
 	})
 	srv = httptest.NewServer(m)
+	t.Cleanup(srv.Close)
 
-	p, err := github.New(ctx, &oauth.Options{
+	p, err := github.New(t.Context(), &oauth.Options{
 		ProviderURL:  srv.URL,
 		ClientID:     "CLIENT_ID",
 		ClientSecret: "CLIENT_SECRET",
@@ -56,7 +53,7 @@ func TestVerifyAccessToken(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	claims, err := p.VerifyAccessToken(ctx, "ACCESS_TOKEN")
+	claims, err := p.VerifyAccessToken(t.Context(), "ACCESS_TOKEN")
 	require.NoError(t, err)
 	delete(claims, "exp")
 	delete(claims, "iat")
