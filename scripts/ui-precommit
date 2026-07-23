@@ -19,10 +19,10 @@ npm install --silent --no-audit --no-fund
 files=("${@/#ui\//}")
 
 case "$mode" in
-  format) exec npx prettier --write "${files[@]}" ;;
-  lint) exec npx eslint "${files[@]}" ;;
-  *)
-    echo "unknown mode: $mode" >&2
-    exit 1
-    ;;
+format) exec npx prettier --write "${files[@]}" ;;
+lint) exec npx eslint "${files[@]}" ;;
+*)
+	echo "unknown mode: $mode" >&2
+	exit 1
+	;;
 esac
