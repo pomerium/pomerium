@@ -21,6 +21,7 @@ type evaluatorConfig struct {
 	JWTGroupsFilter                                   config.JWTGroupsFilter
 	DefaultJWTIssuerFormat                            nullable.Value[configpb.IssuerFormat]
 	MCPAccessTokenProvider                            store.MCPAccessTokenProvider `hash:"-"`
+	SecretsLookup                                     store.SecretsLookup          `hash:"-"`
 }
 
 // cacheKey() returns a hash over the configuration, except for the policies.
@@ -122,5 +123,13 @@ func WithDefaultJWTIssuerFormat(format nullable.Value[configpb.IssuerFormat]) Op
 func WithMCPAccessTokenProvider(fn store.MCPAccessTokenProvider) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.MCPAccessTokenProvider = fn
+	}
+}
+
+// WithSecretsLookup sets the secrets lookup used to resolve ${secret.ID}
+// references in set_request_headers.
+func WithSecretsLookup(l store.SecretsLookup) Option {
+	return func(cfg *evaluatorConfig) {
+		cfg.SecretsLookup = l
 	}
 }

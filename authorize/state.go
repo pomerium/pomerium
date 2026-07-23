@@ -46,6 +46,7 @@ func newAuthorizeStateFromConfig(
 	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
 	store *store.Store,
+	secretsLookup store.SecretsLookup,
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
 ) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
@@ -89,6 +90,12 @@ func newAuthorizeStateFromConfig(
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(cc)
 
 	var evaluatorOptions []evaluator.Option
+	// Wire the secrets lookup unconditionally: with no bindings this is just an
+	// empty snapshot (a cheap no-op), and this is why the store's nil-reset
+	// semantics never matter.
+	if secretsLookup != nil {
+		evaluatorOptions = append(evaluatorOptions, evaluator.WithSecretsLookup(secretsLookup))
+	}
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn)
 		if err != nil {

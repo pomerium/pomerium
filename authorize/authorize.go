@@ -30,6 +30,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/secrets"
+	"github.com/pomerium/pomerium/pkg/secrets/resolver"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	ssh_cli "github.com/pomerium/pomerium/pkg/ssh/cli"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
@@ -55,12 +57,18 @@ type Authorize struct {
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 	*ratelimit.RateLimiter
 	recordingServer atomic.Pointer[recording.Server]
+
+	// secretsResolver is long-lived (like store): created once in New, its
+	// fetch loops start on Apply, and it is Closed on shutdown. It is not part
+	// of authorizeState (which is rebuilt per config change).
+	secretsResolver *resolver.Resolver
 }
 
 type options struct {
 	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
 	cliController     ssh_cli.InternalCLIController
 	rls               envoy_service_ratelimit_v3.RateLimitServiceServer
+	secretsResolver   *resolver.Resolver
 }
 
 // Option configures the Authorize service.
@@ -83,6 +91,14 @@ func WithInternalCLIController(cliCtrl ssh_cli.InternalCLIController) Option {
 func WithRateLimitServer(rls envoy_service_ratelimit_v3.RateLimitServiceServer) Option {
 	return func(o *options) {
 		o.rls = rls
+	}
+}
+
+// withSecretsResolver injects a pre-built secrets resolver (test seam for
+// observing fetch behavior); production always lets New build its own.
+func withSecretsResolver(r *resolver.Resolver) Option {
+	return func(o *options) {
+		o.secretsResolver = r
 	}
 }
 
@@ -115,7 +131,18 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		recordingServer: atomic.Pointer[recording.Server]{},
 	}
 	a.currentConfig.Store(cfg)
-	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn)
+
+	// Create the resolver and start its fetch loops from the initial config
+	// before building the evaluator state, so the evaluator never references
+	// bindings the resolver has not been told about. There is no readiness
+	// gating: requests that arrive before the first successful fetch fail closed.
+	a.secretsResolver = o.secretsResolver
+	if a.secretsResolver == nil {
+		a.secretsResolver = resolver.New(secrets.DefaultRegistry())
+	}
+	a.applySecrets(ctx, cfg)
+
+	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, a.secretsResolver, &a.outboundGrpcConn)
 	if err != nil {
 		return nil, err
 	}
@@ -153,8 +180,25 @@ func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 	return a.state.Load().dataBrokerClient
 }
 
+// applySecrets diffs the config's secret bindings into the resolver, starting
+// or stopping fetch loops as needed. Binding validity is guaranteed by config
+// validation, so a scope error here is logged, not fatal.
+func (a *Authorize) applySecrets(ctx context.Context, cfg *config.Config) {
+	scope, _, err := cfg.Options.Secrets.ToScope(secrets.DefaultRegistry())
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authorize: invalid secrets configuration")
+		return
+	}
+	a.secretsResolver.Apply(ctx, scope)
+}
+
 // Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
+	// The resolver's fetch loops start in New (on Apply); stop them on shutdown.
+	if a.secretsResolver != nil {
+		context.AfterFunc(ctx, a.secretsResolver.Close)
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return a.ssh.Run(ctx)
@@ -248,7 +292,12 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentConfig.Store(cfg)
-	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store, &a.outboundGrpcConn); err != nil {
+	// Apply the new bindings to the resolver before rebuilding the state, so the
+	// evaluator snapshot new requests see never references bindings the resolver
+	// has not been told about (the reverse order would open a window of spurious
+	// fail-closed 503s).
+	a.applySecrets(ctx, cfg)
+	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store, a.secretsResolver, &a.outboundGrpcConn); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(newState)

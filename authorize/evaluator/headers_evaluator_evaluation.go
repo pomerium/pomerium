@@ -17,6 +17,8 @@ import (
 	"github.com/go-jose/go-jose/v3"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/datasource/pkg/directory"
@@ -29,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/logfields"
+	"github.com/pomerium/pomerium/pkg/secrets/resolver"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
@@ -175,35 +178,164 @@ func (e *headersEvaluatorEvaluation) fillRoutingKeyHeaders() {
 	}
 }
 
+// secretFailure records a per-header secret resolution failure. It never
+// carries the secret value.
+type secretFailure struct {
+	bindingID string
+	class     string // "unavailable" | "invalid_value"
+}
+
+const (
+	headerInjectInjected = "injected"
+	headerInjectRejected = "rejected"
+)
+
 func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) {
 	if e.request.Policy == nil {
 		return
 	}
 
-	for k, v := range e.request.Policy.SetRequestHeaders {
-		e.response.Headers.Add(k, headertemplate.Render(v, func(ref []string) string {
-			switch {
-			case slices.Equal(ref, []string{"pomerium", "access_token"}):
-				s, _ := e.getSessionOrServiceAccount(ctx)
-				return s.GetOauthToken().GetAccessToken()
-			case slices.Equal(ref, []string{"pomerium", "client_cert_san_dns"}):
-				return e.getClientCertDNSNames()
-			case slices.Equal(ref, []string{"pomerium", "client_cert_san_email"}):
-				return e.getClientCertEmailAddresses()
-			case slices.Equal(ref, []string{"pomerium", "client_cert_fingerprint"}):
-				return e.getClientCertFingerprint()
-			case slices.Equal(ref, []string{"pomerium", "id_token"}):
-				s, _ := e.getSessionOrServiceAccount(ctx)
-				return s.GetIdToken().GetRaw()
-			case slices.Equal(ref, []string{"pomerium", "jwt"}):
-				return e.getSignedJWT(ctx)
-			case len(ref) > 3 && ref[0] == "pomerium" && ref[1] == "request" && ref[2] == "headers":
-				return e.request.HTTP.Headers[httputil.CanonicalHeaderKey(ref[3])]
+	// Capture exactly one point-in-time view per evaluation, lazily on the first
+	// secret ref, so every secret ref reads a consistent snapshot (§1.3) and
+	// routes with no secret refs never touch the lookup at all (hot-path guard).
+	var (
+		view         resolver.View
+		viewCaptured bool
+	)
+	captureView := func() resolver.View {
+		if !viewCaptured {
+			viewCaptured = true
+			if lookup := e.evaluator.store.GetSecretsLookup(); lookup != nil {
+				view = lookup.View()
 			}
-
-			return ""
-		}))
+		}
+		return view
 	}
+
+	// Iterate header names in sorted order so that, when multiple headers fail,
+	// the reported (binding, header) pair is deterministic (lexicographically
+	// smallest header name) despite Go's randomized map iteration (D3).
+	names := make([]string, 0, len(e.request.Policy.SetRequestHeaders))
+	for name := range e.request.Policy.SetRequestHeaders {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
+	for _, name := range names {
+		value := e.request.Policy.SetRequestHeaders[name]
+		var sawSecret bool
+		var failure *secretFailure
+		rendered := headertemplate.Render(value, func(ref []string) string {
+			if len(ref) > 0 && ref[0] == "secret" {
+				sawSecret = true
+				return e.resolveSecretRef(captureView(), ref, &failure)
+			}
+			return e.renderPomeriumRef(ctx, ref)
+		})
+
+		if !sawSecret {
+			e.response.Headers.Add(name, rendered)
+			continue
+		}
+
+		if failure != nil {
+			e.recordHeaderInject(headerInjectRejected, failure.class)
+			// Fail closed: no partially-built header for this name, and record
+			// the first (smallest-name) failure as the request's deny marker.
+			if e.response.SecretsUnavailable == nil {
+				e.response.SecretsUnavailable = &SecretsUnavailableError{
+					BindingID:  failure.bindingID,
+					HeaderName: name,
+				}
+			}
+			continue
+		}
+
+		e.recordHeaderInject(headerInjectInjected, "")
+		e.response.Headers.Add(name, rendered)
+	}
+}
+
+// resolveSecretRef resolves a ${secret.ID} reference against the captured view.
+// On any failure it records the first failure into *failure and returns "" so
+// no partial value is built.
+func (e *headersEvaluatorEvaluation) resolveSecretRef(view resolver.View, ref []string, failure **secretFailure) string {
+	// The ref argument is static and config-validated to two segments; be
+	// defensive and fail closed on anything else.
+	if len(ref) != 2 {
+		setSecretFailure(failure, &secretFailure{bindingID: strings.Join(ref, "."), class: "unavailable"})
+		return ""
+	}
+	id := ref[1]
+
+	if view == nil {
+		setSecretFailure(failure, &secretFailure{bindingID: id, class: "unavailable"})
+		return ""
+	}
+
+	res := view.Lookup(id)
+	if !res.Found || (res.State != resolver.StateFresh && res.State != resolver.StateStale) {
+		setSecretFailure(failure, &secretFailure{bindingID: id, class: "unavailable"})
+		return ""
+	}
+	if !validSecretHeaderValue(res.Value) {
+		// A malformed secret fails closed; it never reaches http.Header.Add.
+		setSecretFailure(failure, &secretFailure{bindingID: id, class: "invalid_value"})
+		return ""
+	}
+	return res.Value
+}
+
+func setSecretFailure(dst **secretFailure, f *secretFailure) {
+	if *dst == nil {
+		*dst = f
+	}
+}
+
+// validSecretHeaderValue rejects values containing CR, LF, or NUL, which cannot
+// safely appear in an HTTP header value.
+func validSecretHeaderValue(v string) bool {
+	return !strings.ContainsAny(v, "\r\n\x00")
+}
+
+func (e *headersEvaluatorEvaluation) recordHeaderInject(outcome, errorClass string) {
+	routeID := ""
+	if e.request != nil && e.request.Policy != nil {
+		routeID, _ = e.request.Policy.RouteID()
+	}
+	e.evaluator.headerInjectCount.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("route_id", routeID),
+		attribute.String("outcome", outcome),
+	))
+	if outcome == headerInjectRejected {
+		log.Ctx(context.Background()).Warn().
+			Str("route_id", routeID).
+			Str("error_class", errorClass).
+			Msg("authorize/header-evaluator: secret unavailable, rejecting request")
+	}
+}
+
+func (e *headersEvaluatorEvaluation) renderPomeriumRef(ctx context.Context, ref []string) string {
+	switch {
+	case slices.Equal(ref, []string{"pomerium", "access_token"}):
+		s, _ := e.getSessionOrServiceAccount(ctx)
+		return s.GetOauthToken().GetAccessToken()
+	case slices.Equal(ref, []string{"pomerium", "client_cert_san_dns"}):
+		return e.getClientCertDNSNames()
+	case slices.Equal(ref, []string{"pomerium", "client_cert_san_email"}):
+		return e.getClientCertEmailAddresses()
+	case slices.Equal(ref, []string{"pomerium", "client_cert_fingerprint"}):
+		return e.getClientCertFingerprint()
+	case slices.Equal(ref, []string{"pomerium", "id_token"}):
+		s, _ := e.getSessionOrServiceAccount(ctx)
+		return s.GetIdToken().GetRaw()
+	case slices.Equal(ref, []string{"pomerium", "jwt"}):
+		return e.getSignedJWT(ctx)
+	case len(ref) > 3 && ref[0] == "pomerium" && ref[1] == "request" && ref[2] == "headers":
+		return e.request.HTTP.Headers[httputil.CanonicalHeaderKey(ref[3])]
+	}
+
+	return ""
 }
 
 func (e *headersEvaluatorEvaluation) fillHeaders(ctx context.Context) error {
