@@ -186,7 +186,8 @@ func (h *sshUpstream) handleConnection(ctx context.Context, conn net.Conn) {
 	serverConn, ncc, rc, err := ssh.NewServerConn(conn, &h.serverConfig)
 	if err != nil {
 		conn.Close()
-		h.Env().Assert().Fail("ssh connection handshake failed")
+		// errors here can be expected, and are propagated to Dial
+		// h.Env().Assert().Fail(fmt.Sprintf("ssh server connection handshake failed: %s", err.Error()))
 		return
 	}
 	go func() {

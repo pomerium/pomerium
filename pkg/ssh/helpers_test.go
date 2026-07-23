@@ -28,7 +28,7 @@ type SSHKeys struct {
 	// These keys are deterministically generated
 
 	// ClientKey SSH client private key for authentication
-	ClientKey ed25519.PrivateKey
+	// ClientKey ed25519.PrivateKey
 	// ServerHostKey key for server identification
 	ServerHostKey ed25519.PrivateKey
 	// UpstreamHostKey for upstream identification
@@ -43,14 +43,14 @@ type SSHKeys struct {
 	// ClientCASshPubKey Client CA public key in SSH wire format
 	ClientCASshPubKey gossh.PublicKey
 	// ClientSSHPubKey Client public key in SSH wire format
-	ClientSSHPubKey gossh.PublicKey
+	// ClientSSHPubKey gossh.PublicKey
 }
 
 func NewSSHKeys(t *testing.T) SSHKeys {
 	t.Helper()
 
 	s := SSHKeys{}
-	s.ClientKey = newSSHKey(t)
+	// s.ClientKey = newSSHKey(t)
 	s.ServerHostKey = newSSHKey(t)
 
 	s.UpstreamHostKey = newSSHKey(t)
@@ -58,8 +58,8 @@ func NewSSHKeys(t *testing.T) SSHKeys {
 	s.ClientCAKey = newSSHKey(t)
 
 	var err error
-	s.ClientSSHPubKey, err = gossh.NewPublicKey(s.ClientKey.Public())
-	require.NoError(t, err)
+	// s.ClientSSHPubKey, err = gossh.NewPublicKey(s.ClientKey.Public())
+	// require.NoError(t, err)
 	s.ClientCASshPubKey, err = gossh.NewPublicKey(s.ClientCAKey.Public())
 	require.NoError(t, err)
 	return s
