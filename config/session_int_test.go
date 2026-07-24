@@ -12,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
+	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/nullable"
@@ -43,6 +44,7 @@ func TestBearerTokenFormat(t *testing.T) {
 		env.AddUpstream(up)
 
 		env.Start()
+		snippets.WaitStartupComplete(env)
 
 		// first request is a normal login
 		r1, err := up.Get(route,
