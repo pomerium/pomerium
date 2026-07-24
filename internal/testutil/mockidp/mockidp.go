@@ -556,6 +556,22 @@ func (token *idToken) Encode(signingKey jose.SigningKey) string {
 	return str
 }
 
+// SignJWT signs an arbitrary claims payload with the IDP's signing key.
+// Used by integration tests that need to mint JWTs outside of the OIDC flow
+// (e.g. Kubernetes ServiceAccount-style tokens presented in the Authorization
+// header).
+func (idp *IDP) SignJWT(claims any) string {
+	sig, err := jose.NewSigner(idp.signingKey, (&jose.SignerOptions{}).WithType("JWT"))
+	if err != nil {
+		panic(err)
+	}
+	str, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
+	if err != nil {
+		panic(err)
+	}
+	return str
+}
+
 type User struct {
 	ID        string `json:"-"`
 	Email     string `json:"email"`
