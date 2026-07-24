@@ -25,7 +25,7 @@ type SignInSuccessPageProps = {
 const SignInSuccessPage: FC<SignInSuccessPageProps> = ({ data }) => {
   return (
     <Box sx={{ maxWidth: 540, mx: "auto", textAlign: "center" }}>
-      <Typography variant="h5" fontWeight="bold" gutterBottom>
+      <Typography variant="h5" gutterBottom sx={{ fontWeight: "bold" }}>
         Sign in successful
       </Typography>
       <Typography variant="body2" sx={{ mb: 3 }}>

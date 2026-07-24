@@ -132,7 +132,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
             <Logo src={data?.logoUrl || LogoURL} />
           </a>
         )}
-        <Box flexGrow={1} />
+        <Box sx={{ flexGrow: 1 }} />
         {showAvatar && (
           <IconButton color="inherit" onClick={handleMenuOpen}>
             <Avatar name={userName} url={userPictureUrl} />
