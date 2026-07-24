@@ -1093,6 +1093,9 @@ message Settings {
   // underscore characters is received. Defaults to rejecting the request.
   optional HeadersWithUnderscoresAction headers_with_underscores_action = 187;
 
+  // Secret injection binding table and tuning defaults.
+  optional SecretsSettings secrets = 188;
+
   // computed properties
 
   // When the settings were created.
@@ -1123,6 +1126,36 @@ message BlobStorageSettings {
 
 // DownstreamMtlsSettings controls how Pomerium validates client certificates
 // presented by downstream (end-user) connections.
+// SecretsSettings is the secret-injection binding table plus tuning defaults.
+// Binding IDs, URLs, and tuning are operator config, not secret material, so no
+// field is (sensitive); resolved secret values never touch this message.
+message SecretsSettings {
+  // Tuning defaults applied to bindings that leave a field unset.
+  SecretsDefaults defaults = 1;
+  // Binding table, keyed by binding ID.
+  map<string, SecretsBinding> bindings = 2;
+}
+
+// SecretsDefaults are the tuning defaults for the binding table.
+message SecretsDefaults {
+  // Poll interval when the provider supplies no TTL.
+  optional google.protobuf.Duration refresh = 1;
+  // How long the last-good value keeps being served while refresh is failing.
+  optional google.protobuf.Duration stale_grace = 2;
+  // How long a not-found result is negative-cached.
+  optional google.protobuf.Duration negative_ttl = 3;
+}
+
+// SecretsBinding is one entry of the binding table.
+message SecretsBinding {
+  // Backend reference URL (v1: file:// only).
+  string url = 1;
+  // Poll interval override for this binding.
+  optional google.protobuf.Duration refresh = 2;
+  // Stale grace override for this binding.
+  optional google.protobuf.Duration stale_grace = 3;
+}
+
 message DownstreamMtlsSettings {
   // PEM-encoded certificate authority bundle used to verify client
   // certificates.

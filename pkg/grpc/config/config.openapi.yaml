@@ -1889,9 +1889,6 @@ components:
              as an alternative to the inline `ca` value.
       title: DownstreamMtlsSettings
       additionalProperties: false
-      description: |-
-        DownstreamMtlsSettings controls how Pomerium validates client certificates
-         presented by downstream (end-user) connections.
     pomerium.config.EntityInfo:
       type: object
       properties:
@@ -4237,6 +4234,85 @@ components:
         - IP_ADDRESS
         - USER_PRINCIPAL_NAME
       description: Represents a certificate Subject Alternative Name type.
+    pomerium.config.SecretsBinding:
+      type: object
+      properties:
+        url:
+          type: string
+          title: url
+          description: 'Backend reference URL (v1: file:// only).'
+        refresh:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: refresh
+          description: Poll interval override for this binding.
+        staleGrace:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: stale_grace
+          description: Stale grace override for this binding.
+      title: SecretsBinding
+      additionalProperties: false
+      description: SecretsBinding is one entry of the binding table.
+    pomerium.config.SecretsDefaults:
+      type: object
+      properties:
+        refresh:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: refresh
+          description: Poll interval when the provider supplies no TTL.
+        staleGrace:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: stale_grace
+          description: How long the last-good value keeps being served while refresh is failing.
+        negativeTtl:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: negative_ttl
+          description: How long a not-found result is negative-cached.
+      title: SecretsDefaults
+      additionalProperties: false
+      description: SecretsDefaults are the tuning defaults for the binding table.
+    pomerium.config.SecretsSettings:
+      type: object
+      properties:
+        defaults:
+          title: defaults
+          description: Tuning defaults applied to bindings that leave a field unset.
+          $ref: '#/components/schemas/pomerium.config.SecretsDefaults'
+        bindings:
+          type: object
+          title: bindings
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/pomerium.config.SecretsBinding'
+          description: Binding table, keyed by binding ID.
+      title: SecretsSettings
+      additionalProperties: false
+      description: |-
+        DownstreamMtlsSettings controls how Pomerium validates client certificates
+         presented by downstream (end-user) connections.
+         SecretsSettings is the secret-injection binding table plus tuning defaults.
+         Binding IDs, URLs, and tuning are operator config, not secret material, so no
+         field is (sensitive); resolved secret values never touch this message.
+    pomerium.config.SecretsSettings.BindingsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          title: value
+          $ref: '#/components/schemas/pomerium.config.SecretsBinding'
+      title: BindingsEntry
+      additionalProperties: false
     pomerium.config.ServerType:
       type: string
       title: ServerType
@@ -5363,6 +5439,12 @@ components:
           description: |-
             Action to take when a client request with a header name containing
              underscore characters is received. Defaults to rejecting the request.
+        secrets:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.SecretsSettings'
+            - type: "null"
+          title: secrets
+          description: Secret injection binding table and tuning defaults.
         createdAt:
           title: created_at
           description: When the settings were created.
