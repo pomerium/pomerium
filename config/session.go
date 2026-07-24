@@ -170,15 +170,19 @@ func (c *incomingIDPTokenSessionCreator) CreateSession(
 	ctx, op := c.telemetry.Start(ctx, "CreateSession")
 	defer op.Complete()
 
-	if rawAccessToken, ok := cfg.GetIncomingIDPAccessTokenForPolicy(policy, r); ok {
-		return c.createSessionForAccessToken(ctx, cfg, policy, rawAccessToken)
+	rawToken, format, ok := cfg.getIncomingBearerToken(policy, r)
+	if !ok {
+		return nil, sessions.ErrNoSessionFound
 	}
 
-	if rawIdentityToken, ok := cfg.GetIncomingIDPIdentityTokenForPolicy(policy, r); ok {
-		return c.createSessionForIdentityToken(ctx, cfg, policy, rawIdentityToken)
+	switch format {
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN:
+		return c.createSessionForAccessToken(ctx, cfg, policy, rawToken)
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN:
+		return c.createSessionForIdentityToken(ctx, cfg, policy, rawToken)
+	default:
+		return nil, sessions.ErrNoSessionFound
 	}
-
-	return nil, sessions.ErrNoSessionFound
 }
 
 func (c *incomingIDPTokenSessionCreator) createSessionForAccessToken(
@@ -253,6 +257,8 @@ func (c *incomingIDPTokenSessionCreator) createSessionForAccessToken(
 	return res.(*session.Session), nil
 }
 
+// createSessionForIdentityToken verifies an IdP-issued identity token against
+// the route's (browser/SSO) identity provider via the authenticate service.
 func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 	ctx context.Context,
 	cfg *Config,
@@ -444,46 +450,39 @@ func (c *incomingIDPTokenSessionCreator) putSessionAndUser(ctx context.Context, 
 	return nil
 }
 
-// GetIncomingIDPAccessTokenForPolicy returns the raw idp access token from a request if there is one.
-func (cfg *Config) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Request) (rawAccessToken string, ok bool) {
-	bearerTokenFormat := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
+// GetBearerTokenFormatForPolicy resolves the effective bearer_token_format for
+// the policy: per-route override, else the global default, else UNKNOWN.
+func (cfg *Config) GetBearerTokenFormatForPolicy(policy *Policy) config.BearerTokenFormat {
+	format := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
 	if cfg.Options != nil && cfg.Options.BearerTokenFormat.IsSet {
-		bearerTokenFormat = cfg.Options.BearerTokenFormat.Value
+		format = cfg.Options.BearerTokenFormat.Value
 	}
 	if policy != nil && policy.BearerTokenFormat.IsSet {
-		bearerTokenFormat = policy.BearerTokenFormat.Value
+		format = policy.BearerTokenFormat.Value
 	}
-
-	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
-		prefix := "Bearer "
-		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
-			bearerTokenFormat == config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN {
-			return auth[len(prefix):], true
-		}
-	}
-
-	return "", false
+	return format
 }
 
-// GetIncomingIDPAccessTokenForPolicy returns the raw idp identity token from a request if there is one.
-func (cfg *Config) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.Request) (rawIdentityToken string, ok bool) {
-	bearerTokenFormat := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
-	if cfg.Options != nil && cfg.Options.BearerTokenFormat.IsSet {
-		bearerTokenFormat = cfg.Options.BearerTokenFormat.Value
-	}
-	if policy != nil && policy.BearerTokenFormat.IsSet {
-		bearerTokenFormat = policy.BearerTokenFormat.Value
-	}
-
-	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
-		prefix := "Bearer "
-		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
-			bearerTokenFormat == config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN {
-			return auth[len(prefix):], true
-		}
+// getIncomingBearerToken resolves the effective bearer_token_format for the
+// policy and, when it calls for interpreting the token (access/identity/jwt),
+// returns the raw Bearer token from the Authorization header. For DEFAULT or
+// UNKNOWN (passthrough), or when no Bearer header is present, ok is false.
+func (cfg *Config) getIncomingBearerToken(policy *Policy, r *http.Request) (rawToken string, format config.BearerTokenFormat, ok bool) {
+	format = cfg.GetBearerTokenFormatForPolicy(policy)
+	switch format {
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN,
+		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN,
+		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT:
+	default:
+		return "", format, false
 	}
 
-	return "", false
+	auth := r.Header.Get(httputil.HeaderAuthorization)
+	const prefix = "Bearer "
+	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+		return "", format, false
+	}
+	return auth[len(prefix):], format, true
 }
 
 var accessTokenUUIDNamespace = uuid.MustParse("0194f6f8-e760-76a0-8917-e28ac927a34d")
