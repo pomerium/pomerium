@@ -19,11 +19,7 @@ import IDField from "./IDField";
 
 const TextBlock: FC<TypographyProps> = ({ children }) => {
   return (
-    <Typography
-      variant="body2"
-      color="rgba(102, 112, 133, 1)"
-      sx={{ fontWeight: 400 }}
-    >
+    <Typography variant="body2" color="rgba(102, 112, 133, 1)" sx={{ fontWeight: 400 }}>
       {children}
     </Typography>
   );
@@ -106,8 +102,8 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
             <Stack sx={{ gap: 1, my: 5 }}>
               <Typography variant="h5">What happened?</Typography>
               <TextBlock>
-                The web server is not returning a connection. As a result, the
-                webpage is not displaying.
+                The web server is not returning a connection. As a result, the webpage is not
+                displaying.
               </TextBlock>
             </Stack>
             <Divider sx={{ color: "rgba(234, 236, 240, 1)" }} />
@@ -116,11 +112,7 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
                 <Typography variant="h5">What can I do?</Typography>
               </Stack>
               <Stack>
-                <Typography
-                  variant="body2"
-                  color="rgba(102, 112, 133, 1)"
-                  sx={{ fontWeight: 700 }}
-                >
+                <Typography variant="body2" color="rgba(102, 112, 133, 1)" sx={{ fontWeight: 700 }}>
                   If you are a visitor of this website:
                 </Typography>
                 <TextBlock>Please try again in a few minutes.</TextBlock>
@@ -130,8 +122,7 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
                   If you are the owner of this website:
                 </Typography>
                 <TextBlock>
-                  Contact your hosting provider letting them know your web
-                  server is not responding.
+                  Contact your hosting provider letting them know your web server is not responding.
                 </TextBlock>
                 <TextBlock>Error Text: {data.statusText}</TextBlock>
                 {data?.requestId && (

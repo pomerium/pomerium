@@ -9,20 +9,13 @@ export type SectionProps = React.PropsWithChildren<{
   icon?: React.ReactNode;
   footer?: React.ReactNode;
 }>;
-export const Section: FC<SectionProps> = ({
-  title,
-  icon,
-  children,
-  footer,
-}) => {
+export const Section: FC<SectionProps> = ({ title, icon, children, footer }) => {
   return (
     <Paper sx={{ overflow: "hidden" }}>
       <Stack>
         <Toolbar>
           <Typography variant="h4">{title}</Typography>
-          {!!icon && (
-            <Box sx={{ marginLeft: (theme) => theme.spacing(3) }}>{icon}</Box>
-          )}
+          {!!icon && <Box sx={{ marginLeft: (theme) => theme.spacing(3) }}>{icon}</Box>}
         </Toolbar>
         <Box sx={{ padding: 3, paddingTop: 0 }}>{children}</Box>
         {footer ? (
