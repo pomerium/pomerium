@@ -8,6 +8,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     build: {
       outDir: "dist",
+      // We deliberately emit a single iife bundle (see rolldownOptions), so the
+      // chunk-size warning isn't actionable. Disable it (nothing exceeds Infinity).
+      chunkSizeWarningLimit: Infinity,
       // Don't wipe dist/: it also holds the checked-in index.gohtml and favicons.
       emptyOutDir: false,
       // Emit a single index.css instead of per-chunk stylesheets.
