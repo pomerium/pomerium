@@ -122,43 +122,113 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 	})
 
 	t.Run("public key unauthorized", func(t *testing.T) {
-		evaluator := &fakePolicyEvaluator{
-			evaluateSSH: func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
-				assert.True(t, r.LogOnlyIfDenied)
-				assert.Equal(t, "username", r.Username)
-				assert.Equal(t, "hostname", r.Hostname)
-				if r.PublicKey != string(sshKey2.Marshal()) {
-					return &evaluator.Result{
-						Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized),
-						Deny:  evaluator.NewRuleResult(true),
-					}, nil
-				}
-				return &evaluator.Result{
+		// public keys can be denied either because they are not present in an
+		// allow list, or because they are present in a deny list.
+
+		cases := [][2]*evaluator.Result{
+			{
+				// allow:
+				//   and:
+				//    - ssh_publickey: <good key>
+				//    - authenticated_user: 1
+				{
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized, criteria.ReasonUserUnauthenticated),
+					Deny:  evaluator.NewRuleResult(false),
+				},
+				{
 					Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-					Deny:  evaluator.NewRuleResult(true),
-				}, nil
+					Deny:  evaluator.NewRuleResult(false),
+				},
 			},
-			client: databrokerClient,
+			{
+				// allow:
+				//   and:
+				//    - authenticated_user: 1
+				// deny:
+				//   or:
+				//    - ssh_publickey: <bad key>
+				{
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+					Deny:  evaluator.NewRuleResult(true, criteria.ReasonSSHPublickeyOK),
+				},
+				{
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+					Deny:  evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized),
+				},
+			},
+			{
+				// allow:
+				//   and:
+				//    - ssh_publickey: <good key>
+				//    - authenticated_user: 1
+				// deny:
+				//   or:
+				//    - ssh_publickey: <bad key>
+
+				{ // simulate first trying a key that is neither the good key nor the bad key, then the good key
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized, criteria.ReasonUserUnauthenticated),
+					Deny:  evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized),
+				},
+				{
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+					Deny:  evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized),
+				},
+			},
+			{
+				// (same as previous)
+				// allow:
+				//   and:
+				//    - ssh_publickey: <good key>
+				//    - authenticated_user: 1
+				// deny:
+				//   or:
+				//    - ssh_publickey: <bad key>
+
+				{ // simulate first trying the bad key, then the good key
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized, criteria.ReasonUserUnauthenticated),
+					Deny:  evaluator.NewRuleResult(true, criteria.ReasonSSHPublickeyOK),
+				},
+				{
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+					Deny:  evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized),
+				},
+			},
 		}
+		for i, tc := range cases {
+			t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
+				evaluator := &fakePolicyEvaluator{
+					evaluateSSH: func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
+						assert.True(t, r.LogOnlyIfDenied)
+						assert.Equal(t, "username", r.Username)
+						assert.Equal(t, "hostname", r.Hostname)
+						if r.PublicKey != string(sshKey2.Marshal()) {
+							return tc[0], nil
+						}
+						return tc[1], nil
+					},
+					client: databrokerClient,
+				}
 
-		a := ssh.NewAuth(evaluator, nil, &nooptrace.TracerProvider{}, &fakeIssuer{}, nil)
-		res, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey1))
-		assert.NoError(t, err)
-		assert.Equal(t, ssh.AuthMethodResponse{
-			AllowMethod:            false,
-			NextRequiredAuthMethod: ssh.MethodPublicKey,
-		}, res)
+				a := ssh.NewAuth(evaluator, nil, &nooptrace.TracerProvider{}, &fakeIssuer{}, nil)
+				res, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey1))
+				assert.NoError(t, err)
+				assert.Equal(t, ssh.AuthMethodResponse{
+					AllowMethod:            false,
+					NextRequiredAuthMethod: ssh.MethodPublicKey,
+				}, res)
 
-		res, err = a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey2))
-		assert.NoError(t, err)
-		assert.Equal(t, ssh.AuthMethodResponse{
-			AllowMethod:            true,
-			NextRequiredAuthMethod: ssh.MethodKeyboardInteractive,
-			ContextUpdates:         newPkAuthContextUpdates(sshKey2),
-		}, res)
+				res, err = a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey2))
+				assert.NoError(t, err)
+				assert.Equal(t, ssh.AuthMethodResponse{
+					AllowMethod:            true,
+					NextRequiredAuthMethod: ssh.MethodKeyboardInteractive,
+					ContextUpdates:         newPkAuthContextUpdates(sshKey2),
+				}, res)
+			})
+		}
 	})
 
-	t.Run("source IP denied", func(t *testing.T) {
+	t.Run("source IP not allowed", func(t *testing.T) {
 		evaluator := &fakePolicyEvaluator{
 			evaluateSSH: func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
 				return &evaluator.Result{
@@ -176,7 +246,25 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 		assert.Equal(t, ssh.AuthMethodResponse{}, res)
 	})
 
-	t.Run("ssh username denied", func(t *testing.T) {
+	t.Run("source IP denied", func(t *testing.T) {
+		evaluator := &fakePolicyEvaluator{
+			evaluateSSH: func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
+				return &evaluator.Result{
+					Allow: evaluator.NewRuleResult(true),
+					Deny:  evaluator.NewRuleResult(true, criteria.ReasonSourceIPOK), // inverse
+				}, nil
+			},
+			client: databrokerClient,
+		}
+
+		a := ssh.NewAuth(evaluator, nil, &nooptrace.TracerProvider{}, &fakeIssuer{}, nil)
+		res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey1))
+		assert.NoError(t, err)
+		// non-retriable
+		assert.Equal(t, ssh.AuthMethodResponse{}, res)
+	})
+
+	t.Run("ssh username not allowed", func(t *testing.T) {
 		evaluator := &fakePolicyEvaluator{
 			evaluateSSH: func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
 				return &evaluator.Result{
@@ -194,7 +282,25 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 		assert.Equal(t, ssh.AuthMethodResponse{}, res)
 	})
 
-	t.Run("bad evaluator response", func(t *testing.T) {
+	t.Run("ssh username denied", func(t *testing.T) {
+		evaluator := &fakePolicyEvaluator{
+			evaluateSSH: func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
+				return &evaluator.Result{
+					Allow: evaluator.NewRuleResult(true),
+					Deny:  evaluator.NewRuleResult(true, criteria.ReasonSSHUsernameOK), // inverse
+				}, nil
+			},
+			client: databrokerClient,
+		}
+
+		a := ssh.NewAuth(evaluator, nil, &nooptrace.TracerProvider{}, &fakeIssuer{}, nil)
+		res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey1))
+		assert.NoError(t, err)
+		// non-retriable
+		assert.Equal(t, ssh.AuthMethodResponse{}, res)
+	})
+
+	t.Run("route missing session criteria", func(t *testing.T) {
 		evaluator := &fakePolicyEvaluator{
 			evaluateSSH: func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
 				// the evaluator should only allow requests that are missing session IDs
@@ -211,9 +317,10 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 		}
 
 		a := ssh.NewAuth(evaluator, nil, &nooptrace.TracerProvider{}, &fakeIssuer{}, nil)
-		assert.Panics(t, func() {
-			_, _ = a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey1))
-		})
+		res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey1))
+		assert.NoError(t, err)
+		// non-retriable
+		assert.Equal(t, ssh.AuthMethodResponse{}, res)
 	})
 
 	t.Run("invalid fingerprint in request", func(t *testing.T) {
@@ -384,7 +491,7 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 			},
 			{ // deny is true and reason isn't ReasonSSHAccessRequestRequired
 				Allow: evaluator.NewRuleResult(true, criteria.ReasonUserOK),
-				Deny:  evaluator.NewRuleResult(true, criteria.ReasonClaimUnauthorized),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonClaimOK), // inverse
 			},
 		}
 
