@@ -24,6 +24,7 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/nullable"
+	"github.com/pomerium/pomerium/pkg/secrets/resolver"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -38,12 +39,19 @@ type Store struct {
 	defaultJWTIssuerFormat                            atomic.Pointer[nullable.Value[configpb.IssuerFormat]]
 	signingKey                                        atomic.Pointer[jose.JSONWebKey]
 	mcpAccessTokenProvider                            atomic.Pointer[MCPAccessTokenProvider]
+	secretsLookup                                     atomic.Pointer[SecretsLookup]
 }
 
 type MCPAccessTokenProvider interface {
 	// GetAccessTokenForSession returns an access token for the given session ID and expiration time,
 	// that may be used by the MCP client to interact with the MCP servers fronted by Pomerium.
 	GetAccessTokenForSession(sessionID string, expiresAt time.Time) (string, error)
+}
+
+// SecretsLookup resolves ${secret.ID} references at request time. The header
+// fill loop captures exactly one View per evaluation for a consistent snapshot.
+type SecretsLookup interface {
+	View() resolver.View
 }
 
 // New creates a new Store.
@@ -136,6 +144,26 @@ func (s *Store) UpdateMCPAccessTokenProvider(mcpAccessTokenProvider MCPAccessTok
 	// This isn't used by the Rego code, so we don't need to write it to the opastorage.Store instance.
 	if mcpAccessTokenProvider != nil {
 		s.mcpAccessTokenProvider.Store(&mcpAccessTokenProvider)
+	}
+}
+
+// GetSecretsLookup returns the secrets lookup, or nil if never set.
+func (s *Store) GetSecretsLookup() SecretsLookup {
+	p := s.secretsLookup.Load()
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+
+// UpdateSecretsLookup sets the secrets lookup. Like the MCP provider it no-ops
+// on nil, so the lookup can never be un-set: the authorize service wires the
+// long-lived resolver unconditionally, and "no bindings" is just an empty
+// snapshot, not a nil lookup.
+func (s *Store) UpdateSecretsLookup(secretsLookup SecretsLookup) {
+	// This isn't used by the Rego code, so we don't need to write it to the opastorage.Store instance.
+	if secretsLookup != nil {
+		s.secretsLookup.Store(&secretsLookup)
 	}
 }
 

@@ -14,17 +14,29 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
+// SecretsUnavailableError identifies a set_request_headers value whose
+// ${secret.ID} reference could not be resolved. It carries only the binding ID
+// and header name — never a secret value.
+type SecretsUnavailableError struct {
+	BindingID  string
+	HeaderName string
+}
+
 // HeadersResponse is the output from the headers.rego script.
 type HeadersResponse struct {
 	Headers             http.Header
 	HeadersToRemove     []string
 	AdditionalLogFields map[logfields.AuthorizeLogField]any
+	// SecretsUnavailable, when non-nil, means a required secret reference could
+	// not be resolved and the request must fail closed (503).
+	SecretsUnavailable *SecretsUnavailableError
 }
 
 // A HeadersEvaluator evaluates the headers.rego script.
 type HeadersEvaluator struct {
 	evaluationCount    metric.Int64Counter
 	evaluationDuration metric.Int64Histogram
+	headerInjectCount  metric.Int64Counter
 
 	store *store.Store
 }
@@ -38,6 +50,8 @@ func NewHeadersEvaluator(store *store.Store) *HeadersEvaluator {
 		evaluationDuration: metrics.Int64Histogram("authorize.header_evaluator.evaluation.duration",
 			metric.WithDescription("Duration of header evaluation."),
 			metric.WithUnit("ms")),
+		headerInjectCount: metrics.Int64Counter("secrets.header_inject",
+			metric.WithDescription("Number of secret header injection outcomes.")),
 
 		store: store,
 	}

@@ -155,6 +155,10 @@ type Result struct {
 	HeadersToRemove     []string
 	Traces              []contextutil.PolicyEvaluationTrace
 	AdditionalLogFields map[logfields.AuthorizeLogField]any
+	// SecretsUnavailable is set when a required ${secret.ID} reference could not
+	// be resolved for a set_request_headers value; the request must fail closed
+	// with a 503. It never carries a secret value.
+	SecretsUnavailable *SecretsUnavailableError
 }
 
 func (r *Result) HasReason(reason criteria.Reason) bool {
@@ -331,6 +335,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		HeadersToRemove:     headersOutput.HeadersToRemove,
 		Traces:              policyOutput.Traces,
 		AdditionalLogFields: headersOutput.AdditionalLogFields,
+		SecretsUnavailable:  headersOutput.SecretsUnavailable,
 	}
 	return res, nil
 }
@@ -438,6 +443,7 @@ func updateStore(store *store.Store, cfg *evaluatorConfig) error {
 	store.UpdateRoutePolicies(cfg.Policies)
 	store.UpdateSigningKey(jwk)
 	store.UpdateMCPAccessTokenProvider(cfg.MCPAccessTokenProvider)
+	store.UpdateSecretsLookup(cfg.SecretsLookup)
 
 	return nil
 }
