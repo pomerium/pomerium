@@ -32,7 +32,7 @@ const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
 
   return (
     <Container>
-      <Dialog open={true} disableEscapeKeyDown={true}>
+      <Dialog open={true}>
         <DialogTitle>Logout?</DialogTitle>
         <DialogContent>
           <DialogContentText>

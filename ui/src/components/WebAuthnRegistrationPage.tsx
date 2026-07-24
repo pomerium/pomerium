@@ -16,7 +16,7 @@ const WebAuthnRegistrationPage: FC<WebAuthnRegistrationPageProps> = ({
 }) => {
   return (
     <Section title="WebAuthn Registration" icon={<ExperimentalIcon />}>
-      <Stack direction="row" justifyContent="center" spacing={1}>
+      <Stack direction="row" spacing={1} sx={{ justifyContent: "center" }}>
         <WebAuthnRegisterButton
           creationOptions={data?.creationOptions}
           url={data?.selfUrl}

@@ -1,4 +1,4 @@
-import createSvgIcon from "@mui/material/utils/createSvgIcon";
+import { createSvgIcon } from "@mui/material/utils";
 import React from "react";
 
 const JwtIcon = createSvgIcon(

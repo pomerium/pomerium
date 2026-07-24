@@ -8,7 +8,7 @@ import {
   Stack,
 } from "@mui/material";
 import type { FC } from "react";
-import React, { useContext, useEffect, useState } from "react";
+import { use, useState } from "react";
 
 import { SubpageContext } from "../context/Subpage";
 import type { UserInfoData } from "../types";
@@ -21,17 +21,11 @@ type UserInfoPageProps = {
   data: UserInfoData & { page: "DeviceEnrolled" | "UserInfo" };
 };
 const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
-  const { subpage } = useContext(SubpageContext);
+  const { subpage } = use(SubpageContext);
 
-  const [showDeviceEnrolled, setShowDeviceEnrolled] = useState(false);
-
-  useEffect(() => {
-    if (data.page === "DeviceEnrolled") {
-      setShowDeviceEnrolled(true);
-    } else {
-      setShowDeviceEnrolled(false);
-    }
-  }, [data.page]);
+  const [showDeviceEnrolled, setShowDeviceEnrolled] = useState(
+    data.page === "DeviceEnrolled",
+  );
 
   function handleCloseDeviceEnrolled() {
     setShowDeviceEnrolled(false);
@@ -60,15 +54,20 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
           />
         )}
 
-        {subpage === "Devices Info" && (
-          <SessionDeviceCredentials
-            session={data?.session}
-            user={data?.user}
-            webAuthnCreationOptions={data?.webAuthnCreationOptions}
-            webAuthnRequestOptions={data?.webAuthnRequestOptions}
-            webAuthnUrl={data?.webAuthnUrl}
-          />
-        )}
+        {subpage === "Devices Info" &&
+          data?.session &&
+          data?.user &&
+          data?.webAuthnCreationOptions &&
+          data?.webAuthnRequestOptions &&
+          data?.webAuthnUrl && (
+            <SessionDeviceCredentials
+              session={data.session}
+              user={data.user}
+              webAuthnCreationOptions={data.webAuthnCreationOptions}
+              webAuthnRequestOptions={data.webAuthnRequestOptions}
+              webAuthnUrl={data.webAuthnUrl}
+            />
+          )}
       </Stack>
     </SidebarPage>
   );

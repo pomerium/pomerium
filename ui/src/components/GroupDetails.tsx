@@ -15,8 +15,8 @@ import IDField from "./IDField";
 import Section from "./Section";
 
 export type GroupDetailsProps = {
-  isEnterprise: boolean;
-  groups: Group[];
+  isEnterprise?: boolean;
+  groups?: Group[];
 };
 export const GroupDetails: FC<GroupDetailsProps> = ({
   isEnterprise,

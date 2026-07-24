@@ -22,7 +22,7 @@ export const WebAuthnButton: FC<WebAuthnButtonProps> = ({
 }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const responseRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<string>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function handleClickButton(evt: React.MouseEvent): void {
     evt.preventDefault();
@@ -30,8 +30,10 @@ export const WebAuthnButton: FC<WebAuthnButtonProps> = ({
     void (async () => {
       try {
         const response = await onClick();
-        responseRef.current.value = JSON.stringify(response);
-        formRef.current.submit();
+        if (responseRef.current) {
+          responseRef.current.value = JSON.stringify(response);
+        }
+        formRef.current?.submit();
       } catch (e) {
         setError(`${e}`);
       }

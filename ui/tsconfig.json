@@ -1,20 +1,15 @@
 {
+  "$schema": "https://www.schemastore.org/tsconfig",
   "compilerOptions": {
-    "target": "es2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
     "esModuleInterop": true,
-    "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true,
-    "strict": false,
-    "strictNullChecks": false,
     "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-    "preserveConstEnums": true,
-    "noEmit": true,
     "jsx": "react-jsx",
-    "noFallthroughCasesInSwitch": true
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "strict": true,
+    "target": "es2017",
+    "verbatimModuleSyntax": true
   },
   "include": ["src"]
 }

@@ -23,11 +23,13 @@ const SidebarPage: FC<SidebarPageProps> = ({ children, data }) => {
         <Drawer
           anchor="left"
           open
-          PaperProps={{
-            sx: {
-              backgroundColor: "neutral.900",
-              width: 256,
-              height: "100vh",
+          slotProps={{
+            paper: {
+              sx: {
+                backgroundColor: "neutral.900",
+                width: 256,
+                height: "100vh",
+              },
             },
           }}
           variant="persistent"

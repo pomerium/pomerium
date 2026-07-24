@@ -136,9 +136,9 @@ const RoutesSection: FC<RoutesSectionProps> = ({ type, title, allRoutes }) => {
 
   return (
     <Section title={title}>
-      <Grid container spacing={2} justifyContent="center">
+      <Grid container spacing={2} sx={{ justifyContent: "center" }}>
         {routes?.map((r) => (
-          <Grid key={r.id} item sx={{ width: 300 }}>
+          <Grid key={r.id} sx={{ width: 300 }}>
             <RouteCard route={r} />
           </Grid>
         ))}
@@ -158,9 +158,9 @@ const MCPRoutesSection: FC<MCPRoutesSectionProps> = ({ allRoutes }) => {
 
   return (
     <Section title="MCP Servers">
-      <Grid container spacing={2} justifyContent="center">
+      <Grid container spacing={2} sx={{ justifyContent: "center" }}>
         {routes?.map((r) => (
-          <Grid key={r.id} item sx={{ width: 300 }}>
+          <Grid key={r.id} sx={{ width: 300 }}>
             <MCPRouteCard route={r} />
           </Grid>
         ))}
@@ -173,13 +173,13 @@ type RoutesPageProps = {
   data: RoutesPageData;
 };
 const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
-  const [connectError, setConnectError] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get("connect_error"),
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const error = params.get("connect_error");
-    if (error) {
-      setConnectError(error);
+    if (params.get("connect_error")) {
       // Clean the URL so the error doesn't persist on refresh.
       params.delete("connect_error");
       const clean = params.toString();

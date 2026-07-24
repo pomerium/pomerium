@@ -58,7 +58,7 @@ export type WebAuthnRegisterButtonProps = Omit<
   WebAuthnButtonProps,
   "action" | "enable" | "onClick" | "text"
 > & {
-  creationOptions: WebAuthnCreationOptions;
+  creationOptions?: WebAuthnCreationOptions;
   url: string;
 };
 export const WebAuthnRegisterButton: FC<WebAuthnRegisterButtonProps> = ({
@@ -66,6 +66,7 @@ export const WebAuthnRegisterButton: FC<WebAuthnRegisterButtonProps> = ({
   ...props
 }) => {
   async function register(): Promise<unknown> {
+    if (!creationOptions) return;
     const credential = await createCredential(creationOptions);
     return {
       id: credential.id,

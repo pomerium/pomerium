@@ -17,8 +17,8 @@ const Footer: FC = () => {
       <Stack
         direction="row"
         spacing={8}
-        justifyContent="center"
         sx={{
+          justifyContent: "center",
           fontSize: "0.85rem",
           paddingLeft: "16px",
           paddingRight: "16px",

@@ -9,8 +9,13 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/identity/oauth/github"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 )
+
+var identityProviderVersions = map[string]int64{
+	github.Name: github.Version,
+}
 
 // GetIdentityProviderForID returns the identity provider associated with the given IDP id.
 // If none is found the default provider is returned.
@@ -49,6 +54,7 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identitypb.Prov
 		Scopes:                 o.Scopes,
 		Url:                    o.ProviderURL,
 		RequestParams:          o.RequestParams,
+		Version:                identityProviderVersions[o.Provider],
 	}
 	if v := o.IDPAccessTokenAllowedAudiences; v != nil {
 		idp.AccessTokenAllowedAudiences = &identitypb.Provider_StringList{

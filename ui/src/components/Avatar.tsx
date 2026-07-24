@@ -14,7 +14,7 @@ export const Avatar = ({ url, name }: AvatarProps): JSX.Element => {
   }
 
   if (url === "https://graph.microsoft.com/v1.0/me/photo/$value") {
-    url = null;
+    url = undefined;
   }
 
   return url ? <MuiAvatar alt={name} src={url} /> : <User />;

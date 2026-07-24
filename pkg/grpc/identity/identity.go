@@ -10,7 +10,7 @@ import (
 
 // Clone clones the Provider.
 func (x *Provider) Clone() *Provider {
-	return proto.Clone(x).(*Provider)
+	return proto.CloneOf(x)
 }
 
 // Hash computes a sha256 hash of the provider's identity-determining fields.
