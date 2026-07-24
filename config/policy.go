@@ -188,6 +188,11 @@ type Policy struct {
 	IDPClientSecret string `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
 	// IDPAccessTokenAllowedAudiences are the allowed audiences for idp access token validation.
 	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
+	// IdentityProviders is the allowlist of identity-provider names (keys in
+	// Options.IdentityProviders) whose JWT bearer tokens this route accepts
+	// (when BearerTokenFormat is BEARER_TOKEN_FORMAT_JWT). Empty means all
+	// configured providers are accepted.
+	IdentityProviders []string `mapstructure:"identity_providers" yaml:"identity_providers,omitempty"`
 
 	// ShowErrorDetails indicates whether or not additional error details should be displayed.
 	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
@@ -438,6 +443,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	} else {
 		p.IDPAccessTokenAllowedAudiences = nil
 	}
+	p.IdentityProviders = slices.Clone(pb.IdentityProviders)
 	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
 			HTTPSRedirect:  pb.Redirect.HttpsRedirect,
@@ -618,6 +624,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	} else {
 		pb.IdpAccessTokenAllowedAudiences = nil
 	}
+	pb.IdentityProviders = slices.Clone(p.IdentityProviders)
 	if p.Redirect != nil {
 		pb.Redirect = &configpb.RouteRedirect{
 			HttpsRedirect:  p.Redirect.HTTPSRedirect,
