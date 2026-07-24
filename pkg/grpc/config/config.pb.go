@@ -9629,7 +9629,7 @@ const file_config_proto_rawDesc = "" +
 	"\x05_nameB\x0e\n" +
 	"\f_modified_at\",\n" +
 	"\x10SessionRecording\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\"\xb3/\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\"\xb9/\n" +
 	"\x05Route\x12\x13\n" +
 	"\x02id\x18\x1c \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18P \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -9678,8 +9678,8 @@ const file_config_proto_rawDesc = "" +
 	"\x1dtls_downstream_client_ca_file\x18' \x01(\tB\x02\x18\x01R\x19tlsDownstreamClientCaFile\x12U\n" +
 	"$tls_downstream_client_ca_key_pair_id\x18T \x01(\tB\x02\x18\x01H\n" +
 	"R\x1etlsDownstreamClientCaKeyPairId\x88\x01\x01\x12G\n" +
-	" tls_upstream_allow_renegotiation\x18< \x01(\bR\x1dtlsUpstreamAllowRenegotiation\x12]\n" +
-	"\x13set_request_headers\x18\x16 \x03(\v2-.pomerium.config.Route.SetRequestHeadersEntryR\x11setRequestHeaders\x124\n" +
+	" tls_upstream_allow_renegotiation\x18< \x01(\bR\x1dtlsUpstreamAllowRenegotiation\x12c\n" +
+	"\x13set_request_headers\x18\x16 \x03(\v2-.pomerium.config.Route.SetRequestHeadersEntryB\x04\xf0\xd6,\x01R\x11setRequestHeaders\x124\n" +
 	"\x16remove_request_headers\x18\x17 \x03(\tR\x14removeRequestHeaders\x12`\n" +
 	"\x14set_response_headers\x18) \x03(\v2..pomerium.config.Route.SetResponseHeadersEntryR\x12setResponseHeaders\x12]\n" +
 	"\x18rewrite_response_headers\x18( \x03(\v2#.pomerium.config.RouteRewriteHeaderR\x16rewriteResponseHeaders\x120\n" +
@@ -9841,7 +9841,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xb6h\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xbch\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9907,8 +9907,8 @@ const file_config_proto_rawDesc = "" +
 	"\x13bearer_token_format\x18\x8a\x01 \x01(\x0e2\".pomerium.config.BearerTokenFormatH/R\x11bearerTokenFormat\x88\x01\x01\x12X\n" +
 	"\x18default_upstream_timeout\x18' \x01(\v2\x19.google.protobuf.DurationH0R\x16defaultUpstreamTimeout\x88\x01\x01\x12)\n" +
 	"\rdebug_address\x18\x9c\x01 \x01(\tH1R\fdebugAddress\x88\x01\x01\x12,\n" +
-	"\x0fmetrics_address\x18( \x01(\tH2R\x0emetricsAddress\x88\x01\x01\x121\n" +
-	"\x12metrics_basic_auth\x18@ \x01(\tH3R\x10metricsBasicAuth\x88\x01\x01\x12[\n" +
+	"\x0fmetrics_address\x18( \x01(\tH2R\x0emetricsAddress\x88\x01\x01\x127\n" +
+	"\x12metrics_basic_auth\x18@ \x01(\tB\x04\xe8\xd6,\x01H3R\x10metricsBasicAuth\x88\x01\x01\x12[\n" +
 	"\x13metrics_certificate\x18A \x01(\v2%.pomerium.config.Settings.CertificateH4R\x12metricsCertificate\x88\x01\x01\x12/\n" +
 	"\x11metrics_client_ca\x18B \x01(\tH5R\x0fmetricsClientCa\x88\x01\x01\x12E\n" +
 	"\x1dmetrics_client_ca_key_pair_id\x18\xa4\x01 \x01(\tH6R\x18metricsClientCaKeyPairId\x88\x01\x01\x125\n" +
