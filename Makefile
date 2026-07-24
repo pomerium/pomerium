@@ -160,6 +160,19 @@ test: get-envoy ## Runs the go tests.
 	@echo "==> $@"
 	$(GO) test $(GO_TESTFLAGS) -tags "$(BUILDTAGS)" ./...
 
+# End-to-end tests are heavyweight (Docker via testcontainers, in-process
+# Pomerium via testenv) and each mutates process-global state (e.g. the OTel
+# tracer), so they must run one at a time in their own process. Each is gated
+# behind a per-test RUN_<TestName> env var and has its own sub-target so they
+# never share a process; test-e2e chains them.
+.PHONY: test-e2e
+test-e2e: test-e2e-k3s ## Runs all e2e tests, each isolated in its own process.
+
+.PHONY: test-e2e-k3s
+test-e2e-k3s: get-envoy ## Runs the k3s external-JWT e2e test (requires Docker).
+	@echo "==> $@"
+	RUN_TestExternalJWTBearer_K3s=1 $(GO) test -timeout=15m -run '^TestExternalJWTBearer_K3s$$' ./authorize/...
+
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage
 	@echo "==> $@"
