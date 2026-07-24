@@ -76,6 +76,9 @@ func generateConfig(ctx context.Context) error {
 		"pomerium.config.HealthCheck.Int64Range",
 		"pomerium.config.HealthCheck.Payload",
 		"pomerium.config.HealthCheck.TcpHealthCheck",
+		// IdentityProvider has hand-written config conversions in
+		// config/identity_provider.go, so it must not be auto-generated.
+		"pomerium.config.IdentityProvider",
 		"pomerium.config.KeyPair",
 		"pomerium.config.KeyUsage",
 		"pomerium.config.ListAvailableLogFieldsRequest",
@@ -751,11 +754,23 @@ func iterateMessageFields(md protoreflect.MessageDescriptor) iter.Seq[protorefle
 			fd.Number() != 65 {
 			continue
 		}
+		// Route.identity_providers (97) has hand-written conversions in
+		// config/policy.go, so it must not be auto-generated.
+		if md.FullName() == "pomerium.config.Route" &&
+			fd.Number() == 97 {
+			continue
+		}
 		if md.FullName() == "pomerium.config.Settings" &&
 			fd.Number() < 180 &&
 			fd.Number() != 138 &&
 			fd.Number() != 73 &&
 			fd.Number() != 139 {
+			continue
+		}
+		// Settings.identity_providers (190) has hand-written conversions in
+		// config/options.go and must not be auto-generated.
+		if md.FullName() == "pomerium.config.Settings" &&
+			fd.Number() == 190 {
 			continue
 		}
 		s = append(s, fd)

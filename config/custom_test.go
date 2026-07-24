@@ -292,6 +292,7 @@ func TestDecodeEnumHookFunc(t *testing.T) {
 			{"default", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT},
 			{"idp_access_token", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN},
 			{"idp_identity_token", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN},
+			{"jwt", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT},
 		} {
 			decode(&obj, map[string]any{
 				"bearer_token_format": tc.input,
