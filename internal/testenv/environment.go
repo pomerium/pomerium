@@ -716,7 +716,10 @@ func (e *environment) Start() {
 		fileMgr := filemgr.NewManager(filemgr.WithCacheDir(filepath.Join(e.TempDir(), "cache")))
 		for _, mod := range e.mods {
 			mod.Value.Modify(cfg)
-			require.NoError(e.t, cfg.Options.Validate(), "invoking modifier resulted in an invalid configuration:\nadded by: "+mod.Caller)
+			if err := cfg.Options.Validate(); err != nil {
+				e.t.Errorf("invoking modifier resulted in an invalid configuration:\nadded by: %s\nerror: %s", mod.Caller, err)
+				return err
+			}
 		}
 
 		opts := []pomerium.Option{
@@ -779,7 +782,10 @@ func (e *environment) Start() {
 		})
 		err := pom.Start(ctx, e.tracerProvider, e.src)
 		startDone <- err
-		require.NoError(e.t, err)
+		if err != nil {
+			e.t.Error(err)
+			return err
+		}
 		return (<-waitDone)
 	}))
 
@@ -1173,7 +1179,10 @@ func getCaller(skip ...int) string {
 		if !ok {
 			break
 		}
-		if path.Base(next.Function) == "testenv.(*environment).AddUpstream" {
+		switch path.Base(next.Function) {
+		case "testenv.(*environment).AddUpstream",
+			"testenv.(*environment).Add",
+			"testenv.(*Aggregate).Attach":
 			continue
 		}
 		caller = fmt.Sprintf("%s:%d", next.File, next.Line)

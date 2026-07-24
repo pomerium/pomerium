@@ -823,6 +823,10 @@ func (p *Policy) Validate() error {
 			return fmt.Errorf("config: mcp authorization_server_url must be https, got %q", u.Scheme)
 		}
 	}
+
+	if p.IsSSH() && p.AllowPublicUnauthenticatedAccess {
+		return fmt.Errorf("config: allow_public_unauthenticated_access cannot be used with ssh routes")
+	}
 	return nil
 }
 

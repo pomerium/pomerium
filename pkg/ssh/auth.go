@@ -167,17 +167,6 @@ func fingerprintAsStrAttribute(publicKeyFingerprintSha256 []byte) string {
 	return base64.RawStdEncoding.EncodeToString(publicKeyFingerprintSha256)
 }
 
-func authInfoHasPublicKey(info StreamAuthInfo) bool {
-	return len(info.GetPublicKey()) > 0 &&
-		len(info.GetPublicKeyAlg()) > 0 &&
-		len(info.GetPublicKeyFingerprintSha256()) > 0
-}
-
-func authInfoHasSession(info StreamAuthInfo) bool {
-	return len(info.GetSessionId()) > 0 &&
-		len(info.GetSessionBindingId()) > 0
-}
-
 func (a *Auth) handlePublicKeyMethodRequest(
 	ctx context.Context,
 	streamInfo StreamInfo,
@@ -200,17 +189,37 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	}
 
 	// Check for non-retriable deny reasons
-	if res.HasReason(criteria.ReasonSourceIPUnauthorized) ||
-		res.HasReason(criteria.ReasonSSHUsernameUnauthorized) {
-		return AuthMethodResponse{}, nil
+	if !res.Allow.Value {
+		if res.Allow.Reasons.Has(criteria.ReasonSourceIPUnauthorized) {
+			return AuthMethodResponse{}, nil
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHUsernameUnauthorized) {
+			return AuthMethodResponse{}, nil
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHPublickeyUnauthorized) {
+			// If the public key itself is not allowed, let the client try a different
+			// public key
+			return AuthMethodResponse{
+				AllowMethod:            false,
+				NextRequiredAuthMethod: MethodPublicKey,
+			}, nil
+		}
 	}
-
-	if res.HasReason(criteria.ReasonSSHPublickeyUnauthorized) {
-		// If the public key itself is not allowed, allow the client to retry
-		return AuthMethodResponse{
-			AllowMethod:            false,
-			NextRequiredAuthMethod: MethodPublicKey,
-		}, nil
+	// Check for inverse reasons in the deny response. These show up when denying
+	// specific addresses/usernames/keys as opposed to failing an allow rule
+	if res.Deny.Value {
+		if res.Deny.Reasons.Has(criteria.ReasonSourceIPOK) {
+			return AuthMethodResponse{}, nil
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHUsernameOK) {
+			return AuthMethodResponse{}, nil
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHPublickeyOK) {
+			return AuthMethodResponse{
+				AllowMethod:            false,
+				NextRequiredAuthMethod: MethodPublicKey,
+			}, nil
+		}
 	}
 
 	// The public key is acceptable
@@ -596,6 +605,15 @@ func (a *Auth) reportLoginCodeFailure(
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
 
 func (a *Auth) EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) error {
+	if user.Hostname() == "" {
+		panic("bug: EvaluateDelayed called with empty hostname")
+	}
+	if !authInfoHasPublicKey(authInfo) {
+		panic("bug: EvaluateDelayed called with missing public key info")
+	}
+	if !authInfoHasSession(authInfo) {
+		panic("bug: EvaluateDelayed called with missing session info")
+	}
 	req, err := a.sshRequestFromStreamAuthInfo(ctx, streamInfo, authInfo, user)
 	if err != nil {
 		return err
