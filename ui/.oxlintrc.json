@@ -4,7 +4,7 @@
   "categories": {
     "correctness": "error"
   },
-  "ignorePatterns": ["dist/**"],
+  "ignorePatterns": ["src/gen/", "deps/", "dist/", "storybook-static/"],
   "env": {
     "browser": true,
     "es2024": true
