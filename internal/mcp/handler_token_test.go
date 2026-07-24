@@ -385,10 +385,9 @@ func TestRefreshTokenGrant(t *testing.T) {
 		require.NotEmpty(t, newRefreshToken)
 		assert.NotEqual(t, refreshToken, newRefreshToken, "refresh token should be rotated")
 
-		// Verify old refresh token was revoked
-		oldRecord, err := storage.GetMCPRefreshToken(ctx, refreshTokenRecord.Id)
-		require.NoError(t, err)
-		assert.True(t, oldRecord.Revoked, "old refresh token should be revoked")
+		// Verify old refresh token was deleted (superseded by rotation)
+		_, getErr := storage.GetMCPRefreshToken(ctx, refreshTokenRecord.Id)
+		require.Error(t, getErr, "old refresh token should be deleted after rotation")
 	})
 
 	t.Run("revoked refresh token fails", func(t *testing.T) {
@@ -617,10 +616,9 @@ func TestRefreshTokenGrant(t *testing.T) {
 		// Verify all responses are accounted for
 		assert.Equal(t, numGoroutines, successCount+failureCount, "all requests should return success or failure")
 
-		// Verify the original token is properly revoked
-		storedToken, err := storage.GetMCPRefreshToken(ctx, refreshTokenRecord.Id)
-		require.NoError(t, err)
-		assert.True(t, storedToken.Revoked, "original refresh token should be revoked")
+		// Verify the original token was deleted (superseded by the winning rotation)
+		_, getErr := storage.GetMCPRefreshToken(ctx, refreshTokenRecord.Id)
+		require.Error(t, getErr, "original refresh token should be deleted after rotation")
 
 		// Log the actual counts for visibility into race condition behavior
 		t.Logf("Concurrent refresh results: %d succeeded, %d failed (ideally 1 success, %d failures)",
@@ -1049,4 +1047,120 @@ func TestSessionUnmarshalerInRefresh(t *testing.T) {
 
 	// Note: With a valid JWT, the ID token would be parsed and set on the session.
 	// See pkg/identity/manager/data_test.go TestSession_RefreshUpdate for an example with a valid JWT.
+}
+
+// TestRefreshTokenRotationDoesNotLeak asserts that rotating a refresh token deletes the superseded
+// record rather than retaining it. Before the fix the old record was only marked Revoked and re-Put,
+// so N refreshes left N records behind (unbounded, since MCPRefreshToken has no TTL or eviction). It
+// also replays a rotated token to confirm reuse is still rejected, so deleting (instead of revoking)
+// preserves replay protection.
+func TestRefreshTokenRotationDoesNotLeak(t *testing.T) {
+	ctx := context.Background()
+	storage := setupTestDatabroker(ctx, t)
+
+	key := cryptutil.NewKey()
+	testCipher, err := cryptutil.NewAEADCipher(key)
+	require.NoError(t, err)
+
+	clientID, err := storage.RegisterClient(ctx, &rfc7591v1.ClientRegistration{
+		ResponseMetadata: &rfc7591v1.Metadata{
+			TokenEndpointAuthMethod: new("none"),
+		},
+	})
+	require.NoError(t, err)
+
+	mockAuth := &mockAuthenticator{
+		refreshFunc: func(_ context.Context, _ *oauth2.Token, _ identitystate.State) (*oauth2.Token, error) {
+			return &oauth2.Token{
+				AccessToken:  "fresh-access-token",
+				RefreshToken: "fresh-upstream-refresh-token",
+				TokenType:    "Bearer",
+				Expiry:       time.Now().Add(time.Hour),
+			}, nil
+		},
+	}
+
+	srv := &Handler{
+		cipher:        testCipher,
+		storage:       storage,
+		sessionExpiry: 14 * time.Hour,
+		getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
+			return mockAuth, nil
+		},
+	}
+
+	// Seed the first refresh token record and its encrypted token string.
+	firstRecord := &oauth21proto.MCPRefreshToken{
+		Id:                   "leak-test-refresh-token-id",
+		UserId:               "test-user-id",
+		ClientId:             clientID,
+		IdpId:                "test-idp",
+		UpstreamRefreshToken: "upstream-refresh-token",
+		IssuedAt:             timestamppb.Now(),
+		ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		Scopes:               []string{"openid"},
+	}
+	require.NoError(t, storage.PutMCPRefreshToken(ctx, firstRecord))
+
+	currentToken, err := srv.CreateRefreshToken(firstRecord.Id, clientID, firstRecord.ExpiresAt.AsTime())
+	require.NoError(t, err)
+	currentID := firstRecord.Id
+
+	const rotations = 50
+	var retiredIDs []string
+	var lastRetiredToken string
+
+	for i := 0; i < rotations; i++ {
+		form := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {currentToken},
+			"client_id":     {clientID},
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(form.Encode()))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		w := httptest.NewRecorder()
+		srv.Token(w, req)
+		require.Equal(t, http.StatusOK, w.Code, "rotation %d, body: %s", i, w.Body.String())
+
+		var resp map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		newToken, ok := resp["refresh_token"].(string)
+		require.True(t, ok, "rotation %d: expected refresh_token in response", i)
+
+		newCode, err := srv.DecryptRefreshToken(newToken, clientID)
+		require.NoError(t, err)
+
+		retiredIDs = append(retiredIDs, currentID)
+		lastRetiredToken = currentToken
+		currentToken, currentID = newToken, newCode.Id
+	}
+
+	// A rotated (superseded) token must be rejected on reuse, not silently accepted.
+	replay := url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {lastRetiredToken},
+		"client_id":     {clientID},
+	}
+	replayReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(replay.Encode()))
+	require.NoError(t, err)
+	replayReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	replayResp := httptest.NewRecorder()
+	srv.Token(replayResp, replayReq)
+	assert.Equal(t, http.StatusBadRequest, replayResp.Code, "a rotated refresh token must not be replayable")
+
+	// The just-issued token must still be live.
+	_, err = storage.GetMCPRefreshToken(ctx, currentID)
+	require.NoError(t, err, "the latest refresh token should still exist")
+
+	// Every superseded token must have been deleted; before the fix this count equals the number of
+	// rotations (the leak), after the fix it is zero.
+	leaked := 0
+	for _, id := range retiredIDs {
+		if _, err := storage.GetMCPRefreshToken(ctx, id); err == nil {
+			leaked++
+		}
+	}
+	assert.Equal(t, 0, leaked, "superseded refresh tokens must be deleted, not retained; %d of %d leaked", leaked, rotations)
 }
