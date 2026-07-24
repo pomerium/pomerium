@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	mathrand "math/rand/v2"
 	"net"
 	"regexp"
 	"strings"
@@ -53,9 +52,15 @@ type IdpUserOptions struct {
 	PublicKeyType PublicKeyType // The public key used when logging in as this user
 }
 
+const (
+	idpUserMaxRoutes = 50
+	idpUserMaxUsers  = 7
+)
+
 type RouteOptions struct {
 	Name        string // without ssh:// prefix
 	PPLTemplate string
+	PPL         string               // skips templating; mutually exclusive with PPLTemplate
 	EditPolicy  func(*config.Policy) // after setting PPL
 }
 
@@ -108,6 +113,22 @@ func (s *SSHTestSuite) SetupSuite() {
 		})
 }
 
+func (s *SSHTestSuite) toCertKey(pk gossh.Signer) gossh.Signer {
+	caSigner, err := gossh.NewSignerFromKey(s.ClientCAKey)
+	s.Require().NoError(err)
+	cert := &gossh.Certificate{
+		CertType:    gossh.UserCert,
+		Key:         pk.PublicKey(),
+		ValidAfter:  uint64(time.Now().Add(-1 * time.Minute).Unix()),
+		ValidBefore: uint64(time.Now().Add(1 * time.Hour).Unix()),
+	}
+	cert.SignCert(rand.Reader, caSigner)
+
+	certKey, err := gossh.NewCertSigner(cert, pk)
+	s.Require().NoError(err)
+	return certKey
+}
+
 func (s *SSHTestSuite) newUser(opts IdpUserOptions) *IdpUser {
 	sshKey := newSignerFromKey(s.T(), newSSHKey(s.T()))
 
@@ -118,21 +139,9 @@ func (s *SSHTestSuite) newUser(opts IdpUserOptions) *IdpUser {
 			SSHKey:         sshKey,
 		}
 	case CertKey:
-		caSigner, err := gossh.NewSignerFromKey(s.ClientCAKey)
-		s.Require().NoError(err)
-		cert := &gossh.Certificate{
-			CertType:    gossh.UserCert,
-			Key:         sshKey.PublicKey(),
-			ValidAfter:  uint64(time.Now().Add(-1 * time.Minute).Unix()),
-			ValidBefore: uint64(time.Now().Add(1 * time.Hour).Unix()),
-		}
-		cert.SignCert(rand.Reader, caSigner)
-
-		certKey, err := gossh.NewCertSigner(cert, sshKey)
-		s.Require().NoError(err)
 		return &IdpUser{
 			IdpUserOptions: opts,
-			SSHKey:         certKey,
+			SSHKey:         s.toCertKey(sshKey),
 		}
 	default:
 		panic("invalid public key type")
@@ -157,13 +166,14 @@ func (s *SSHTestSuite) TearDownTest() {
 	s.env.Stop()
 }
 
-func (s *SSHTestSuite) executeTemplate(input string) string {
-	var out bytes.Buffer
-	tmpl, err := s.template.Parse(input)
-	s.Require().NoError(err, "invalid template input")
-	err = tmpl.Execute(&out, struct{}{})
-	s.Require().NoError(err, "failed to execute template")
-	return out.String()
+type TemplateContext struct {
+	ClientCAKey string
+}
+
+func (s *SSHTestSuite) getTemplateContext() TemplateContext {
+	return TemplateContext{
+		ClientCAKey: strings.TrimSpace(string(gossh.MarshalAuthorizedKey(newPublicKey(s.T(), s.ClientCAKey.Public())))),
+	}
 }
 
 type startOptions struct {
@@ -198,6 +208,149 @@ func WithEnableRoutesPortal(enable bool) startOption {
 	}
 }
 
+type routeTestCase struct {
+	testName string
+	opts     RouteOptions
+	testFunc func(RouteTestAPI)
+	api      *routeTestAPI
+}
+
+type RouteTests struct {
+	s            *SSHTestSuite
+	subtestCount int
+	testCases    []routeTestCase
+	modes        []PublicKeyType
+}
+
+func (s *SSHTestSuite) InitRouteTests(modes []PublicKeyType) *RouteTests {
+	s.Require().NotEmpty(modes)
+	return &RouteTests{
+		s:     s,
+		modes: modes,
+	}
+}
+
+type RouteTestAPI interface {
+	RouteName() string
+	RouteUserName(userPlaceholder int) string
+	RouteUserEmail(userPlaceholder int) string
+	StaticUserName(userPlaceholder int) string  // 0='A', 1='B', etc.
+	StaticUserEmail(userPlaceholder int) string // 0='A', 1='B', etc.
+}
+
+type routeTestAPI struct {
+	routeName     string
+	routeUserFmt  string
+	staticUserFmt string
+}
+
+func (api *routeTestAPI) RouteName() string {
+	return api.routeName
+}
+
+func (api *routeTestAPI) RouteUserName(userPlaceholder int) string {
+	return fmt.Sprintf(api.routeUserFmt, userPlaceholder)
+}
+
+func (api *routeTestAPI) RouteUserEmail(userPlaceholder int) string {
+	return fmt.Sprintf(api.routeUserFmt, userPlaceholder) + "@example.com"
+}
+
+func (api *routeTestAPI) StaticUserName(userPlaceholder int) string {
+	return fmt.Sprintf(api.staticUserFmt, userPlaceholder)
+}
+
+func (api *routeTestAPI) StaticUserEmail(userPlaceholder int) string {
+	return fmt.Sprintf(api.staticUserFmt, userPlaceholder) + "@example.com"
+}
+
+func (rt *RouteTests) AddRouteTest(pplTemplate string, fn func(api RouteTestAPI)) {
+	rt.s.Require().NotContains(pplTemplate, "\t", "ppl template yaml must not contain tab characters")
+	rt.subtestCount++
+	tcNamePrefix := fmt.Sprintf("route-test-%d", rt.subtestCount)
+
+	for _, mode := range rt.modes {
+		rt.s.Require().Less(len(rt.testCases), idpUserMaxRoutes, "too many route tests; increase the value of idpUserMaxRoutes")
+		var routeUserFmt string
+		var staticUserFmt string
+		var tcNameSuffix string
+		routeName := fmt.Sprintf("route%d", len(rt.testCases))
+		switch mode {
+		case Regular:
+			routeUserFmt = routeName + "-user%d"
+			staticUserFmt = "user%c"
+			tcNameSuffix = ""
+		case CertKey:
+			routeUserFmt = routeName + "-certuser%d"
+			staticUserFmt = "certuser%c"
+			tcNameSuffix = "-certkeys"
+		default:
+			panic("unimplemented mode")
+		}
+		template := template.New("route-tests").
+			Funcs(template.FuncMap{
+				"routeUserPublicKey": func(userNum int) string {
+					targetEmail := fmt.Sprintf(routeUserFmt, userNum) + "@example.com"
+					for _, user := range rt.s.idpUsers {
+						if user.Email == targetEmail {
+							return strings.TrimSpace(string(gossh.MarshalAuthorizedKey(user.SSHKey.PublicKey())))
+						}
+					}
+					return "<error>"
+				},
+				"routeUserName": func(userPlaceholder int) string {
+					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+					return fmt.Sprintf(routeUserFmt, userPlaceholder)
+				},
+				"staticUserName": func(userPlaceholder uint) string {
+					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+					return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder)
+				},
+				"routeUserEmail": func(userPlaceholder int) string {
+					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+					return fmt.Sprintf(routeUserFmt, userPlaceholder) + "@example.com"
+				},
+				"staticUserEmail": func(userPlaceholder uint) string {
+					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+					return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder) + "@example.com"
+				},
+			})
+		var out bytes.Buffer
+		tmpl, err := template.Parse(pplTemplate)
+		rt.s.Require().NoError(err, "invalid template input")
+		err = tmpl.Execute(&out, rt.s.getTemplateContext())
+		rt.s.Require().NoError(err, "failed to execute template")
+		rt.testCases = append(rt.testCases, routeTestCase{
+			testName: tcNamePrefix + tcNameSuffix,
+			opts: RouteOptions{
+				Name: routeName,
+				PPL:  out.String(),
+			},
+			testFunc: fn,
+			api: &routeTestAPI{
+				routeName:     routeName,
+				routeUserFmt:  routeUserFmt,
+				staticUserFmt: staticUserFmt,
+			},
+		})
+	}
+}
+
+func (rt *RouteTests) Start(startOpts ...startOption) {
+	rt.s.T().Helper()
+	routes := []RouteOptions{}
+	for _, tc := range rt.testCases {
+		routes = append(routes, tc.opts)
+	}
+	rt.s.start(routes, startOpts...)
+	for _, tc := range rt.testCases {
+		rt.s.Run(tc.testName, func() {
+			rt.s.T().Helper()
+			tc.testFunc(tc.api)
+		})
+	}
+}
+
 func (s *SSHTestSuite) start(routes []RouteOptions, startOpts ...startOption) {
 	opts := startOptions{
 		enableDirectTcpip:  true,
@@ -226,8 +379,17 @@ func (s *SSHTestSuite) start(routes []RouteOptions, startOpts ...startOption) {
 	s.upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
 	for _, route := range routes {
 		r := s.upstream.Route().
-			From(values.Const("ssh://" + route.Name)).
-			PPL(s.executeTemplate(route.PPLTemplate))
+			From(values.Const("ssh://" + route.Name))
+		if route.PPL != "" {
+			r.PPL(route.PPL)
+		} else if route.PPLTemplate != "" {
+			var out bytes.Buffer
+			tmpl, err := s.template.Parse(route.PPLTemplate)
+			s.Require().NoError(err, "invalid template input")
+			err = tmpl.Execute(&out, s.getTemplateContext())
+			s.Require().NoError(err, "failed to execute template")
+			r.PPL(out.String())
+		}
 		if route.EditPolicy != nil {
 			r.Policy(route.EditPolicy)
 		}
@@ -275,6 +437,26 @@ func (s *SSHTestSuite) newClientConfig(loginName string, route string, userEmail
 		},
 		HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.ServerHostKey.Public())),
 	}
+}
+
+func (s *SSHTestSuite) dialFrom127002(cc *gossh.ClientConfig) (*gossh.Client, error) {
+	s.T().Helper()
+	dialer := &net.Dialer{
+		LocalAddr: &net.TCPAddr{
+			IP:   net.ParseIP("127.0.0.2"),
+			Port: 0,
+		},
+	}
+	addr := s.env.Config().Options.SSHAddr
+	conn, err := dialer.Dial("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	c, chans, reqs, err := gossh.NewClientConn(conn, addr, cc)
+	if err != nil {
+		return nil, err
+	}
+	return gossh.NewClient(c, chans, reqs), nil
 }
 
 func expectAuthSequence(t *testing.T, cc *gossh.ClientConfig, attemptListeners []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod) (verify func()) {
@@ -384,147 +566,45 @@ func seqPublicKeyAcceptedAfter1RetryThenKbdInit(t *testing.T, keys [2]gossh.Sign
 const sshErrMsgPublicKeyAuthFailed = "ssh: unable to authenticate, attempted methods [none publickey], no supported methods remain"
 
 func (s *SSHTestSuite) TestNormalSession() {
-	s.start([]RouteOptions{
-		{
-			Name: "route1",
-			PPLTemplate: `
+	rt := s.InitRouteTests([]PublicKeyType{Regular, CertKey})
+
+	// Different users are used for each subtest case, otherwise earlier tests
+	// can affect later tests due to sessions/session bindings persisting.
+	//
+	// Users are referenced in PPL templates and within the test body using
+	// placeholder numbers which are expanded to email addresses, public keys,
+	// etc. corresponding to those users. The users are created ahead of time
+	// with a predictable naming scheme.
+	//
+	// Placeholders with the same number expand to different users in each
+	// route test (calls to AddRouteTest), for example `{{ routeUserEmail 1 }}`
+	// will expand to "route1-user1@example.com" for the first test, then
+	// "route2-user1@example.com" for the second test, and so on. The placeholder
+	// numbers in the ppl template functions and the RouteTestAPI functions are
+	// used the same way and refer to the same users.
+	//
+	// Calls to `s.Run()` within a route test are only for logical grouping of
+	// test cases and use the same placeholder scope. This means if you call
+	// api.RouteUserEmail(1) in separate s.Run() subtests within a single route
+	// test, it will expand to the same user. Be careful of copy-paste errors.
+	//
+	// Some utility functions like newClientConfig will keep track of
+	// users and fail if the same user is passed in twice for any given top-level
+	// test.
+	//
+	// The tests defined by AddRouteTest may generate multiple copies of the
+	// subtests with different users, for each public key type passed to
+	// InitRouteTests.
+
+	rt.AddRouteTest(`
 allow:
   and:
     - email:
         in:
-          - "route1-user1@example.com"
-`,
-		},
-		{
-			Name: "route2",
-			PPLTemplate: `
-allow:
-  and:
-    - ssh_publickey:
-        - "{{ userPublicKey "route2-user1@example.com" }}"
-    - email:
-        in:
-          - "route2-user1@example.com"
-`,
-		},
-		{
-			Name: "route3",
-			PPLTemplate: `
-allow:
-  and:
-    - ssh_publickey:
-      - "{{ userPublicKey "route3-user1@example.com" }}"
-      - "{{ userPublicKey "route3-user2@example.com" }}"
-      - "{{ userPublicKey "route3-user3@example.com" }}"
-      - "{{ userPublicKey "route3-user4@example.com" }}"
-    - email:
-        in:
-          - "route3-user1@example.com"
-          - "route3-user3@example.com"
-`,
-		},
-		{
-			Name: "route4",
-			PPLTemplate: `
-allow:
-  and:
-    - authenticated_user: 1
-deny:
-  or:
-    - source_ip: "127.0.0.1"
-`,
-		},
-		{
-			Name: "route5",
-			PPLTemplate: `
-allow:
-  and:
-    - authenticated_user: 1
-deny:
-  or:
-    - ssh_username: "root"
-    - ssh_publickey: "{{ userPublicKey "route5-user3@example.com" }}"
-`,
-		},
-		{
-			Name: "route6",
-			PPLTemplate: `
-allow:
-  and:
-    - source_ip: "127.0.0.2"
-    - ssh_username: "username"
-    - authenticated_user: 1
-`,
-		},
-		{
-			Name: "route7",
-			PPLTemplate: `
-allow:
-  and:
-    - ssh_publickey: "{{ userPublicKey "route7-user2@example.com" }}"
-    - authenticated_user: 1
-deny:
-  or:
-    - ssh_publickey: "{{ userPublicKey "route7-user3@example.com" }}"
-`,
-		},
-		{
-			Name: "route8",
-			PPLTemplate: `
-allow:
-  and:
-    - ssh_publickey: "{{ userPublicKey "route8-user2@example.com" }}"
-    - authenticated_user: 1
-`,
-		},
-		{ // note: this policy is invalid, but that only becomes apparent after
-			// successfully authenticating with a public key
-			Name: "route9",
-			PPLTemplate: `
-allow:
-  and:
-    - ssh_publickey:
-        - "{{ userPublicKey "route9-user2@example.com" }}"
-`,
-		},
-		{
-			Name: "route10",
-			PPLTemplate: `
-allow:
-  and:
-    - accept: 1
-`,
-		},
-	})
-
-	dialFrom127002 := func(cc *gossh.ClientConfig) (*gossh.Client, error) {
-		s.T().Helper()
-		dialer := &net.Dialer{
-			LocalAddr: &net.TCPAddr{
-				IP:   net.ParseIP("127.0.0.2"),
-				Port: 0,
-			},
-		}
-		addr := s.env.Config().Options.SSHAddr
-		conn, err := dialer.Dial("tcp", addr)
-		if err != nil {
-			return nil, err
-		}
-		c, chans, reqs, err := gossh.NewClientConn(conn, addr, cc)
-		if err != nil {
-			return nil, err
-		}
-		return gossh.NewClient(c, chans, reqs), nil
-	}
-
-	// NB: use different users for each test, otherwise earlier tests can affect
-	// later tests due to sessions/session bindings persisting. logout is not
-	// sufficient here
-
-	s.Run("route1", func() {
-		route := "route1"
+          - "{{ routeUserEmail 1 }}"
+`, func(api RouteTestAPI) {
 		s.Run("authorized via email", func() {
-			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -533,7 +613,7 @@ allow:
 			client.Close()
 		})
 		s.Run("email unauthorized", func() {
-			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
@@ -541,10 +621,17 @@ allow:
 		})
 	})
 
-	s.Run("route2", func() {
-		route := "route2"
+	rt.AddRouteTest(`
+allow:
+  and:
+    - ssh_publickey:
+        - "{{ routeUserPublicKey 1 }}"
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+`, func(api RouteTestAPI) {
 		s.Run("authorized via email and public key", func() {
-			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -553,7 +640,7 @@ allow:
 			client.Close()
 		})
 		s.Run("public key unauthorized", func() {
-			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
@@ -561,10 +648,21 @@ allow:
 		})
 	})
 
-	s.Run("route3", func() {
-		route := "route3"
+	rt.AddRouteTest(`
+allow:
+  and:
+    - ssh_publickey:
+      - "{{ routeUserPublicKey 1 }}"
+      - "{{ routeUserPublicKey 2 }}"
+      - "{{ routeUserPublicKey 3 }}"
+      - "{{ routeUserPublicKey 4 }}"
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+          - "{{ routeUserEmail 3 }}"
+`, func(api RouteTestAPI) {
 		s.Run("authorized via email and public key", func() {
-			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -573,7 +671,7 @@ allow:
 			client.Close()
 		})
 		s.Run("public key matches criteria but email is unauthorized", func() {
-			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
@@ -581,13 +679,13 @@ allow:
 		})
 		s.Run("public key accepted after retry", func() {
 			randomKey := newSignerFromKey(s.T(), newSSHKey(s.T()))
-			cc := s.newClientConfig("username", route, route+"-user3@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(3))
 			cc.Auth = nil
 			verify := expectAuthSequence(s.T(), cc,
 				seqPublicKeyAcceptedAfter1RetryThenKbdInit(s.T(),
-					[2]gossh.Signer{randomKey, s.lookupUser(route + "-user3@example.com").SSHKey},
+					[2]gossh.Signer{randomKey, s.lookupUser(api.RouteUserEmail(3)).SSHKey},
 					gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
-						return s.challengeImpl.Do(s.env.Context(), instruction, route+"-user3@example.com")
+						return s.challengeImpl.Do(s.env.Context(), instruction, api.RouteUserEmail(3))
 					})))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -597,13 +695,13 @@ allow:
 		})
 		s.Run("public key accepted after retry but email is unauthorized", func() {
 			randomKey := newSignerFromKey(s.T(), newSSHKey(s.T()))
-			cc := s.newClientConfig("username", route, route+"-user4@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(4))
 			cc.Auth = nil
 			verify := expectAuthSequence(s.T(), cc,
 				seqPublicKeyAcceptedAfter1RetryThenKbdInit(s.T(),
-					[2]gossh.Signer{randomKey, s.lookupUser(route + "-user4@example.com").SSHKey},
+					[2]gossh.Signer{randomKey, s.lookupUser(api.RouteUserEmail(4)).SSHKey},
 					gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
-						return s.challengeImpl.Do(s.env.Context(), instruction, route+"-user4@example.com")
+						return s.challengeImpl.Do(s.env.Context(), instruction, api.RouteUserEmail(4))
 					})))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
@@ -611,21 +709,27 @@ allow:
 		})
 	})
 
-	s.Run("route4", func() {
-		route := "route4"
+	rt.AddRouteTest(`
+allow:
+  and:
+    - authenticated_user: {}
+deny:
+  or:
+    - source_ip: "127.0.0.1"
+`, func(api RouteTestAPI) {
 		s.Run("source ip unauthorized", func() {
-			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
 			s.ErrorContains(err, "Permission Denied")
 		})
 		s.Run("source ip not unauthorized", func() {
-			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 
-			client, err := dialFrom127002(cc)
+			client, err := s.dialFrom127002(cc)
 			s.Require().NoError(err)
 
 			VerifyWorkingShell(s.T(), client)
@@ -633,17 +737,24 @@ allow:
 		})
 	})
 
-	s.Run("route5", func() {
-		route := "route5"
+	rt.AddRouteTest(`
+allow:
+  and:
+    - authenticated_user: {}
+deny:
+  or:
+    - ssh_username: "root"
+    - ssh_publickey: "{{ routeUserPublicKey 3 }}"
+`, func(api RouteTestAPI) {
 		s.Run("ssh username denied", func() {
-			cc := s.newClientConfig("root", route, route+"-user1@example.com")
+			cc := s.newClientConfig("root", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
 			s.ErrorContains(err, "Permission Denied")
 		})
 		s.Run("ssh username not denied", func() {
-			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -652,14 +763,14 @@ allow:
 			client.Close()
 		})
 		s.Run("ssh public key denied", func() {
-			cc := s.newClientConfig("username", route, route+"-user3@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(3))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
 			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
 		})
 		s.Run("ssh public key not denied", func() {
-			cc := s.newClientConfig("username", route, route+"-user4@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(4))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -669,35 +780,40 @@ allow:
 		})
 	})
 
-	s.Run("route6", func() {
-		route := "route6"
+	rt.AddRouteTest(`
+allow:
+  and:
+    - source_ip: "127.0.0.2"
+    - ssh_username: "username"
+    - authenticated_user: {}
+`, func(api RouteTestAPI) {
 		s.Run("source ip not allowed", func() {
-			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
 			s.ErrorContains(err, "Permission Denied")
 		})
 		s.Run("source ip allowed, but username not allowed", func() {
-			cc := s.newClientConfig("root", route, route+"-user2@example.com")
+			cc := s.newClientConfig("root", api.RouteName(), api.RouteUserEmail(2))
 			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
 			defer verify()
-			_, err := dialFrom127002(cc)
+			_, err := s.dialFrom127002(cc)
 			s.ErrorContains(err, "Permission Denied")
 		})
 		s.Run("source ip and username allowed", func() {
-			cc := s.newClientConfig("username", route, route+"-user3@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(3))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 
-			client, err := dialFrom127002(cc)
+			client, err := s.dialFrom127002(cc)
 			s.Require().NoError(err)
 
 			VerifyWorkingShell(s.T(), client)
 			client.Close()
 		})
 		s.Run("neither source ip nor username allowed", func() {
-			cc := s.newClientConfig("root", route, route+"-user4@example.com")
+			cc := s.newClientConfig("root", api.RouteName(), api.RouteUserEmail(4))
 			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
@@ -705,17 +821,24 @@ allow:
 		})
 	})
 
-	s.Run("route7", func() {
-		route := "route7"
+	rt.AddRouteTest(`
+allow:
+  and:
+    - ssh_publickey: "{{ routeUserPublicKey 2 }}"
+    - authenticated_user: {}
+deny:
+  or:
+    - ssh_publickey: "{{ routeUserPublicKey 3 }}"
+`, func(api RouteTestAPI) {
 		s.Run("public key not allowed", func() {
-			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
 			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
 		})
 		s.Run("public key allowed and not denied", func() {
-			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -724,7 +847,7 @@ allow:
 			client.Close()
 		})
 		s.Run("public key denied", func() {
-			cc := s.newClientConfig("username", route, route+"-user3@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(3))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
@@ -732,17 +855,21 @@ allow:
 		})
 	})
 
-	s.Run("route8", func() {
-		route := "route8"
+	rt.AddRouteTest(`
+allow:
+  and:
+    - ssh_publickey: "{{ routeUserPublicKey 2 }}"
+    - authenticated_user: {}
+`, func(api RouteTestAPI) {
 		s.Run("public key not allowed", func() {
-			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
 			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
 		})
 		s.Run("public key allowed", func() {
-			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -752,17 +879,23 @@ allow:
 		})
 	})
 
-	s.Run("route9", func() {
-		route := "route9"
+	rt.AddRouteTest(`
+allow:
+  and:
+    - ssh_publickey:
+        - "{{ routeUserPublicKey 2 }}"
+`, func(api RouteTestAPI) {
+		// note: this policy is invalid, but that only becomes apparent after
+		// successfully authenticating with a public key
 		s.Run("public key unauthorized", func() {
-			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
 			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
 		})
 		s.Run("public key accepted, but unauthorized due to missing session criteria", func() {
-			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
 			verify := expectAuthSequence(s.T(), cc, []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
 				func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
 					s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
@@ -777,10 +910,13 @@ allow:
 		})
 	})
 
-	s.Run("route10", func() {
-		route := "route10"
+	rt.AddRouteTest(`
+allow:
+  and:
+    - accept: {}
+`, func(api RouteTestAPI) {
 		s.Run("unauthorized due to invalid route", func() {
-			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 			verify := expectAuthSequence(s.T(), cc, []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
 				func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
 					s.T().Helper()
@@ -796,9 +932,116 @@ allow:
 		})
 	})
 
+	rt.AddRouteTest(`
+allow:
+  and:
+    - ssh_ca: "{{ .ClientCAKey }}"
+    - email: "{{ routeUserEmail 1 }}"
+`, func(api RouteTestAPI) {
+		s.Run("authorized cert key", func() {
+			user := s.lookupUser(api.RouteUserEmail(1))
+			randomUserKey := newSignerFromKey(s.T(), newSSHKey(s.T()))
+			certKey := s.toCertKey(randomUserKey)
+			cc := s.newClientConfig("username", api.RouteName(), user.Email)
+			cc.Auth = []gossh.AuthMethod{
+				gossh.PublicKeys(certKey),
+				gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+					return s.challengeImpl.Do(s.env.Context(), instruction, user.Email)
+				}),
+			}
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			client, err := s.upstream.Dial(cc)
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+
+		s.Run("cert key signed by wrong ca", func() {
+			user := s.lookupUser(api.RouteUserEmail(2))
+			randomUserKey := newSignerFromKey(s.T(), newSSHKey(s.T()))
+			wrongCaSigner := newSignerFromKey(s.T(), newSSHKey(s.T()))
+			cert := &gossh.Certificate{
+				CertType:    gossh.UserCert,
+				Key:         randomUserKey.PublicKey(),
+				ValidAfter:  uint64(time.Now().Add(-1 * time.Minute).Unix()),
+				ValidBefore: uint64(time.Now().Add(1 * time.Hour).Unix()),
+			}
+			cert.SignCert(rand.Reader, wrongCaSigner)
+
+			certKey, err := gossh.NewCertSigner(cert, randomUserKey)
+			s.Require().NoError(err)
+
+			cc := s.newClientConfig("username", api.RouteName(), user.Email)
+			cc.Auth = []gossh.AuthMethod{
+				gossh.PublicKeys(certKey),
+				gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+					return s.challengeImpl.Do(s.env.Context(), instruction, user.Email)
+				}),
+			}
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
+			defer verify()
+			_, err = s.upstream.Dial(cc)
+			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
+		})
+	})
+
+	rt.AddRouteTest(`
+allow:
+  and:
+    - ssh_username_matches_email: {}
+    - domain: "example.com"
+`, func(api RouteTestAPI) {
+		s.Run("username matching email", func() {
+			cc := s.newClientConfig(api.RouteUserName(1), api.RouteName(), api.RouteUserEmail(1))
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			client, err := s.upstream.Dial(cc)
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+		s.Run("username not matching email", func() {
+			// In this case the public key will be accepted initially, because a
+			// session is required to match the username against an email. Once the
+			// session is obtained, then the request will be denied
+			cc := s.newClientConfig("wrongusername", api.RouteName(), api.RouteUserEmail(2))
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+	})
+
+	rt.AddRouteTest(`
+allow:
+  and:
+    - ssh_username_matches_claim: "user"
+    - email: "{{ routeUserEmail 1 }}"
+`, func(api RouteTestAPI) {
+		s.Run("username matching claim", func() {
+			// the "user" claim is set up to be "route#-user#"
+			cc := s.newClientConfig(api.RouteUserName(1), api.RouteName(), api.RouteUserEmail(1))
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			client, err := s.upstream.Dial(cc)
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+		s.Run("username not matching claim", func() {
+			cc := s.newClientConfig("wrongusername", api.RouteName(), api.RouteUserEmail(2))
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+	})
+
+	rt.Start()
+
 	s.Run("internal cli", func() {
-		route := "route0"
-		cc := s.newClientConfig("username", "", route+"-user1@example.com")
+		cc := s.newClientConfig("username", "", "userA@example.com")
 		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 		defer verify()
 		client, err := s.upstream.Dial(cc)
@@ -1043,21 +1286,32 @@ allow:
 	sess, err := client.NewSession()
 	s.Require().NoError(err)
 
+	revoked := make(chan struct{})
+	go func() {
+		defer close(revoked)
+		sess.Wait()
+		err = client.Wait()
+		s.ErrorContains(err, "ssh: disconnect, reason 2")
+		s.ErrorContains(err, "Permission Denied: no longer authorized{via_upstream}")
+	}()
+
+	sbId := "sshkey-" + FormatRawFingerprint(RawFingerprintSHA256(user.SSHKey.PublicKey()))
 	_, err = dbClient.Put(s.env.Context(), &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
 				Type:       "type.googleapis.com/session.SessionBinding",
-				Id:         "sshkey-" + gossh.FingerprintSHA256(user.SSHKey.PublicKey()),
+				Id:         sbId,
 				ModifiedAt: timestamppb.Now(),
 				DeletedAt:  timestamppb.Now(),
 			},
 		},
 	})
 	s.Require().NoError(err)
-	sess.Wait()
-	err = client.Wait()
-	s.ErrorContains(err, "ssh: disconnect, reason 2")
-	s.ErrorContains(err, "Permission Denied: no longer authorized{via_upstream}")
+	select {
+	case <-revoked:
+	case <-time.After(10 * time.Second):
+		s.Fail("timed out waiting for session to be revoked")
+	}
 }
 
 func (s *SSHTestSuite) TestDirectTcpipSession() {
@@ -1424,38 +1678,67 @@ allow:
 	s.ErrorContains(err, "handshake failed")
 }
 
-func TestSSH(t *testing.T) {
+func createIdpUsers(publicKeyType PublicKeyType) []IdpUserOptions {
 	idpUsers := []IdpUserOptions{}
 	// `route[1-30]-user[1-10]@example.com`
+	// `route[1-30]-certuser[1-10]@example.com`
 	// Use these when testing access to a specific route
-	for r := range 30 {
-		for u := range 10 {
+	for r := range idpUserMaxRoutes {
+		for u := range idpUserMaxUsers {
 			idpUsers = append(idpUsers,
 				IdpUserOptions{
 					User: mockidp.User{
 						Email: fmt.Sprintf("route%d-user%d@example.com", r, u),
+						Claims: map[string]any{
+							"user": fmt.Sprintf("route%d-user%d", r, u),
+						},
 					},
-					PublicKeyType: PublicKeyType(mathrand.IntN(2)),
+					PublicKeyType: publicKeyType,
+				},
+				IdpUserOptions{
+					User: mockidp.User{
+						Email: fmt.Sprintf("route%d-certuser%d@example.com", r, u),
+						Claims: map[string]any{
+							"user": fmt.Sprintf("route%d-certuser%d", r, u),
+						},
+					},
+					PublicKeyType: publicKeyType,
 				},
 			)
 		}
 	}
 	// `user[A-Z]@example.com`
+	// `certuser[A-Z]@example.com`
 	// Use these when testing access across multiple routes, or to the internal CLI
 	for i := 'A'; i <= 'Z'; i++ {
 		idpUsers = append(idpUsers,
 			IdpUserOptions{
 				User: mockidp.User{
 					Email: fmt.Sprintf("user%c@example.com", i),
+					Claims: map[string]any{
+						"user": fmt.Sprintf("user%c", i),
+					},
 				},
-				PublicKeyType: PublicKeyType(mathrand.IntN(2)),
+				PublicKeyType: publicKeyType,
+			},
+			IdpUserOptions{
+				User: mockidp.User{
+					Email: fmt.Sprintf("certuser%c@example.com", i),
+					Claims: map[string]any{
+						"user": fmt.Sprintf("certuser%c", i),
+					},
+				},
+				PublicKeyType: publicKeyType,
 			},
 		)
 	}
+	return idpUsers
+}
 
+func TestSSH(t *testing.T) {
 	suite.Run(t, &SSHTestSuite{
 		Opts: SSHTestSuiteOptions{
-			IdpUsers: idpUsers,
+			IdpUsers: createIdpUsers(Regular),
 		},
 	})
 }
