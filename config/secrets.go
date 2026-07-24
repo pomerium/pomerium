@@ -235,12 +235,18 @@ func (o *Options) validateSecrets() error {
 }
 
 // secretResidue reports whether, after substituting every parsed reference with
-// empty text, a "${secret" or "$secret" marker survives — the robust signal for
-// a malformed secret reference (e.g. dynamic selection via nesting) that the
-// parser rolled back to literal text.
+// empty text, a "${secret" marker survives — the robust signal for a malformed
+// secret reference (e.g. dynamic selection via nesting like
+// "${secret.${pomerium.email}}", whose outer variable rolls back to the literal
+// text "${secret.").
+//
+// Only the braced form is checked. The simple form "$secret.x" always parses
+// cleanly and leaves no residue, so it needs no residue check; and checking the
+// bare "$secret" marker would misfire on the "$$" escape — "$$secret.name"
+// renders to a literal "$secret.name", a legal value that must not be rejected.
 func secretResidue(value string) bool {
 	out := headertemplate.Render(value, func([]string) string { return "" })
-	return strings.Contains(out, "${secret") || strings.Contains(out, "$secret")
+	return strings.Contains(out, "${secret")
 }
 
 // secretRefPresent reports whether value contains any parsed secret reference or

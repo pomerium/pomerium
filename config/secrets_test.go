@@ -99,6 +99,49 @@ func TestApplySettingsSecrets(t *testing.T) {
 	assert.Equal(t, time.Minute, b.Refresh)
 }
 
+func TestSecretResidue(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{name: "malformed nesting", value: "${secret.${pomerium.email}}", want: true},
+		{name: "malformed nesting mid-value", value: "x ${secret.${pomerium.email}} y", want: true},
+		{name: "valid braced ref", value: "Bearer ${secret.tok}", want: false},
+		{name: "valid simple ref", value: "$secret.tok", want: false},
+		{name: "dollar escape is a literal, not a ref", value: "$$secret.name", want: false},
+		{name: "escaped braced literal", value: "cost is $$secret", want: false},
+		{name: "plain text", value: "no refs here", want: false},
+		{name: "pomerium ref only", value: "u=${pomerium.user.id}", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, secretResidue(tt.value))
+		})
+	}
+}
+
+func TestValidateSecretsEscapedDollarNotRejected(t *testing.T) {
+	t.Parallel()
+
+	// "$$secret.name" is the escape for a literal "$secret.name"; it must not be
+	// rejected as a malformed secret reference.
+	o := NewDefaultOptions()
+	o.Secrets = SecretsOptions{
+		Bindings: map[string]SecretsBindingOptions{
+			"tok": {URL: "file:///etc/pomerium/secrets/token"},
+		},
+	}
+	o.Routes = []Policy{{
+		From:              "https://app.example.com",
+		SetRequestHeaders: map[string]string{"X-Literal": "$$secret.name"},
+	}}
+	assert.NoError(t, o.validateSecrets())
+}
+
 func TestValidateSecretsRouteReferences(t *testing.T) {
 	withBinding := func() SecretsOptions {
 		return SecretsOptions{
