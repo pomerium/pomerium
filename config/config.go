@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -70,6 +71,12 @@ type Config struct {
 	ZeroOrganizationID string
 	// ZeroPseudonymizationKey is the zero key used to pseudonymize data, only set in zero mode.
 	ZeroPseudonymizationKey []byte
+
+	// identityProviderResolver memoizes the resolver built from
+	// Options.IdentityProviders.
+	identityProviderResolverOnce sync.Once
+	identityProviderResolver     *IdentityProviderResolver
+	identityProviderResolverErr  error
 }
 
 // New creates a new Config.

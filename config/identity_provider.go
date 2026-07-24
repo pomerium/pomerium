@@ -1,14 +1,22 @@
 package config
 
 import (
+	"context"
+	"crypto/tls"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/extjwt"
 )
 
 // IdentityProvider declares an additional identity provider. Today it is
@@ -255,4 +263,204 @@ func setIdentityProviders(dst *map[string]IdentityProvider, src map[string]*conf
 		}
 	}
 	*dst = out
+}
+
+// ErrNoMatchingIdentityProvider is returned by IdentityProviderResolver.Verify
+// and ResolveName when the token's `iss` claim does not match any configured
+// identity provider.
+var ErrNoMatchingIdentityProvider = errors.New("config/identity_provider: no identity provider matches the token's iss claim")
+
+// IdentityProviderVerifyResult is the successful outcome of
+// IdentityProviderResolver.Verify.
+type IdentityProviderVerifyResult struct {
+	// ProviderName is the name (Options.IdentityProviders map key) of the
+	// provider that verified the token. It is the workload's identity-provider
+	// identity, used for the session's idp_id, user-id prefix, and cache keys.
+	ProviderName string
+	// Claims is the verified JWT payload.
+	Claims map[string]any
+}
+
+// resolvedIdentityProvider is the per-issuer verification context: the provider
+// name (for identity), the provider's audiences (for audience binding), and the
+// verifier.
+type resolvedIdentityProvider struct {
+	Name      string
+	Audiences []string
+	Provider  *extjwt.Provider
+}
+
+// IdentityProviderResolver owns one *extjwt.Provider per configured identity
+// provider and verifies incoming bearer tokens against whichever provider's
+// issuer matches the token's `iss` claim.
+//
+// Construct once per Options snapshot; the provider instances are immutable
+// after creation.
+type IdentityProviderResolver struct {
+	byIssuer map[string]resolvedIdentityProvider // key: issuer
+}
+
+// NewIdentityProviderResolver builds a resolver from the given providers, keyed
+// by name. httpClient (if non-nil) is used for all JWKS/discovery fetches — e.g.
+// a CA-aware client for issuers behind a private CA. Returns an error if any
+// provider is invalid or two share the same issuer.
+func NewIdentityProviderResolver(providers map[string]IdentityProvider, httpClient *http.Client) (*IdentityProviderResolver, error) {
+	r := &IdentityProviderResolver{
+		byIssuer: make(map[string]resolvedIdentityProvider, len(providers)),
+	}
+	// Sorted-name order keeps errors (e.g. duplicate-issuer) deterministic.
+	for _, name := range slices.Sorted(maps.Keys(providers)) {
+		ip := providers[name]
+		if err := validateProviderName(name); err != nil {
+			return nil, err
+		}
+		if err := ip.Validate(); err != nil {
+			return nil, fmt.Errorf("identity_providers[%s]: %w", name, err)
+		}
+		issuer, jwksURL, client := ip.Issuer, ip.JWKSURL, httpClient
+		// Dedup by issuer: it is the byIssuer dispatch key.
+		if existing, dup := r.byIssuer[issuer]; dup {
+			return nil, fmt.Errorf("identity_providers: issuer %q used by both %q and %q",
+				issuer, existing.Name, name)
+		}
+		p, err := extjwt.New(extjwt.Config{
+			Issuer:        issuer,
+			JWKSURL:       jwksURL,
+			SupportedAlgs: ip.EffectiveSupportedAlgs(),
+			HTTPClient:    client,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("identity_providers[%s]: %w", name, err)
+		}
+		r.byIssuer[issuer] = resolvedIdentityProvider{
+			Name:      name,
+			Audiences: slices.Clone(ip.Audiences),
+			Provider:  p,
+		}
+	}
+	return r, nil
+}
+
+// ResolveName returns the name of the provider whose issuer matches the token's
+// UNVERIFIED `iss` claim, without performing any signature/audience checks. It
+// is used to enforce a route's provider allowlist before the (expensive)
+// verification runs. Returns ErrNoMatchingIdentityProvider if no provider
+// matches.
+func (r *IdentityProviderResolver) ResolveName(rawJWT string) (string, error) {
+	iss, err := unverifiedIssuer(rawJWT)
+	if err != nil {
+		return "", fmt.Errorf("config/identity_provider: parse iss: %w", err)
+	}
+	rp, ok := r.byIssuer[iss]
+	if !ok {
+		return "", ErrNoMatchingIdentityProvider
+	}
+	return rp.Name, nil
+}
+
+// Verify verifies the raw JWT against the provider whose issuer matches the
+// token's `iss` claim, enforcing that provider's audiences (fail-closed).
+//
+// Dispatch:
+//  1. Parse the token's `iss` claim (no signature check yet).
+//  2. Look up the provider with that issuer.
+//  3. Verify signature/exp/nbf via that provider's verifier, with `aud`
+//     checked against the provider's configured audiences.
+//
+// Unverified-`iss` dispatch is safe: the matched verifier re-checks `iss`,
+// signature, and exp/nbf. Returns ErrNoMatchingIdentityProvider if no provider
+// matches.
+func (r *IdentityProviderResolver) Verify(ctx context.Context, rawJWT string) (*IdentityProviderVerifyResult, error) {
+	iss, err := unverifiedIssuer(rawJWT)
+	if err != nil {
+		return nil, fmt.Errorf("config/identity_provider: parse iss: %w", err)
+	}
+	rp, ok := r.byIssuer[iss]
+	if !ok {
+		return nil, ErrNoMatchingIdentityProvider
+	}
+	claims, err := rp.Provider.Verify(ctx, rawJWT, rp.Audiences)
+	if err != nil {
+		return nil, err
+	}
+	return &IdentityProviderVerifyResult{
+		ProviderName: rp.Name,
+		Claims:       claims,
+	}, nil
+}
+
+// IdentityProviderResolver returns a cached resolver built from cfg.Options.
+// Built once per Config instance. Returns nil (no error) when no identity
+// providers are configured.
+func (cfg *Config) IdentityProviderResolver() (*IdentityProviderResolver, error) {
+	if cfg == nil || cfg.Options == nil || len(cfg.Options.IdentityProviders) == 0 {
+		return nil, nil
+	}
+	cfg.identityProviderResolverOnce.Do(func() {
+		client, err := cfg.identityProviderHTTPClient()
+		if err != nil {
+			cfg.identityProviderResolverErr = err
+			return
+		}
+		cfg.identityProviderResolver, cfg.identityProviderResolverErr = NewIdentityProviderResolver(
+			cfg.Options.IdentityProviders, client)
+	})
+	return cfg.identityProviderResolver, cfg.identityProviderResolverErr
+}
+
+// identityProviderHTTPClient builds the HTTP client used for JWKS/discovery
+// fetches. When a global certificate_authority / certificate_authority_file is
+// configured (e.g. Kubernetes' cluster CA), it returns a CA-aware client;
+// when neither is set it returns nil so go-oidc uses its default client with
+// system roots.
+//
+// A CA that is explicitly configured but fails to load is a hard error, not a
+// silent fallback: falling back to system roots would make the intended
+// private-CA issuer's JWKS/discovery fetch fail with "unknown authority" and
+// silently reject every token, with only a single startup log line. The
+// misconfiguration must surface to the caller instead.
+func (cfg *Config) identityProviderHTTPClient() (*http.Client, error) {
+	o := cfg.Options
+	if o.CA == "" && o.CAFile == "" {
+		return nil, nil
+	}
+	rootCAs, err := cryptutil.GetCertPool(o.CA, o.CAFile)
+	if err != nil {
+		return nil, fmt.Errorf("config: identity_providers: error building CA cert pool: %w", err)
+	}
+	transport := http.DefaultTransport.(interface{ Clone() *http.Transport }).Clone()
+	// http.DefaultTransport may be config.NewHTTPTransport's transport (see
+	// pkg/cmd/pomerium), whose DialTLSContext is pinned to the global CA pool
+	// and takes precedence over TLSClientConfig.
+	transport.DialTLSContext = nil
+	transport.TLSClientConfig = &tls.Config{
+		RootCAs:    rootCAs,
+		MinVersion: tls.VersionTLS12,
+	}
+	return &http.Client{Transport: transport}, nil
+}
+
+// unverifiedIssuer extracts the `iss` claim from the JWT payload WITHOUT
+// verifying the signature. Used only to dispatch to the correct verifier; the
+// matched verifier then performs full verification including signature and
+// `iss` re-check.
+func unverifiedIssuer(rawJWT string) (string, error) {
+	parts := strings.SplitN(rawJWT, ".", 3)
+	if len(parts) != 3 {
+		return "", fmt.Errorf("malformed JWT (expected 3 parts)")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("decode payload: %w", err)
+	}
+	var c struct {
+		Iss string `json:"iss"`
+	}
+	if err := json.Unmarshal(payload, &c); err != nil {
+		return "", fmt.Errorf("unmarshal payload: %w", err)
+	}
+	if c.Iss == "" {
+		return "", fmt.Errorf("missing iss claim")
+	}
+	return c.Iss, nil
 }
