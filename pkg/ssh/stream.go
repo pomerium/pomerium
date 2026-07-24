@@ -137,6 +137,17 @@ type StreamAuthInfo interface {
 	GetSessionBindingId() string
 }
 
+func authInfoHasPublicKey(info StreamAuthInfo) bool {
+	return len(info.GetPublicKey()) > 0 &&
+		len(info.GetPublicKeyAlg()) > 0 &&
+		len(info.GetPublicKeyFingerprintSha256()) > 0
+}
+
+func authInfoHasSession(info StreamAuthInfo) bool {
+	return len(info.GetSessionId()) > 0 &&
+		len(info.GetSessionBindingId()) > 0
+}
+
 type StreamState struct {
 	StreamInfo
 	AuthContext            *extensions_ssh.AuthContext
@@ -690,6 +701,10 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 		Msg("ssh: auth request complete")
 
 	if response.AllowMethod && state.NextRequiredAuthMethod == "" {
+		if !authInfoHasPublicKey(state.AuthContext) || !authInfoHasSession(state.AuthContext) {
+			// failsafe
+			panic("invalid auth context")
+		}
 		// If this method was allowed and there are no methods remaining, auth is
 		// successful
 		state.InitialAuthComplete = true
@@ -703,7 +718,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 }
 
 func (sh *StreamHandler) reauth(ctx context.Context, state *StreamState) error {
-	if !state.InitialAuthComplete {
+	if !state.InitialAuthComplete || !state.CurrentUser.Valid() || state.CurrentUser.Hostname() == "" {
 		return nil
 	}
 	err := sh.auth.EvaluateDelayed(ctx, state.StreamInfo, state.AuthContext, state.CurrentUser)

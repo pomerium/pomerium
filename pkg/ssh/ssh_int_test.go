@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	mathrand "math/rand/v2"
+	"net"
 	"regexp"
 	"strings"
 	"sync"
@@ -64,7 +66,6 @@ type IdpUser struct {
 }
 
 type SSHTestSuiteOptions struct {
-	// Routes   []RouteOptions
 	IdpUsers []IdpUserOptions
 }
 
@@ -236,6 +237,9 @@ func (s *SSHTestSuite) start(routes []RouteOptions, startOpts ...startOption) {
 
 	s.env.Start()
 	snippets.WaitStartupComplete(s.env)
+	if s.T().Failed() {
+		s.FailNow("test environment failed to start")
+	}
 }
 
 func (s *SSHTestSuite) lookupUser(userEmail string) *IdpUser {
@@ -251,8 +255,11 @@ func (s *SSHTestSuite) lookupUser(userEmail string) *IdpUser {
 }
 
 func (s *SSHTestSuite) newClientConfig(loginName string, route string, userEmail string) *gossh.ClientConfig {
-	s.Require().NotContains(s.clientConfigUsersSeen, userEmail,
-		"test bug: do not call newClientConfig with the same user twice during the same test")
+	if matched, _ := regexp.MatchString(`user[A-Z]@example.com`, userEmail); !matched {
+		s.Require().NotContains(s.clientConfigUsersSeen, userEmail,
+			"test bug: do not call newClientConfig with the same route-scoped user twice during the same test")
+		s.clientConfigUsersSeen[userEmail] = struct{}{}
+	}
 	user := s.lookupUser(userEmail)
 	username := loginName
 	if route != "" {
@@ -271,6 +278,7 @@ func (s *SSHTestSuite) newClientConfig(loginName string, route string, userEmail
 }
 
 func expectAuthSequence(t *testing.T, cc *gossh.ClientConfig, attemptListeners []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod) (verify func()) {
+	require.Nil(t, cc.AuthCallback, "test bug: do not reuse gossh.ClientConfig instances")
 	cc.AuthCallback = func(ctx *gossh.ClientAuthContext) (gossh.AuthMethod, error) {
 		t.Helper()
 		require.NotEmptyf(t, attemptListeners, "too many auth sequence steps (context: %#v)", ctx)
@@ -288,6 +296,93 @@ func expectAuthSequence(t *testing.T, cc *gossh.ClientConfig, attemptListeners [
 	}
 }
 
+func seqPublicKeyAcceptedThenKbdInt(t *testing.T) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
+	return []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			t.Helper()
+			require.Equal(t, []string{"publickey"}, ctx.AllowedMethods)
+			require.Empty(t, ctx.PartialSuccessMethods)
+			require.Equal(t, []string{"none"}, ctx.TriedMethods)
+			return nil
+		},
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			t.Helper()
+			require.Equal(t, []string{"keyboard-interactive"}, ctx.AllowedMethods)
+			require.Equal(t, []string{"publickey"}, ctx.PartialSuccessMethods)
+			require.Equal(t, []string{"none"}, ctx.TriedMethods)
+			return nil
+		},
+	}
+}
+
+func seqPublicKeyRejected(t *testing.T) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
+	return []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			t.Helper()
+			require.Equal(t, []string{"publickey"}, ctx.AllowedMethods)
+			require.Empty(t, ctx.PartialSuccessMethods)
+			require.Equal(t, []string{"none"}, ctx.TriedMethods)
+			return nil
+		},
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			t.Helper()
+			// second publickey attempt will fail (assuming only one configured key)
+			require.Equal(t, []string{"publickey"}, ctx.AllowedMethods)
+			require.Empty(t, ctx.PartialSuccessMethods)
+			require.Equal(t, []string{"none", "publickey"}, ctx.TriedMethods)
+			return nil
+		},
+	}
+}
+
+func seqDeniedImmediately(t *testing.T) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
+	return []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			t.Helper()
+			require.Equal(t, []string{"publickey"}, ctx.AllowedMethods)
+			require.Empty(t, ctx.PartialSuccessMethods)
+			require.Equal(t, []string{"none"}, ctx.TriedMethods)
+			return nil
+		},
+	}
+}
+
+// By default, when using the ssh.PublicKeys auth method with multiple keys,
+// if one of them is rejected then the ssh client will silently attempt the
+// others without going through the auth callback first. So we have to return
+// separate AuthMethod instances with one public key per attempt.
+//
+// Returning a non-nil AuthMethod from the callback overrides the configured
+// methods from the Auth field, so all the methods for the whole sequence
+// need to be passed in here.
+func seqPublicKeyAcceptedAfter1RetryThenKbdInit(t *testing.T, keys [2]gossh.Signer, kbdInt gossh.AuthMethod) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
+	return []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			t.Helper()
+			require.Equal(t, []string{"publickey"}, ctx.AllowedMethods)
+			require.Empty(t, ctx.PartialSuccessMethods)
+			require.Equal(t, []string{"none"}, ctx.TriedMethods)
+			return gossh.PublicKeys(keys[0])
+		},
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			t.Helper()
+			require.Equal(t, []string{"publickey"}, ctx.AllowedMethods)
+			require.Empty(t, ctx.PartialSuccessMethods)
+			require.Equal(t, []string{"none", "publickey"}, ctx.TriedMethods)
+			return gossh.PublicKeys(keys[1])
+		},
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			t.Helper()
+			require.Equal(t, []string{"keyboard-interactive"}, ctx.AllowedMethods)
+			require.Equal(t, []string{"publickey"}, ctx.PartialSuccessMethods)
+			require.Equal(t, []string{"none", "publickey"}, ctx.TriedMethods)
+			return kbdInt
+		},
+	}
+}
+
+const sshErrMsgPublicKeyAuthFailed = "ssh: unable to authenticate, attempted methods [none publickey], no supported methods remain"
+
 func (s *SSHTestSuite) TestNormalSession() {
 	s.start([]RouteOptions{
 		{
@@ -297,7 +392,7 @@ allow:
   and:
     - email:
         in:
-          - "user1@example.com"
+          - "route1-user1@example.com"
 `,
 		},
 		{
@@ -306,10 +401,10 @@ allow:
 allow:
   and:
     - ssh_publickey:
-        - "{{ userPublicKey "user3@example.com" }}"
+        - "{{ userPublicKey "route2-user1@example.com" }}"
     - email:
         in:
-          - "user3@example.com"
+          - "route2-user1@example.com"
 `,
 		},
 		{
@@ -318,104 +413,108 @@ allow:
 allow:
   and:
     - ssh_publickey:
-      - "{{ userPublicKey "user5@example.com" }}"
-      - "{{ userPublicKey "user6@example.com" }}"
-      - "{{ userPublicKey "user7@example.com" }}"
-      - "{{ userPublicKey "user8@example.com" }}"
+      - "{{ userPublicKey "route3-user1@example.com" }}"
+      - "{{ userPublicKey "route3-user2@example.com" }}"
+      - "{{ userPublicKey "route3-user3@example.com" }}"
+      - "{{ userPublicKey "route3-user4@example.com" }}"
     - email:
         in:
-          - "user5@example.com"
-          - "user7@example.com"
+          - "route3-user1@example.com"
+          - "route3-user3@example.com"
+`,
+		},
+		{
+			Name: "route4",
+			PPLTemplate: `
+allow:
+  and:
+    - authenticated_user: 1
+deny:
+  or:
+    - source_ip: "127.0.0.1"
+`,
+		},
+		{
+			Name: "route5",
+			PPLTemplate: `
+allow:
+  and:
+    - authenticated_user: 1
+deny:
+  or:
+    - ssh_username: "root"
+    - ssh_publickey: "{{ userPublicKey "route5-user3@example.com" }}"
+`,
+		},
+		{
+			Name: "route6",
+			PPLTemplate: `
+allow:
+  and:
+    - source_ip: "127.0.0.2"
+    - ssh_username: "username"
+    - authenticated_user: 1
+`,
+		},
+		{
+			Name: "route7",
+			PPLTemplate: `
+allow:
+  and:
+    - ssh_publickey: "{{ userPublicKey "route7-user2@example.com" }}"
+    - authenticated_user: 1
+deny:
+  or:
+    - ssh_publickey: "{{ userPublicKey "route7-user3@example.com" }}"
+`,
+		},
+		{
+			Name: "route8",
+			PPLTemplate: `
+allow:
+  and:
+    - ssh_publickey: "{{ userPublicKey "route8-user2@example.com" }}"
+    - authenticated_user: 1
 `,
 		},
 		{ // note: this policy is invalid, but that only becomes apparent after
 			// successfully authenticating with a public key
-			Name: "invalidroute1",
+			Name: "route9",
 			PPLTemplate: `
 allow:
   and:
     - ssh_publickey:
-        - "{{ userPublicKey "user9@example.com" }}"
+        - "{{ userPublicKey "route9-user2@example.com" }}"
 `,
 		},
 		{
-			Name: "invalidroute2",
-			EditPolicy: func(p *config.Policy) {
-				p.AllowPublicUnauthenticatedAccess = true
-			},
+			Name: "route10",
+			PPLTemplate: `
+allow:
+  and:
+    - accept: 1
+`,
 		},
 	})
 
-	seqPublicKeyAcceptedThenKbdInt := func(t *testing.T) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
-		return []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
-			func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
-				t.Helper()
-				s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
-				s.Require().Empty(ctx.PartialSuccessMethods)
-				s.Require().Equal([]string{"none"}, ctx.TriedMethods)
-				return nil
-			},
-			func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
-				t.Helper()
-				s.Require().Equal([]string{"keyboard-interactive"}, ctx.AllowedMethods)
-				s.Require().Equal([]string{"publickey"}, ctx.PartialSuccessMethods)
-				s.Require().Equal([]string{"none"}, ctx.TriedMethods)
-				return nil
+	dialFrom127002 := func(cc *gossh.ClientConfig) (*gossh.Client, error) {
+		s.T().Helper()
+		dialer := &net.Dialer{
+			LocalAddr: &net.TCPAddr{
+				IP:   net.ParseIP("127.0.0.2"),
+				Port: 0,
 			},
 		}
-	}
-	seqPublicKeyRejected := func(t *testing.T) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
-		return []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
-			func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
-				t.Helper()
-				s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
-				s.Require().Empty(ctx.PartialSuccessMethods)
-				s.Require().Equal([]string{"none"}, ctx.TriedMethods)
-				return nil
-			},
-			func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
-				t.Helper()
-				// second publickey attempt will fail (assuming only one configured key)
-				s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
-				s.Require().Empty(ctx.PartialSuccessMethods)
-				s.Require().Equal([]string{"none", "publickey"}, ctx.TriedMethods)
-				return nil
-			},
+		addr := s.env.Config().Options.SSHAddr
+		conn, err := dialer.Dial("tcp", addr)
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	// By default, when using the ssh.PublicKeys auth method with multiple keys,
-	// if one of them is rejected then the ssh client will silently attempt the
-	// others without going through the auth callback first. So we have to return
-	// separate AuthMethod instances with one public key per attempt.
-	//
-	// Returning a non-nil AuthMethod from the callback overrides the configured
-	// methods from the Auth field, so all the methods for the whole sequence
-	// need to be passed in here.
-	seqPublicKeyAcceptedAfter1RetryThenKbdInit := func(t *testing.T, keys [2]gossh.Signer, kbdInt gossh.AuthMethod) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
-		return []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
-			func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
-				s.T().Helper()
-				s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
-				s.Require().Empty(ctx.PartialSuccessMethods)
-				s.Require().Equal([]string{"none"}, ctx.TriedMethods)
-				return gossh.PublicKeys(keys[0])
-			},
-			func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
-				s.T().Helper()
-				s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
-				s.Require().Empty(ctx.PartialSuccessMethods)
-				s.Require().Equal([]string{"none", "publickey"}, ctx.TriedMethods)
-				return gossh.PublicKeys(keys[1])
-			},
-			func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
-				s.T().Helper()
-				s.Require().Equal([]string{"keyboard-interactive"}, ctx.AllowedMethods)
-				s.Require().Equal([]string{"publickey"}, ctx.PartialSuccessMethods)
-				s.Require().Equal([]string{"none", "publickey"}, ctx.TriedMethods)
-				return kbdInt
-			},
+		c, chans, reqs, err := gossh.NewClientConn(conn, addr, cc)
+		if err != nil {
+			return nil, err
 		}
+		return gossh.NewClient(c, chans, reqs), nil
 	}
 
 	// NB: use different users for each test, otherwise earlier tests can affect
@@ -423,8 +522,9 @@ allow:
 	// sufficient here
 
 	s.Run("route1", func() {
+		route := "route1"
 		s.Run("authorized via email", func() {
-			cc := s.newClientConfig("username", "route1", "user1@example.com")
+			cc := s.newClientConfig("username", route, route+"-user1@example.com")
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -433,7 +533,7 @@ allow:
 			client.Close()
 		})
 		s.Run("email unauthorized", func() {
-			cc := s.newClientConfig("username", "route1", "user2@example.com")
+			cc := s.newClientConfig("username", route, route+"-user2@example.com")
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
@@ -442,8 +542,9 @@ allow:
 	})
 
 	s.Run("route2", func() {
+		route := "route2"
 		s.Run("authorized via email and public key", func() {
-			cc := s.newClientConfig("username", "route2", "user3@example.com")
+			cc := s.newClientConfig("username", route, route+"-user1@example.com")
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -452,17 +553,18 @@ allow:
 			client.Close()
 		})
 		s.Run("public key unauthorized", func() {
-			cc := s.newClientConfig("username", "route2", "user4@example.com")
+			cc := s.newClientConfig("username", route, route+"-user2@example.com")
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
-			s.ErrorContains(err, "ssh: unable to authenticate, attempted methods [none publickey], no supported methods remain")
+			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
 		})
 	})
 
 	s.Run("route3", func() {
+		route := "route3"
 		s.Run("authorized via email and public key", func() {
-			cc := s.newClientConfig("username", "route3", "user5@example.com")
+			cc := s.newClientConfig("username", route, route+"-user1@example.com")
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -471,7 +573,7 @@ allow:
 			client.Close()
 		})
 		s.Run("public key matches criteria but email is unauthorized", func() {
-			cc := s.newClientConfig("username", "route3", "user6@example.com")
+			cc := s.newClientConfig("username", route, route+"-user2@example.com")
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
@@ -479,13 +581,13 @@ allow:
 		})
 		s.Run("public key accepted after retry", func() {
 			randomKey := newSignerFromKey(s.T(), newSSHKey(s.T()))
-			cc := s.newClientConfig("username", "route3", "user7@example.com")
+			cc := s.newClientConfig("username", route, route+"-user3@example.com")
 			cc.Auth = nil
 			verify := expectAuthSequence(s.T(), cc,
 				seqPublicKeyAcceptedAfter1RetryThenKbdInit(s.T(),
-					[2]gossh.Signer{randomKey, s.lookupUser("user7@example.com").SSHKey},
+					[2]gossh.Signer{randomKey, s.lookupUser(route + "-user3@example.com").SSHKey},
 					gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
-						return s.challengeImpl.Do(s.env.Context(), instruction, "user7@example.com")
+						return s.challengeImpl.Do(s.env.Context(), instruction, route+"-user3@example.com")
 					})))
 			defer verify()
 			client, err := s.upstream.Dial(cc)
@@ -495,13 +597,13 @@ allow:
 		})
 		s.Run("public key accepted after retry but email is unauthorized", func() {
 			randomKey := newSignerFromKey(s.T(), newSSHKey(s.T()))
-			cc := s.newClientConfig("username", "route3", "user8@example.com")
+			cc := s.newClientConfig("username", route, route+"-user4@example.com")
 			cc.Auth = nil
 			verify := expectAuthSequence(s.T(), cc,
 				seqPublicKeyAcceptedAfter1RetryThenKbdInit(s.T(),
-					[2]gossh.Signer{randomKey, s.lookupUser("user8@example.com").SSHKey},
+					[2]gossh.Signer{randomKey, s.lookupUser(route + "-user4@example.com").SSHKey},
 					gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
-						return s.challengeImpl.Do(s.env.Context(), instruction, "user8@example.com")
+						return s.challengeImpl.Do(s.env.Context(), instruction, route+"-user4@example.com")
 					})))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
@@ -509,16 +611,158 @@ allow:
 		})
 	})
 
-	s.Run("invalidroute1", func() {
-		s.Run("public key unauthorized", func() {
-			cc := s.newClientConfig("username", "invalidroute1", "user10@example.com")
+	s.Run("route4", func() {
+		route := "route4"
+		s.Run("source ip unauthorized", func() {
+			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+		s.Run("source ip not unauthorized", func() {
+			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+
+			client, err := dialFrom127002(cc)
+			s.Require().NoError(err)
+
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+	})
+
+	s.Run("route5", func() {
+		route := "route5"
+		s.Run("ssh username denied", func() {
+			cc := s.newClientConfig("root", route, route+"-user1@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+		s.Run("ssh username not denied", func() {
+			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			client, err := s.upstream.Dial(cc)
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+		s.Run("ssh public key denied", func() {
+			cc := s.newClientConfig("username", route, route+"-user3@example.com")
 			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
 			defer verify()
 			_, err := s.upstream.Dial(cc)
-			s.ErrorContains(err, "ssh: unable to authenticate, attempted methods [none publickey], no supported methods remain")
+			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
+		})
+		s.Run("ssh public key not denied", func() {
+			cc := s.newClientConfig("username", route, route+"-user4@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			client, err := s.upstream.Dial(cc)
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+	})
+
+	s.Run("route6", func() {
+		route := "route6"
+		s.Run("source ip not allowed", func() {
+			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+		s.Run("source ip allowed, but username not allowed", func() {
+			cc := s.newClientConfig("root", route, route+"-user2@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
+			defer verify()
+			_, err := dialFrom127002(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+		s.Run("source ip and username allowed", func() {
+			cc := s.newClientConfig("username", route, route+"-user3@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+
+			client, err := dialFrom127002(cc)
+			s.Require().NoError(err)
+
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+		s.Run("neither source ip nor username allowed", func() {
+			cc := s.newClientConfig("root", route, route+"-user4@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+	})
+
+	s.Run("route7", func() {
+		route := "route7"
+		s.Run("public key not allowed", func() {
+			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
+		})
+		s.Run("public key allowed and not denied", func() {
+			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			client, err := s.upstream.Dial(cc)
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+		s.Run("public key denied", func() {
+			cc := s.newClientConfig("username", route, route+"-user3@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
+		})
+	})
+
+	s.Run("route8", func() {
+		route := "route8"
+		s.Run("public key not allowed", func() {
+			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
+		})
+		s.Run("public key allowed", func() {
+			cc := s.newClientConfig("username", route, route+"-user2@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			client, err := s.upstream.Dial(cc)
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+	})
+
+	s.Run("route9", func() {
+		route := "route9"
+		s.Run("public key unauthorized", func() {
+			cc := s.newClientConfig("username", route, route+"-user1@example.com")
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyRejected(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
 		})
 		s.Run("public key accepted, but unauthorized due to missing session criteria", func() {
-			cc := s.newClientConfig("username", "invalidroute1", "user9@example.com")
+			cc := s.newClientConfig("username", route, route+"-user2@example.com")
 			verify := expectAuthSequence(s.T(), cc, []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
 				func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
 					s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
@@ -533,9 +777,10 @@ allow:
 		})
 	})
 
-	s.Run("invalidroute2", func() {
+	s.Run("route10", func() {
+		route := "route10"
 		s.Run("unauthorized due to invalid route", func() {
-			cc := s.newClientConfig("username", "invalidroute2", "user11@example.com")
+			cc := s.newClientConfig("username", route, route+"-user1@example.com")
 			verify := expectAuthSequence(s.T(), cc, []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
 				func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
 					s.T().Helper()
@@ -552,13 +797,138 @@ allow:
 	})
 
 	s.Run("internal cli", func() {
-		cc := s.newClientConfig("username", "", "user12@example.com")
+		route := "route0"
+		cc := s.newClientConfig("username", "", route+"-user1@example.com")
 		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 		defer verify()
 		client, err := s.upstream.Dial(cc)
 		s.Require().NoError(err)
 		client.Close()
 	})
+}
+
+func (s *SSHTestSuite) TestReuseAuthorizedSession() {
+	s.start([]RouteOptions{
+		{
+			Name: "route1",
+			PPLTemplate: `
+allow:
+  and:
+    - email:
+        is: "userA@example.com"
+`,
+		},
+		{
+			Name: "route2",
+			PPLTemplate: `
+allow:
+  and:
+    - ssh_publickey:
+        - "{{ userPublicKey "userA@example.com" }}"
+    - email:
+        is: "userA@example.com"
+`,
+		},
+		{
+			Name: "route3",
+			PPLTemplate: `
+allow:
+  and:
+    - ssh_publickey:
+        - "{{ userPublicKey "userB@example.com" }}"
+    - email:
+        is: "userB@example.com"
+`,
+		},
+		{
+			Name: "route4",
+			PPLTemplate: `
+allow:
+  and:
+    - email:
+        is: "userB@example.com"
+`,
+		},
+	})
+
+	publicKeyMethodOnly := []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			s.T().Helper()
+			s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
+			s.Require().Empty(ctx.PartialSuccessMethods)
+			s.Require().Equal([]string{"none"}, ctx.TriedMethods)
+			return nil
+		},
+	}
+
+	publicKeyMethodFailure := []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			s.T().Helper()
+			s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
+			s.Require().Empty(ctx.PartialSuccessMethods)
+			s.Require().Equal([]string{"none"}, ctx.TriedMethods)
+			return nil
+		},
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			s.T().Helper()
+			s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
+			s.Require().Empty(ctx.PartialSuccessMethods)
+			s.Require().Equal([]string{"none", "publickey"}, ctx.TriedMethods)
+			return nil
+		},
+	}
+
+	// Log into the internal CLI first to create the session
+
+	{
+		cc := s.newClientConfig("username", "", "userA@example.com")
+		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+		client, err := s.upstream.Dial(cc)
+		s.Require().NoError(err)
+		verify()
+		s.Require().NoError(client.Close())
+	}
+	if s.T().Failed() {
+		return
+	}
+
+	// Log in a few times to a route which this session is authorized for
+	for range 5 {
+		cc := s.newClientConfig("username", "route1", "userA@example.com")
+		verify := expectAuthSequence(s.T(), cc, publicKeyMethodOnly)
+		client, err := s.upstream.Dial(cc)
+		s.Require().NoError(err)
+		verify()
+		VerifyWorkingShell(s.T(), client)
+		s.Require().NoError(client.Close())
+	}
+
+	// Log into a different route with the same session
+	{
+		cc := s.newClientConfig("username", "route2", "userA@example.com")
+		verify := expectAuthSequence(s.T(), cc, publicKeyMethodOnly)
+		client, err := s.upstream.Dial(cc)
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		s.Require().NoError(client.Close())
+		verify()
+	}
+
+	// Try to log into other routes which are not authorized for this session
+	{
+		cc := s.newClientConfig("username", "route3", "userA@example.com")
+		verify := expectAuthSequence(s.T(), cc, publicKeyMethodFailure)
+		_, err := s.upstream.Dial(cc)
+		s.Require().ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
+		verify()
+	}
+	{
+		cc := s.newClientConfig("username", "route4", "userA@example.com")
+		verify := expectAuthSequence(s.T(), cc, publicKeyMethodOnly)
+		_, err := s.upstream.Dial(cc)
+		s.Require().ErrorContains(err, "Permission Denied")
+		verify()
+	}
 }
 
 func (s *SSHTestSuite) TestReevaluatePolicyOnConfigChange() {
@@ -569,12 +939,12 @@ func (s *SSHTestSuite) TestReevaluatePolicyOnConfigChange() {
 allow:
   and:
     - email:
-        is: "user1@example.com"
+        is: "route1-user1@example.com"
 `,
 		},
 	})
 
-	client, err := s.upstream.Dial(s.newClientConfig("username", "route1", "user1@example.com"))
+	client, err := s.upstream.Dial(s.newClientConfig("username", "route1", "route1-user1@example.com"))
 	s.Require().NoError(err)
 	defer client.Close()
 
@@ -608,6 +978,48 @@ allow:
 	s.ErrorContains(err, "Permission Denied: access denied{via_upstream}")
 }
 
+func (s *SSHTestSuite) TestTooManyPublicKeyAttempts() {
+	s.start([]RouteOptions{
+		{
+			Name: "route1",
+			PPLTemplate: `
+allow:
+  and:
+    - ssh_publickey:
+      - "{{ userPublicKey "route1-user1@example.com" }}"
+    - email:
+        is: "route1-user1@example.com"
+`,
+		},
+	})
+
+	// Currently the max allowed number of failed public key attempts is 6.
+	randomKeys := make([]gossh.Signer, 10)
+	for i := range len(randomKeys) {
+		randomKeys[i] = newSignerFromKey(s.T(), newSSHKey(s.T()))
+	}
+	cc := s.newClientConfig("username", "route1", "route1-user1@example.com")
+	cc.Auth = []gossh.AuthMethod{
+		gossh.PublicKeys(append(randomKeys, s.lookupUser("route1-user1@example.com").SSHKey)...),
+		gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+			return s.challengeImpl.Do(s.env.Context(), instruction, "route1-user1@example.com")
+		}),
+	}
+
+	verify := expectAuthSequence(s.T(), cc, []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod{
+		func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+			s.T().Helper()
+			s.Require().Equal([]string{"publickey"}, ctx.AllowedMethods)
+			s.Require().Empty(ctx.PartialSuccessMethods)
+			s.Require().Equal([]string{"none"}, ctx.TriedMethods)
+			return nil
+		},
+	})
+	defer verify()
+	_, err := s.upstream.Dial(cc)
+	s.ErrorContains(err, "Permission Denied: too many authentication failures")
+}
+
 func (s *SSHTestSuite) TestRevokeSession() {
 	s.start([]RouteOptions{
 		{
@@ -616,13 +1028,13 @@ func (s *SSHTestSuite) TestRevokeSession() {
 allow:
   and:
     - email:
-        is: "user1@example.com"
+        is: "route1-user1@example.com"
 `,
 		},
 	})
 
 	dbClient := s.env.NewDataBrokerServiceClient()
-	user := s.lookupUser("user1@example.com")
+	user := s.lookupUser("route1-user1@example.com")
 
 	client, err := s.upstream.Dial(s.newClientConfig("username", "route1", user.Email))
 	s.Require().NoError(err)
@@ -649,8 +1061,6 @@ allow:
 }
 
 func (s *SSHTestSuite) TestDirectTcpipSession() {
-	user1 := s.lookupUser("user1@example.com")
-
 	s.start(
 		[]RouteOptions{
 			{
@@ -659,7 +1069,12 @@ func (s *SSHTestSuite) TestDirectTcpipSession() {
 allow:
   and:
     - email:
-        is: "user1@example.com"
+        in:
+          - "route1-user1@example.com"
+          - "route1-user2@example.com"
+          - "route1-user3@example.com"
+          - "route1-user4@example.com"
+          - "route1-user5@example.com"
 `,
 			},
 			{
@@ -668,7 +1083,10 @@ allow:
 allow:
   and:
     - email:
-        is: "user1@example.com"
+        in:
+          - "route2-user1@example.com"
+          - "route2-user2@example.com"
+          - "route2-user3@example.com"
     - ssh_username:
         is: notdemo
 `,
@@ -676,16 +1094,24 @@ allow:
 		},
 		// Tell the upstream to only allow access to this user's public key instead
 		// of trusting pomerium's user ca key
-		WithSSHUpstreamOptions(upstreams.WithAuthorizedKey(user1.SSHKey.PublicKey(), "demo")),
+		WithSSHUpstreamOptions(
+			upstreams.WithAuthorizedKey(s.lookupUser("route1-user1@example.com").SSHKey.PublicKey(), "demo"),
+			upstreams.WithAuthorizedKey(s.lookupUser("route1-user2@example.com").SSHKey.PublicKey(), "demo"),
+			upstreams.WithAuthorizedKey(s.lookupUser("route1-user3@example.com").SSHKey.PublicKey(), "demo"),
+			upstreams.WithAuthorizedKey(s.lookupUser("route1-user4@example.com").SSHKey.PublicKey(), "demo"),
+
+			upstreams.WithAuthorizedKey(s.lookupUser("route2-user2@example.com").SSHKey.PublicKey(), "demo"),
+			upstreams.WithAuthorizedKey(s.lookupUser("route2-user3@example.com").SSHKey.PublicKey(), "demo"),
+		),
 	)
 
 	s.Run("invalid non-direct connection", func() {
-		_, err := s.upstream.Dial(s.newClientConfig("demo", "route1", user1.Email))
+		_, err := s.upstream.Dial(s.newClientConfig("demo", "route1", "route1-user1@example.com"))
 		s.ErrorContains(err, "Permission Denied")
 	})
 
 	s.Run("invalid user in dest addr", func() {
-		client, err := s.upstream.Dial(s.newClientConfig("demo", "", user1.Email))
+		client, err := s.upstream.Dial(s.newClientConfig("demo", "", "route1-user2@example.com"))
 		s.Require().NoError(err)
 		defer client.Close()
 
@@ -696,7 +1122,7 @@ allow:
 		s.ErrorContains(err, "access denied{via_upstream}")
 	})
 	s.Run("ok", func() {
-		client, err := s.upstream.Dial(s.newClientConfig("demo", "", user1.Email))
+		client, err := s.upstream.Dial(s.newClientConfig("demo", "", "route1-user3@example.com"))
 		s.Require().NoError(err)
 		defer client.Close()
 
@@ -711,7 +1137,7 @@ allow:
 		clientConn, newChannel, requests, err := gossh.NewClientConn(upstreams.NewRWConn(channel, channel), "", &gossh.ClientConfig{
 			User: "demo",
 			Auth: []gossh.AuthMethod{
-				gossh.PublicKeys(user1.SSHKey),
+				gossh.PublicKeys(s.lookupUser("route1-user3@example.com").SSHKey),
 			},
 			HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.UpstreamHostKey.Public())),
 		})
@@ -721,44 +1147,8 @@ allow:
 		VerifyWorkingShell(s.T(), directClient)
 	})
 
-	s.Run("unauthorized by ppl username", func() {
-		client, err := s.upstream.Dial(s.newClientConfig("demo", "", user1.Email))
-		s.Require().NoError(err)
-		defer client.Close()
-
-		direct := ssh.ChannelOpenDirectMsg{
-			DestAddr: "route2",
-			SrcAddr:  "127.0.0.1",
-		}
-		_, _, err = client.OpenChannel("direct-tcpip", gossh.Marshal(direct))
-		// note: this error comes from the go ssh client
-		s.ErrorContains(err, "Permission Denied")
-	})
-
-	s.Run("authorized by ppl username, but wrong user", func() {
-		client, err := s.upstream.Dial(s.newClientConfig("notdemo", "", user1.Email))
-		s.Require().NoError(err)
-		defer client.Close()
-
-		channel, requestsC, err := client.OpenChannel("direct-tcpip", gossh.Marshal(ssh.ChannelOpenDirectMsg{
-			DestAddr: "route2",
-			SrcAddr:  "127.0.0.1",
-		}))
-		s.Require().NoError(err)
-		go gossh.DiscardRequests(requestsC)
-		defer channel.Close()
-
-		_, _, _, err = gossh.NewClientConn(upstreams.NewRWConn(channel, channel), "", &gossh.ClientConfig{
-			User: "notdemo",
-			Auth: []gossh.AuthMethod{
-				gossh.PublicKeys(user1.SSHKey),
-			},
-			HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.UpstreamHostKey.Public())),
-		})
-	})
-
-	s.Run("direct-tcpip username swap", func() {
-		// There is nothing stopping a client from passing the ppl username criteria
+	s.Run("direct-tcpip ssh_username swap", func() {
+		// There is nothing stopping a client from passing the ssh_username criteria
 		// check on the initial connection, then swapping to a different username
 		// for the nested connection. Pomerium cannot read the nested connection so
 		// there's no way to apply policy rules there. However, in this mode the
@@ -768,7 +1158,34 @@ allow:
 		// For this reason, it is not particularly useful to use the ssh_username
 		// criteria for routes intended to be used in jump-host mode.
 
-		client, err := s.upstream.Dial(s.newClientConfig("demo", "", user1.Email))
+		client, err := s.upstream.Dial(s.newClientConfig("demo", "", "route1-user4@example.com"))
+		s.Require().NoError(err)
+		defer client.Close()
+
+		channel, requestsC, err := client.OpenChannel("direct-tcpip", gossh.Marshal(ssh.ChannelOpenDirectMsg{
+			DestAddr: "route1",
+			SrcAddr:  "127.0.0.1",
+		}))
+		s.Require().NoError(err)
+		go gossh.DiscardRequests(requestsC)
+		defer channel.Close()
+
+		clientConn, newChannel, requests, err := gossh.NewClientConn(upstreams.NewRWConn(channel, channel), "", &gossh.ClientConfig{
+			User: "demo",
+			Auth: []gossh.AuthMethod{
+				gossh.PublicKeys(s.lookupUser("route1-user4@example.com").SSHKey),
+			},
+			HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.UpstreamHostKey.Public())),
+		})
+		s.Require().NoError(err)
+		directClient := gossh.NewClient(clientConn, newChannel, requests)
+
+		VerifyWorkingShell(s.T(), directClient)
+	})
+
+	s.Run("authorized by pomerium, but public key not allowed by upstream", func() {
+		// user5's public key isn't added to the upstream server
+		client, err := s.upstream.Dial(s.newClientConfig("demo", "", "route1-user5@example.com"))
 		s.Require().NoError(err)
 		defer client.Close()
 
@@ -783,14 +1200,52 @@ allow:
 		_, _, _, err = gossh.NewClientConn(upstreams.NewRWConn(channel, channel), "", &gossh.ClientConfig{
 			User: "demo",
 			Auth: []gossh.AuthMethod{
-				gossh.PublicKeys(user1.SSHKey),
+				gossh.PublicKeys(s.lookupUser("route1-user5@example.com").SSHKey),
 			},
 			HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.UpstreamHostKey.Public())),
 		})
+		s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
 	})
 
-	s.Run("multiple sessions", func() {
-		client, err := s.upstream.Dial(s.newClientConfig("notdemo", "", user1.Email))
+	s.Run("unauthorized by ssh_username", func() {
+		client, err := s.upstream.Dial(s.newClientConfig("demo", "", "route2-user1@example.com"))
+		s.Require().NoError(err)
+		defer client.Close()
+
+		direct := ssh.ChannelOpenDirectMsg{
+			DestAddr: "route2",
+			SrcAddr:  "127.0.0.1",
+		}
+		_, _, err = client.OpenChannel("direct-tcpip", gossh.Marshal(direct))
+		// note: this error comes from the go ssh client
+		s.ErrorContains(err, "Permission Denied")
+	})
+
+	s.Run("authorized by pomerium, but username not allowed by upstream", func() {
+		client, err := s.upstream.Dial(s.newClientConfig("notdemo", "", "route2-user2@example.com"))
+		s.Require().NoError(err)
+		defer client.Close()
+
+		channel, requestsC, err := client.OpenChannel("direct-tcpip", gossh.Marshal(ssh.ChannelOpenDirectMsg{
+			DestAddr: "route2",
+			SrcAddr:  "127.0.0.1",
+		}))
+		s.Require().NoError(err)
+		go gossh.DiscardRequests(requestsC)
+		defer channel.Close()
+
+		_, _, _, err = gossh.NewClientConn(upstreams.NewRWConn(channel, channel), "", &gossh.ClientConfig{
+			User: "notdemo",
+			Auth: []gossh.AuthMethod{
+				gossh.PublicKeys(s.lookupUser("route2-user2@example.com").SSHKey),
+			},
+			HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.UpstreamHostKey.Public())),
+		})
+		s.ErrorContains(err, sshErrMsgPublicKeyAuthFailed)
+	})
+
+	s.Run("disallow multiple sessions", func() {
+		client, err := s.upstream.Dial(s.newClientConfig("notdemo", "", "route2-user3@example.com"))
 		s.Require().NoError(err)
 		defer client.Close()
 
@@ -805,7 +1260,7 @@ allow:
 		clientConn1, newChannel1, requests1, err := gossh.NewClientConn(upstreams.NewRWConn(channel1, channel1), "", &gossh.ClientConfig{
 			User: "demo",
 			Auth: []gossh.AuthMethod{
-				gossh.PublicKeys(user1.SSHKey),
+				gossh.PublicKeys(s.lookupUser("route2-user3@example.com").SSHKey),
 			},
 			HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.UpstreamHostKey.Public())),
 		})
@@ -835,7 +1290,7 @@ allow:
 }
 
 func (s *SSHTestSuite) TestDirectTcpipDisabled() {
-	user1 := s.lookupUser("user1@example.com")
+	user1 := s.lookupUser("route1-user1@example.com")
 
 	s.start(
 		[]RouteOptions{
@@ -845,7 +1300,7 @@ func (s *SSHTestSuite) TestDirectTcpipDisabled() {
 allow:
   and:
     - email:
-        is: "user1@example.com"
+        is: "route1-user1@example.com"
 `,
 			},
 		},
@@ -873,12 +1328,12 @@ func (s *SSHTestSuite) TestLoginLogout() {
 allow:
   and:
     - email:
-        is: "user1@example.com"
+        is: "route1-user1@example.com"
 `,
 		},
 	})
 
-	client, err := s.upstream.Dial(s.newClientConfig("username", "", "user1@example.com"))
+	client, err := s.upstream.Dial(s.newClientConfig("username", "", "route1-user1@example.com"))
 	s.Require().NoError(err)
 	defer client.Close()
 
@@ -892,19 +1347,9 @@ allow:
 }
 
 func (s *SSHTestSuite) TestWhoami() {
-	s.start([]RouteOptions{
-		{
-			Name: "route1",
-			PPLTemplate: `
-allow:
-  and:
-    - email:
-        is: "user1@example.com"
-`,
-		},
-	})
+	s.start([]RouteOptions{})
 
-	client, err := s.upstream.Dial(s.newClientConfig("username", "", "user1@example.com"))
+	client, err := s.upstream.Dial(s.newClientConfig("username", "", "userA@example.com"))
 	s.Require().NoError(err)
 	defer client.Close()
 
@@ -920,7 +1365,7 @@ Session ID: .+
 Expires at: .* \(in \d+h\d+m\d+s\)
 Claims:
   aud: "CLIENT_ID"
-  email: "user1@example.com"
+  email: "userA@example.com"
   exp: .* \(in \d+h\d+m\d+s\)
   family_name: ""
   given_name: ""
@@ -931,8 +1376,8 @@ Claims:
 `[1:]), string(output))
 }
 
-func (s *SSHTestSuite) TestRateLimitService(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func (s *SSHTestSuite) TestRateLimitService() {
+	ctrl := gomock.NewController(s.T())
 	rls := NewMockRateLimitServiceServer(ctrl)
 	rls.EXPECT().ShouldRateLimit(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
 		func(_ context.Context, req *envoy_service_ratelimit_v3.RateLimitRequest) (*envoy_service_ratelimit_v3.RateLimitResponse, error) {
@@ -962,38 +1407,48 @@ func (s *SSHTestSuite) TestRateLimitService(t *testing.T) {
 allow:
   and:
     - email:
-        is: "user1@example.com"
+        is: "route1-user1@example.com"
 `,
 		},
 	})
 
-	cc := s.newClientConfig("username", "route1", "user1@example.com")
+	cc := s.newClientConfig("username", "route1", "route1-user1@example.com")
 	client1, err := s.upstream.Dial(cc)
-	require.NoError(t, err)
+	s.NoError(err)
 	defer client1.Close()
 
-	VerifyWorkingShell(t, client1)
+	VerifyWorkingShell(s.T(), client1)
 
 	_, err = s.upstream.Dial(cc)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "handshake failed")
+	s.Require().Error(err)
+	s.ErrorContains(err, "handshake failed")
 }
 
 func TestSSH(t *testing.T) {
 	idpUsers := []IdpUserOptions{}
-	for i := range 50 {
+	// `route[1-30]-user[1-10]@example.com`
+	// Use these when testing access to a specific route
+	for r := range 30 {
+		for u := range 10 {
+			idpUsers = append(idpUsers,
+				IdpUserOptions{
+					User: mockidp.User{
+						Email: fmt.Sprintf("route%d-user%d@example.com", r, u),
+					},
+					PublicKeyType: PublicKeyType(mathrand.IntN(2)),
+				},
+			)
+		}
+	}
+	// `user[A-Z]@example.com`
+	// Use these when testing access across multiple routes, or to the internal CLI
+	for i := 'A'; i <= 'Z'; i++ {
 		idpUsers = append(idpUsers,
 			IdpUserOptions{
 				User: mockidp.User{
-					Email: fmt.Sprintf("user%d@example.com", i+1),
+					Email: fmt.Sprintf("user%c@example.com", i),
 				},
-				PublicKeyType: Regular,
-			},
-			IdpUserOptions{
-				User: mockidp.User{
-					Email: fmt.Sprintf("certuser%d@example.com", i+1),
-				},
-				PublicKeyType: CertKey,
+				PublicKeyType: PublicKeyType(mathrand.IntN(2)),
 			},
 		)
 	}
