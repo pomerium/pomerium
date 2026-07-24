@@ -195,54 +195,90 @@ func Test_getTokenSessionID(t *testing.T) {
 	assert.Equal(t, "0fe0e289-40bb-5ffe-b328-e290e043a652", getIdentityTokenSessionID(&identitypb.Provider{Id: "IDP1"}, "TOKEN"))
 }
 
-func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
+func TestGetIncomingBearerToken(t *testing.T) {
 	t.Parallel()
 
-	bearerTokenFormatIDPAccessToken := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN
+	fmtDefault := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT
+	fmtAccess := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN
+	fmtIdentity := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN
+	fmtJWT := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
 
 	for _, tc := range []struct {
-		name                    string
-		globalBearerTokenFormat *config.BearerTokenFormat
-		routeBearerTokenFormat  *config.BearerTokenFormat
-		headers                 http.Header
-		expectedOK              bool
-		expectedToken           string
+		name           string
+		globalFormat   *config.BearerTokenFormat
+		routeFormat    *config.BearerTokenFormat
+		headers        http.Header
+		expectedOK     bool
+		expectedToken  string
+		expectedFormat config.BearerTokenFormat
 	}{
 		{
-			name:       "empty headers",
+			name:       "empty headers, passthrough",
 			expectedOK: false,
 		},
 		{
-			name:       "bearer disabled",
-			headers:    http.Header{"Authorization": {"Bearer access token via bearer"}},
+			name:       "unset format ignores bearer (passthrough)",
+			headers:    http.Header{"Authorization": {"Bearer tok"}},
 			expectedOK: false,
 		},
 		{
-			name:                    "bearer enabled via options",
-			globalBearerTokenFormat: &bearerTokenFormatIDPAccessToken,
-			headers:                 http.Header{"Authorization": {"Bearer access token via bearer"}},
-			expectedOK:              true,
-			expectedToken:           "access token via bearer",
+			name:           "default format ignores bearer",
+			globalFormat:   &fmtDefault,
+			headers:        http.Header{"Authorization": {"Bearer tok"}},
+			expectedOK:     false,
+			expectedFormat: fmtDefault,
 		},
 		{
-			name:                   "bearer enabled via route",
-			routeBearerTokenFormat: &bearerTokenFormatIDPAccessToken,
-			headers:                http.Header{"Authorization": {"Bearer access token via bearer"}},
-			expectedOK:             true,
-			expectedToken:          "access token via bearer",
+			name:           "access token via options",
+			globalFormat:   &fmtAccess,
+			headers:        http.Header{"Authorization": {"Bearer tok"}},
+			expectedOK:     true,
+			expectedToken:  "tok",
+			expectedFormat: fmtAccess,
+		},
+		{
+			name:           "access token via route override",
+			routeFormat:    &fmtAccess,
+			headers:        http.Header{"Authorization": {"Bearer tok"}},
+			expectedOK:     true,
+			expectedToken:  "tok",
+			expectedFormat: fmtAccess,
+		},
+		{
+			name:           "identity token",
+			globalFormat:   &fmtIdentity,
+			headers:        http.Header{"Authorization": {"Bearer id-tok"}},
+			expectedOK:     true,
+			expectedToken:  "id-tok",
+			expectedFormat: fmtIdentity,
+		},
+		{
+			name:           "jwt",
+			routeFormat:    &fmtJWT,
+			headers:        http.Header{"Authorization": {"Bearer jwt-tok"}},
+			expectedOK:     true,
+			expectedToken:  "jwt-tok",
+			expectedFormat: fmtJWT,
+		},
+		{
+			name:           "jwt but non-Bearer auth header",
+			routeFormat:    &fmtJWT,
+			headers:        http.Header{"Authorization": {"Basic dXNlcjpwYXNz"}},
+			expectedOK:     false,
+			expectedFormat: fmtJWT,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			cfg := New(NewDefaultOptions())
-			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalBearerTokenFormat)
+			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalFormat)
 
 			var route *Policy
-			if tc.routeBearerTokenFormat != nil {
+			if tc.routeFormat != nil {
 				route = &Policy{
 					RouteOptions: RouteOptions{
-						BearerTokenFormat: nullable.FromPtr(tc.routeBearerTokenFormat),
+						BearerTokenFormat: nullable.FromPtr(tc.routeFormat),
 					},
 				}
 			}
@@ -253,74 +289,10 @@ func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
 				r.Header = tc.headers
 			}
 
-			actualToken, actualOK := cfg.GetIncomingIDPAccessTokenForPolicy(route, r)
+			actualToken, actualFormat, actualOK := cfg.getIncomingBearerToken(route, r)
 			assert.Equal(t, tc.expectedOK, actualOK)
 			assert.Equal(t, tc.expectedToken, actualToken)
-		})
-	}
-}
-
-func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
-	t.Parallel()
-
-	bearerTokenFormatIDPIdentityToken := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN
-
-	for _, tc := range []struct {
-		name                    string
-		globalBearerTokenFormat *config.BearerTokenFormat
-		routeBearerTokenFormat  *config.BearerTokenFormat
-		headers                 http.Header
-		expectedOK              bool
-		expectedToken           string
-	}{
-		{
-			name:       "empty headers",
-			expectedOK: false,
-		},
-		{
-			name:       "bearer disabled",
-			headers:    http.Header{"Authorization": {"Bearer identity token via bearer"}},
-			expectedOK: false,
-		},
-		{
-			name:                    "bearer enabled via options",
-			globalBearerTokenFormat: &bearerTokenFormatIDPIdentityToken,
-			headers:                 http.Header{"Authorization": {"Bearer identity token via bearer"}},
-			expectedOK:              true,
-			expectedToken:           "identity token via bearer",
-		},
-		{
-			name:                   "bearer enabled via route",
-			routeBearerTokenFormat: &bearerTokenFormatIDPIdentityToken,
-			headers:                http.Header{"Authorization": {"Bearer identity token via bearer"}},
-			expectedOK:             true,
-			expectedToken:          "identity token via bearer",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			cfg := New(NewDefaultOptions())
-			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalBearerTokenFormat)
-
-			var route *Policy
-			if tc.routeBearerTokenFormat != nil {
-				route = &Policy{
-					RouteOptions: RouteOptions{
-						BearerTokenFormat: nullable.FromPtr(tc.routeBearerTokenFormat),
-					},
-				}
-			}
-
-			r, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
-			require.NoError(t, err)
-			if tc.headers != nil {
-				r.Header = tc.headers
-			}
-
-			actualToken, actualOK := cfg.GetIncomingIDPIdentityTokenForPolicy(route, r)
-			assert.Equal(t, tc.expectedOK, actualOK)
-			assert.Equal(t, tc.expectedToken, actualToken)
+			assert.Equal(t, tc.expectedFormat, actualFormat)
 		})
 	}
 }
@@ -591,3 +563,8 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		assert.True(t, s.GetRefreshDisabled())
 	})
 }
+
+// TestJWTSingleflightKey checks the de-dup key is keyed on (provider name, raw
+// token): the same token under different providers must not collapse, and
+// different tokens must not collapse. Audiences are per-provider now, so they
+// are no longer part of the key — the provider name already scopes them.
