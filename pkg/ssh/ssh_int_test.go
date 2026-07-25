@@ -431,7 +431,7 @@ func (s *SSHTestSuite) newClientConfig(loginName string, route string, userEmail
 		User: username,
 		Auth: []gossh.AuthMethod{
 			gossh.PublicKeys(user.SSHKey),
-			gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+			gossh.KeyboardInteractive(func(_, instruction string, _ []string, _ []bool) (answers []string, err error) {
 				return s.challengeImpl.Do(s.env.Context(), instruction, user.Email)
 			}),
 		},
@@ -684,7 +684,7 @@ allow:
 			verify := expectAuthSequence(s.T(), cc,
 				seqPublicKeyAcceptedAfter1RetryThenKbdInit(s.T(),
 					[2]gossh.Signer{randomKey, s.lookupUser(api.RouteUserEmail(3)).SSHKey},
-					gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+					gossh.KeyboardInteractive(func(_, instruction string, _ []string, _ []bool) (answers []string, err error) {
 						return s.challengeImpl.Do(s.env.Context(), instruction, api.RouteUserEmail(3))
 					})))
 			defer verify()
@@ -700,7 +700,7 @@ allow:
 			verify := expectAuthSequence(s.T(), cc,
 				seqPublicKeyAcceptedAfter1RetryThenKbdInit(s.T(),
 					[2]gossh.Signer{randomKey, s.lookupUser(api.RouteUserEmail(4)).SSHKey},
-					gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+					gossh.KeyboardInteractive(func(_, instruction string, _ []string, _ []bool) (answers []string, err error) {
 						return s.challengeImpl.Do(s.env.Context(), instruction, api.RouteUserEmail(4))
 					})))
 			defer verify()
@@ -945,7 +945,7 @@ allow:
 			cc := s.newClientConfig("username", api.RouteName(), user.Email)
 			cc.Auth = []gossh.AuthMethod{
 				gossh.PublicKeys(certKey),
-				gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+				gossh.KeyboardInteractive(func(_, instruction string, _ []string, _ []bool) (answers []string, err error) {
 					return s.challengeImpl.Do(s.env.Context(), instruction, user.Email)
 				}),
 			}
@@ -975,7 +975,7 @@ allow:
 			cc := s.newClientConfig("username", api.RouteName(), user.Email)
 			cc.Auth = []gossh.AuthMethod{
 				gossh.PublicKeys(certKey),
-				gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+				gossh.KeyboardInteractive(func(_, instruction string, _ []string, _ []bool) (answers []string, err error) {
 					return s.challengeImpl.Do(s.env.Context(), instruction, user.Email)
 				}),
 			}
@@ -1244,7 +1244,7 @@ allow:
 	cc := s.newClientConfig("username", "route1", "route1-user1@example.com")
 	cc.Auth = []gossh.AuthMethod{
 		gossh.PublicKeys(append(randomKeys, s.lookupUser("route1-user1@example.com").SSHKey)...),
-		gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+		gossh.KeyboardInteractive(func(_, instruction string, _ []string, _ []bool) (answers []string, err error) {
 			return s.challengeImpl.Do(s.env.Context(), instruction, "route1-user1@example.com")
 		}),
 	}
@@ -1295,12 +1295,12 @@ allow:
 		s.ErrorContains(err, "Permission Denied: no longer authorized{via_upstream}")
 	}()
 
-	sbId := "sshkey-" + FormatRawFingerprint(RawFingerprintSHA256(user.SSHKey.PublicKey()))
+	sessionBindingID := sessionBindingIDFromPublicKey(user.SSHKey.PublicKey())
 	_, err = dbClient.Put(s.env.Context(), &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
 				Type:       "type.googleapis.com/session.SessionBinding",
-				Id:         sbId,
+				Id:         sessionBindingID,
 				ModifiedAt: timestamppb.Now(),
 				DeletedAt:  timestamppb.Now(),
 			},
