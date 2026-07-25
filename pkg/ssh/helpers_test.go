@@ -124,7 +124,7 @@ func TestRawFingerprintSHA256(t *testing.T) {
 	// Use these functions instead in tests to generate fingerprints that will
 	// match the ones from envoy. This isn't needed outside of tests because
 	// envoy sends the fingerprint along with the public key so that we don't
-	// have to re-compute it (with an implementation that may not be indentical).
+	// have to re-compute it (with an implementation that may not be identical).
 
 	// sanity check
 	require.NotEqual(t, gossh.FingerprintSHA256(sshKey.PublicKey()), gossh.FingerprintSHA256(certKey.PublicKey()))
