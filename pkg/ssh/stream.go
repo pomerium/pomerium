@@ -2,8 +2,10 @@ package ssh
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"iter"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,6 +23,8 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/envoy/envoyversion"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -148,11 +152,19 @@ func authInfoHasSession(info StreamAuthInfo) bool {
 		len(info.GetSessionBindingId()) > 0
 }
 
+type AuthSequenceLogEntry struct {
+	Method           string                      `json:"method"`
+	AuthContextStart *extensions_ssh.AuthContext `json:"auth_context_start"`
+	Result           string                      `json:"result"`
+	AuthContextEnd   *extensions_ssh.AuthContext `json:"auth_context_end"`
+}
+
 type StreamState struct {
 	StreamInfo
 	AuthContext            *extensions_ssh.AuthContext
 	CurrentUser            api.UserRequest
 	NextRequiredAuthMethod string
+	AuthSequenceLog        []AuthSequenceLogEntry
 	DownstreamChannelInfo  *extensions_ssh.SSHDownstreamChannelInfo
 }
 
@@ -658,6 +670,10 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 		Str("hostname", state.CurrentUser.Hostname()).
 		Msg("ssh: handling auth request")
 
+	logEntry := AuthSequenceLogEntry{
+		Method:           req.AuthMethod,
+		AuthContextStart: proto.CloneOf(state.AuthContext),
+	}
 	var response AuthMethodResponse
 	switch req.AuthMethod {
 	case MethodPublicKey:
@@ -686,6 +702,8 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 	default:
 		return status.Errorf(codes.Internal, "bug: server requested an unsupported auth method %q", req.AuthMethod)
 	}
+	response.Validate()
+	logEntry.Result = response.String()
 	if response.ContextUpdates != nil {
 		if state.AuthContext == nil {
 			state.AuthContext = &extensions_ssh.AuthContext{}
@@ -694,21 +712,30 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 	}
 	state.NextRequiredAuthMethod = response.NextRequiredAuthMethod
 
+	logEntry.AuthContextEnd = proto.CloneOf(response.ContextUpdates)
+
+	state.AuthSequenceLog = append(state.AuthSequenceLog, logEntry)
+
 	log.Ctx(ctx).Debug().
 		Str("method", req.AuthMethod).
 		Bool("method-allowed", response.AllowMethod).
 		Str("methods-remaining", state.NextRequiredAuthMethod).
 		Msg("ssh: auth request complete")
 
-	if response.AllowMethod && state.NextRequiredAuthMethod == "" {
+	if response.AllowMethod && response.NoFurtherMethodsRequired && state.NextRequiredAuthMethod == "" {
+		log.Ctx(ctx).Debug().Any("sequence", state.AuthSequenceLog).Msg("ssh: all methods valid, sending allow response")
+
 		if !authInfoHasPublicKey(state.AuthContext) || !authInfoHasSession(state.AuthContext) {
 			// failsafe
-			panic("invalid auth context")
+			sequence, _ := json.MarshalIndent(state.AuthSequenceLog, "", "  ")
+			panic(fmt.Sprintf("bug: invalid auth context\npomerium version: %s\nenvoy version: %s\nauth interface: %s\nsequence log (%d entries):\n%s",
+				version.FullVersion(), envoyversion.Version(),
+				reflect.ValueOf(sh.auth).Type().String(),
+				len(state.AuthSequenceLog), string(sequence)))
 		}
 		// If this method was allowed and there are no methods remaining, auth is
 		// successful
 		state.InitialAuthComplete = true
-		log.Ctx(ctx).Debug().Msg("ssh: all methods valid, sending allow response")
 		sh.sendAllowResponse(ctx, state)
 	} else {
 		log.Ctx(ctx).Debug().Msg("ssh: unauthenticated methods remain, sending deny response")
