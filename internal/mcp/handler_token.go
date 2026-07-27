@@ -459,10 +459,10 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 		Str("old-refresh-token-id", refreshTokenRecord.Id).
 		Str("new-refresh-token-id", newRefreshTokenRecord.Id).
 		Time("new-expires-at", newRefreshTokenRecord.ExpiresAt.AsTime()).
-		Msg("mcp/token/refresh: rotating refresh token (creating new, then deleting old)")
+		Msg("mcp/token/refresh: rotating refresh token (creating new, then revoking old)")
 
-	// Store the new refresh token first, then delete the old one, so a failure after this
-	// point still leaves the client with a valid token.
+	// Store new refresh token first, then revoke old one.
+	// This order ensures that if revoking fails, the user still has a valid token.
 	if err := srv.storage.PutMCPRefreshToken(ctx, newRefreshTokenRecord); err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("refresh-token-id", newRefreshTokenRecord.Id).
@@ -475,18 +475,17 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 		Str("refresh-token-id", newRefreshTokenRecord.Id).
 		Msg("mcp/token/refresh: new refresh token stored")
 
-	// Delete the superseded token instead of marking it Revoked: MCPRefreshToken has no TTL or
-	// eviction, so keeping every rotated record leaks one per refresh (unbounded with the default
-	// in-memory store). A replay of the deleted token is still rejected (record not found).
-	if err := srv.storage.DeleteMCPRefreshToken(ctx, refreshTokenRecord.Id); err != nil {
-		// Non-fatal: the new token is already stored and returned to the client.
+	refreshTokenRecord.Revoked = true
+	if err := srv.storage.PutMCPRefreshToken(ctx, refreshTokenRecord); err != nil {
+		// Log the error but don't fail the request - the new token is already stored
+		// and the user can continue. The old token will eventually expire.
 		log.Ctx(ctx).Warn().Err(err).
 			Str("refresh-token-id", refreshTokenRecord.Id).
-			Msg("mcp/token/refresh: failed to delete superseded refresh token (new token already issued)")
+			Msg("mcp/token/refresh: failed to revoke old refresh token (new token already issued)")
 	} else {
 		log.Ctx(ctx).Debug().
 			Str("refresh-token-id", refreshTokenRecord.Id).
-			Msg("mcp/token/refresh: superseded refresh token deleted")
+			Msg("mcp/token/refresh: old refresh token revoked")
 	}
 
 	sessionExpiresAt := newSession.ExpiresAt.AsTime()
