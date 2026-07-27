@@ -1290,7 +1290,7 @@ allow:
 	go func() {
 		defer close(revoked)
 		sess.Wait()
-		err = client.Wait()
+		err := client.Wait()
 		s.ErrorContains(err, "ssh: disconnect, reason 2")
 		s.ErrorContains(err, "Permission Denied: no longer authorized{via_upstream}")
 	}()
