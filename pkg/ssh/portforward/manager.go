@@ -314,7 +314,7 @@ func (pfm *Manager) UpdateEnabledStaticPorts(enabledStaticPorts []uint) {
 	pfm.rebuildEndpoints()
 }
 
-func (pfm *Manager) UpdateAuthorizedRoutes(routes []common.RouteInfo) {
+func (pfm *Manager) UpdateTunnelAuthorizedRoutes(routes []common.RouteInfo) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
 	pfm.cachedAuthorizedRoutes = routes

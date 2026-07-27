@@ -90,7 +90,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		mgr := portforward.NewManager()
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
+		mgr.UpdateTunnelAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
 
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
@@ -172,7 +172,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		mgr := portforward.NewManager()
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
+		mgr.UpdateTunnelAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
@@ -252,7 +252,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		mgr := portforward.NewManager()
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2})
+		mgr.UpdateTunnelAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2})
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(2))
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
@@ -316,7 +316,7 @@ func TestPortForwardManager(t *testing.T) {
 		mgr.AddUpdateListener(listener)
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(2))
-		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{
+		mgr.UpdateTunnelAuthorizedRoutes([]common.RouteInfo{
 			{
 				Hostname:  "route-1",
 				Port:      443,
@@ -381,7 +381,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(1))
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{
+		mgr.UpdateTunnelAuthorizedRoutes([]common.RouteInfo{
 			{
 				Hostname:  "route-1",
 				Port:      443,
@@ -418,7 +418,7 @@ func TestPortForwardManager(t *testing.T) {
 		listener := mock_portforward.NewMockUpdateListener(ctrl)
 		mgr := portforward.NewManager()
 		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
-		mgr.UpdateAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
+		mgr.UpdateTunnelAuthorizedRoutes([]common.RouteInfo{expectedInfo1, expectedInfo2, expectedInfo3})
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
