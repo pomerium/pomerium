@@ -372,7 +372,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			[]proto.Message{s1, u1, s2, u2},
 			&PolicyRequest{
 				SSH: RequestSSH{
-					ReverseTunnel: true,
+					EvalMode: EvalModeReverseTunnel,
 				},
 				Session: RequestSession{ID: "s1"},
 			})
@@ -388,7 +388,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			[]proto.Message{s1, u1, s2, u2},
 			&PolicyRequest{
 				SSH: RequestSSH{
-					ReverseTunnel: true,
+					EvalMode: EvalModeReverseTunnel,
 				},
 				Session: RequestSession{ID: "s2"},
 			})
