@@ -48,17 +48,13 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
       });
       if (!resp.ok) {
         const text = await resp.text().catch(() => "");
-        setErrorMessage(
-          `Failed to disconnect (${resp.status}): ${text || "unknown error"}`,
-        );
+        setErrorMessage(`Failed to disconnect (${resp.status}): ${text || "unknown error"}`);
         return;
       }
       setConnected(false);
     } catch (err) {
       setErrorMessage(
-        `Failed to disconnect: ${
-          err instanceof Error ? err.message : "network error"
-        }`,
+        `Failed to disconnect: ${err instanceof Error ? err.message : "network error"}`,
       );
     } finally {
       setPending(false);
@@ -120,31 +116,17 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
         </CardContent>
       )}
       {errorMessage && (
-        <Alert
-          severity="error"
-          onClose={() => setErrorMessage(null)}
-          sx={{ mx: 1 }}
-        >
+        <Alert severity="error" onClose={() => setErrorMessage(null)} sx={{ mx: 1 }}>
           {errorMessage}
         </Alert>
       )}
       <CardActions sx={{ justifyContent: "flex-end", pt: 0 }}>
         {connected ? (
-          <Button
-            size="small"
-            color="error"
-            disabled={pending}
-            onClick={handleDisconnect}
-          >
+          <Button size="small" color="error" disabled={pending} onClick={handleDisconnect}>
             Disconnect
           </Button>
         ) : route.mcp_connect_url ? (
-          <Button
-            size="small"
-            color="primary"
-            href={route.mcp_connect_url}
-            component="a"
-          >
+          <Button size="small" color="primary" href={route.mcp_connect_url} component="a">
             Connect
           </Button>
         ) : null}

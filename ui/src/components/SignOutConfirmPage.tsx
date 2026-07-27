@@ -35,9 +35,7 @@ const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
       <Dialog open={true}>
         <DialogTitle>Logout?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Are you sure you want to logout?
-          </DialogContentText>
+          <DialogContentText>Are you sure you want to logout?</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClickCancel}>Cancel</Button>

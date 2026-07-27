@@ -11,20 +11,12 @@ import WebAuthnRegisterButton from "./WebAuthnRegisterButton";
 type WebAuthnRegistrationPageProps = {
   data: WebAuthnRegistrationPageData;
 };
-const WebAuthnRegistrationPage: FC<WebAuthnRegistrationPageProps> = ({
-  data,
-}) => {
+const WebAuthnRegistrationPage: FC<WebAuthnRegistrationPageProps> = ({ data }) => {
   return (
     <Section title="WebAuthn Registration" icon={<ExperimentalIcon />}>
       <Stack direction="row" spacing={1} sx={{ justifyContent: "center" }}>
-        <WebAuthnRegisterButton
-          creationOptions={data?.creationOptions}
-          url={data?.selfUrl}
-        />
-        <WebAuthnAuthenticateButton
-          requestOptions={data?.requestOptions}
-          url={data?.selfUrl}
-        />
+        <WebAuthnRegisterButton creationOptions={data?.creationOptions} url={data?.selfUrl} />
+        <WebAuthnAuthenticateButton requestOptions={data?.requestOptions} url={data?.selfUrl} />
       </Stack>
     </Section>
   );

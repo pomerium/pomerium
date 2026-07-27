@@ -7,10 +7,10 @@ import Footer from "./components/Footer";
 import Header from "./components/Header";
 import RoutesPage from "./components/RoutesPage";
 import SessionBindingInfoPage from "./components/SessionBindingInfo";
+import SignedOutPage from "./components/SignedOutPage";
 import SignInSuccessPage from "./components/SignInSuccessPage";
 import SignInVerifyPage from "./components/SignInVerifyPage";
 import SignOutConfirmPage from "./components/SignOutConfirmPage";
-import SignedOutPage from "./components/SignedOutPage";
 import { ToolbarOffset } from "./components/ToolbarOffset";
 import UpstreamErrorPage from "./components/UpstreamErrorPage";
 import UserInfoPage from "./components/UserInfoPage";
@@ -66,9 +66,7 @@ const App: FC = () => {
   }
 
   useLayoutEffect(() => {
-    const favicon = document.getElementById(
-      "favicon",
-    ) as HTMLAnchorElement | null;
+    const favicon = document.getElementById("favicon") as HTMLAnchorElement | null;
     if (favicon) {
       favicon.href = data?.faviconUrl || "/.pomerium/favicon.ico";
     }
@@ -84,10 +82,7 @@ const App: FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SubpageContextProvider page={data?.page}>
-        <Header
-          includeSidebar={data?.page === "UserInfo" || data?.page === "Routes"}
-          data={data}
-        />
+        <Header includeSidebar={data?.page === "UserInfo" || data?.page === "Routes"} data={data} />
         <ToolbarOffset />
         <Box sx={{ overflow: "hidden", height: "calc(100vh - 120px)" }}>
           <Box
