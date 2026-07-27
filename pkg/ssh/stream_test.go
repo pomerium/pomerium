@@ -2219,6 +2219,9 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 				PublicKey:                  s.ed25519SshPublicKey.Marshal(),
 				PublicKeyAlg:               s.ed25519SshPublicKey.Type(),
 				PublicKeyFingerprintSha256: RawFingerprintSHA256(s.ed25519SshPublicKey),
+				SessionId:                  "fake-session-id",
+				SessionBindingId:           "fake-session-binding-id",
+				UserId:                     "fake-user-id",
 			},
 			Target: &extensions_ssh.AllowResponse_Upstream{
 				Upstream: &extensions_ssh.UpstreamTarget{
