@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/recording"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -48,6 +49,7 @@ type Authorize struct {
 	accessTracker *AccessTracker
 	ssh           *ssh.StreamManager
 	policyIndexer ssh.PolicyIndexer
+	mcpSyncer     *mcp.StorageSyncer
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
@@ -135,6 +137,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		o.cliController,
 		cfg,
 	)
+	a.mcpSyncer = mcp.NewStorageSyncer(a)
 	return a, nil
 }
 
@@ -165,6 +168,9 @@ func (a *Authorize) Run(ctx context.Context) error {
 	eg.Go(func() error {
 		a.accessTracker.Run(ctx)
 		return nil
+	})
+	eg.Go(func() error {
+		return a.mcpSyncer.Run(ctx)
 	})
 	return eg.Wait()
 }
