@@ -72,7 +72,7 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 		"ssh.auth.code.user.decision",
 		metric.WithDescription("measures the duration from the time the code is issued to when it is accepted or denied"),
 		metric.WithExplicitBucketBoundaries(
-			linearBuckets(10, DefaultCodeTTL.Seconds())...,
+			linearBuckets(10, defaultIssuerCodeTTL.Seconds())...,
 		),
 	)
 	if err != nil {
