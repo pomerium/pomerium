@@ -18,7 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+	"github.com/pomerium/pomerium/pkg/ssh/common"
 	"github.com/pomerium/protoutil/messages"
 )
 
@@ -105,7 +105,7 @@ func (kr *knownAuthRequest) RemoveActiveStream(streamID uint64) {
 // this is a separate struct so it can be updated in-place in the lru without
 // affecting recentness
 type authorizedRoutesList struct {
-	Entries []portforward.RouteInfo
+	Entries []common.RouteInfo
 }
 
 type authorizedRoutesCache struct {
@@ -165,7 +165,7 @@ func (c *authorizedRoutesCache) Keys() iter.Seq[*knownAuthRequest] {
 // Returns cached route entries for an auth request. The auth request must be
 // active (have at least one active stream), otherwise it will be reported as
 // not found.
-func (c *authorizedRoutesCache) Get(knownReq *knownAuthRequest) ([]portforward.RouteInfo, bool) {
+func (c *authorizedRoutesCache) Get(knownReq *knownAuthRequest) ([]common.RouteInfo, bool) {
 	if active, ok := c.active[knownReq]; ok {
 		return active.Entries, true
 	}
@@ -194,7 +194,7 @@ func (c *authorizedRoutesCache) StreamCount() int {
 	return len(c.byStreamID)
 }
 
-func (c *authorizedRoutesCache) Update(k *knownAuthRequest, v []portforward.RouteInfo) {
+func (c *authorizedRoutesCache) Update(k *knownAuthRequest, v []common.RouteInfo) {
 	if l, ok := c.active[k]; ok {
 		l.Entries = v
 	} else if l, ok := c.standby.Peek(k); ok {
@@ -210,7 +210,7 @@ func (c *authorizedRoutesCache) Update(k *knownAuthRequest, v []portforward.Rout
 	}
 }
 
-func (c *authorizedRoutesCache) Peek(k *knownAuthRequest) ([]portforward.RouteInfo, bool) {
+func (c *authorizedRoutesCache) Peek(k *knownAuthRequest) ([]common.RouteInfo, bool) {
 	if active, ok := c.active[k]; ok {
 		return active.Entries, true
 	} else if inactive, ok := c.standby.Peek(k); ok {
@@ -246,7 +246,7 @@ type knownSession struct {
 }
 
 type knownRoute struct {
-	Info  portforward.RouteInfo
+	Info  common.RouteInfo
 	Route *config.Policy
 }
 
@@ -297,7 +297,7 @@ func (i *InMemoryPolicyIndexer) recomputeSessionAuthorizedRoutes(ctx context.Con
 			}
 		}
 	} else {
-		routeInfos := make([]portforward.RouteInfo, len(updatedAuthorizedRoutes))
+		routeInfos := make([]common.RouteInfo, len(updatedAuthorizedRoutes))
 		for i, ar := range updatedAuthorizedRoutes {
 			routeInfos[i] = ar.Info
 		}
@@ -546,7 +546,7 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 					if route.UpstreamTunnel == nil {
 						continue
 					}
-					info := portforward.RouteInfo{
+					info := common.RouteInfo{
 						From:      route.From,
 						To:        route.To,
 						ClusterID: envoyconfig.GetClusterID(route),
