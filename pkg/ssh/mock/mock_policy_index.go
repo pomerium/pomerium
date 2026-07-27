@@ -40,16 +40,16 @@ func (m *MockPolicyIndexSubscriber) EXPECT() *MockPolicyIndexSubscriberMockRecor
 	return m.recorder
 }
 
-// UpdateAuthorizedRoutes mocks base method.
-func (m *MockPolicyIndexSubscriber) UpdateAuthorizedRoutes(routes []common.RouteInfo) {
+// UpdateTunnelAuthorizedRoutes mocks base method.
+func (m *MockPolicyIndexSubscriber) UpdateTunnelAuthorizedRoutes(routes []common.RouteInfo) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "UpdateAuthorizedRoutes", routes)
+	m.ctrl.Call(m, "UpdateTunnelAuthorizedRoutes", routes)
 }
 
-// UpdateAuthorizedRoutes indicates an expected call of UpdateAuthorizedRoutes.
-func (mr *MockPolicyIndexSubscriberMockRecorder) UpdateAuthorizedRoutes(routes any) *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
+// UpdateTunnelAuthorizedRoutes indicates an expected call of UpdateTunnelAuthorizedRoutes.
+func (mr *MockPolicyIndexSubscriberMockRecorder) UpdateTunnelAuthorizedRoutes(routes any) *MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAuthorizedRoutes", reflect.TypeOf((*MockPolicyIndexSubscriber)(nil).UpdateAuthorizedRoutes), routes)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTunnelAuthorizedRoutes", reflect.TypeOf((*MockPolicyIndexSubscriber)(nil).UpdateTunnelAuthorizedRoutes), routes)
 	return &MockPolicyIndexSubscriberUpdateAuthorizedRoutesCall{Call: call}
 }
 
