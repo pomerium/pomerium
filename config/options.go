@@ -246,6 +246,10 @@ type Options struct {
 	// SSHRLSAdditonalEntries Specifies [2]{Key, Value} pairs of RLS entries
 	// https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/rate_limit_filter#substitution-formatting
 	SSHRLSAdditonalEntries []GenericKeyVal `mapstructure:"ssh_rls_additional_entries" yaml:"ssh_rls_additional_entries"`
+	// Maximum duration for pending two-person approval requests before they
+	// expire and are denied. Defaults to 5 minutes.
+	SSHTwoPersonApprovalRequestTimeout time.Duration `mapstructure:"ssh_two_person_approval_request_timeout" yaml:"ssh_two_person_approval_request_timeout,omitempty"`
+
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
 

@@ -430,7 +430,6 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 		)
 		return syncer.Run(eCtx)
 	})
-
 	eg.Go(func() error {
 		sm.reauthLoop(eCtx)
 		return ErrReauthDone
