@@ -177,8 +177,9 @@ func baseEvaluatorRequestFromSSHRequest(req ssh.AuthRequest) *evaluator.Request 
 			IP:       req.SourceAddress,
 		},
 		SSH: evaluator.RequestSSH{
-			Username:  req.Username,
-			PublicKey: []byte(req.PublicKey),
+			Username:              req.Username,
+			PublicKey:             []byte(req.PublicKey),
+			AccessRequestApproved: req.AccessRequestApproved,
 		},
 		Session: evaluator.RequestSession{
 			ID: sessionID,

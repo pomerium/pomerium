@@ -42,6 +42,8 @@ const (
 	ReasonSSHPublickeyUnauthorized      = "ssh-publickey-unauthorized"
 	ReasonSSHUsernameOK                 = "ssh-username-ok"
 	ReasonSSHUsernameUnauthorized       = "ssh-username-unauthorized"
+	ReasonSSHAccessRequestOK            = "ssh-access-request-ok"
+	ReasonSSHAccessRequestRequired      = "ssh-access-request-required"
 	ReasonUserOK                        = "user-ok"
 	ReasonUserUnauthenticated           = "user-unauthenticated" // user needs to log in
 	ReasonUserUnauthorized              = "user-unauthorized"    // user does not have access

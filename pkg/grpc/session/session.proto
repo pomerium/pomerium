@@ -32,9 +32,9 @@ message Session {
     }
   }
 
-  string version = 1;
-  string id      = 2;
-  string user_id = 3;
+  string                                 version            = 1;
+  string                                 id                 = 2;
+  string                                 user_id            = 3;
   repeated DeviceCredential              device_credentials = 17;
   google.protobuf.Timestamp              issued_at          = 14;
   google.protobuf.Timestamp              expires_at         = 4;
@@ -89,6 +89,29 @@ message IdentityBinding {
   string idp_id   = 3;
   // Protocol level details associated with session creation.
   map<string, string> details = 4;
+}
+
+// A StreamAccessRequest represents a pending access request for an SSH client
+// to access a protected route.
+message StreamAccessRequest {
+  enum State {
+    Pending  = 0;
+    Approved = 1;
+    Denied   = 2;
+  }
+  StreamAccessRequestParams params     = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  State                     state      = 4;
+  map<string, string>       metadata   = 5;
+}
+
+message StreamAccessRequestParams {
+  string protocol   = 1;
+  string session_id = 2;
+  string user_id    = 3;
+  uint64 stream_id  = 4;
+  string cluster_id = 5;
 }
 
 // A Handle is a reference to a session or a service account.

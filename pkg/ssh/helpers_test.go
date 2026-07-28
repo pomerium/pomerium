@@ -141,10 +141,10 @@ func SessionBindingIDFromPublicKey(pk gossh.PublicKey) string {
 }
 
 type fakePolicyEvaluator struct {
-	evaluateSSH                      func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error)
-	evaluateUpstreamTunnel           func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)
-	evaluateAccessRequestArbitration func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)
-	client                           databroker.DataBrokerServiceClient
+	evaluateSSH                   func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error)
+	evaluateUpstreamTunnel        func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)
+	evaluateAccessRequestApprover func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)
+	client                        databroker.DataBrokerServiceClient
 }
 
 // EvaluateUpstreamTunnel implements ssh.Evaluator.
@@ -153,8 +153,8 @@ func (f *fakePolicyEvaluator) EvaluateUpstreamTunnel(ctx context.Context, req ss
 }
 
 // EvaluateUpstreamTunnel implements ssh.Evaluator.
-func (f *fakePolicyEvaluator) EvaluateAccessRequestArbitration(ctx context.Context, req ssh.AuthRequest, policy *config.Policy) (*evaluator.Result, error) {
-	return f.evaluateAccessRequestArbitration(ctx, req, policy)
+func (f *fakePolicyEvaluator) EvaluateAccessRequestApprover(ctx context.Context, req ssh.AuthRequest, policy *config.Policy) (*evaluator.Result, error) {
+	return f.evaluateAccessRequestApprover(ctx, req, policy)
 }
 
 func (f *fakePolicyEvaluator) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.AuthRequest, _ bool) (*evaluator.Result, error) {
@@ -175,7 +175,7 @@ func staticFakePolicyEvaluator(result evaluator.Result, client databroker.DataBr
 		evaluateUpstreamTunnel: func(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
 			return &result, nil
 		},
-		evaluateAccessRequestArbitration: func(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
+		evaluateAccessRequestApprover: func(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
 			return &result, nil
 		},
 		client: client,
