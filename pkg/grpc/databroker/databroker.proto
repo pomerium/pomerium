@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package databroker;
 
+import "github.com/kralicky/codegen/cli/cli.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
@@ -10,6 +11,10 @@ import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
+
+option (cli.generator) = {
+  enabled: true,
+};
 
 message Record {
   uint64                    version     = 1;
@@ -80,12 +85,12 @@ message ListTypesResponse {
 }
 
 message QueryRequest {
-  string                 type   = 1;
-  string                 query  = 2;
-  int64                  offset = 3;
-  int64                  limit  = 4;
-  google.protobuf.Struct filter = 5;
-  optional uint64 minimum_record_version_hint = 6;
+  string                 type                        = 1;
+  string                 query                       = 2;
+  int64                  offset                      = 3;
+  int64                  limit                       = 4;
+  google.protobuf.Struct filter                      = 5 [(cli.flag).skip = true];
+  optional uint64        minimum_record_version_hint = 6;
 }
 
 message QueryResponse {
@@ -204,9 +209,17 @@ service DataBrokerService {
   // ListTypes lists all the known record types.
   rpc ListTypes(google.protobuf.Empty) returns (ListTypesResponse);
   // Put saves a record.
-  rpc Put(PutRequest) returns (PutResponse);
+  rpc Put(PutRequest) returns (PutResponse) {
+    option (cli.command) = {
+      granularity: EditMessage,
+    };
+  }
   // Patch updates specific fields of an existing record.
-  rpc Patch(PatchRequest) returns (PatchResponse);
+  rpc Patch(PatchRequest) returns (PatchResponse) {
+    option (cli.command) = {
+      skip: true,
+    };
+  }
   // Query queries for records.
   rpc Query(QueryRequest) returns (QueryResponse);
   // ReleaseLease releases a distributed mutex lease.
