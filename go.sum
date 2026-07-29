@@ -832,8 +832,8 @@ github.com/pb33f/libopenapi-validator v0.11.4 h1:TJjTKRfDA7VG4yKNZ2vWx/Q7Xaadqga
 github.com/pb33f/libopenapi-validator v0.11.4/go.mod h1:XqprWQl6jRur5n8qn3G2t+6/6lZh/YpZdB/KckT6hu4=
 github.com/pb33f/ordered-map/v2 v2.3.0 h1:k2OhVEQkhTCQMhAicQ3Z6iInzoZNQ7L9MVomwKBZ5WQ=
 github.com/pb33f/ordered-map/v2 v2.3.0/go.mod h1:oe5ue+6ZNhy7QN9cPZvPA23Hx0vMHnNVeMg4fGdCANw=
-github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
-github.com/pelletier/go-toml/v2 v2.2.4/go.mod h1:2gIqNv+qfxSVS7cM2xJQKtLSTLUE9V8t9Stt+h56mCY=
+github.com/pelletier/go-toml/v2 v2.4.3 h1:GTRvJQutkOSftxIFD5xw9aepkYNuPWmVJpffdDPYVpY=
+github.com/pelletier/go-toml/v2 v2.4.3/go.mod h1:2gIqNv+qfxSVS7cM2xJQKtLSTLUE9V8t9Stt+h56mCY=
 github.com/peterbourgon/ff/v3 v3.4.0 h1:QBvM/rizZM1cB0p0lGMdmR7HxZeI/ZrBWB4DqLkMUBc=
 github.com/peterbourgon/ff/v3 v3.4.0/go.mod h1:zjJVUhx+twciwfDl0zBcFzl4dW8axCRyXE/eKY9RztQ=
 github.com/petermattis/goid v0.0.0-20260330135022-df67b199bc81 h1:WDsQxOJDy0N1VRAjXLpi8sCEZRSGarLWQevDxpTBRrM=
