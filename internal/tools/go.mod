@@ -1,6 +1,6 @@
 module github.com/pomerium/pomerium/internal/tools
 
-go 1.25.5
+go 1.25.12
 
 tool (
 	github.com/bufbuild/buf/cmd/buf
