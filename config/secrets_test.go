@@ -113,6 +113,8 @@ func TestSecretResidue(t *testing.T) {
 		{name: "valid simple ref", value: "$secret.tok", want: false},
 		{name: "dollar escape is a literal, not a ref", value: "$$secret.name", want: false},
 		{name: "escaped braced literal", value: "cost is $$secret", want: false},
+		{name: "escaped braced ref literal", value: "$${secret.name}", want: false},
+		{name: "escaped braced ref literal mid-value", value: "x $${secret.name} y", want: false},
 		{name: "plain text", value: "no refs here", want: false},
 		{name: "pomerium ref only", value: "u=${pomerium.user.id}", want: false},
 	}
