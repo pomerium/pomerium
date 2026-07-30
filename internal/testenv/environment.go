@@ -916,6 +916,9 @@ func (e *environment) NewDataBrokerServiceClient() databroker.DataBrokerServiceC
 		SignedJWTKey: e.sharedSecret[:],
 	})
 	e.require.NoError(err)
+	e.t.Cleanup(func() {
+		_ = cc.Close()
+	})
 	return databroker.NewDataBrokerServiceClient(cc)
 }
 

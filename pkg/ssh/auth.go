@@ -288,7 +288,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		}, nil
 	}
 
-	return processSessionEvaluateResult(sessionIDs{
+	return processSessionEvaluateResult(ctx, sessionIDs{
 		SessionBindingID: sessionBindingID,
 		SessionID:        sessionBinding.SessionId,
 		UserID:           sessionBinding.UserId,
@@ -410,7 +410,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	if err != nil {
 		return AuthMethodResponse{}, err
 	}
-	return processSessionEvaluateResult(sessionIDs{
+	return processSessionEvaluateResult(ctx, sessionIDs{
 		SessionBindingID: sessionBindingID,
 		SessionID:        sessionID,
 		UserID:           userID,
@@ -424,6 +424,7 @@ type sessionIDs struct {
 }
 
 func processSessionEvaluateResult(
+	ctx context.Context,
 	ids sessionIDs,
 	res *evaluator.Result,
 	pendingAuthContextUpdates *extensions_ssh.AuthContext,
@@ -444,6 +445,11 @@ func processSessionEvaluateResult(
 	// Check if two-person auth is required. It must be the only remaining deny
 	// reason (or not-allow reason). The presence of any other reasons constitutes
 	// auth failure.
+	// Note that "ssh-access-request-required" is checked in both allow and deny
+	// reasons. This is because you can use either the ssh_access_request_approved
+	// criteria in an allow block, or the ssh_access_request_not_approved criteria
+	// in a deny block, and the failure reasons are opposite each other such that
+	// the failure reason is always "ssh-access-request-required".
 	if (res.Allow.Value && len(res.Deny.Reasons) == 1 && res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired)) ||
 		(!res.Deny.Value && len(res.Allow.Reasons) == 1 && res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired)) {
 		// The session is valid
@@ -458,6 +464,14 @@ func processSessionEvaluateResult(
 			NextRequiredAuthMethod: MethodKeyboardInteractive,
 			ContextUpdates:         pendingAuthContextUpdates, // public key + session
 		}, nil
+	}
+
+	// Check for misconfigurations
+	if (!res.Allow.Value && res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestOK)) ||
+		(res.Deny.Value && res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestOK)) {
+		log.Ctx(ctx).Warn().Msg(
+			"policy is misconfigured: ssh_access_request_approved used in deny block " +
+				"and/or ssh_access_request_not_approved used in allow block")
 	}
 
 	// Deny
@@ -480,8 +494,8 @@ func (a *Auth) handleTwoPersonApproval(
 	defer ca()
 
 	_, err := querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
-		Name:        fmt.Sprintf("\nWaiting for approval (timeout: %s)\nRequest ID: %s\n", timeout, fmt.Sprintf("%x", streamInfo.StreamID)),
-		Instruction: "",
+		Name:        fmt.Sprintf("Waiting for approval (timeout: %s)", timeout),
+		Instruction: fmt.Sprintf("Request ID: %s", fmt.Sprintf("%x", streamInfo.StreamID)),
 		Prompts:     nil,
 	})
 	if err != nil {
