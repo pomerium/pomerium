@@ -24,9 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-var (
-	ErrTokenNoInitiatingSession = errors.New("mcp upstream refresh token does not have an initiating session")
-)
+var ErrTokenNoInitiatingSession = errors.New("mcp upstream refresh token does not have an initiating session")
 
 const (
 	// RefreshTokenTTL is the lifetime for MCP refresh tokens.
@@ -460,8 +458,7 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 		IssuedAt:             timestamppb.Now(),
 		ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		Scopes:               refreshTokenRecord.Scopes,
-		// keep the initating session
-		InitiatingSessionId: newSession.GetId(),
+		InitiatingSessionId:  newSession.GetId(),
 	}
 
 	log.Ctx(ctx).Debug().
@@ -533,13 +530,14 @@ func (srv *Handler) getOrRecreateSession(
 	upstreamRefreshToken := refreshTokenRecord.UpstreamRefreshToken
 	initiatingSession, existingRecordVersion, err := srv.getRecordSession(ctx, refreshTokenRecord)
 	if storage.IsNotFound(err) || errors.Is(err, ErrTokenNoInitiatingSession) {
-		// TODO : this needs to have the latest refresh token from the previously delete session
+		// the upstream token should carry the most recently seen refresh token from the expired session
+		// if it is available
 		return srv.recreateSession(ctx, refreshTokenRecord, refreshTokenRecord.UpstreamRefreshToken)
 	} else if err != nil {
 		return nil, 0, err
 	}
 
-	if sessionUsable(initiatingSession) {
+	if sessionUsableForRefresh(initiatingSession) {
 		log.Ctx(ctx).Debug().
 			Str("session-id", initiatingSession.Id).
 			Time("expires-at", initiatingSession.ExpiresAt.AsTime()).
@@ -549,7 +547,8 @@ func (srv *Handler) getOrRecreateSession(
 	// Prefer the refresh token stored on the session: the identity manager may have rotated it
 	// after this record was written, in which case the record's copy is no longer valid upstream.
 
-	// The session stil exists, but is no longer usable. In what scenarios could this happen?
+	// As far as I can tell this scenario happens when an expired session hasn't been deleted yet,
+	// or it has been created from incomingIDPTokenSessionCreator
 	if t := initiatingSession.GetOauthToken().GetRefreshToken(); t != "" {
 		upstreamRefreshToken = t
 	}
@@ -575,6 +574,9 @@ func (srv *Handler) recreateSession(
 		Str("idp-id", newSession.IdpId).
 		Time("expires-at", newSession.ExpiresAt.AsTime()).
 		Msg("mcp/session: created new session")
+
+	// the authenticator should get a new token only when the session is no longer valid and
+	// fetch a new token for use
 
 	// Refresh the upstream token to get a fresh access token and populate claims.
 	// We use NewSessionUnmarshaler to capture ID token claims from the upstream IdP.
@@ -666,10 +668,10 @@ func (srv *Handler) getRecordSession(
 	return s, recordVersion, nil
 }
 
-// sessionUsable reports whether a session can be handed back to the client as-is, without
+// sessionUsableForRefresh reports whether a session can be handed back to the client as-is, without
 // exchanging the upstream refresh token.
-func sessionUsable(s *session.Session) bool {
-	if s.GetOauthToken().GetAccessToken() == "" {
+func sessionUsableForRefresh(s *session.Session) bool {
+	if s.GetOauthToken().GetAccessToken() == "" || s.GetRefreshDisabled() {
 		return false
 	}
 	return s.Validate() == nil

@@ -2,18 +2,23 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 const (
@@ -21,35 +26,16 @@ const (
 	defaultRefreshTokenCleanupGracePeriod = time.Minute * 15
 )
 
+var ErrNoMCPToken = errors.New("session has no matching mcp token")
+
 type RefreshTokenMd struct {
 	Revoked   bool
 	RevokedAt time.Time
 	ExpiresAt time.Time
 }
 
-type StorageSyncer struct {
-	clientB databroker.ClientGetter
-	records map[string]*RefreshTokenMd
-	StorageSyncerOptions
-
-	mu sync.RWMutex
-}
-
 type StorageSyncerOptions struct {
-	// how often to cleanup refresh tokens
-	cleanupInterval time.Duration
-	// the grace period after which to clean up a token once it has been revoked
-	cleanupGracePeriodDuration time.Duration
-	// allows for fake clock tests
-	now func() time.Time
-}
-
-func defaultStorageSyncerOptions() *StorageSyncerOptions {
-	return &StorageSyncerOptions{
-		cleanupInterval:            defaultRefreshTokenCleanupInterval,
-		cleanupGracePeriodDuration: defaultRefreshTokenCleanupGracePeriod,
-		now:                        time.Now,
-	}
+	tokenOpts []TokenExpirationSyncerOption
 }
 
 func (o *StorageSyncerOptions) Apply(opts ...StorageSyncerOption) {
@@ -58,37 +44,107 @@ func (o *StorageSyncerOptions) Apply(opts ...StorageSyncerOption) {
 	}
 }
 
-type StorageSyncerOption func(*StorageSyncerOptions)
+type StorageSyncerOption func(o *StorageSyncerOptions)
 
-func WithCleanupInterval(d time.Duration) StorageSyncerOption {
-	return func(o *StorageSyncerOptions) { o.cleanupInterval = d }
+func WithTokenExpirationSyncerOption(opt TokenExpirationSyncerOption) StorageSyncerOption {
+	return func(o *StorageSyncerOptions) {
+		o.tokenOpts = append(o.tokenOpts, opt)
+	}
 }
 
-func WithCleanupGracePeriod(d time.Duration) StorageSyncerOption {
-	return func(o *StorageSyncerOptions) { o.cleanupGracePeriodDuration = d }
-}
-
-func WithClock(now func() time.Time) StorageSyncerOption {
-	return func(o *StorageSyncerOptions) { o.now = now }
+type StorageSyncer struct {
+	tokenExpiration    *tokenExpirationSyncer
+	sessionTokenSyncer *sessionTokenSyncer
 }
 
 func NewStorageSyncer(
 	clientB databroker.ClientGetter,
 	opts ...StorageSyncerOption,
 ) *StorageSyncer {
-	options := defaultStorageSyncerOptions()
+	options := &StorageSyncerOptions{
+		tokenOpts: []TokenExpirationSyncerOption{},
+	}
 	options.Apply(opts...)
-
 	return &StorageSyncer{
-		clientB:              clientB,
-		records:              map[string]*RefreshTokenMd{},
-		StorageSyncerOptions: *options,
+		tokenExpiration:    newTokenExpirationSyncer(clientB, options.tokenOpts...),
+		sessionTokenSyncer: newSessionTokenSyncer(clientB),
 	}
 }
 
-var _ databrokerutil.SyncerHandler = (*StorageSyncer)(nil)
-
 func (s *StorageSyncer) Run(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return s.tokenExpiration.Run(ctx)
+	})
+	eg.Go(func() error {
+		return s.sessionTokenSyncer.Run(ctx)
+	})
+
+	return eg.Wait()
+}
+
+func newTokenExpirationSyncer(
+	clientB databroker.ClientGetter,
+	opts ...TokenExpirationSyncerOption,
+) *tokenExpirationSyncer {
+	options := defaultTokenExpirationSyncerOptions()
+	options.Apply(opts...)
+	return &tokenExpirationSyncer{
+		clientB:                      clientB,
+		records:                      map[string]*RefreshTokenMd{},
+		mu:                           sync.RWMutex{},
+		TokenExpirationSyncerOptions: *options,
+	}
+}
+
+type tokenExpirationSyncer struct {
+	clientB databroker.ClientGetter
+	records map[string]*RefreshTokenMd
+	TokenExpirationSyncerOptions
+
+	mu sync.RWMutex
+}
+
+type TokenExpirationSyncerOptions struct {
+	// how often to cleanup refresh tokens
+	cleanupInterval time.Duration
+	// the grace period after which to clean up a token once it has been revoked
+	cleanupGracePeriodDuration time.Duration
+	// allows for fake clock tests
+	now func() time.Time
+}
+
+func defaultTokenExpirationSyncerOptions() *TokenExpirationSyncerOptions {
+	return &TokenExpirationSyncerOptions{
+		cleanupInterval:            defaultRefreshTokenCleanupInterval,
+		cleanupGracePeriodDuration: defaultRefreshTokenCleanupGracePeriod,
+		now:                        time.Now,
+	}
+}
+
+func (o *TokenExpirationSyncerOptions) Apply(opts ...TokenExpirationSyncerOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type TokenExpirationSyncerOption func(*TokenExpirationSyncerOptions)
+
+func WithCleanupInterval(d time.Duration) TokenExpirationSyncerOption {
+	return func(o *TokenExpirationSyncerOptions) { o.cleanupInterval = d }
+}
+
+func WithCleanupGracePeriod(d time.Duration) TokenExpirationSyncerOption {
+	return func(o *TokenExpirationSyncerOptions) { o.cleanupGracePeriodDuration = d }
+}
+
+func WithClock(now func() time.Time) TokenExpirationSyncerOption {
+	return func(o *TokenExpirationSyncerOptions) { o.now = now }
+}
+
+var _ databrokerutil.SyncerHandler = (*tokenExpirationSyncer)(nil)
+
+func (s *tokenExpirationSyncer) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return databrokerutil.NewSyncer(
@@ -106,17 +162,17 @@ func (s *StorageSyncer) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (s *StorageSyncer) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+func (s *tokenExpirationSyncer) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	return s.clientB.GetDataBrokerServiceClient()
 }
 
-func (s *StorageSyncer) ClearRecords(_ context.Context) {
+func (s *tokenExpirationSyncer) ClearRecords(_ context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.records = map[string]*RefreshTokenMd{}
 }
 
-func (s *StorageSyncer) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
+func (s *tokenExpirationSyncer) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -160,7 +216,7 @@ func (s *StorageSyncer) UpdateRecords(ctx context.Context, _ uint64, records []*
 }
 
 // RunCleanUp periodically deletes revoked and expired refresh tokens until ctx is done.
-func (s *StorageSyncer) RunCleanUp(ctx context.Context) error {
+func (s *tokenExpirationSyncer) RunCleanUp(ctx context.Context) error {
 	t := time.NewTicker(s.cleanupInterval)
 	defer t.Stop()
 	for {
@@ -176,7 +232,7 @@ func (s *StorageSyncer) RunCleanUp(ctx context.Context) error {
 }
 
 // expired reports whether the record is eligible for deletion.
-func (s *StorageSyncer) expired(md *RefreshTokenMd, now time.Time) bool {
+func (s *tokenExpirationSyncer) expired(md *RefreshTokenMd, now time.Time) bool {
 	if md.Revoked && md.RevokedAt.Add(s.cleanupGracePeriodDuration).Before(now) {
 		return true
 	}
@@ -184,7 +240,7 @@ func (s *StorageSyncer) expired(md *RefreshTokenMd, now time.Time) bool {
 	return md.ExpiresAt.Add(s.cleanupGracePeriodDuration).Before(now)
 }
 
-func (s *StorageSyncer) batchCleanUp(ctx context.Context) error {
+func (s *tokenExpirationSyncer) batchCleanUp(ctx context.Context) error {
 	now := s.now()
 
 	s.mu.RLock()
@@ -220,4 +276,150 @@ func (s *StorageSyncer) batchCleanUp(ctx context.Context) error {
 		Int("count", len(ids)).
 		Msg("mcp: deleted expired refresh tokens")
 	return nil
+}
+
+type sessionTokenSyncer struct {
+	clientB databroker.ClientGetter
+}
+
+func newSessionTokenSyncer(clientB databroker.ClientGetter) *sessionTokenSyncer {
+	return &sessionTokenSyncer{
+		clientB: clientB,
+	}
+}
+
+var _ databrokerutil.SyncerHandler = (*sessionTokenSyncer)(nil)
+
+func (s *sessionTokenSyncer) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return s.clientB.GetDataBrokerServiceClient()
+}
+func (s *sessionTokenSyncer) ClearRecords(_ context.Context) {}
+
+func (s *sessionTokenSyncer) queryMcpRefreshTokens(ctx context.Context, sessionID string) (*oauth21.MCPRefreshToken, error) {
+	b := backoff.NewConstantBackOff(time.Second)
+	mostRecent, err := backoff.RetryWithData(func() (*oauth21.MCPRefreshToken, error) {
+		mcpRefreshTokens, err := s.clientB.GetDataBrokerServiceClient().
+			Query(ctx, &databroker.QueryRequest{
+				Type:   "type.googleapis.com/oauth21.MCPRefreshToken",
+				Filter: indexedFieldFilter("initiating_session_id", sessionID),
+				Limit:  50,
+			})
+		if err != nil {
+			return nil, err
+		}
+		return mostRecentUsableRefreshToken(ctx, mcpRefreshTokens.GetRecords(), time.Now())
+	}, backoff.WithMaxRetries(backoff.WithContext(b, ctx), 3))
+	return mostRecent, err
+}
+
+func (s *sessionTokenSyncer) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
+	for _, rec := range records {
+		sessionID := rec.GetId()
+		if rec.GetDeletedAt() != nil {
+			continue
+		}
+		sessionProto := new(session.Session)
+		if err := rec.GetData().UnmarshalTo(sessionProto); err != nil {
+			log.Ctx(ctx).Error().Err(err).
+				Str("record-id", sessionID).
+				Msg("mcp: failed to unmarshal session record")
+			continue
+		}
+		if sessionProto.GetOauthToken().GetRefreshToken() == "" {
+			continue
+		}
+		mostRecent, err := s.queryMcpRefreshTokens(ctx, sessionID)
+		if err != nil {
+			if errors.Is(err, ErrNoMCPToken) {
+				log.Ctx(ctx).Debug().Str("session-id", sessionID).Msg("mcp : session does not have a matching mcp refresh token")
+			} else {
+				log.Ctx(ctx).Err(err).Str("session-id", sessionID).Msg("mcp: failed to fetch matching mcp upstream records for session")
+			}
+		}
+		if errors.Is(err, ErrNoMCPToken) {
+			continue
+		} else if err != nil {
+			continue
+		}
+		// TODO : are there some cases here where this is undesirable?
+		if mostRecent.UpstreamRefreshToken != sessionProto.GetOauthToken().RefreshToken {
+			mostRecent.UpstreamRefreshToken = sessionProto.GetOauthToken().RefreshToken
+			_, err := s.clientB.GetDataBrokerServiceClient().Put(
+				ctx,
+				&databroker.PutRequest{
+					Records: []*databroker.Record{
+						databroker.NewRecord(mostRecent),
+					},
+				},
+			)
+			if err != nil {
+				log.Ctx(ctx).Err(err).Msg("failed to refresh mcp refresh token from session")
+			}
+		}
+	}
+}
+
+// falls back to the most recently modified token when none are usable.
+// assumes len(records) > 0.
+func mostRecentUsableRefreshToken(
+	ctx context.Context,
+	records []*databroker.Record,
+	now time.Time,
+) (*oauth21.MCPRefreshToken, error) {
+	records = slices.Filter(records, func(d *databroker.Record) bool {
+		return d.GetDeletedAt() == nil
+	})
+
+	if len(records) == 0 {
+		return nil, backoff.Permanent(ErrNoMCPToken)
+	}
+
+	var bestValid, bestAny *oauth21.MCPRefreshToken
+	var bestValidAt, bestAnyAt time.Time
+
+	for _, rec := range records {
+		token := new(oauth21.MCPRefreshToken)
+		if err := rec.GetData().UnmarshalTo(token); err != nil {
+			log.Ctx(ctx).Error().Err(err).
+				Str("record-id", rec.GetId()).
+				Msg("mcp: failed to unmarshal refresh token record")
+			continue
+		}
+
+		modifiedAt := rec.GetModifiedAt().AsTime()
+		if bestAny == nil || modifiedAt.After(bestAnyAt) {
+			bestAny, bestAnyAt = token, modifiedAt
+		}
+		if token.GetRevoked() || !token.GetExpiresAt().AsTime().After(now) {
+			continue
+		}
+		if bestValid == nil || modifiedAt.After(bestValidAt) {
+			bestValid, bestValidAt = token, modifiedAt
+		}
+	}
+
+	if bestValid != nil {
+		return bestValid, nil
+	}
+	return bestAny, nil
+}
+
+func indexedFieldFilter(field, value string) (filter *structpb.Struct) {
+	filter, _ = structpb.NewStruct(map[string]any{
+		field: map[string]any{
+			"$eq": value,
+		},
+	})
+	return
+}
+
+func (s *sessionTokenSyncer) Run(ctx context.Context) error {
+	syncer := databrokerutil.NewSyncer(
+		ctx,
+		"mcp-session-token-syncer",
+		s,
+		databrokerutil.WithTypeURL("type.googleapis.com/session.Session"),
+		databrokerutil.WithFastForward(),
+	)
+	return syncer.Run(ctx)
 }

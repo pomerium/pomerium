@@ -793,6 +793,9 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 
 	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.MCPRefreshToken", &databrokerpb.Options{
 		Capacity: new(uint64(50000)),
+		IndexableFields: []string{
+			"initiating_session_id",
+		},
 	}); err != nil {
 		return err
 	}
