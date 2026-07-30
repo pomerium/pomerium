@@ -240,12 +240,14 @@ func (o *Options) validateSecrets() error {
 // "${secret.${pomerium.email}}", whose outer variable rolls back to the literal
 // text "${secret.").
 //
-// Only the braced form is checked. The simple form "$secret.x" always parses
-// cleanly and leaves no residue, so it needs no residue check; and checking the
-// bare "$secret" marker would misfire on the "$$" escape — "$$secret.name"
-// renders to a literal "$secret.name", a legal value that must not be rejected.
+// Only the braced form is checked: the simple form "$secret.x" always parses
+// cleanly and leaves no residue. Before scanning, the "$$" literal-dollar escape
+// is neutralized so an escaped literal such as "$${secret.name}" (which renders
+// to "${secret.name}") or "$$secret.name" cannot masquerade as residue and be
+// rejected as a malformed reference at startup.
 func secretResidue(value string) bool {
-	out := headertemplate.Render(value, func([]string) string { return "" })
+	escaped := strings.ReplaceAll(value, "$$", "\x00")
+	out := headertemplate.Render(escaped, func([]string) string { return "" })
 	return strings.Contains(out, "${secret")
 }
 
