@@ -149,6 +149,16 @@ func TestConfigSettings(t *testing.T) {
 		}))
 		assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 	})
+	t.Run("namespace id", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := client.GetSettings(t.Context(), connect.NewRequest(&configpb.GetSettingsRequest{
+			For: &configpb.GetSettingsRequest_NamespaceId{
+				NamespaceId: "NAMESPACE_ID",
+			},
+		}))
+		assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	})
 	t.Run("id", func(t *testing.T) {
 		t.Parallel()
 

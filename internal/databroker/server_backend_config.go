@@ -346,7 +346,7 @@ func (srv *backendConfigServer) GetSettings(
 
 	entity := new(configpb.Settings)
 	switch req.Msg.For.(type) {
-	case *configpb.GetSettingsRequest_ClusterId:
+	case *configpb.GetSettingsRequest_ClusterId, *configpb.GetSettingsRequest_NamespaceId:
 		// core only supports a single cluster, so always return not found
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("settings not found"))
 	case *configpb.GetSettingsRequest_Id:

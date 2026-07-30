@@ -2026,6 +2026,17 @@ components:
           title: id
           required:
             - id
+        - type: object
+          properties:
+            namespaceId:
+              type: string
+              title: namespace_id
+              description: |-
+                Look up Settings corresponding to this namespace ID. The Settings may
+                 belong to this namespace or to a parent namespace.
+          title: namespace_id
+          required:
+            - namespaceId
       title: GetSettingsRequest
       additionalProperties: false
     pomerium.config.GetSettingsResponse:

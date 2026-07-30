@@ -6451,6 +6451,7 @@ type GetSettingsRequest struct {
 	//
 	//	*GetSettingsRequest_Id
 	//	*GetSettingsRequest_ClusterId
+	//	*GetSettingsRequest_NamespaceId
 	For           isGetSettingsRequest_For `protobuf_oneof:"for"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -6511,6 +6512,15 @@ func (x *GetSettingsRequest) GetClusterId() string {
 	return ""
 }
 
+func (x *GetSettingsRequest) GetNamespaceId() string {
+	if x != nil {
+		if x, ok := x.For.(*GetSettingsRequest_NamespaceId); ok {
+			return x.NamespaceId
+		}
+	}
+	return ""
+}
+
 type isGetSettingsRequest_For interface {
 	isGetSettingsRequest_For()
 }
@@ -6525,9 +6535,17 @@ type GetSettingsRequest_ClusterId struct {
 	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3,oneof"`
 }
 
+type GetSettingsRequest_NamespaceId struct {
+	// Look up Settings corresponding to this namespace ID. The Settings may
+	// belong to this namespace or to a parent namespace.
+	NamespaceId string `protobuf:"bytes,3,opt,name=namespace_id,json=namespaceId,proto3,oneof"`
+}
+
 func (*GetSettingsRequest_Id) isGetSettingsRequest_For() {}
 
 func (*GetSettingsRequest_ClusterId) isGetSettingsRequest_For() {}
+
+func (*GetSettingsRequest_NamespaceId) isGetSettingsRequest_For() {}
 
 type GetSettingsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -10131,11 +10149,12 @@ const file_config_proto_rawDesc = "" +
 	"\x18GetServiceAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"e\n" +
 	"\x19GetServiceAccountResponse\x12H\n" +
-	"\x0fservice_account\x18\x02 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"N\n" +
+	"\x0fservice_account\x18\x02 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"s\n" +
 	"\x12GetSettingsRequest\x12\x10\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x12\x1f\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\tH\x00R\tclusterIdB\x05\n" +
+	"cluster_id\x18\x02 \x01(\tH\x00R\tclusterId\x12#\n" +
+	"\fnamespace_id\x18\x03 \x01(\tH\x00R\vnamespaceIdB\x05\n" +
 	"\x03for\"L\n" +
 	"\x13GetSettingsResponse\x125\n" +
 	"\bsettings\x18\x01 \x01(\v2\x19.pomerium.config.SettingsR\bsettings\"\x1f\n" +
@@ -10864,6 +10883,7 @@ func file_config_proto_init() {
 	file_config_proto_msgTypes[50].OneofWrappers = []any{
 		(*GetSettingsRequest_Id)(nil),
 		(*GetSettingsRequest_ClusterId)(nil),
+		(*GetSettingsRequest_NamespaceId)(nil),
 	}
 	file_config_proto_msgTypes[54].OneofWrappers = []any{}
 	file_config_proto_msgTypes[56].OneofWrappers = []any{}

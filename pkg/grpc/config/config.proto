@@ -1554,6 +1554,9 @@ message GetSettingsRequest {
     string id = 1;
     // Cluster ID whose Settings record should be returned.
     string cluster_id = 2;
+    // Look up Settings corresponding to this namespace ID. The Settings may
+    // belong to this namespace or to a parent namespace.
+    string namespace_id = 3;
   }
 }
 
