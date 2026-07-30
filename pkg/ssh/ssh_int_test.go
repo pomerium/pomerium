@@ -16,6 +16,7 @@ import (
 	"time"
 
 	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
@@ -34,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 )
@@ -459,6 +461,32 @@ func (s *SSHTestSuite) dialFrom127002(cc *gossh.ClientConfig) (*gossh.Client, er
 	return gossh.NewClient(c, chans, reqs), nil
 }
 
+func (s *SSHTestSuite) fetchAndUpdateStreamAccessRequest(id string, f func(*databroker.Record, *session.StreamAccessRequest)) {
+	s.T().Helper()
+	client := s.env.NewDataBrokerServiceClient()
+	record, err := client.Get(s.T().Context(), &databroker.GetRequest{
+		Type: "type.googleapis.com/session.StreamAccessRequest",
+		Id:   id,
+	})
+	s.Require().NoError(err)
+	s.Require().Nil(record.GetRecord().DeletedAt)
+	var msg session.StreamAccessRequest
+	err = record.GetRecord().GetData().UnmarshalTo(&msg)
+	s.Require().NoError(err)
+	s.Require().Equal(session.StreamAccessRequest_Pending, msg.State)
+	f(record.GetRecord(), &msg)
+	_, err = client.Put(s.T().Context(), &databroker.PutRequest{
+		Records: []*databroker.Record{
+			{
+				Type: "type.googleapis.com/session.StreamAccessRequest",
+				Id:   id,
+				Data: marshalAny(&msg),
+			},
+		},
+	})
+	s.Require().NoError(err)
+}
+
 func expectAuthSequence(t *testing.T, cc *gossh.ClientConfig, attemptListeners []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod) (verify func()) {
 	require.Nil(t, cc.AuthCallback, "test bug: do not reuse gossh.ClientConfig instances")
 	cc.AuthCallback = func(ctx *gossh.ClientAuthContext) (gossh.AuthMethod, error) {
@@ -495,6 +523,25 @@ func seqPublicKeyAcceptedThenKbdInt(t *testing.T) []func(*gossh.ClientAuthContex
 			return nil
 		},
 	}
+}
+
+func seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(t *testing.T, requestID chan<- string) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
+	return append(seqPublicKeyAcceptedThenKbdInt(t), func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+		t.Helper()
+		require.Equal(t, []string{"keyboard-interactive"}, ctx.AllowedMethods)
+		require.Equal(t, []string{"publickey", "keyboard-interactive"}, ctx.PartialSuccessMethods)
+		require.Equal(t, []string{"none"}, ctx.TriedMethods)
+		return gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+			t.Helper()
+			assert.Empty(t, questions)
+			assert.Empty(t, echos)
+			assert.Contains(t, name, "Waiting for approval")
+			require.Contains(t, instruction, "Request ID: ")
+			idStr := strings.TrimPrefix(instruction, "Request ID: ")
+			requestID <- idStr
+			return nil, nil
+		})
+	})
 }
 
 func seqPublicKeyRejected(t *testing.T) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
@@ -1036,6 +1083,171 @@ allow:
 			_, err := s.upstream.Dial(cc)
 			s.ErrorContains(err, "Permission Denied")
 		})
+	})
+
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+deny:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+`, func(api RouteTestAPI) {
+		s.Run("email allowed and denied", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+		s.Run("email neither allowed nor denied", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+	})
+
+	accessRequestTest := func(api RouteTestAPI) {
+		s.Run("request approved", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+			requestID := make(chan string, 1)
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
+			defer verify()
+			go func() {
+				select {
+				case id := <-requestID:
+					s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
+						s.Require().Equal(session.StreamAccessRequest_Pending, req.State)
+						req.State = session.StreamAccessRequest_Approved
+					})
+				case <-s.T().Context().Done():
+				}
+			}()
+			client, err := s.upstream.Dial(cc)
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+		s.Run("request denied", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
+			requestID := make(chan string, 1)
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
+			defer verify()
+			go func() {
+				select {
+				case id := <-requestID:
+					s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
+						s.Require().Equal(session.StreamAccessRequest_Pending, req.State)
+						req.State = session.StreamAccessRequest_Denied
+					})
+				case <-s.T().Context().Done():
+				}
+			}()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+	}
+	// these policies should be equivalent
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+          - "{{ routeUserEmail 2 }}"
+    - ssh_access_request_approved: {}
+`, accessRequestTest)
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+          - "{{ routeUserEmail 2 }}"
+deny:
+  or:
+    - ssh_access_request_not_approved: {}
+`, accessRequestTest)
+
+	inverseAccessRequestTest := func(api RouteTestAPI) {
+		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+		defer verify()
+		client, err := s.upstream.Dial(cc)
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		client.Close()
+	}
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+    - ssh_access_request_not_approved: {}
+`, inverseAccessRequestTest)
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+deny:
+  or:
+    - ssh_access_request_approved: {}
+`, inverseAccessRequestTest)
+
+	// if the policy is contradictory, it must not cause an infinite loop of
+	// requests
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+    - ssh_access_request_approved: {}
+    - ssh_access_request_not_approved: {}
+`, func(api RouteTestAPI) {
+		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+		requestID := make(chan string, 1)
+		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
+		defer verify()
+		go func() {
+			select {
+			case id := <-requestID:
+				s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
+					req.State = session.StreamAccessRequest_Approved
+				})
+			case <-s.T().Context().Done():
+			}
+		}()
+		defer verify()
+		_, err := s.upstream.Dial(cc)
+		s.ErrorContains(err, "Permission Denied")
+	})
+
+	// same for duplicate conditions (the second condition should be a no-op)
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+    - ssh_access_request_approved: {}
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+		requestID := make(chan string, 1)
+		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
+		defer verify()
+		go func() {
+			select {
+			case id := <-requestID:
+				s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
+					req.State = session.StreamAccessRequest_Approved
+				})
+			case <-s.T().Context().Done():
+			}
+		}()
+		defer verify()
+		client, err := s.upstream.Dial(cc)
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		client.Close()
 	})
 
 	rt.Start()

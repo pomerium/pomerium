@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -116,7 +117,9 @@ type StreamAccessRequestManager struct {
 	localWaitingStreamsMu sync.Mutex
 	localWaitingStreams   map[string]*inflightAccessRequest
 
-	startTime time.Time
+	startTime          time.Time
+	initialSyncDone    bool
+	waitForInitialSync chan struct{}
 }
 
 var streamAccessRequestTypeUrl = protoutil.GetTypeURL(&session.StreamAccessRequest{})
@@ -128,6 +131,7 @@ func NewStreamAccessRequestManager(ctx context.Context, client databroker.Client
 		done:                make(chan struct{}),
 		startTime:           time.Now(),
 		requestCache:        newAccessRequestCache(),
+		waitForInitialSync:  make(chan struct{}),
 	}
 
 	eg, ctxca := errgroup.WithContext(ctx)
@@ -143,30 +147,37 @@ func NewStreamAccessRequestManager(ctx context.Context, client databroker.Client
 	})
 	go func() {
 		defer close(m.done)
-		_ = eg.Wait()
+		err := eg.Wait()
+		log.Ctx(ctx).Debug().Err(err).Msg("stream access request syncer exited")
 	}()
 	return m
-}
-
-func (m *StreamAccessRequestManager) Done() chan struct{} {
-	return m.done
 }
 
 func (m *StreamAccessRequestManager) DoRequest(streamCtx context.Context, timeout time.Duration, params *session.StreamAccessRequestParams) (AccessRequestReply, error) {
 	streamID := params.StreamId
 	recordID := fmt.Sprintf("%x", streamID)
 
-	lg := log.Ctx(streamCtx).With().
-		Str("protocol", params.Protocol).
-		Str("sessionId", params.SessionId).
-		Str("streamId", recordID).
-		Str("userId", params.UserId).
-		Logger()
-
 	now := time.Now()
 	deadline := now.Add(timeout)
 	streamCtxWithDeadline, ca := context.WithDeadline(streamCtx, deadline)
 	defer ca()
+
+	select {
+	case <-m.waitForInitialSync:
+	case <-m.done:
+		return AccessRequestReply{}, status.Errorf(codes.Unavailable, "server stopped")
+	case <-streamCtxWithDeadline.Done():
+		return AccessRequestReply{}, status.Errorf(codes.Unavailable, "timed out waiting for databroker sync")
+	}
+
+	lg := log.Ctx(streamCtx).With().
+		Str("protocol", params.Protocol).
+		Str("session-id", params.SessionId).
+		Str("user-id", params.UserId).
+		Uint64("stream-id", params.StreamId).
+		Str("cluster-id", params.ClusterId).
+		Str("timeout", timeout.String()).
+		Logger()
 
 	m.localWaitingStreamsMu.Lock()
 
@@ -186,12 +197,6 @@ func (m *StreamAccessRequestManager) DoRequest(streamCtx context.Context, timeou
 
 	m.localWaitingStreamsMu.Unlock()
 
-	defer func() {
-		m.localWaitingStreamsMu.Lock()
-		delete(m.localWaitingStreams, recordID)
-		m.localWaitingStreamsMu.Unlock()
-	}()
-
 	if _, err := m.client.GetDataBrokerServiceClient().Put(streamCtxWithDeadline, &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
@@ -205,11 +210,23 @@ func (m *StreamAccessRequestManager) DoRequest(streamCtx context.Context, timeou
 			},
 		},
 	}); err != nil {
-		lg.Err(err).Msg("error creating StreamAccessRequest broker record")
+		// Handle cleanup separately here, since the order of operations in the
+		// defer below is important. The stream should be removed from
+		// m.localWaitingStreams before the record is deleted, to avoid confusing
+		// log messages
+		m.localWaitingStreamsMu.Lock()
+		delete(m.localWaitingStreams, recordID)
+		m.localWaitingStreamsMu.Unlock()
+
+		lg.Err(err).Msg("error creating StreamAccessRequest record")
 		return AccessRequestReply{}, status.Errorf(codes.Internal, "error creating access request")
 	}
 
 	defer func() {
+		m.localWaitingStreamsMu.Lock()
+		delete(m.localWaitingStreams, recordID)
+		m.localWaitingStreamsMu.Unlock()
+
 		_, err := storage.DeleteDataBrokerRecord(
 			context.Background(),
 			m.GetDataBrokerServiceClient(),
@@ -223,21 +240,29 @@ func (m *StreamAccessRequestManager) DoRequest(streamCtx context.Context, timeou
 
 	select {
 	case <-createdC:
-		lg.Debug().Msg("StreamAccessRequest was created successfully")
+		lg.Info().Msg("ssh: stream access request created")
+	case <-m.done:
+		lg.Info().Msg("ssh: stream access request canceled due to shutdown")
+		return AccessRequestReply{}, status.Error(codes.Canceled, "server shutting down")
 	case <-streamCtxWithDeadline.Done():
 		err := status.FromContextError(context.Cause(streamCtxWithDeadline)).Err()
-		lg.Err(err).Msg("timed out waiting for StreamAccessRequest to be created")
+		lg.Err(err).Msg("ssh: timed out waiting for stream access request to be created")
 		return AccessRequestReply{}, err
 	}
 
 	for {
 		select {
 		case <-m.done:
-			lg.Debug().Msg("StreamAccessRequest canceled due to shutdown")
-			return AccessRequestReply{}, status.Error(codes.Canceled, "canceled")
+			lg.Info().Msg("ssh: stream access request canceled due to shutdown")
+			return AccessRequestReply{}, status.Error(codes.Canceled, "server shutting down")
 		case <-streamCtxWithDeadline.Done():
-			lg.Debug().Msg("StreamAccessRequest timed out or the associated stream was closed")
-			return AccessRequestReply{}, status.FromContextError(context.Cause(streamCtxWithDeadline)).Err()
+			cause := context.Cause(streamCtxWithDeadline)
+			if errors.Is(cause, context.DeadlineExceeded) {
+				lg.Info().Msg("ssh: stream access request denied (request expired)")
+				return AccessRequestReply{}, status.Error(codes.DeadlineExceeded, "access request expired")
+			}
+			lg.Info().Err(cause).Msg("ssh: stream access request denied (canceled)")
+			return AccessRequestReply{}, status.FromContextError(cause).Err()
 		case reply := <-replyC:
 			return reply, nil
 		}
@@ -246,9 +271,16 @@ func (m *StreamAccessRequestManager) DoRequest(streamCtx context.Context, timeou
 
 // ClearRecords implements [databrokerutil.SyncerHandler].
 func (m *StreamAccessRequestManager) ClearRecords(ctx context.Context) {
+	if !m.initialSyncDone {
+		m.initialSyncDone = true
+		close(m.waitForInitialSync)
+		return
+	}
+
 	m.localWaitingStreamsMu.Lock()
-	for _, req := range m.localWaitingStreams {
-		req.Deny(nil)
+	for id, stream := range m.localWaitingStreams {
+		log.Ctx(ctx).Info().Str("id", id).Msg("stream access request denied (databroker sync reset)")
+		stream.Deny(nil)
 	}
 	m.localWaitingStreamsMu.Unlock()
 
@@ -268,13 +300,20 @@ func (m *StreamAccessRequestManager) UpdateRecords(ctx context.Context, _ uint64
 			log.Ctx(ctx).Error().Str("id", record.Id).Err(err).Msg("StreamAccessRequest record is invalid; ignoring")
 			continue
 		}
+		lg := log.Ctx(ctx).With().
+			Str("request-id", record.Id).
+			Str("cluster-id", req.Params.ClusterId).
+			Str("session-id", req.Params.SessionId).
+			Str("user-id", req.Params.UserId).
+			Logger()
 		if record.DeletedAt != nil {
 			if cached, ok := m.requestCache.Get(record.Id); ok {
 				if cached.Local {
 					m.localWaitingStreamsMu.Lock()
 					if stream, ok := m.localWaitingStreams[record.Id]; ok {
-						log.Ctx(ctx).Warn().Str("id", record.Id).Msg("StreamAccessRequest was deleted while the stream is still active; denying request")
-						_ = stream.Deny(nil)
+						if stream.Deny(nil) {
+							lg.Warn().Msg("stream access request denied: record deleted while the stream is still active")
+						}
 					}
 					m.localWaitingStreamsMu.Unlock()
 				}
@@ -286,7 +325,7 @@ func (m *StreamAccessRequestManager) UpdateRecords(ctx context.Context, _ uint64
 			// the record is stale and was probably left over from a previous instance
 			// that was killed or if there was a databroker connection error, so try
 			// to delete it
-			log.Ctx(ctx).Info().Str("id", record.Id).Str("expired-at", req.ExpiresAt.String()).
+			lg.Debug().Str("expired-at", req.ExpiresAt.String()).
 				Msg("deleting stale StreamAccessRequest databroker record")
 			_, _ = storage.DeleteDataBrokerRecord(
 				context.Background(),
@@ -307,24 +346,21 @@ func (m *StreamAccessRequestManager) UpdateRecords(ctx context.Context, _ uint64
 					// the request is approved or denied. check if the stream for this request is
 					// still waiting
 					if stream, ok := m.localWaitingStreams[record.Id]; ok {
-						switch req.State {
-						case session.StreamAccessRequest_Approved:
+						if req.State == session.StreamAccessRequest_Approved {
 							// Check if the request is expired or if it was modified after the expiration time
 							if exp := req.ExpiresAt.AsTime(); exp.Before(time.Now()) || record.ModifiedAt.AsTime().After(exp) {
 								if stream.Deny(req.Metadata) {
-									log.Ctx(ctx).Warn().Str("id", record.Id).Msg("Stream Access Request approved after expiry; denying request")
+									lg.Warn().Any("metadata", req.Metadata).Msg("ssh: stream access request denied: approved after request expired")
 								}
 							} else {
 								if stream.Approve(req.Metadata) {
-									log.Ctx(ctx).Info().Str("id", record.Id).Any("metadata", req.Metadata).Msg("Stream Access Request approved")
+									lg.Info().Any("metadata", req.Metadata).Msg("ssh: stream access request approved")
 								}
 							}
-						case session.StreamAccessRequest_Denied:
+						} else {
 							if stream.Deny(req.Metadata) {
-								log.Ctx(ctx).Info().Str("id", record.Id).Any("metadata", req.Metadata).Msg("Stream Access Request denied")
+								lg.Info().Any("metadata", req.Metadata).Msg("ssh: stream access request denied")
 							}
-						default:
-							panic("unreachable")
 						}
 					}
 				}
