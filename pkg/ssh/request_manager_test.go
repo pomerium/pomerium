@@ -7,13 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/databroker"
-	"github.com/pomerium/pomerium/internal/retry"
-	"github.com/pomerium/pomerium/internal/testutil"
-	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/ssh"
-	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -23,6 +16,14 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/pomerium/pomerium/internal/databroker"
+	"github.com/pomerium/pomerium/internal/retry"
+	"github.com/pomerium/pomerium/internal/testutil"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/ssh"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 type wrapperGetter struct {
@@ -631,14 +632,14 @@ type srvDatabrokerPutError struct {
 	databrokerpb.DataBrokerServiceServer
 }
 
-func (m *srvDatabrokerPutError) SyncLatest(req *databrokerpb.SyncLatestRequest, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+func (m *srvDatabrokerPutError) SyncLatest(_ *databrokerpb.SyncLatestRequest, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
 	stream.Send(&databrokerpb.SyncLatestResponse{
 		Response: &databrokerpb.SyncLatestResponse_Versions{Versions: &databrokerpb.Versions{}},
 	})
 	return nil
 }
 
-func (m *srvDatabrokerPutError) Sync(req *databrokerpb.SyncRequest, stream databrokerpb.DataBrokerService_SyncServer) error {
+func (m *srvDatabrokerPutError) Sync(_ *databrokerpb.SyncRequest, stream databrokerpb.DataBrokerService_SyncServer) error {
 	<-stream.Context().Done()
 	return nil
 }
@@ -676,7 +677,7 @@ type srvDatabrokerInitialSyncError struct {
 	databrokerpb.DataBrokerServiceServer
 }
 
-func (m *srvDatabrokerInitialSyncError) SyncLatest(req *databrokerpb.SyncLatestRequest, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+func (m *srvDatabrokerInitialSyncError) SyncLatest(_ *databrokerpb.SyncLatestRequest, _ databrokerpb.DataBrokerService_SyncLatestServer) error {
 	return status.Errorf(codes.Internal, "test error")
 }
 

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -218,10 +219,9 @@ type routeTestCase struct {
 }
 
 type RouteTests struct {
-	s            *SSHTestSuite
-	subtestCount int
-	testCases    []routeTestCase
-	modes        []PublicKeyType
+	s         *SSHTestSuite
+	testCases []routeTestCase
+	modes     []PublicKeyType
 }
 
 func (s *SSHTestSuite) InitRouteTests(modes []PublicKeyType) *RouteTests {
@@ -268,8 +268,8 @@ func (api *routeTestAPI) StaticUserEmail(userPlaceholder int) string {
 
 func (rt *RouteTests) AddRouteTest(pplTemplate string, fn func(api RouteTestAPI)) {
 	rt.s.Require().NotContains(pplTemplate, "\t", "ppl template yaml must not contain tab characters")
-	rt.subtestCount++
-	tcNamePrefix := fmt.Sprintf("route-test-%d", rt.subtestCount)
+	_, _, line, _ := runtime.Caller(1)
+	tcNamePrefix := fmt.Sprintf("route-test-%d", line)
 
 	for _, mode := range rt.modes {
 		rt.s.Require().Less(len(rt.testCases), idpUserMaxRoutes, "too many route tests; increase the value of idpUserMaxRoutes")
@@ -1109,26 +1109,30 @@ deny:
 		})
 	})
 
+	approveAndVerifySuccess := func(cc *gossh.ClientConfig) {
+		s.T().Helper()
+		requestID := make(chan string, 1)
+		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
+		defer verify()
+		go func() {
+			select {
+			case id := <-requestID:
+				s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
+					req.State = session.StreamAccessRequest_Approved
+				})
+			case <-s.T().Context().Done():
+			}
+		}()
+		client, err := s.upstream.Dial(cc)
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		client.Close()
+	}
+
 	accessRequestTest := func(api RouteTestAPI) {
 		s.Run("request approved", func() {
 			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
-			requestID := make(chan string, 1)
-			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
-			defer verify()
-			go func() {
-				select {
-				case id := <-requestID:
-					s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
-						s.Require().Equal(session.StreamAccessRequest_Pending, req.State)
-						req.State = session.StreamAccessRequest_Approved
-					})
-				case <-s.T().Context().Done():
-				}
-			}()
-			client, err := s.upstream.Dial(cc)
-			s.Require().NoError(err)
-			VerifyWorkingShell(s.T(), client)
-			client.Close()
+			approveAndVerifySuccess(cc)
 		})
 		s.Run("request denied", func() {
 			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
@@ -1158,7 +1162,9 @@ allow:
           - "{{ routeUserEmail 1 }}"
           - "{{ routeUserEmail 2 }}"
     - ssh_access_request_approved: {}
-`, accessRequestTest)
+`, func(api RouteTestAPI) {
+		accessRequestTest(api)
+	})
 	rt.AddRouteTest(`
 allow:
   and:
@@ -1169,9 +1175,11 @@ allow:
 deny:
   or:
     - ssh_access_request_not_approved: {}
-`, accessRequestTest)
+`, func(api RouteTestAPI) {
+		accessRequestTest(api)
+	})
 
-	inverseAccessRequestTest := func(api RouteTestAPI) {
+	misconfiguredAccessRequestIgnoredTest := func(api RouteTestAPI) {
 		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
 		defer verify()
@@ -1185,7 +1193,9 @@ allow:
   and:
     - email: "{{ routeUserEmail 1 }}"
     - ssh_access_request_not_approved: {}
-`, inverseAccessRequestTest)
+`, func(api RouteTestAPI) {
+		misconfiguredAccessRequestIgnoredTest(api)
+	})
 	rt.AddRouteTest(`
 allow:
   and:
@@ -1193,8 +1203,20 @@ allow:
 deny:
   or:
     - ssh_access_request_approved: {}
-`, inverseAccessRequestTest)
-
+`, func(api RouteTestAPI) {
+		misconfiguredAccessRequestIgnoredTest(api)
+	})
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+    - ssh_access_request_not_approved: {}
+deny:
+  or:
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		misconfiguredAccessRequestIgnoredTest(api)
+	})
 	// if the policy is contradictory, it must not cause an infinite loop of
 	// requests
 	rt.AddRouteTest(`
@@ -1231,23 +1253,21 @@ allow:
     - ssh_access_request_approved: {}
 `, func(api RouteTestAPI) {
 		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
-		requestID := make(chan string, 1)
-		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
-		defer verify()
-		go func() {
-			select {
-			case id := <-requestID:
-				s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
-					req.State = session.StreamAccessRequest_Approved
-				})
-			case <-s.T().Context().Done():
-			}
-		}()
-		defer verify()
-		client, err := s.upstream.Dial(cc)
-		s.Require().NoError(err)
-		VerifyWorkingShell(s.T(), client)
-		client.Close()
+		approveAndVerifySuccess(cc)
+	})
+
+	// redundant conditions
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+    - ssh_access_request_approved: {}
+deny:
+  or:
+    - ssh_access_request_not_approved: {}
+`, func(api RouteTestAPI) {
+		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+		approveAndVerifySuccess(cc)
 	})
 
 	rt.Start()
