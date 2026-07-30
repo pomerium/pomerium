@@ -132,6 +132,10 @@ type Environment interface {
 	// instances are invoked in order to build the configuration, and all
 	// previously added [Task] instances are started in the background.
 	//
+	// Start() does not return until all previously added modifiers have been
+	// invoked, so that the test can read the configuration they built without
+	// racing with them.
+	//
 	// Calling Start() more than once, Calling Start() after Stop(), or calling
 	// any of the Add* functions after Start() will panic.
 	Start()
@@ -712,12 +716,14 @@ func (e *environment) Start() {
 	}
 
 	e.src = &configSource{cfg: cfg}
+
+	// Modifiers are applied from within a task, since they can block on values
+	// that are only resolved once other tasks are running (e.g. upstream server
+	// addresses).
+	modifiersApplied := make(chan struct{})
 	e.AddTask(TaskFunc(func(ctx context.Context) error {
 		fileMgr := filemgr.NewManager(filemgr.WithCacheDir(filepath.Join(e.TempDir(), "cache")))
-		for _, mod := range e.mods {
-			mod.Value.Modify(cfg)
-			require.NoError(e.t, cfg.Options.Validate(), "invoking modifier resulted in an invalid configuration:\nadded by: "+mod.Caller)
-		}
+		e.applyModifiers(cfg, modifiersApplied)
 
 		opts := []pomerium.Option{
 			pomerium.WithOverrideFileManager(fileMgr),
@@ -791,9 +797,28 @@ func (e *environment) Start() {
 		})
 	}
 
-	runtime.Gosched()
+	// Don't return until the configuration is complete, so that reads of it from
+	// the test's own goroutine don't race with the modifiers. The context is also
+	// awaited, since a modifier blocked on a value belonging to a task that
+	// failed would otherwise never finish.
+	select {
+	case <-modifiersApplied:
+	case <-e.Context().Done():
+	}
 
 	e.advanceState(Running)
+}
+
+// applyModifiers invokes all added modifiers in order to build the
+// configuration, then closes done. done is closed even if a modifier or its
+// validation fails, since require.NoError only stops this goroutine, not the
+// test, and Start() would otherwise block forever.
+func (e *environment) applyModifiers(cfg *config.Config, done chan<- struct{}) {
+	defer close(done)
+	for _, mod := range e.mods {
+		mod.Value.Modify(cfg)
+		require.NoError(e.t, cfg.Options.Validate(), "invoking modifier resulted in an invalid configuration:\nadded by: "+mod.Caller)
+	}
 }
 
 func (e *environment) NewClientCert(templateOverrides ...*x509.Certificate) *Certificate {
