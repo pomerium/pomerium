@@ -288,7 +288,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		}, nil
 	}
 
-	return processSessionEvaluateResult(ctx, sessionIDs{
+	return processSessionEvaluateResult(sessionIDs{
 		SessionBindingID: sessionBindingID,
 		SessionID:        sessionBinding.SessionId,
 		UserID:           sessionBinding.UserId,
@@ -381,7 +381,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 			if cfg.Options.SSHTwoPersonApprovalRequestTimeout != 0 {
 				timeout = cfg.Options.SSHTwoPersonApprovalRequestTimeout
 			}
-			reply, err := a.handleTwoPersonApproval(ctx, timeout, policy, streamInfo, authInfo, user, querier)
+			reply, err := a.handleTwoPersonApproval(ctx, timeout, policy, streamInfo, authInfo, querier)
 			if err != nil {
 				return AuthMethodResponse{}, err
 			}
@@ -410,7 +410,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	if err != nil {
 		return AuthMethodResponse{}, err
 	}
-	return processSessionEvaluateResult(ctx, sessionIDs{
+	return processSessionEvaluateResult(sessionIDs{
 		SessionBindingID: sessionBindingID,
 		SessionID:        sessionID,
 		UserID:           userID,
@@ -424,34 +424,23 @@ type sessionIDs struct {
 }
 
 func processSessionEvaluateResult(
-	ctx context.Context,
 	ids sessionIDs,
 	res *evaluator.Result,
 	pendingAuthContextUpdates *extensions_ssh.AuthContext,
 ) (AuthMethodResponse, error) {
 	if res.Allow.Value && !res.Deny.Value {
-		// The session is valid and there are no deny reasons
 		pendingAuthContextUpdates.SessionBindingId = ids.SessionBindingID
 		pendingAuthContextUpdates.SessionId = ids.SessionID
 		pendingAuthContextUpdates.UserId = ids.UserID
 
 		return AuthMethodResponse{
-			AllowMethod:              true, // publickey
+			AllowMethod:              true,
 			NoFurtherMethodsRequired: true,
-			ContextUpdates:           pendingAuthContextUpdates, // public key + session
+			ContextUpdates:           pendingAuthContextUpdates,
 		}, nil
 	}
 
-	// Check if two-person auth is required. It must be the only remaining deny
-	// reason (or not-allow reason). The presence of any other reasons constitutes
-	// auth failure.
-	// Note that "ssh-access-request-required" is checked in both allow and deny
-	// reasons. This is because you can use either the ssh_access_request_approved
-	// criteria in an allow block, or the ssh_access_request_not_approved criteria
-	// in a deny block, and the failure reasons are opposite each other such that
-	// the failure reason is always "ssh-access-request-required".
-	if (res.Allow.Value && len(res.Deny.Reasons) == 1 && res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired)) ||
-		(!res.Deny.Value && len(res.Allow.Reasons) == 1 && res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired)) {
+	if twoPersonAuthRequired(res) {
 		// The session is valid
 		pendingAuthContextUpdates.SessionBindingId = ids.SessionBindingID
 		pendingAuthContextUpdates.SessionId = ids.SessionID
@@ -460,22 +449,52 @@ func processSessionEvaluateResult(
 		pendingAuthContextUpdates.AccessRequestState = extensions_ssh.AccessRequestState_Pending
 
 		return AuthMethodResponse{
-			AllowMethod:            true, // publickey
+			AllowMethod:            true,
 			NextRequiredAuthMethod: MethodKeyboardInteractive,
-			ContextUpdates:         pendingAuthContextUpdates, // public key + session
+			ContextUpdates:         pendingAuthContextUpdates,
 		}, nil
-	}
-
-	// Check for misconfigurations
-	if (!res.Allow.Value && res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestOK)) ||
-		(res.Deny.Value && res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestOK)) {
-		log.Ctx(ctx).Warn().Msg(
-			"policy is misconfigured: ssh_access_request_approved used in deny block " +
-				"and/or ssh_access_request_not_approved used in allow block")
 	}
 
 	// Deny
 	return AuthMethodResponse{}, nil
+}
+
+func twoPersonAuthRequired(res *evaluator.Result) bool {
+	// Note that the same "ssh-access-request-required" reason is checked in both
+	// allow and deny reasons (contrary to the way ssh_publickey and source_ip
+	// reasons are handled). This is because you can use either the
+	// ssh_access_request_approved criteria in an allow block, or the
+	// ssh_access_request_not_approved criteria in a deny block, and the failure
+	// reason is always "ssh-access-request-required" regardless.
+
+	if res.Allow.Value == res.Deny.Value {
+		// Either the allow or deny criteria failed, but not both. If the last
+		// remaining reason for whichever one was rejected is
+		// "ssh-access-request-required", then two person auth is required. If there
+		// are any other unrelated failure reasons then the request is denied.
+		if res.Allow.Value && len(res.Deny.Reasons) == 1 &&
+			res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {
+			return true
+		} else if !res.Deny.Value && len(res.Allow.Reasons) == 1 &&
+			res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {
+			return true
+		}
+	} else if !res.Allow.Value {
+		// This handles the unusual case of redundant criteria, as in:
+		//
+		//  allow:
+		//    and:
+		//      - ssh_access_request_approved: {}
+		//  deny:
+		//    or:
+		//      - ssh_access_request_not_approved: {}
+		if len(res.Allow.Reasons) == 1 && len(res.Deny.Reasons) == 1 &&
+			res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) &&
+			res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *Auth) handleTwoPersonApproval(
@@ -484,7 +503,6 @@ func (a *Auth) handleTwoPersonApproval(
 	policy *config.Policy,
 	streamInfo StreamInfo,
 	authInfo StreamAuthInfo,
-	user api.UserRequest,
 	querier KeyboardInteractiveQuerier,
 ) (AccessRequestReply, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleTwoPersonApproval")
@@ -718,7 +736,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authI
 }
 
 // BuildTargetChannelFilters implements [AuthInterface].
-func (a *Auth) BuildTargetChannelFilters(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
+func (a *Auth) BuildTargetChannelFilters(_ context.Context, _ StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
 	hostname := user.Hostname()
 	if hostname == "" {
 		return nil, nil, fmt.Errorf("no hostname")
@@ -732,10 +750,8 @@ func (a *Auth) BuildTargetChannelFilters(ctx context.Context, streamInfo StreamI
 	addr := SocketAddressFromString(route)
 	extensionConfigs := []*corev3.TypedExtensionConfig{}
 
-	enableSessionRecording := false
-	if route.SessionRecording.IsSet && route.SessionRecording.Value.Enabled.Or(false) {
-		enableSessionRecording = true
-	}
+	enableSessionRecording := route.SessionRecording.IsSet && route.SessionRecording.Value.Enabled.Or(false)
+
 	if authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Approved {
 		md := authInfo.GetAccessRequestMetadata()
 		if _, ok := md["enable_session_recording"]; ok {

@@ -7,16 +7,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pomerium/pomerium/pkg/databrokerutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/protoutil"
-	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 type AccessRequestReply struct {
@@ -79,13 +80,13 @@ func (c *accessRequestCache) Add(requestID string, request *session.StreamAccess
 func (c *accessRequestCache) Update(requestID string, request *session.StreamAccessRequest) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if r, ok := c.requests[requestID]; !ok {
-		panic("bug: access request does not exist")
-	} else {
+	if r, ok := c.requests[requestID]; ok {
 		c.requests[requestID] = accessRequestCacheEntry{
 			Request: request,
 			Local:   r.Local,
 		}
+	} else {
+		panic("bug: access request does not exist")
 	}
 }
 
@@ -122,7 +123,7 @@ type StreamAccessRequestManager struct {
 	waitForInitialSync chan struct{}
 }
 
-var streamAccessRequestTypeUrl = protoutil.GetTypeURL(&session.StreamAccessRequest{})
+var streamAccessRequestTypeURL = protoutil.GetTypeURL(&session.StreamAccessRequest{})
 
 func NewStreamAccessRequestManager(ctx context.Context, client databroker.ClientGetter) *StreamAccessRequestManager {
 	m := &StreamAccessRequestManager{
@@ -141,7 +142,7 @@ func NewStreamAccessRequestManager(ctx context.Context, client databroker.Client
 			ctxca,
 			"ssh-stream-access-request-syncer",
 			m,
-			databrokerutil.WithTypeURL(streamAccessRequestTypeUrl),
+			databrokerutil.WithTypeURL(streamAccessRequestTypeURL),
 		)
 		return syncer.Run(ctxca)
 	})
@@ -200,7 +201,7 @@ func (m *StreamAccessRequestManager) DoRequest(streamCtx context.Context, timeou
 	if _, err := m.client.GetDataBrokerServiceClient().Put(streamCtxWithDeadline, &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
-				Type: streamAccessRequestTypeUrl,
+				Type: streamAccessRequestTypeURL,
 				Id:   recordID,
 				Data: protoutil.NewAny(&session.StreamAccessRequest{
 					Params:    params,
@@ -230,7 +231,7 @@ func (m *StreamAccessRequestManager) DoRequest(streamCtx context.Context, timeou
 		_, err := storage.DeleteDataBrokerRecord(
 			context.Background(),
 			m.GetDataBrokerServiceClient(),
-			streamAccessRequestTypeUrl,
+			streamAccessRequestTypeURL,
 			recordID)
 		if err != nil {
 			lg.Err(err).Msg("error deleting StreamAccessRequest databroker record; " +
@@ -330,7 +331,7 @@ func (m *StreamAccessRequestManager) UpdateRecords(ctx context.Context, _ uint64
 			_, _ = storage.DeleteDataBrokerRecord(
 				context.Background(),
 				m.GetDataBrokerServiceClient(),
-				streamAccessRequestTypeUrl,
+				streamAccessRequestTypeURL,
 				record.Id)
 			continue
 		}
