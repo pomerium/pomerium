@@ -388,6 +388,7 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyInd
 	sm.bindingSyncer = bindingSyncer
 
 	sm.indexer.ProcessConfigUpdate(cfg)
+	sm.auth.ProcessConfigUpdate(cfg)
 	return sm
 }
 
@@ -451,6 +452,7 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
 	sm.indexer.ProcessConfigUpdate(cfg)
+	sm.auth.ProcessConfigUpdate(cfg)
 
 	// TODO: integrate the re-auth mechanism with the indexer
 	select {

@@ -1,15 +1,18 @@
 package ssh
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"strconv"
-	"sync/atomic"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -20,6 +23,7 @@ import (
 	noopmetric "go.opentelemetry.io/otel/metric/noop"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	nooptrace "go.opentelemetry.io/otel/trace/noop"
+	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -32,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	userpb "github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
@@ -72,13 +77,69 @@ type AuthRequest struct {
 	LogOnlyIfDenied  bool
 }
 
+type configSnapshot struct {
+	sshRoutesByHostname             map[string]*config.Policy
+	identityProviderByRouteHostname map[string]*identitypb.Provider
+	authenticateURL                 *url.URL
+	authenticateRedirectURL         *url.URL
+	serviceAccountCertChecker       *gossh.CertChecker
+	useStatelessAuthenticateFlow    bool
+	runtimeFlags                    config.RuntimeFlags
+}
+
+func (cs *configSnapshot) GetRouteForSSHHostname(hostname string) *config.Policy {
+	r, _ := cs.sshRoutesByHostname[hostname]
+	return r
+}
+
+func newConfigSnapshot(cfg *config.Config) *configSnapshot {
+	authenticateUrl, _ := cfg.Options.GetAuthenticateURL()
+	authenticateRedirectUrl, _ := cfg.Options.GetAuthenticateRedirectURL()
+	cs := &configSnapshot{
+		useStatelessAuthenticateFlow:    cfg.Options.UseStatelessAuthenticateFlow(),
+		authenticateURL:                 authenticateUrl,
+		authenticateRedirectURL:         authenticateRedirectUrl,
+		sshRoutesByHostname:             map[string]*config.Policy{},
+		identityProviderByRouteHostname: map[string]*identitypb.Provider{},
+		runtimeFlags:                    cfg.Options.RuntimeFlags,
+	}
+	for route := range cfg.Options.GetAllPolicies() {
+		if route.IsSSH() {
+			idp, err := cfg.Options.GetIdentityProviderForPolicy(route)
+			if err != nil {
+				continue
+			}
+			hostname := strings.TrimPrefix(route.From, "ssh://")
+			cs.sshRoutesByHostname[hostname] = route
+			cs.identityProviderByRouteHostname[hostname] = idp
+		}
+	}
+	if serviceAccountKey, err := cfg.Options.GetSSHServiceAccountCAKey(); err == nil {
+		cs.serviceAccountCertChecker = &gossh.CertChecker{
+			SupportedCriticalOptions: []string{
+				"namespace_id",
+				"originator_id",
+				"description",
+				"user_id",
+			},
+			IsUserAuthority: func(auth gossh.PublicKey) bool {
+				return bytes.Equal(serviceAccountKey.PublicKey().Marshal(), auth.Marshal())
+			},
+			// TODO: revocation?
+		}
+	}
+	return cs
+}
+
 type Auth struct {
 	evaluator      Evaluator
-	currentConfig  *atomic.Pointer[config.Config]
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
 	codeIssuer     code.Issuer
 	codeMetrics    *code.Metrics
+
+	configSnapshotMu           sync.Mutex
+	configSnapshotRequiresLock *configSnapshot
 }
 
 type Options struct {
@@ -108,7 +169,6 @@ func WithTracer(t oteltrace.Tracer) Option {
 
 func NewAuth(
 	evaluator Evaluator,
-	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
 	codeIssuer code.Issuer,
 	_ any, // temporary placeholder
@@ -125,13 +185,24 @@ func NewAuth(
 	}
 
 	return &Auth{
-		evaluator,
-		currentConfig,
-		tracerProvider,
-		options.tracer,
-		codeIssuer,
-		metrics,
+		evaluator:      evaluator,
+		tracerProvider: tracerProvider,
+		tracer:         options.tracer,
+		codeIssuer:     codeIssuer,
+		codeMetrics:    metrics,
 	}
+}
+
+func (a *Auth) ProcessConfigUpdate(cfg *config.Config) {
+	a.configSnapshotMu.Lock()
+	defer a.configSnapshotMu.Unlock()
+	a.configSnapshotRequiresLock = newConfigSnapshot(cfg)
+}
+
+func (a *Auth) getConfigSnapshot() *configSnapshot {
+	a.configSnapshotMu.Lock()
+	defer a.configSnapshotMu.Unlock()
+	return a.configSnapshotRequiresLock
 }
 
 // GetDataBrokerServiceClient implements AuthInterface.
@@ -174,6 +245,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	user api.UserRequest,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (AuthMethodResponse, error) {
+	cfg := a.getConfigSnapshot()
 	pendingAuthContextUpdates := &extensions_ssh.AuthContext{}
 
 	// First, try authenticating with the public key only, to see if it is allowed
@@ -246,18 +318,41 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	if err != nil {
 		return AuthMethodResponse{}, err
 	}
-	sessionBinding, _, err := a.resolveSession(ctx, sessionBindingID)
+	sessionBinding, sessionOrServiceAccount, err := a.resolveSession(ctx, sessionBindingID)
 	if err != nil {
-		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			// No session, and one is required
+		if !databroker.IsNotFound(err) {
+			// No session, but there was an error checking the databroker or something
+			return AuthMethodResponse{}, err
+		}
+		// No session, and one is required
+
+		// Check if the public key might be a valid service account
+		if cfg.serviceAccountCertChecker != nil &&
+			strings.HasSuffix(req.PublicKeyAlg, "-cert-v01@openssh.com") {
+			pk, err := gossh.ParsePublicKey(req.PublicKey)
+			if err != nil {
+				// should not be possible, since the public key is validated by envoy
+				// before it gets here
+				panic(fmt.Sprintf("bug: malformed public key: %s", err))
+			}
+			pkCert := pk.(*gossh.Certificate)
+			principal := fmt.Sprintf("%s@%s", user.Username(), user.Hostname())
+			if err := cfg.serviceAccountCertChecker.CheckCert(principal, pkCert); err == nil {
+				if err := a.createImplicitServiceAccountForCert(ctx, sessionBindingID, pkCert); err != nil {
+					return AuthMethodResponse{}, err
+				}
+				sessionBinding, sessionOrServiceAccount, err = a.resolveSession(ctx, sessionBindingID)
+				if err != nil {
+					return AuthMethodResponse{}, err
+				}
+			}
+		} else {
 			return AuthMethodResponse{
 				AllowMethod:            true, // publickey
 				NextRequiredAuthMethod: MethodKeyboardInteractive,
 				ContextUpdates:         pendingAuthContextUpdates, // the public key is valid
 			}, nil
 		}
-		// No session, but there was an error checking the databroker or something
-		return AuthMethodResponse{}, err
 	}
 
 	// Evaluate again, this time with the session info populated.
@@ -277,6 +372,12 @@ func (a *Auth) handlePublicKeyMethodRequest(
 
 	if res.HasReason(criteria.ReasonUserUnauthenticated) {
 		// The session is not valid
+
+		// If the invalid session is for a service account, they cannot perform
+		// interactive auth, so deny the request
+		if _, ok := sessionOrServiceAccount.(*userpb.ServiceAccount); ok {
+			return AuthMethodResponse{}, nil
+		}
 		return AuthMethodResponse{
 			AllowMethod:            true, // publickey
 			NextRequiredAuthMethod: MethodKeyboardInteractive,
@@ -291,6 +392,69 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	}, res, pendingAuthContextUpdates)
 }
 
+func (a *Auth) createImplicitServiceAccountForCert(ctx context.Context, sessionBindingID string, pkCert *gossh.Certificate) error {
+	digest := sha256.Sum256(pkCert.Marshal())
+	serviceAccountID := hex.EncodeToString(digest[:])
+	userID := pkCert.CriticalOptions["user_id"]
+	if userID == "" {
+		return status.Errorf(codes.InvalidArgument, "user_id option missing from certificate")
+	}
+	serviceAccount := &userpb.ServiceAccount{
+		Id: serviceAccountID,
+	}
+	if v, ok := pkCert.CriticalOptions["namespace_id"]; ok {
+		serviceAccount.NamespaceId = new(v)
+	}
+	if v, ok := pkCert.CriticalOptions["originator_id"]; ok {
+		serviceAccount.OriginatorId = new(v)
+	}
+	if v, ok := pkCert.CriticalOptions["description"]; ok {
+		serviceAccount.Description = new(v)
+	}
+	serviceAccount.UserId = userID
+	serviceAccount.IssuedAt = timestamppb.New(time.Unix(int64(pkCert.ValidAfter), 0))
+	serviceAccount.ExpiresAt = timestamppb.New(time.Unix(int64(pkCert.ValidBefore), 0))
+	serviceAccount.AccessedAt = timestamppb.Now()
+
+	// create the session binding
+	sessionBinding := &session.SessionBinding{
+		Protocol:  session.ProtocolSSH,
+		SessionId: serviceAccountID,
+		UserId:    serviceAccount.UserId,
+		IssuedAt:  serviceAccount.AccessedAt,
+		ExpiresAt: serviceAccount.ExpiresAt,
+		Details: map[string]string{
+			"service_account_key_id":           pkCert.KeyId,
+			"service_account_key_type":         pkCert.Key.Type(),
+			"service_account_signer":           gossh.FingerprintSHA256(pkCert.SignatureKey),
+			"service_account_signature_format": pkCert.Signature.Format,
+			"service_account_signature":        base64.StdEncoding.EncodeToString(pkCert.Signature.Blob),
+			"service_account_namespace_id":     serviceAccount.GetNamespaceId(),
+			"service_account_originator_id":    serviceAccount.GetOriginatorId(),
+			"service_account_description":      serviceAccount.GetDescription(),
+		},
+	}
+
+	_, err := a.GetDataBrokerServiceClient().Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{
+			{
+				Type: "type.googleapis.com/user.ServiceAccount",
+				Id:   serviceAccountID,
+				Data: protoutil.NewAny(serviceAccount),
+			},
+			{
+				Type: "type.googleapis.com/session.SessionBinding",
+				Id:   sessionBindingID,
+				Data: protoutil.NewAny(sessionBinding),
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 	ctx context.Context,
 	streamInfo StreamInfo,
@@ -301,11 +465,12 @@ func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 ) (AuthMethodResponse, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.HandleKeyboardInteractiveMethodRequest")
 	defer span.End()
-	var policy *config.Policy
-	resp, err := a.handleKeyboardInteractiveMethodRequest(ctx, streamInfo, authInfo, user, querier, &policy)
+	cfg := a.getConfigSnapshot()
+	resp, err := a.handleKeyboardInteractiveMethodRequest(ctx, cfg, streamInfo, authInfo, user, querier)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("ssh keyboard-interactive auth request error")
 		span.SetStatus(otelcode.Error, err.Error())
+		policy := cfg.GetRouteForSSHHostname(user.Hostname())
 		if policy != nil && policy.ShowErrorDetails {
 			return resp, err
 		}
@@ -318,14 +483,12 @@ func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 
 func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	ctx context.Context,
+	cfg *configSnapshot,
 	streamInfo StreamInfo,
 	authInfo StreamAuthInfo,
 	user api.UserRequest,
 	querier KeyboardInteractiveQuerier,
-	outPolicy **config.Policy,
 ) (AuthMethodResponse, error) {
-	cfg := a.currentConfig.Load()
-
 	fingerprintAttrVal := fingerprintAsStrAttribute(authInfo.GetPublicKeyFingerprintSha256())
 
 	pendingAuthContextUpdates := &extensions_ssh.AuthContext{}
@@ -341,11 +504,6 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 		panic("bug: public key info missing from auth context")
 	}
 
-	policy := cfg.Options.GetRouteForSSHHostname(user.Hostname())
-	if outPolicy != nil {
-		*outPolicy = policy
-	}
-
 	var sessionID, userID, sessionBindingID string
 
 	if !authInfoHasSession(authInfo) {
@@ -353,7 +511,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 
 		// Initiate the IdP login flow.
 		var err error
-		sessionBinding, sbID, err := a.handleLogin(ctx, cfg, policy, streamInfo.SourceAddress, authInfo.GetPublicKeyFingerprintSha256(), querier)
+		sessionBinding, sbID, err := a.handleLogin(ctx, cfg, user, streamInfo.SourceAddress, authInfo.GetPublicKeyFingerprintSha256(), querier)
 		if err != nil {
 			return AuthMethodResponse{}, err
 		}
@@ -425,8 +583,8 @@ func processSessionEvaluateResult(
 
 func (a *Auth) handleLogin(
 	ctx context.Context,
-	cfg *config.Config,
-	policy *config.Policy,
+	cfg *configSnapshot,
+	user api.UserRequest,
 	sourceAddr string,
 	publicKeyFingerprint []byte,
 	querier KeyboardInteractiveQuerier,
@@ -434,7 +592,7 @@ func (a *Auth) handleLogin(
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleLogin")
 	defer span.End()
 
-	if cfg.Options.UseStatelessAuthenticateFlow() {
+	if cfg.useStatelessAuthenticateFlow {
 		return nil, "", status.Error(codes.FailedPrecondition, "ssh login is not currently enabled")
 	}
 
@@ -453,11 +611,10 @@ func (a *Auth) handleLogin(
 	if err != nil {
 		return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
 	}
-	idp, authenticator, err := a.getAuthenticator(ctx, cfg, policy)
+	idp, authenticator, err := a.getAuthenticator(ctx, cfg, user.Hostname())
 	if err != nil {
 		return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
 	}
-	authURL, _ := cfg.Options.GetAuthenticateURL()
 	generatedCode := a.codeIssuer.IssueCode()
 	now := timestamppb.Now()
 
@@ -486,7 +643,7 @@ func (a *Auth) handleLogin(
 
 	query := &url.Values{}
 	query.Add("user_code", string(associatedCode))
-	promptURI := authURL.ResolveReference(&url.URL{
+	promptURI := cfg.authenticateURL.ResolveReference(&url.URL{
 		Path:     "/.pomerium/sign_in",
 		RawQuery: query.Encode(),
 	})
@@ -635,9 +792,8 @@ func (a *Auth) BuildTargetChannelFilters(ctx context.Context, streamInfo StreamI
 	if hostname == "" {
 		return nil, nil, fmt.Errorf("no hostname")
 	}
-	// TODO: optimize looking up routes by hostname
-	opts := a.currentConfig.Load().Options
-	route := opts.GetRouteForSSHHostname(hostname)
+
+	route := a.getConfigSnapshot().GetRouteForSSHHostname(hostname)
 	if route == nil {
 		return nil, nil, fmt.Errorf("no route")
 	}
@@ -691,7 +847,7 @@ func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID 
 	}
 }
 
-func (a *Auth) GetSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) (*session.Session, error) {
+func (a *Auth) GetSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) (api.SessionOrServiceAccount, error) {
 	_, session, err := a.resolveSession(ctx, authInfo.GetSessionBindingId())
 	if err != nil {
 		return nil, err
@@ -727,21 +883,22 @@ func (a *Auth) DeleteSession(ctx context.Context, _ StreamInfo, authInfo StreamA
 
 func (a *Auth) getAuthenticator(
 	ctx context.Context,
-	cfg *config.Config,
-	policy *config.Policy,
+	cfg *configSnapshot,
+	hostname string,
 ) (*identitypb.Provider, identity.Authenticator, error) {
-	redirectURL, err := cfg.Options.GetAuthenticateRedirectURL()
-	if err != nil {
-		return nil, nil, err
+	redirectURL := cfg.authenticateRedirectURL
+	if redirectURL == nil {
+		return nil, nil, errors.New("authenticate redirect url is invalid")
 	}
 
-	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
-	if err != nil {
-		return nil, nil, err
+	idp := cfg.identityProviderByRouteHostname[hostname]
+	if idp == nil {
+		// the route should have been skipped if getting the idp failed on config update
+		panic("bug: route has no identity provider")
 	}
 
 	authenticator, err := identity.GetIdentityProvider(ctx, a.tracerProvider, idp, redirectURL,
-		cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])
+		cfg.runtimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])
 	if err != nil {
 		return nil, nil, err
 	}
@@ -753,8 +910,9 @@ var _ AuthInterface = (*Auth)(nil)
 
 var errInvalidFingerprint = errors.New("invalid public key fingerprint")
 
-func (a *Auth) resolveSession(ctx context.Context, sessionBindingID string) (*session.SessionBinding, *session.Session, error) {
-	resp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+func (a *Auth) resolveSession(ctx context.Context, sessionBindingID string) (*session.SessionBinding, api.SessionOrServiceAccount, error) {
+	dbClient := a.evaluator.GetDataBrokerServiceClient()
+	resp, err := dbClient.Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/session.SessionBinding",
 		Id:   sessionBindingID,
 	})
@@ -776,23 +934,40 @@ func (a *Auth) resolveSession(ctx context.Context, sessionBindingID string) (*se
 	if binding.Protocol != session.ProtocolSSH {
 		return nil, nil, status.Error(codes.Internal, "invalid protocol")
 	}
-	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+
+	sessionResp, err := dbClient.Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/session.Session",
 		Id:   binding.SessionId,
 	})
-	if err != nil {
+	if err == nil {
+		if sessionResp.GetRecord().DeletedAt != nil {
+			return nil, nil, status.Error(codes.NotFound, "session deleted")
+		}
+		var session session.Session
+		if err := sessionResp.GetRecord().GetData().UnmarshalTo(&session); err != nil {
+			return nil, nil, err
+		}
+
+		return &binding, &session, nil
+	} else if !databroker.IsNotFound(err) {
 		return nil, nil, err
 	}
-	if sessionResp.GetRecord().DeletedAt != nil {
-		return nil, nil, status.Error(codes.NotFound, "session deleted")
-	}
 
-	var session session.Session
-	if err := sessionResp.GetRecord().GetData().UnmarshalTo(&session); err != nil {
-		return nil, nil, err
+	serviceAccountResp, err := dbClient.Get(ctx, &databroker.GetRequest{
+		Type: "type.googleapis.com/user.ServiceAccount",
+		Id:   binding.SessionId,
+	})
+	if err == nil {
+		if serviceAccountResp.GetRecord().DeletedAt != nil {
+			return nil, nil, status.Error(codes.NotFound, "session deleted")
+		}
+		var serviceAccount userpb.ServiceAccount
+		if err := serviceAccountResp.GetRecord().GetData().UnmarshalTo(&serviceAccount); err != nil {
+			return nil, nil, err
+		}
+		return &binding, &serviceAccount, nil
 	}
-
-	return &binding, &session, nil
+	return nil, nil, err
 }
 
 func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {

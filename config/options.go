@@ -31,6 +31,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
 	"golang.org/x/crypto/hkdf"
+	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/config/otelconfig"
@@ -241,6 +242,10 @@ type Options struct {
 	// String contents of SSH key used to sign ephemeral certificate keys for
 	// upstream authentication. Mutually exclusive with ssh_user_ca_key_file.
 	SSHUserCAKey string `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
+
+	SSHServiceAccountCAKey     string `mapstructure:"ssh_service_account_ca_key" yaml:"ssh_service_account_ca_key,omitempty"`
+	SSHServiceAccountCAKeyFile string `mapstructure:"ssh_service_account_ca_key_file" yaml:"ssh_service_account_ca_key_file,omitempty"`
+
 	// SSHRLSEnabled Enable the RLS service for ssh connections
 	SSHRLSEnabled bool `mapstructure:"ssh_rls_enabled" yaml:"ssh_rls_enabled,omitempty"`
 	// SSHRLSAdditonalEntries Specifies [2]{Key, Value} pairs of RLS entries
@@ -1199,6 +1204,11 @@ func (o *Options) GetX509Certificates() []*x509.Certificate {
 	}
 
 	return certs
+}
+
+func (o *Options) GetSSHServiceAccountCAKey() (gossh.Signer, error) {
+	// TODO
+	return gossh.ParsePrivateKey([]byte(o.SSHServiceAccountCAKey))
 }
 
 // GetSharedKey gets the decoded shared key.

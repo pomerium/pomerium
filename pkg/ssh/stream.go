@@ -26,7 +26,6 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/envoy/envoyversion"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/cli"
@@ -108,9 +107,10 @@ type AuthInterface interface {
 	HandleKeyboardInteractiveMethodRequest(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (AuthMethodResponse, error)
 	EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) error
 	BuildTargetChannelFilters(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error)
-	GetSession(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo) (*session.Session, error)
+	GetSession(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo) (api.SessionOrServiceAccount, error)
 	DeleteSession(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
+	ProcessConfigUpdate(*config.Config)
 }
 
 type ClusterStatsListener interface {
@@ -982,7 +982,7 @@ func (si *streamHandlerInterfaceImpl) Username() string {
 }
 
 // GetSession implements StreamHandlerInterface
-func (si *streamHandlerInterfaceImpl) GetSession(ctx context.Context) (*session.Session, error) {
+func (si *streamHandlerInterfaceImpl) GetSession(ctx context.Context) (api.SessionOrServiceAccount, error) {
 	return si.auth.GetSession(ctx, si.streamInfo, si.authInfo)
 }
 

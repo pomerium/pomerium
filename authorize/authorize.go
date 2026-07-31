@@ -127,7 +127,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 	a.policyIndexer = o.policyIndexerCtor(a)
 	a.ssh = ssh.NewStreamManager(
 		ctx,
-		ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer,
+		ssh.NewAuth(a, a.tracerProvider, codeIssuer,
 			ssh.WithMetricMeter(otel.Meter("ssh_auth_code")),
 			ssh.WithTracer(a.tracerProvider.Tracer(trace.PomeriumCoreTracer)),
 		),

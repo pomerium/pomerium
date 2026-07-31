@@ -7,8 +7,10 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ChannelControlInterface interface {
@@ -18,9 +20,23 @@ type ChannelControlInterface interface {
 	RecvMsg() (any, error)
 }
 
+type SessionOrServiceAccount interface {
+	GetId() string
+	GetUserId() string
+	GetIssuedAt() *timestamppb.Timestamp
+	GetExpiresAt() *timestamppb.Timestamp
+	GetAccessedAt() *timestamppb.Timestamp
+	Validate() error
+}
+
+var (
+	_ SessionOrServiceAccount = (*session.Session)(nil)
+	_ SessionOrServiceAccount = (*user.ServiceAccount)(nil)
+)
+
 type StreamHandlerInterface interface {
 	RequestHandoff(ctx context.Context, username, hostname string, ptyInfo SSHPtyInfo) (*extensions_ssh.SSHChannelControlAction, error)
-	GetSession(ctx context.Context) (*session.Session, error)
+	GetSession(ctx context.Context) (SessionOrServiceAccount, error)
 	DeleteSession(ctx context.Context) error
 	AllSSHRoutes() iter.Seq[*config.Policy]
 	Username() string
