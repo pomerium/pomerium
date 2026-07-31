@@ -229,7 +229,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 			Msg("no session oauth2 token found for refresh")
 		return
 	}
-
+	// TODO: short term lease
 	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), NewSessionUnmarshaler(s))
 	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
@@ -271,6 +271,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	if u != nil {
 		mgr.updateUser(ctx, u)
 	}
+	// TODO : end todo
 }
 
 func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {

@@ -1,0 +1,97 @@
+package token
+
+import (
+	"encoding/json"
+	"errors"
+
+	"github.com/pomerium/pomerium/pkg/grpc/user"
+
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/identity"
+)
+
+// TODO :duplicated
+
+// a multiUnmarshaler is used as the target of the json Unmarshal function to
+// unmarshal a single JSON value into multiple destinations.
+type multiUnmarshaler []any
+
+func newMultiUnmarshaler(args ...any) *multiUnmarshaler {
+	return (*multiUnmarshaler)(&args)
+}
+
+func (dst *multiUnmarshaler) UnmarshalJSON(data []byte) error {
+	var err error
+	for _, o := range *dst {
+		if o != nil {
+			err = errors.Join(err, json.Unmarshal(data, o))
+		}
+	}
+	return err
+}
+
+// SessionUnmarshaler wraps a session and implements json.Unmarshaler
+// to populate the session with claims from an ID token.
+type SessionUnmarshaler struct {
+	*session.Session
+}
+
+// NewSessionUnmarshaler creates a new SessionUnmarshaler for the given session.
+func NewSessionUnmarshaler(s *session.Session) *SessionUnmarshaler {
+	return &SessionUnmarshaler{Session: s}
+}
+
+func (dst *SessionUnmarshaler) UnmarshalJSON(data []byte) error {
+	if dst.Session == nil {
+		return nil
+	}
+
+	var raw map[string]json.RawMessage
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	// To preserve existing behavior: filter out claims not related to user info.
+	delete(raw, "iss")
+	delete(raw, "sub")
+	delete(raw, "exp")
+	delete(raw, "iat")
+
+	dst.Session.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
+
+	return nil
+}
+
+type userUnmarshaler struct {
+	*user.User
+}
+
+func newUserUnmarshaler(u *user.User) *userUnmarshaler {
+	return &userUnmarshaler{User: u}
+}
+
+func (dst *userUnmarshaler) UnmarshalJSON(data []byte) error {
+	if dst.User == nil {
+		return nil
+	}
+
+	var raw map[string]json.RawMessage
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	if name, ok := raw["name"]; ok {
+		_ = json.Unmarshal(name, &dst.User.Name)
+		delete(raw, "name")
+	}
+	if email, ok := raw["email"]; ok {
+		_ = json.Unmarshal(email, &dst.User.Email)
+		delete(raw, "email")
+	}
+
+	dst.User.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
+
+	return nil
+}
