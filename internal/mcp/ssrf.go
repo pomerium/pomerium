@@ -14,8 +14,15 @@ import (
 // ErrSSRFBlocked is returned when a request is blocked by SSRF protection.
 var ErrSSRFBlocked = errors.New("ssrf protection")
 
+// Special-use ranges not covered by netip's predicates that must still be
+// treated as internal: RFC 6598 carrier-grade NAT and RFC 2544 benchmarking.
+var (
+	cgnatRange        = netip.MustParsePrefix("100.64.0.0/10")
+	benchmarkingRange = netip.MustParsePrefix("198.18.0.0/15")
+)
+
 // isInternalOrSpecial returns true if the IP address is private, loopback, link-local,
-// multicast, or otherwise not a public unicast address.
+// multicast, carrier-grade NAT, benchmarking, or otherwise not a public unicast address.
 func isInternalOrSpecial(ip netip.Addr) bool {
 	ip = ip.Unmap()
 	return !ip.IsValid() ||
@@ -24,7 +31,9 @@ func isInternalOrSpecial(ip netip.Addr) bool {
 		ip.IsLinkLocalUnicast() ||
 		ip.IsLinkLocalMulticast() ||
 		ip.IsMulticast() ||
-		ip.IsUnspecified()
+		ip.IsUnspecified() ||
+		cgnatRange.Contains(ip) ||
+		benchmarkingRange.Contains(ip)
 }
 
 // resolveAndValidate resolves a hostname to IP addresses and returns the first

@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"net/http"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -49,6 +50,8 @@ func TestSSRFSafeClient_BlocksInternalDestinations(t *testing.T) {
 		{"link-local metadata", "169.254.169.254"},
 		{"private 10/8", "10.0.0.1"},
 		{"private 192.168/16", "192.168.0.1"},
+		{"cgnat 100.64/10", "100.64.0.1"},
+		{"benchmarking 198.18/15", "198.18.0.1"},
 	}
 
 	for _, tc := range hosts {
@@ -68,6 +71,22 @@ func TestSSRFSafeClient_BlocksInternalDestinations(t *testing.T) {
 			require.Error(t, err, "request to internal host %s must fail", tc.host)
 			assert.ErrorIs(t, err, ErrSSRFBlocked,
 				"dial-time block for %s should wrap ErrSSRFBlocked", tc.host)
+		})
+	}
+}
+
+// TestSSRFSafeClient_ClassifiesSpecialUseRanges verifies that isInternalOrSpecial
+// treats RFC 6598 carrier-grade NAT (100.64.0.0/10) and RFC 2544 benchmarking
+// (198.18.0.0/15) as internal, closing a gap left by netip's built-in predicates.
+func TestSSRFSafeClient_ClassifiesSpecialUseRanges(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []string{"100.64.0.1", "198.18.0.1"} {
+		t.Run(raw, func(t *testing.T) {
+			t.Parallel()
+
+			assert.True(t, isInternalOrSpecial(netip.MustParseAddr(raw)),
+				"%s should be classified internal/special", raw)
 		})
 	}
 }
