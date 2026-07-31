@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
@@ -39,6 +38,8 @@ func TestMCPClientIDMetadataDocument(t *testing.T) {
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
 		// Allow testenv domains for testing - in production this should be restricted
 		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
+		// Skip SSRF protection so CIMD fetches can reach test servers on localhost
+		cfg.Options.InsecureSkipMCPMetadataSSRFCheck = true
 	}))
 
 	idp := scenarios.NewIDP([]*scenarios.User{
@@ -88,19 +89,6 @@ func TestMCPClientIDMetadataDocument(t *testing.T) {
 
 	env.Start()
 	snippets.WaitStartupComplete(env)
-
-	// Configure an HTTP client for the metadata fetcher that trusts the test CA
-	mcphandler.DefaultHTTPClient = &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: env.ServerCAs(),
-			},
-		},
-	}
-	t.Cleanup(func() {
-		mcphandler.DefaultHTTPClient = nil
-	})
 
 	type testState struct {
 		httpClient                *http.Client
@@ -315,6 +303,8 @@ func TestMCPClientIDMetadataDocumentValidation(t *testing.T) {
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
 		// Allow testenv domains for testing - in production this should be restricted
 		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
+		// Skip SSRF protection so CIMD fetches can reach test servers on localhost
+		cfg.Options.InsecureSkipMCPMetadataSSRFCheck = true
 	}))
 
 	idp := scenarios.NewIDP([]*scenarios.User{
@@ -353,18 +343,6 @@ func TestMCPClientIDMetadataDocumentValidation(t *testing.T) {
 
 	env.Start()
 	snippets.WaitStartupComplete(env)
-
-	mcphandler.DefaultHTTPClient = &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: env.ServerCAs(),
-			},
-		},
-	}
-	t.Cleanup(func() {
-		mcphandler.DefaultHTTPClient = nil
-	})
 
 	ctx := env.Context()
 

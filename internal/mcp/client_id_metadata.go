@@ -67,11 +67,6 @@ type ClientIDMetadataDocument struct {
 // MaxClientMetadataDocumentSize is the maximum size of a client metadata document (5KB per draft recommendation).
 const MaxClientMetadataDocumentSize = 5 * 1024
 
-// DefaultHTTPClient is the default HTTP client used for fetching client metadata documents.
-// This can be overridden to provide custom TLS configuration or security measures.
-// If nil, http.DefaultClient is used.
-var DefaultHTTPClient *http.Client
-
 // ClientMetadataFetcher fetches and validates client metadata documents.
 type ClientMetadataFetcher struct {
 	httpClient    *http.Client
@@ -79,15 +74,11 @@ type ClientMetadataFetcher struct {
 }
 
 // NewClientMetadataFetcher creates a new ClientMetadataFetcher.
-// If httpClient is nil, DefaultHTTPClient is used (or http.DefaultClient if DefaultHTTPClient is also nil).
+// httpClient must be non-nil and should be an SSRF-safe client (e.g. from NewSSRFSafeClient()).
 // If domainMatcher is nil, all domains are rejected (empty allowlist behavior).
-// Callers may provide a custom http.Client to implement SSRF protection or other security measures.
 func NewClientMetadataFetcher(httpClient *http.Client, domainMatcher *DomainMatcher) *ClientMetadataFetcher {
 	if httpClient == nil {
-		httpClient = DefaultHTTPClient
-	}
-	if httpClient == nil {
-		httpClient = http.DefaultClient
+		panic("NewClientMetadataFetcher: httpClient must not be nil")
 	}
 	return &ClientMetadataFetcher{
 		httpClient:    httpClient,
