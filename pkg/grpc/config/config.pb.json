@@ -1577,6 +1577,18 @@
               "isoneof": true,
               "oneofdecl": "for",
               "defaultValue": ""
+            },
+            {
+              "name": "namespace_id",
+              "description": "Look up Settings corresponding to this namespace ID. The Settings may\nbelong to this namespace or to a parent namespace.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "for",
+              "defaultValue": ""
             }
           ]
         },

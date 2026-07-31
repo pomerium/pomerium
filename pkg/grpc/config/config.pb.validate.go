@@ -8995,6 +8995,18 @@ func (m *GetSettingsRequest) validate(all bool) error {
 			errors = append(errors, err)
 		}
 		// no validation rules for ClusterId
+	case *GetSettingsRequest_NamespaceId:
+		if v == nil {
+			err := GetSettingsRequestValidationError{
+				field:  "For",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+		// no validation rules for NamespaceId
 	default:
 		_ = v // ensures v is used
 	}
