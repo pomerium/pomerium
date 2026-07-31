@@ -2,6 +2,7 @@
 package protoutil
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -33,6 +34,13 @@ func ToStruct(value any) *structpb.Value {
 		return NewStructNumber(float64(v))
 	case int64:
 		return NewStructNumber(float64(v))
+	case json.Number:
+		// produced by a decoder with UseNumber() set: a named string type, so it
+		// would otherwise fall through to null
+		if f, err := v.Float64(); err == nil {
+			return NewStructNumber(f)
+		}
+		return NewStructString(v.String())
 	case string:
 		return NewStructString(v)
 	case uint:
