@@ -3,6 +3,7 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
+	"github.com/pomerium/pomerium/pkg/identity/token"
 	metrics_ids "github.com/pomerium/pomerium/pkg/metrics"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -54,6 +56,11 @@ func New(
 	}
 	mgr.UpdateConfig(options...)
 	return mgr
+}
+
+// GetEventDispatcher gets the event manager used to report errors.
+func (mgr *Manager) GetEventDispatcher() *events.Manager {
+	return mgr.cfg.Load().eventMgr
 }
 
 // UpdateConfig updates the manager with the new options.
@@ -207,71 +214,58 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 		return
 	}
 
-	expiry := s.GetExpiresAt().AsTime()
-	if !expiry.After(mgr.cfg.Load().now()) {
+	// TODO : define this is a field on the struct itself.
+	rotator := token.NewAtomicTokenRotator(
+		token.NewStaticAuthenticatorGetter(authenticator),
+		mgr,
+		token.WithClock(mgr.cfg.Load().now),
+		token.WithEventDispatcher(mgr),
+	)
+
+	res, err := rotator.RotateSessionToken(ctx, s, u)
+	switch {
+	case err == nil:
+	case errors.Is(err, token.ErrDoNotRefresh):
+		return
+	case errors.Is(err, token.ErrExpiredSession):
 		log.Ctx(ctx).Info().
 			Str("user-id", s.GetUserId()).
 			Str("session-id", s.GetId()).
 			Msg("deleting expired session")
 		mgr.deleteSession(ctx, sessionID)
 		return
-	}
-
-	if s.GetRefreshDisabled() {
-		// refresh was explicitly disabled
-		return
-	}
-
-	if s.GetOauthToken() == nil {
-		log.Ctx(ctx).Info().
-			Str("user-id", s.GetUserId()).
-			Str("session-id", s.GetId()).
-			Msg("no session oauth2 token found for refresh")
-		return
-	}
-	// TODO: short term lease
-	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), NewSessionUnmarshaler(s))
-	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
-	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
-	if isTemporaryError(err) {
+	case errors.Is(err, token.ErrStorageLease), errors.Is(err, token.ErrTokenNotRotated), isTemporaryError(err):
+		// failed to determine if the lease is held, or the failure was transient,
+		// so keep the session and let the scheduler try again
 		log.Ctx(ctx).Error().Err(err).
 			Str("user-id", s.GetUserId()).
 			Str("session-id", s.GetId()).
-			Msg("failed to refresh oauth2 token")
+			Msg("failed to rotate session token")
 		return
-	} else if err != nil {
+	default:
 		log.Ctx(ctx).Error().Err(err).
 			Str("user-id", s.GetUserId()).
 			Str("session-id", s.GetId()).
-			Msg("failed to refresh oauth2 token, deleting session")
+			Msg("failed to rotate session token, deleting session")
 		mgr.deleteSession(ctx, sessionID)
 		return
 	}
-	s.OauthToken = ToOAuthToken(newToken)
-
-	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), newMultiUnmarshaler(newUserUnmarshaler(u), NewSessionUnmarshaler(s)))
-	metrics.RecordIdentityManagerUserRefresh(ctx, err)
-	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
-	if isTemporaryError(err) {
-		log.Ctx(ctx).Error().Err(err).
-			Str("user-id", s.GetUserId()).
-			Str("session-id", s.GetId()).
-			Msg("failed to update user info")
-		return
-	} else if err != nil {
-		log.Ctx(ctx).Error().Err(err).
-			Str("user-id", s.GetUserId()).
-			Str("session-id", s.GetId()).
-			Msg("failed to update user info, deleting session")
-		mgr.deleteSession(ctx, sessionID)
-		return
+	// the rotator already persisted the records, so only the local data store and
+	// the schedulers need to catch up
+	mgr.mu.Lock()
+	if newSession := res.Session; newSession != nil {
+		mgr.dataStore.putSession(newSession)
+		if rss, ok := mgr.refreshSessionSchedulers[newSession.GetId()]; ok {
+			rss.Update(newSession)
+		}
 	}
-
-	mgr.updateSession(ctx, s)
-	if u != nil {
-		mgr.updateUser(ctx, u)
+	if newUser := res.User; newUser != nil {
+		mgr.dataStore.putUser(newUser)
+		if uuis, ok := mgr.updateUserInfoSchedulers[newUser.GetId()]; ok {
+			uuis.Reset()
+		}
 	}
-	// TODO : end todo
+	mgr.mu.Unlock()
 }
 
 func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
