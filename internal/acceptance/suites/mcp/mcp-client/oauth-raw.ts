@@ -10,7 +10,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { submitLoginForm, waitForLoginPage } from "./keycloak-login.js";
-import type { TestUser } from "../../browser/fixtures/users.js";
+import type { TestUser } from "../../../browser/fixtures/users.js";
 
 export interface ASMetadata {
   issuer: string;

@@ -15,7 +15,7 @@ import * as path from "node:path";
 import { certPaths } from "../helpers/mtls.js";
 import { CERTS_DIR, MTLS_CERTS_DIR, SUITE_DIR } from "./constants.js";
 
-const ACCEPTANCE_DIR = path.resolve(SUITE_DIR, "..");
+const ACCEPTANCE_DIR = path.resolve(SUITE_DIR, "..", "..");
 
 const CERTGEN_IMAGE = "alpine:3.21";
 

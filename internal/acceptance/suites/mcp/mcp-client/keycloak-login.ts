@@ -9,7 +9,7 @@
 
 import { expect, type Page } from "@playwright/test";
 import { KEYCLOAK_HOST } from "./constants.js";
-import type { TestUser } from "../../browser/fixtures/users.js";
+import type { TestUser } from "../../../browser/fixtures/users.js";
 
 const REALM_AUTH_PATH = "/realms/pomerium-e2e/protocol/openid-connect/auth";
 

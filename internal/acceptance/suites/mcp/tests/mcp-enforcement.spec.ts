@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 import { connectWithBrowserAuth } from "../mcp-client/connect.js";
 import { MCP_SERVER_URL } from "../mcp-client/constants.js";
-import { testUsers } from "../../browser/fixtures/users.js";
+import { testUsers } from "../../../browser/fixtures/users.js";
 
 /**
  * Negative enforcement: prove Pomerium actually protects the MCP resource, not

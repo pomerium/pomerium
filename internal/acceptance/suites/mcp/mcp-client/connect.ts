@@ -20,7 +20,7 @@ import { InMemoryOAuthProvider } from "./oauth-provider.js";
 import { startCallbackServer } from "./callback-server.js";
 import { submitLoginForm, waitForLoginPage } from "./keycloak-login.js";
 import { CLIENT_NAME } from "./constants.js";
-import type { TestUser } from "../../browser/fixtures/users.js";
+import type { TestUser } from "../../../browser/fixtures/users.js";
 
 export interface ConnectOptions {
   page: Page;

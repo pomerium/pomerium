@@ -6,7 +6,7 @@
 // byte-identical from the browser (front-channel) and from inside Pomerium
 // (back-channel).
 //
-//   keycloak.localhost.pomerium.io   HTTP  8080  (reuses ../keycloak realm import)
+//   keycloak.localhost.pomerium.io   HTTP  8080  (reuses ../../keycloak realm import)
 //   mcp-upstream                     HTTP  8080  (node:22 + ./upstream, mounted)
 //   mcp./authenticate.localhost...   HTTPS 8443  (pomerium/pomerium:main)
 
@@ -23,7 +23,7 @@ import { ensureCerts, type CertPaths } from "./certs.js";
 
 const SETUP_DIR = __dirname;
 const MCP_DIR = path.resolve(SETUP_DIR, "..");
-const ACCEPTANCE_DIR = path.resolve(MCP_DIR, "..");
+const ACCEPTANCE_DIR = path.resolve(MCP_DIR, "..", "..");
 
 const KEYCLOAK_IMPORT_DIR = path.join(ACCEPTANCE_DIR, "keycloak");
 const POMERIUM_CONFIG = path.join(MCP_DIR, "pomerium", "config.yaml");

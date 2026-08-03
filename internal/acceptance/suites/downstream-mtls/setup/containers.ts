@@ -7,7 +7,7 @@
 // is byte-identical from the browser (front-channel) and from inside Pomerium
 // (back-channel).
 //
-//   keycloak.localhost.pomerium.io        HTTP  8080  (reuses ../keycloak realm import)
+//   keycloak.localhost.pomerium.io        HTTP  8080  (reuses ../../keycloak realm import)
 //   upstream                              HTTP    80  (traefik/whoami, echoes headers)
 //   mtls./authenticate.localhost...io     HTTPS 8443  (official pomerium image)
 //
@@ -32,7 +32,7 @@ import { waitForTLS } from "../helpers/raw-tls.js";
 import { ensureCerts, type CertPaths } from "./certs.js";
 import { AUTHENTICATE_HOSTNAME, KEYCLOAK_HOSTNAME, MTLS_HOSTNAME, SUITE_DIR } from "./constants.js";
 
-const ACCEPTANCE_DIR = path.resolve(SUITE_DIR, "..");
+const ACCEPTANCE_DIR = path.resolve(SUITE_DIR, "..", "..");
 const KEYCLOAK_IMPORT_DIR = path.join(ACCEPTANCE_DIR, "keycloak");
 
 const KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.5.2";

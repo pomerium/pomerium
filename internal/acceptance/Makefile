@@ -5,7 +5,8 @@
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
 BROWSER_DIR ?= browser
-MCP_DIR ?= mcp
+MCP_DIR ?= suites/mcp
+DOWNSTREAM_MTLS_DIR ?= suites/downstream-mtls
 ARTIFACTS_DIR ?= artifacts
 
 COMPOSE := docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT)
@@ -95,13 +96,13 @@ test-go: up
 # time: both bind host ports 8443/8080.
 # ---------------------------------------------------------------------------
 deps-downstream-mtls:
-	$(MAKE) -C downstream-mtls deps
+	$(MAKE) -C $(DOWNSTREAM_MTLS_DIR) deps
 
 test-downstream-mtls:
-	$(MAKE) -C downstream-mtls test
+	$(MAKE) -C $(DOWNSTREAM_MTLS_DIR) test
 
 test-downstream-mtls-headed:
-	$(MAKE) -C downstream-mtls test-headed
+	$(MAKE) -C $(DOWNSTREAM_MTLS_DIR) test-headed
 
 # View container logs
 logs:
