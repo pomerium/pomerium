@@ -17,7 +17,7 @@ help:
 # testcontainers only pulls images that are missing locally, so `deps` also
 # refreshes the rolling pomerium tag.
 deps:
-	npm ci
+	cd .. && npm ci
 	npx playwright install chromium
 	docker pull $(POMERIUM_IMAGE)
 
@@ -31,4 +31,4 @@ test-debug:
 	npx playwright test --debug
 
 clean:
-	rm -rf .certs test-results playwright-report
+	rm -rf .certs test-results playwright-report results.json

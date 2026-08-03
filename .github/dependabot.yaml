@@ -116,3 +116,14 @@ updates:
       npm:
         patterns:
           - "*"
+  # npm workspace for the container-based e2e suites (mcp, downstream-mtls);
+  # one lockfile at the workspace root covers every member.
+  - package-ecosystem: "npm"
+    directory: "/internal/acceptance/suites"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 50
+    groups:
+      npm:
+        patterns:
+          - "*"

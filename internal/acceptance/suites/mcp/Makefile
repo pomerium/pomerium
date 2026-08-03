@@ -21,7 +21,7 @@ help:
 	@echo "  make clean        - remove generated certs and test artifacts"
 
 deps:
-	npm ci
+	cd .. && npm ci
 	npx playwright install chromium
 
 # Generate the leaf cert (creates the local mkcert CA if it does not exist yet).
