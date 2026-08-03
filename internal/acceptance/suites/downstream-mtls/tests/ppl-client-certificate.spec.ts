@@ -11,6 +11,7 @@
 import { test, expect, type Browser } from "@playwright/test";
 import { newContextWithCert, type ClientCertType } from "../helpers/mtls.js";
 import { signInOnMtlsRoute } from "../helpers/login.js";
+import { gotoStable } from "../helpers/nav.js";
 import { fingerprint, spkiHash } from "../helpers/fixtures.js";
 import { startPomerium, type StartedPomerium } from "../setup/containers.js";
 import { buildRoute, generateConfig, CONTAINER_CERTS } from "../setup/pomerium-config.js";
@@ -23,7 +24,7 @@ async function loginAndGetStatus(browser: Browser, cert: ClientCertType): Promis
   try {
     const page = await context.newPage();
     await signInOnMtlsRoute(page);
-    const response = await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
+    const response = await gotoStable(page, MTLS_URL, { waitUntil: "domcontentloaded" });
     return response!.status();
   } finally {
     await context.close();

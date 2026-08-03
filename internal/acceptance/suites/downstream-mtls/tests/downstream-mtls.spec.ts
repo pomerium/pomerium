@@ -17,6 +17,7 @@
 import { test, expect } from "@playwright/test";
 import { newContextWithCert, type ClientCertType } from "../helpers/mtls.js";
 import { signInOnMtlsRoute } from "../helpers/login.js";
+import { gotoStable } from "../helpers/nav.js";
 import { startPomerium, type StartedPomerium } from "../setup/containers.js";
 import { baseConfigFile } from "../setup/pomerium-config.js";
 import { MTLS_HOSTNAME, MTLS_URL } from "../setup/constants.js";
@@ -45,7 +46,7 @@ test.describe("downstream mTLS (enforcement: policy_with_default_deny)", () => {
       // Fresh navigation with an established session: whoami echoes the
       // request headers, which must include the identity header Pomerium
       // injects (jwt_claims_headers), proving mTLS + OIDC end to end.
-      const response = await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
+      const response = await gotoStable(page, MTLS_URL, { waitUntil: "domcontentloaded" });
       expect(response).not.toBeNull();
       expect(response!.status()).toBe(200);
       expect(await response!.text()).toMatch(/X-Pomerium-Claim-Email:.*alice@company\.com/i);
@@ -66,7 +67,7 @@ test.describe("downstream mTLS (enforcement: policy_with_default_deny)", () => {
       const context = await newContextWithCert(browser, cert, MTLS_URL);
       try {
         const page = await context.newPage();
-        const response = await page.goto(MTLS_URL, { waitUntil: "domcontentloaded" });
+        const response = await gotoStable(page, MTLS_URL, { waitUntil: "domcontentloaded" });
         expect(response).not.toBeNull();
         expect(response!.status()).toBe(495);
         // Denied at the edge: no redirect to Keycloak happened.
@@ -82,7 +83,7 @@ test.describe("downstream mTLS (enforcement: policy_with_default_deny)", () => {
     const context = await newContextWithCert(browser, null, MTLS_URL);
     try {
       const page = await context.newPage();
-      const response = await page.goto(`${MTLS_URL}/healthz`, {
+      const response = await gotoStable(page, `${MTLS_URL}/healthz`, {
         waitUntil: "domcontentloaded",
       });
       expect(response).not.toBeNull();
