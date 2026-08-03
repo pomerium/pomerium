@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -868,4 +869,133 @@ func (srv *backendServer) buildRecordTTLs(backend storage.Backend) map[string]ti
 		}
 	}
 	return ttls
+}
+
+// TODO: this should be much longer and callers should probably set their own transaction deadlines.
+// var rather than const so tests can shorten it.
+var transactionMaxDuration = time.Minute
+
+func (srv *backendServer) Transaction(stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse]) error {
+	ctx, span := srv.tracer.Start(stream.Context(), "databroker.grpc.Transaction")
+	defer span.End()
+
+	ctx, cancel := context.WithTimeout(ctx, transactionMaxDuration)
+	defer cancel()
+
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return err
+	}
+
+	recv := newTransactionReceiver(ctx, stream)
+	defer recv.stop()
+
+	begin, err := recv.next()
+	if err != nil {
+		return err
+	}
+	if begin.GetBegin() == nil {
+		return status.Error(codes.InvalidArgument, "the first message of a transaction must be begin")
+	}
+
+	changed, shared, err := db.DoTransaction(ctx, begin.GetBegin().GetKey(), func(tx storage.Transaction) error {
+		// the ack tells the client it was not suppressed, so it knows to submit
+		err := stream.Send(&databrokerpb.TransactionStreamResponse{
+			Sequence: begin.GetSequence(),
+			Message: &databrokerpb.TransactionStreamResponse_Begin{
+				Begin: new(databrokerpb.BeginTransactionResponse),
+			},
+		})
+		if err != nil {
+			return err
+		}
+
+		for {
+			req, err := recv.next()
+			if err != nil {
+				return err
+			}
+			switch {
+			case req.GetCommit() != nil:
+				return nil
+			case req.GetOperation() != nil:
+				res, err := tx.Submit(req.GetOperation())
+				if err != nil {
+					return err
+				}
+				err = stream.Send(&databrokerpb.TransactionStreamResponse{
+					Sequence: req.GetSequence(),
+					Message:  &databrokerpb.TransactionStreamResponse_Operation{Operation: res},
+				})
+				if err != nil {
+					return err
+				}
+			default:
+				return status.Error(codes.InvalidArgument, "expected an operation or commit message")
+			}
+		}
+	})
+	if err != nil {
+		return err
+	}
+
+	return stream.Send(&databrokerpb.TransactionStreamResponse{
+		Message: &databrokerpb.TransactionStreamResponse_Commit{
+			Commit: &databrokerpb.CommitTransactionResponse{Shared: shared, Records: changed},
+		},
+	})
+}
+
+// transactionReceiver reads from the stream on a goroutine so an idle timeout can
+// interrupt a blocking Recv, which gRPC only unblocks when the handler returns.
+type transactionReceiver struct {
+	ctx  context.Context
+	msgs chan *databrokerpb.TransactionStreamRequest
+	errs chan error
+	done chan struct{}
+}
+
+func newTransactionReceiver(
+	ctx context.Context,
+	stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse],
+) *transactionReceiver {
+	recv := &transactionReceiver{
+		ctx:  ctx,
+		msgs: make(chan *databrokerpb.TransactionStreamRequest),
+		errs: make(chan error, 1),
+		done: make(chan struct{}),
+	}
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err != nil {
+				recv.errs <- err
+				return
+			}
+			select {
+			case recv.msgs <- msg:
+			case <-recv.done:
+				return
+			}
+		}
+	}()
+	return recv
+}
+
+func (recv *transactionReceiver) next() (*databrokerpb.TransactionStreamRequest, error) {
+	select {
+	case msg := <-recv.msgs:
+		return msg, nil
+	case err := <-recv.errs:
+		return nil, err
+	case <-recv.ctx.Done():
+		if errors.Is(recv.ctx.Err(), context.DeadlineExceeded) {
+			return nil, status.Error(codes.DeadlineExceeded, "transaction deadline exceeded")
+		}
+		return nil, context.Cause(recv.ctx)
+	}
+}
+
+func (recv *transactionReceiver) stop() {
+	close(recv.done)
 }

@@ -369,6 +369,13 @@ func (srv *clusteredServer) UpdateSettings(ctx context.Context, req *connect.Req
 	return current.UpdateSettings(ctx, req)
 }
 
+func (srv *clusteredServer) Transaction(stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse]) error {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.Transaction(stream)
+}
+
 func (srv *clusteredServer) Stop() {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
