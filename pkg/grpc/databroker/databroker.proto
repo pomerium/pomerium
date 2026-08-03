@@ -223,6 +223,28 @@ service DataBrokerService {
   rpc SyncLatest(SyncLatestRequest) returns (stream SyncLatestResponse);
 }
 
+message TransactionRequest {
+  string key = 1;
+  oneof operation {
+    GetRequest get = 2;
+    PutRequest put = 3;
+    PatchRequest patch = 4;
+    QueryRequest query = 5;
+  }
+}
+
+message TransactionResponse {
+  string key = 1;
+  oneof operation {
+    GetResponse get = 2;
+    PutResponse put = 3;
+    PatchResponse patch = 4;
+    QueryResponse query = 5;
+  }
+}
+
+
+
 message Checkpoint {
   uint64 server_version = 1;
   uint64 record_version = 2;

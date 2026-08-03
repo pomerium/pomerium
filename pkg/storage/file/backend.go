@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -59,6 +61,15 @@ type Backend struct {
 	closeErr  error
 	closeCtx  context.Context
 	close     context.CancelFunc
+
+	// primitives used for tracking transactions
+	txGroup singleflight.Group
+	// txWg holds a counter of all in-flight transactions
+	// so the backend cannot be closed until they resolve.
+	txWg sync.WaitGroup
+	// transactions must hold their own mutex to prevent updates
+	// from stalling for long periods of time for regular storage operations
+	txMu sync.Mutex
 }
 
 // Option configures the backend instance.
@@ -102,11 +113,20 @@ func (backend *Backend) Close() error {
 		return fmt.Errorf("pebble: error initializing: %w", err)
 	}
 
-	backend.mu.Lock()
-	defer backend.mu.Unlock()
-
 	backend.closeOnce.Do(func() {
+		// cancel closeCtx so no new transaction starts. this has to be atomic with
+		// respect to the closeCtx check in DoTransaction, otherwise a transaction can
+		// pass that check and only increment txWg after the Wait below has returned.
+		backend.txMu.Lock()
 		backend.close()
+		backend.txMu.Unlock()
+
+		// drain in-flight transactions while not holding locks because
+		// transactions require the backend's lock.
+		backend.txWg.Wait()
+
+		backend.mu.Lock()
+		defer backend.mu.Unlock()
 
 		if backend.metricRegistration != nil {
 			err := backend.metricRegistration.Unregister()
@@ -391,6 +411,205 @@ func (backend *Backend) Versions(
 	}
 
 	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+}
+
+func (backend *Backend) DoTransaction(
+	ctx context.Context,
+	key string,
+	fn func(tx storage.Transaction,
+	) error,
+) (changed []*databrokerpb.Record, shared bool, err error) {
+	if err := backend.init(); err != nil {
+		return nil, false, fmt.Errorf("pebble : error initializing : %w", err)
+	}
+
+	// singleflight reports shared to the owner of a flight too
+	var ran bool
+	res, err, _ := backend.txGroup.Do(key, func() (any, error) {
+		ran = true
+
+		backend.txMu.Lock()
+		if err := backend.closeCtx.Err(); err != nil {
+			backend.txMu.Unlock()
+			return nil, context.Cause(backend.closeCtx)
+		}
+		backend.txWg.Add(1)
+		backend.txMu.Unlock()
+		defer backend.txWg.Done()
+
+		tx := &transaction{
+			backend: backend,
+			ctx:     ctx,
+			batch:   backend.db.NewIndexedBatch(),
+		}
+		if err := fn(tx); err != nil {
+			tx.rollback()
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return tx.changed, nil
+	})
+	changed, _ = res.([]*databrokerpb.Record)
+	return changed, !ran, err
+}
+
+type transaction struct {
+	backend *Backend
+	ctx     context.Context
+	mu      sync.Mutex
+
+	batch             *pebble.Batch
+	onCommitCallbacks []func()
+	responses         []*databrokerpb.TransactionResponse
+	changed           []*databrokerpb.Record
+}
+
+func (tx *transaction) onCommit(callback func()) {
+	tx.onCommitCallbacks = append(tx.onCommitCallbacks, callback)
+}
+
+// Submit applies a single operation to the transaction's batch. The operation is
+// not durable until the transaction commits. An error returned here does not
+// abort the transaction: it is up to the callback to propagate it, and a callback
+// which swallows it and returns nil will commit everything else it submitted.
+func (tx *transaction) Submit(req *databrokerpb.TransactionRequest) (*databrokerpb.TransactionResponse, error) {
+	// closeCtx is deliberately not checked here: it gates entry in DoTransaction,
+	// and txWg keeps the database open until this transaction completes.
+	if tx.ctx.Err() != nil {
+		return nil, context.Cause(tx.ctx)
+	}
+
+	tx.mu.Lock()
+	defer tx.mu.Unlock()
+
+	tx.backend.mu.Lock()
+	defer tx.backend.mu.Unlock()
+
+	var res *databrokerpb.TransactionResponse
+	var err error
+	switch op := req.GetOperation().(type) {
+	case *databrokerpb.TransactionRequest_Get:
+		res, err = tx.submitGetLocked(op.Get)
+	case *databrokerpb.TransactionRequest_Put:
+		res, err = tx.submitPutLocked(op.Put)
+	case *databrokerpb.TransactionRequest_Patch:
+		res, err = tx.submitPatchLocked(op.Patch)
+	case *databrokerpb.TransactionRequest_Query:
+		res, err = tx.submitQueryLocked(op.Query)
+	default:
+		err = status.Errorf(codes.InvalidArgument, "unsupported transaction operation: %T", req.GetOperation())
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	res.Key = req.GetKey()
+	tx.responses = append(tx.responses, res)
+	return res, nil
+}
+
+func (tx *transaction) submitGetLocked(req *databrokerpb.GetRequest) (*databrokerpb.TransactionResponse, error) {
+	record, err := tx.backend.getRecordLocked(tx.batch, req.GetType(), req.GetId())
+	if err != nil {
+		return nil, err
+	}
+	return &databrokerpb.TransactionResponse{
+		Operation: &databrokerpb.TransactionResponse_Get{Get: &databrokerpb.GetResponse{Record: record}},
+	}, nil
+}
+
+func (tx *transaction) submitPutLocked(req *databrokerpb.PutRequest) (*databrokerpb.TransactionResponse, error) {
+	records := slices.Clone(req.GetRecords())
+	serverVersion := tx.backend.serverVersion
+	if err := tx.backend.putRecordsLocked(tx.batch, records); err != nil {
+		return nil, err
+	}
+	tx.onCommit(func() { tx.backend.onRecordChange.Broadcast(tx.ctx) })
+	tx.changed = append(tx.changed, records...)
+	return &databrokerpb.TransactionResponse{
+		Operation: &databrokerpb.TransactionResponse_Put{Put: &databrokerpb.PutResponse{
+			ServerVersion: serverVersion,
+			Records:       records,
+		}},
+	}, nil
+}
+
+func (tx *transaction) submitPatchLocked(req *databrokerpb.PatchRequest) (*databrokerpb.TransactionResponse, error) {
+	serverVersion := tx.backend.serverVersion
+	patched, err := tx.backend.patchRecordsLocked(tx.batch, req.GetRecords(), req.GetFieldMask())
+	if err != nil {
+		return nil, err
+	}
+	tx.onCommit(func() { tx.backend.onRecordChange.Broadcast(tx.ctx) })
+	tx.changed = append(tx.changed, patched...)
+	return &databrokerpb.TransactionResponse{
+		Operation: &databrokerpb.TransactionResponse_Patch{Patch: &databrokerpb.PatchResponse{
+			ServerVersion: serverVersion,
+			Records:       patched,
+		}},
+	}, nil
+}
+
+func (tx *transaction) submitQueryLocked(req *databrokerpb.QueryRequest) (*databrokerpb.TransactionResponse, error) {
+	expr, err := storage.FilterExpressionFromStruct(req.GetFilter())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid query filter: %v", err)
+	}
+
+	all, err := tx.backend.listLatestRecordsLocked(tx.batch, req.GetType(), expr)
+	if err != nil {
+		return nil, err
+	}
+
+	query := strings.ToLower(req.GetQuery())
+	filtered := make([]*databrokerpb.Record, 0, len(all))
+	for _, record := range all {
+		if query != "" && !storage.MatchAny(record.GetData(), query) {
+			continue
+		}
+		filtered = append(filtered, record)
+	}
+
+	records, totalCount := databrokerpb.ApplyOffsetAndLimit(filtered, int(req.GetOffset()), int(req.GetLimit()))
+	return &databrokerpb.TransactionResponse{
+		Operation: &databrokerpb.TransactionResponse_Query{Query: &databrokerpb.QueryResponse{
+			Records:       records,
+			TotalCount:    int64(totalCount),
+			ServerVersion: tx.backend.serverVersion,
+			RecordVersion: tx.backend.latestRecordVersion,
+		}},
+	}, nil
+}
+
+func (tx *transaction) rollback() {
+	tx.mu.Lock()
+	defer tx.mu.Unlock()
+
+	_ = tx.batch.Close()
+}
+
+// Commit writes the transaction's batch to the database. It deliberately does not
+// check closeCtx: a transaction which has finished its callback runs to completion.
+func (tx *transaction) Commit() error {
+	tx.mu.Lock()
+	defer tx.mu.Unlock()
+
+	tx.backend.mu.Lock()
+	defer tx.backend.mu.Unlock()
+
+	err := tx.batch.Commit(nil)
+	_ = tx.batch.Close()
+	if err != nil {
+		return fmt.Errorf("pebble: error committing transaction: %w", err)
+	}
+
+	for _, f := range slices.Backward(tx.onCommitCallbacks) {
+		f()
+	}
+
+	return nil
 }
 
 func (backend *Backend) cleanLocked(
