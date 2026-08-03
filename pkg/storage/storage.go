@@ -62,6 +62,28 @@ type Backend interface {
 	SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, seq RecordIterator, err error)
 	// Versions returns versions from the storage backend.
 	Versions(ctx context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error)
+	// DoTransaction runs cb against a transaction, committing it if cb returns nil
+	// and rolling it back otherwise. A concurrent call for an in-flight key does
+	// not run its callback and returns the in-flight call's error when it finishes.
+	// A shared caller receives the in-flight call's changed records.
+	DoTransaction(ctx context.Context, key string, cb func(tx Transaction) error) (
+		changed []*databroker.Record,
+		shared bool,
+		err error,
+	)
+}
+
+// A Transaction applies its submitted operations atomically on Commit.
+//
+// Only persistent indices are updated, so do not submit operations on records
+// that should update an in-memory index.
+type Transaction interface {
+	// Submit adds an operation to the transaction. Intermediary responses from operations
+	// return information.
+	Submit(*databroker.TransactionRequest) (*databroker.TransactionResponse, error)
+	// commit applies the submitted operations. Concurrent calls for the same key
+	// block until the in-flight commit completes.
+	Commit() error
 }
 
 // CleanOptions are the options used for cleaning the storage backend.
