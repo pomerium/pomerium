@@ -1,28 +1,22 @@
-// Keycloak browser-login helpers.
-//
-// These mirror internal/acceptance/browser/helpers/authn-flow.ts
-// (`waitForLoginPage` / `submitLoginForm`) against the SAME Keycloak realm. They
-// are kept local (rather than imported from the browser package) so this suite
-// loads a single Playwright instance — importing the browser package's
-// @playwright/test would pull in a second test-runner copy with incompatible
-// types and global state.
+// Keycloak browser-login helpers for the MCP suite. The generic form primitives
+// now live in the shared package (suites/shared/keycloak-login); these thin
+// adapters keep this suite's (page) / (page, user) call signatures used by
+// mcp-client/connect.ts and mcp-client/oauth-raw.ts.
 
-import { expect, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import {
+  submitLoginForm as submitSharedLoginForm,
+  waitForKeycloakLoginPage,
+} from "../../shared/keycloak-login.js";
 import { KEYCLOAK_HOST } from "./constants.js";
-import type { TestUser } from "../../../browser/fixtures/users.js";
-
-const REALM_AUTH_PATH = "/realms/pomerium-e2e/protocol/openid-connect/auth";
+import type { TestUser } from "../../shared/users.js";
 
 /** Wait until the browser is on the Keycloak login page. */
 export async function waitForLoginPage(page: Page): Promise<void> {
-  await page.waitForURL((url) => url.hostname === KEYCLOAK_HOST);
-  expect(page.url()).toContain(REALM_AUTH_PATH);
+  await waitForKeycloakLoginPage(page, KEYCLOAK_HOST);
 }
 
 /** Fill and submit the Keycloak username/password form. */
 export async function submitLoginForm(page: Page, user: TestUser): Promise<void> {
-  await page.getByLabel(/username/i).fill(user.email);
-  // Exact match avoids matching the "Show password" toggle.
-  await page.getByLabel("Password", { exact: true }).fill(user.password);
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await submitSharedLoginForm(page, user.email, user.password);
 }
