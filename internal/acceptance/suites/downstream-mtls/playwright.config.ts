@@ -14,7 +14,11 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
-  retries: 0,
+  // The suite restarts the Pomerium container per spec group, which churns the
+  // runner's Docker network; a page.goto that races a restart aborts with
+  // ERR_NETWORK_CHANGED. Retry under CI (as the browser suite does) so a single
+  // such abort self-heals; see also the launchOptions flag below.
+  retries: process.env.CI ? 2 : 0,
   reporter: [
     ["list"],
     ["html", { outputFolder: "playwright-report", open: "never" }],
@@ -30,6 +34,10 @@ export default defineConfig({
   expect: { timeout: 15_000 },
 
   use: {
+    // Stop Chromium aborting navigations with ERR_NETWORK_CHANGED when it
+    // notices the network reconfigure (the per-spec Pomerium container restarts
+    // trigger this on CI runners). Unknown feature names are ignored safely.
+    launchOptions: { args: ["--disable-features=NetworkChangeNotifier"] },
     // Pomerium serves a leaf certificate from the per-run OpenSSL CA; the
     // browser simply ignores certificate errors.
     ignoreHTTPSErrors: true,
