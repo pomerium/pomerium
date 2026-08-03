@@ -49,7 +49,10 @@ const (
 
 //nolint:revive
 type SSHEvaluator interface {
+	// Evaluates whether a user can connect to this route
 	EvaluateSSH(ctx context.Context, streamID uint64, req AuthRequest, initialAuthComplete bool) (*evaluator.Result, error)
+
+	// Evaluates whether a user can attach an upstream tunnel to this route
 	EvaluateUpstreamTunnel(ctx context.Context, req AuthRequest, route *config.Policy) (*evaluator.Result, error)
 }
 
@@ -108,6 +111,7 @@ func NewAuth(
 	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
 	codeIssuer code.Issuer,
+	_ any, // temporary placeholder
 	opts ...Option,
 ) *Auth {
 	options := Options{
@@ -137,18 +141,22 @@ func (a *Auth) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 
 func (a *Auth) HandlePublicKeyMethodRequest(
 	ctx context.Context,
-	info StreamAuthInfo,
+	streamInfo StreamInfo,
+	authInfo StreamAuthInfo,
 	user api.UserRequest,
 	req *extensions_ssh.PublicKeyMethodRequest,
-) (PublicKeyAuthMethodResponse, error) {
+) (AuthMethodResponse, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.HandlePublicKeyMethodRequest")
 	defer span.End()
-	resp, err := a.handlePublicKeyMethodRequest(ctx, info, user, req)
+	resp, err := a.handlePublicKeyMethodRequest(ctx, streamInfo, authInfo, user, req)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("ssh publickey auth request error")
-		span.SetStatus(otelcode.Error, "internal error")
-		return resp, status.Error(codes.Internal, "internal error")
+		span.SetStatus(otelcode.Error, err.Error())
+		// TODO: handle ShowErrorDetails here
+		return resp, status.Error(codes.PermissionDenied, "permission denied")
 	}
+	resp.Validate()
+	span.SetStatus(otelcode.Ok, resp.String())
 	return resp, err
 }
 
@@ -161,133 +169,166 @@ func fingerprintAsStrAttribute(publicKeyFingerprintSha256 []byte) string {
 
 func (a *Auth) handlePublicKeyMethodRequest(
 	ctx context.Context,
-	info StreamAuthInfo,
+	streamInfo StreamInfo,
+	_ StreamAuthInfo,
 	user api.UserRequest,
 	req *extensions_ssh.PublicKeyMethodRequest,
-) (PublicKeyAuthMethodResponse, error) {
-	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handlePublicKeyMethodRequest")
-	defer span.End()
+) (AuthMethodResponse, error) {
+	pendingAuthContextUpdates := &extensions_ssh.AuthContext{}
+
+	// First, try authenticating with the public key only, to see if it is allowed
+	res, err := a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, AuthRequest{
+		Username:        user.Username(),
+		Hostname:        user.Hostname(),
+		PublicKey:       string(req.PublicKey),
+		SourceAddress:   streamInfo.SourceAddress,
+		LogOnlyIfDenied: true,
+	}, streamInfo.InitialAuthComplete)
+	if err != nil {
+		return AuthMethodResponse{}, err
+	}
+
+	// Check for non-retriable deny reasons
+	if !res.Allow.Value {
+		if res.Allow.Reasons.Has(criteria.ReasonSourceIPUnauthorized) {
+			return AuthMethodResponse{}, nil
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHUsernameUnauthorized) {
+			return AuthMethodResponse{}, nil
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHPublickeyUnauthorized) {
+			// If the public key itself is not allowed, let the client try a different
+			// public key
+			return AuthMethodResponse{
+				AllowMethod:            false,
+				NextRequiredAuthMethod: MethodPublicKey,
+			}, nil
+		}
+	}
+	// Check for inverse reasons in the deny response. These show up when denying
+	// specific addresses/usernames/keys as opposed to failing an allow rule
+	if res.Deny.Value {
+		if res.Deny.Reasons.Has(criteria.ReasonSourceIPOK) {
+			return AuthMethodResponse{}, nil
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHUsernameOK) {
+			return AuthMethodResponse{}, nil
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHPublickeyOK) {
+			return AuthMethodResponse{
+				AllowMethod:            false,
+				NextRequiredAuthMethod: MethodPublicKey,
+			}, nil
+		}
+	}
+
+	// The public key is acceptable
+	pendingAuthContextUpdates.PublicKey = req.PublicKey
+	pendingAuthContextUpdates.PublicKeyAlg = req.PublicKeyAlg
+	pendingAuthContextUpdates.PublicKeyFingerprintSha256 = req.PublicKeyFingerprintSha256
+
+	isPomeriumInternalRoute := res.HasReason(criteria.ReasonPomeriumRoute)
+	if !res.HasReason(criteria.ReasonUserUnauthenticated) && !isPomeriumInternalRoute {
+		// If the policy is missing any criteria that require a session, then it is
+		// misconfigured. Log an error and deny the request since there is no way to
+		// continue
+		log.Ctx(ctx).Error().
+			Str("route", "ssh://"+user.Hostname()).
+			Str("client", streamInfo.SourceAddress).
+			Uint64("stream-id", streamInfo.StreamID).
+			Str("public-key", fmt.Sprintf("%s %s", req.PublicKeyAlg, fingerprintAsStrAttribute(req.PublicKeyFingerprintSha256))).
+			Msg("warning: denying access to ssh route which is missing session criteria in its policy")
+		return AuthMethodResponse{}, nil
+	}
+
+	// First check if there is a session for this public key
 	sessionBindingID, err := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
 	if err != nil {
-		return PublicKeyAuthMethodResponse{}, err
+		return AuthMethodResponse{}, err
 	}
-	sessionBinding, err := a.resolveSession(ctx, sessionBindingID)
+	sessionBinding, _, err := a.resolveSession(ctx, sessionBindingID)
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			span.SetStatus(otelcode.Ok, "must reauthenticated")
-			return PublicKeyAuthMethodResponse{
-				Allow:                    publicKeyAllowResponse(req.PublicKey),
-				RequireAdditionalMethods: []string{MethodKeyboardInteractive},
+			// No session, and one is required
+			return AuthMethodResponse{
+				AllowMethod:            true, // publickey
+				NextRequiredAuthMethod: MethodKeyboardInteractive,
+				ContextUpdates:         pendingAuthContextUpdates, // the public key is valid
 			}, nil
 		}
-		return PublicKeyAuthMethodResponse{}, err
+		// No session, but there was an error checking the databroker or something
+		return AuthMethodResponse{}, err
 	}
-	sshreq := AuthRequest{
-		Username:         user.Username(),
-		Hostname:         user.Hostname(),
-		PublicKey:        string(req.PublicKey),
+
+	// Evaluate again, this time with the session info populated.
+	res, err = a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, AuthRequest{
+		Username:      user.Username(),
+		Hostname:      user.Hostname(),
+		PublicKey:     string(req.PublicKey),
+		SourceAddress: streamInfo.SourceAddress,
+
 		SessionID:        sessionBinding.SessionId,
 		SessionBindingID: sessionBindingID,
-		SourceAddress:    info.SourceAddress,
-	}
-	log.Ctx(ctx).Debug().
-		Str("username", user.Username()).
-		Str("hostname", user.Hostname()).
-		Str("session-id", sessionBinding.SessionId).
-		Msg("ssh publickey auth request")
-
-	// Special case: internal command (e.g. routes portal).
-	if user.Hostname() == "" {
-		_, err := session.Get(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionBinding.SessionId)
-		if status.Code(err) == codes.NotFound {
-			// Require IdP login.
-			return PublicKeyAuthMethodResponse{
-				Allow:                    publicKeyAllowResponse(req.PublicKey),
-				RequireAdditionalMethods: []string{MethodKeyboardInteractive},
-			}, nil
-		} else if err != nil {
-			return PublicKeyAuthMethodResponse{}, err
-		}
-	}
-
-	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, sshreq, info.InitialAuthComplete)
+		// Keep AccessRequestState unset
+	}, streamInfo.InitialAuthComplete)
 	if err != nil {
-		span.SetStatus(otelcode.Error, "internal error : evaluate")
-		return PublicKeyAuthMethodResponse{}, err
+		return AuthMethodResponse{}, err
 	}
 
-	// Interpret the results of policy evaluation.
-	if res.HasReason(criteria.ReasonSSHPublickeyUnauthorized) {
-		// This public key is not allowed, but the client is free to try a different key.
-		span.SetStatus(otelcode.Ok, "public key not allowed")
-		return PublicKeyAuthMethodResponse{
-			RequireAdditionalMethods: []string{MethodPublicKey},
-		}, nil
-	} else if res.HasReason(criteria.ReasonUserUnauthenticated) {
-		// Mark public key as allowed, to initiate IdP login flow.
-		span.SetStatus(otelcode.Ok, "un-authenticated")
-		return PublicKeyAuthMethodResponse{
-			Allow:                    publicKeyAllowResponse(req.PublicKey),
-			RequireAdditionalMethods: []string{MethodKeyboardInteractive},
-		}, nil
-	} else if res.Allow.Value && !res.Deny.Value {
-		// Allowed, no login needed.
-		span.SetStatus(otelcode.Ok, "allowed")
-		return PublicKeyAuthMethodResponse{
-			Allow: publicKeyAllowResponse(req.PublicKey),
+	if res.HasReason(criteria.ReasonUserUnauthenticated) {
+		// The session is not valid
+		return AuthMethodResponse{
+			AllowMethod:            true, // publickey
+			NextRequiredAuthMethod: MethodKeyboardInteractive,
+			ContextUpdates:         pendingAuthContextUpdates, // the public key is valid
 		}, nil
 	}
-	// Denied, no login needed.
-	span.SetStatus(otelcode.Ok, "denied")
-	return PublicKeyAuthMethodResponse{}, nil
-}
 
-func publicKeyAllowResponse(publicKey []byte) *extensions_ssh.PublicKeyAllowResponse {
-	return &extensions_ssh.PublicKeyAllowResponse{
-		PublicKey: publicKey,
-		Permissions: &extensions_ssh.Permissions{
-			PermitPortForwarding:  true,
-			PermitAgentForwarding: true,
-			PermitX11Forwarding:   true,
-			PermitPty:             true,
-			PermitUserRc:          true,
-			ValidStartTime:        timestamppb.New(time.Now().Add(-1 * time.Minute)),
-			ValidEndTime:          timestamppb.New(time.Now().Add(1 * time.Hour)),
-		},
-	}
+	return processSessionEvaluateResult(sessionIDs{
+		SessionBindingID: sessionBindingID,
+		SessionID:        sessionBinding.SessionId,
+		UserID:           sessionBinding.UserId,
+	}, res, pendingAuthContextUpdates)
 }
 
 func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 	ctx context.Context,
-	info StreamAuthInfo,
+	streamInfo StreamInfo,
+	authInfo StreamAuthInfo,
 	user api.UserRequest,
 	_ *extensions_ssh.KeyboardInteractiveMethodRequest,
 	querier KeyboardInteractiveQuerier,
-) (KeyboardInteractiveAuthMethodResponse, error) {
-	resp, err := a.handleKeyboardInteractiveMethodRequest(ctx, info, user, querier)
+) (AuthMethodResponse, error) {
+	ctx, span := a.tracer.Start(ctx, "authorize.ssh.HandleKeyboardInteractiveMethodRequest")
+	defer span.End()
+	var policy *config.Policy
+	resp, err := a.handleKeyboardInteractiveMethodRequest(ctx, streamInfo, authInfo, user, querier, &policy)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("ssh keyboard-interactive auth request error")
-		if _, ok := status.FromError(err); !ok {
-			return resp, status.Error(codes.Internal, err.Error())
+		span.SetStatus(otelcode.Error, err.Error())
+		if policy != nil && policy.ShowErrorDetails {
+			return resp, err
 		}
-		return resp, err
+		return resp, status.Error(codes.PermissionDenied, "permission denied")
 	}
+	resp.Validate()
+	span.SetStatus(otelcode.Ok, resp.String())
 	return resp, err
 }
 
 func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	ctx context.Context,
-	info StreamAuthInfo,
+	streamInfo StreamInfo,
+	authInfo StreamAuthInfo,
 	user api.UserRequest,
 	querier KeyboardInteractiveQuerier,
-) (KeyboardInteractiveAuthMethodResponse, error) {
-	fingerprintAttrVal := fingerprintAsStrAttribute(info.PublicKeyFingerprintSha256)
-	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleKeyboardInteractiveMethodRequest")
-	defer span.End()
-	if info.PublicKeyAllow.Value == nil {
-		// Sanity check: this method is only valid if we already accepted a public key.
-		return KeyboardInteractiveAuthMethodResponse{}, errPublicKeyAllowNil
-	}
+	outPolicy **config.Policy,
+) (AuthMethodResponse, error) {
+	cfg := a.currentConfig.Load()
+
+	fingerprintAttrVal := fingerprintAsStrAttribute(authInfo.GetPublicKeyFingerprintSha256())
+
+	pendingAuthContextUpdates := &extensions_ssh.AuthContext{}
 
 	log.Ctx(ctx).Debug().
 		Str("username", user.Username()).
@@ -295,38 +336,106 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 		Str(telemetryFingerprintAttribute, fingerprintAttrVal).
 		Msg("ssh keyboard-interactive auth request")
 
-	// Initiate the IdP login flow.
-	err := a.handleLogin(ctx, user.Hostname(), info.SourceAddress, info.PublicKeyFingerprintSha256, querier)
-	if err != nil {
-		span.SetStatus(otelcode.Error, "login failed")
-		return KeyboardInteractiveAuthMethodResponse{}, err
+	if !authInfoHasPublicKey(authInfo) {
+		// Sanity check: this method is only valid if we already accepted a public key.
+		panic("bug: public key info missing from auth context")
 	}
 
-	if err := a.EvaluateDelayed(ctx, info, user); err != nil {
-		// Denied.
-		span.SetStatus(otelcode.Ok, "denied")
-		return KeyboardInteractiveAuthMethodResponse{}, nil
+	policy := cfg.Options.GetRouteForSSHHostname(user.Hostname())
+	if outPolicy != nil {
+		*outPolicy = policy
 	}
-	// Allowed.
-	span.SetStatus(otelcode.Ok, "allowed")
-	return KeyboardInteractiveAuthMethodResponse{
-		Allow: &extensions_ssh.KeyboardInteractiveAllowResponse{},
-	}, nil
+
+	var sessionID, userID, sessionBindingID string
+
+	if !authInfoHasSession(authInfo) {
+		// No session (this is the most common case)
+
+		// Initiate the IdP login flow.
+		var err error
+		sessionBinding, sbID, err := a.handleLogin(ctx, cfg, policy, streamInfo.SourceAddress, authInfo.GetPublicKeyFingerprintSha256(), querier)
+		if err != nil {
+			return AuthMethodResponse{}, err
+		}
+		sessionID = sessionBinding.SessionId
+		userID = sessionBinding.UserId
+		sessionBindingID = sbID
+	} else {
+		// There is already a valid session, so keyboard-interactive is requested
+		// for a different reason
+		sessionID = authInfo.GetSessionId()
+		userID = authInfo.GetUserId()
+		sessionBindingID = authInfo.GetSessionBindingId()
+
+		// (not implemented yet)
+		_ = sessionID
+		_ = userID
+		_ = sessionBindingID
+
+		panic("bug: keyboard-interactive auth request is not valid in this state")
+	}
+
+	res, err := a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, AuthRequest{
+		Username:         user.Username(),
+		Hostname:         user.Hostname(),
+		PublicKey:        string(authInfo.GetPublicKey()),
+		SourceAddress:    streamInfo.SourceAddress,
+		SessionID:        sessionID,
+		SessionBindingID: sessionBindingID,
+	}, streamInfo.InitialAuthComplete)
+	if err != nil {
+		return AuthMethodResponse{}, err
+	}
+	return processSessionEvaluateResult(sessionIDs{
+		SessionBindingID: sessionBindingID,
+		SessionID:        sessionID,
+		UserID:           userID,
+	}, res, pendingAuthContextUpdates)
+}
+
+type sessionIDs struct {
+	SessionBindingID string
+	SessionID        string
+	UserID           string
+}
+
+func processSessionEvaluateResult(
+	ids sessionIDs,
+	res *evaluator.Result,
+	pendingAuthContextUpdates *extensions_ssh.AuthContext,
+) (AuthMethodResponse, error) {
+	if res.Allow.Value {
+		if !res.Deny.Value {
+			// The session is valid and there are no deny reasons
+			pendingAuthContextUpdates.SessionBindingId = ids.SessionBindingID
+			pendingAuthContextUpdates.SessionId = ids.SessionID
+			pendingAuthContextUpdates.UserId = ids.UserID
+
+			return AuthMethodResponse{
+				AllowMethod:              true, // publickey
+				NoFurtherMethodsRequired: true,
+				ContextUpdates:           pendingAuthContextUpdates, // public key + session
+			}, nil
+		}
+	}
+
+	// Deny
+	return AuthMethodResponse{}, nil
 }
 
 func (a *Auth) handleLogin(
 	ctx context.Context,
-	hostname string,
+	cfg *config.Config,
+	policy *config.Policy,
 	sourceAddr string,
 	publicKeyFingerprint []byte,
 	querier KeyboardInteractiveQuerier,
-) (err error) {
+) (*session.SessionBinding, string /*sessionBindingID*/, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleLogin")
 	defer span.End()
 
-	cfg := a.currentConfig.Load()
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		return status.Error(codes.FailedPrecondition, "ssh login is not currently enabled")
+		return nil, "", status.Error(codes.FailedPrecondition, "ssh login is not currently enabled")
 	}
 
 	l := log.Ctx(ctx).With().
@@ -342,11 +451,11 @@ func (a *Auth) handleLogin(
 
 	bindingKey, err := sessionIDFromFingerprint(publicKeyFingerprint)
 	if err != nil {
-		return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
+		return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
 	}
-	idp, authenticator, err := a.getAuthenticator(ctx, hostname)
+	idp, authenticator, err := a.getAuthenticator(ctx, cfg, policy)
 	if err != nil {
-		return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
+		return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
 	}
 	authURL, _ := cfg.Options.GetAuthenticateURL()
 	generatedCode := a.codeIssuer.IssueCode()
@@ -371,7 +480,7 @@ func (a *Auth) handleLogin(
 	endCodeTime := time.Now()
 	a.codeMetrics.SSHIssueCodeDuration.Record(ctx, endCodeTime.Sub(startCodeTime).Seconds())
 	if err != nil {
-		return a.reportLoginCodeFailure(ctx, l, span, codes.Aborted, "failed to associate a code to this session")
+		return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Aborted, "failed to associate a code to this session")
 	}
 	var prompt string
 
@@ -382,11 +491,14 @@ func (a *Auth) handleLogin(
 		RawQuery: query.Encode(),
 	})
 	prompt = promptURI.String()
-	_, _ = querier.Prompt(ctxT, &extensions_ssh.KeyboardInteractiveInfoPrompts{
+	_, err = querier.Prompt(ctxT, &extensions_ssh.KeyboardInteractiveInfoPrompts{
 		Name:        SignInPrompt(authenticator),
 		Instruction: prompt,
 		Prompts:     nil,
 	})
+	if err != nil {
+		return nil, "", err
+	}
 	startDecisionTime := time.Now()
 
 	defer func() {
@@ -397,43 +509,56 @@ func (a *Auth) handleLogin(
 	statusC := a.codeIssuer.OnCodeDecision(ctxT, associatedCode)
 	select {
 	case <-a.codeIssuer.Done():
-		return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, "code issuer can no longer process this request")
+		return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, "code issuer can no longer process this request")
 	case <-ctxT.Done():
-		return a.reportLoginCodeFailure(ctx, l, span, codes.Canceled, "authentication request timeout")
+		return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Canceled, "authentication request timeout")
 	case st, ok := <-statusC:
 		if !ok {
-			return a.reportLoginCodeFailure(ctx, l, span, codes.DeadlineExceeded, "authentication request cancelled by user or timeout exceeded")
+			return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.DeadlineExceeded, "authentication request cancelled by user or timeout exceeded")
 		}
-		if st.State == session.SessionBindingRequestState_Revoked {
-			return a.reportLoginCodeFailure(ctx, l, span, codes.PermissionDenied, "user has denied this code")
+		switch st.State {
+		case session.SessionBindingRequestState_Revoked:
+			return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.PermissionDenied, "user has denied this code")
+		case session.SessionBindingRequestState_Accepted:
+		default:
+			// the code issuer must not send a status reply here with state=InFlight
+			panic(fmt.Sprintf("bug: invalid session binding request state in code.Status: %v", st.State))
 		}
 		if st.BindingKey != bindingKey {
-			return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, "mismatched binding keys")
+			return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, "mismatched binding keys")
 		}
-		ctxca, ca := context.WithTimeout(context.Background(), 30*time.Second)
+		// use ctxT as the parent here so that this will time out in 30s or if the
+		// request itself expires, whichever comes first
+		ctxca, ca := context.WithTimeout(ctxT, 30*time.Second)
 		defer ca()
 		b := backoff.WithContext(backoff.NewExponentialBackOff(), ctxca)
-		client := a.evaluator.GetDataBrokerServiceClient()
+		var sessionBinding *session.SessionBinding
+		var lastError error
 		err := backoff.Retry(func() error {
-			rec, err := client.Get(ctxca, &databroker.GetRequest{
+			sessionBinding, _, lastError = a.resolveSession(ctxca, bindingKey)
+			if lastError != nil {
+				if databroker.IsNotFound(lastError) {
+					return lastError
+				}
+				return backoff.Permanent(lastError)
+			}
+			a.evaluator.InvalidateCacheForRecords(ctxca, &databroker.Record{
 				Type: "type.googleapis.com/session.SessionBinding",
 				Id:   bindingKey,
 			})
-			if rec.Record.DeletedAt != nil {
-				return fmt.Errorf("stale record")
-			}
-			if err != nil {
-				return err
-			}
-			a.evaluator.InvalidateCacheForRecords(ctxca, rec.GetRecord())
 			return nil
 		}, b)
 		if err != nil {
-			return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, fmt.Sprintf("failed to get matching session binding : %s", err.Error()))
+			// try to prevent "context canceled" from masking the underlying error
+			// if the backoff timed out
+			if errors.Is(err, lastError) {
+				return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, fmt.Sprintf("failed to get matching session binding: %s", err.Error()))
+			}
+			return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, fmt.Sprintf("failed to get matching session binding: %s (last error: %s)", err.Error(), lastError.Error()))
 		}
 		l.Info().Msg("successfully authenticated")
 		span.SetStatus(otelcode.Ok, "successfully authenticated")
-		return nil
+		return sessionBinding, bindingKey, nil
 	}
 }
 
@@ -479,12 +604,21 @@ func (a *Auth) reportLoginCodeFailure(
 
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
 
-func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) error {
-	req, err := a.sshRequestFromStreamAuthInfo(ctx, info, user)
+func (a *Auth) EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) error {
+	if user.Hostname() == "" {
+		panic("bug: EvaluateDelayed called with empty hostname")
+	}
+	if !authInfoHasPublicKey(authInfo) {
+		panic("bug: EvaluateDelayed called with missing public key info")
+	}
+	if !authInfoHasSession(authInfo) {
+		panic("bug: EvaluateDelayed called with missing session info")
+	}
+	req, err := a.sshRequestFromStreamAuthInfo(ctx, streamInfo, authInfo, user)
 	if err != nil {
 		return err
 	}
-	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req, info.InitialAuthComplete)
+	res, err := a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, req, streamInfo.InitialAuthComplete)
 	if err != nil {
 		return err
 	}
@@ -496,7 +630,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user ap
 }
 
 // BuildTargetChannelFilters implements [AuthInterface].
-func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
+func (a *Auth) BuildTargetChannelFilters(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
 	hostname := user.Hostname()
 	if hostname == "" {
 		return nil, nil, fmt.Errorf("no hostname")
@@ -511,7 +645,7 @@ func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInf
 	if !route.SessionRecording.IsSet || !route.SessionRecording.Value.Enabled.Or(false) {
 		return addr, []*corev3.TypedExtensionConfig{}, nil
 	}
-	sess, err := a.GetSession(ctx, info)
+	sess, err := a.GetSession(ctx, streamInfo, authInfo)
 	if err != nil {
 		return nil, nil, fmt.Errorf("no session")
 	}
@@ -557,47 +691,16 @@ func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID 
 	}
 }
 
-// EvaluatePortForward implements AuthInterface.
-func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, user api.UserRequest, route *config.Policy) error {
-	req, err := a.sshRequestFromStreamAuthInfo(ctx, info, user)
-	if err != nil {
-		return err
-	}
-	res, err := a.evaluator.EvaluateUpstreamTunnel(ctx, req, route)
-	if err != nil {
-		return err
-	}
-
-	if res.Allow.Value && !res.Deny.Value {
-		return nil
-	}
-	return errAccessDenied
-}
-
-func (a *Auth) GetSession(ctx context.Context, info StreamAuthInfo) (*session.Session, error) {
-	sessionBinding, err := a.resolveSessionFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
+func (a *Auth) GetSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) (*session.Session, error) {
+	_, session, err := a.resolveSession(ctx, authInfo.GetSessionBindingId())
 	if err != nil {
 		return nil, err
 	}
-	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
-		Type: "type.googleapis.com/session.Session",
-		Id:   sessionBinding.SessionId,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if sessionResp.GetRecord().DeletedAt != nil {
-		return nil, status.Error(codes.NotFound, "session deleted")
-	}
-	var s session.Session
-	if err := sessionResp.Record.Data.UnmarshalTo(&s); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	return &s, nil
+	return session, nil
 }
 
-func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
-	binding, err := a.resolveSessionFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
+func (a *Auth) DeleteSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) error {
+	binding, _, err := a.resolveSession(ctx, authInfo.GetSessionBindingId())
 	if err != nil {
 		return err
 	}
@@ -622,21 +725,23 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 	return errors.Join(sessionErr, bindingErr)
 }
 
-func (a *Auth) getAuthenticator(ctx context.Context, hostname string) (*identitypb.Provider, identity.Authenticator, error) {
-	opts := a.currentConfig.Load().Options
-
-	redirectURL, err := opts.GetAuthenticateRedirectURL()
+func (a *Auth) getAuthenticator(
+	ctx context.Context,
+	cfg *config.Config,
+	policy *config.Policy,
+) (*identitypb.Provider, identity.Authenticator, error) {
+	redirectURL, err := cfg.Options.GetAuthenticateRedirectURL()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	idp, err := opts.GetIdentityProviderForPolicy(opts.GetRouteForSSHHostname(hostname))
+	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	authenticator, err := identity.GetIdentityProvider(ctx, a.tracerProvider, idp, redirectURL,
-		opts.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])
+		cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])
 	if err != nil {
 		return nil, nil, err
 	}
@@ -648,41 +753,46 @@ var _ AuthInterface = (*Auth)(nil)
 
 var errInvalidFingerprint = errors.New("invalid public key fingerprint")
 
-func (a *Auth) resolveSession(ctx context.Context, sessionBindingID string) (*session.SessionBinding, error) {
+func (a *Auth) resolveSession(ctx context.Context, sessionBindingID string) (*session.SessionBinding, *session.Session, error) {
 	resp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/session.SessionBinding",
 		Id:   sessionBindingID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if resp.Record.DeletedAt != nil {
-		return nil, status.Error(codes.NotFound, "session binding deleted")
+		return nil, nil, status.Error(codes.NotFound, "session binding deleted")
 	}
 
 	var binding session.SessionBinding
 	if err := resp.Record.Data.UnmarshalTo(&binding); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, nil, status.Error(codes.Internal, err.Error())
 	}
 	now := time.Now()
 	if binding.ExpiresAt.AsTime().Before(now) {
-		return nil, status.Error(codes.NotFound, "session binding no longer valid")
+		return nil, nil, status.Error(codes.NotFound, "session binding no longer valid")
 	}
 	if binding.Protocol != session.ProtocolSSH {
-		return nil, status.Error(codes.Internal, "invalid protocol")
+		return nil, nil, status.Error(codes.Internal, "invalid protocol")
 	}
 	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/session.Session",
 		Id:   binding.SessionId,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if sessionResp.GetRecord().DeletedAt != nil {
-		return nil, status.Error(codes.NotFound, "session deleted")
+		return nil, nil, status.Error(codes.NotFound, "session deleted")
 	}
 
-	return &binding, nil
+	var session session.Session
+	if err := sessionResp.GetRecord().GetData().UnmarshalTo(&session); err != nil {
+		return nil, nil, err
+	}
+
+	return &binding, &session, nil
 }
 
 func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
@@ -692,37 +802,15 @@ func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	return "sshkey-SHA256:" + base64.RawStdEncoding.EncodeToString(sha256fingerprint), nil
 }
 
-func (a *Auth) resolveSessionFromFingerprint(ctx context.Context, sha256fingerprint []byte) (*session.SessionBinding, error) {
-	id, err := sessionIDFromFingerprint(sha256fingerprint)
-	if err != nil {
-		return nil, err
-	}
-	return a.resolveSession(ctx, id)
-}
-
-var errPublicKeyAllowNil = errors.New("expected PublicKeyAllow message not to be nil")
-
 // Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
-func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuthInfo, user api.UserRequest) (AuthRequest, error) {
-	if info.PublicKeyAllow.Value == nil {
-		return AuthRequest{}, errPublicKeyAllowNil
-	}
-	sessionBindingID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
-	if err != nil {
-		return AuthRequest{}, err
-	}
-	sessionBinding, err := a.resolveSession(ctx, sessionBindingID)
-	if err != nil {
-		return AuthRequest{}, err
-	}
-
+func (a *Auth) sshRequestFromStreamAuthInfo(_ context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (AuthRequest, error) {
 	return AuthRequest{
 		Username:         user.Username(),
 		Hostname:         user.Hostname(),
-		PublicKey:        string(info.PublicKeyAllow.Value.PublicKey),
-		SessionID:        sessionBinding.SessionId,
-		SourceAddress:    info.SourceAddress,
-		SessionBindingID: sessionBindingID,
-		LogOnlyIfDenied:  info.InitialAuthComplete,
+		PublicKey:        string(authInfo.GetPublicKey()),
+		SessionID:        authInfo.GetSessionId(),
+		SourceAddress:    streamInfo.SourceAddress,
+		SessionBindingID: authInfo.GetSessionBindingId(),
+		LogOnlyIfDenied:  streamInfo.InitialAuthComplete,
 	}, nil
 }

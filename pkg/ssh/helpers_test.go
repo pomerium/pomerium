@@ -2,20 +2,33 @@ package ssh_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gossh "golang.org/x/crypto/ssh"
+	"google.golang.org/grpc"
+
+	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/ssh"
+	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
 
 type SSHKeys struct {
 	// These keys are deterministically generated
 
-	// ClientKey SSH client private key for authentication
-	ClientKey ed25519.PrivateKey
 	// ServerHostKey key for server identification
 	ServerHostKey ed25519.PrivateKey
 	// UpstreamHostKey for upstream identification
@@ -24,31 +37,17 @@ type SSHKeys struct {
 	UserCAKey ed25519.PrivateKey
 	// ClientCAKey Certificate Authority key for signing client certificates
 	ClientCAKey ed25519.PrivateKey
-
-	// These keys are non-deterministically generated
-
-	// ClientCASshPubKey Client CA public key in SSH wire format
-	ClientCASshPubKey gossh.PublicKey
-	// ClientSSHPubKey Client public key in SSH wire format
-	ClientSSHPubKey gossh.PublicKey
 }
 
 func NewSSHKeys(t *testing.T) SSHKeys {
 	t.Helper()
 
 	s := SSHKeys{}
-	s.ClientKey = newSSHKey(t)
 	s.ServerHostKey = newSSHKey(t)
-
 	s.UpstreamHostKey = newSSHKey(t)
 	s.UserCAKey = newSSHKey(t)
 	s.ClientCAKey = newSSHKey(t)
 
-	var err error
-	s.ClientSSHPubKey, err = gossh.NewPublicKey(s.ClientKey.Public())
-	require.NoError(t, err)
-	s.ClientCASshPubKey, err = gossh.NewPublicKey(s.ClientCAKey.Public())
-	require.NoError(t, err)
 	return s
 }
 
@@ -89,4 +88,200 @@ func VerifyWorkingShell(t *testing.T, client *gossh.Client) {
 	require.NoError(t, sess.Wait())
 
 	assert.Equal(t, "> hello world\r\nhello world\r\n> ", b.String())
+}
+
+func RawFingerprintSHA256(pk gossh.PublicKey) []byte {
+	// equivalent to sshkey_fingerprint_raw(), which only uses the plain key
+	switch pk := pk.(type) {
+	case *gossh.Certificate:
+		return RawFingerprintSHA256(pk.Key)
+	default:
+		return (*new(sha256.Sum256(pk.Marshal())))[:]
+	}
+}
+
+func TestRawFingerprintSHA256(t *testing.T) {
+	clientCAKey := newSSHKey(t)
+	sshKey := newSignerFromKey(t, newSSHKey(t))
+
+	caSigner, err := gossh.NewSignerFromKey(clientCAKey)
+	require.NoError(t, err)
+	cert := &gossh.Certificate{
+		CertType:    gossh.UserCert,
+		Key:         sshKey.PublicKey(),
+		ValidAfter:  uint64(time.Now().Add(-1 * time.Minute).Unix()),
+		ValidBefore: uint64(time.Now().Add(1 * time.Hour).Unix()),
+	}
+	cert.SignCert(rand.Reader, caSigner)
+
+	certKey, err := gossh.NewCertSigner(cert, sshKey)
+	require.NoError(t, err)
+
+	// The public key fingerprints sent by envoy use the plain key. If the key
+	// is a certificate key, its fingerprint is always identical to the non-cert
+	// version of that key. [gossh.FingerprintSHA256] does not do this however,
+	// and certificate key fingerprints will be different.
+	// Use these functions instead in tests to generate fingerprints that will
+	// match the ones from envoy. This isn't needed outside of tests because
+	// envoy sends the fingerprint along with the public key so that we don't
+	// have to re-compute it (with an implementation that may not be identical).
+
+	// sanity check
+	require.NotEqual(t, gossh.FingerprintSHA256(sshKey.PublicKey()), gossh.FingerprintSHA256(certKey.PublicKey()))
+
+	assert.Equal(t, RawFingerprintSHA256(sshKey.PublicKey()), RawFingerprintSHA256(certKey.PublicKey()))
+}
+
+func FormatRawFingerprint(rawFp []byte) string {
+	return "SHA256:" + base64.RawStdEncoding.EncodeToString(rawFp)
+}
+
+func SessionBindingIDFromPublicKey(pk gossh.PublicKey) string {
+	return "sshkey-" + FormatRawFingerprint(RawFingerprintSHA256(pk))
+}
+
+type fakePolicyEvaluator struct {
+	evaluateSSH                      func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error)
+	evaluateUpstreamTunnel           func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)
+	evaluateAccessRequestArbitration func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)
+	client                           databroker.DataBrokerServiceClient
+}
+
+// EvaluateUpstreamTunnel implements ssh.Evaluator.
+func (f *fakePolicyEvaluator) EvaluateUpstreamTunnel(ctx context.Context, req ssh.AuthRequest, policy *config.Policy) (*evaluator.Result, error) {
+	return f.evaluateUpstreamTunnel(ctx, req, policy)
+}
+
+// EvaluateUpstreamTunnel implements ssh.Evaluator.
+func (f *fakePolicyEvaluator) EvaluateAccessRequestArbitration(ctx context.Context, req ssh.AuthRequest, policy *config.Policy) (*evaluator.Result, error) {
+	return f.evaluateAccessRequestArbitration(ctx, req, policy)
+}
+
+func (f *fakePolicyEvaluator) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.AuthRequest, _ bool) (*evaluator.Result, error) {
+	return f.evaluateSSH(ctx, streamID, req)
+}
+
+func (f *fakePolicyEvaluator) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return f.client
+}
+
+func (f *fakePolicyEvaluator) InvalidateCacheForRecords(_ context.Context, _ ...*databroker.Record) {}
+
+func staticFakePolicyEvaluator(result evaluator.Result, client databroker.DataBrokerServiceClient) *fakePolicyEvaluator {
+	return &fakePolicyEvaluator{
+		evaluateSSH: func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
+			return &result, nil
+		},
+		evaluateUpstreamTunnel: func(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
+			return &result, nil
+		},
+		evaluateAccessRequestArbitration: func(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
+			return &result, nil
+		},
+		client: client,
+	}
+}
+
+var evalResultAlwaysAllow = evaluator.Result{
+	Allow: evaluator.NewRuleResult(true),
+	Deny:  evaluator.NewRuleResult(false),
+}
+
+type fakeDataBrokerServiceClient struct {
+	databroker.DataBrokerServiceClient
+
+	get func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error)
+	put func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error)
+}
+
+func (f fakeDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+	return f.get(ctx, in, opts...)
+}
+
+func (f fakeDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+	return f.put(ctx, in, opts...)
+}
+
+type noopQuerier struct {
+	prompts []*extensions_ssh.KeyboardInteractiveInfoPrompts
+}
+
+func (q *noopQuerier) Prompt(
+	_ context.Context, p *extensions_ssh.KeyboardInteractiveInfoPrompts,
+) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error) {
+	q.prompts = append(q.prompts, p)
+	return nil, nil
+}
+
+type fakeQuerier struct {
+	prompt func(ctx context.Context, p *extensions_ssh.KeyboardInteractiveInfoPrompts) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error)
+}
+
+func (q *fakeQuerier) Prompt(
+	ctx context.Context, p *extensions_ssh.KeyboardInteractiveInfoPrompts,
+) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error) {
+	return q.prompt(ctx, p)
+}
+
+type fakeIssuer struct {
+	onCodeDecision func(ctx context.Context, id code.CodeID, c chan code.Status)
+	associateCode  func(context.Context, code.CodeID, *session.SessionBindingRequest) (code.CodeID, error)
+	ttl            time.Duration
+	done           chan struct{} // can be nil to never cancel, or non-nil to allow canceling via close() out of band
+}
+
+var _ code.Issuer = (*fakeIssuer)(nil)
+
+func (f *fakeIssuer) IssueCode() code.CodeID {
+	return ""
+}
+
+func (f *fakeIssuer) CodeTTL() time.Duration {
+	if f.ttl == 0 {
+		return 1 * time.Minute
+	}
+	return f.ttl
+}
+
+func (f *fakeIssuer) AssociateCode(ctx context.Context, id code.CodeID, sbr *session.SessionBindingRequest) (code.CodeID, error) {
+	if f.associateCode != nil {
+		return f.associateCode(ctx, id, sbr)
+	}
+	return "associated-code", nil
+}
+
+func (f *fakeIssuer) OnCodeDecision(ctx context.Context, id code.CodeID) <-chan code.Status {
+	ret := make(chan code.Status, 1)
+	if f.onCodeDecision != nil {
+		go f.onCodeDecision(ctx, id, ret)
+	}
+	return ret
+}
+
+func (f *fakeIssuer) Done() chan struct{} {
+	return f.done
+}
+
+func (f *fakeIssuer) GetBindingRequest(context.Context, code.CodeID) (*session.SessionBindingRequest, bool) {
+	return nil, false
+}
+
+func (f *fakeIssuer) GetSessionBindingsByUserID(context.Context, string) (map[string]*code.IdentitySessionPair, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (f *fakeIssuer) RevokeCode(context.Context, code.CodeID) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (f *fakeIssuer) RevokeSessionBinding(context.Context, code.BindingID) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (f *fakeIssuer) RevokeSessionBindingBySession(context.Context, string) ([]*databroker.Record, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (f *fakeIssuer) RevokeIdentityBinding(context.Context, code.BindingID) error {
+	return fmt.Errorf("not implemented")
 }
