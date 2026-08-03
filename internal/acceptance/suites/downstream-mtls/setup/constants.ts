@@ -4,6 +4,7 @@
 // so these URLs are valid from the browser and from inside the containers alike.
 
 import * as path from "node:path";
+import { testUsers } from "../../shared/users.js";
 
 export const MTLS_URL = "https://mtls.localhost.pomerium.io:8443";
 export const AUTHENTICATE_URL = "https://authenticate.localhost.pomerium.io:8443";
@@ -24,9 +25,9 @@ export const MTLS_CERTS_DIR = path.join(CERTS_DIR, "mtls");
 /** CA that signs the server TLS leaf; used to verify Pomerium's certificate. */
 export const SERVER_CA_FILE = path.join(CERTS_DIR, "ca.crt");
 
-/** Test user from the shared acceptance realm (../../keycloak). The mTLS client
- * certificates are issued to the same identity (SAN email alice@company.com). */
-export const TEST_USER = {
-  email: "alice@company.com",
-  password: "password123",
-};
+/**
+ * Test user for the mTLS route sign-in, sourced from the shared realm fixture
+ * (../../shared/users). The client certificates are issued to this same
+ * identity (SAN email alice@company.com), so it must stay alice.
+ */
+export const TEST_USER = testUsers.alice;
