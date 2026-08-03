@@ -221,7 +221,45 @@ service DataBrokerService {
   rpc Sync(SyncRequest) returns (stream SyncResponse);
   // SyncLatest streams the latest version of every record.
   rpc SyncLatest(SyncLatestRequest) returns (stream SyncLatestResponse);
+  // Transaction opens a transaction. 
+  // Transaction is used for synchronizing one-time read and update Operations
+  // that require atomic updates.
+  // The stream's lifetime is the transaction's lifetime.
+  // The first message must be `begin`, the last must be `commit`, and a
+  // stream that ends any other way rolls back. Operations are atomic but not
+  // isolated, and there is no conflict handling for concurrent updates not wrapped
+  // with the same transaction key. 
+  // Concurrent transactions are singleflight; sharing a key waits for the first transaction
+  // to finish with its result, and get the same result.
+  rpc Transaction(stream TransactionStreamRequest) returns (stream TransactionStreamResponse);
 }
+
+message TransactionStreamRequest {
+  // sequence is echoed on the matching response.
+  uint64 sequence = 1;
+  oneof message {
+    BeginTransaction   begin     = 2;
+    TransactionRequest operation = 3;
+    CommitTransaction  commit    = 4;
+  }
+}
+
+message TransactionStreamResponse {
+  uint64 sequence = 1;
+  oneof message {
+    TransactionResponse       operation = 2;
+    CommitTransactionResponse commit    = 3;
+    BeginTransactionResponse  begin     = 4;
+  }
+}
+
+message BeginTransaction {
+  string key = 1;
+}
+
+message BeginTransactionResponse {}
+
+message CommitTransaction {}
 
 message TransactionRequest {
   string key = 1;
@@ -243,6 +281,13 @@ message TransactionResponse {
   }
 }
 
+message CommitTransactionResponse {
+  // shared is true when these results come from a concurrent transaction for the
+  // same key. The transactions that were shared never ran operations themselves.
+  bool shared = 1;
+  // records that were changed during this transaction.
+  repeated Record records = 2;
+}
 
 
 message Checkpoint {
