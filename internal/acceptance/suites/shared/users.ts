@@ -13,8 +13,8 @@
  * Data source of truth: internal/acceptance/keycloak/pomerium-e2e-users-0.json
  */
 
-import fs from "fs";
-import path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 export interface TestUser {
   /** Username — the key under which the user is exposed in testUsers. */
