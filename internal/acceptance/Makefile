@@ -89,7 +89,7 @@ test-go: up
 	go test -tags=acceptance -v -timeout=20m ./...
 
 # ---------------------------------------------------------------------------
-# Downstream mTLS e2e suite (internal/acceptance/downstream-mtls):
+# Downstream mTLS e2e suite (internal/acceptance/suites/downstream-mtls):
 # testcontainers-based and entirely self-contained - it boots its own Keycloak
 # + upstream + Pomerium (official image) and does NOT use the compose stack
 # above. Do not run `make up` and `make test-downstream-mtls` at the same
