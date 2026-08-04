@@ -4,7 +4,7 @@
  * mTLS-route-specific OIDC round trip that the specs consume.
  */
 
-import { Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import {
   submitLoginForm,
   waitForKeycloakLoginPage,
