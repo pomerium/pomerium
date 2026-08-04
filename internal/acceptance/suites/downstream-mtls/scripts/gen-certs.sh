@@ -141,9 +141,11 @@ cat "$MTLS_DIR/crl-root.pem" "$MTLS_DIR/crl-intermediate.pem" > "$MTLS_DIR/crl-c
 rm -f "$MTLS_DIR"/client-*.csr "$MTLS_DIR"/client-*-ext.cnf
 
 # --- Completion marker --------------------------------------------------------
-# Record the serials the CRLs above were generated for. certsAreFresh() in
-# setup/certs.ts re-reads the revoked leaves and refuses the cache unless their
-# serials still match, so a leaf swapped or re-issued out of band forces
+# Written only after a full generation succeeds; its existence is the skip
+# sentinel here and in setup/certs.ts. The serial lines are an informational
+# record of what the CRLs cover - certsAreFresh() no longer trusts them: it
+# parses the cached CRLs and refuses the cache unless they still list the
+# revoked leaves' serials, so a leaf or CRL swapped out of band forces
 # regeneration instead of testing against a CRL that no longer covers it.
 {
     echo "client-revoked $(openssl x509 -in "$MTLS_DIR/client-revoked.crt" -serial -noout | cut -d= -f2)"
