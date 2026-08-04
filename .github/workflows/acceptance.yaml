@@ -181,7 +181,7 @@ jobs:
     # (gotoStable) retries the navigation itself; continue-on-error keeps a
     # residual flake from red-walling the PR. The job still runs and reports into
     # the coverage summary. Remove once it's proven stable over several runs.
-    continue-on-error: true
+    continue-on-error: false
 
     steps:
       - name: Checkout code
