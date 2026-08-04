@@ -127,3 +127,15 @@ updates:
       npm:
         patterns:
           - "*"
+  # In-container MCP server for the mcp suite - a separate npm project outside
+  # the suites workspace (its own lockfile), so it needs its own entry. This is
+  # where the fast-uri / ip-address advisories lived.
+  - package-ecosystem: "npm"
+    directory: "/internal/acceptance/suites/mcp/upstream"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 50
+    groups:
+      npm:
+        patterns:
+          - "*"
