@@ -28,8 +28,6 @@ func TestClaims_Flatten(t *testing.T) {
 }
 
 func TestFlattenedClaims_ToPB_JSONNumber(t *testing.T) {
-	// claims decoded with UseNumber (as in internal/jwtutil) hold json.Number
-	// values, which must be preserved as numbers rather than nulls
 	pb := FlattenedClaims{"exp": {json.Number("1754071824")}}.ToPB()
 	assert.Equal(t, float64(1754071824), pb["exp"].GetValues()[0].GetNumberValue())
 }
