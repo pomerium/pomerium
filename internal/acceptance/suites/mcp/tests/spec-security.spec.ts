@@ -10,7 +10,7 @@ import {
   pkce,
 } from "../mcp-client/oauth-raw.js";
 import { MCP_ORIGIN, MCP_SERVER_URL } from "../mcp-client/constants.js";
-import { testUsers } from "../../browser/fixtures/users.js";
+import { testUsers } from "../../shared/users.js";
 
 // Downstream OAuth security regressions. Per the hybrid policy, the PKCE-bypass
 // check is a hard assertion (security-critical, ENG-3976); the rest are converted

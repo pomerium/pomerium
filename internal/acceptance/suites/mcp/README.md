@@ -12,10 +12,10 @@ with **[testcontainers](https://node.testcontainers.org/)**; certificates are
 issued with **mkcert**.
 
 This complements — and does not replace — the fast in-process Go suite in
-`internal/mcp/e2e/`. It reuses the existing Keycloak realm (`../keycloak/`) and
-the user fixtures (`../browser/fixtures/users.ts`); the Keycloak browser-login
-step mirrors `../browser/helpers/authn-flow.ts` (kept local so the suite loads a
-single Playwright instance — see `mcp-client/keycloak-login.ts`).
+`internal/mcp/e2e/`. It reuses the existing Keycloak realm (`../../keycloak/`) and
+the shared user fixtures (`../shared/users.ts`); the Keycloak browser-login step
+uses the shared form helpers in `../shared/keycloak-login.ts`, wrapped locally in
+`mcp-client/keycloak-login.ts` so the suite loads a single Playwright instance.
 
 ## Topology
 
@@ -51,7 +51,7 @@ no `/etc/hosts` changes are required.
 ## Run
 
 ```bash
-cd internal/acceptance/mcp
+cd internal/acceptance/suites/mcp
 make deps     # npm ci + playwright install chromium  (first time only)
 make test         # headless
 make test-headed  # watch the Keycloak sign-in in a real browser
@@ -127,6 +127,6 @@ tests/        Playwright specs
 - **Container logs**: run with `MCP_E2E_LOGS=1` to stream Keycloak / upstream /
   Pomerium logs, e.g. `MCP_E2E_LOGS=1 make test`.
 - **Port conflicts on 8443/8080**: stop the `internal/acceptance` docker-compose
-  stack (`make -C .. down`) or anything else bound to those ports.
+  stack (`make -C ../.. down`) or anything else bound to those ports.
 - **Different Pomerium image**: override with `POMERIUM_IMAGE=pomerium/pomerium:vX.Y.Z make test`.
 ```

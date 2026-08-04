@@ -1,0 +1,19 @@
+{
+  "_comment": "Feature map fragment for the container-based downstream mTLS e2e harness. Merged with the other harnesses' fragments by internal/acceptance/scripts/generate-summary.mjs into one Feature Coverage table. File keys are relative to this harness's Playwright testDir (./tests).",
+  "categories": {
+    "Client Certificates (mTLS)": {
+      "description": "Pomerium downstream mTLS: client-certificate enforcement, CA/CRL config surfaces, SAN matching, verify depth, and certificate headers",
+      "files": {
+        "downstream-mtls.spec.ts": ["Valid Cert Sign-in", "No Cert Denied", "Wrong CA Denied", "healthz Exempt"],
+        "error-handling.spec.ts": ["No IdP Redirect", "Deny Reason Logged"],
+        "ca-config.spec.ts": ["CA File", "CA Inline", "CA Env"],
+        "crl.spec.ts": ["Revocation (CRL)", "Partial Chain CRL"],
+        "enforcement.spec.ts": ["policy_with_default_deny", "policy", "reject_connection"],
+        "san-matching.spec.ts": ["match_subject_alt_names"],
+        "verify-depth.spec.ts": ["max_verify_depth"],
+        "cert-headers.spec.ts": ["Client Cert Fingerprint", "Client Cert SAN Headers"],
+        "ppl-client-certificate.spec.ts": ["PPL fingerprint", "PPL spki_hash"]
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 import { connectWithBrowserAuth } from "../mcp-client/connect.js";
 import { MCP_SERVER_URL } from "../mcp-client/constants.js";
-import { testUsers } from "../../browser/fixtures/users.js";
+import { testUsers } from "../../shared/users.js";
 
 /**
  * Full happy-path: a real MCP TypeScript SDK client connects to an upstream MCP

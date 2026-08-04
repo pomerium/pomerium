@@ -23,12 +23,16 @@ concurrency:
 # Feature Coverage table (Authentication / Authorization / Headers / MCP / ...)
 # written to the workflow run summary.
 #
-# To add a harness (e.g. downstream-mtls): add a job below that uploads an
-# `e2e-results-<name>` artifact, drop a feature-map.json fragment in its
-# directory, and add the new job to the `summary` job's `needs:` list. That
-# `needs:` entry is the ONLY required edit — the aggregator auto-discovers the
-# new results + fragment, and the failure check reads `needs.*.result`
-# generically, so neither needs touching.
+# To add a harness: add a job below that uploads an `e2e-results-<name>`
+# artifact, drop a feature-map.json fragment in its directory, and add the new
+# job to the `summary` job's `needs:` list. That `needs:` entry is the ONLY
+# required edit — the aggregator auto-discovers the new results + fragment, and
+# the failure check reads `needs.*.result` generically, so neither needs
+# touching.
+#
+# The mcp and downstream-mtls harnesses live under internal/acceptance/suites/
+# as an npm workspace, so both install from the single suites/package-lock.json
+# (npm ci at the workspace root) and run their own suite Makefile.
 # ---------------------------------------------------------------------------
 
 jobs:
@@ -123,13 +127,13 @@ jobs:
         with:
           node-version-file: .tool-versions
           cache: 'npm'
-          cache-dependency-path: internal/acceptance/mcp/package-lock.json
+          cache-dependency-path: internal/acceptance/suites/package-lock.json
 
       - name: Install mkcert
         # Pinned + checksum-verified (upstream is frozen at v1.4.4, 2022). We do
         # NOT run `mkcert -install`: generating the leaf auto-creates the local
         # CA + rootCA.pem, which is all the MCP client needs via
-        # NODE_EXTRA_CA_CERTS (see internal/acceptance/mcp/setup/certs.ts).
+        # NODE_EXTRA_CA_CERTS (see internal/acceptance/suites/mcp/setup/certs.ts).
         run: |
           MKCERT_VERSION=v1.4.4
           MKCERT_SHA256=6d31c65b03972c6dc4a14ab429f2928300518b26503f58723e532d1b0a3bbb52
@@ -140,13 +144,13 @@ jobs:
           sudo mv mkcert /usr/local/bin/mkcert
 
       - name: Install Playwright dependencies
-        working-directory: internal/acceptance/mcp
+        working-directory: internal/acceptance/suites
         run: |
           npm ci
           npx playwright install chromium --with-deps
 
       - name: Run MCP e2e suite
-        working-directory: internal/acceptance/mcp
+        working-directory: internal/acceptance/suites/mcp
         run: make test
         env:
           CI: true
@@ -156,7 +160,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: e2e-results-mcp
-          path: internal/acceptance/mcp/results.json
+          path: internal/acceptance/suites/mcp/results.json
           if-no-files-found: error
 
       - name: Upload Playwright report
@@ -164,12 +168,66 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: playwright-report-mcp
-          path: internal/acceptance/mcp/playwright-report/
+          path: internal/acceptance/suites/mcp/playwright-report/
+          retention-days: 30
+
+  downstream-mtls:
+    name: E2E — downstream-mtls
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Non-blocking while a CI flake is stabilized: the suite restarts the
+    # Pomerium container per spec group, which churns the runner's Docker network
+    # and aborts browser navigations with ERR_NETWORK_CHANGED. helpers/nav.ts
+    # (gotoStable) retries the navigation itself; continue-on-error keeps a
+    # residual flake from red-walling the PR. The job still runs and reports into
+    # the coverage summary. Remove once it's proven stable over several runs.
+    continue-on-error: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .tool-versions
+          cache: 'npm'
+          cache-dependency-path: internal/acceptance/suites/package-lock.json
+
+      # No mkcert step: this suite builds its full client-certificate PKI with
+      # OpenSSL inside an alpine container (see suites/downstream-mtls/setup/certs.ts).
+
+      - name: Install Playwright dependencies
+        working-directory: internal/acceptance/suites
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Run downstream mTLS e2e suite
+        working-directory: internal/acceptance/suites/downstream-mtls
+        run: make test
+        env:
+          CI: true
+
+      - name: Upload results (for summary)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: e2e-results-downstream-mtls
+          path: internal/acceptance/suites/downstream-mtls/results.json
+          if-no-files-found: error
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-report-downstream-mtls
+          path: internal/acceptance/suites/downstream-mtls/playwright-report/
           retention-days: 30
 
   summary:
     name: E2E — summary
-    needs: [browser, mcp]
+    needs: [browser, mcp, downstream-mtls]
     if: always()
     runs-on: ubuntu-latest
 

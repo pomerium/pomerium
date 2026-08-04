@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 import { connectWithBrowserAuth } from "../mcp-client/connect.js";
 import { MCP_SERVER_URL } from "../mcp-client/constants.js";
-import { testUsers } from "../../browser/fixtures/users.js";
+import { testUsers } from "../../shared/users.js";
 
 // MCP 2025-11-25 protocol version + Streamable HTTP transport behavior, observed
 // through Pomerium against the official image.

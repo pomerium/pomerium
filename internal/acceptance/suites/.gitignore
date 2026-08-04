@@ -1,0 +1,2 @@
+# Hoisted workspace dependencies (from `npm install` / `npm ci` run here).
+node_modules/
