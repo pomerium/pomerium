@@ -35,14 +35,22 @@ sh /parent-scripts/gen-mtls-certs.sh
 # ============================================================================
 # Suite-specific fixtures (idempotent, like the parent scripts)
 # ============================================================================
-if [ -f "$MTLS_DIR/client-san-dns.crt" ] && [ -f "$MTLS_DIR/crl-chain.pem" ] \
-    && [ -f "$MTLS_DIR/client-chain-revoked-full.crt" ] \
+# Completion marker: written only after a full generation succeeds, and it
+# records the serials the CRLs were built against (see the end of this script).
+# Keying the skip on the marker - not on loose file existence - means a run
+# interrupted between re-issuing a revoked leaf (fresh serial) and rebuilding
+# its CRL leaves no marker, so the next run regenerates instead of caching an
+# incoherent leaf/CRL pair. setup/certs.ts mirrors this check host-side.
+GEN_MARKER="$MTLS_DIR/.gen-complete"
+if [ -f "$GEN_MARKER" ] \
     && openssl x509 -checkend 86400 -noout -in "$MTLS_DIR/client-san-dns.crt" 2>/dev/null; then
     echo "suite-specific mTLS fixtures already exist and are valid, skipping generation"
     exit 0
 fi
 
 echo "Generating suite-specific mTLS fixtures..."
+# A stale marker must never outlive a regeneration in progress.
+rm -f "$GEN_MARKER"
 
 # issue_client_cert <name> <cn> <subjectAltName value> [issuer-ca-name]
 # Issues a clientAuth leaf signed by the given CA (default: root CA).
@@ -131,6 +139,16 @@ cat "$MTLS_DIR/crl-root.pem" "$MTLS_DIR/crl-intermediate.pem" > "$MTLS_DIR/crl-c
 
 # --- Cleanup ------------------------------------------------------------------
 rm -f "$MTLS_DIR"/client-*.csr "$MTLS_DIR"/client-*-ext.cnf
+
+# --- Completion marker --------------------------------------------------------
+# Record the serials the CRLs above were generated for. certsAreFresh() in
+# setup/certs.ts re-reads the revoked leaves and refuses the cache unless their
+# serials still match, so a leaf swapped or re-issued out of band forces
+# regeneration instead of testing against a CRL that no longer covers it.
+{
+    echo "client-revoked $(openssl x509 -in "$MTLS_DIR/client-revoked.crt" -serial -noout | cut -d= -f2)"
+    echo "client-chain-revoked $(openssl x509 -in "$MTLS_DIR/client-chain-revoked.crt" -serial -noout | cut -d= -f2)"
+} > "$GEN_MARKER"
 
 echo ""
 echo "Suite-specific fixtures generated:"
