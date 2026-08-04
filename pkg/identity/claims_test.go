@@ -26,3 +26,8 @@ func TestClaims_Flatten(t *testing.T) {
 		"a.ab":     {1.0, 2.0, 3.0, 4.0, 5.0},
 	}, flattened)
 }
+
+func TestFlattenedClaims_ToPB_JSONNumber(t *testing.T) {
+	pb := FlattenedClaims{"exp": {json.Number("1754071824")}}.ToPB()
+	assert.Equal(t, float64(1754071824), pb["exp"].GetValues()[0].GetNumberValue())
+}

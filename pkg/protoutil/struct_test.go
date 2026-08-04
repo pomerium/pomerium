@@ -1,6 +1,7 @@
 package protoutil
 
 import (
+	"encoding/json"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/apipb"
@@ -24,6 +25,9 @@ func TestToValue(t *testing.T) {
 		{"int16", int16(1), "1"},
 		{"int32", int32(1), "1"},
 		{"int64", int64(1), "1"},
+		{"json.Number int", json.Number("1"), "1"},
+		{"json.Number float", json.Number("1.2345"), "1.2345"},
+		{"json.Number out of range", json.Number("1e999"), `"1e999"`},
 		{"string", "test", `"test"`},
 		{"uint", uint(1), "1"},
 		{"uint8", uint8(1), "1"},
