@@ -15,6 +15,7 @@
  */
 
 import { test, expect } from "@playwright/test";
+import { fetchVerifyJson } from "../helpers/api.js";
 import { newContextWithCert, type ClientCertType } from "../helpers/mtls.js";
 import { signInOnMtlsRoute } from "../helpers/login.js";
 import { gotoStable } from "../helpers/nav.js";
@@ -43,13 +44,16 @@ test.describe("downstream mTLS (enforcement: policy_with_default_deny)", () => {
       // and back to the mTLS route.
       await signInOnMtlsRoute(page);
 
-      // Fresh navigation with an established session: whoami echoes the
-      // request headers, which must include the identity header Pomerium
-      // injects (jwt_claims_headers), proving mTLS + OIDC end to end.
+      // Fresh navigation with an established session reaches the upstream...
       const response = await gotoStable(page, MTLS_URL, { waitUntil: "domcontentloaded" });
       expect(response).not.toBeNull();
       expect(response!.status()).toBe(200);
-      expect(await response!.text()).toMatch(/X-Pomerium-Claim-Email:.*alice@company\.com/i);
+
+      // ...and verify's /json (fetched through the same authenticated session)
+      // echoes the identity header Pomerium injects (jwt_claims_headers),
+      // proving mTLS + OIDC end to end. page.request shares the browser cookies.
+      const json = await fetchVerifyJson(page.request, MTLS_URL);
+      expect(json.headers["x-pomerium-claim-email"]).toContain("alice@company.com");
     } finally {
       await context.close();
     }

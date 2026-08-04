@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * Playwright configuration for the container-based downstream mTLS e2e suite.
  *
- * The config-invariant services (Keycloak + whoami upstream) are booted once
+ * The config-invariant services (Keycloak + pomerium/verify upstream) are booted once
  * in global setup and torn down in global teardown; Pomerium itself starts
  * per spec file with that group's configuration. Tests run serially with a
  * single worker because the stack binds fixed host ports (8443 / 8080) and

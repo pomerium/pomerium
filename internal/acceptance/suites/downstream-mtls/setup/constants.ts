@@ -14,8 +14,8 @@ export const KEYCLOAK_REALM_URL = `http://${KEYCLOAK_HOSTNAME}:8080/realms/pomer
 export const MTLS_HOSTNAME = new URL(MTLS_URL).hostname;
 export const AUTHENTICATE_HOSTNAME = new URL(AUTHENTICATE_URL).hostname;
 
-/** In-container URL of the whoami upstream ("upstream" is a network alias). */
-export const UPSTREAM_URL = "http://upstream:80";
+/** In-container URL of the pomerium/verify upstream ("upstream" is a network alias). */
+export const UPSTREAM_URL = "http://upstream:8000";
 
 /** Suite root and certificate output directories (see setup/certs.ts). */
 export const SUITE_DIR = path.resolve(__dirname, "..");

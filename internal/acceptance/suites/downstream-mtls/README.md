@@ -72,8 +72,11 @@ run, torn down in global teardown):
    `keycloak.localhost.pomerium.io`, host port 8080): `start-dev
    --import-realm` with the parent suite's `pomerium-e2e` realm (users
    alice/bob/charlie/diana, password `password123`).
-3. **Upstream** (`traefik/whoami`, alias `upstream`): echoes request headers,
-   which makes Pomerium's injected identity headers assertable.
+3. **Upstream** (`pomerium/verify`, alias `upstream`, port 8000): its `/json`
+   endpoint returns the parsed identity plus the request headers Pomerium
+   injected, which makes injected identity assertable. Note it echoes **only**
+   headers whose name contains `x-pomerium-claim` (not arbitrary headers like
+   whoami did), so headers under test are named `X-Pomerium-Claim-*`.
 4. **Pomerium** (aliases `authenticate.localhost.pomerium.io`,
    `mtls.localhost.pomerium.io`, host port 8443): the official image with a
    generated config (`setup/pomerium-config.ts`, written into `.gen/`) and
@@ -103,7 +106,7 @@ Most cases boot their own Pomerium configuration via `startPomerium` +
 | TC-CC-12..14 | `enforcement.spec.ts` | `policy_with_default_deny` (internal pages exempt), `policy` (+ explicit `invalid_client_certificate` deny rule), `reject_connection` (TLS-handshake rejection, all routes, no authorize logs) |
 | TC-CC-15 | `san-matching.spec.ts` | `match_subject_alt_names` per SAN type (dns/email/ip_address/uri) + non-matching rejection |
 | TC-CC-16 | `verify-depth.spec.ts` | `max_verify_depth` ∈ {default(1), 2, 3, 0=unlimited} + env var |
-| TC-CC-17..18 | `cert-headers.spec.ts` | `$pomerium.client_cert_fingerprint`, `client_cert_san_dns`, `client_cert_san_email` request headers (the only supported variables) |
+| TC-CC-17..18 | `cert-headers.spec.ts` | `$pomerium.client_cert_fingerprint`, `client_cert_san_dns`, `client_cert_san_email` request headers (the only supported variables), injected as `X-Pomerium-Claim-*` so the verify upstream echoes them in `/json` |
 | TC-CC-19..20 | `ppl-client-certificate.spec.ts` | PPL `client_certificate` by fingerprint list and fingerprint+`spki_hash`, with real Keycloak sign-in (unlisted trusted cert → 403, not 495) |
 
 **Deviation from the manual plan (TC-CC-10):** the plan expected a CRL for any

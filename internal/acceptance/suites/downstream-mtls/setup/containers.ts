@@ -8,7 +8,8 @@
 // (back-channel).
 //
 //   keycloak.localhost.pomerium.io        HTTP  8080  (reuses ../../keycloak realm import)
-//   upstream                              HTTP    80  (traefik/whoami, echoes headers)
+//   upstream                              HTTP  8000  (pomerium/verify; /json echoes the
+//                                                       injected x-pomerium-claim-* headers + identity)
 //   mtls./authenticate.localhost...io     HTTPS 8443  (official pomerium image)
 //
 // Lifecycle: the config-INVARIANT services (network, Keycloak, upstream) boot
@@ -36,7 +37,13 @@ const ACCEPTANCE_DIR = path.resolve(SUITE_DIR, "..", "..");
 const KEYCLOAK_IMPORT_DIR = path.join(ACCEPTANCE_DIR, "keycloak");
 
 const KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.5.2";
-const UPSTREAM_IMAGE = "traefik/whoami:v1.11";
+// Pomerium's own demo upstream. Its /json endpoint returns the injected
+// x-pomerium-claim-* headers plus the parsed identity. Pinned to the same
+// digest the parent acceptance suite uses (internal/acceptance/docker-compose.yml)
+// so both suites pull an identical build; override with VERIFY_IMAGE.
+const UPSTREAM_IMAGE =
+  process.env.VERIFY_IMAGE ||
+  "pomerium/verify@sha256:6d9dd40deae8d3ae7517485febf6fd4e7de2692e9dc1a2859c00e3426559af96";
 const POMERIUM_IMAGE = process.env.POMERIUM_IMAGE || "pomerium/pomerium:main";
 
 const STARTUP_TIMEOUT_MS = 240_000;
@@ -104,14 +111,18 @@ export async function startBaseStack(): Promise<BaseStack> {
       "keycloak",
     );
 
-    // --- Upstream echo server ----------------------------------------------
-    // whoami echoes the request headers, which makes Pomerium's injected
-    // headers assertable. Built FROM scratch, so wait on its log.
+    // --- Upstream (pomerium/verify) ----------------------------------------
+    // verify's /json returns the x-pomerium-claim-* headers Pomerium injected
+    // plus the parsed identity, which makes injected identity assertable.
+    // (Unlike whoami it does NOT echo arbitrary request headers - only ones
+    // whose name contains "x-pomerium-claim".) It has no host-exposed port (it
+    // is reached in-network via the "upstream" alias), so gate on its startup
+    // log rather than an HTTP probe.
     const upstreamContainer = withLogs(
       new GenericContainer(UPSTREAM_IMAGE)
         .withNetwork(network)
         .withNetworkAliases("upstream")
-        .withWaitStrategy(Wait.forLogMessage(/Starting up on port/))
+        .withWaitStrategy(Wait.forLogMessage(/starting http server/))
         .withStartupTimeout(STARTUP_TIMEOUT_MS),
       "upstream",
     );

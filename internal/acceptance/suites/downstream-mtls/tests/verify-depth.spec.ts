@@ -73,9 +73,10 @@ test.describe("Group F: max_verify_depth", () => {
       try {
         // The root-signed leaf (depth 1) verifies under every configuration.
         await withCert("valid", (ctx) => expectUpstreamReached(ctx));
-        await withCert("chain", (ctx) =>
-          c.chainLeafAllowed ? expectUpstreamReached(ctx) : expectDenied495(ctx),
-        );
+        await withCert("chain", async (ctx) => {
+          if (c.chainLeafAllowed) await expectUpstreamReached(ctx);
+          else await expectDenied495(ctx);
+        });
       } finally {
         await pomerium.stop();
       }

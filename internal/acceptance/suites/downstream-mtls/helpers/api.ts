@@ -45,6 +45,46 @@ export async function getNoRedirect(ctx: APIRequestContext, url: string): Promis
 }
 
 /**
+ * Parsed pomerium/verify /json response. `headers` carries ONLY the request
+ * headers whose name contains "x-pomerium-claim" (verify filters the rest);
+ * names are lowercased and multi-value headers are joined with ", ".
+ */
+export interface VerifyJson {
+  headers: Record<string, string>;
+  request?: Record<string, unknown>;
+  identity?: unknown;
+  error?: unknown;
+}
+
+/**
+ * Fetch verify's /json for `url` and return it normalized. Asserts HTTP 200 -
+ * the request reached the upstream (see expectUpstreamReached for the marker).
+ */
+export async function fetchVerifyJson(
+  ctx: APIRequestContext,
+  url: string = MTLS_URL,
+): Promise<VerifyJson> {
+  const res = await ctx.get(`${url}/json`);
+  expect(res.status(), "verify /json must reach the upstream").toBe(200);
+  const data = (await res.json()) as Record<string, unknown>;
+
+  const headers: Record<string, string> = {};
+  const rawHeaders = data.headers;
+  if (typeof rawHeaders === "object" && rawHeaders !== null) {
+    for (const [key, value] of Object.entries(rawHeaders)) {
+      headers[key.toLowerCase()] = Array.isArray(value) ? value.join(", ") : String(value);
+    }
+  }
+
+  return {
+    headers,
+    request: (data.request ?? undefined) as Record<string, unknown> | undefined,
+    identity: data.identity,
+    error: data.error,
+  };
+}
+
+/**
  * Assert the mTLS denial contract: HTTP 495 with the client-certificate error
  * page, served immediately - no redirect toward the IdP / authenticate flow.
  */
@@ -60,15 +100,14 @@ export async function expectDenied495(
   return res;
 }
 
-/** Assert the request passed Pomerium and reached the whoami upstream. */
+/** Assert the request passed Pomerium and reached the pomerium/verify upstream. */
 export async function expectUpstreamReached(
   ctx: APIRequestContext,
   url: string = MTLS_URL,
-): Promise<APIResponse> {
-  const res = await ctx.get(url);
-  expect(res.status(), "request must reach the upstream").toBe(200);
-  expect(await res.text()).toContain("Hostname:"); // whoami body
-  return res;
+): Promise<VerifyJson> {
+  const json = await fetchVerifyJson(ctx, url);
+  expect(json.request, "verify must report the proxied request").toBeTruthy();
+  return json;
 }
 
 /** Assert the request entered the normal login flow (302 toward the IdP). */
