@@ -51,7 +51,7 @@ no `/etc/hosts` changes are required.
 ## Run
 
 ```bash
-cd internal/acceptance/mcp
+cd internal/acceptance/suites/mcp
 make deps     # npm ci + playwright install chromium  (first time only)
 make test         # headless
 make test-headed  # watch the Keycloak sign-in in a real browser
@@ -127,6 +127,6 @@ tests/        Playwright specs
 - **Container logs**: run with `MCP_E2E_LOGS=1` to stream Keycloak / upstream /
   Pomerium logs, e.g. `MCP_E2E_LOGS=1 make test`.
 - **Port conflicts on 8443/8080**: stop the `internal/acceptance` docker-compose
-  stack (`make -C .. down`) or anything else bound to those ports.
+  stack (`make -C ../.. down`) or anything else bound to those ports.
 - **Different Pomerium image**: override with `POMERIUM_IMAGE=pomerium/pomerium:vX.Y.Z make test`.
 ```
