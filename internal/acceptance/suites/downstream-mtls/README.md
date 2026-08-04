@@ -49,7 +49,7 @@ from the browser on the host and from inside the containers alike.
 |----------|---------|---------|
 | `POMERIUM_IMAGE` | `pomerium/pomerium:main` | Image under test (`:latest`, `git-<sha>`, ... for bisecting) |
 | `MTLS_E2E_LOGS` | unset | Stream container + cert-gen logs to the console |
-| `CERTS_DIR` | `.certs/mtls` | Override the client-cert location used by the specs |
+| (certs path) | `.certs/mtls` | Client-certificate fixture location used by the specs (currently fixed in code) |
 
 testcontainers only pulls images that are missing locally; `make deps`
 refreshes the rolling `pomerium:main` tag.
