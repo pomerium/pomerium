@@ -1,0 +1,18 @@
+{
+  "_comment": "Feature map fragment for the container-based upstream TLS/mTLS e2e harness. Merged with the other harnesses' fragments by internal/acceptance/scripts/generate-summary.mjs into one Feature Coverage table. File keys are relative to this harness's Playwright testDir (./tests).",
+  "categories": {
+    "Upstream TLS (route tls_* options)": {
+      "description": "Pomerium -> upstream TLS/mTLS: custom CA trust, client certificates, SNI / verification-name overrides, skip-verify, renegotiation, and config validation",
+      "files": {
+        "auth.setup.ts": ["IdP Login (browser session)"],
+        "smoke.spec.ts": ["OIDC Control Route", "Full-stack mTLS"],
+        "custom-ca.spec.ts": ["tls_custom_ca", "tls_custom_ca_file", "Wrong CA Denied", "Unknown Authority Denied"],
+        "client-cert.spec.ts": ["tls_client_cert (inline)", "tls_client_cert_file", "No Client Cert Denied"],
+        "server-name.spec.ts": ["tls_server_name", "tls_upstream_server_name", "Name Precedence", "SNI Switch"],
+        "skip-verify.spec.ts": ["tls_skip_verify Off", "tls_skip_verify On", "Skip Overrides Custom CA"],
+        "renegotiation.spec.ts": ["tls_upstream_allow_renegotiation"],
+        "config-validation.spec.ts": ["Cert/Key Pair Required", "Mismatched Pair", "Missing CA File"]
+      }
+    }
+  }
+}
