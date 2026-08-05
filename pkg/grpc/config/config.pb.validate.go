@@ -984,6 +984,110 @@ var _ interface {
 	ErrorName() string
 } = EntityInfoValidationError{}
 
+// Validate checks the field values on IdentityProvider with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *IdentityProvider) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on IdentityProvider with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// IdentityProviderMultiError, or nil if none found.
+func (m *IdentityProvider) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *IdentityProvider) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Issuer
+
+	// no validation rules for JwksUrl
+
+	if len(errors) > 0 {
+		return IdentityProviderMultiError(errors)
+	}
+
+	return nil
+}
+
+// IdentityProviderMultiError is an error wrapping multiple validation errors
+// returned by IdentityProvider.ValidateAll() if the designated constraints
+// aren't met.
+type IdentityProviderMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m IdentityProviderMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m IdentityProviderMultiError) AllErrors() []error { return m }
+
+// IdentityProviderValidationError is the validation error returned by
+// IdentityProvider.Validate if the designated constraints aren't met.
+type IdentityProviderValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e IdentityProviderValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e IdentityProviderValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e IdentityProviderValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e IdentityProviderValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e IdentityProviderValidationError) ErrorName() string { return "IdentityProviderValidationError" }
+
+// Error satisfies the builtin error interface
+func (e IdentityProviderValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sIdentityProvider.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = IdentityProviderValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = IdentityProviderValidationError{}
+
 // Validate checks the field values on SessionRecording with the rules defined
 // in the proto definition for this message. If any rules are violated, the
 // first error encountered is returned, or nil if there are no violations.
@@ -3276,6 +3380,52 @@ func (m *Settings) validate(all bool) error {
 			}
 		}
 
+	}
+
+	{
+		sorted_keys := make([]string, len(m.GetIdentityProviders()))
+		i := 0
+		for key := range m.GetIdentityProviders() {
+			sorted_keys[i] = key
+			i++
+		}
+		sort.Slice(sorted_keys, func(i, j int) bool { return sorted_keys[i] < sorted_keys[j] })
+		for _, key := range sorted_keys {
+			val := m.GetIdentityProviders()[key]
+			_ = val
+
+			// no validation rules for IdentityProviders[key]
+
+			if all {
+				switch v := interface{}(val).(type) {
+				case interface{ ValidateAll() error }:
+					if err := v.ValidateAll(); err != nil {
+						errors = append(errors, SettingsValidationError{
+							field:  fmt.Sprintf("IdentityProviders[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				case interface{ Validate() error }:
+					if err := v.Validate(); err != nil {
+						errors = append(errors, SettingsValidationError{
+							field:  fmt.Sprintf("IdentityProviders[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				}
+			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
+				if err := v.Validate(); err != nil {
+					return SettingsValidationError{
+						field:  fmt.Sprintf("IdentityProviders[%v]", key),
+						reason: "embedded message failed validation",
+						cause:  err,
+					}
+				}
+			}
+
+		}
 	}
 
 	// no validation rules for RequestParams
