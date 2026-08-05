@@ -225,9 +225,56 @@ jobs:
           path: internal/acceptance/suites/downstream-mtls/playwright-report/
           retention-days: 30
 
+  upstream-tls:
+    name: E2E — upstream-tls
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .tool-versions
+          cache: 'npm'
+          cache-dependency-path: internal/acceptance/suites/package-lock.json
+
+      # No mkcert step: this suite builds its upstream TLS/mTLS PKI with OpenSSL
+      # inside an alpine container (see suites/upstream-tls/setup/certs.ts).
+
+      - name: Install Playwright dependencies
+        working-directory: internal/acceptance/suites
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Run upstream TLS e2e suite
+        working-directory: internal/acceptance/suites/upstream-tls
+        run: make test
+        env:
+          CI: true
+
+      - name: Upload results (for summary)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: e2e-results-upstream-tls
+          path: internal/acceptance/suites/upstream-tls/results.json
+          if-no-files-found: error
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-report-upstream-tls
+          path: internal/acceptance/suites/upstream-tls/playwright-report/
+          retention-days: 30
+
   summary:
     name: E2E — summary
-    needs: [browser, mcp, downstream-mtls]
+    needs: [browser, mcp, downstream-mtls, upstream-tls]
     if: always()
     runs-on: ubuntu-latest
 
