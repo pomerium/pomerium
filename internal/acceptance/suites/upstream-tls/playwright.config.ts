@@ -8,21 +8,22 @@ const STORAGE_STATE = path.join(__dirname, ".auth", "user.json");
 /**
  * Playwright configuration for the container-based upstream TLS/mTLS e2e suite.
  *
- * The config-invariant services (Keycloak, the pomerium/verify control upstream,
- * and the first-party Node TLS/mTLS echo upstreams) are booted once in global
- * setup and torn down in global teardown; Pomerium itself starts per spec file
- * with that group's routes/config. Tests run serially with a single worker
- * because the stack binds fixed host ports (8443 / 8080) and is shared.
- */
+  * The config-invariant services (Keycloak, the pomerium/verify control upstream,
+  * and the first-party Node TLS/mTLS echo upstreams) are booted once in global
+  * setup and torn down in global teardown; a single shared Pomerium instance is
+  * started in global setup with the full route matrix (config-validation boots
+  * extra short-lived Pomerium containers that do not bind host ports). Tests run serially with a single worker
+  * because the stack binds fixed host ports (8443 / 8080) and is shared.
+  */
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
-  // The suite restarts the Pomerium container per spec group, which churns the
-  // runner's Docker network; a page.goto that races a restart aborts with
-  // ERR_NETWORK_CHANGED. Retry under CI (as the browser suite does) so a single
-  // such abort self-heals; see also the launchOptions flag below.
+  // On CI, Chromium can occasionally abort navigations with ERR_NETWORK_CHANGED
+  // due to Docker / host-network churn during container startup. Retry under CI
+  // (as the browser suite does) so a single such abort self-heals; see also the
+  // launchOptions flag below.
   retries: process.env.CI ? 2 : 0,
   reporter: [
     ["list"],
