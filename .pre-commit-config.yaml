@@ -12,6 +12,10 @@ repos:
     rev: v0.0.16
     hooks:
       - id: go-mod-tidy
+        # upstream is \.go$ only; module files must trigger it too, otherwise a
+        # dependency-only PR (dependabot) never runs tidy and lands drift that
+        # then fails every subsequent PR
+        files: "(\\.go|go\\.mod|go\\.sum)$"
   - repo: local
     hooks:
       - id: go-fix
@@ -19,7 +23,7 @@ repos:
         language: system
         entry: make
         args: ["go-fix"]
-        types: ["go"]
+        files: "(\\.go|go\\.mod|go\\.sum)$"
         pass_filenames: false
   - repo: local
     hooks:
