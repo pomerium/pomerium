@@ -76,7 +76,7 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
+		hosts := NewHostInfo(cfg)
 
 		// Verify HostInfo is set up correctly
 		assert.True(t, hosts.UsesAutoDiscovery("proxy.example.com"),
@@ -150,7 +150,7 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
+		hosts := NewHostInfo(cfg)
 
 		handler := &UpstreamAuthHandler{
 			hosts: hosts,
@@ -627,7 +627,7 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
+		hosts := NewHostInfo(cfg)
 
 		var capturedPending *oauth21proto.PendingUpstreamAuth
 		store := &testUpstreamAuthStorage{
@@ -743,7 +743,7 @@ func TestHandle401_EmptyUserID(t *testing.T) {
 			},
 		},
 	})
-	hosts := NewHostInfo(cfg, nil)
+	hosts := NewHostInfo(cfg)
 
 	handler := &UpstreamAuthHandler{
 		hosts: hosts,
@@ -901,7 +901,7 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
+		hosts := NewHostInfo(cfg)
 
 		handler := &UpstreamAuthHandler{
 			storage: fullStore,
@@ -965,7 +965,7 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
+		hosts := NewHostInfo(cfg)
 
 		handler := &UpstreamAuthHandler{
 			storage:    fullStore,
@@ -1050,7 +1050,7 @@ func TestRefreshOrClearToken_ErrorClassification(t *testing.T) {
 		})
 		return &UpstreamAuthHandler{
 			storage:    store,
-			hosts:      NewHostInfo(cfg, nil),
+			hosts:      NewHostInfo(cfg),
 			httpClient: httpClient,
 		}
 	}

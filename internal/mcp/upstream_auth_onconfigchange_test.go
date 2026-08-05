@@ -18,7 +18,7 @@ func TestUpstreamAuthHandler_OnConfigChange_RefreshesDomainMatcher(t *testing.T)
 
 	h := NewUpstreamAuthHandler(
 		nil,
-		NewHostInfo(old, nil),
+		NewHostInfo(old),
 		nil,
 		NewDomainMatcher(old.Options.GetMCPAllowedAsMetadataDomains()),
 	)
