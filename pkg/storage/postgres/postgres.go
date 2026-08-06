@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -33,6 +34,9 @@ import (
 const (
 	recordBatchSize   = 64
 	watchPollInterval = 30 * time.Second
+
+	// transactionLockSeed namespaces the DoTransaction advisory lock key space.
+	transactionLockSeed = 0x706f6d5f7478
 )
 
 var (
@@ -382,6 +386,17 @@ func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string
 	return leaseHolderID, err
 }
 
+// acquireTransactionLock blocks until the key's advisory lock is available.
+// Postgres releases it on commit, on rollback, or when the connection dies.
+func acquireTransactionLock(ctx context.Context, q querier, key string) error {
+	_, err := q.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, $2))`,
+		key, int64(transactionLockSeed))
+	if err != nil {
+		return fmt.Errorf("postgres: failed to acquire transaction lock: %w", err)
+	}
+	return nil
+}
+
 func putRecordAndChange(ctx context.Context, q querier, record *databroker.Record) error {
 	data, err := jsonbFromAny(record.GetData())
 	if err != nil {
@@ -440,7 +455,17 @@ func patchRecord(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	existing, err := getRecord(ctx, tx, record.GetType(), record.GetId(), lockModeUpdate)
+	if err := patchRecordIn(ctx, tx, record, fields); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+func patchRecordIn(
+	ctx context.Context, q querier, record *databroker.Record, fields *fieldmaskpb.FieldMask,
+) error {
+	existing, err := getRecord(ctx, q, record.GetType(), record.GetId(), lockModeUpdate)
 	if isNotFound(err) {
 		return storage.ErrNotFound
 	} else if err != nil {
@@ -451,11 +476,7 @@ func patchRecord(
 		return err
 	}
 
-	if err := putRecordAndChange(ctx, tx, record); err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
+	return putRecordAndChange(ctx, q, record)
 }
 
 func putService(ctx context.Context, q querier, svc *registry.Service, expiresAt time.Time) error {
@@ -550,6 +571,20 @@ func timestamptzFromTimestamppb(ts *timestamppb.Timestamp) pgtype.Timestamptz {
 
 func isNotFound(err error) bool {
 	return errors.Is(err, pgx.ErrNoRows) || errors.Is(err, storage.ErrNotFound)
+}
+
+func isPostgresError(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr)
+}
+
+// isSerializationFailure reports deadlock_detected and serialization_failure.
+func isSerializationFailure(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	return pgErr.Code == pgerrcode.DeadlockDetected || pgErr.Code == pgerrcode.SerializationFailure
 }
 
 func isUnknownType(err error) bool {

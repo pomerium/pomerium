@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -39,6 +40,11 @@ type Backend struct {
 	mu            sync.RWMutex
 	pool          *pgxpool.Pool
 	serverVersion uint64
+	txSlots       chan struct{}
+
+	txGroup singleflight.Group
+	txWg    sync.WaitGroup
+	txMu    sync.Mutex
 }
 
 // New creates a new Backend.
@@ -106,10 +112,16 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 
 // Close closes the underlying database connection.
 func (backend *Backend) Close() error {
+	// atomic with the closeCtx check in DoTransaction
+	backend.txMu.Lock()
+	backend.close()
+	backend.txMu.Unlock()
+
+	// drain before taking backend.mu: pool.Close blocks until connections return
+	backend.txWg.Wait()
+
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
-
-	backend.close()
 
 	if backend.pool != nil {
 		backend.pool.Close()
@@ -405,9 +417,30 @@ func (backend *Backend) SyncLatest(
 }
 
 func (backend *Backend) DoTransaction(
-	context.Context, string, func(tx storage.Transaction) error,
+	ctx context.Context, key string, fn func(tx storage.Transaction) error,
 ) (changed []*databroker.Record, shared bool, err error) {
-	panic("implement me")
+	// closeCtx gates entry below rather than merging into ctx: a transaction that
+	// started keeps running, and txWg holds the pool open until it finishes
+	ctx, cancel := context.WithTimeout(ctx, transactionMaxDuration)
+	defer cancel()
+
+	var ran bool
+	res, err, _ := backend.txGroup.Do(key, func() (any, error) {
+		ran = true
+
+		backend.txMu.Lock()
+		if backend.closeCtx.Err() != nil {
+			backend.txMu.Unlock()
+			return nil, context.Cause(backend.closeCtx)
+		}
+		backend.txWg.Add(1)
+		backend.txMu.Unlock()
+		defer backend.txWg.Done()
+
+		return backend.doTransaction(ctx, key, fn)
+	})
+	changed, _ = res.([]*databroker.Record)
+	return changed, !ran, err
 }
 
 // Versions returns the versions of the storage backend.
@@ -459,6 +492,11 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 	if err != nil {
 		return serverVersion, nil, fmt.Errorf("error creating pgxpool: %w", err)
 	}
+	log.Ctx(ctx).Debug().
+		Int32("max_conns", pool.Config().MaxConns).
+		Int32("min_conns", pool.Config().MinConns).
+		Msg("initializing postgres backend with pool")
+	backend.txSlots = make(chan struct{}, pool.Config().MaxConns)
 
 	err = otelpgx.RecordStats(pool)
 	if err != nil {
