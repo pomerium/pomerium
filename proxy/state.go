@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -37,9 +38,10 @@ type proxyState struct {
 	programmaticRedirectDomainWhitelist []string
 	authenticateFlow                    authenticateFlow
 	incomingIDPTokenSessionCreator      config.IncomingIDPTokenSessionCreator
+	idpResolver                         *config.IdentityProviderResolver
 }
 
-func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config, outboundGrpcConn *grpc.CachedOutboundGRPClientConn) (*proxyState, error) {
+func newProxyStateFromConfig(ctx context.Context, previousState *proxyState, tracerProvider oteltrace.TracerProvider, cfg *config.Config, outboundGrpcConn *grpc.CachedOutboundGRPClientConn) (*proxyState, error) {
 	err := ValidateOptions(cfg.Options)
 	if err != nil {
 		return nil, err
@@ -93,6 +95,21 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 		return nil, err
 	}
 
+	// Built here, off the request path, reusing the previous generation's resolver
+	// when nothing it is built from changed. A failure is not fatal to the state:
+	// it is returned to the JWT bearer requests it affects (see
+	// newAuthorizeStateFromConfig for the reasoning).
+	var previousIDPResolver *config.IdentityProviderResolver
+	if previousState != nil {
+		previousIDPResolver = previousState.idpResolver
+	}
+	idpResolver, idpResolverErr := config.NewIdentityProviderResolverFromConfig(cfg, previousIDPResolver)
+	if idpResolverErr != nil {
+		log.Ctx(ctx).Error().Err(idpResolverErr).
+			Msg("proxy: error building identity provider resolver; routes using bearer_token_format=jwt will reject requests until the next configuration change")
+	}
+	state.idpResolver = idpResolver
+
 	state.incomingIDPTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
 		tracerProvider,
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
@@ -108,6 +125,7 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 			storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
 			return err
 		},
+		config.WithIdentityProviderResolver(idpResolver, idpResolverErr),
 	)
 
 	return state, nil

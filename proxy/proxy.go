@@ -68,7 +68,7 @@ type Proxy struct {
 func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Proxy")
 	outboundGrpcConn := &grpc.CachedOutboundGRPClientConn{}
-	state, err := newProxyStateFromConfig(ctx, tracerProvider, cfg, outboundGrpcConn)
+	state, err := newProxyStateFromConfig(ctx, nil, tracerProvider, cfg, outboundGrpcConn)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	if err := p.setHandlers(ctx, cfg.Options); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
 	}
-	if state, err := newProxyStateFromConfig(ctx, p.tracerProvider, cfg, p.outboundGrpcConn); err != nil {
+	if state, err := newProxyStateFromConfig(ctx, p.state.Load(), p.tracerProvider, cfg, p.outboundGrpcConn); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
 	} else {
 		p.state.Store(state)
