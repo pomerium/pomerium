@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -20,6 +21,11 @@ import (
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
+	"github.com/pomerium/pomerium/pkg/storage"
+)
+
+var (
+	ErrTokenNoInitiatingSession = errors.New("mcp upstream refresh token does not have an initiating session")
 )
 
 const (
@@ -218,6 +224,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		IssuedAt:             timestamppb.Now(),
 		ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		Scopes:               authReq.GetScopes(),
+		InitiatingSessionId:  session.GetId(),
 	}
 
 	log.Ctx(ctx).Debug().
@@ -453,6 +460,8 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 		IssuedAt:             timestamppb.Now(),
 		ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		Scopes:               refreshTokenRecord.Scopes,
+		// keep the initating session
+		InitiatingSessionId: newSession.GetId(),
 	}
 
 	log.Ctx(ctx).Debug().
@@ -517,13 +526,42 @@ func (srv *Handler) getOrRecreateSession(
 	log.Ctx(ctx).Debug().
 		Str("user-id", refreshTokenRecord.UserId).
 		Str("idp-id", refreshTokenRecord.IdpId).
+		Str("initating-session-id", refreshTokenRecord.InitiatingSessionId).
 		Bool("has-upstream-refresh-token", refreshTokenRecord.UpstreamRefreshToken != "").
-		Msg("mcp/session: recreating session from refresh token")
+		Msg("mcp/session: getting session for refresh token")
 
-	// For now, we need to create a new session since we don't track the original session ID
-	// The session will be created using the upstream refresh token
+	upstreamRefreshToken := refreshTokenRecord.UpstreamRefreshToken
+	initiatingSession, existingRecordVersion, err := srv.getRecordSession(ctx, refreshTokenRecord)
+	if storage.IsNotFound(err) || errors.Is(err, ErrTokenNoInitiatingSession) {
+		// TODO : this needs to have the latest refresh token from the previously delete session
+		return srv.recreateSession(ctx, refreshTokenRecord, refreshTokenRecord.UpstreamRefreshToken)
+	} else if err != nil {
+		return nil, 0, err
+	}
 
-	if refreshTokenRecord.UpstreamRefreshToken == "" {
+	if sessionUsable(initiatingSession) {
+		log.Ctx(ctx).Debug().
+			Str("session-id", initiatingSession.Id).
+			Time("expires-at", initiatingSession.ExpiresAt.AsTime()).
+			Msg("mcp/session: reusing existing session, skipping upstream token exchange")
+		return initiatingSession, existingRecordVersion, nil
+	}
+	// Prefer the refresh token stored on the session: the identity manager may have rotated it
+	// after this record was written, in which case the record's copy is no longer valid upstream.
+
+	// The session stil exists, but is no longer usable. In what scenarios could this happen?
+	if t := initiatingSession.GetOauthToken().GetRefreshToken(); t != "" {
+		upstreamRefreshToken = t
+	}
+	return srv.recreateSession(ctx, refreshTokenRecord, upstreamRefreshToken)
+}
+
+func (srv *Handler) recreateSession(
+	ctx context.Context,
+	refreshTokenRecord *oauth21proto.MCPRefreshToken,
+	curUpstreamRefreshToken string,
+) (*session.Session, uint64, error) {
+	if curUpstreamRefreshToken == "" {
 		log.Ctx(ctx).Error().Msg("mcp/session: no upstream refresh token available")
 		return nil, 0, fmt.Errorf("no upstream refresh token available")
 	}
@@ -531,7 +569,6 @@ func (srv *Handler) getOrRecreateSession(
 	// Create a new session first so we can populate it with claims from the upstream IdP
 	newSessionID := uuid.NewString()
 	newSession := session.Create(refreshTokenRecord.IdpId, newSessionID, refreshTokenRecord.UserId, time.Now(), srv.sessionExpiry)
-
 	log.Ctx(ctx).Debug().
 		Str("session-id", newSession.Id).
 		Str("user-id", newSession.UserId).
@@ -569,7 +606,7 @@ func (srv *Handler) getOrRecreateSession(
 
 	log.Ctx(ctx).Debug().Msg("mcp/session: refreshing upstream OAuth token")
 	oldToken := &oauth2.Token{
-		RefreshToken: refreshTokenRecord.UpstreamRefreshToken,
+		RefreshToken: curUpstreamRefreshToken,
 	}
 	// Use NewSessionUnmarshaler to capture ID token claims from the upstream IdP.
 	// This ensures the recreated session has the same claims as a fresh session.
@@ -612,6 +649,30 @@ func (srv *Handler) getOrRecreateSession(
 		Msg("mcp/session: session stored successfully")
 
 	return newSession, sessionRecordVersion, nil
+}
+
+func (srv *Handler) getRecordSession(
+	ctx context.Context,
+	refreshTokenRecord *oauth21proto.MCPRefreshToken,
+) (*session.Session, uint64, error) {
+	if refreshTokenRecord.GetInitiatingSessionId() == "" {
+		return nil, 0, ErrTokenNoInitiatingSession
+	}
+
+	s, recordVersion, err := srv.storage.GetSession(ctx, refreshTokenRecord.GetInitiatingSessionId())
+	if err != nil {
+		return nil, 0, err
+	}
+	return s, recordVersion, nil
+}
+
+// sessionUsable reports whether a session can be handed back to the client as-is, without
+// exchanging the upstream refresh token.
+func sessionUsable(s *session.Session) bool {
+	if s.GetOauthToken().GetAccessToken() == "" {
+		return false
+	}
+	return s.Validate() == nil
 }
 
 // createTokenResponse generates access and refresh tokens for a session.
