@@ -44,9 +44,12 @@ type MCPRefreshToken struct {
 	// Scopes granted with this refresh token
 	Scopes []string `protobuf:"bytes,8,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	// Whether this refresh token has been revoked
-	Revoked       bool `protobuf:"varint,9,opt,name=revoked,proto3" json:"revoked,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Revoked bool `protobuf:"varint,9,opt,name=revoked,proto3" json:"revoked,omitempty"`
+	// Reference to the user's session that initated the original
+	// mcp refresh token
+	InitiatingSessionId string `protobuf:"bytes,10,opt,name=initiating_session_id,json=initiatingSessionId,proto3" json:"initiating_session_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *MCPRefreshToken) Reset() {
@@ -142,11 +145,18 @@ func (x *MCPRefreshToken) GetRevoked() bool {
 	return false
 }
 
+func (x *MCPRefreshToken) GetInitiatingSessionId() string {
+	if x != nil {
+		return x.InitiatingSessionId
+	}
+	return ""
+}
+
 var File_mcp_refresh_token_proto protoreflect.FileDescriptor
 
 const file_mcp_refresh_token_proto_rawDesc = "" +
 	"\n" +
-	"\x17mcp_refresh_token.proto\x12\aoauth21\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xee\x02\n" +
+	"\x17mcp_refresh_token.proto\x12\aoauth21\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x03\n" +
 	"\x0fMCPRefreshToken\x12\x1a\n" +
 	"\x02id\x18\x01 \x01(\tB\n" +
 	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12#\n" +
@@ -160,7 +170,9 @@ const file_mcp_refresh_token_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x16\n" +
 	"\x06scopes\x18\b \x03(\tR\x06scopes\x12\x18\n" +
-	"\arevoked\x18\t \x01(\bR\arevokedB\x92\x01\n" +
+	"\arevoked\x18\t \x01(\bR\arevoked\x122\n" +
+	"\x15initiating_session_id\x18\n" +
+	" \x01(\tR\x13initiatingSessionIdB\x92\x01\n" +
 	"\vcom.oauth21B\x14McpRefreshTokenProtoP\x01Z1github.com/pomerium/pomerium/internal/oauth21/gen\xa2\x02\x03OXX\xaa\x02\aOauth21\xca\x02\aOauth21\xe2\x02\x13Oauth21\\GPBMetadata\xea\x02\aOauth21b\x06proto3"
 
 var (

@@ -700,6 +700,121 @@ func TestRefreshTokenGrant(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, oldRecord.Revoked, "old refresh token should NOT be revoked when new token storage fails")
 	})
+
+	// The identity manager refreshes the session on its own schedule, rotating the upstream token
+	// and leaving the copy on the MCP record stale. The grant must exchange the session's copy.
+	t.Run("expired session's rotated upstream token wins over the record's", func(t *testing.T) {
+		const (
+			staleToken   = "upstream-token-at-login"
+			rotatedToken = "upstream-token-after-manager-refresh"
+			grantToken   = "upstream-token-after-mcp-grant"
+			sessionID    = "session-rotation-session-id"
+		)
+
+		sess := session.Create("test-idp", sessionID, "session-rotation-user-id", time.Now(), 14*time.Hour)
+		sess.ExpiresAt = timestamppb.New(time.Now().Add(-time.Minute))
+		sess.OauthToken = &session.OAuthToken{
+			AccessToken:  "upstream-access-token",
+			TokenType:    "Bearer",
+			RefreshToken: rotatedToken,
+			ExpiresAt:    timestamppb.New(time.Now().Add(time.Hour)),
+		}
+		_, err := storage.PutSession(ctx, sess)
+		require.NoError(t, err)
+
+		record := &oauth21proto.MCPRefreshToken{
+			Id:                   "session-rotation-refresh-token-id",
+			UserId:               "session-rotation-user-id",
+			ClientId:             clientID,
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: staleToken,
+			InitiatingSessionId:  sessionID,
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+		require.NoError(t, storage.PutMCPRefreshToken(ctx, record))
+
+		var presented string
+		srv := &Handler{
+			cipher:        testCipher,
+			storage:       storage,
+			sessionExpiry: 14 * time.Hour,
+			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
+				return &mockAuthenticator{
+					refreshFunc: func(_ context.Context, tok *oauth2.Token, _ identitystate.State) (*oauth2.Token, error) {
+						presented = tok.RefreshToken
+						return &oauth2.Token{
+							AccessToken:  "fresh-access-token",
+							RefreshToken: grantToken,
+							TokenType:    "Bearer",
+							Expiry:       time.Now().Add(time.Hour),
+						}, nil
+					},
+				}, nil
+			},
+		}
+
+		refreshToken, err := srv.CreateRefreshToken(record.Id, clientID, record.ExpiresAt.AsTime())
+		require.NoError(t, err)
+
+		w := postTokenRefresh(ctx, t, srv, clientID, refreshToken)
+		require.Equal(t, http.StatusOK, w.Code, "response body: %s", w.Body.String())
+		assert.Equal(t, rotatedToken, presented, "grant must exchange the session's token, not the record's")
+
+		// The rotated MCP record must carry the newest upstream token forward.
+		newRecord := rotatedRecord(ctx, t, srv, storage, clientID, w)
+		assert.Equal(t, grantToken, newRecord.UpstreamRefreshToken)
+
+		oldRecord, err := storage.GetMCPRefreshToken(ctx, record.Id)
+		require.NoError(t, err)
+		assert.True(t, oldRecord.Revoked)
+	})
+}
+
+func postTokenRefresh(
+	ctx context.Context,
+	t *testing.T,
+	srv *Handler,
+	clientID, refreshToken string,
+) *httptest.ResponseRecorder {
+	t.Helper()
+
+	form := url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {refreshToken},
+		"client_id":     {clientID},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+	srv.Token(w, req)
+	return w
+}
+
+// rotatedRecord resolves the refresh token in a grant response back to its stored record.
+func rotatedRecord(
+	ctx context.Context,
+	t *testing.T,
+	srv *Handler,
+	storage *Storage,
+	clientID string,
+	w *httptest.ResponseRecorder,
+) *oauth21proto.MCPRefreshToken {
+	t.Helper()
+
+	var resp struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.NotEmpty(t, resp.RefreshToken)
+
+	code, err := srv.DecryptRefreshToken(resp.RefreshToken, clientID)
+	require.NoError(t, err)
+	record, err := storage.GetMCPRefreshToken(ctx, code.Id)
+	require.NoError(t, err)
+	return record
 }
 
 // mockAuthenticator implements identity.Authenticator for testing
@@ -760,6 +875,7 @@ var _ identity.Authenticator = (*mockAuthenticator)(nil)
 type mockStorage struct {
 	*Storage
 	putMCPRefreshTokenFunc func(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
+	getSessionFunc         func(ctx context.Context, id string) (*session.Session, uint64, error)
 }
 
 func (m *mockStorage) PutMCPRefreshToken(ctx context.Context, token *oauth21proto.MCPRefreshToken) error {
@@ -767,6 +883,13 @@ func (m *mockStorage) PutMCPRefreshToken(ctx context.Context, token *oauth21prot
 		return m.putMCPRefreshTokenFunc(ctx, token)
 	}
 	return m.Storage.PutMCPRefreshToken(ctx, token)
+}
+
+func (m *mockStorage) GetSession(ctx context.Context, id string) (*session.Session, uint64, error) {
+	if m.getSessionFunc != nil {
+		return m.getSessionFunc(ctx, id)
+	}
+	return m.Storage.GetSession(ctx, id)
 }
 
 func TestGetOrRecreateSession(t *testing.T) {
@@ -1049,4 +1172,162 @@ func TestSessionUnmarshalerInRefresh(t *testing.T) {
 
 	// Note: With a valid JWT, the ID token would be parsed and set on the session.
 	// See pkg/identity/manager/data_test.go TestSession_RefreshUpdate for an example with a valid JWT.
+}
+
+// TestRefreshGrantSessionOwnership covers who owns the upstream refresh token chain for a
+// session created by the MCP token endpoint. With upstream refresh token rotation (e.g. Okta, Auth0),
+// exchanging the same upstream token twice invalidates the whole token family, so the endpoint
+// must be the only component that exchanges it, and must exchange the newest one exactly once.
+func TestRefreshGrantSessionOwnership(t *testing.T) {
+	ctx := context.Background()
+	store := setupTestDatabroker(ctx, t)
+
+	key := cryptutil.NewKey()
+	testCipher, err := cryptutil.NewAEADCipher(key)
+	require.NoError(t, err)
+
+	clientID, err := store.RegisterClient(ctx, &rfc7591v1.ClientRegistration{
+		ResponseMetadata: &rfc7591v1.Metadata{
+			TokenEndpointAuthMethod: new("none"),
+		},
+	})
+	require.NoError(t, err)
+
+	newHandler := func(s HandlerStorage, auth identity.Authenticator) *Handler {
+		return &Handler{
+			cipher:        testCipher,
+			storage:       s,
+			sessionExpiry: 14 * time.Hour,
+			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
+				return auth, nil
+			},
+		}
+	}
+
+	freshToken := func(refresh string) *mockAuthenticator {
+		return &mockAuthenticator{
+			refreshFunc: func(_ context.Context, _ *oauth2.Token, _ identitystate.State) (*oauth2.Token, error) {
+				return &oauth2.Token{
+					AccessToken:  "fresh-access-token",
+					RefreshToken: refresh,
+					TokenType:    "Bearer",
+					Expiry:       time.Now().Add(time.Hour),
+				}, nil
+			},
+		}
+	}
+
+	t.Run("reuses the session referenced by the refresh token record", func(t *testing.T) {
+		liveSession := session.Create("test-idp", "ownership-live-session", "test-user-id", time.Now(), 14*time.Hour)
+		liveSession.OauthToken = &session.OAuthToken{
+			AccessToken:  "live-access-token",
+			RefreshToken: "live-upstream-token",
+			ExpiresAt:    timestamppb.New(time.Now().Add(time.Hour)),
+		}
+		_, err := store.PutSession(ctx, liveSession)
+		require.NoError(t, err)
+
+		refreshCalls := 0
+		auth := &mockAuthenticator{
+			refreshFunc: func(_ context.Context, _ *oauth2.Token, _ identitystate.State) (*oauth2.Token, error) {
+				refreshCalls++
+				return &oauth2.Token{
+					AccessToken:  "fresh-access-token",
+					RefreshToken: "rotated-upstream-token",
+					TokenType:    "Bearer",
+					Expiry:       time.Now().Add(time.Hour),
+				}, nil
+			},
+		}
+		srv := newHandler(store, auth)
+
+		got, _, err := srv.getOrRecreateSession(ctx, &oauth21proto.MCPRefreshToken{
+			Id:                   "ownership-reuse",
+			UserId:               "test-user-id",
+			ClientId:             clientID,
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "live-upstream-token",
+			InitiatingSessionId:  liveSession.Id,
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t, liveSession.Id, got.Id, "a valid session must be reused, not replaced")
+		// Every extra exchange invalidates the previous token for any concurrent grant.
+		assert.Zero(t, refreshCalls, "reusing a valid session must not exchange the upstream token")
+	})
+
+	t.Run("rotated refresh token record retains the session id", func(t *testing.T) {
+		sess := session.Create("test-idp", "ownership-rotation-session", "test-user-id", time.Now(), 14*time.Hour)
+		sess.OauthToken = &session.OAuthToken{
+			AccessToken:  "access-token",
+			RefreshToken: "upstream-token-v1",
+			ExpiresAt:    timestamppb.New(time.Now().Add(-time.Minute)),
+		}
+		_, err := store.PutSession(ctx, sess)
+		require.NoError(t, err)
+
+		record := &oauth21proto.MCPRefreshToken{
+			Id:                   "ownership-rotation",
+			UserId:               "test-user-id",
+			ClientId:             clientID,
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-token-v1",
+			InitiatingSessionId:  sess.Id,
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+		require.NoError(t, store.PutMCPRefreshToken(ctx, record))
+
+		srv := newHandler(store, freshToken("upstream-token-v2"))
+		refreshToken, err := srv.CreateRefreshToken(record.Id, clientID, record.ExpiresAt.AsTime())
+		require.NoError(t, err)
+
+		w := postTokenRefresh(ctx, t, srv, clientID, refreshToken)
+		require.Equal(t, http.StatusOK, w.Code, "response body: %s", w.Body.String())
+
+		// Dropping the session id disables the session lookup for good, pinning every later
+		// grant to the upstream token stored on the record.
+		rotated := rotatedRecord(ctx, t, srv, store, clientID, w)
+		assert.NotEmpty(t, rotated.InitiatingSessionId, "rotation must carry the session id forward")
+	})
+
+	t.Run("transient databroker error does not fall back to a stale upstream token", func(t *testing.T) {
+		var presented []string
+		auth := &mockAuthenticator{
+			refreshFunc: func(_ context.Context, tok *oauth2.Token, _ identitystate.State) (*oauth2.Token, error) {
+				presented = append(presented, tok.RefreshToken)
+				return &oauth2.Token{
+					AccessToken:  "fresh-access-token",
+					RefreshToken: "rotated-upstream-token",
+					TokenType:    "Bearer",
+					Expiry:       time.Now().Add(time.Hour),
+				}, nil
+			},
+		}
+		mockStore := &mockStorage{
+			Storage: store,
+			getSessionFunc: func(_ context.Context, _ string) (*session.Session, uint64, error) {
+				return nil, 0, errors.New("databroker unavailable")
+			},
+		}
+		srv := newHandler(mockStore, auth)
+
+		_, _, err := srv.getOrRecreateSession(ctx, &oauth21proto.MCPRefreshToken{
+			Id:                   "ownership-transient",
+			UserId:               "test-user-id",
+			ClientId:             clientID,
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "stale-upstream-token",
+			InitiatingSessionId:  "ownership-unreachable-session",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		})
+
+		// A lookup failure is not evidence that the record's token is still live; exchanging it
+		// on a guess burns the token family.
+		require.Error(t, err, "an unexpected databroker error must not be masked")
+		assert.NotContains(t, presented, "stale-upstream-token")
+	})
 }
