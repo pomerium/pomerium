@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -33,6 +34,9 @@ import (
 const (
 	recordBatchSize   = 64
 	watchPollInterval = 30 * time.Second
+
+	// transactionLockSeed namespaces the DoTransaction advisory lock key space.
+	transactionLockSeed = 0x706f6d5f7478
 )
 
 var (
@@ -46,6 +50,9 @@ var (
 	serviceChangeNotifyName = "pomerium_service_change"
 	servicesTableName       = "services"
 	checkpointsTableName    = "checkpoints"
+
+	transactionFlightsTableName = "transaction_flights"
+	transactionFlightNotifyName = "pomerium_transaction_flight"
 )
 
 type querier interface {
@@ -146,6 +153,24 @@ func deleteExpiredRecords(ctx context.Context, q querier, recordType string, cut
 		USING expired
 		WHERE t.type = expired.type AND t.id = expired.id
 	`, recordType, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return cmd.RowsAffected(), nil
+}
+
+func deleteOldInflightTransactions(ctx context.Context, q querier, cutoff time.Time) (int64, error) {
+	cmd, err := q.Exec(ctx, `
+		WITH expired AS (
+			SELECT flight_id
+			FROM `+schemaName+`.`+transactionFlightsTableName+`
+			WHERE modified_at < $1
+			FOR UPDATE SKIP LOCKED
+		),
+		DELETE FROM `+schemaName+`.`+transactionFlightsTableName+` r
+		USING expired
+		WHERE r.flight_id == expired.flight_id
+	`, cutoff)
 	if err != nil {
 		return 0, err
 	}
@@ -382,6 +407,90 @@ func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string
 	return leaseHolderID, err
 }
 
+type flight struct {
+	id        string
+	completed bool
+	changed   [][]byte
+	errText   *string
+}
+
+func (f *flight) result() ([]*databroker.Record, error) {
+	if f.errText != nil {
+		return nil, errors.New(*f.errText)
+	}
+	changed := make([]*databroker.Record, len(f.changed))
+	for i, raw := range f.changed {
+		record := new(databroker.Record)
+		if err := proto.Unmarshal(raw, record); err != nil {
+			return nil, fmt.Errorf("postgres: failed to unmarshal transaction flight record: %w", err)
+		}
+		changed[i] = record
+	}
+	return changed, nil
+}
+
+func getFlight(ctx context.Context, q querier, key string) (*flight, error) {
+	f := new(flight)
+	err := q.QueryRow(ctx, `
+		SELECT flight_id, completed, changed, error
+		FROM `+schemaName+`.`+transactionFlightsTableName+`
+		WHERE key = $1
+	`, key).Scan(&f.id, &f.completed, &f.changed, &f.errText)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("postgres: failed to get transaction flight: %w", err)
+	}
+	return f, nil
+}
+
+func beginFlight(ctx context.Context, q querier, key, flightID string) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO `+schemaName+`.`+transactionFlightsTableName+` (key, flight_id, completed)
+		VALUES ($1, $2, FALSE)
+		ON CONFLICT (key) DO UPDATE
+		SET flight_id = $2, completed = FALSE, changed = NULL, error = NULL, modified_at = now()
+	`, key, flightID)
+	if err != nil {
+		return fmt.Errorf("postgres: failed to begin transaction flight: %w", err)
+	}
+	return nil
+}
+
+func finishFlight(ctx context.Context, q querier, key, flightID string, changed []*databroker.Record, flightErr error) error {
+	var raw [][]byte
+	var errText *string
+	if flightErr != nil {
+		s := flightErr.Error()
+		errText = &s
+	} else {
+		raw = make([][]byte, len(changed))
+		for i, record := range changed {
+			data, err := proto.Marshal(record)
+			if err != nil {
+				return fmt.Errorf("postgres: failed to marshal transaction flight record: %w", err)
+			}
+			raw[i] = data
+		}
+	}
+
+	_, err := q.Exec(ctx, `
+		UPDATE `+schemaName+`.`+transactionFlightsTableName+`
+		SET completed = TRUE, changed = $3, error = $4, modified_at = now()
+		WHERE key = $1 AND flight_id = $2
+	`, key, flightID, raw, errText)
+	if err != nil {
+		return fmt.Errorf("postgres: failed to finish transaction flight: %w", err)
+	}
+
+	_, err = q.Exec(ctx, `SELECT pg_notify($1, $2)`, transactionFlightNotifyName, flightID)
+	if err != nil {
+		return fmt.Errorf("postgres: failed to signal transaction flight: %w", err)
+	}
+	return nil
+}
+
 func putRecordAndChange(ctx context.Context, q querier, record *databroker.Record) error {
 	data, err := jsonbFromAny(record.GetData())
 	if err != nil {
@@ -440,7 +549,17 @@ func patchRecord(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	existing, err := getRecord(ctx, tx, record.GetType(), record.GetId(), lockModeUpdate)
+	if err := patchRecordIn(ctx, tx, record, fields); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+func patchRecordIn(
+	ctx context.Context, q querier, record *databroker.Record, fields *fieldmaskpb.FieldMask,
+) error {
+	existing, err := getRecord(ctx, q, record.GetType(), record.GetId(), lockModeUpdate)
 	if isNotFound(err) {
 		return storage.ErrNotFound
 	} else if err != nil {
@@ -451,11 +570,7 @@ func patchRecord(
 		return err
 	}
 
-	if err := putRecordAndChange(ctx, tx, record); err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
+	return putRecordAndChange(ctx, q, record)
 }
 
 func putService(ctx context.Context, q querier, svc *registry.Service, expiresAt time.Time) error {
@@ -550,6 +665,20 @@ func timestamptzFromTimestamppb(ts *timestamppb.Timestamp) pgtype.Timestamptz {
 
 func isNotFound(err error) bool {
 	return errors.Is(err, pgx.ErrNoRows) || errors.Is(err, storage.ErrNotFound)
+}
+
+func isPostgresError(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr)
+}
+
+// isSerializationFailure reports deadlock_detected and serialization_failure.
+func isSerializationFailure(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	return pgErr.Code == pgerrcode.DeadlockDetected || pgErr.Code == pgerrcode.SerializationFailure
 }
 
 func isUnknownType(err error) bool {

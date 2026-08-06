@@ -221,6 +221,19 @@ var migrations = []func(context.Context, pgx.Tx) error{
 		}
 		return nil
 	},
+	10: func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			CREATE TABLE `+schemaName+`.`+transactionFlightsTableName+` (
+				key TEXT PRIMARY KEY,
+				flight_id TEXT NOT NULL,
+				completed BOOLEAN NOT NULL,
+				changed BYTEA[],
+				error TEXT,
+				modified_at TIMESTAMPTZ NOT NULL DEFAULT now()
+			)
+		`)
+		return err
+	},
 }
 
 func migrate(ctx context.Context, tx pgx.Tx) (serverVersion uint64, err error) {
