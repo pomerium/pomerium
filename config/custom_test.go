@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"encoding/json"
+	"net/url"
 	"testing"
 	"time"
 
@@ -20,6 +21,55 @@ import (
 	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
+
+func TestParseWeightedURLRedactsCredentialsOnError(t *testing.T) {
+	const canary = "UPSTREAM_URL_PASSWORD_CANARY"
+	_, err := ParseWeightedURL("https://user:" + canary + "@[::1")
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), canary)
+}
+
+func TestParseWeightedURLErrorCategories(t *testing.T) {
+	const canary = "UPSTREAM_URL_PASSWORD_CANARY"
+	cases := []struct {
+		name    string
+		in      string
+		wantErr error
+	}{
+		{"missing scheme", "upstream.example.com", errSchemeMustBeSpecified},
+		{"missing hostname with userinfo", "https://user:" + canary + "@", errHostnameMustBeSpecified},
+		{"missing hostname with port only", "https://:8080", errHostnameMustBeSpecified},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseWeightedURL(tc.in)
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.NotContains(t, err.Error(), canary)
+		})
+	}
+}
+
+func TestParseWeightedURLRedactsCredentialsOnInvalidWeight(t *testing.T) {
+	const canary = "UPSTREAM_WEIGHT_PARSE_SECRET_CANARY"
+	_, err := ParseWeightedURL("https://user:prefix," + canary + "@upstream.example.com")
+	require.ErrorIs(t, err, errInvalidUpstreamWeight)
+	assert.NotContains(t, err.Error(), canary)
+}
+
+func TestWeightedURLStringRedactsCredentials(t *testing.T) {
+	const usernameCanary = "UPSTREAM_URL_USERNAME_CANARY"
+	const passwordCanary = "UPSTREAM_URL_PASSWORD_CANARY"
+	u := WeightedURL{
+		URL:      url.URL{Scheme: "https", Host: "upstream.example.com", User: url.UserPassword(usernameCanary, passwordCanary)},
+		LbWeight: 10,
+	}
+	assert.NotContains(t, u.String(), usernameCanary)
+	assert.NotContains(t, u.String(), passwordCanary)
+	assert.Contains(t, u.String(), "xxxxx")
+
+	u.LbWeight = 0
+	assert.Equal(t, "https://xxxxx@upstream.example.com", u.String())
+}
 
 func TestJWTClaimHeaders_UnmarshalJSON(t *testing.T) {
 	t.Run("object", func(t *testing.T) {
