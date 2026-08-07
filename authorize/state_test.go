@@ -15,8 +15,8 @@ import (
 
 // TestNewAuthorizeStateFromConfig_IdentityProviderResolverReuse pins that the
 // state builder hands the previous generation's resolver to the next one, so the
-// JWKS cache behind it (and any in-cluster discovery) survives a configuration
-// change that does not concern identity providers. The reuse gate itself is
+// JWKS cache behind it survives a configuration change that does not concern
+// identity providers. The reuse gate itself is
 // covered by config.TestNewIdentityProviderResolverFromConfig.
 func TestNewAuthorizeStateFromConfig_IdentityProviderResolverReuse(t *testing.T) {
 	t.Parallel()

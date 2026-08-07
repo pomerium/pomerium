@@ -111,16 +111,13 @@ func newAuthorizeStateFromConfig(
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
 	// Built here, off the request path, reusing the previous generation's resolver
-	// when nothing it is built from changed. A failure is deliberately not fatal:
-	// OnConfigChange only logs a state-build error and keeps the previous state, so
-	// failing here would silently discard every unrelated route and policy change
-	// in this generation.
-	idpResolver, idpResolverErr := config.NewIdentityProviderResolverFromConfig(cfg, previousIDPResolver)
-	if idpResolverErr != nil {
-		log.Ctx(ctx).Error().Err(idpResolverErr).
-			Msg("authorize: error building identity provider resolver; routes using bearer_token_format=jwt will reject requests until the next configuration change")
-	}
-	state.idpResolver = idpResolver
+	// when nothing it is built from changed. It cannot fail: a provider that could
+	// not be built rejects the tokens of its own issuer and reports itself
+	// unhealthy, rather than failing this state build. That distinction matters
+	// because OnConfigChange only logs a state-build error and keeps the previous
+	// state, so failing here would silently discard every unrelated route and
+	// policy change in this generation.
+	state.idpResolver = config.NewIdentityProviderResolverFromConfig(ctx, cfg, previousIDPResolver)
 
 	state.idpTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
 		tracerProvider,
@@ -137,7 +134,7 @@ func newAuthorizeStateFromConfig(
 			storage.InvalidateCacheForDataBrokerRecords(ctx, res.Records...)
 			return nil
 		},
-		config.WithIdentityProviderResolver(idpResolver, idpResolverErr),
+		config.WithIdentityProviderResolver(state.idpResolver),
 	)
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
