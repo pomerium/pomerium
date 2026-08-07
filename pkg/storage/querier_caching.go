@@ -53,8 +53,13 @@ func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest,
 func (*cachingQuerier) Stop() {}
 
 func (q *cachingQuerier) getCacheKey(in *databroker.QueryRequest) ([]byte, error) {
-	in = proto.Clone(in).(*databroker.QueryRequest)
-	in.MinimumRecordVersionHint = nil
+	// the minimum record version hint is a freshness requirement, not part of
+	// the query identity, so it is excluded from the cache key. Cloning is only
+	// needed to strip it.
+	if in.MinimumRecordVersionHint != nil {
+		in = proto.Clone(in).(*databroker.QueryRequest)
+		in.MinimumRecordVersionHint = nil
+	}
 	return MarshalQueryRequest(in)
 }
 

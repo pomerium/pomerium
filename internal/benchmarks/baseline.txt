@@ -1,0 +1,232 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pomerium/pomerium/authorize
+cpu: Apple M3 Max
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  140590	      8582 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  141381	      8284 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  139324	      8485 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  144330	      8370 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  148250	      8141 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  147986	      8234 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  148242	      8327 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  141300	      8372 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  144781	      8132 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=100-16         	  148330	      8245 ns/op	    1224 B/op	     102 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   14554	     83421 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   14497	     83554 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   14432	     82564 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   14725	     81672 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   14348	     83382 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   14175	     83798 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   14480	     83334 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   13988	     85551 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   14475	     84057 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=1000-16        	   13982	     84880 ns/op	   12024 B/op	    1002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1472	    835517 ns/op	  120027 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1425	    832004 ns/op	  120024 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1474	    809591 ns/op	  120024 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1472	    812360 ns/op	  120024 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1467	    816844 ns/op	  120024 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1474	    808147 ns/op	  120024 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1432	    821058 ns/op	  120024 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1480	    813814 ns/op	  120024 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1482	    807776 ns/op	  120024 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=generated/policies=10000-16       	    1471	    805607 ns/op	  120024 B/op	   10002 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10700686	       112.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10462724	       112.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10664636	       112.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10699263	       112.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10464120	       113.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10676785	       112.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10555783	       112.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10703156	       112.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10635987	       112.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=100-16          	10603156	       112.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1000000	      1001 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1000000	      1008 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1000000	      1002 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1000000	      1001 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1200397	       999.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1202078	       998.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1201591	       998.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1200896	      1001 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1000000	      1003 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=1000-16         	 1000000	      1010 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	  102087	     11703 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	  103366	     11624 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	  101631	     11648 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	  103136	     11675 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	   98709	     11747 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	  102084	     11774 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	  102298	     11832 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	  100921	     11793 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	  101775	     11642 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetMatchingPolicy/id=explicit/policies=10000-16        	  101690	     11686 ns/op	       0 B/op	       0 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	24303981	        49.68 ns/op	      96 B/op	       3 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	24681369	        49.30 ns/op	      96 B/op	       3 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	25152574	        49.77 ns/op	      96 B/op	       3 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	23910692	        50.01 ns/op	      96 B/op	       3 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	22677325	        50.34 ns/op	      96 B/op	       3 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	23226124	        51.32 ns/op	      96 B/op	       3 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	23385220	        50.85 ns/op	      96 B/op	       3 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	23375085	        50.89 ns/op	      96 B/op	       3 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	23490835	        50.68 ns/op	      96 B/op	       3 allocs/op
+BenchmarkWithQuerierForCheckRequest-16                          	23774301	        49.97 ns/op	      96 B/op	       3 allocs/op
+PASS
+ok  	github.com/pomerium/pomerium/authorize	84.625s
+goos: darwin
+goarch: arm64
+pkg: github.com/pomerium/pomerium/authorize/internal/store
+cpu: Apple M3 Max
+BenchmarkStoreGetDataBrokerRecord-16    	   62061	     19274 ns/op	   17617 B/op	     361 allocs/op
+BenchmarkStoreGetDataBrokerRecord-16    	   63906	     18737 ns/op	   17607 B/op	     361 allocs/op
+BenchmarkStoreGetDataBrokerRecord-16    	   59341	     19091 ns/op	   17609 B/op	     361 allocs/op
+BenchmarkStoreGetDataBrokerRecord-16    	   64148	     19610 ns/op	   17609 B/op	     361 allocs/op
+BenchmarkStoreGetDataBrokerRecord-16    	   64228	     18660 ns/op	   17606 B/op	     361 allocs/op
+BenchmarkStoreGetDataBrokerRecord-16    	   64527	     19783 ns/op	   17610 B/op	     361 allocs/op
+BenchmarkStoreGetDataBrokerRecord-16    	   62166	     18776 ns/op	   17606 B/op	     361 allocs/op
+BenchmarkStoreGetDataBrokerRecord-16    	   57524	     19190 ns/op	   17606 B/op	     361 allocs/op
+BenchmarkStoreGetDataBrokerRecord-16    	   61615	     19414 ns/op	   17609 B/op	     361 allocs/op
+BenchmarkStoreGetDataBrokerRecord-16    	   64183	     18950 ns/op	   17606 B/op	     361 allocs/op
+PASS
+ok  	github.com/pomerium/pomerium/authorize/internal/store	12.591s
+goos: darwin
+goarch: arm64
+pkg: github.com/pomerium/pomerium/authorize/evaluator
+cpu: Apple M3 Max
+BenchmarkEvaluate-16            	    5527	    193786 ns/op	  104437 B/op	    2054 allocs/op
+BenchmarkEvaluate-16            	    5756	    195455 ns/op	  104421 B/op	    2053 allocs/op
+BenchmarkEvaluate-16            	    6140	    194337 ns/op	  104413 B/op	    2053 allocs/op
+BenchmarkEvaluate-16            	    5412	    195386 ns/op	  104429 B/op	    2054 allocs/op
+BenchmarkEvaluate-16            	    6258	    195324 ns/op	  104425 B/op	    2054 allocs/op
+BenchmarkEvaluate-16            	    6145	    195812 ns/op	  104419 B/op	    2053 allocs/op
+BenchmarkEvaluate-16            	    6153	    195754 ns/op	  104427 B/op	    2054 allocs/op
+BenchmarkEvaluate-16            	    6105	    194526 ns/op	  104408 B/op	    2053 allocs/op
+BenchmarkEvaluate-16            	    5636	    193536 ns/op	  104417 B/op	    2053 allocs/op
+BenchmarkEvaluate-16            	    6393	    194598 ns/op	  104417 B/op	    2053 allocs/op
+BenchmarkHeadersEvaluator-16    	   22524	     49261 ns/op	   41903 B/op	     764 allocs/op
+BenchmarkHeadersEvaluator-16    	   23821	     49829 ns/op	   41904 B/op	     764 allocs/op
+BenchmarkHeadersEvaluator-16    	   24363	     49774 ns/op	   41906 B/op	     764 allocs/op
+BenchmarkHeadersEvaluator-16    	   24350	     49887 ns/op	   41904 B/op	     764 allocs/op
+BenchmarkHeadersEvaluator-16    	   24465	     50160 ns/op	   41904 B/op	     764 allocs/op
+BenchmarkHeadersEvaluator-16    	   24387	     49811 ns/op	   41905 B/op	     764 allocs/op
+BenchmarkHeadersEvaluator-16    	   24087	     49162 ns/op	   41903 B/op	     764 allocs/op
+BenchmarkHeadersEvaluator-16    	   23678	     50655 ns/op	   41906 B/op	     764 allocs/op
+BenchmarkHeadersEvaluator-16    	   23755	     50192 ns/op	   41905 B/op	     764 allocs/op
+BenchmarkHeadersEvaluator-16    	   24423	     50263 ns/op	   41906 B/op	     764 allocs/op
+PASS
+ok  	github.com/pomerium/pomerium/authorize/evaluator	29.860s
+goos: darwin
+goarch: arm64
+pkg: github.com/pomerium/pomerium/pkg/storage
+cpu: Apple M3 Max
+BenchmarkCachingQuerierHit-16         	  285700	      3963 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierHit-16         	  308952	      3934 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierHit-16         	  311104	      3914 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierHit-16         	  308944	      3941 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierHit-16         	  309704	      3921 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierHit-16         	  297034	      3935 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierHit-16         	  306289	      3924 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierHit-16         	  296642	      3921 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierHit-16         	  308552	      3948 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierHit-16         	  305862	      3919 ns/op	    3896 B/op	      50 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  391098	      3103 ns/op	    1936 B/op	      39 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  381442	      3115 ns/op	    1936 B/op	      39 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  380835	      3101 ns/op	    1936 B/op	      39 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  394936	      3090 ns/op	    1936 B/op	      39 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  379630	      3081 ns/op	    1936 B/op	      39 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  395098	      3096 ns/op	    1936 B/op	      39 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  393984	      3098 ns/op	    1936 B/op	      39 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  377769	      3117 ns/op	    1936 B/op	      39 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  391124	      3093 ns/op	    1936 B/op	      39 allocs/op
+BenchmarkCachingQuerierCacheKey-16    	  391824	      3075 ns/op	    1936 B/op	      39 allocs/op
+PASS
+ok  	github.com/pomerium/pomerium/pkg/storage	24.738s
+goos: darwin
+goarch: arm64
+pkg: github.com/pomerium/pomerium/config
+cpu: Apple M3 Max
+BenchmarkPolicyChecksum-16    	   46225	     25665 ns/op	   16408 B/op	     752 allocs/op
+BenchmarkPolicyChecksum-16    	   47668	     25797 ns/op	   16408 B/op	     752 allocs/op
+BenchmarkPolicyChecksum-16    	   47241	     25350 ns/op	   16408 B/op	     752 allocs/op
+BenchmarkPolicyChecksum-16    	   46839	     25413 ns/op	   16408 B/op	     752 allocs/op
+BenchmarkPolicyChecksum-16    	   47479	     25507 ns/op	   16408 B/op	     752 allocs/op
+BenchmarkPolicyChecksum-16    	   47534	     25274 ns/op	   16408 B/op	     752 allocs/op
+BenchmarkPolicyChecksum-16    	   47508	     25391 ns/op	   16408 B/op	     752 allocs/op
+BenchmarkPolicyChecksum-16    	   47523	     25327 ns/op	   16408 B/op	     752 allocs/op
+BenchmarkPolicyChecksum-16    	   47278	     25523 ns/op	   16408 B/op	     752 allocs/op
+BenchmarkPolicyChecksum-16    	   46898	     25384 ns/op	   16408 B/op	     752 allocs/op
+PASS
+ok  	github.com/pomerium/pomerium/config	12.646s
+goos: darwin
+goarch: arm64
+pkg: github.com/pomerium/pomerium/config/envoyconfig
+cpu: Apple M3 Max
+BenchmarkBuildRouteConfigurations/policies=100-16         	      91	  12732733 ns/op	12800222 B/op	  297226 allocs/op
+BenchmarkBuildRouteConfigurations/policies=100-16         	      93	  12685840 ns/op	12800161 B/op	  297226 allocs/op
+BenchmarkBuildRouteConfigurations/policies=100-16         	      84	  12633515 ns/op	12800040 B/op	  297226 allocs/op
+BenchmarkBuildRouteConfigurations/policies=100-16         	      92	  12606722 ns/op	12799992 B/op	  297226 allocs/op
+BenchmarkBuildRouteConfigurations/policies=100-16         	      90	  12508306 ns/op	12800078 B/op	  297226 allocs/op
+BenchmarkBuildRouteConfigurations/policies=100-16         	      92	  12582866 ns/op	12800114 B/op	  297227 allocs/op
+BenchmarkBuildRouteConfigurations/policies=100-16         	      92	  12475479 ns/op	12800102 B/op	  297227 allocs/op
+BenchmarkBuildRouteConfigurations/policies=100-16         	      93	  12614682 ns/op	12800097 B/op	  297227 allocs/op
+BenchmarkBuildRouteConfigurations/policies=100-16         	      96	  12476923 ns/op	12800077 B/op	  297227 allocs/op
+BenchmarkBuildRouteConfigurations/policies=100-16         	      91	  12497426 ns/op	12800062 B/op	  297226 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 511067729 ns/op	545506344 B/op	10171098 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 512134521 ns/op	545503216 B/op	10171121 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 506005250 ns/op	545498972 B/op	10171096 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 510798166 ns/op	545503620 B/op	10171110 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 515708708 ns/op	545498316 B/op	10171100 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 509550125 ns/op	545499784 B/op	10171088 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 509892771 ns/op	545502028 B/op	10171103 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 506613166 ns/op	545499924 B/op	10171106 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 514092708 ns/op	545502212 B/op	10171101 allocs/op
+BenchmarkBuildRouteConfigurations/policies=1000-16        	       2	 512531562 ns/op	545503004 B/op	10171116 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30376	     39469 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30487	     39852 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30384	     39539 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30272	     39505 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30420	     39725 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30278	     39532 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30373	     39752 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30237	     39531 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30264	     39525 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=100-16         	   30357	     39838 ns/op	   39584 B/op	     805 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2624	    445332 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2701	    448425 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2629	    450439 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2718	    446275 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2691	    445776 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2748	    443841 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2665	    448228 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2714	    445444 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2710	    445426 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=1000-16        	    2694	    448540 ns/op	  392896 B/op	    8005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     242	   4925760 ns/op	 3927809 B/op	   80005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     243	   4978965 ns/op	 3927808 B/op	   80005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     229	   5207193 ns/op	 3927808 B/op	   80005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     228	   5248671 ns/op	 3927808 B/op	   80005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     225	   5274707 ns/op	 3927809 B/op	   80005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     228	   5167403 ns/op	 3927808 B/op	   80005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     243	   4949761 ns/op	 3927808 B/op	   80005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     242	   4938166 ns/op	 3927809 B/op	   80005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     235	   4971565 ns/op	 3927808 B/op	   80005 allocs/op
+BenchmarkGetAllRouteableHTTPHosts/policies=10000-16       	     243	   4929404 ns/op	 3927808 B/op	   80005 allocs/op
+PASS
+ok  	github.com/pomerium/pomerium/config/envoyconfig	64.717s
+goos: darwin
+goarch: arm64
+pkg: github.com/pomerium/pomerium/internal/controlplane
+cpu: Apple M3 Max
+BenchmarkDiscoveryResourceEncoding-16    	     567	   2057538 ns/op	  379365 B/op	      23 allocs/op
+BenchmarkDiscoveryResourceEncoding-16    	     592	   2020794 ns/op	  377944 B/op	      13 allocs/op
+BenchmarkDiscoveryResourceEncoding-16    	     596	   2034716 ns/op	  377944 B/op	      13 allocs/op
+BenchmarkDiscoveryResourceEncoding-16    	     585	   2124299 ns/op	  377954 B/op	      13 allocs/op
+BenchmarkDiscoveryResourceEncoding-16    	     590	   2015524 ns/op	  377944 B/op	      13 allocs/op
+BenchmarkDiscoveryResourceEncoding-16    	     604	   2024249 ns/op	  377962 B/op	      13 allocs/op
+BenchmarkDiscoveryResourceEncoding-16    	     580	   2038103 ns/op	  377944 B/op	      13 allocs/op
+BenchmarkDiscoveryResourceEncoding-16    	     600	   2019385 ns/op	  377945 B/op	      13 allocs/op
+BenchmarkDiscoveryResourceEncoding-16    	     582	   2101966 ns/op	  377944 B/op	      13 allocs/op
+BenchmarkDiscoveryResourceEncoding-16    	     552	   2051528 ns/op	  377944 B/op	      13 allocs/op
+PASS
+ok  	github.com/pomerium/pomerium/internal/controlplane	12.749s
