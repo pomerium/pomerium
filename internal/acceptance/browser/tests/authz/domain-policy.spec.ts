@@ -9,15 +9,11 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { login, clearAuthState } from "../../helpers/authn-flow.js";
+import { login } from "../../helpers/authn-flow.js";
 import { testUsers } from "../../fixtures/users.js";
 import { urls, testRoutes } from "../../fixtures/test-data.js";
 
 test.describe("Email Domain Policy", () => {
-  test.beforeEach(async ({ page }) => {
-    await clearAuthState(page);
-  });
-
   test("should allow access for user with matching email domain", async ({ page }) => {
     // Alice has email alice@company.com - should be allowed
     const user = testUsers.alice;
