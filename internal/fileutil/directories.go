@@ -35,3 +35,13 @@ func DataDir() string {
 
 	return "/var/tmp/pomerium/data"
 }
+
+// EnterpriseConsoleCacheDir returns the directory for the enterprise console cache.
+func EnterpriseConsoleCacheDir() string {
+	return filepath.Join(CacheDir(), "enterprise-console")
+}
+
+// EnterpriseConsoleDataDir returns the directory for the enterprise console data.
+func EnterpriseConsoleDataDir() string {
+	return filepath.Join(DataDir(), "enterprise-console")
+}
