@@ -1669,7 +1669,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	if settings.HasBrandingOptions() {
 		o.BrandingOptions = settings
 	}
-	copyMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
+	mergeMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
 		return RuntimeFlag(k), v
 	})
 	if settings.Http3AdvertisePort != nil {
@@ -2086,6 +2086,27 @@ func copyMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1
 		k1, v1 := convert(k, v)
 		(*dst)[k1] = v1
 	}
+}
+
+// mergeMap overlays src on a clone of dst. Options maps can be shared by
+// immutable config snapshots, so callers must never mutate dst in place.
+func mergeMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1 ~map[T1Key]T1Value, TMap2 ~map[T2Key]T2Value](
+	dst *TMap1,
+	src TMap2,
+	convert func(T2Key, T2Value) (T1Key, T1Value),
+) {
+	if len(src) == 0 {
+		return
+	}
+	next := maps.Clone(*dst)
+	if next == nil {
+		next = make(TMap1, len(src))
+	}
+	for k, v := range src {
+		k1, v1 := convert(k, v)
+		next[k1] = v1
+	}
+	*dst = next
 }
 
 func setCertificate(
