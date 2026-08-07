@@ -60,3 +60,11 @@ const (
 func ZeroResourceBundle(bundleID string) Check {
 	return Check(fmt.Sprintf("zero.resource-bundle.%s", bundleID))
 }
+
+// IdentityProvider checks whether the JWT identity provider named `name` (a key
+// of the identity_providers configuration map) could be built. An erroring
+// provider rejects the bearer tokens of its own issuer; the other providers in
+// the map are unaffected.
+func IdentityProvider(name string) Check {
+	return Check(fmt.Sprintf("identity-provider.%s", name))
+}

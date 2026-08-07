@@ -15,8 +15,10 @@ import (
 	"strings"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/extjwt"
 )
 
@@ -35,6 +37,12 @@ type IdentityProvider struct {
 	// Issuer is the `iss` claim tokens must carry. Required, and unique across
 	// providers. Used both to select the matching provider for an incoming
 	// token and (with OIDC discovery) to fetch the signing keys.
+	//
+	// The special value `kubernetes:///` selects the API server of the
+	// Kubernetes cluster Pomerium runs in: the real issuer is read from the pod's
+	// ServiceAccount token, the JWKS URL is the API server's own endpoint, and
+	// the fetch is authenticated with that token (see
+	// identity_provider_kubernetes.go).
 	Issuer string `mapstructure:"issuer" yaml:"issuer"`
 	// JWKSURL is an optional explicit JWKS URL. When set, OIDC discovery is
 	// skipped — keys are fetched directly from this URL. Useful when the issuer
@@ -81,22 +89,32 @@ func (p IdentityProvider) Validate() error {
 	if err != nil {
 		return fmt.Errorf("invalid issuer URL %q: %w", p.Issuer, err)
 	}
-	if !iu.IsAbs() || iu.Host == "" {
-		return fmt.Errorf("issuer %q must be an absolute URL (scheme://host)", p.Issuer)
-	}
-	// Signing keys must not be fetched over plaintext HTTP: an on-path attacker
-	// could substitute the JWKS and forge acceptable tokens. Require https,
-	// permitting http only for loopback (local development / tests).
-	if !isSecureKeyURL(iu) {
-		return fmt.Errorf("issuer %q must use https (http allowed only for loopback)", p.Issuer)
-	}
-	if p.JWKSURL != "" {
-		u, err := url.Parse(p.JWKSURL)
-		if err != nil {
-			return fmt.Errorf("invalid jwks_url: %w", err)
+	if iu.Scheme == kubernetesIssuerScheme {
+		// kubernetes:// selects the in-cluster API server as the issuer; the real
+		// issuer and JWKS URL come from the pod environment on the dispatch path,
+		// so there is no https/host to validate here. An explicit jwks_url would be
+		// silently ignored on that path — reject the combination.
+		if p.JWKSURL != "" {
+			return fmt.Errorf("jwks_url must not be set with a kubernetes:// issuer (the JWKS URL is the API server's own endpoint)")
 		}
-		if !u.IsAbs() || u.Host == "" || !isSecureKeyURL(u) {
-			return fmt.Errorf("jwks_url must be an https URL (http allowed only for loopback)")
+	} else {
+		if !iu.IsAbs() || iu.Host == "" {
+			return fmt.Errorf("issuer %q must be an absolute URL (scheme://host)", p.Issuer)
+		}
+		// Signing keys must not be fetched over plaintext HTTP: an on-path attacker
+		// could substitute the JWKS and forge acceptable tokens. Require https,
+		// permitting http only for loopback (local development / tests).
+		if !isSecureKeyURL(iu) {
+			return fmt.Errorf("issuer %q must use https (http allowed only for loopback)", p.Issuer)
+		}
+		if p.JWKSURL != "" {
+			u, err := url.Parse(p.JWKSURL)
+			if err != nil {
+				return fmt.Errorf("invalid jwks_url: %w", err)
+			}
+			if !u.IsAbs() || u.Host == "" || !isSecureKeyURL(u) {
+				return fmt.Errorf("jwks_url must be an https URL (http allowed only for loopback)")
+			}
 		}
 	}
 	if len(p.Audiences) == 0 {
@@ -290,61 +308,140 @@ type resolvedIdentityProvider struct {
 	Provider  *extjwt.Provider
 }
 
+// sharedJWKSClient is the HTTP client every non-kubernetes provider fetches its
+// JWKS through, paired with the error that prevented building it. The error
+// travels with the client so a CA that fails to load disables exactly the
+// providers that would have used it, rather than the whole map — kubernetes://
+// providers build their own client and are unaffected.
+type sharedJWKSClient struct {
+	client *http.Client
+	err    error
+}
+
 // IdentityProviderResolver owns one *extjwt.Provider per configured identity
 // provider and verifies incoming bearer tokens against whichever provider's
 // issuer matches the token's `iss` claim.
 //
-// Construct once per Options snapshot; the provider instances are immutable
-// after creation.
+// Construct once per Options snapshot. A provider that cannot be built does not
+// prevent the others from being: it is recorded in failed (or, for
+// kubernetes://, retried on the dispatch path) and only the tokens of its own
+// issuer are rejected.
 type IdentityProviderResolver struct {
 	byIssuer map[string]resolvedIdentityProvider // key: issuer
+	// deferred holds the kubernetes:// providers. Their issuer comes from the pod
+	// environment rather than from configuration, so it is resolved on the
+	// dispatch path — see deferredKubernetesProvider.
+	deferred []*deferredKubernetesProvider
+	// failed records, by provider name, why a provider could not be built. These
+	// are configuration- and CA-level problems, which a rebuild is required to
+	// clear; the environment-dependent kubernetes ones live in deferred and
+	// recover on their own.
+	//
+	// In practice the only entry that reaches production is the shared CA pool
+	// failing to load, fanned out across the providers that would have used it:
+	// Options.Validate rejects every other cause before a resolver is built, so
+	// the per-provider checks behind them are defense in depth.
+	failed map[string]error
+	// names is every configured provider name, sorted. Kept so a later generation
+	// can clear the health checks of providers that have since been removed.
+	names []string
 	// cacheKey identifies the configuration this resolver was built from, so a
 	// later configuration generation can tell whether it may reuse it. Set by
-	// NewIdentityProviderResolverFromConfig. Zero means "unknown" — a
-	// directly-constructed resolver, or a key that could not be computed — and is
-	// never reused.
+	// NewIdentityProviderResolverFromConfig, and only for a resolver with no
+	// failed providers, so a degraded one is always rebuilt. Zero means "unknown"
+	// — a directly-constructed resolver, or a key that could not be computed — and
+	// is never reused.
 	cacheKey uint64
 }
 
-// NewIdentityProviderResolver builds a resolver from the given providers, keyed
-// by name. httpClient (if non-nil) is used for all JWKS/discovery fetches — e.g.
-// a CA-aware client for issuers behind a private CA. Returns an error if any
-// provider is invalid or two share the same issuer.
-func NewIdentityProviderResolver(providers map[string]IdentityProvider, httpClient *http.Client) (*IdentityProviderResolver, error) {
+// newIdentityProviderResolver builds a resolver from the given providers, keyed
+// by name. shared carries the client used for all JWKS/discovery fetches — e.g.
+// a CA-aware client for issuers behind a private CA. Providers with a
+// kubernetes:// issuer are an exception: their issuer is read from the pod's own
+// ServiceAccount token and their fetches use a dedicated
+// ServiceAccount-authenticated client instead.
+//
+// No I/O of any kind is performed here, so the build cannot fail on the
+// environment: extjwt providers fetch their JWKS lazily on first Verify, and
+// kubernetes:// providers read the pod's token on first dispatch. ctx is used
+// only for logging.
+func newIdentityProviderResolver(ctx context.Context, providers map[string]IdentityProvider, shared sharedJWKSClient, opts ...identityProviderResolverOption) *IdentityProviderResolver {
+	var rc identityProviderResolverConfig
+	for _, opt := range opts {
+		opt(&rc)
+	}
 	r := &IdentityProviderResolver{
 		byIssuer: make(map[string]resolvedIdentityProvider, len(providers)),
+		failed:   make(map[string]error),
+		// Sorted-name order keeps dispatch and duplicate-issuer resolution
+		// deterministic.
+		names: slices.Sorted(maps.Keys(providers)),
 	}
-	// Sorted-name order keeps errors (e.g. duplicate-issuer) deterministic.
-	for _, name := range slices.Sorted(maps.Keys(providers)) {
-		ip := providers[name]
-		if err := validateProviderName(name); err != nil {
-			return nil, err
+	for _, name := range r.names {
+		if err := r.addProvider(name, providers[name], shared, rc); err != nil {
+			r.failed[name] = err
+			log.Ctx(ctx).Error().Err(err).
+				Str("provider", name).
+				Msg("config: identity_providers: provider unavailable; its tokens will be " +
+					"rejected, other providers are unaffected")
 		}
-		if err := ip.Validate(); err != nil {
-			return nil, fmt.Errorf("identity_providers[%s]: %w", name, err)
+	}
+	return r
+}
+
+// addProvider registers one provider, returning why it is unusable. A
+// kubernetes:// provider is only recorded here — nothing about it is resolved
+// until dispatch.
+func (r *IdentityProviderResolver) addProvider(
+	name string,
+	ip IdentityProvider,
+	shared sharedJWKSClient,
+	rc identityProviderResolverConfig,
+) error {
+	if err := validateProviderName(name); err != nil {
+		return err
+	}
+	if err := ip.Validate(); err != nil {
+		return fmt.Errorf("identity_providers[%s]: %w", name, err)
+	}
+
+	if isK8s, apiHost := parseKubernetesIssuer(ip.Issuer); isK8s {
+		params := defaultKubernetesInClusterParams(apiHost)
+		if rc.kubernetesParams != nil {
+			params = *rc.kubernetesParams
 		}
-		issuer, jwksURL, client := ip.Issuer, ip.JWKSURL, httpClient
-		// Dedup by issuer: it is the byIssuer dispatch key.
-		if existing, dup := r.byIssuer[issuer]; dup {
-			return nil, fmt.Errorf("identity_providers: issuer %q used by both %q and %q",
-				issuer, existing.Name, name)
-		}
-		p, err := extjwt.New(extjwt.Config{
-			Issuer:        issuer,
-			JWKSURL:       jwksURL,
-			SupportedAlgs: ip.EffectiveSupportedAlgs(),
-			HTTPClient:    client,
+		r.deferred = append(r.deferred, &deferredKubernetesProvider{
+			name:      name,
+			audiences: slices.Clone(ip.Audiences),
+			algs:      ip.EffectiveSupportedAlgs(),
+			params:    params,
+			timeNow:   rc.clock(),
 		})
-		if err != nil {
-			return nil, fmt.Errorf("identity_providers[%s]: %w", name, err)
-		}
-		r.byIssuer[issuer] = resolvedIdentityProvider{
-			Name:      name,
-			Audiences: slices.Clone(ip.Audiences),
-			Provider:  p,
-		}
+		return nil
 	}
-	return r, nil
+
+	if shared.err != nil {
+		return fmt.Errorf("identity_providers[%s]: %w", name, shared.err)
+	}
+	if existing, dup := r.byIssuer[ip.Issuer]; dup {
+		return fmt.Errorf("identity_providers: issuer %q used by both %q and %q",
+			ip.Issuer, existing.Name, name)
+	}
+	p, err := extjwt.New(extjwt.Config{
+		Issuer:        ip.Issuer,
+		JWKSURL:       ip.JWKSURL,
+		SupportedAlgs: ip.EffectiveSupportedAlgs(),
+		HTTPClient:    shared.client,
+	})
+	if err != nil {
+		return fmt.Errorf("identity_providers[%s]: %w", name, err)
+	}
+	r.byIssuer[ip.Issuer] = resolvedIdentityProvider{
+		Name:      name,
+		Audiences: slices.Clone(ip.Audiences),
+		Provider:  p,
+	}
+	return nil
 }
 
 // resolveUnverified returns the verification context of the provider whose
@@ -352,16 +449,84 @@ func NewIdentityProviderResolver(providers map[string]IdentityProvider, httpClie
 // signature/audience checks. It is used to enforce a route's provider allowlist
 // before the (expensive) verification runs. Returns
 // ErrNoMatchingIdentityProvider if no provider matches.
-func (r *IdentityProviderResolver) resolveUnverified(rawJWT string) (resolvedIdentityProvider, error) {
+//
+// A miss against the statically-configured issuers is what drives the
+// kubernetes:// providers: it is the only evidence that their issuer may not be
+// what they last read, so it is where they re-read it.
+func (r *IdentityProviderResolver) resolveUnverified(ctx context.Context, rawJWT string) (resolvedIdentityProvider, error) {
 	iss, err := unverifiedIssuer(rawJWT)
 	if err != nil {
 		return resolvedIdentityProvider{}, fmt.Errorf("config/identity_provider: parse iss: %w", err)
 	}
-	rp, ok := r.byIssuer[iss]
-	if !ok {
-		return resolvedIdentityProvider{}, ErrNoMatchingIdentityProvider
+	if rp, ok := r.byIssuer[iss]; ok {
+		return rp, nil
 	}
-	return rp, nil
+	// A statically-configured issuer did not claim this token, which is the only
+	// evidence a kubernetes:// provider's issuer may no longer be what it last
+	// read — and so where it re-reads it. A provider whose resolved issuer some
+	// static provider already claims is simply never selected: the map hit above
+	// got there first.
+	var unavailable []error
+	for _, d := range r.deferred {
+		res := d.resolve(ctx)
+		if res.issuer() == iss {
+			return res.rp, nil
+		}
+		if res.err != nil && res.rp.Provider == nil {
+			unavailable = append(unavailable, res.err)
+		}
+	}
+	return resolvedIdentityProvider{}, r.noMatchError(unavailable)
+}
+
+// noMatchError explains a dispatch miss, naming the providers that are currently
+// unusable — deferredErrs being those the caller collected from the deferred
+// providers it just resolved. Without them the error cannot distinguish "this
+// issuer was never configured" from "the provider that would have matched failed
+// to build", which are very different things to be looking at in a deny log.
+func (r *IdentityProviderResolver) noMatchError(deferredErrs []error) error {
+	unavailable := make([]error, 0, len(r.failed)+len(deferredErrs))
+	for _, name := range r.names {
+		if err := r.failed[name]; err != nil {
+			unavailable = append(unavailable, err)
+		}
+	}
+	unavailable = append(unavailable, deferredErrs...)
+	if len(unavailable) == 0 {
+		return ErrNoMatchingIdentityProvider
+	}
+	// errors.Join rather than a joined string: the per-provider causes stay
+	// reachable through errors.Is/As instead of being flattened into a message.
+	return fmt.Errorf("%w (unavailable providers: %w)",
+		ErrNoMatchingIdentityProvider, errors.Join(unavailable...))
+}
+
+// updateIdentityProviderHealth publishes one health check per provider current
+// has built, and retracts the checks of providers previous had that current does
+// not — nothing else would ever retract them, and a stale error from a deleted
+// provider would keep the process looking unhealthy for its lifetime.
+//
+// A kubernetes:// provider is deliberately absent here: at build time nothing has
+// resolved it, so neither running nor error would be a fact about it. Its own
+// resolve reports it from the first dispatch onwards.
+func updateIdentityProviderHealth(previous, current *IdentityProviderResolver) {
+	if current != nil {
+		for name, err := range current.failed {
+			health.ReportError(health.IdentityProvider(name), err)
+		}
+		for _, rp := range current.byIssuer {
+			health.ReportRunning(health.IdentityProvider(rp.Name))
+		}
+	}
+	if previous == nil {
+		return
+	}
+	for _, name := range previous.names {
+		if current != nil && slices.Contains(current.names, name) {
+			continue
+		}
+		health.ReportTerminating(health.IdentityProvider(name))
+	}
 }
 
 // Verify verifies the raw JWT against the provider whose issuer matches the
@@ -377,7 +542,7 @@ func (r *IdentityProviderResolver) resolveUnverified(rawJWT string) (resolvedIde
 // signature, and exp/nbf. Returns ErrNoMatchingIdentityProvider if no provider
 // matches.
 func (r *IdentityProviderResolver) Verify(ctx context.Context, rawJWT string) (*IdentityProviderVerifyResult, error) {
-	rp, err := r.resolveUnverified(rawJWT)
+	rp, err := r.resolveUnverified(ctx, rawJWT)
 	if err != nil {
 		return nil, err
 	}
@@ -395,39 +560,53 @@ func (r *IdentityProviderResolver) Verify(ctx context.Context, rawJWT string) (*
 // previous when everything the resolver is built from is unchanged. Callers own
 // one resolver per configuration generation (see newAuthorizeStateFromConfig
 // and newProxyStateFromConfig) and pass the previous generation's resolver here,
-// so a go-oidc JWKS cache — and any kubernetes:/// discovery result — survives
-// configuration changes that do not concern identity providers.
+// so the go-oidc JWKS caches behind it survive configuration changes that do not
+// concern identity providers.
 //
-// Returns (nil, nil) when no identity providers are configured.
+// Returns nil when no identity providers are configured.
 //
-// A failed build returns a nil resolver, which is never reused, so the next
-// configuration generation retries. Callers should treat the error as fatal to
-// JWT bearer verification only, not to their whole state: the in-cluster
-// discovery call can fail transiently.
+// It never fails: a provider that cannot be built is recorded on the resolver
+// and rejects only the tokens of its own issuer, so a single broken provider
+// cannot take the rest of the map — or the state being built around it — down
+// with it.
 func NewIdentityProviderResolverFromConfig(
+	ctx context.Context,
 	cfg *Config,
 	previous *IdentityProviderResolver,
-) (*IdentityProviderResolver, error) {
+) *IdentityProviderResolver {
 	if cfg == nil || cfg.Options == nil || len(cfg.Options.IdentityProviders) == 0 {
-		return nil, nil
+		updateIdentityProviderHealth(previous, nil)
+		return nil
 	}
 	key, err := cfg.identityProviderResolverCacheKey()
 	if err != nil {
-		return nil, err
+		// The key reads the CA bundle from disk, so this can fail transiently.
+		// Keeping a working resolver beats discarding it over a failed read: the
+		// next generation recomputes.
+		if previous != nil {
+			log.Ctx(ctx).Warn().Err(err).
+				Msg("config: identity_providers: reusing the previous resolver, cache key unavailable")
+			return previous
+		}
+		log.Ctx(ctx).Error().Err(err).
+			Msg("config: identity_providers: building without a cache key")
+		key = 0
 	}
 	if previous != nil && previous.cacheKey != 0 && previous.cacheKey == key {
-		return previous, nil
+		return previous
 	}
-	client, err := cfg.identityProviderHTTPClient()
-	if err != nil {
-		return nil, err
+	client, clientErr := cfg.identityProviderHTTPClient()
+	r := newIdentityProviderResolver(ctx, cfg.Options.IdentityProviders,
+		sharedJWKSClient{client: client, err: clientErr})
+	// Only a fully-built resolver is worth reusing. Leaving the key zero on a
+	// degraded one costs a rebuild per generation — and the JWKS caches behind the
+	// healthy providers with it — but is what makes the next generation retry a
+	// provider whose failure has since been fixed.
+	if len(r.failed) == 0 {
+		r.cacheKey = key
 	}
-	r, err := NewIdentityProviderResolver(cfg.Options.IdentityProviders, client)
-	if err != nil {
-		return nil, err
-	}
-	r.cacheKey = key
-	return r, nil
+	updateIdentityProviderHealth(previous, r)
+	return r
 }
 
 // identityProviderResolverCacheKey hashes everything a resolver is built from:

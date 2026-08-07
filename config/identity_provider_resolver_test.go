@@ -17,6 +17,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 	"github.com/pomerium/pomerium/pkg/derivecert"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/extjwt"
 )
 
@@ -84,22 +85,45 @@ func TestUnverifiedIssuer_NoCrash(t *testing.T) {
 	})
 }
 
+// Both of these are rejected by Options.Validate long before a resolver is built,
+// so what matters here is that the defense in depth behind it costs the offending
+// provider only. Sorted-name order decides which of a colliding pair that is.
 func TestNewIdentityProviderResolver_DuplicateIssuer(t *testing.T) {
 	t.Parallel()
-	_, err := NewIdentityProviderResolver(map[string]IdentityProvider{
+	r := newIdentityProviderResolver(t.Context(), map[string]IdentityProvider{
 		"a": {Issuer: "https://dup", Audiences: []string{"x"}, SupportedAlgs: []string{"RS256"}},
 		"b": {Issuer: "https://dup", Audiences: []string{"y"}, SupportedAlgs: []string{"RS256"}},
-	}, nil)
-	require.Error(t, err)
+	}, sharedJWKSClient{})
+	assert.NotContains(t, r.failed, "a")
+	assert.ErrorContains(t, r.failed["b"], `issuer "https://dup" used by both "a" and "b"`)
+
+	rp, err := r.resolveUnverified(t.Context(),
+		encodeUnsignedJWT(t, map[string]any{"iss": "https://dup"}))
+	require.NoError(t, err)
+	assert.Equal(t, "a", rp.Name)
 }
 
 func TestNewIdentityProviderResolver_InvalidProviderName(t *testing.T) {
 	t.Parallel()
 	// A name containing '/' would break the "<provider>/<sub>" user-id split.
-	_, err := NewIdentityProviderResolver(map[string]IdentityProvider{
+	r := newIdentityProviderResolver(t.Context(), map[string]IdentityProvider{
 		"k8s/prod": {Issuer: "https://a", Audiences: []string{"x"}, SupportedAlgs: []string{"RS256"}},
-	}, nil)
-	require.Error(t, err)
+		"good":     {Issuer: "https://b", Audiences: []string{"x"}, SupportedAlgs: []string{"RS256"}},
+	}, sharedJWKSClient{})
+	require.Error(t, r.failed["k8s/prod"])
+	assert.NotContains(t, r.failed, "good")
+
+	rp, err := r.resolveUnverified(t.Context(),
+		encodeUnsignedJWT(t, map[string]any{"iss": "https://b"}))
+	require.NoError(t, err)
+	assert.Equal(t, "good", rp.Name)
+
+	// A miss says which providers are unusable, so a deny log distinguishes
+	// "never configured" from "the one that would have matched is broken".
+	_, err = r.resolveUnverified(t.Context(),
+		encodeUnsignedJWT(t, map[string]any{"iss": "https://a"}))
+	require.ErrorIs(t, err, ErrNoMatchingIdentityProvider)
+	assert.ErrorContains(t, err, "k8s/prod")
 }
 
 func TestIdentityProviderResolver_Verify(t *testing.T) {
@@ -108,10 +132,9 @@ func TestIdentityProviderResolver_Verify(t *testing.T) {
 	idp := mockidp.New(mockidp.Config{})
 	issuer := idp.Start(t)
 
-	resolver, err := NewIdentityProviderResolver(map[string]IdentityProvider{
+	resolver := newIdentityProviderResolver(t.Context(), map[string]IdentityProvider{
 		"k8s": {Issuer: issuer, Audiences: []string{"pomerium.example.com"}, SupportedAlgs: []string{"ES256"}},
-	}, nil)
-	require.NoError(t, err)
+	}, sharedJWKSClient{})
 
 	now := time.Now()
 	tok := idp.SignJWT(map[string]any{
@@ -168,23 +191,22 @@ func TestIdentityProviderResolver_ResolveUnverified(t *testing.T) {
 	t.Parallel()
 
 	provider := IdentityProvider{Issuer: "https://k8s.example.com", Audiences: []string{"pomerium"}, SupportedAlgs: []string{"RS256"}}
-	resolver, err := NewIdentityProviderResolver(map[string]IdentityProvider{
+	resolver := newIdentityProviderResolver(t.Context(), map[string]IdentityProvider{
 		"k8s": provider,
-	}, nil)
-	require.NoError(t, err)
+	}, sharedJWKSClient{})
 
 	// A syntactically-valid but unsigned token is enough — the dispatch never
 	// verifies the signature.
 	known := encodeUnsignedJWT(t, map[string]any{"iss": "https://k8s.example.com", "sub": "x"})
-	rp, err := resolver.resolveUnverified(known)
+	rp, err := resolver.resolveUnverified(t.Context(), known)
 	require.NoError(t, err)
 	assert.Equal(t, "k8s", rp.Name)
 
 	unknown := encodeUnsignedJWT(t, map[string]any{"iss": "https://other.example.com"})
-	_, err = resolver.resolveUnverified(unknown)
+	_, err = resolver.resolveUnverified(t.Context(), unknown)
 	assert.ErrorIs(t, err, ErrNoMatchingIdentityProvider)
 
-	_, err = resolver.resolveUnverified("not-a-jwt")
+	_, err = resolver.resolveUnverified(t.Context(), "not-a-jwt")
 	require.Error(t, err)
 }
 
@@ -211,40 +233,33 @@ func TestNewIdentityProviderResolverFromConfig(t *testing.T) {
 	}
 
 	t.Run("no providers configured", func(t *testing.T) {
-		r, err := NewIdentityProviderResolverFromConfig(New(&Options{}), nil)
-		require.NoError(t, err)
+		r := NewIdentityProviderResolverFromConfig(t.Context(), New(&Options{}), nil)
 		assert.Nil(t, r, "no providers configured -> nil resolver")
 	})
 
 	t.Run("reused when unchanged", func(t *testing.T) {
 		cfg := New(&Options{IdentityProviders: providers()})
-		r1, err := NewIdentityProviderResolverFromConfig(cfg, nil)
-		require.NoError(t, err)
+		r1 := NewIdentityProviderResolverFromConfig(t.Context(), cfg, nil)
 		require.NotNil(t, r1)
 
-		r2, err := NewIdentityProviderResolverFromConfig(cfg, r1)
-		require.NoError(t, err)
+		r2 := NewIdentityProviderResolverFromConfig(t.Context(), cfg, r1)
 		assert.Same(t, r1, r2)
 	})
 
 	t.Run("reused across an unrelated configuration change", func(t *testing.T) {
-		r1, err := NewIdentityProviderResolverFromConfig(
+		r1 := NewIdentityProviderResolverFromConfig(t.Context(),
 			New(&Options{IdentityProviders: providers()}), nil)
-		require.NoError(t, err)
 
 		// A new generation that changes something the resolver does not depend on
-		// must not discard it: rebuilding would drop the JWKS cache and repeat any
-		// in-cluster discovery.
+		// must not discard it: rebuilding would drop the JWKS cache.
 		next := New(&Options{IdentityProviders: providers(), CookieExpire: time.Hour})
-		r2, err := NewIdentityProviderResolverFromConfig(next, r1)
-		require.NoError(t, err)
+		r2 := NewIdentityProviderResolverFromConfig(t.Context(), next, r1)
 		assert.Same(t, r1, r2)
 	})
 
 	t.Run("rebuilt when the provider set changes", func(t *testing.T) {
-		r1, err := NewIdentityProviderResolverFromConfig(
+		r1 := NewIdentityProviderResolverFromConfig(t.Context(),
 			New(&Options{IdentityProviders: providers()}), nil)
-		require.NoError(t, err)
 		require.NotNil(t, r1)
 
 		for _, tc := range []struct {
@@ -276,9 +291,8 @@ func TestNewIdentityProviderResolverFromConfig(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				next := providers()
 				tc.mutate(next)
-				r2, err := NewIdentityProviderResolverFromConfig(
+				r2 := NewIdentityProviderResolverFromConfig(t.Context(),
 					New(&Options{IdentityProviders: next}), r1)
-				require.NoError(t, err)
 				assert.NotSame(t, r1, r2)
 			})
 		}
@@ -297,27 +311,27 @@ func TestNewIdentityProviderResolverFromConfig(t *testing.T) {
 
 		writeCA("psk-1")
 		cfg := New(&Options{IdentityProviders: providers(), CAFile: caFile})
-		r1, err := NewIdentityProviderResolverFromConfig(cfg, nil)
-		require.NoError(t, err)
+		r1 := NewIdentityProviderResolverFromConfig(t.Context(), cfg, nil)
 		require.NotNil(t, r1)
 
 		writeCA("psk-2") // same path, different CA
-		r2, err := NewIdentityProviderResolverFromConfig(cfg, r1)
-		require.NoError(t, err)
+		r2 := NewIdentityProviderResolverFromConfig(t.Context(), cfg, r1)
 		assert.NotSame(t, r1, r2)
 	})
 
-	// A failed build yields no resolver to reuse, so the next generation retries.
-	t.Run("failed build is retried", func(t *testing.T) {
+	// A degraded resolver carries no cache key, so the next generation rebuilds it
+	// rather than reusing a provider whose failure may since have been fixed.
+	t.Run("degraded build is retried", func(t *testing.T) {
 		bad := New(&Options{IdentityProviders: providers(), CA: "@@@not-valid-base64-or-pem@@@"})
-		r1, err := NewIdentityProviderResolverFromConfig(bad, nil)
-		require.Error(t, err)
-		require.Nil(t, r1)
+		r1 := NewIdentityProviderResolverFromConfig(t.Context(), bad, nil)
+		require.NotNil(t, r1)
+		require.Error(t, r1.failed["k8s"], "a CA that fails to load disables the providers using it")
+		assert.Zero(t, r1.cacheKey)
 
 		good := New(&Options{IdentityProviders: providers()})
-		r2, err := NewIdentityProviderResolverFromConfig(good, r1)
-		require.NoError(t, err)
-		assert.NotNil(t, r2)
+		r2 := NewIdentityProviderResolverFromConfig(t.Context(), good, r1)
+		require.NotSame(t, r1, r2)
+		assert.Empty(t, r2.failed)
 	})
 
 	// A zero key would make every resolver look reusable.
@@ -325,6 +339,53 @@ func TestNewIdentityProviderResolverFromConfig(t *testing.T) {
 		key, err := New(&Options{IdentityProviders: providers()}).identityProviderResolverCacheKey()
 		require.NoError(t, err)
 		assert.NotZero(t, key)
+	})
+}
+
+// TestIdentityProviderResolver_HealthChecks: a degraded provider is only visible
+// in a log line otherwise, so each one publishes its own check. Not parallel — it
+// asserts against the process-global health registry.
+func TestIdentityProviderResolver_HealthChecks(t *testing.T) {
+	healthy := health.IdentityProvider("healthcheck-good")
+	broken := health.IdentityProvider("healthcheck-bad")
+
+	providers := map[string]IdentityProvider{
+		"healthcheck-good": {Issuer: "https://good.example.com", Audiences: []string{"pomerium"}},
+		// No audiences: rejected by IdentityProvider.Validate, and by itself.
+		"healthcheck-bad": {Issuer: "https://bad.example.com"},
+		// Resolved on the dispatch path, so nothing is known about it yet.
+		"healthcheck-k8s": {Issuer: "kubernetes:///", Audiences: []string{"pomerium"}},
+	}
+	r := NewIdentityProviderResolverFromConfig(t.Context(),
+		New(&Options{IdentityProviders: providers}), nil)
+	require.NotNil(t, r)
+
+	records := health.GetProviderManager().GetRecords()
+	require.Contains(t, records, healthy)
+	require.Contains(t, records, broken)
+	assert.Equal(t, health.StatusRunning, records[healthy].Status())
+	assert.NoError(t, records[healthy].Err())
+	assert.ErrorContains(t, records[broken].Err(), "at least one audience is required")
+
+	// Reporting a kubernetes:/// provider healthy before it has resolved anything
+	// would assert a fact nobody established — and would silently clear a standing
+	// error every time the configuration changed, since each generation builds a
+	// fresh provider with no memory of the last failure.
+	assert.NotContains(t, records, health.IdentityProvider("healthcheck-k8s"),
+		"a provider that has not resolved yet must report nothing")
+
+	// Removing a provider must retract its check: nothing else ever would, and a
+	// stale error would keep the process looking unhealthy for its lifetime.
+	t.Run("a removed provider's check is retracted", func(t *testing.T) {
+		next := New(&Options{IdentityProviders: map[string]IdentityProvider{
+			"healthcheck-good": providers["healthcheck-good"],
+		}})
+		require.NotNil(t, NewIdentityProviderResolverFromConfig(t.Context(), next, r))
+
+		records := health.GetProviderManager().GetRecords()
+		assert.NoError(t, records[broken].Err())
+		assert.Equal(t, health.StatusTerminating, records[broken].Status())
+		assert.Equal(t, health.StatusRunning, records[healthy].Status())
 	})
 }
 
@@ -360,8 +421,7 @@ func TestIdentityProviderResolver_CustomCA(t *testing.T) {
 
 	t.Run("with CA verifies", func(t *testing.T) {
 		cfg := New(&Options{CA: caB64, IdentityProviders: providers})
-		resolver, err := NewIdentityProviderResolverFromConfig(cfg, nil)
-		require.NoError(t, err)
+		resolver := NewIdentityProviderResolverFromConfig(t.Context(), cfg, nil)
 		require.NotNil(t, resolver)
 		res, err := resolver.Verify(t.Context(), tok)
 		require.NoError(t, err)
@@ -370,28 +430,40 @@ func TestIdentityProviderResolver_CustomCA(t *testing.T) {
 
 	t.Run("without CA fails on TLS", func(t *testing.T) {
 		cfg := New(&Options{IdentityProviders: providers})
-		resolver, err := NewIdentityProviderResolverFromConfig(cfg, nil)
-		require.NoError(t, err)
+		resolver := NewIdentityProviderResolverFromConfig(t.Context(), cfg, nil)
 		require.NotNil(t, resolver)
-		_, err = resolver.Verify(t.Context(), tok)
+		_, err := resolver.Verify(t.Context(), tok)
 		require.Error(t, err)
 	})
 }
 
 // TestIdentityProviderResolver_BadCASurfacesError verifies that an explicitly
-// configured certificate_authority that fails to load is a hard error, not a
-// silent fallback to system roots. Falling back would make the intended
-// private-CA issuer's JWKS/discovery fetch fail with "unknown authority" and
-// silently reject every token, with only a single startup log line.
+// configured certificate_authority that fails to load disables the providers that
+// would have used it, rather than silently falling back to system roots. Falling
+// back would make the intended private-CA issuer's JWKS/discovery fetch fail with
+// "unknown authority" and reject every token, with only a single startup log line.
+//
+// The blast radius stops there: a kubernetes:// provider trusts the cluster CA
+// through its own client and keeps working.
 func TestIdentityProviderResolver_BadCASurfacesError(t *testing.T) {
 	t.Parallel()
 
 	providers := map[string]IdentityProvider{
-		"k8s": {Issuer: "https://issuer.example.com", Audiences: []string{"aud"}, SupportedAlgs: []string{"ES256"}},
+		"k8s":     {Issuer: "https://issuer.example.com", Audiences: []string{"aud"}, SupportedAlgs: []string{"ES256"}},
+		"cluster": {Issuer: "kubernetes:///", Audiences: []string{"aud"}, SupportedAlgs: []string{"ES256"}},
 	}
 	// certificate_authority is set but malformed (not valid base64-encoded PEM).
 	cfg := New(&Options{CA: "@@@not-valid-base64-or-pem@@@", IdentityProviders: providers})
 
-	_, err := NewIdentityProviderResolverFromConfig(cfg, nil)
-	require.Error(t, err)
+	r := NewIdentityProviderResolverFromConfig(t.Context(), cfg, nil)
+	require.NotNil(t, r)
+	assert.ErrorContains(t, r.failed["k8s"], "error building CA cert pool")
+	assert.NotContains(t, r.failed, "cluster")
+	assert.Len(t, r.deferred, 1)
+
+	// The failure is reported on the tokens it affects, naming itself.
+	_, err := r.resolveUnverified(t.Context(),
+		encodeUnsignedJWT(t, map[string]any{"iss": "https://issuer.example.com"}))
+	require.ErrorIs(t, err, ErrNoMatchingIdentityProvider)
+	assert.ErrorContains(t, err, "identity_providers[k8s]")
 }
