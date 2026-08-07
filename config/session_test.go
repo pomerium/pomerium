@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -547,8 +547,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.example.com", nil)
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tok)
-		resolver, err := NewIdentityProviderResolverFromConfig(cfg, nil)
-		require.NoError(t, err)
+		resolver := NewIdentityProviderResolverFromConfig(ctx, cfg, nil)
 		c := NewIncomingIDPTokenSessionCreator(
 			noop.NewTracerProvider(),
 			func(_ context.Context, _, _ string) (*databroker.Record, error) {
@@ -561,7 +560,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 				}
 				return nil
 			},
-			WithIdentityProviderResolver(resolver, nil),
+			WithIdentityProviderResolver(resolver),
 		)
 		s, err := c.CreateSession(ctx, cfg, route, req)
 		assert.NoError(t, err)
@@ -668,8 +667,7 @@ func TestVerifyJWTAndCreateSession(t *testing.T) {
 	cfg.Options.IdentityProviders = map[string]IdentityProvider{
 		"prod": {Issuer: issuer, Audiences: []string{"api-a"}, SupportedAlgs: []string{"ES256"}},
 	}
-	resolver, err := NewIdentityProviderResolverFromConfig(cfg, nil)
-	require.NoError(t, err)
+	resolver := NewIdentityProviderResolverFromConfig(ctx, cfg, nil)
 	require.NotNil(t, resolver)
 
 	now := time.Now()
@@ -803,13 +801,12 @@ func TestCreateSessionForJWT_RouteProviderScoping(t *testing.T) {
 		"nbf": now.Unix(),
 	})
 
-	resolver, err := NewIdentityProviderResolverFromConfig(cfg, nil)
-	require.NoError(t, err)
+	resolver := NewIdentityProviderResolverFromConfig(ctx, cfg, nil)
 	// Defaults to the resolver built above; subtests override it to cover an
-	// unset and a failed resolver.
+	// unset and a degraded resolver.
 	newCreator := func(opts ...IncomingIDPTokenSessionCreatorOption) *incomingIDPTokenSessionCreator {
 		opts = append([]IncomingIDPTokenSessionCreatorOption{
-			WithIdentityProviderResolver(resolver, nil),
+			WithIdentityProviderResolver(resolver),
 		}, opts...)
 		return NewIncomingIDPTokenSessionCreator(
 			noop.NewTracerProvider(),
@@ -859,17 +856,24 @@ func TestCreateSessionForJWT_RouteProviderScoping(t *testing.T) {
 	// Without a resolver there is nothing to verify against, so JWT bearer routes
 	// must reject rather than fall through to any other session source.
 	t.Run("no resolver supplied", func(t *testing.T) {
-		c := newCreator(WithIdentityProviderResolver(nil, nil))
+		c := newCreator(WithIdentityProviderResolver(nil))
 		_, err := c.CreateSession(ctx, cfg, jwtRoute(), mkReq())
 		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
 	})
 
-	// A resolver that failed to build surfaces its error on the requests it
-	// affects; the caller's state build is not failed by it.
-	t.Run("resolver build error surfaces", func(t *testing.T) {
-		buildErr := errors.New("discovery failed")
-		c := newCreator(WithIdentityProviderResolver(nil, buildErr))
+	// A provider that failed to build rejects the tokens of its own issuer and
+	// says why, while the rest of the map keeps working — the caller's state build
+	// is not failed by it either.
+	t.Run("degraded resolver rejects only the broken provider", func(t *testing.T) {
+		degraded := New(NewDefaultOptions())
+		degraded.Options.IdentityProviders = maps.Clone(cfg.Options.IdentityProviders)
+		degraded.Options.CA = "@@@not-valid-base64-or-pem@@@" // disables every provider using it
+
+		c := newCreator(WithIdentityProviderResolver(
+			NewIdentityProviderResolverFromConfig(ctx, degraded, nil)))
 		_, err := c.CreateSession(ctx, cfg, jwtRoute(), mkReq())
-		assert.ErrorIs(t, err, buildErr)
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+		assert.ErrorIs(t, err, ErrNoMatchingIdentityProvider)
+		assert.ErrorContains(t, err, "error building CA cert pool")
 	})
 }

@@ -11,7 +11,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -96,19 +95,14 @@ func newProxyStateFromConfig(ctx context.Context, previousState *proxyState, tra
 	}
 
 	// Built here, off the request path, reusing the previous generation's resolver
-	// when nothing it is built from changed. A failure is not fatal to the state:
-	// it is returned to the JWT bearer requests it affects (see
+	// when nothing it is built from changed. It cannot fail; a provider that could
+	// not be built rejects only the tokens of its own issuer (see
 	// newAuthorizeStateFromConfig for the reasoning).
 	var previousIDPResolver *config.IdentityProviderResolver
 	if previousState != nil {
 		previousIDPResolver = previousState.idpResolver
 	}
-	idpResolver, idpResolverErr := config.NewIdentityProviderResolverFromConfig(cfg, previousIDPResolver)
-	if idpResolverErr != nil {
-		log.Ctx(ctx).Error().Err(idpResolverErr).
-			Msg("proxy: error building identity provider resolver; routes using bearer_token_format=jwt will reject requests until the next configuration change")
-	}
-	state.idpResolver = idpResolver
+	state.idpResolver = config.NewIdentityProviderResolverFromConfig(ctx, cfg, previousIDPResolver)
 
 	state.incomingIDPTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
 		tracerProvider,
@@ -125,7 +119,7 @@ func newProxyStateFromConfig(ctx context.Context, previousState *proxyState, tra
 			storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
 			return err
 		},
-		config.WithIdentityProviderResolver(idpResolver, idpResolverErr),
+		config.WithIdentityProviderResolver(state.idpResolver),
 	)
 
 	return state, nil
