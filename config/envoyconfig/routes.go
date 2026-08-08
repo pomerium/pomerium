@@ -290,6 +290,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		return nil, err
 	}
 
+	routeHostname := fromURL.Hostname()
 	routeChecksum := policy.Checksum()
 
 	route := &envoy_config_route_v3.Route{
@@ -325,7 +326,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	}
 
 	// disable authentication entirely when the proxy is fronting authenticate
-	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(cfg.Options, fromURL.Hostname())
+	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(cfg.Options, routeHostname)
 	if err != nil {
 		return nil, err
 	}
@@ -370,6 +371,28 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	route.Metadata.FilterMetadata = map[string]*structpb.Struct{
 		"envoy.filters.http.lua": {Fields: luaMetadata},
 	}
+
+	// if len(cfg.Options.ReadonlyConsoleAudiences.Value) > 0 {
+	// 	if slices.Contains(cfg.Options.ReadonlyConsoleAudiences.Value, routeHostname) {
+
+	// TODO
+	if route.TypedPerFilterConfig == nil {
+		route.TypedPerFilterConfig = map[string]*anypb.Any{}
+	}
+	route.TypedPerFilterConfig[PerFilterConfigStatefulSessionName] = PerFilterConfigStatefulSessionEnabled()
+	route.RequestHeadersToAdd = append(route.RequestHeadersToAdd,
+		&envoy_config_core_v3.HeaderValueOption{
+			Header: &envoy_config_core_v3.HeaderValue{
+				Key:   "x-pomerium-upstream-cluster",
+				Value: "%UPSTREAM_CLUSTER_RAW%",
+			},
+			AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+		},
+	)
+
+	// 	}
+	// }
+
 	return route, nil
 }
 
