@@ -8649,7 +8649,7 @@
           "name": "referenceable",
           "longName": ".google.protobuf.FieldOptions.referenceable",
           "fullName": ".google.protobuf.FieldOptions.referenceable",
-          "description": "referenceable marks a field whose string values may embed ${secret.ID}\nreferences (and the existing ${pomerium.*} references). The resolution\ntime is field-specific — e.g. set_request_headers resolves in the\nauthorize service at request time. Fields not marked referenceable must\nreject secret references at config validation.",
+          "description": "referenceable marks a field whose string values may embed ${secret.ID}\nreferences (and the existing ${pomerium.*} references). The resolution\ntime is field-specific — e.g. set_request_headers resolves in the\nauthorize service at request time.\n\nEvery annotated field must also appear in the config package's\nreferenceable-field table, which is what config validation actually walks;\na field that has no resolver is not scanned, and a ${secret.ID} written\nthere is inert literal text rather than a resolved secret.",
           "label": "",
           "type": "bool",
           "longType": "bool",
