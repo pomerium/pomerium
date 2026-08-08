@@ -9,7 +9,9 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
+	envoy_extensions_stateful_session_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/stateful_session/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoy_extensions_stateful_session_envelope_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/http/stateful_session/envelope/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -167,6 +169,22 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.RewriteHeaders),
 		LuaFilter(luascripts.LocalReplyType),
 		SetConnectionStateFilter(),
+		{
+			Name:     "envoy.filters.http.stateful_session",
+			Disabled: true,
+			ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: marshalAny(&envoy_extensions_stateful_session_v3.StatefulSession{
+					SessionState: &envoy_config_core_v3.TypedExtensionConfig{
+						Name: "envoy.http.stateful_session.envelope",
+						TypedConfig: marshalAny(&envoy_extensions_stateful_session_envelope_v3.EnvelopeSessionState{
+							Header: &envoy_extensions_stateful_session_envelope_v3.EnvelopeSessionState_Header{
+								Name: "x-pomerium-stateful-session-id",
+							},
+						}),
+					},
+				}),
+			},
+		},
 	}
 	// if we support http3 and this is the non-quic listener, add an alt-svc header indicating h3 is available
 	if !useQUIC && cfg.Options.CodecType.Value == configpb.CodecType_CODEC_TYPE_HTTP3 {
