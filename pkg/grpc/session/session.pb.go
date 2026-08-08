@@ -753,6 +753,7 @@ type StreamAccessRequestParams struct {
 	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	StreamId      uint64                 `protobuf:"varint,4,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
 	ClusterId     string                 `protobuf:"bytes,5,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	RouteId       string                 `protobuf:"bytes,6,opt,name=route_id,json=routeId,proto3" json:"route_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -818,6 +819,13 @@ func (x *StreamAccessRequestParams) GetStreamId() uint64 {
 func (x *StreamAccessRequestParams) GetClusterId() string {
 	if x != nil {
 		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *StreamAccessRequestParams) GetRouteId() string {
+	if x != nil {
+		return x.RouteId
 	}
 	return ""
 }
@@ -1126,7 +1134,7 @@ const file_session_proto_rawDesc = "" +
 	"\aPending\x10\x00\x12\f\n" +
 	"\bApproved\x10\x01\x12\n" +
 	"\n" +
-	"\x06Denied\x10\x02\"\xab\x01\n" +
+	"\x06Denied\x10\x02\"\xc6\x01\n" +
 	"\x19StreamAccessRequestParams\x12\x1a\n" +
 	"\bprotocol\x18\x01 \x01(\tR\bprotocol\x12\x1d\n" +
 	"\n" +
@@ -1134,7 +1142,8 @@ const file_session_proto_rawDesc = "" +
 	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x1b\n" +
 	"\tstream_id\x18\x04 \x01(\x04R\bstreamId\x12\x1d\n" +
 	"\n" +
-	"cluster_id\x18\x05 \x01(\tR\tclusterId\"\x83\x04\n" +
+	"cluster_id\x18\x05 \x01(\tR\tclusterId\x12\x19\n" +
+	"\broute_id\x18\x06 \x01(\tR\arouteId\"\x83\x04\n" +
 	"\x06Handle\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x120\n" +

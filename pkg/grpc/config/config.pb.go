@@ -3483,9 +3483,14 @@ type Settings struct {
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.
-	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,170,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ModifiedAt *timestamppb.Timestamp `protobuf:"bytes,170,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	// When syncing settings from enterprise console, this field will be
+	// populated with the console's current list of audiences. This is used
+	// primarily to identify which routes are for console so that additional
+	// route configuration may be automatically applied.
+	ReadonlyConsoleAudiences []string `protobuf:"bytes,189,rep,name=readonly_console_audiences,json=readonlyConsoleAudiences,proto3" json:"readonly_console_audiences,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -4550,6 +4555,13 @@ func (x *Settings) GetCreatedAt() *timestamppb.Timestamp {
 func (x *Settings) GetModifiedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ModifiedAt
+	}
+	return nil
+}
+
+func (x *Settings) GetReadonlyConsoleAudiences() []string {
+	if x != nil {
+		return x.ReadonlyConsoleAudiences
 	}
 	return nil
 }
@@ -9790,7 +9802,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xb3i\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xf2i\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9951,7 +9963,8 @@ const file_config_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12C\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
-	"modifiedAt\x1a_\n" +
+	"modifiedAt\x12=\n" +
+	"\x1areadonly_console_audiences\x18\xbd\x01 \x03(\tR\x18readonlyConsoleAudiences\x1a_\n" +
 	"\vCertificate\x12\x1d\n" +
 	"\n" +
 	"cert_bytes\x18\x03 \x01(\fR\tcertBytes\x12!\n" +

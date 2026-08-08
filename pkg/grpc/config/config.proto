@@ -1149,6 +1149,11 @@ message Settings {
       read_only: true,
     }
   ];
+  // When syncing settings from enterprise console, this field will be
+  // populated with the console's current list of audiences. This is used
+  // primarily to identify which routes are for console so that additional
+  // route configuration may be automatically applied.
+  repeated string readonly_console_audiences = 189;
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses

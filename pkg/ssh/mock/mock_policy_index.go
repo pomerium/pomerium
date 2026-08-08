@@ -40,42 +40,6 @@ func (m *MockPolicyIndexSubscriber) EXPECT() *MockPolicyIndexSubscriberMockRecor
 	return m.recorder
 }
 
-// UpdateArbitrationAuthorizedRoutes mocks base method.
-func (m *MockPolicyIndexSubscriber) UpdateArbitrationAuthorizedRoutes(routes []common.RouteInfo) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "UpdateArbitrationAuthorizedRoutes", routes)
-}
-
-// UpdateArbitrationAuthorizedRoutes indicates an expected call of UpdateArbitrationAuthorizedRoutes.
-func (mr *MockPolicyIndexSubscriberMockRecorder) UpdateArbitrationAuthorizedRoutes(routes any) *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall {
-	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateArbitrationAuthorizedRoutes", reflect.TypeOf((*MockPolicyIndexSubscriber)(nil).UpdateArbitrationAuthorizedRoutes), routes)
-	return &MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall{Call: call}
-}
-
-// MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall wrap *gomock.Call
-type MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall struct {
-	*gomock.Call
-}
-
-// Return rewrite *gomock.Call.Return
-func (c *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall) Return() *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall {
-	c.Call = c.Call.Return()
-	return c
-}
-
-// Do rewrite *gomock.Call.Do
-func (c *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall) Do(f func([]common.RouteInfo)) *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall {
-	c.Call = c.Call.Do(f)
-	return c
-}
-
-// DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall) DoAndReturn(f func([]common.RouteInfo)) *MockPolicyIndexSubscriberUpdateArbitrationAuthorizedRoutesCall {
-	c.Call = c.Call.DoAndReturn(f)
-	return c
-}
-
 // UpdateEnabledStaticPorts mocks base method.
 func (m *MockPolicyIndexSubscriber) UpdateEnabledStaticPorts(allowedStaticPorts []uint) {
 	m.ctrl.T.Helper()
