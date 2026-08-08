@@ -368,6 +368,15 @@ func (r *Resolver) commitFetch(fs *fetchState, res provider.Result, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// Apply cancels and drops a fetch state as soon as its bindings leave the
+	// config, but a provider.Fetch already in flight keeps running and lands
+	// here afterwards (usually with context.Canceled). The snapshot ignores it
+	// either way, so committing would only produce stale/expired log lines and
+	// serving_stale counts for a binding that no longer exists.
+	if cur, ok := r.fetches[fs.fetchKey]; !ok || cur != fs {
+		return
+	}
+
 	if err != nil {
 		if provider.IsNotFound(err) {
 			fs.negativeUntil = now.Add(fs.negativeTTL)
