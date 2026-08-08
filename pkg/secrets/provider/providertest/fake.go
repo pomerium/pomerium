@@ -152,8 +152,12 @@ func (f *Fake) Release(fetchKey string) {
 	}
 }
 
-// Watch implements provider.Watcher.
-func (f *Fake) Watch(_ context.Context, r ref.Ref, notify func()) (func(), error) {
+// Watch implements provider.Watcher. As the interface requires (and as the
+// real file provider does), the registration is dropped when ctx is done as
+// well as when the returned stop func is called, so a test that stops a watch
+// by cancelling its context behaves the same against the Fake and the real
+// provider.
+func (f *Fake) Watch(ctx context.Context, r ref.Ref, notify func()) (func(), error) {
 	key := r.FetchKey()
 
 	f.mu.Lock()
@@ -165,10 +169,15 @@ func (f *Fake) Watch(_ context.Context, r ref.Ref, notify func()) (func(), error
 	f.watchers[key][id] = notify
 	f.mu.Unlock()
 
-	return func() {
+	teardown := func() {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		delete(f.watchers[key], id)
+	}
+	cancelAfter := context.AfterFunc(ctx, teardown)
+	return func() {
+		cancelAfter()
+		teardown()
 	}, nil
 }
 
