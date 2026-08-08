@@ -4635,6 +4635,39 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for HeadersWithUnderscoresAction
 	}
 
+	if m.Secrets != nil {
+
+		if all {
+			switch v := interface{}(m.GetSecrets()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "Secrets",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "Secrets",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetSecrets()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  "Secrets",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if len(errors) > 0 {
 		return SettingsMultiError(errors)
 	}
@@ -4821,6 +4854,548 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = BlobStorageSettingsValidationError{}
+
+// Validate checks the field values on SecretsSettings with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *SecretsSettings) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on SecretsSettings with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// SecretsSettingsMultiError, or nil if none found.
+func (m *SecretsSettings) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *SecretsSettings) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetDefaults()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, SecretsSettingsValidationError{
+					field:  "Defaults",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, SecretsSettingsValidationError{
+					field:  "Defaults",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetDefaults()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return SecretsSettingsValidationError{
+				field:  "Defaults",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	{
+		sorted_keys := make([]string, len(m.GetBindings()))
+		i := 0
+		for key := range m.GetBindings() {
+			sorted_keys[i] = key
+			i++
+		}
+		sort.Slice(sorted_keys, func(i, j int) bool { return sorted_keys[i] < sorted_keys[j] })
+		for _, key := range sorted_keys {
+			val := m.GetBindings()[key]
+			_ = val
+
+			// no validation rules for Bindings[key]
+
+			if all {
+				switch v := interface{}(val).(type) {
+				case interface{ ValidateAll() error }:
+					if err := v.ValidateAll(); err != nil {
+						errors = append(errors, SecretsSettingsValidationError{
+							field:  fmt.Sprintf("Bindings[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				case interface{ Validate() error }:
+					if err := v.Validate(); err != nil {
+						errors = append(errors, SecretsSettingsValidationError{
+							field:  fmt.Sprintf("Bindings[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				}
+			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
+				if err := v.Validate(); err != nil {
+					return SecretsSettingsValidationError{
+						field:  fmt.Sprintf("Bindings[%v]", key),
+						reason: "embedded message failed validation",
+						cause:  err,
+					}
+				}
+			}
+
+		}
+	}
+
+	if len(errors) > 0 {
+		return SecretsSettingsMultiError(errors)
+	}
+
+	return nil
+}
+
+// SecretsSettingsMultiError is an error wrapping multiple validation errors
+// returned by SecretsSettings.ValidateAll() if the designated constraints
+// aren't met.
+type SecretsSettingsMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m SecretsSettingsMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m SecretsSettingsMultiError) AllErrors() []error { return m }
+
+// SecretsSettingsValidationError is the validation error returned by
+// SecretsSettings.Validate if the designated constraints aren't met.
+type SecretsSettingsValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e SecretsSettingsValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e SecretsSettingsValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e SecretsSettingsValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e SecretsSettingsValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e SecretsSettingsValidationError) ErrorName() string { return "SecretsSettingsValidationError" }
+
+// Error satisfies the builtin error interface
+func (e SecretsSettingsValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sSecretsSettings.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = SecretsSettingsValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = SecretsSettingsValidationError{}
+
+// Validate checks the field values on SecretsDefaults with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *SecretsDefaults) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on SecretsDefaults with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// SecretsDefaultsMultiError, or nil if none found.
+func (m *SecretsDefaults) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *SecretsDefaults) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if m.Refresh != nil {
+
+		if all {
+			switch v := interface{}(m.GetRefresh()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SecretsDefaultsValidationError{
+						field:  "Refresh",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SecretsDefaultsValidationError{
+						field:  "Refresh",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetRefresh()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SecretsDefaultsValidationError{
+					field:  "Refresh",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.StaleGrace != nil {
+
+		if all {
+			switch v := interface{}(m.GetStaleGrace()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SecretsDefaultsValidationError{
+						field:  "StaleGrace",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SecretsDefaultsValidationError{
+						field:  "StaleGrace",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetStaleGrace()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SecretsDefaultsValidationError{
+					field:  "StaleGrace",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.NegativeTtl != nil {
+
+		if all {
+			switch v := interface{}(m.GetNegativeTtl()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SecretsDefaultsValidationError{
+						field:  "NegativeTtl",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SecretsDefaultsValidationError{
+						field:  "NegativeTtl",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetNegativeTtl()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SecretsDefaultsValidationError{
+					field:  "NegativeTtl",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return SecretsDefaultsMultiError(errors)
+	}
+
+	return nil
+}
+
+// SecretsDefaultsMultiError is an error wrapping multiple validation errors
+// returned by SecretsDefaults.ValidateAll() if the designated constraints
+// aren't met.
+type SecretsDefaultsMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m SecretsDefaultsMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m SecretsDefaultsMultiError) AllErrors() []error { return m }
+
+// SecretsDefaultsValidationError is the validation error returned by
+// SecretsDefaults.Validate if the designated constraints aren't met.
+type SecretsDefaultsValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e SecretsDefaultsValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e SecretsDefaultsValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e SecretsDefaultsValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e SecretsDefaultsValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e SecretsDefaultsValidationError) ErrorName() string { return "SecretsDefaultsValidationError" }
+
+// Error satisfies the builtin error interface
+func (e SecretsDefaultsValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sSecretsDefaults.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = SecretsDefaultsValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = SecretsDefaultsValidationError{}
+
+// Validate checks the field values on SecretsBinding with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *SecretsBinding) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on SecretsBinding with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in SecretsBindingMultiError,
+// or nil if none found.
+func (m *SecretsBinding) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *SecretsBinding) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Url
+
+	if m.Refresh != nil {
+
+		if all {
+			switch v := interface{}(m.GetRefresh()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SecretsBindingValidationError{
+						field:  "Refresh",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SecretsBindingValidationError{
+						field:  "Refresh",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetRefresh()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SecretsBindingValidationError{
+					field:  "Refresh",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.StaleGrace != nil {
+
+		if all {
+			switch v := interface{}(m.GetStaleGrace()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SecretsBindingValidationError{
+						field:  "StaleGrace",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SecretsBindingValidationError{
+						field:  "StaleGrace",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetStaleGrace()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SecretsBindingValidationError{
+					field:  "StaleGrace",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return SecretsBindingMultiError(errors)
+	}
+
+	return nil
+}
+
+// SecretsBindingMultiError is an error wrapping multiple validation errors
+// returned by SecretsBinding.ValidateAll() if the designated constraints
+// aren't met.
+type SecretsBindingMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m SecretsBindingMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m SecretsBindingMultiError) AllErrors() []error { return m }
+
+// SecretsBindingValidationError is the validation error returned by
+// SecretsBinding.Validate if the designated constraints aren't met.
+type SecretsBindingValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e SecretsBindingValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e SecretsBindingValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e SecretsBindingValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e SecretsBindingValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e SecretsBindingValidationError) ErrorName() string { return "SecretsBindingValidationError" }
+
+// Error satisfies the builtin error interface
+func (e SecretsBindingValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sSecretsBinding.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = SecretsBindingValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = SecretsBindingValidationError{}
 
 // Validate checks the field values on DownstreamMtlsSettings with the rules
 // defined in the proto definition for this message. If any rules are
