@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
@@ -81,10 +81,18 @@ func TestSecretInjectionEndToEnd(t *testing.T) {
 			upstreams.AuthenticateAs("user@example.com"),
 			upstreams.Path("/echo"),
 			upstreams.Context(ctx))
+		if resp != nil {
+			// Drain and close on every path: the fail-closed phase polls a 503
+			// once a second, and an undrained body holds its connection (and
+			// the transport's read/write goroutines) open for the whole test.
+			defer func() {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			}()
+		}
 		if err != nil || resp.StatusCode != http.StatusOK {
 			return "", false
 		}
-		defer resp.Body.Close()
 		var hdrs map[string]string
 		if err := json.NewDecoder(resp.Body).Decode(&hdrs); err != nil {
 			return "", false
@@ -92,22 +100,24 @@ func TestSecretInjectionEndToEnd(t *testing.T) {
 		return hdrs["x-secret"], true
 	}
 
+	// Each phase is a strict precondition for the next: if the initial value
+	// never appears, a later phase could still pass on its own and mask that.
 	// The initial value is injected (the first fetch is asynchronous on boot).
-	assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		v, ok := probe()
 		return ok && v == "injected=v1"
 	}, 20*time.Second, time.Second, "initial secret value should be injected")
 
 	// Rotation: rewrite the file; the new value becomes visible with no reload.
 	require.NoError(t, os.WriteFile(secretPath, []byte("v2"), 0o600))
-	assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		v, ok := probe()
 		return ok && v == "injected=v2"
 	}, 20*time.Second, time.Second, "rotated value should become visible")
 
 	// Removal: once the stale grace elapses, the request fails closed (no 200).
 	require.NoError(t, os.Remove(secretPath))
-	assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		_, ok := probe()
 		return !ok
 	}, 30*time.Second, time.Second, "removed secret should fail closed")
