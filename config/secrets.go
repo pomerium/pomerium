@@ -16,11 +16,39 @@ import (
 	"github.com/pomerium/pomerium/pkg/secrets/ref"
 )
 
-// ReferenceableFields is the single list of proto fields whose values may carry
-// ${secret.ID} references. M7's lint test diffs it against the (referenceable)
-// proto annotations; extend it (and the annotation) together when a field
-// becomes referenceable in a later phase.
-var ReferenceableFields = []string{"pomerium.config.Route.set_request_headers"}
+// referenceableField is one proto field whose values may carry ${secret.ID}
+// references, paired with the way to read those values off a policy.
+//
+// This table is the single source of truth, and it is load-bearing in both
+// directions: validateSecrets walks it instead of naming fields inline, and
+// ReferenceableFields exposes its paths so M7's lint test can diff them
+// against the (referenceable) proto annotations. Annotating a new field
+// without adding it here therefore fails that test rather than silently
+// leaving the field unvalidated.
+type referenceableField struct {
+	// path is the fully-qualified proto field name.
+	path string
+	// kind names the surface in validation errors ("request header").
+	kind string
+	// values returns the field's values on a policy, keyed by their name.
+	values func(*Policy) map[string]string
+}
+
+var referenceableFields = []referenceableField{{
+	path:   "pomerium.config.Route.set_request_headers",
+	kind:   "request header",
+	values: func(p *Policy) map[string]string { return p.SetRequestHeaders },
+}}
+
+// ReferenceableFields returns the proto fields whose values may carry
+// ${secret.ID} references — exactly the fields validateSecrets checks.
+func ReferenceableFields() []string {
+	out := make([]string, 0, len(referenceableFields))
+	for _, f := range referenceableFields {
+		out = append(out, f.path)
+	}
+	return out
+}
 
 // SecretsOptions is the YAML/settings `secrets` block: a binding table plus
 // tuning defaults. Its fields are operator config, never secret material.
@@ -207,12 +235,16 @@ func (o *Options) validateSecrets() error {
 		return nil
 	}
 
-	// Iterate policies (and their headers) in a deterministic order.
+	// Iterate policies (and their referenceable fields) in a deterministic order.
 	for policy := range o.GetAllPolicies() {
 		route := policy.String()
-		for _, name := range sortedKeys(policy.SetRequestHeaders) {
-			if err := checkRequestValue(fmt.Sprintf("route %s request header %q", route, name), policy.SetRequestHeaders[name]); err != nil {
-				return err
+		for _, f := range referenceableFields {
+			values := f.values(policy)
+			for _, name := range sortedKeys(values) {
+				where := fmt.Sprintf("route %s %s %q", route, f.kind, name)
+				if err := checkRequestValue(where, values[name]); err != nil {
+					return err
+				}
 			}
 		}
 		for _, name := range sortedKeys(policy.SetResponseHeaders) {
