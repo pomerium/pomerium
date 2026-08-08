@@ -346,7 +346,14 @@ func (r *Resolver) computeWait(fs *fetchState, bo *backoffState, res provider.Re
 	now := r.now()
 	if err != nil {
 		if errors.Is(err, errSuppressed) || provider.IsNotFound(err) {
-			bo.reset()
+			// Neither path is governed by backoff: the wait is the remaining
+			// negative window, floored at minInterval. Only a real fetch that
+			// answered not-found is evidence the backend is reachable, so only
+			// that one drops accumulated transient backoff; a suppressed
+			// attempt made no call and says nothing about the backend.
+			if !errors.Is(err, errSuppressed) {
+				bo.reset()
+			}
 			r.mu.Lock()
 			nu := fs.negativeUntil
 			r.mu.Unlock()
