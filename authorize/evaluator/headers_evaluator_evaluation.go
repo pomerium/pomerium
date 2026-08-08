@@ -239,7 +239,7 @@ func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) 
 		}
 
 		if failure != nil {
-			e.recordHeaderInject(headerInjectRejected, failure.class)
+			e.recordHeaderInject(ctx, headerInjectRejected, failure.class)
 			// Fail closed: no partially-built header for this name, and record
 			// the first (smallest-name) failure as the request's deny marker.
 			if e.response.SecretsUnavailable == nil {
@@ -251,7 +251,7 @@ func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) 
 			continue
 		}
 
-		e.recordHeaderInject(headerInjectInjected, "")
+		e.recordHeaderInject(ctx, headerInjectInjected, "")
 		e.response.Headers.Add(name, rendered)
 	}
 }
@@ -298,17 +298,17 @@ func validSecretHeaderValue(v string) bool {
 	return !strings.ContainsAny(v, "\r\n\x00")
 }
 
-func (e *headersEvaluatorEvaluation) recordHeaderInject(outcome, errorClass string) {
+func (e *headersEvaluatorEvaluation) recordHeaderInject(ctx context.Context, outcome, errorClass string) {
 	routeID := ""
 	if e.request != nil && e.request.Policy != nil {
 		routeID, _ = e.request.Policy.RouteID()
 	}
-	e.evaluator.headerInjectCount.Add(context.Background(), 1, metric.WithAttributes(
+	e.evaluator.headerInjectCount.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("route_id", routeID),
 		attribute.String("outcome", outcome),
 	))
 	if outcome == headerInjectRejected {
-		log.Ctx(context.Background()).Warn().
+		log.Ctx(ctx).Warn().
 			Str("route_id", routeID).
 			Str("error_class", errorClass).
 			Msg("authorize/header-evaluator: secret unavailable, rejecting request")
