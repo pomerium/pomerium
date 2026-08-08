@@ -53,8 +53,12 @@ var (
 	// referenceable marks a field whose string values may embed ${secret.ID}
 	// references (and the existing ${pomerium.*} references). The resolution
 	// time is field-specific — e.g. set_request_headers resolves in the
-	// authorize service at request time. Fields not marked referenceable must
-	// reject secret references at config validation.
+	// authorize service at request time.
+	//
+	// Every annotated field must also appear in the config package's
+	// referenceable-field table, which is what config validation actually walks;
+	// a field that has no resolver is not scanned, and a ${secret.ID} written
+	// there is inert literal text rather than a resolved secret.
 	//
 	// optional bool referenceable = 91502;
 	E_Referenceable = &file_options_proto_extTypes[1]
