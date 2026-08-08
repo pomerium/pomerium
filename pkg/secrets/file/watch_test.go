@@ -2,6 +2,7 @@ package file
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -101,4 +102,31 @@ func TestWatchStop(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("v3"), 0o600))
 	time.Sleep(time.Second) // real time: give the (stopped) watcher a chance to (not) fire
 	assert.Equal(t, before, count.Load(), "no notifications after stop")
+}
+
+// After the last registration stops, the watcher is torn down and no further
+// notifications are delivered. This also covers the teardown ordering inside
+// unregister: the drain goroutine is cancelled before the watcher is closed,
+// and a signal broadcast racing that window must not reach a stopped watch.
+func TestWatchNoNotifyAfterStop(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "secret")
+	require.NoError(t, os.WriteFile(path, []byte("v1"), 0o600))
+
+	var count atomic.Int64
+	p := New()
+	stop, err := p.Watch(context.Background(), fileRef(t, path), func() { count.Add(1) })
+	require.NoError(t, err)
+
+	stop()
+	before := count.Load()
+
+	for i := range 20 {
+		require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, "v%d", i), 0o600))
+		time.Sleep(watchTick)
+	}
+
+	assert.Equal(t, before, count.Load(), "notify fired after the watch was stopped")
 }

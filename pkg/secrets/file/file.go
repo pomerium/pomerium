@@ -87,18 +87,40 @@ func (*Provider) Validate(r ref.Ref) error {
 // Fetch implements provider.Provider. It reads the file, strips exactly one
 // trailing newline (D1), and derives an opaque content-hash Version. A missing
 // file is not-found (negative-cacheable); any other read error is transient.
-func (*Provider) Fetch(_ context.Context, r ref.Ref) (provider.Result, error) {
+//
+// Secrets are commonly mounted from a network or FUSE filesystem (CSI drivers,
+// NFS), where open/read can block indefinitely and os.ReadFile offers no
+// cancellation. The read therefore runs on its own goroutine so ctx is
+// honoured: on cancellation Fetch returns immediately and the goroutine is
+// left to finish on its own, discarding its result.
+func (*Provider) Fetch(ctx context.Context, r ref.Ref) (provider.Result, error) {
 	path := r.URL().Path
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return provider.Result{}, fmt.Errorf("file secret %q: %w", path, provider.ErrNotFound)
-		}
-		return provider.Result{}, fmt.Errorf("file secret %q: %w", path, err)
+	type readResult struct {
+		data []byte
+		err  error
+	}
+	ch := make(chan readResult, 1)
+	go func() {
+		data, err := os.ReadFile(path)
+		ch <- readResult{data: data, err: err}
+	}()
+
+	var rr readResult
+	select {
+	case <-ctx.Done():
+		return provider.Result{}, fmt.Errorf("file secret %q: %w", path, ctx.Err())
+	case rr = <-ch:
 	}
 
-	data = trimOneTrailingNewline(data)
+	if rr.err != nil {
+		if errors.Is(rr.err, fs.ErrNotExist) {
+			return provider.Result{}, fmt.Errorf("file secret %q: %w", path, provider.ErrNotFound)
+		}
+		return provider.Result{}, fmt.Errorf("file secret %q: %w", path, rr.err)
+	}
+
+	data := trimOneTrailingNewline(rr.data)
 	version := strconv.FormatUint(xxh3.Hash(data), 16)
 	return provider.Result{Value: data, TTL: 0, Version: version}, nil
 }
