@@ -7242,6 +7242,18 @@
               "defaultValue": ""
             },
             {
+              "name": "readonly_console_audiences",
+              "description": "When syncing settings from enterprise console, this field will be\npopulated with the console's current list of audiences. This is used\nprimarily to identify which routes are for console so that additional\nroute configuration may be automatically applied.",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the settings were created.",
               "label": "",

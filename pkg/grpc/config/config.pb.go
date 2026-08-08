@@ -3368,6 +3368,11 @@ type Settings struct {
 	// Action to take when a client request with a header name containing
 	// underscore characters is received. Defaults to rejecting the request.
 	HeadersWithUnderscoresAction *HeadersWithUnderscoresAction `protobuf:"varint,187,opt,name=headers_with_underscores_action,json=headersWithUnderscoresAction,proto3,enum=pomerium.config.HeadersWithUnderscoresAction,oneof" json:"headers_with_underscores_action,omitempty"`
+	// When syncing settings from enterprise console, this field will be
+	// populated with the console's current list of audiences. This is used
+	// primarily to identify which routes are for console so that additional
+	// route configuration may be automatically applied.
+	ReadonlyConsoleAudiences []string `protobuf:"bytes,188,rep,name=readonly_console_audiences,json=readonlyConsoleAudiences,proto3" json:"readonly_console_audiences,omitempty"`
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.
@@ -4419,6 +4424,13 @@ func (x *Settings) GetHeadersWithUnderscoresAction() HeadersWithUnderscoresActio
 		return *x.HeadersWithUnderscoresAction
 	}
 	return HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_UNKNOWN
+}
+
+func (x *Settings) GetReadonlyConsoleAudiences() []string {
+	if x != nil {
+		return x.ReadonlyConsoleAudiences
+	}
+	return nil
 }
 
 func (x *Settings) GetCreatedAt() *timestamppb.Timestamp {
@@ -9647,7 +9659,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xe8g\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xa7h\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9803,7 +9815,8 @@ const file_config_proto_rawDesc = "" +
 	"\x0enormalize_path\x18\xb8\x01 \x01(\bH{R\rnormalizePath\x88\x01\x01\x12)\n" +
 	"\rmerge_slashes\x18\xb9\x01 \x01(\bH|R\fmergeSlashes\x88\x01\x01\x12{\n" +
 	" path_with_escaped_slashes_action\x18\xba\x01 \x01(\x0e2-.pomerium.config.PathWithEscapedSlashesActionH}R\x1cpathWithEscapedSlashesAction\x88\x01\x01\x12z\n" +
-	"\x1fheaders_with_underscores_action\x18\xbb\x01 \x01(\x0e2-.pomerium.config.HeadersWithUnderscoresActionH~R\x1cheadersWithUnderscoresAction\x88\x01\x01\x12A\n" +
+	"\x1fheaders_with_underscores_action\x18\xbb\x01 \x01(\x0e2-.pomerium.config.HeadersWithUnderscoresActionH~R\x1cheadersWithUnderscoresAction\x88\x01\x01\x12=\n" +
+	"\x1areadonly_console_audiences\x18\xbc\x01 \x03(\tR\x18readonlyConsoleAudiences\x12A\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12C\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +

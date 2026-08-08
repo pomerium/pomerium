@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -25,7 +26,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
-	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
+	mirroring_ssh "github.com/pomerium/envoy-custom/api/x/mirroring"
+	recording_ssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
@@ -519,6 +521,10 @@ func (a *Auth) handleTwoPersonApproval(
 	if err != nil {
 		return AccessRequestReply{}, err
 	}
+	routeID, err := policy.RouteID()
+	if err != nil {
+		return AccessRequestReply{}, err // TODO: is this possible?
+	}
 
 	return a.accessRequestMgr.DoRequest(ctx, timeout, &session.StreamAccessRequestParams{
 		Protocol:  session.ProtocolSSH,
@@ -526,6 +532,7 @@ func (a *Auth) handleTwoPersonApproval(
 		UserId:    authInfo.GetUserId(),
 		StreamId:  streamInfo.StreamID,
 		ClusterId: envoyconfig.GetClusterID(policy),
+		RouteId:   routeID,
 	})
 }
 
@@ -751,12 +758,27 @@ func (a *Auth) BuildTargetChannelFilters(_ context.Context, _ StreamInfo, authIn
 	extensionConfigs := []*corev3.TypedExtensionConfig{}
 
 	enableSessionRecording := route.SessionRecording.IsSet && route.SessionRecording.Value.Enabled.Or(false)
+	var mirrorReceiver string
+	var mirrorOptions []string
 
 	if authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Approved {
 		md := authInfo.GetAccessRequestMetadata()
-		if _, ok := md["enable_session_recording"]; ok {
-			enableSessionRecording = true
+		if v, ok := md["session_recording_override"]; ok && (v == "enabled" || v == "disabled") {
+			enableSessionRecording = (v == "enabled")
 		}
+		if v, ok := md["session_mirroring_receiver"]; ok { // format is "cluster-id;ip:port"
+			mirrorReceiver = v
+		}
+		if v, ok := md["session_mirroring_options"]; ok { // format is "option1;option2[;...]"
+			mirrorOptions = strings.Split(v, ";")
+		}
+	}
+	if mirrorReceiver != "" {
+		mirrorCfg, err := buildSSHMirroringConfig(mirrorReceiver, mirrorOptions)
+		if err != nil {
+			return nil, nil, status.Errorf(codes.Internal, "failed to build ssh mirroring config: %s", err)
+		}
+		extensionConfigs = append(extensionConfigs, mirrorCfg)
 	}
 	if enableSessionRecording {
 		extensionConfigs = append(extensionConfigs, buildSSHRecordingConfig(authInfo.GetSessionId(), authInfo.GetUserId()))
@@ -781,14 +803,45 @@ func SocketAddressFromString(route *config.Policy) *corev3.SocketAddress {
 }
 
 func buildSSHRecordingConfig(sessionID, userID string) *corev3.TypedExtensionConfig {
-	ext := &xssh.UpstreamTargetExtensionConfig{
-		SessionId: sessionID,
-		UserId:    userID,
+	return &corev3.TypedExtensionConfig{
+		Name: "session_recording",
+		TypedConfig: protoutil.NewAny(&recording_ssh.UpstreamTargetExtensionConfig{
+			SessionId: sessionID,
+			UserId:    userID,
+		}),
+	}
+}
+
+func buildSSHMirroringConfig(receiver string, options []string) (*corev3.TypedExtensionConfig, error) {
+	receiverClusterName, receiverIP, ok := strings.Cut(receiver, ";")
+	if !ok {
+		return nil, errors.New("malformed receiver string")
+	}
+	portValue := uint32(443)
+	ip, port, err := net.SplitHostPort(receiverIP)
+	if err != nil {
+		return nil, err
+	}
+	portNum, err := strconv.ParseUint(port, 10, 32)
+	if err == nil {
+		portValue = uint32(portNum)
 	}
 	return &corev3.TypedExtensionConfig{
-		Name:        "session_recording",
-		TypedConfig: protoutil.NewAny(ext),
-	}
+		Name: "session_mirroring",
+		TypedConfig: protoutil.NewAny(&mirroring_ssh.UpstreamTargetExtensionConfig{
+			ReceiverService: &corev3.GrpcService{
+				TargetSpecifier: &corev3.GrpcService_EnvoyGrpc_{
+					EnvoyGrpc: &corev3.GrpcService_EnvoyGrpc{
+						ClusterName: receiverClusterName,
+					},
+				},
+			},
+			ReceiverClusterEndpoint: &mirroring_ssh.UpstreamTargetExtensionConfig_Endpoint{
+				Ip:   ip,
+				Port: portValue,
+			},
+		}),
+	}, nil
 }
 
 func (a *Auth) GetSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) (*session.Session, error) {
@@ -905,12 +958,13 @@ func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 // Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
 func (a *Auth) sshRequestFromStreamAuthInfo(_ context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (AuthRequest, error) {
 	return AuthRequest{
-		Username:         user.Username(),
-		Hostname:         user.Hostname(),
-		PublicKey:        string(authInfo.GetPublicKey()),
-		SessionID:        authInfo.GetSessionId(),
-		SourceAddress:    streamInfo.SourceAddress,
-		SessionBindingID: authInfo.GetSessionBindingId(),
-		LogOnlyIfDenied:  streamInfo.InitialAuthComplete,
+		Username:              user.Username(),
+		Hostname:              user.Hostname(),
+		PublicKey:             string(authInfo.GetPublicKey()),
+		SessionID:             authInfo.GetSessionId(),
+		SourceAddress:         streamInfo.SourceAddress,
+		SessionBindingID:      authInfo.GetSessionBindingId(),
+		LogOnlyIfDenied:       streamInfo.InitialAuthComplete,
+		AccessRequestApproved: authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Approved,
 	}, nil
 }

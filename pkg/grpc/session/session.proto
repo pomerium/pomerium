@@ -112,6 +112,7 @@ message StreamAccessRequestParams {
   string user_id    = 3;
   uint64 stream_id  = 4;
   string cluster_id = 5;
+  string route_id   = 6;
 }
 
 // A Handle is a reference to a session or a service account.
