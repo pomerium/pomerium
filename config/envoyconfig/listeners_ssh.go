@@ -17,7 +17,8 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
-	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
+	mirroring_ssh "github.com/pomerium/envoy-custom/api/x/mirroring"
+	recording_ssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
@@ -135,7 +136,7 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 
 	var enabledChannelFilters []*envoy_config_core_v3.TypedExtensionConfig
 	if slices.Contains(extensionsToLoad, ExtensionSSHSessionRecording) {
-		ext := &xssh.ChannelFilterConfig{}
+		ext := &recording_ssh.ChannelFilterConfig{}
 		ts := &xds_type_v3.TypedStruct{
 			TypeUrl: "type.googleapis.com/" + string(ext.ProtoReflect().Descriptor().FullName()),
 			Value:   &structpb.Struct{},
@@ -151,6 +152,51 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 			Name:        "session_recording",
 			TypedConfig: marshalAny(ts),
 		})
+	}
+	if slices.Contains(extensionsToLoad, ExtensionSSHSessionMirroring) {
+		ext := &mirroring_ssh.ChannelFilterConfig{}
+		// for _, audience := range cfg.Options.ReadonlyConsoleAudiences.Value {
+		// 	for _, route := range cfg.Options.GetAllPoliciesIndexed() {
+		// 		if !strings.Contains(route.From, audience) {
+		// 			continue
+		// 		}
+		// 		u, err := config.ParseWeightedURL(route.From)
+		// 		if err == nil {
+		// 			if hostname := u.URL.Hostname(); hostname == audience {
+		// 				ext.AllowedReceivers = append(ext.AllowedReceivers, &mirroring_ssh.ReceiverServiceConfig{
+		// 					Hostname: hostname,
+		// 					GrpcService: &envoy_config_core_v3.GrpcService{
+		// 						TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+		// 							EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+		// 								ClusterName: GetClusterID(route),
+		// 							},
+		// 						},
+		// 					},
+		// 				})
+		// 				break
+		// 			}
+		// 		}
+		// 	}
+		// }
+
+		// if len(ext.AllowedReceivers) > 0 {
+		ts := &xds_type_v3.TypedStruct{
+			TypeUrl: "type.googleapis.com/" + string(ext.ProtoReflect().Descriptor().FullName()),
+			Value:   &structpb.Struct{},
+		}
+		data, err := protojson.Marshal(ext)
+		if err != nil {
+			return nil, err
+		}
+		if err := protojson.Unmarshal(data, ts.Value); err != nil {
+			return nil, err
+		}
+		enabledChannelFilters = append(enabledChannelFilters, &envoy_config_core_v3.TypedExtensionConfig{
+			Name:        "session_mirroring",
+			TypedConfig: marshalAny(ts),
+		})
+		// }
+
 	}
 
 	filters = append(
