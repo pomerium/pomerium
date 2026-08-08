@@ -1,10 +1,12 @@
 package evaluator
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -174,4 +176,30 @@ func TestFillSetRequestHeadersSecrets(t *testing.T) {
 		assert.Equal(t, "first", res.Headers.Get("B"))
 		assert.Equal(t, 1, lookup.viewCalls, "View captured exactly once per evaluation")
 	})
+}
+
+// The rejection warning and its metric must be emitted on the request context,
+// so operators can correlate the resulting 503 with the request that caused it.
+func TestSecretRejectionLoggedOnRequestContext(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	ctx := zerolog.New(&buf).With().Str("request-id", "req-42").Logger().WithContext(t.Context())
+
+	s := store.New()
+	s.UpdateSecretsLookup(&fakeSecretsLookup{views: []*fakeView{{results: map[string]resolver.LookupResult{
+		"tok": {State: resolver.StateExpired, Found: true},
+	}}}})
+
+	res, err := NewHeadersEvaluator(s).Evaluate(ctx, &Request{
+		HTTP:    RequestHTTP{Hostname: "from.example.com"},
+		Policy:  &config.Policy{From: "https://from.example.com", SetRequestHeaders: map[string]string{"Authorization": "Bearer ${secret.tok}"}},
+		Session: RequestSession{ID: "s1"},
+	}, rego.EvalTime(time.Unix(1686870680, 0)))
+	require.NoError(t, err)
+	require.NotNil(t, res.SecretsUnavailable)
+
+	assert.Contains(t, buf.String(), "secret unavailable, rejecting request")
+	assert.Contains(t, buf.String(), `"request-id":"req-42"`,
+		"the rejection must carry the request context's log fields")
 }
