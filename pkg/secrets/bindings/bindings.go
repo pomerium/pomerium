@@ -45,6 +45,22 @@ type Defaults struct {
 	NegativeTTL time.Duration
 }
 
+// validate checks the tuning defaults themselves, so a bad default is reported
+// against "secret defaults" rather than against whichever binding happened to
+// inherit it. The same floor and non-negative rules apply as for a binding.
+func (d Defaults) validate() error {
+	if d.StaleGrace < 0 {
+		return fmt.Errorf("secret defaults: stale_grace must not be negative")
+	}
+	if d.NegativeTTL < 0 {
+		return fmt.Errorf("secret defaults: negative_ttl must not be negative")
+	}
+	if d.Refresh < MinRefresh {
+		return fmt.Errorf("secret defaults: refresh %s below minimum %s", d.Refresh, MinRefresh)
+	}
+	return nil
+}
+
 // Scope is one level of the binding table, optionally shadowing a parent.
 type Scope struct {
 	parent *Scope
@@ -57,6 +73,13 @@ type Scope struct {
 // registry acceptance of each ref. Error messages name the offending binding
 // ID (config, never secret material).
 func NewScope(parent *Scope, bs []Binding, d Defaults, reg *provider.Registry) (*Scope, error) {
+	// Validate the defaults first. A binding that leaves a field unset inherits
+	// them, so without this a bad default surfaces as an error naming some
+	// arbitrary binding ID and the operator goes looking in the wrong place.
+	if err := d.validate(); err != nil {
+		return nil, err
+	}
+
 	byID := make(map[string]Binding, len(bs))
 	for _, b := range bs {
 		if !IDPattern.MatchString(b.ID) {

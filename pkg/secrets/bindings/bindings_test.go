@@ -93,6 +93,20 @@ func TestBindingValidate(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("negative refresh", func(t *testing.T) {
+		t.Parallel()
+		_, err := bindings.NewScope(nil, []bindings.Binding{{ID: "tok", Ref: mustRef(t, "file:///etc/x"), Refresh: -time.Second}}, stdDefaults(), reg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tok")
+	})
+
+	t.Run("negative negative_ttl", func(t *testing.T) {
+		t.Parallel()
+		_, err := bindings.NewScope(nil, []bindings.Binding{{ID: "tok", Ref: mustRef(t, "file:///etc/x"), NegativeTTL: -time.Second}}, stdDefaults(), reg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tok")
+	})
+
 	t.Run("interpolation in URL never forms a binding", func(t *testing.T) {
 		t.Parallel()
 		_, err := ref.Parse("file:///etc/x${y}")
@@ -174,4 +188,31 @@ func TestDefaultsApplied(t *testing.T) {
 	assert.Equal(t, bindings.DefaultStaleGrace, b.StaleGrace)
 	assert.Equal(t, bindings.DefaultNegativeTTL, b.NegativeTTL)
 	assert.Equal(t, "tok", b.MetricLabel, "metric label defaults to ID")
+}
+
+// A bad tuning default must be reported against the defaults, not against
+// whichever binding happened to inherit it.
+func TestDefaultsValidated(t *testing.T) {
+	t.Parallel()
+
+	reg := testRegistry(t)
+
+	cases := []struct {
+		name string
+		d    bindings.Defaults
+	}{
+		{"refresh below floor", bindings.Defaults{Refresh: 500 * time.Millisecond, StaleGrace: bindings.DefaultStaleGrace, NegativeTTL: bindings.DefaultNegativeTTL}},
+		{"refresh unset", bindings.Defaults{StaleGrace: bindings.DefaultStaleGrace, NegativeTTL: bindings.DefaultNegativeTTL}},
+		{"negative stale_grace", bindings.Defaults{Refresh: bindings.DefaultRefresh, StaleGrace: -time.Second, NegativeTTL: bindings.DefaultNegativeTTL}},
+		{"negative negative_ttl", bindings.Defaults{Refresh: bindings.DefaultRefresh, StaleGrace: bindings.DefaultStaleGrace, NegativeTTL: -time.Second}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := bindings.NewScope(nil, []bindings.Binding{{ID: "tok", Ref: mustRef(t, "file:///etc/x")}}, tc.d, reg)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "secret defaults")
+			assert.NotContains(t, err.Error(), `"tok"`, "a bad default must not be blamed on a binding")
+		})
+	}
 }
