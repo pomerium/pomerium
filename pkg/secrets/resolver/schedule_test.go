@@ -1,10 +1,14 @@
 package resolver
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/pkg/secrets/provider"
 )
 
 var scheduleNow = time.Unix(1_000_000, 0)
@@ -69,4 +73,40 @@ func TestNextRefreshDeterministic(t *testing.T) {
 	a := nextRefresh(scheduleNow, 100*time.Second, 5*time.Minute, false, constRand(0.3))
 	b := nextRefresh(scheduleNow, 100*time.Second, 5*time.Minute, false, constRand(0.3))
 	assert.Equal(t, a, b)
+}
+
+// A suppressed attempt makes no provider call, so it is no evidence about the
+// backend and must not clear backoff accumulated from real transient errors.
+// A real fetch that answers not-found is such evidence, and does clear it.
+func TestComputeWaitBackoffOnSuppression(t *testing.T) {
+	t.Parallel()
+
+	reg, _ := testFakeRegistry(t)
+	r := newTestResolver(t, reg)
+	defer r.Close()
+	fs := &fetchState{fetchKey: "file:///a", refresh: time.Hour}
+
+	t.Run("suppression preserves backoff", func(t *testing.T) {
+		var bo backoffState
+		transient := errors.New("boom")
+		r.computeWait(fs, &bo, provider.Result{}, transient)
+		r.computeWait(fs, &bo, provider.Result{}, transient)
+		accumulated := bo.cur
+		require.Positive(t, accumulated)
+
+		r.computeWait(fs, &bo, provider.Result{}, errSuppressed)
+		assert.Equal(t, accumulated, bo.cur, "a suppressed attempt must not reset backoff")
+
+		assert.Equal(t, accumulated*2, r.computeWait(fs, &bo, provider.Result{}, transient),
+			"the next transient error continues from the accumulated backoff")
+	})
+
+	t.Run("not-found resets backoff", func(t *testing.T) {
+		var bo backoffState
+		r.computeWait(fs, &bo, provider.Result{}, errors.New("boom"))
+		require.Positive(t, bo.cur)
+
+		r.computeWait(fs, &bo, provider.Result{}, provider.ErrNotFound)
+		assert.Zero(t, bo.cur, "a real fetch answering not-found clears transient backoff")
+	})
 }
