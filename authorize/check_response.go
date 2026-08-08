@@ -67,6 +67,19 @@ func (a *Authorize) handleResult(
 
 	// if there's an allow, the result is allowed.
 	if result.Allow.Value {
+		// A required secret could not be resolved: fail closed with a 503. A
+		// policy deny (handled above) always takes precedence, so authz reasons
+		// are never masked by secret trouble.
+		if result.SecretsUnavailable != nil {
+			evt := log.Ctx(ctx).Warn().
+				Str("binding", result.SecretsUnavailable.BindingID).
+				Str("header", result.SecretsUnavailable.HeaderName)
+			if request != nil && request.Policy != nil {
+				evt = evt.Str("route", request.Policy.String())
+			}
+			evt.Msg("authorize: secret unavailable, denying request")
+			return a.deniedResponse(ctx, in, http.StatusServiceUnavailable, "secret unavailable", nil)
+		}
 		return a.handleResultAllowed(ctx, in, request, result)
 	}
 
