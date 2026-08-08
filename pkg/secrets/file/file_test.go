@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -145,5 +147,54 @@ func TestValidate(t *testing.T) {
 		r, err := ref.Parse("file:///etc/x?foo=bar")
 		require.NoError(t, err)
 		assert.Error(t, p.Validate(r))
+	})
+}
+
+func TestFetchRespectsContext(t *testing.T) {
+	t.Parallel()
+
+	t.Run("already cancelled", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		path := filepath.Join(dir, "secret")
+		require.NoError(t, os.WriteFile(path, []byte("v1"), 0o600))
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := New().Fetch(ctx, fileRef(t, path))
+		assert.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("blocking read", func(t *testing.T) {
+		t.Parallel()
+
+		// A FIFO with no writer blocks in open(2), standing in for a hung
+		// network/FUSE mount: os.ReadFile alone would never return.
+		dir := t.TempDir()
+		fifo := filepath.Join(dir, "fifo")
+		require.NoError(t, syscall.Mkfifo(fifo, 0o600))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		done := make(chan error, 1)
+		go func() {
+			_, err := New().Fetch(ctx, fileRef(t, fifo))
+			done <- err
+		}()
+
+		select {
+		case err := <-done:
+			assert.ErrorIs(t, err, context.DeadlineExceeded)
+		case <-time.After(5 * time.Second):
+			t.Error("Fetch ignored the context deadline on a blocking read")
+		}
+
+		// Unblock the abandoned reader so it does not outlive the test.
+		if f, err := os.OpenFile(fifo, os.O_WRONLY|syscall.O_NONBLOCK, 0); err == nil {
+			_ = f.Close()
+		}
 	})
 }
