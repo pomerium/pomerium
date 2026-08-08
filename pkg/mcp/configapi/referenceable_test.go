@@ -17,8 +17,9 @@ import (
 
 // expectedReferenceableFields enumerates every config-proto field that MUST
 // carry [(pomerium.config.referenceable) = true]. Adding a referenceable field
-// means annotating it in config.proto AND adding it here AND extending
-// config.ReferenceableFields — the tests below keep the three in lockstep.
+// means annotating it in config.proto AND adding it here AND adding it to the
+// config package's referenceable-field table (which is what the validator
+// walks) — the tests below keep the three in lockstep.
 var expectedReferenceableFields = map[string]struct{}{
 	"pomerium.config.Route.set_request_headers": {},
 }
@@ -91,16 +92,17 @@ func TestReferenceableFieldsMatchExpected(t *testing.T) {
 	}
 }
 
-// TestValidatedFieldsAreAnnotatedReferenceable keeps config.ReferenceableFields
-// (consulted by the config validator) equal to the set of proto fields
-// annotated referenceable, so adding a v2 field forces touching both.
+// TestValidatedFieldsAreAnnotatedReferenceable keeps the set of proto fields
+// annotated referenceable equal to config.ReferenceableFields, which reports
+// exactly the fields the config validator walks. Annotating a field without
+// teaching the validator to read it (or the reverse) fails here.
 func TestValidatedFieldsAreAnnotatedReferenceable(t *testing.T) {
 	t.Parallel()
 
 	annotated := collectReferenceable(t)
 
 	validated := map[string]struct{}{}
-	for _, f := range config.ReferenceableFields {
+	for _, f := range config.ReferenceableFields() {
 		validated[f] = struct{}{}
 	}
 
