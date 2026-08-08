@@ -441,3 +441,75 @@ func TestSingleflightCollapse(t *testing.T) {
 		assert.GreaterOrEqual(t, counterSum(t, reader, "secrets.singleflight_collapsed"), int64(1))
 	})
 }
+
+// The stale-grace window is enforced even when the failure is a not-found,
+// where the negative cache suppresses intermediate fetch attempts: the
+// schedule loop wakes exactly when the negative window closes, and that fetch
+// re-evaluates the grace boundary.
+func TestExpiredAfterGraceDuringNegativeCache(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		reg, fake := testFakeRegistry(t)
+		fk := fkOf(t, "file:///a")
+		fake.SetValue(fk, "v1")
+
+		r := newTestResolver(t, reg)
+		defer r.Close()
+
+		// refresh 10s, staleGrace 30s; negativeTTL comes from testDefaults (30s).
+		r.Apply(context.Background(), buildScope(t, reg,
+			bindTuned(t, "tok", "file:///a", 10*time.Second, 30*time.Second)))
+		synctest.Wait()
+		require.Equal(t, StateFresh, r.Lookup("tok").State)
+
+		// t=10s: the scheduled refresh returns not-found, opening a 30s
+		// negative window; the value is still within grace, so it serves stale.
+		fake.SetError(fk, provider.ErrNotFound)
+		advance(11 * time.Second)
+		require.Equal(t, StateStale, r.Lookup("tok").State)
+		require.Equal(t, 2, fake.FetchCount(fk), "intermediate attempts are suppressed")
+
+		// t=40s: the negative window closes, the loop fetches again, and the
+		// grace boundary (t=30s) is now behind us.
+		advance(30 * time.Second)
+		got := r.Lookup("tok")
+		assert.Equal(t, StateExpired, got.State)
+		assert.Empty(t, got.Value, "an expired value must not be served")
+		assert.Equal(t, 3, fake.FetchCount(fk))
+	})
+}
+
+// A binding removed by Apply must not keep emitting cache-state events when
+// its already-in-flight fetch finally returns.
+func TestNoStaleEventsAfterBindingRemoval(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		reg, fake := testFakeRegistry(t)
+		fk := fkOf(t, "file:///a")
+		fake.SetValue(fk, "v1")
+
+		var buf syncBuffer
+		r := newTestResolver(t, reg, WithLogger(zerolog.New(&buf)))
+		defer r.Close()
+
+		r.Apply(context.Background(), buildScope(t, reg,
+			bindTuned(t, "tok", "file:///a", 10*time.Second, time.Hour)))
+		synctest.Wait()
+		require.Equal(t, StateFresh, r.Lookup("tok").State)
+		buf.buf.Reset()
+
+		// Let the refresh timer fire into a fetch that blocks, then drop the
+		// binding while that fetch is still in flight.
+		fake.Block(fk)
+		fake.SetError(fk, provider.ErrNotFound)
+		time.Sleep(11 * time.Second)
+		synctest.Wait()
+
+		r.Apply(context.Background(), nil)
+		fake.Release(fk)
+		synctest.Wait()
+
+		assert.Empty(t, buf.String(), "a removed binding must emit no further events")
+		assert.False(t, r.Lookup("tok").Found)
+	})
+}
