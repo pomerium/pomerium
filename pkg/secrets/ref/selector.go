@@ -40,6 +40,12 @@ func ApplySelector(payload []byte, selector string) ([]byte, error) {
 		// Do not wrap the decoder error: it can echo payload bytes.
 		return nil, errors.New("secret selector: payload is not valid JSON")
 	}
+	// Decode stops after one JSON value, so a truncated or concatenated backend
+	// response would otherwise be accepted silently. Trailing whitespace
+	// (including the newline the file provider strips) is not "more".
+	if dec.More() {
+		return nil, errors.New("secret selector: payload has trailing data after the JSON value")
+	}
 
 	cur := doc
 	for part := range strings.SplitSeq(selector, ".") {

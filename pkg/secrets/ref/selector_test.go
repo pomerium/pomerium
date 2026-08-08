@@ -33,6 +33,9 @@ func TestApplySelector(t *testing.T) {
 		{name: "object value", payload: `{"data":{"token":"x"}}`, selector: "data", wantErr: true},
 		{name: "array value", payload: `{"data":[1,2]}`, selector: "data", wantErr: true},
 		{name: "null value", payload: `{"data":null}`, selector: "data", wantErr: true},
+		{name: "trailing garbage", payload: `{"token":"s3cr3t"} GARBAGE`, selector: "token", wantErr: true},
+		{name: "concatenated documents", payload: `{"token":"a"}{"token":"b"}`, selector: "token", wantErr: true},
+		{name: "trailing whitespace ok", payload: "{\"token\":\"s3cr3t\"}\n\t ", selector: "token", want: "s3cr3t"},
 	}
 
 	for _, tt := range tests {
