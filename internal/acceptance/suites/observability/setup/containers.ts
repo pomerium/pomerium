@@ -237,7 +237,10 @@ async function portIsBound(port: number): Promise<boolean> {
         socket.destroy();
         resolve(true);
       })
-      .on("error", () => resolve(false))
+      .on("error", () => {
+        socket.destroy();
+        resolve(false);
+      })
       .setTimeout(1_000, () => {
         socket.destroy();
         resolve(false);
