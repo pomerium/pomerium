@@ -1,12 +1,13 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed
+.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed deps-observability test-observability test-observability-headed
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
 BROWSER_DIR ?= browser
 MCP_DIR ?= suites/mcp
 DOWNSTREAM_MTLS_DIR ?= suites/downstream-mtls
+OBSERVABILITY_DIR ?= suites/observability
 ARTIFACTS_DIR ?= artifacts
 
 COMPOSE := docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT)
@@ -39,6 +40,11 @@ help:
 	@echo "  make deps-downstream-mtls        - Install suite deps + Chromium, refresh pomerium image"
 	@echo "  make test-downstream-mtls        - Run the downstream mTLS e2e suite (headless)"
 	@echo "  make test-downstream-mtls-headed - Run it with a visible browser"
+	@echo ""
+	@echo "Observability suite (testcontainers, self-contained - does NOT use the compose stack):"
+	@echo "  make deps-observability        - Install suite deps + Chromium, refresh pomerium image (needs mkcert)"
+	@echo "  make test-observability        - Run the logging/metrics/tracing e2e suite (headless)"
+	@echo "  make test-observability-headed - Run it with a visible browser"
 	@echo ""
 	@echo "Aliases: test-headed, test-debug, test-authn, test-authz, test-headers"
 
@@ -103,6 +109,23 @@ test-downstream-mtls:
 
 test-downstream-mtls-headed:
 	$(MAKE) -C $(DOWNSTREAM_MTLS_DIR) test-headed
+
+# ---------------------------------------------------------------------------
+# Observability e2e suite (internal/acceptance/suites/observability):
+# logging / metrics / OTEL tracing. testcontainers-based and entirely
+# self-contained - it boots its own Keycloak + upstream + Jaeger + Pomerium
+# (official image) and does NOT use the compose stack above. Do not run
+# `make up` and `make test-observability` at the same time: both bind host
+# ports 8443/8080 (and this suite also binds 9902/16686). Requires mkcert.
+# ---------------------------------------------------------------------------
+deps-observability:
+	$(MAKE) -C $(OBSERVABILITY_DIR) deps
+
+test-observability:
+	$(MAKE) -C $(OBSERVABILITY_DIR) test
+
+test-observability-headed:
+	$(MAKE) -C $(OBSERVABILITY_DIR) test-headed
 
 # View container logs
 logs:

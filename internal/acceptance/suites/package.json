@@ -4,6 +4,7 @@
   "description": "npm workspace for the container-based (testcontainers) acceptance e2e suites. One install here hoists a single testcontainers / @playwright/test / typescript into suites/node_modules that every suite and the shared/ package resolve against.",
   "workspaces": [
     "mcp",
-    "downstream-mtls"
+    "downstream-mtls",
+    "observability"
   ]
 }
