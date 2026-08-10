@@ -201,7 +201,7 @@
           "fields": [
             {
               "name": "shared",
-              "description": "shared is true when this transaction was suppressed by a concurrent one for the\nsame key: nothing submitted after `begin` was applied.",
+              "description": "shared is true when these results come from a concurrent transaction for the\nsame key. The transactions that were shared never ran operations themselves.",
               "label": "",
               "type": "bool",
               "longType": "bool",
@@ -213,7 +213,7 @@
             },
             {
               "name": "records",
-              "description": "records holds the records written by the committed transaction, in submission\norder. When shared is true these are the records written by the transaction\nwhich suppressed this one.",
+              "description": "records that were changed during this transaction.",
               "label": "repeated",
               "type": "Record",
               "longType": "Record",
@@ -1753,7 +1753,7 @@
             },
             {
               "name": "Transaction",
-              "description": "Transaction opens a transaction. \nTransaction is used for synchronizing one-time read and update Operations\nthat require atomic updates.\nThe stream's lifetime is the transaction's lifetime.\nThe first message must be `begin`, the last must be `commit`, and a\nstream that ends any other way rolls back. Operations are atomic but not\nisolated, and there is no conflict handling for concurrent updates not wrapped\nwith the same transaction key. \nConcurrent transactions are singleflight; sharing a key waits for the first transaction\nto finish with its result, and get the same result.",
+              "description": "Transaction opens a transaction.\nTransaction is used for synchronizing one-time read and update Operations\nthat require atomic updates.\nThe stream's lifetime is the transaction's lifetime.\nThe first message must be `begin`, the last must be `commit`, and a\nstream that ends any other way rolls back. Operations are atomic but not\nisolated, and there is no conflict handling for concurrent updates not wrapped\nwith the same transaction key.\nConcurrent transactions are singleflight; sharing a key waits for the first transaction\nto finish with its result, and get the same result.",
               "requestType": "TransactionStreamRequest",
               "requestLongType": "TransactionStreamRequest",
               "requestFullType": "databroker.TransactionStreamRequest",
