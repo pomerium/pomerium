@@ -2169,12 +2169,10 @@ func (*TransactionResponse_Query) isTransactionResponse_Operation() {}
 
 type CommitTransactionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// shared is true when this transaction was suppressed by a concurrent one for the
-	// same key: nothing submitted after `begin` was applied.
+	// shared is true when these results come from a concurrent transaction for the
+	// same key. The transactions that were shared never ran operations themselves.
 	Shared bool `protobuf:"varint,1,opt,name=shared,proto3" json:"shared,omitempty"`
-	// records holds the records written by the committed transaction, in submission
-	// order. When shared is true these are the records written by the transaction
-	// which suppressed this one.
+	// records that were changed during this transaction.
 	Records       []*Record `protobuf:"bytes,2,rep,name=records,proto3" json:"records,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
