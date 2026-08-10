@@ -162,7 +162,7 @@ func (backend *Backend) Clean(ctx context.Context, options storage.CleanOptions)
 	// delete old transactions, they should not count towrds signalling record changes.
 	delN, tErr := deleteOldInflightTransactions(ctx, pool, time.Now().Add(-inFlightTransactionsTTL))
 	if tErr != nil {
-		cleanupErr = fmt.Errorf("postgres: error deleting old in flight transactions : %w", err)
+		cleanupErr = fmt.Errorf("postgres: error deleting old in flight transactions : %w", tErr)
 	}
 	log.Ctx(ctx).Debug().Int64("in-flight", delN).Dur("ttl", inFlightTransactionsTTL).Msg("cleaned up old in-flight transactions")
 
