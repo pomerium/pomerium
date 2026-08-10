@@ -66,6 +66,7 @@ type Backend interface {
 	// and rolling it back otherwise. A concurrent call for an in-flight key does
 	// not run its callback and returns the in-flight call's error when it finishes.
 	// A shared caller receives the in-flight call's changed records.
+	// Callers of this method should not call tx.Commit()
 	DoTransaction(ctx context.Context, key string, cb func(tx Transaction) error) (
 		changed []*databroker.Record,
 		shared bool,
@@ -81,7 +82,7 @@ type Transaction interface {
 	// Submit adds an operation to the transaction. Intermediary responses from operations
 	// return information.
 	Submit(*databroker.TransactionRequest) (*databroker.TransactionResponse, error)
-	// commit applies the submitted operations. Concurrent calls for the same key
+	// Commit applies the submitted operations. Concurrent calls for the same key
 	// block until the in-flight commit completes.
 	Commit() error
 }

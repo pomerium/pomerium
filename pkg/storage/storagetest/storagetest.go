@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -1490,7 +1491,6 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 		}
 	})
 
-	// TODO : this may be specific to file/memory backend
 	t.Run("read your writes", func(t *testing.T) {
 		t.Parallel()
 		backend := backendFactory(t)
@@ -1545,119 +1545,121 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 		require.NoError(t, err)
 	})
 
+	// the singleflight tests run in a synctest bubble: synctest.Wait returns
+	// once every other goroutine is durably blocked, and with the owner parked
+	// on release the waiters can only be parked inside the flight. This
+	// requires a backend that blocks on in-process primitives only.
 	t.Run("singleflight dedup", func(t *testing.T) {
 		t.Parallel()
-		backend := backendFactory(t)
+		synctest.Test(t, func(t *testing.T) {
+			backend := backendFactory(t)
 
-		const waiters = 7
-		var entered, callbacks atomic.Int64
-		started := make(chan struct{})
-		release := make(chan struct{})
+			const waiters = 7
+			var callbacks atomic.Int64
+			started := make(chan struct{})
+			release := make(chan struct{})
 
-		var wg sync.WaitGroup
-		results := make([]flightResult, waiters+1)
-		wg.Go(func() {
-			results[0].changed, results[0].shared, results[0].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
-				callbacks.Add(1)
-				close(started)
-				<-release
-				_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
-				return err
-			})
-		})
-
-		requireReceive(t, started, "first transaction did not start")
-		for i := 1; i <= waiters; i++ {
+			var wg sync.WaitGroup
+			results := make([]flightResult, waiters+1)
 			wg.Go(func() {
-				entered.Add(1)
-				results[i].changed, results[i].shared, results[i].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+				results[0].changed, results[0].shared, results[0].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
 					callbacks.Add(1)
-					_, err := tx.Submit(putRequest(newTestRecord(t, fmt.Sprintf("w%d", i), nil)))
+					close(started)
+					<-release
+					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 					return err
 				})
 			})
-		}
 
-		requireEnteredFlight(t, &entered, waiters)
-		close(release)
-		wg.Wait()
+			requireReceive(t, started, "first transaction did not start")
+			for i := 1; i <= waiters; i++ {
+				wg.Go(func() {
+					results[i].changed, results[i].shared, results[i].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+						callbacks.Add(1)
+						_, err := tx.Submit(putRequest(newTestRecord(t, fmt.Sprintf("w%d", i), nil)))
+						return err
+					})
+				})
+			}
 
-		assert.Equal(t, ranCallbacks(results), callbacks.Load(),
-			"a deduped callback ran, or an owned one did not")
+			synctest.Wait()
+			close(release)
+			wg.Wait()
 
-		allChanged := slices.Map(results, func(r flightResult) []*databroker.Record {
-			return r.changed
+			assert.Equal(t, int64(1), callbacks.Load(),
+				"a deduped callback ran, or an owned one did not")
+
+			allChanged := slices.Map(results, func(r flightResult) []*databroker.Record {
+				return r.changed
+			})
+			assertEveryRecordSetEqual(t, allChanged...)
+
+			for i, r := range results {
+				assert.NoError(t, r.err)
+				assertChangedPersisted(t, backend, r.changed)
+
+				own := "r1"
+				if i > 0 {
+					own = fmt.Sprintf("w%d", i)
+				}
+				_, err := backend.Get(t.Context(), "example", own)
+				if r.shared {
+					assert.NotContains(t, recordIDs(r.changed), own)
+					assert.ErrorIs(t, err, storage.ErrNotFound)
+				} else {
+					assert.Equal(t, []string{own}, recordIDs(r.changed))
+					assert.NoError(t, err)
+				}
+			}
 		})
-
-		// TODO : this is flaky
-		assertEveryRecordSetEqual(t, allChanged...)
-
-		for i, r := range results {
-			assert.NoError(t, r.err)
-			assertChangedPersisted(t, backend, r.changed)
-
-			own := "r1"
-			if i > 0 {
-				own = fmt.Sprintf("w%d", i)
-			}
-			_, err := backend.Get(t.Context(), "example", own)
-			if r.shared {
-				assert.NotContains(t, recordIDs(r.changed), own)
-				assert.ErrorIs(t, err, storage.ErrNotFound)
-			} else {
-				assert.Equal(t, []string{own}, recordIDs(r.changed))
-				assert.NoError(t, err)
-			}
-		}
 	})
 
 	t.Run("error sharing", func(t *testing.T) {
 		t.Parallel()
-		backend := backendFactory(t)
+		synctest.Test(t, func(t *testing.T) {
+			backend := backendFactory(t)
 
-		const waiters = 3
-		errFail := errors.New("fail")
-		var entered, callbacks atomic.Int64
-		started := make(chan struct{})
-		release := make(chan struct{})
+			const waiters = 3
+			errFail := errors.New("fail")
+			var callbacks atomic.Int64
+			started := make(chan struct{})
+			release := make(chan struct{})
 
-		var wg sync.WaitGroup
-		results := make([]flightResult, waiters+1)
-		wg.Go(func() {
-			results[0].changed, results[0].shared, results[0].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
-				callbacks.Add(1)
-				close(started)
-				<-release
-				_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
-				require.NoError(t, err)
-				return errFail
-			})
-		})
-
-		requireReceive(t, started, "first transaction did not start")
-		for i := 1; i <= waiters; i++ {
+			var wg sync.WaitGroup
+			results := make([]flightResult, waiters+1)
 			wg.Go(func() {
-				entered.Add(1)
-				// a straggler that misses the flight leads one of its own, so it
-				// must fail the same way
-				results[i].changed, results[i].shared, results[i].err = backend.DoTransaction(context.Background(), "k", func(_ storage.Transaction) error {
+				results[0].changed, results[0].shared, results[0].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
 					callbacks.Add(1)
+					close(started)
+					<-release
+					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
+					require.NoError(t, err)
 					return errFail
 				})
 			})
-		}
 
-		requireEnteredFlight(t, &entered, waiters)
-		close(release)
-		wg.Wait()
+			requireReceive(t, started, "first transaction did not start")
+			for i := 1; i <= waiters; i++ {
+				wg.Go(func() {
+					results[i].changed, results[i].shared, results[i].err = backend.DoTransaction(context.Background(), "k", func(_ storage.Transaction) error {
+						callbacks.Add(1)
+						return errFail
+					})
+				})
+			}
 
-		assert.Equal(t, ranCallbacks(results), callbacks.Load(), "a deduped callback ran")
-		for _, r := range results {
-			assert.ErrorIs(t, r.err, errFail)
-			assert.Empty(t, r.changed, "a rolled back transaction reported changed records")
-		}
-		_, err := backend.Get(t.Context(), "example", "r1")
-		assert.ErrorIs(t, err, storage.ErrNotFound)
+			synctest.Wait()
+			close(release)
+			wg.Wait()
+
+			assert.Equal(t, int64(1), callbacks.Load(), "a deduped callback ran")
+			for _, r := range results {
+				assert.ErrorIs(t, r.err, errFail)
+				assert.Empty(t, r.changed, "a rolled back transaction reported changed records")
+			}
+			_, err := backend.Get(t.Context(), "example", "r1")
+			assert.ErrorIs(t, err, storage.ErrNotFound)
+		})
 	})
 
 	t.Run("distinct keys run concurrently", func(t *testing.T) {
@@ -1754,71 +1756,72 @@ func TestTransactionsClustered(t *testing.T, clusterFactory func(t *testing.T) (
 	t.Parallel()
 	t.Run("singleflight dedup", func(t *testing.T) {
 		t.Parallel()
-		leader, followers := clusterFactory(t)
-		require.NotEqual(t, 0, len(followers), "clustered transaction tests require followers")
+		synctest.Test(t, func(t *testing.T) {
+			leader, followers := clusterFactory(t)
+			require.NotEqual(t, 0, len(followers), "clustered transaction tests require followers")
 
-		var entered, callbacks atomic.Int64
-		started := make(chan struct{})
-		release := make(chan struct{})
+			var entered, callbacks atomic.Int64
+			started := make(chan struct{})
+			release := make(chan struct{})
 
-		var wg sync.WaitGroup
-		results := make([]flightResult, len(followers)+1)
-		wg.Go(func() {
-			results[0].changed, results[0].shared, results[0].err = leader.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
-				callbacks.Add(1)
-				close(started)
-				<-release
-				// FIXME: I'm not sure there is a way to ensure followers have joined at this point,
-				// other than implementing a field to read directly in the respective backends.
-				time.Sleep(time.Second)
-				_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
-				return err
-			})
-		})
-
-		requireReceive(t, started, "first transaction did not start")
-		for i, follower := range followers {
+			var wg sync.WaitGroup
+			results := make([]flightResult, len(followers)+1)
 			wg.Go(func() {
-				entered.Add(1)
-				results[i+1].changed, results[i+1].shared, results[i+1].err = follower.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+				results[0].changed, results[0].shared, results[0].err = leader.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
 					callbacks.Add(1)
-					_, err := tx.Submit(putRequest(newTestRecord(t, fmt.Sprintf("w%d", i), nil)))
+					close(started)
+					<-release
+					// FIXME: I'm not sure there is a way to ensure followers have joined at this point,
+					// other than implementing a field to read directly in the respective backends.
+					time.Sleep(time.Second)
+					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 					return err
 				})
 			})
-		}
 
-		requireEnteredFlight(t, &entered, int64(len(followers)))
-		close(release)
-		wg.Wait()
+			requireReceive(t, started, "first transaction did not start")
+			for i, follower := range followers {
+				wg.Go(func() {
+					entered.Add(1)
+					results[i+1].changed, results[i+1].shared, results[i+1].err = follower.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+						callbacks.Add(1)
+						_, err := tx.Submit(putRequest(newTestRecord(t, fmt.Sprintf("w%d", i), nil)))
+						return err
+					})
+				})
+			}
 
-		assert.Equal(t, ranCallbacks(results), callbacks.Load(),
-			"a deduped callback ran, or an owned one did not")
+			synctest.Wait()
+			close(release)
+			wg.Wait()
 
-		allChanged := slices.Map(results, func(r flightResult) []*databroker.Record {
-			return r.changed
+			assert.Equal(t, 1, callbacks.Load(),
+				"a deduped callback ran, or an owned one did not")
+
+			allChanged := slices.Map(results, func(r flightResult) []*databroker.Record {
+				return r.changed
+			})
+
+			assertEveryRecordSetEqual(t, allChanged...)
+
+			for i, r := range results {
+				assert.NoError(t, r.err)
+				assertChangedPersisted(t, leader, r.changed)
+
+				own := "r1"
+				if i > 0 {
+					own = fmt.Sprintf("w%d", i)
+				}
+				_, err := leader.Get(t.Context(), "example", own)
+				if r.shared {
+					assert.NotContains(t, recordIDs(r.changed), own)
+					assert.ErrorIs(t, err, storage.ErrNotFound)
+				} else {
+					assert.Equal(t, []string{own}, recordIDs(r.changed))
+					assert.NoError(t, err)
+				}
+			}
 		})
-
-		// TODO : this is flaky
-		assertEveryRecordSetEqual(t, allChanged...)
-
-		for i, r := range results {
-			assert.NoError(t, r.err)
-			assertChangedPersisted(t, leader, r.changed)
-
-			own := "r1"
-			if i > 0 {
-				own = fmt.Sprintf("w%d", i)
-			}
-			_, err := leader.Get(t.Context(), "example", own)
-			if r.shared {
-				assert.NotContains(t, recordIDs(r.changed), own)
-				assert.ErrorIs(t, err, storage.ErrNotFound)
-			} else {
-				assert.Equal(t, []string{own}, recordIDs(r.changed))
-				assert.NoError(t, err)
-			}
-		}
 	})
 }
 
@@ -1869,26 +1872,6 @@ type flightResult struct {
 	changed []*databroker.Record
 	shared  bool
 	err     error
-}
-
-func ranCallbacks(results []flightResult) int64 {
-	var cnt int64
-	for _, r := range results {
-		if !r.shared {
-			cnt++
-		}
-	}
-	return cnt
-}
-
-// requireEnteredFlight only makes dedup likely: a goroutine may still be short
-// of the singleflight group, so assertions are written against shared.
-// TODO : this is flaky.
-func requireEnteredFlight(t *testing.T, entered *atomic.Int64, cnt int64) {
-	t.Helper()
-	require.Eventually(t, func() bool {
-		return entered.Load() == cnt
-	}, transactionTestTimeout, 10*time.Millisecond)
 }
 
 func txErr(_ []*databroker.Record, _ bool, err error) error {
