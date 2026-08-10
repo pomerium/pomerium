@@ -22,16 +22,40 @@ export function markerPath(prefix: string): string {
   return `/e2e/${prefix}-${randomUUID().slice(0, 8)}`;
 }
 
+/** Chromium parks here when a navigation is aborted at the network level. */
+function parkedOnErrorPage(page: Page): boolean {
+  return page.url().startsWith("chrome-error://");
+}
+
 /**
  * Drive the full OIDC round trip on a protected route: navigate, sign in as
  * the shared test user on the Keycloak form, and wait for the redirect back.
+ *
+ * Retried as a unit. The sign-in walks a redirect chain the test does not
+ * drive (route -> authenticate -> Keycloak -> back), and on CI a hop can be
+ * aborted when the Docker network reconfigures just after the per-test
+ * container start - Chromium then parks on an error page and the wait for the
+ * final URL times out. gotoStable protects the first navigation only, so the
+ * chain needs its own retry.
  */
-export async function signIn(page: Page, fromUrl: string): Promise<void> {
+export async function signIn(page: Page, fromUrl: string, attempts = 3): Promise<void> {
   const routeHostname = new URL(fromUrl).hostname;
-  await gotoStable(page, fromUrl, { waitUntil: "domcontentloaded" });
-  await waitForKeycloakLoginPage(page, KEYCLOAK_HOSTNAME);
-  await submitLoginForm(page, TEST_USER.email, TEST_USER.password);
-  await page.waitForURL((url) => url.hostname === routeHostname);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await gotoStable(page, fromUrl, { waitUntil: "domcontentloaded" });
+      // A retry after a partially completed flow can land already signed in,
+      // in which case there is no login form to fill.
+      if (!parkedOnErrorPage(page) && new URL(page.url()).hostname === routeHostname) return;
+      await waitForKeycloakLoginPage(page, KEYCLOAK_HOSTNAME);
+      await submitLoginForm(page, TEST_USER.email, TEST_USER.password);
+      await page.waitForURL((url) => url.hostname === routeHostname);
+      return;
+    } catch (err) {
+      const transient = parkedOnErrorPage(page) || /ERR_NETWORK_CHANGED|ERR_CONNECTION/.test(String(err));
+      if (attempt >= attempts || !transient) throw err;
+      await page.waitForTimeout(1_000);
+    }
+  }
 }
 
 /**

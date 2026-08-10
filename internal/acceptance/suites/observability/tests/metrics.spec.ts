@@ -42,6 +42,9 @@ test.describe("Metrics endpoint", () => {
   test("TC-MET-01: without metrics_address the listener does not exist", async () => {
     const configFile = generateConfig({ name: "met-disabled", publicAccess: true });
     await withPomerium({ configFile }, async () => {
+      // Positive control first: Pomerium is serving the route. Without it, a
+      // dead or wedged stack would make the absence below trivially true.
+      await hitMarkers("met01", 1);
       await expectMetricsPortClosed();
     });
   });
