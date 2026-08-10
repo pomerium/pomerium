@@ -398,8 +398,7 @@ func (backend *Backend) Versions(
 func (backend *Backend) DoTransaction(
 	ctx context.Context,
 	key string,
-	fn func(tx storage.Transaction,
-	) error,
+	fn func(tx storage.Transaction) error,
 ) (changed []*databrokerpb.Record, shared bool, err error) {
 	if err := backend.init(); err != nil {
 		return nil, false, fmt.Errorf("pebble : error initializing : %w", err)
