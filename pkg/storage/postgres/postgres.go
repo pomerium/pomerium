@@ -166,10 +166,10 @@ func deleteOldInflightTransactions(ctx context.Context, q querier, cutoff time.T
 			FROM `+schemaName+`.`+transactionFlightsTableName+`
 			WHERE modified_at < $1
 			FOR UPDATE SKIP LOCKED
-		),
+		)
 		DELETE FROM `+schemaName+`.`+transactionFlightsTableName+` r
 		USING expired
-		WHERE r.flight_id == expired.flight_id
+		WHERE r.flight_id = expired.flight_id
 	`, cutoff)
 	if err != nil {
 		return 0, err
