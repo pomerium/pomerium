@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -116,21 +117,45 @@ type incomingIDPTokenSessionCreator struct {
 	identityTokenSessionsCreatedCount  metric.Int64Counter
 	identityTokenSessionsCachedCount   metric.Int64Counter
 	identityTokenCreateSessionDuration metric.Int64Histogram
+	jwtBearerSessionsCreatedCount      metric.Int64Counter
+	jwtBearerSessionsCachedCount       metric.Int64Counter
+	jwtBearerCreateSessionDuration     metric.Int64Histogram
 
 	timeNow      func() time.Time
 	getRecord    func(ctx context.Context, recordType, recordID string) (*databroker.Record, error)
 	putRecords   func(ctx context.Context, records []*databroker.Record) error
 	singleflight singleflight.Group
 
+	// idpResolver verifies external JWT bearer tokens; idpResolverErr is why it is
+	// missing, if it could not be built. Both unset means no external JWT
+	// verification is configured, and those requests are rejected.
+	idpResolver    *IdentityProviderResolver
+	idpResolverErr error
+
 	telemetry telemetry.Component
+}
+
+// IncomingIDPTokenSessionCreatorOption customizes an
+// IncomingIDPTokenSessionCreator.
+type IncomingIDPTokenSessionCreatorOption func(*incomingIDPTokenSessionCreator)
+
+// WithIdentityProviderResolver supplies the resolver used to verify external JWT
+// bearer tokens, as built for the caller's configuration generation, together
+// with the error from building it — so that a build failure is surfaced on the
+// requests it affects instead of failing the caller's whole state.
+func WithIdentityProviderResolver(resolver *IdentityProviderResolver, buildErr error) IncomingIDPTokenSessionCreatorOption {
+	return func(c *incomingIDPTokenSessionCreator) {
+		c.idpResolver, c.idpResolverErr = resolver, buildErr
+	}
 }
 
 func NewIncomingIDPTokenSessionCreator(
 	tracerProvider oteltrace.TracerProvider,
 	getRecord func(ctx context.Context, recordType, recordID string) (*databroker.Record, error),
 	putRecords func(ctx context.Context, records []*databroker.Record) error,
+	opts ...IncomingIDPTokenSessionCreatorOption,
 ) IncomingIDPTokenSessionCreator {
-	return &incomingIDPTokenSessionCreator{
+	c := &incomingIDPTokenSessionCreator{
 		accessTokenSessionsCreatedCount: metrics.Int64Counter("config.idp_token_session_creator.access_token.sessions_created",
 			metric.WithDescription("Number of sessions created from IDP access tokens."),
 			metric.WithUnit("{session}")),
@@ -149,6 +174,15 @@ func NewIncomingIDPTokenSessionCreator(
 		identityTokenCreateSessionDuration: metrics.Int64Histogram("config.idp_token_session_creator.identity_token.create_session.duration",
 			metric.WithDescription("Duration of create session from IDP identity tokens."),
 			metric.WithUnit("ms")),
+		jwtBearerSessionsCreatedCount: metrics.Int64Counter("config.idp_token_session_creator.jwt_bearer.sessions_created",
+			metric.WithDescription("Number of sessions created from external JWT bearer tokens."),
+			metric.WithUnit("{session}")),
+		jwtBearerSessionsCachedCount: metrics.Int64Counter("config.idp_token_session_creator.jwt_bearer.sessions_cached",
+			metric.WithDescription("Number of sessions cached from external JWT bearer tokens."),
+			metric.WithUnit("{session}")),
+		jwtBearerCreateSessionDuration: metrics.Int64Histogram("config.idp_token_session_creator.jwt_bearer.create_session.duration",
+			metric.WithDescription("Duration of create session from external JWT bearer tokens."),
+			metric.WithUnit("ms")),
 
 		timeNow:    time.Now,
 		getRecord:  getRecord,
@@ -156,6 +190,10 @@ func NewIncomingIDPTokenSessionCreator(
 
 		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.InfoLevel, "idp-token-session-creator"),
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 // CreateSession attempts to create a session for incoming idp access and
@@ -180,6 +218,8 @@ func (c *incomingIDPTokenSessionCreator) CreateSession(
 		return c.createSessionForAccessToken(ctx, cfg, policy, rawToken)
 	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN:
 		return c.createSessionForIdentityToken(ctx, cfg, policy, rawToken)
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT:
+		return c.createSessionForJWT(ctx, cfg, policy, rawToken)
 	default:
 		return nil, sessions.ErrNoSessionFound
 	}
@@ -325,6 +365,161 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 
 	c.identityTokenCreateSessionDuration.Record(ctx, time.Since(start).Milliseconds())
 	return res.(*session.Session), nil
+}
+
+// createSessionForJWT verifies an externally-issued JWT bearer token against
+// the configured identity_providers. The provider is selected by the token's
+// `iss`; audience binding is enforced per-provider (fail-closed). Authorization
+// on the verified claims is left to PPL.
+//
+// Verification follows the resolver, not cfg: a provider deleted from the
+// configuration, or one whose audiences were narrowed, keeps being accepted
+// until the state carrying the new resolver replaces this one — the same
+// revocation latency every other configuration-driven decision has.
+func (c *incomingIDPTokenSessionCreator) createSessionForJWT(
+	ctx context.Context,
+	cfg *Config,
+	policy *Policy,
+	rawJWT string,
+) (*session.Session, error) {
+	ctx, op := c.telemetry.Start(ctx, "createSessionForJWT")
+	defer op.Complete()
+
+	start := time.Now()
+
+	if c.idpResolverErr != nil {
+		return nil, op.Failure(fmt.Errorf("error building identity provider resolver: %w", c.idpResolverErr))
+	}
+	resolver := c.idpResolver
+	if resolver == nil {
+		return nil, op.Failure(fmt.Errorf("%w: no identity_providers configured", sessions.ErrInvalidSession))
+	}
+
+	// Resolve the provider from the token's unverified `iss` and enforce the
+	// route's provider allowlist BEFORE verification/singleflight. Dispatch on
+	// the unverified issuer is safe: the matched verifier re-checks iss,
+	// signature, exp/nbf, and audience.
+	rp, err := resolver.resolveUnverified(rawJWT)
+	if err != nil {
+		return nil, op.Failure(fmt.Errorf("%w: %w", sessions.ErrInvalidSession, err))
+	}
+
+	if policy != nil && len(policy.IdentityProviders) > 0 &&
+		!slices.Contains(policy.IdentityProviders, rp.Name) {
+		return nil, op.Failure(fmt.Errorf("%w: identity provider %q is not allowed on this route",
+			sessions.ErrInvalidSession, rp.Name))
+	}
+
+	res, err, _ := c.singleflight.Do(jwtSingleflightKey(rp.Name, rawJWT), func() (any, error) {
+		return c.verifyJWTAndCreateSession(ctx, cfg, resolver, rawJWT)
+	})
+	if err != nil {
+		return nil, op.Failure(err)
+	}
+
+	c.jwtBearerCreateSessionDuration.Record(ctx, time.Since(start).Milliseconds())
+	return res.(*session.Session), nil
+}
+
+// verifyJWTAndCreateSession verifies rawJWT against the resolver (selecting the
+// provider by issuer and enforcing that provider's audiences, fail-closed) and
+// returns the cached-or-newly-created session. It is the body executed under
+// singleflight in createSessionForJWT, split out for unit testing.
+//
+// The session's identity is namespaced by provider: user id is
+// "<provider-name>/<sub>" (preventing cross-provider and workload↔SSO user
+// collisions). A missing `sub` is rejected. The session TTL is capped at
+// min(token exp, now+CookieExpire), and the raw JWT is deliberately NOT
+// persisted (no SetRawIDToken) for these workload sessions — so
+// $pomerium.id_token substitution and the id-token log field are empty here.
+func (c *incomingIDPTokenSessionCreator) verifyJWTAndCreateSession(
+	ctx context.Context,
+	cfg *Config,
+	resolver *IdentityProviderResolver,
+	rawJWT string,
+) (*session.Session, error) {
+	vres, verr := resolver.Verify(ctx, rawJWT)
+	if verr != nil {
+		return nil, fmt.Errorf("%w: %w", sessions.ErrInvalidSession, verr)
+	}
+
+	claims := jwtutil.Claims(vres.Claims)
+	sub, ok := claims.GetSubject()
+	if !ok || sub == "" {
+		return nil, fmt.Errorf("%w: token is missing the sub claim", sessions.ErrInvalidSession)
+	}
+	userID := vres.ProviderName + "/" + sub
+
+	sessionID := jwtProviderSessionID(vres.ProviderName, rawJWT)
+
+	s, err := c.getSession(ctx, sessionID)
+	switch {
+	case err == nil && s.GetExpiresAt().AsTime().After(c.timeNow()):
+		c.jwtBearerSessionsCachedCount.Add(ctx, 1)
+		return s, nil
+	case err == nil:
+		// A cached session exists but has already hit its capped TTL. The
+		// bearer token may still be valid and longer-lived than CookieExpire,
+		// so re-mint (with a fresh cap) rather than return an expired session
+		// that authorize would reject.
+	case !storage.IsNotFound(err):
+		return nil, err
+	}
+
+	s = c.newSessionFromIDPClaims(cfg, vres.ProviderName, sessionID, claims)
+	// Namespace the identity by provider and cap the TTL. Do NOT persist the
+	// raw JWT for workload sessions.
+	s.UserId = userID
+	capSessionExpiry(s, c.timeNow().Add(cfg.Options.CookieExpire))
+
+	u, err := c.getUser(ctx, userID)
+	if errors.Is(err, storage.ErrNotFound) {
+		u = &user.User{Id: userID}
+	} else if err != nil {
+		return nil, fmt.Errorf("error retrieving existing user: %w", err)
+	}
+	c.fillUserFromIDPClaims(u, claims)
+	u.Id = userID // override the claims-derived id with the provider-prefixed id
+
+	err = c.putSessionAndUser(ctx, s, u)
+	if err != nil {
+		return nil, fmt.Errorf("error saving session and user: %w", err)
+	}
+
+	c.jwtBearerSessionsCreatedCount.Add(ctx, 1)
+	return s, nil
+}
+
+// capSessionExpiry clamps the session's ExpiresAt to no later than latest.
+func capSessionExpiry(s *session.Session, latest time.Time) {
+	if s.GetExpiresAt() == nil || s.GetExpiresAt().AsTime().After(latest) {
+		s.ExpiresAt = timestamppb.New(latest)
+	}
+}
+
+// jwtSingleflightNamespace seeds jwtSingleflightKey. Distinct from
+// jwtProviderSessionNamespace so the de-dup key and the stored session id never
+// coincide.
+var jwtSingleflightNamespace = uuid.MustParse("0195a000-a000-7000-8000-00000000a01b")
+
+// jwtSingleflightKey derives the singleflight de-dup key for a JWT bearer
+// verification, keyed on (provider name, raw token). Audiences are per-provider
+// now, so they need not be folded in — the provider name already scopes the
+// audience check. Chained as nested SHA-1 namespaces (collision-safe, no
+// separator), avoiding the cost of URL-escaping the (large) raw token.
+func jwtSingleflightKey(providerName, rawJWT string) string {
+	ns := uuid.NewSHA1(jwtSingleflightNamespace, []byte(providerName))
+	return uuid.NewSHA1(ns, []byte(rawJWT)).String()
+}
+
+// jwtProviderSessionID derives a stable session id from (provider name,
+// raw_token). Same token → same session; a different provider gets a fresh
+// session id naturally.
+var jwtProviderSessionNamespace = uuid.MustParse("0195a000-a000-7000-8000-00000000a01a")
+
+func jwtProviderSessionID(providerName, rawToken string) string {
+	ns := uuid.NewSHA1(jwtProviderSessionNamespace, []byte(providerName))
+	return uuid.NewSHA1(ns, []byte(rawToken)).String()
 }
 
 func (c *incomingIDPTokenSessionCreator) newSessionFromIDPClaims(

@@ -35,6 +35,7 @@ type authorizeState struct {
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	sessionStore               *config.SessionStore
 	idpTokenSessionCreator     config.IncomingIDPTokenSessionCreator
+	idpResolver                *config.IdentityProviderResolver
 	authenticateFlow           authenticateFlow
 	syncQueriers               map[string]storage.Querier
 	mcp                        *mcp.Handler
@@ -56,8 +57,10 @@ func newAuthorizeStateFromConfig(
 
 	var err error
 	var previousEvaluator *evaluator.Evaluator
+	var previousIDPResolver *config.IdentityProviderResolver
 	if previousState != nil {
 		previousEvaluator = previousState.evaluator
+		previousIDPResolver = previousState.idpResolver
 	}
 
 	state.sharedKey, err = cfg.Options.GetSharedKey()
@@ -107,6 +110,18 @@ func newAuthorizeStateFromConfig(
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
+	// Built here, off the request path, reusing the previous generation's resolver
+	// when nothing it is built from changed. A failure is deliberately not fatal:
+	// OnConfigChange only logs a state-build error and keeps the previous state, so
+	// failing here would silently discard every unrelated route and policy change
+	// in this generation.
+	idpResolver, idpResolverErr := config.NewIdentityProviderResolverFromConfig(cfg, previousIDPResolver)
+	if idpResolverErr != nil {
+		log.Ctx(ctx).Error().Err(idpResolverErr).
+			Msg("authorize: error building identity provider resolver; routes using bearer_token_format=jwt will reject requests until the next configuration change")
+	}
+	state.idpResolver = idpResolver
+
 	state.idpTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
 		tracerProvider,
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
@@ -122,6 +137,7 @@ func newAuthorizeStateFromConfig(
 			storage.InvalidateCacheForDataBrokerRecords(ctx, res.Records...)
 			return nil
 		},
+		config.WithIdentityProviderResolver(idpResolver, idpResolverErr),
 	)
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
