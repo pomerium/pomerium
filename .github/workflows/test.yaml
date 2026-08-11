@@ -46,6 +46,25 @@ jobs:
           (cd ./integration/clusters/${{matrix.deployment}}-${{matrix.authenticate-flow}} && docker compose logs -f &)
           go test -tags integration -v ./integration/...
 
+  e2e:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: .tool-versions
+          cache: false
+
+      - name: set env vars
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      # Heavyweight e2e tests (Docker via testcontainers), each isolated in its
+      # own process by make test-e2e. Non-blocking for now: not added to
+      # branch-protection required checks until proven stable on main.
+      - name: e2e tests
+        run: make test-e2e
+
   build:
     strategy:
       fail-fast: false

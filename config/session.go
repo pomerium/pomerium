@@ -126,11 +126,9 @@ type incomingIDPTokenSessionCreator struct {
 	putRecords   func(ctx context.Context, records []*databroker.Record) error
 	singleflight singleflight.Group
 
-	// idpResolver verifies external JWT bearer tokens; idpResolverErr is why it is
-	// missing, if it could not be built. Both unset means no external JWT
+	// idpResolver verifies external JWT bearer tokens. Nil means no external JWT
 	// verification is configured, and those requests are rejected.
-	idpResolver    *IdentityProviderResolver
-	idpResolverErr error
+	idpResolver *IdentityProviderResolver
 
 	telemetry telemetry.Component
 }
@@ -140,12 +138,12 @@ type incomingIDPTokenSessionCreator struct {
 type IncomingIDPTokenSessionCreatorOption func(*incomingIDPTokenSessionCreator)
 
 // WithIdentityProviderResolver supplies the resolver used to verify external JWT
-// bearer tokens, as built for the caller's configuration generation, together
-// with the error from building it — so that a build failure is surfaced on the
-// requests it affects instead of failing the caller's whole state.
-func WithIdentityProviderResolver(resolver *IdentityProviderResolver, buildErr error) IncomingIDPTokenSessionCreatorOption {
+// bearer tokens, as built for the caller's configuration generation. A provider
+// the resolver could not build rejects only the tokens of its own issuer, and
+// says so in the dispatch error.
+func WithIdentityProviderResolver(resolver *IdentityProviderResolver) IncomingIDPTokenSessionCreatorOption {
 	return func(c *incomingIDPTokenSessionCreator) {
-		c.idpResolver, c.idpResolverErr = resolver, buildErr
+		c.idpResolver = resolver
 	}
 }
 
@@ -387,9 +385,6 @@ func (c *incomingIDPTokenSessionCreator) createSessionForJWT(
 
 	start := time.Now()
 
-	if c.idpResolverErr != nil {
-		return nil, op.Failure(fmt.Errorf("error building identity provider resolver: %w", c.idpResolverErr))
-	}
 	resolver := c.idpResolver
 	if resolver == nil {
 		return nil, op.Failure(fmt.Errorf("%w: no identity_providers configured", sessions.ErrInvalidSession))
@@ -399,7 +394,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForJWT(
 	// route's provider allowlist BEFORE verification/singleflight. Dispatch on
 	// the unverified issuer is safe: the matched verifier re-checks iss,
 	// signature, exp/nbf, and audience.
-	rp, err := resolver.resolveUnverified(rawJWT)
+	rp, err := resolver.resolveUnverified(ctx, rawJWT)
 	if err != nil {
 		return nil, op.Failure(fmt.Errorf("%w: %w", sessions.ErrInvalidSession, err))
 	}

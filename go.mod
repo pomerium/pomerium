@@ -105,6 +105,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.43.0
+	github.com/testcontainers/testcontainers-go/modules/k3s v0.43.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
 	github.com/volatiletech/null/v9 v9.0.0
@@ -288,7 +289,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
-	github.com/imdario/mergo v0.3.4 // indirect
+	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
