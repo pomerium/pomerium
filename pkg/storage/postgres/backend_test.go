@@ -129,14 +129,16 @@ func TestTransactions(t *testing.T) {
 	var databases atomic.Int64
 	backendF := func(t *testing.T) storage.Backend {
 		backend := New(t.Context(), newTestDatabase(t, dsn, databases.Add(1)))
+		_, _, err := backend.init(t.Context())
+		require.NoError(t, err)
 		t.Cleanup(func() { _ = backend.Close() })
 		return backend
 	}
 
-	storagetest.TestTransaction(t, backendF)
+	storagetest.TestTransaction(t, backendF, storagetest.TransactionTestOptions{})
 }
 
-func TestClusteredTransactions(t *testing.T) {
+func TestTransactionsClustered(t *testing.T) {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
@@ -159,7 +161,7 @@ func TestClusteredTransactions(t *testing.T) {
 		return leader, followers
 	}
 
-	storagetest.TestTransactionsClustered(t, clusterF)
+	storagetest.TestTransactionsClustered(t, clusterF, storagetest.TransactionTestOptions{})
 }
 
 func newTestDatabase(t *testing.T, dsn string, n int64) string {
