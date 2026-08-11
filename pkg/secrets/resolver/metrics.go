@@ -32,7 +32,7 @@ func newResolverMetrics(meter metric.Meter, r *Resolver) *resolverMetrics {
 		fetchDuration: mustInt64Histogram(meter, "secrets.fetch.duration", metric.WithUnit("ms"),
 			metric.WithDescription("Duration of secret backend fetch attempts in milliseconds, by provider scheme and outcome.")),
 		servingStale: mustInt64Counter(meter, "secrets.serving_stale",
-			metric.WithDescription("Reads served from a stale last-good secret value while refresh is failing, by ref.")),
+			metric.WithDescription("Failed refreshes that left a ref serving its stale last-good value, one per ref per attempt.")),
 		negativeCacheHits: mustInt64Counter(meter, "secrets.negative_cache_hits",
 			metric.WithDescription("Fetches suppressed by the negative cache after a not-found result, by ref.")),
 		singleflightCollapsed: mustInt64Counter(meter, "secrets.singleflight_collapsed",
