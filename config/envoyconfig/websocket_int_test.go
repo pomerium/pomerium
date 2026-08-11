@@ -25,7 +25,6 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/pkg/envoy"
-	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 // TestWebsocketViaMiddleEnvoy covers the topology where Pomerium runs in
@@ -233,7 +232,7 @@ func (m *middleEnvoy) Run(ctx context.Context) error {
 		return fmt.Errorf("split upstream addr: %w", err)
 	}
 
-	ports, err := netutil.AllocatePorts(1)
+	ports, err := testenv.AllocatePorts(1)
 	if err != nil {
 		return fmt.Errorf("allocate port: %w", err)
 	}

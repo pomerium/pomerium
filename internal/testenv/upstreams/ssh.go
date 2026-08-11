@@ -157,7 +157,7 @@ func (h *sshUpstream) Route() testenv.RouteStub {
 
 // Run implements SSHUpstream.
 func (h *sshUpstream) Run(ctx context.Context) error {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := testenv.Listen(ctx, "127.0.0.1")
 	if err != nil {
 		return err
 	}

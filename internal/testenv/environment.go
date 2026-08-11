@@ -58,7 +58,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/logfields"
-	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -652,7 +651,7 @@ func (e *environment) Start() {
 	e.debugf("temp dir: %s", e.TempDir())
 
 	cfg := config.New(config.NewDefaultOptions())
-	ports, err := netutil.AllocatePorts(13)
+	ports, err := AllocatePorts(13)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)

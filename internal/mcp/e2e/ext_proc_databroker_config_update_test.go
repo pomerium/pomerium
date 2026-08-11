@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"sync/atomic"
@@ -165,7 +164,7 @@ func TestExtProcUsesUpdatedDatabrokerConfigForLateMCPRoute(t *testing.T) {
 func startBareUpstream(t *testing.T, host string, receivedAuth *atomic.Pointer[string]) net.Listener {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:0", host))
+	listener, err := testenv.Listen(t.Context(), host)
 	require.NoError(t, err)
 
 	mux := http.NewServeMux()
