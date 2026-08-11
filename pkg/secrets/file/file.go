@@ -96,6 +96,13 @@ func (*Provider) Validate(r ref.Ref) error {
 func (*Provider) Fetch(ctx context.Context, r ref.Ref) (provider.Result, error) {
 	path := r.URL().Path
 
+	// An already-cancelled fetch must not touch the filesystem at all: without
+	// this guard the read still starts, and on a hung mount its goroutine stays
+	// blocked in open(2) for the life of the process.
+	if err := ctx.Err(); err != nil {
+		return provider.Result{}, fmt.Errorf("file secret %q: %w", path, err)
+	}
+
 	type readResult struct {
 		data []byte
 		err  error
