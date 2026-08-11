@@ -1003,6 +1003,15 @@ func (p *Policy) IsSSHUpstream() bool {
 	return (len(p.To) > 0 && p.To[0].URL.Scheme == "ssh") || p.UpstreamTunnel != nil
 }
 
+func (p *Policy) IsBootstrapConsoleRoute(options *Options) bool {
+	u, err := url.Parse(p.From)
+	if err != nil {
+		return false
+	}
+	return options.ReadonlyConsoleAudiences.IsSet &&
+		slices.Contains(options.ReadonlyConsoleAudiences.Value, u.Hostname())
+}
+
 // AllAllowedDomains returns all the allowed domains.
 func (p *Policy) AllAllowedDomains() []string {
 	var ads []string

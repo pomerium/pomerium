@@ -5364,15 +5364,18 @@ components:
             Action to take when a client request with a header name containing
              underscore characters is received. Defaults to rejecting the request.
         readonlyConsoleAudiences:
-          type: array
-          items:
-            type: string
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.Settings.StringList'
+            - type: "null"
           title: readonly_console_audiences
           description: |-
             When syncing settings from enterprise console, this field will be
-             populated with the console's current list of audiences. This is used
-             primarily to identify which routes are for console so that additional
-             route configuration may be automatically applied.
+             populated with the console's current list of audiences (based on the value
+             of the --audiences flag). This is used to identify the bootstrap console
+             route(s) that are defined in core so that additional configuration can be
+             applied to those routes automatically. Some console features require
+             additional http route options to work correctly, in particular when using
+             multiple console replicas, but those options may .
         createdAt:
           title: created_at
           description: When the settings were created.

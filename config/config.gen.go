@@ -446,7 +446,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.MergeSlashes, src.MergeSlashes),
 		setNullableBoolFromProto(&dst.NormalizePath, src.NormalizePath),
 		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
-		setNullableSliceOfStringFromProto(&dst.ReadonlyConsoleAudiences, &src.ReadonlyConsoleAudiences),
+		setNullableStringListFromProto(&dst.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
@@ -890,7 +890,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.MergeSlashes, src.MergeSlashes),
 		setNullableBoolToProto(&obj.NormalizePath, src.NormalizePath),
 		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
-		setSliceOfStringToProto(&obj.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
+		setNullableStringListToProto(&obj.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }

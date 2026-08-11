@@ -7243,14 +7243,14 @@
             },
             {
               "name": "readonly_console_audiences",
-              "description": "When syncing settings from enterprise console, this field will be\npopulated with the console's current list of audiences. This is used\nprimarily to identify which routes are for console so that additional\nroute configuration may be automatically applied.",
-              "label": "repeated",
-              "type": "string",
-              "longType": "string",
-              "fullType": "string",
+              "description": "When syncing settings from enterprise console, this field will be\npopulated with the console's current list of audiences (based on the value\nof the --audiences flag). This is used to identify the bootstrap console\nroute(s) that are defined in core so that additional configuration can be\napplied to those routes automatically. Some console features require\nadditional http route options to work correctly, in particular when using\nmultiple console replicas, but those options may .",
+              "label": "optional",
+              "type": "StringList",
+              "longType": "Settings.StringList",
+              "fullType": "pomerium.config.Settings.StringList",
               "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
+              "isoneof": true,
+              "oneofdecl": "_readonly_console_audiences",
               "defaultValue": ""
             },
             {

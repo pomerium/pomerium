@@ -1093,10 +1093,13 @@ message Settings {
   // underscore characters is received. Defaults to rejecting the request.
   optional HeadersWithUnderscoresAction headers_with_underscores_action = 187;
   // When syncing settings from enterprise console, this field will be
-  // populated with the console's current list of audiences. This is used
-  // primarily to identify which routes are for console so that additional
-  // route configuration may be automatically applied.
-  repeated string readonly_console_audiences = 188;
+  // populated with the console's current list of audiences (based on the value
+  // of the --audiences flag). This is used to identify the bootstrap console
+  // route(s) that are defined in core so that additional configuration can be
+  // applied to those routes automatically. Some console features require
+  // additional http route options to work correctly, in particular when using
+  // multiple console replicas, but those options may .
+  optional StringList readonly_console_audiences = 188;
 
   // computed properties
 
