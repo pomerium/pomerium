@@ -167,6 +167,32 @@ func TestFetchRespectsContext(t *testing.T) {
 		assert.ErrorIs(t, err, context.Canceled)
 	})
 
+	t.Run("already cancelled does not read", func(t *testing.T) {
+		t.Parallel()
+
+		// A cancelled fetch must not start the read at all: on a hung mount an
+		// abandoned reader stays blocked in open(2) for the life of the process.
+		// open(O_WRONLY|O_NONBLOCK) on a FIFO reports ENXIO only while nobody
+		// holds it open for reading, which is the observation that pins this.
+		dir := t.TempDir()
+		fifo := filepath.Join(dir, "fifo")
+		require.NoError(t, syscall.Mkfifo(fifo, 0o600))
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := New().Fetch(ctx, fileRef(t, fifo))
+		require.ErrorIs(t, err, context.Canceled)
+
+		time.Sleep(100 * time.Millisecond) // let any stray reader reach open(2)
+
+		fd, err := syscall.Open(fifo, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+		if err == nil {
+			_ = syscall.Close(fd)
+		}
+		assert.ErrorIs(t, err, syscall.ENXIO, "cancelled Fetch opened the file anyway")
+	})
+
 	t.Run("blocking read", func(t *testing.T) {
 		t.Parallel()
 
