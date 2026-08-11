@@ -4622,8 +4622,6 @@ func (x *BlobStorageSettings) GetManagedPrefix() string {
 	return ""
 }
 
-// DownstreamMtlsSettings controls how Pomerium validates client certificates
-// presented by downstream (end-user) connections.
 // SecretsSettings is the secret-injection binding table plus tuning defaults.
 // Binding IDs, URLs, and tuning are operator config, not secret material, so no
 // field is (sensitive); resolved secret values never touch this message.
@@ -4809,6 +4807,8 @@ func (x *SecretsBinding) GetStaleGrace() *durationpb.Duration {
 	return nil
 }
 
+// DownstreamMtlsSettings controls how Pomerium validates client certificates
+// presented by downstream (end-user) connections.
 type DownstreamMtlsSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// PEM-encoded certificate authority bundle used to verify client
