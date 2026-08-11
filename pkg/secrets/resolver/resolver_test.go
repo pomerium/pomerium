@@ -514,6 +514,39 @@ func TestNoStaleEventsAfterBindingRemoval(t *testing.T) {
 	})
 }
 
+func TestNoStaleEventsAfterClose(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		reg, fake := testFakeRegistry(t)
+		fk := fkOf(t, "file:///a")
+		fake.SetValue(fk, "v1")
+
+		var buf syncBuffer
+		r, reader := newTestResolverReader(t, reg, WithLogger(zerolog.New(&buf)))
+
+		r.Apply(context.Background(), buildScope(t, reg,
+			bindTuned(t, "tok", "file:///a", 10*time.Second, time.Hour)))
+		synctest.Wait()
+		require.Equal(t, StateFresh, r.Lookup("tok").State)
+		buf.buf.Reset()
+		staleBefore := counterSum(t, reader, "secrets.serving_stale")
+
+		// Let the refresh timer fire into a fetch that blocks, then close the
+		// resolver while that fetch is still in flight.
+		fake.Block(fk)
+		fake.SetError(fk, provider.ErrNotFound)
+		time.Sleep(11 * time.Second)
+		synctest.Wait()
+
+		r.Close()
+		fake.Release(fk)
+		synctest.Wait()
+
+		assert.Empty(t, buf.String(), "a closed resolver must emit no further events")
+		assert.Equal(t, staleBefore, counterSum(t, reader, "secrets.serving_stale"))
+	})
+}
+
 func TestBackfilledSelectorAgesFromFetch(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
