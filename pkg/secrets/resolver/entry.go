@@ -135,6 +135,7 @@ type fetchState struct {
 	lastVersion    string
 	haveVersion    bool
 	lastRawPayload secretBytes
+	lastRawAt      time.Time // when lastRawPayload was fetched
 	haveRawGood    bool
 
 	cancel    func()
