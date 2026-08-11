@@ -400,6 +400,7 @@ func (r *Resolver) commitFetch(fs *fetchState, res provider.Result, err error) {
 	fs.lastVersion = res.Version
 	fs.haveVersion = true
 	fs.lastRawPayload = append(fs.lastRawPayload[:0], res.Value...)
+	fs.lastRawAt = now
 	fs.haveRawGood = true
 
 	for _, vs := range fs.values {
@@ -455,7 +456,10 @@ func (r *Resolver) applyErrorLocked(fs *fetchState, vs *valueState, now time.Tim
 
 // applyLastPayloadLocked populates a newly-added value from the cached raw
 // payload, so a config change that adds a selector on an already-fetched URL
-// resolves immediately rather than waiting for the next refresh.
+// resolves immediately rather than waiting for the next refresh. The value
+// inherits the epoch of the fetch that produced the payload, not the time of
+// the config change: it is exactly as old as its siblings on this FetchKey, so
+// its stale grace must run out at the same moment theirs does.
 func (r *Resolver) applyLastPayloadLocked(fs *fetchState, vs *valueState) {
 	if !fs.haveRawGood {
 		return
@@ -467,10 +471,17 @@ func (r *Resolver) applyLastPayloadLocked(fs *fetchState, vs *valueState) {
 		return
 	}
 	prev := vs.state
-	vs.value = selected
-	vs.lastGood = now
-	vs.state = StateFresh
-	r.logTransitionLocked(fs, vs, prev, StateFresh)
+	vs.lastGood = fs.lastRawAt
+	if now.Sub(vs.lastGood) > vs.staleGrace {
+		// The cached payload is already past this binding's grace, so a config
+		// change must not resurrect it: wait for the next successful fetch.
+		vs.value = nil
+		vs.state = StateExpired
+	} else {
+		vs.value = selected
+		vs.state = StateFresh
+	}
+	r.logTransitionLocked(fs, vs, prev, vs.state)
 }
 
 // rebuildSnapshotLocked publishes a fresh immutable snapshot (copy-on-write).

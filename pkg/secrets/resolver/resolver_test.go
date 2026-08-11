@@ -513,3 +513,75 @@ func TestNoStaleEventsAfterBindingRemoval(t *testing.T) {
 		assert.False(t, r.Lookup("tok").Found)
 	})
 }
+
+func TestBackfilledSelectorAgesFromFetch(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		reg, fake := testFakeRegistry(t)
+		fk := fkOf(t, "file:///a")
+		fake.SetValue(fk, `{"a":"1","b":"2"}`)
+
+		refresh, grace := 10*time.Minute, 60*time.Second
+		r := newTestResolver(t, reg)
+		defer r.Close()
+
+		r.Apply(context.Background(), buildScope(t, reg, bindTuned(t, "a", "file:///a#a", refresh, grace)))
+		synctest.Wait()
+		require.Equal(t, StateFresh, r.Lookup("a").State)
+
+		// The payload ages, still within grace, with no refresh due yet.
+		advance(45 * time.Second)
+
+		// A config change adds a selector served from that cached payload.
+		r.Apply(context.Background(), buildScope(t, reg,
+			bindTuned(t, "a", "file:///a#a", refresh, grace),
+			bindTuned(t, "b", "file:///a#b", refresh, grace)))
+		synctest.Wait()
+		require.Equal(t, StateFresh, r.Lookup("b").State)
+		require.Equal(t, "2", r.Lookup("b").Value)
+
+		// A failed refresh once the payload is 65s old: past the 60s grace for
+		// both selectors, because the backfilled one kept the fetch's epoch
+		// rather than restarting the clock at the config change.
+		fake.SetError(fk, errors.New("io error"))
+		advance(20 * time.Second)
+		fake.TriggerWatch(fk)
+		synctest.Wait()
+
+		assert.Equal(t, StateExpired, r.Lookup("a").State)
+		assert.Equal(t, StateExpired, r.Lookup("b").State)
+	})
+}
+
+func TestBackfillRejectsPayloadPastGrace(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		reg, fake := testFakeRegistry(t)
+		fk := fkOf(t, "file:///a")
+		fake.SetValue(fk, `{"a":"1","b":"2"}`)
+
+		refresh, grace := 10*time.Second, 30*time.Second
+		r := newTestResolver(t, reg)
+		defer r.Close()
+
+		r.Apply(context.Background(), buildScope(t, reg, bindTuned(t, "a", "file:///a#a", refresh, grace)))
+		synctest.Wait()
+		require.Equal(t, StateFresh, r.Lookup("a").State)
+
+		// The backend breaks and the bound value ages out of its grace.
+		fake.SetError(fk, errors.New("io error"))
+		advance(60 * time.Second)
+		require.Equal(t, StateExpired, r.Lookup("a").State)
+
+		// A config change now adds a selector whose only available bytes are the
+		// expired payload. It must not be served.
+		r.Apply(context.Background(), buildScope(t, reg,
+			bindTuned(t, "a", "file:///a#a", refresh, grace),
+			bindTuned(t, "b", "file:///a#b", refresh, grace)))
+		synctest.Wait()
+
+		got := r.Lookup("b")
+		assert.Equal(t, StateExpired, got.State, "a payload past grace must not be resurrected")
+		assert.Empty(t, got.Value)
+	})
+}
