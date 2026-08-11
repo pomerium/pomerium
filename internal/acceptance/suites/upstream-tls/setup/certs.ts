@@ -79,9 +79,13 @@ function certsAreFresh(): boolean {
   if (![...REQUIRED_CERTS, ...REQUIRED_KEYS].every((f) => existsSync(f))) return false;
 
   const dayMs = 24 * 60 * 60 * 1000;
-  return REQUIRED_CERTS.every(
-    (f) => new Date(new X509Certificate(readFileSync(f)).validTo).getTime() - Date.now() > dayMs,
-  );
+  try {
+    return REQUIRED_CERTS.every(
+      (f) => new Date(new X509Certificate(readFileSync(f)).validTo).getTime() - Date.now() > dayMs,
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** Ensure all certificates exist under .certs/ and return their paths. */
