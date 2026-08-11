@@ -34,6 +34,8 @@ func TestParse(t *testing.T) {
 		{name: "malformed query escape in key", raw: "file:///etc/x?%GG=1", wantErr: true},
 		{name: "semicolon query separator", raw: "file:///etc/x?a=1;b=2", wantErr: true},
 		{name: "empty query", raw: "file:///etc/x?", wantScheme: "file", wantPath: "/etc/x"},
+		{name: "userinfo rejected", raw: "file://user:pass@/etc/x", wantErr: true},
+		{name: "username only rejected", raw: "file://user@/etc/x", wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -65,6 +67,15 @@ func TestParseErrorHasNoInterpolationLeak(t *testing.T) {
 	_, err := Parse("file:///${pomerium.user.id}")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "${")
+}
+
+func TestParseErrorHasNoCredentialLeak(t *testing.T) {
+	t.Parallel()
+
+	// The rejection message must not echo the credential it rejected.
+	_, err := Parse("file://user:sekret@/etc/x")
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "sekret")
 }
 
 func TestKey(t *testing.T) {

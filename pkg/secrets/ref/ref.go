@@ -52,6 +52,14 @@ func Parse(raw string) (Ref, error) {
 	}
 	u.Scheme = scheme
 
+	// String() and Key() render the whole URL and are documented safe to log,
+	// which userinfo would break: url.URL.String writes the password out in
+	// full. Keep credentials out of a Ref entirely rather than redacting them,
+	// since redaction would also collapse two refs onto one key.
+	if u.User != nil {
+		return Ref{}, errors.New("secret ref: URL must not contain credentials")
+	}
+
 	// url.Parse keeps RawQuery verbatim without validating its percent-encoding,
 	// and url.Values.Encode (used by canonical) silently drops every pair it
 	// cannot decode. Left alone, "?v=%GG" and "?v=%HH" would both canonicalize
