@@ -1,9 +1,10 @@
 // Navigation helper that survives net::ERR_NETWORK_CHANGED.
 //
-// The suite restarts the Pomerium container between spec groups; on CI that
-// churns the runner's Docker network, and a navigation that races a restart is
-// aborted by Chromium with ERR_NETWORK_CHANGED. Retrying only the navigation
-// lets the network settle without touching the container.
+// Container starts/stops on the shared Docker network (global setup boots the
+// stack; the config-validation spec boots throwaway Pomerium containers
+// mid-run) can churn a CI runner's network, and a navigation that races such a
+// change is aborted by Chromium with ERR_NETWORK_CHANGED. Retrying only the
+// navigation lets the network settle without touching any container.
 
 import type { Page, Response } from "@playwright/test";
 

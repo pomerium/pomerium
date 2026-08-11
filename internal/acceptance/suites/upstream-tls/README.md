@@ -98,12 +98,18 @@ These are **user-perspective** tests. A Playwright **setup project**
 (`tests/auth.setup.ts`) drives the real Keycloak login form once and saves the
 browser session (`storageState`); every behavior spec then runs as that
 already-authenticated user and navigates with `page.goto` (first hit to each
-route subdomain SSOs silently). A **200** with the echo JSON means the page
-loaded (Pomerium completed the upstream handshake and proxied); a **503** (Envoy
-local reply, shown as the branded error page) means the upstream handshake
-failed. Tests run serially (`workers: 1`) because the stack is shared and the
-ports are fixed. Only `config-validation.spec.ts` is not browser-driven — it
-asserts Pomerium refuses to boot on invalid config, which has no request path.
+route subdomain SSOs silently). Every test is written as explicit `test.step`
+blocks — open the route, assert the status the browser got, assert the
+user-visible outcome — with the route's `from`/`to`/`tls_*` config quoted in a
+comment above them, so the spec file (and the HTML report) reads as the user's
+steps. A **200** with the echo JSON means the page loaded (Pomerium completed
+the upstream handshake and proxied); a **503** means the handshake failed —
+asserted as the rendered error page **plus** the Envoy diagnostics Pomerium
+embeds in `window.POMERIUM_DATA` (`statusText` = `%RESPONSE_CODE_DETAILS%`,
+`responseFlags` = `%RESPONSE_FLAGS%`). Tests run serially (`workers: 1`)
+because the stack is shared and the ports are fixed. Only
+`config-validation.spec.ts` is not browser-driven — it asserts Pomerium refuses
+to boot on invalid config, which has no request path.
 
 ### The echo upstream and why it is safe
 
@@ -124,11 +130,12 @@ traces / CI artifacts. (This is the crucial difference from a `traefik/whoami`
 ## Scenarios
 
 All cases come from the manual QA test plan (Notion → QA → Test Plans → Core →
-`Core.Upstream TLS`). Behavior specs navigate as the logged-in user
-(`helpers/routes.ts` `gotoEcho` / `expectHandshake503`): a **200** with the echo
-JSON means Pomerium completed the upstream handshake and proxied; a **503**
-(Envoy local reply) means the upstream
-handshake failed.
+`Core.Upstream TLS`). Behavior specs navigate as the logged-in user via
+`openRoute` and assert against the expectation presets in `helpers/routes.ts`
+(`TLS_UNTRUSTED_CA` / `TLS_SAN_MISMATCH` / `UPSTREAM_TERMINATED`): a **200**
+with the echo JSON means Pomerium completed the upstream handshake and proxied;
+a **503** (Envoy local reply) means it failed, with the rendered error page and
+the `window.POMERIUM_DATA` diagnostics asserted per failure shape.
 
 | Spec file | Coverage |
 |---|---|
@@ -137,7 +144,7 @@ handshake failed.
 | `client-cert.spec.ts` | `tls_client_cert`+`tls_client_key` (inline) and the `_file` pair authenticate to the mTLS upstream (verified subject `pomerium-client`); no client cert → 503 |
 | `server-name.spec.ts` | `tls_server_name` and `tls_upstream_server_name` drive SNI + verification (200, asserting the SNI the upstream received); bogus name → 503; **precedence**: `tls_upstream_server_name` wins over `tls_server_name` |
 | `skip-verify.spec.ts` | `tls_skip_verify` off → 503 (untrusted + name mismatch); on → 200; skip overrides a (wrong) `tls_custom_ca` |
-| `renegotiation.spec.ts` | `tls_upstream_allow_renegotiation`: server-initiated renegotiation refused (503) when unset, permitted (200) when true; normal requests proxy either way |
+| `renegotiation.spec.ts` | `tls_upstream_allow_renegotiation`: server-initiated renegotiation refused (503) when unset, permitted (200) when true — the positive case asserts the upstream's `renegotiated: true` marker, so a quiet 200 that never renegotiated cannot false-pass; normal requests proxy either way |
 | `config-validation.spec.ts` | Boot-time config errors: cert without key (and `_file`); mismatched inline pair; mismatched file pair; `tls_custom_ca_file` missing path |
 
 ### Behavior gotchas encoded in the specs
@@ -150,6 +157,25 @@ handshake failed.
   to system roots), so a route without it fails against the private upstream CA.
 - **`tls_skip_verify` wins over `tls_custom_ca`** — verification is short-circuited.
 - Renegotiation is a **TLS 1.2** concept; the reneg upstream is pinned to 1.2.
+- **What the browser sees on an upstream TLS failure** (pinned from real runs;
+  the `helpers/routes.ts` presets match these structurally): Envoy answers with
+  a 503 local reply rendered as Pomerium's error page, embedding its
+  diagnostics in `window.POMERIUM_DATA`. Untrusted/unrelated CA →
+  `upstream_reset_before_response_started{remote_connection_failure|TLS_error:…unable_to_get_local_issuer_certificate…}`,
+  flag `UF`. Verification-name (SAN) mismatch → same shape but naming the
+  `SAN_matcher` and the served cert's SANs. mTLS upstream that never got a
+  client cert (TLS 1.3: its `certificate_required` alert arrives post-handshake)
+  and a refused renegotiation → plain `…{connection_termination}`, flag `UC`.
+- **Two error-page variants.** The UI renders the branded "Web Server is down"
+  upstream page only when `statusText` contains "upstream" and **not** "local"
+  (`ui/src/App.tsx`); BoringSSL's `unable_to_get_local_issuer_certificate`
+  detail trips that heuristic, so untrusted-CA failures render the generic
+  error page instead. Both variants render the Envoy detail itself, which is
+  what `TLS_UNTRUSTED_CA.pageText` asserts.
+- **The reneg upstream reports whether renegotiation actually happened**: on
+  `/reneg` it answers `renegotiated: true` only after the second handshake
+  completes, and `renegotiated: false` (instead of hanging) when it could not
+  initiate one.
 - Config-validation containers bind **no host port**, so they never contend for
   8443 with the healthy shared instance.
 
@@ -157,9 +183,11 @@ handshake failed.
 
 To add a scenario, add a route to `mainRoutes()` (`setup/pomerium-config.ts`)
 with the `tls_*` options under test and an entry in `ROUTE_HOSTS`
-(`setup/constants.ts`), then, in a spec, navigate as the logged-in user and
-assert with `gotoEcho` / `expectHandshake503` (`helpers/routes.ts`). A scenario
-needing its own (e.g. invalid) config uses `generateConfig(...)` directly — see
+(`setup/constants.ts`), then write the spec as explicit `test.step` blocks:
+`openRoute` (`helpers/routes.ts`) to navigate as the logged-in user, then
+assert the echo JSON (200 paths) or the error page via an
+`UpstreamErrorExpectations` preset (503 paths). A scenario needing its own
+(e.g. invalid) config uses `generateConfig(...)` directly — see
 `config-validation.spec.ts`.
 
 ## Debugging

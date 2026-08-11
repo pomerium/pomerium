@@ -18,7 +18,8 @@
 // Modes (env MODE): "tls" (plain server TLS), "mtls" (requires a client cert),
 // "sni" (serves CERT2 when SNI == SNI_MATCH, else the default CERT), and
 // "reneg" (TLS 1.2 listener that triggers server-initiated renegotiation on
-// GET /reneg). Env: PORT, CERT, KEY, CA (mtls), CERT2, KEY2, SNI_MATCH (sni).
+// GET /reneg and reports renegotiated: true only after that second handshake
+// completes). Env: PORT, CERT, KEY, CA (mtls), CERT2, KEY2, SNI_MATCH (sni).
 
 const https = require("node:https");
 const tls = require("node:tls");
@@ -96,11 +97,12 @@ function tlsInfo(socket) {
   };
 }
 
-function respond(req, res) {
+function respond(req, res, renegotiated = false) {
   const body = JSON.stringify({
     mode: MODE,
     method: req.method,
     path: req.url,
+    renegotiated,
     tls: tlsInfo(req.socket),
     claims: claimHeaders(req.headers),
   });
@@ -126,13 +128,16 @@ const server = https.createServer(options, (req, res) => {
           }
           return;
         }
-        respond(req, res);
+        // The callback fires only after the second handshake completed, so the
+        // marker is trustworthy evidence that renegotiation really happened.
+        respond(req, res, true);
       });
     } catch {
       initiated = false;
     }
     // renegotiate() returns false if it could not be initiated; answer anyway
-    // so the connection is not left hanging.
+    // (renegotiated: false) so the connection is not left hanging - the spec
+    // asserts the marker, so a quiet 200 cannot false-pass the positive case.
     if (initiated !== true) respond(req, res);
     return;
   }

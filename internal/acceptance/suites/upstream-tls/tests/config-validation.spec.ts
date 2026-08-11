@@ -73,12 +73,18 @@ const cases: Case[] = [
 test.describe("Upstream TLS: config validation", () => {
   for (const c of cases) {
     test(`${c.id}: ${c.title} -> config error`, async () => {
-      const configFile = c.make();
-      const lines = await startPomeriumExpectingConfigError({ configFile, errorPattern: c.error });
-      expect(
-        lines.some((l) => c.error.test(l)),
-        `expected a Pomerium log line matching ${c.error}\n--- captured logs ---\n${lines.join("")}`,
-      ).toBe(true);
+      const configFile = await test.step("write the deliberately-invalid single-route config", () =>
+        c.make());
+
+      const lines = await test.step("boot a throwaway Pomerium that must refuse the config", () =>
+        startPomeriumExpectingConfigError({ configFile, errorPattern: c.error }));
+
+      await test.step(`Pomerium logged the config error (${c.error})`, () => {
+        expect(
+          lines.some((l) => c.error.test(l)),
+          `expected a Pomerium log line matching ${c.error}\n--- captured logs ---\n${lines.join("")}`,
+        ).toBe(true);
+      });
     });
   }
 });

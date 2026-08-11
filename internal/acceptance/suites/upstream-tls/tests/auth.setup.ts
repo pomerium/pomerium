@@ -9,12 +9,35 @@
  */
 
 import { test as setup } from "@playwright/test";
-import { signInOnRoute } from "../helpers/login.js";
-import { STORAGE_STATE } from "../setup/constants.js";
+import { submitLoginForm, waitForKeycloakLoginPage } from "../../shared/keycloak-login.js";
+import { gotoStable } from "../helpers/nav.js";
+import {
+  KEYCLOAK_HOSTNAME,
+  ROUTE_HOSTS,
+  STORAGE_STATE,
+  TEST_USER,
+  routeUrl,
+} from "../setup/constants.js";
 
 setup("authenticate via Keycloak and save the session", async ({ page }) => {
-  // signInOnRoute waits for the post-login redirect back to the route, so a
-  // broken login fails the setup project here (and gates the behavior specs).
-  await signInOnRoute(page, "control");
-  await page.context().storageState({ path: STORAGE_STATE });
+  // Route: https://verify.localhost.pomerium.io:8443 (the control route; the
+  // session it establishes is valid for every route host).
+
+  await setup.step("anonymous user opens the route and is redirected to Keycloak", async () => {
+    await gotoStable(page, routeUrl("control"), { waitUntil: "domcontentloaded" });
+    await waitForKeycloakLoginPage(page, KEYCLOAK_HOSTNAME);
+  });
+
+  await setup.step("user submits the Keycloak login form", async () => {
+    await submitLoginForm(page, TEST_USER.email, TEST_USER.password);
+  });
+
+  await setup.step("IdP redirects back to the route with a Pomerium session", async () => {
+    // A broken login fails here (and gates the behavior specs).
+    await page.waitForURL((url) => url.hostname === ROUTE_HOSTS.control);
+  });
+
+  await setup.step("save the browser session for the behavior specs (storageState)", async () => {
+    await page.context().storageState({ path: STORAGE_STATE });
+  });
 });

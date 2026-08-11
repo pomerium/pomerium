@@ -8,21 +8,24 @@ const STORAGE_STATE = path.join(__dirname, ".auth", "user.json");
 /**
  * Playwright configuration for the container-based upstream TLS/mTLS e2e suite.
  *
-  * The config-invariant services (Keycloak, the pomerium/verify control upstream,
-  * and the first-party Node TLS/mTLS echo upstreams) are booted once in global
-  * setup and torn down in global teardown; a single shared Pomerium instance is
-  * started in global setup with the full route matrix (config-validation boots
-  * extra short-lived Pomerium containers that do not bind host ports). Tests run serially with a single worker
-  * because the stack binds fixed host ports (8443 / 8080) and is shared.
-  */
+ * The whole stack - Keycloak, the pomerium/verify control upstream, the
+ * first-party Node TLS/mTLS echo upstreams, and a single shared Pomerium
+ * serving every behavior route from one generated config - is booted once in
+ * global setup and torn down in global teardown. Specs never restart Pomerium;
+ * only config-validation.spec.ts boots extra throwaway (port-less) containers.
+ * Tests run serially with a single worker because the stack binds fixed host
+ * ports (8443 / 8080) and is shared.
+ */
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
-  // On CI, Chromium can occasionally abort navigations with ERR_NETWORK_CHANGED
-  // due to Docker / host-network churn during container startup. Retry under CI
-  // (as the browser suite does) so a single such abort self-heals; see also the
+  // Container churn on the shared Docker network (the config-validation spec
+  // boots throwaway Pomerium containers mid-run; testcontainers starts and
+  // stops the rest around the run) can make Chromium on CI runners abort an
+  // in-flight navigation with ERR_NETWORK_CHANGED. Retry under CI (as the
+  // browser suite does) so a single such abort self-heals; see also the
   // launchOptions flag below.
   retries: process.env.CI ? 2 : 0,
   reporter: [
@@ -41,7 +44,8 @@ export default defineConfig({
 
   use: {
     // Stop Chromium aborting navigations with ERR_NETWORK_CHANGED when it
-    // notices the network reconfigure (the per-spec Pomerium container restarts
+    // notices the network reconfigure (Docker network churn from container
+    // starts/stops - e.g. the config-validation throwaway containers - can
     // trigger this on CI runners). Unknown feature names are ignored safely.
     launchOptions: { args: ["--disable-features=NetworkChangeNotifier"] },
     // Pomerium serves a leaf certificate from the per-run OpenSSL CA; the
