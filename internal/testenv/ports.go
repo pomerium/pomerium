@@ -58,12 +58,6 @@ func Listen(ctx context.Context, host string) (net.Listener, error) {
 }
 
 func listenUnreserved(ctx context.Context, host string, isReserved func(port string) bool) (net.Listener, error) {
-	var rejected []net.Listener
-	defer func() {
-		for _, li := range rejected {
-			li.Close()
-		}
-	}()
 	for range listenMaxAttempts {
 		li, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort(host, "0"))
 		if err != nil {
@@ -74,7 +68,7 @@ func listenUnreserved(ctx context.Context, host string, isReserved func(port str
 			return li, nil
 		}
 		// Hold the listener open so the next attempt gets a different port.
-		rejected = append(rejected, li)
+		defer li.Close()
 	}
 	return nil, fmt.Errorf("no unreserved port available on %s after %d attempts", host, listenMaxAttempts)
 }
