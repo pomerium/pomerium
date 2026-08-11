@@ -44,7 +44,7 @@ type Backend struct {
 
 	txGroup singleflight.Group
 	txMu    sync.Mutex
-	txs     map[*transaction]struct{}
+	txs     map[killable]struct{}
 	texSem  *semaphore.Weighted
 }
 
