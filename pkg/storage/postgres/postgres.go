@@ -407,14 +407,14 @@ func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string
 	return leaseHolderID, err
 }
 
-type flight struct {
+type inFlightTransaction struct {
 	id        string
 	completed bool
 	changed   [][]byte
 	errText   *string
 }
 
-func (f *flight) result() ([]*databroker.Record, error) {
+func (f *inFlightTransaction) result() ([]*databroker.Record, error) {
 	if f.errText != nil {
 		return nil, errors.New(*f.errText)
 	}
@@ -429,8 +429,8 @@ func (f *flight) result() ([]*databroker.Record, error) {
 	return changed, nil
 }
 
-func getFlight(ctx context.Context, q querier, key string) (*flight, error) {
-	f := new(flight)
+func getTransaction(ctx context.Context, q querier, key string) (*inFlightTransaction, error) {
+	f := new(inFlightTransaction)
 	err := q.QueryRow(ctx, `
 		SELECT flight_id, completed, changed, error
 		FROM `+schemaName+`.`+transactionFlightsTableName+`
@@ -445,7 +445,7 @@ func getFlight(ctx context.Context, q querier, key string) (*flight, error) {
 	return f, nil
 }
 
-func beginFlight(ctx context.Context, q querier, key, flightID string) error {
+func upsertNewEmptyTransaction(ctx context.Context, q querier, key, flightID string) error {
 	_, err := q.Exec(ctx, `
 		INSERT INTO `+schemaName+`.`+transactionFlightsTableName+` (key, flight_id, completed)
 		VALUES ($1, $2, FALSE)
@@ -458,7 +458,7 @@ func beginFlight(ctx context.Context, q querier, key, flightID string) error {
 	return nil
 }
 
-func finishFlight(ctx context.Context, q querier, key, flightID string, changed []*databroker.Record, flightErr error) error {
+func updateTransactionResults(ctx context.Context, q querier, key, flightID string, changed []*databroker.Record, flightErr error) error {
 	var raw [][]byte
 	var errText *string
 	if flightErr != nil {

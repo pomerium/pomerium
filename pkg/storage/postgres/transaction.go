@@ -8,8 +8,10 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,9 +25,9 @@ import (
 )
 
 const (
-	transactionMaxDuration = time.Minute
-	transactionMaxRetries  = 3
+	transactionMaxDuration = 5 * time.Minute
 	transactionJoinBackoff = 10 * time.Millisecond
+	transactionJoinGrace   = time.Second
 )
 
 func (backend *Backend) doTransaction(
@@ -47,64 +49,106 @@ func (backend *Backend) doTransaction(
 	if err != nil {
 		return nil, false, err
 	}
-	lock := &flightLock{conn: conn, key: key}
+	lock := newPostgresLock(conn, key)
+	// registered before the first query so Close can reclaim the connection at
+	// any point, not just while the callback is running
+	if err := backend.register(lock.pooledConn); err != nil {
+		lock.release()
+		return nil, false, err
+	}
+	defer backend.unregister(lock.pooledConn)
+
+	holdsLock, err := lock.tryAcquire(ctx)
+	if err != nil {
+		return nil, false, err
+	}
 	defer lock.release()
 
-	// TODO : i don't think we should be retrying tryAcquire, otherwise we end up with transactions
-	// that could be run twice (one after the other).
-	for {
-		leads, err := lock.tryAcquire(ctx)
-		if err != nil {
-			return nil, false, err
-		}
-		if leads {
-			changed, err := backend.leadFlight(ctx, pool, lock, serverVersion, key, fn)
-			return changed, false, err
-		}
-
-		changed, joined, err := backend.joinFlight(ctx, pool, key)
-		if joined || err != nil {
-			return changed, joined, err
-		}
-
-		// the leader holds the lock but has not published a flight yet, or died
-		// without finishing one
-		select {
-		case <-ctx.Done():
-			return nil, false, context.Cause(ctx)
-		case <-time.After(transactionJoinBackoff):
-		}
+	if holdsLock {
+		changed, err := backend.doTransactionLocked(ctx, pool, lock.pooledConn, serverVersion, key, fn)
+		return changed, false, err
 	}
+	return waitForResults(ctx, lock.pooledConn, key)
 }
 
-// joinFlight waits for the transaction currently in flight on the key and
-// returns its result. joined is false when there is nothing to share: no flight
-// was in progress, or none completed before the deadline.
-func (backend *Backend) joinFlight(
-	ctx context.Context, pool *pgxpool.Pool, key string,
+// waitForResults shares the result of the transaction in flight on the key. joined
+// is false when there is nothing to share: no flight was in progress, or none
+// completed before the deadline.
+func waitForResults(
+	ctx context.Context, conn *pooledConn, key string,
 ) ([]*databroker.Record, bool, error) {
+	caller := ctx
 	ctx, cancel := context.WithTimeout(ctx, transactionMaxDuration)
 	defer cancel()
+	// the leader publishes its flight right after taking the lock, so only that
+	// short window is worth polling for; the full duration is for the flight itself
+	graceCtx, cancelGrace := context.WithTimeout(ctx, transactionJoinGrace)
+	defer cancelGrace()
 
-	w, err := newFlightWaiter(ctx, pool)
+	w, err := newTransactionWaiter(ctx, conn)
 	if err != nil {
 		return nil, false, err
 	}
 	defer w.close()
 
-	// LISTEN precedes this read, so any flight still running here will wake the
-	// wait below
-	before, err := getFlight(ctx, w.conn, key)
-	if err != nil || before == nil || before.completed {
-		return nil, false, err
-	}
+	for {
+		// LISTEN precedes this read, so any flight still running here will wake the
+		// wait below
+		before, err := w.getTransaction(ctx, key)
+		if err != nil {
+			return nil, false, err
+		}
+		if before != nil {
+			if before.completed {
+				return nil, false, nil
+			}
+			return w.joinFlight(ctx, key, before)
+		}
 
+		// the leader holds the lock but has not published a flight yet, or died
+		// without finishing one
+		select {
+		case <-graceCtx.Done():
+			// our own deadline means there was nothing to join, not a failure
+			if caller.Err() != nil {
+				return nil, false, context.Cause(caller)
+			}
+			return nil, false, nil
+		case <-time.After(transactionJoinBackoff):
+		}
+	}
+}
+
+// transactionWaiter listens on its connection for flight completions. The LISTEN
+// must never leak back into the pool, so on any failure the connection is closed
+// instead.
+type transactionWaiter struct {
+	conn   *pooledConn
+	broken atomic.Bool
+}
+
+func newTransactionWaiter(ctx context.Context, conn *pooledConn) (*transactionWaiter, error) {
+	w := &transactionWaiter{conn: conn}
+	err := conn.do(func(q querier) error {
+		_, err := q.Exec(ctx, `LISTEN `+transactionFlightNotifyName)
+		return err
+	})
+	if err != nil {
+		w.broken.Store(true)
+		return nil, fmt.Errorf("postgres: failed to listen for transaction flights: %w", err)
+	}
+	return w, nil
+}
+
+func (w *transactionWaiter) joinFlight(
+	ctx context.Context, key string, before *inFlightTransaction,
+) ([]*databroker.Record, bool, error) {
 	woke, err := w.wait(ctx, before.id)
 	if err != nil || !woke {
 		return nil, false, err
 	}
 
-	after, err := getFlight(ctx, w.conn, key)
+	after, err := w.getTransaction(ctx, key)
 	if err != nil || after == nil || after.id != before.id || !after.completed {
 		return nil, false, err
 	}
@@ -112,33 +156,32 @@ func (backend *Backend) joinFlight(
 	return changed, true, err
 }
 
-// flightWaiter is a pooled connection listening for flight completions. Its
-// LISTEN must never leak back into the pool, so on any failure the connection is
-// closed instead.
-type flightWaiter struct {
-	conn   *pgxpool.Conn
-	broken bool
+func (w *transactionWaiter) getTransaction(ctx context.Context, key string) (*inFlightTransaction, error) {
+	var f *inFlightTransaction
+	err := w.conn.do(func(q querier) error {
+		var err error
+		f, err = getTransaction(ctx, q, key)
+		return err
+	})
+	return f, err
 }
 
-func newFlightWaiter(ctx context.Context, pool *pgxpool.Pool) (*flightWaiter, error) {
-	conn, err := pool.Acquire(ctx)
+// wait parks on the connection until the flight completes, so it runs outside the
+// connection lock and relies on kill to unblock it.
+func (w *transactionWaiter) wait(ctx context.Context, flightID string) (bool, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	conn, err := w.conn.park(cancel)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	w := &flightWaiter{conn: conn}
-	if _, err := conn.Exec(ctx, `LISTEN `+transactionFlightNotifyName); err != nil {
-		w.broken = true
-		w.close()
-		return nil, fmt.Errorf("postgres: failed to listen for transaction flights: %w", err)
-	}
-	return w, nil
-}
+	defer w.conn.unpark()
 
-func (w *flightWaiter) wait(ctx context.Context, flightID string) (bool, error) {
 	for {
-		n, err := w.conn.Conn().WaitForNotification(ctx)
+		n, err := conn.WaitForNotification(ctx)
 		if err != nil {
-			w.broken = true
+			w.broken.Store(true)
 			if errors.Is(err, context.DeadlineExceeded) {
 				return false, nil
 			}
@@ -150,74 +193,78 @@ func (w *flightWaiter) wait(ctx context.Context, flightID string) (bool, error) 
 	}
 }
 
-func (w *flightWaiter) close() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if w.broken {
-		_ = w.conn.Conn().Close(ctx)
-	} else if _, err := w.conn.Exec(ctx, `UNLISTEN `+transactionFlightNotifyName); err != nil {
-		_ = w.conn.Conn().Close(ctx)
-	}
-	w.conn.Release()
+func (w *transactionWaiter) close() {
+	w.conn.closeWith(func(ctx context.Context, q querier) bool {
+		if w.broken.Load() {
+			return false
+		}
+		_, err := q.Exec(ctx, `UNLISTEN `+transactionFlightNotifyName)
+		return err == nil
+	})
 }
 
-func (backend *Backend) leadFlight(
+func (backend *Backend) doTransactionLocked(
 	ctx context.Context,
 	pool *pgxpool.Pool,
-	lock *flightLock,
+	conn *pooledConn,
 	serverVersion uint64,
 	key string,
 	fn func(tx storage.Transaction) error,
 ) ([]*databroker.Record, error) {
 	flightID := uuid.NewString()
-	if err := lock.do(func(q querier) error {
-		return beginFlight(ctx, q, key, flightID)
+	if err := conn.do(func(q querier) error {
+		return upsertNewEmptyTransaction(ctx, q, key, flightID)
 	}); err != nil {
 		return nil, err
 	}
-
-	var changed []*databroker.Record
-	var err error
-	// TODO : better retry
-	for attempt := 0; ; attempt++ {
-		changed, err = backend.runTransaction(ctx, lock, serverVersion, fn)
-		if err == nil || !isSerializationFailure(err) || attempt >= transactionMaxRetries {
-			break
+	b := backoff.WithContext(
+		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3),
+		ctx,
+	)
+	changed, err := backoff.RetryWithData(func() ([]*databroker.Record, error) {
+		changed, err := backend.runTransactionCallbackLocked(ctx, conn, serverVersion, fn)
+		if isSerializationFailure(err) {
+			return nil, err
+		} else if err != nil {
+			return nil, backoff.Permanent(err)
 		}
-	}
+		return changed, nil
+	}, b)
 
-	finishErr := lock.do(func(q querier) error {
-		return finishFlight(ctx, q, key, flightID, changed, err)
+	finishErr := conn.do(func(q querier) error {
+		return updateTransactionResults(ctx, q, key, flightID, changed, err)
 	})
-	if err == nil && finishErr != nil {
-		err = finishErr
-	}
 	if err != nil {
 		return nil, err
 	}
+	if finishErr != nil {
+		return nil, finishErr
+	}
+
 	if err := signalRecordChange(ctx, pool); err != nil {
 		return nil, err
 	}
 	return changed, nil
 }
 
-func (backend *Backend) runTransaction(
+func (backend *Backend) runTransactionCallbackLocked(
 	ctx context.Context,
-	lock *flightLock,
+	conn *pooledConn,
 	serverVersion uint64,
 	fn func(tx storage.Transaction) error,
 ) ([]*databroker.Record, error) {
-	var pgtx pgx.Tx
-	if err := lock.begin(ctx, &pgtx); err != nil {
+	pgtx, err := conn.begin(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	tx := &transaction{backend: backend, ctx: ctx, tx: pgtx, lock: lock, serverVersion: serverVersion}
-	if err := backend.registerTx(tx); err != nil {
+	tx := &transaction{backend: backend, ctx: ctx, tx: pgtx, conn: conn, serverVersion: serverVersion}
+
+	if err := backend.register(tx); err != nil {
 		_ = pgtx.Rollback(ctx)
 		return nil, err
 	}
-	defer backend.unregisterTx(tx)
+	defer backend.unregister(tx)
 	// covers failures (Rollback after Commit is a no-op)
 	defer tx.rollback()
 
@@ -230,82 +277,6 @@ func (backend *Backend) runTransaction(
 	return tx.changed, nil
 }
 
-// flightLock is a helper wrapper that owns a postgres connection and acquires advisory locks.
-// It must own the postgres connection so that open transactions are cancellable by backend.Close.
-type flightLock struct {
-	key string
-
-	mu       sync.Mutex
-	conn     *pgxpool.Conn
-	acquired bool
-}
-
-func (l *flightLock) do(fn func(q querier) error) error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.conn == nil {
-		return errBackendClosed
-	}
-	return fn(l.conn)
-}
-
-func (l *flightLock) begin(ctx context.Context, pgtx *pgx.Tx) error {
-	return l.do(func(querier) error {
-		var err error
-		*pgtx, err = l.conn.Begin(ctx)
-		return err
-	})
-}
-
-func (l *flightLock) tryAcquire(ctx context.Context) (acquired bool, err error) {
-	err = l.do(func(q querier) error {
-		err := q.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1, $2))`,
-			l.key, int64(transactionLockSeed)).Scan(&acquired)
-		l.acquired = l.acquired || acquired
-		return err
-	})
-	if err != nil {
-		return false, fmt.Errorf("postgres: failed to acquire transaction lock: %w", err)
-	}
-	return acquired, nil
-}
-
-// release must never hand a connection still holding the session lock back to
-// the pool, so on any failure the connection is closed instead.
-func (l *flightLock) release() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.conn == nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if l.acquired && !l.unlock(ctx) {
-		_ = l.conn.Conn().Close(ctx)
-	}
-	l.conn.Release()
-	l.conn = nil
-}
-
-func (l *flightLock) unlock(ctx context.Context) (unlocked bool) {
-	err := l.conn.QueryRow(ctx, `SELECT pg_advisory_unlock(hashtextextended($1, $2))`,
-		l.key, int64(transactionLockSeed)).Scan(&unlocked)
-	return err == nil && unlocked
-}
-
-// destroy closes the connection and hands it back to the pool so Close can
-// drain while a transaction callback is still open by the caller.
-func (l *flightLock) destroy() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.conn == nil {
-		return
-	}
-	_ = l.conn.Conn().Close(context.Background())
-	l.conn.Release()
-	l.conn = nil
-}
-
 func (backend *Backend) acquireTransactionSlot() (release func(), err error) {
 	if !backend.texSem.TryAcquire(1) {
 		return nil, status.Error(codes.ResourceExhausted, "too many concurrent transactions")
@@ -315,13 +286,13 @@ func (backend *Backend) acquireTransactionSlot() (release func(), err error) {
 	}, nil
 }
 
-func (backend *Backend) unregisterTx(tx *transaction) {
+func (backend *Backend) unregister(k killable) {
 	backend.txMu.Lock()
 	defer backend.txMu.Unlock()
-	delete(backend.txs, tx)
+	delete(backend.txs, k)
 }
 
-func (backend *Backend) takeRegisteredTxs() []*transaction {
+func (backend *Backend) takeRegisteredTxs() []killable {
 	backend.txMu.Lock()
 	defer backend.txMu.Unlock()
 
@@ -330,7 +301,7 @@ func (backend *Backend) takeRegisteredTxs() []*transaction {
 	return txs
 }
 
-func (backend *Backend) registerTx(tx *transaction) error {
+func (backend *Backend) register(k killable) error {
 	backend.txMu.Lock()
 	defer backend.txMu.Unlock()
 
@@ -338,10 +309,16 @@ func (backend *Backend) registerTx(tx *transaction) error {
 		return context.Cause(backend.closeCtx)
 	}
 	if backend.txs == nil {
-		backend.txs = make(map[*transaction]struct{})
+		backend.txs = make(map[killable]struct{})
 	}
-	backend.txs[tx] = struct{}{}
+	backend.txs[k] = struct{}{}
 	return nil
+}
+
+// killable is anything holding a pooled connection that Close must reclaim
+// before the pool can drain.
+type killable interface {
+	kill(err error)
 }
 
 type txResult struct {
@@ -352,7 +329,7 @@ type txResult struct {
 type transaction struct {
 	backend       *Backend
 	ctx           context.Context
-	lock          *flightLock
+	conn          *pooledConn
 	serverVersion uint64
 
 	mu        sync.Mutex
@@ -374,14 +351,12 @@ func (tx *transaction) rollback() {
 // kill fails the transaction and hands its connection back to the pool, from a
 // goroutine other than the one running the callback.
 func (tx *transaction) kill(err error) {
-	// unblocks a Submit
-	_ = tx.tx.Conn().PgConn().CancelRequest(context.Background())
+	// unblocks a Submit, which holds tx.mu while its query runs
+	tx.conn.destroy()
 
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
-
 	tx.err = err
-	tx.lock.destroy()
 }
 
 // Submit applies a single operation to the open postgres transaction. Once an

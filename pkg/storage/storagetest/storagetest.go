@@ -1670,6 +1670,9 @@ func TestTransactionsClustered(t *testing.T, clusterFactory func(t *testing.T) (
 					callbacks.Add(1)
 					close(started)
 					<-release
+					// FIXME: not guaranteed to capture all callers unless
+					// we can use synctest.Wait with all storage implementations.
+					time.Sleep(time.Second)
 					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 					return err
 				})
