@@ -1166,8 +1166,6 @@ message BlobStorageSettings {
   optional string managed_prefix = 2;
 }
 
-// DownstreamMtlsSettings controls how Pomerium validates client certificates
-// presented by downstream (end-user) connections.
 // SecretsSettings is the secret-injection binding table plus tuning defaults.
 // Binding IDs, URLs, and tuning are operator config, not secret material, so no
 // field is (sensitive); resolved secret values never touch this message.
@@ -1198,6 +1196,8 @@ message SecretsBinding {
   optional google.protobuf.Duration stale_grace = 3;
 }
 
+// DownstreamMtlsSettings controls how Pomerium validates client certificates
+// presented by downstream (end-user) connections.
 message DownstreamMtlsSettings {
   // PEM-encoded certificate authority bundle used to verify client
   // certificates.
