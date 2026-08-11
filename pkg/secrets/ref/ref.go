@@ -52,6 +52,17 @@ func Parse(raw string) (Ref, error) {
 	}
 	u.Scheme = scheme
 
+	// url.Parse keeps RawQuery verbatim without validating its percent-encoding,
+	// and url.Values.Encode (used by canonical) silently drops every pair it
+	// cannot decode. Left alone, "?v=%GG" and "?v=%HH" would both canonicalize
+	// to a bare path and so share a Key and a fetch loop. Reject the malformed
+	// query up front instead.
+	if u.RawQuery != "" {
+		if _, err := url.ParseQuery(u.RawQuery); err != nil {
+			return Ref{}, fmt.Errorf("secret ref: invalid query string: %w", err)
+		}
+	}
+
 	// file:// URLs must be host-less absolute paths (stdlib/RFC 8089 semantics);
 	// "file://relative/path" parses relative as an authority, which is invalid.
 	if scheme == "file" {
@@ -105,7 +116,8 @@ func (r Ref) String() string { return r.Key() }
 
 // canonical renders a deterministic, canonicalized URL string. Query
 // parameters are re-encoded via url.Values.Encode (sorted by key), the scheme
-// is lowercased, and the fragment is canonically re-escaped or dropped.
+// is lowercased, an empty query is dropped, and the fragment is canonically
+// re-escaped or dropped.
 func (r Ref) canonical(withFragment bool) string {
 	if r.url == nil {
 		return ""
@@ -115,6 +127,9 @@ func (r Ref) canonical(withFragment bool) string {
 	if u.RawQuery != "" {
 		u.RawQuery = u.Query().Encode()
 	}
+	// A trailing "?" carries no parameters, so it must not distinguish keys:
+	// "file:///x?" and "file:///x" name the same backend value.
+	u.ForceQuery = false
 	if withFragment {
 		u.Fragment = r.selector
 		u.RawFragment = ""

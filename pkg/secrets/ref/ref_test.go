@@ -30,6 +30,10 @@ func TestParse(t *testing.T) {
 		{name: "fragment captured", raw: "file:///etc/x#data.token", wantScheme: "file", wantPath: "/etc/x", wantSelector: "data.token"},
 		{name: "query captured", raw: "file:///etc/x?a=1&b=2", wantScheme: "file", wantPath: "/etc/x", wantQuery: map[string]string{"a": "1", "b": "2"}},
 		{name: "rfc6901 fragment reserved", raw: "file:///etc/x#/data/token", wantErr: true},
+		{name: "malformed query escape", raw: "file:///etc/x?version=%GG", wantErr: true},
+		{name: "malformed query escape in key", raw: "file:///etc/x?%GG=1", wantErr: true},
+		{name: "semicolon query separator", raw: "file:///etc/x?a=1;b=2", wantErr: true},
+		{name: "empty query", raw: "file:///etc/x?", wantScheme: "file", wantPath: "/etc/x"},
 	}
 
 	for _, tt := range tests {
@@ -92,6 +96,11 @@ func TestKey(t *testing.T) {
 		t.Parallel()
 		assert.NotEqual(t, mustParse("file:///x").Key(), mustParse("file:///y").Key())
 	})
+
+	t.Run("empty query canonicalizes away", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, mustParse("file:///x").Key(), mustParse("file:///x?").Key())
+	})
 }
 
 func TestFetchKey(t *testing.T) {
@@ -123,6 +132,11 @@ func TestFetchKey(t *testing.T) {
 		t.Parallel()
 		assert.NotEqual(t, mustParse("file:///x").FetchKey(), mustParse("file:///y").FetchKey())
 		assert.NotEqual(t, mustParse("file:///x?a=1").FetchKey(), mustParse("file:///x?a=2").FetchKey())
+	})
+
+	t.Run("empty query canonicalizes away", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, mustParse("file:///x").FetchKey(), mustParse("file:///x?").FetchKey())
 	})
 }
 
