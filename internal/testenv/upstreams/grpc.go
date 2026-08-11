@@ -128,7 +128,7 @@ func (g *grpcUpstream) Route() testenv.RouteStub {
 
 // Start implements testenv.Upstream.
 func (g *grpcUpstream) Run(ctx context.Context) error {
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:0", g.Env().Host()))
+	listener, err := testenv.Listen(ctx, g.Env().Host())
 	if err != nil {
 		return err
 	}

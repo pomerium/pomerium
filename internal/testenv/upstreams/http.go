@@ -291,19 +291,12 @@ func (h *httpUpstream) Route() testenv.RouteStub {
 
 // Run implements HTTPUpstream.
 func (h *httpUpstream) Run(ctx context.Context) error {
-	var listener net.Listener
+	listener, err := testenv.Listen(ctx, h.Env().Host())
+	if err != nil {
+		return err
+	}
 	if h.tlsConfig != nil {
-		var err error
-		listener, err = tls.Listen("tcp", fmt.Sprintf("%s:0", h.Env().Host()), h.tlsConfig.Value())
-		if err != nil {
-			return err
-		}
-	} else {
-		var err error
-		listener, err = net.Listen("tcp", fmt.Sprintf("%s:0", h.Env().Host()))
-		if err != nil {
-			return err
-		}
+		listener = tls.NewListener(listener, h.tlsConfig.Value())
 	}
 	h.serverPort.Resolve(listener.Addr().(*net.TCPAddr).Port)
 	if h.serverTracerProviderOverride != nil {

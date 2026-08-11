@@ -295,7 +295,7 @@ func (t *tcpUpstream) Route() testenv.RouteStub {
 func (t *tcpUpstream) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", fmt.Sprintf("%s:0", t.Env().Host()))
+	listener, err := testenv.Listen(ctx, t.Env().Host())
 	if err != nil {
 		return err
 	}
