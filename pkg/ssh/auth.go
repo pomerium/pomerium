@@ -878,6 +878,24 @@ func (a *Auth) DeleteSession(ctx context.Context, _ StreamInfo, authInfo StreamA
 	return errors.Join(sessionErr, bindingErr)
 }
 
+func (a *Auth) GetExtraAuthInfo(ctx context.Context, authInfo StreamAuthInfo, user api.UserRequest) *extensions_ssh.ExtraAuthInfo {
+	extra := &extensions_ssh.ExtraAuthInfo{
+		StartTime: timestamppb.Now(),
+	}
+
+	if sessionBinding, session, err := a.resolveSession(ctx, authInfo.GetSessionBindingId()); err == nil {
+		extra.Audience = session.Audience
+		extra.Claims = session.Claims
+		extra.SessionBindingDetails = sessionBinding.Details
+	}
+
+	opts := a.currentConfig.Load().Options
+	if policy := opts.GetRouteForSSHHostname(user.Hostname()); policy != nil {
+		extra.RouteId, _ = policy.RouteID()
+	}
+	return extra
+}
+
 func (a *Auth) getAuthenticator(
 	ctx context.Context,
 	cfg *config.Config,

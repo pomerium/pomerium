@@ -3485,10 +3485,13 @@ type Settings struct {
 	// When the settings were last modified.
 	ModifiedAt *timestamppb.Timestamp `protobuf:"bytes,170,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
 	// When syncing settings from enterprise console, this field will be
-	// populated with the console's current list of audiences. This is used
-	// primarily to identify which routes are for console so that additional
-	// route configuration may be automatically applied.
-	ReadonlyConsoleAudiences []string `protobuf:"bytes,189,rep,name=readonly_console_audiences,json=readonlyConsoleAudiences,proto3" json:"readonly_console_audiences,omitempty"`
+	// populated with the console's current list of audiences (based on the value
+	// of the --audiences flag). This is used to identify the bootstrap console
+	// route(s) that are defined in core so that additional configuration can be
+	// applied to those routes automatically. Some console features require
+	// additional http route options to work correctly, in particular when using
+	// multiple console replicas.
+	ReadonlyConsoleAudiences *Settings_StringList `protobuf:"bytes,189,opt,name=readonly_console_audiences,json=readonlyConsoleAudiences,proto3,oneof" json:"readonly_console_audiences,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -4559,7 +4562,7 @@ func (x *Settings) GetModifiedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Settings) GetReadonlyConsoleAudiences() []string {
+func (x *Settings) GetReadonlyConsoleAudiences() *Settings_StringList {
 	if x != nil {
 		return x.ReadonlyConsoleAudiences
 	}
@@ -9802,7 +9805,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xf2i\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xc3j\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9963,8 +9966,8 @@ const file_config_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12C\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
-	"modifiedAt\x12=\n" +
-	"\x1areadonly_console_audiences\x18\xbd\x01 \x03(\tR\x18readonlyConsoleAudiences\x1a_\n" +
+	"modifiedAt\x12o\n" +
+	"\x1areadonly_console_audiences\x18\xbd\x01 \x01(\v2$.pomerium.config.Settings.StringListB\x05\xbaG\x02\x18\x01H\x7fR\x18readonlyConsoleAudiences\x88\x01\x01\x1a_\n" +
 	"\vCertificate\x12\x1d\n" +
 	"\n" +
 	"cert_bytes\x18\x03 \x01(\fR\tcertBytes\x12!\n" +
@@ -10123,7 +10126,8 @@ const file_config_proto_rawDesc = "" +
 	"\x0f_normalize_pathB\x10\n" +
 	"\x0e_merge_slashesB#\n" +
 	"!_path_with_escaped_slashes_actionB\"\n" +
-	" _headers_with_underscores_actionJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\x87\x01\n" +
+	" _headers_with_underscores_actionB\x1d\n" +
+	"\x1b_readonly_console_audiencesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\x87\x01\n" +
 	"\x13BlobStorageSettings\x12\"\n" +
 	"\n" +
 	"bucket_uri\x18\x01 \x01(\tH\x00R\tbucketUri\x88\x01\x01\x12*\n" +
@@ -10835,170 +10839,171 @@ var file_config_proto_depIdxs = []int32{
 	2,   // 79: pomerium.config.Settings.headers_with_underscores_action:type_name -> pomerium.config.HeadersWithUnderscoresAction
 	115, // 80: pomerium.config.Settings.created_at:type_name -> google.protobuf.Timestamp
 	115, // 81: pomerium.config.Settings.modified_at:type_name -> google.protobuf.Timestamp
-	5,   // 82: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode
-	35,  // 83: pomerium.config.DownstreamMtlsSettings.match_subject_alt_names:type_name -> pomerium.config.SANMatcher
-	11,  // 84: pomerium.config.SANMatcher.san_type:type_name -> pomerium.config.SANMatcher.SANType
-	115, // 85: pomerium.config.KeyPair.created_at:type_name -> google.protobuf.Timestamp
-	115, // 86: pomerium.config.KeyPair.modified_at:type_name -> google.protobuf.Timestamp
-	7,   // 87: pomerium.config.KeyPair.status:type_name -> pomerium.config.KeyPairStatus
-	6,   // 88: pomerium.config.KeyPair.origin:type_name -> pomerium.config.KeyPairOrigin
-	39,  // 89: pomerium.config.KeyPair.certificate_info:type_name -> pomerium.config.CertificateInfo
-	38,  // 90: pomerium.config.CertificateInfo.issuer:type_name -> pomerium.config.Name
-	38,  // 91: pomerium.config.CertificateInfo.subject:type_name -> pomerium.config.Name
-	115, // 92: pomerium.config.CertificateInfo.not_before:type_name -> google.protobuf.Timestamp
-	115, // 93: pomerium.config.CertificateInfo.not_after:type_name -> google.protobuf.Timestamp
-	37,  // 94: pomerium.config.CertificateInfo.key_usage:type_name -> pomerium.config.KeyUsage
-	115, // 95: pomerium.config.ServiceAccount.expires_at:type_name -> google.protobuf.Timestamp
-	115, // 96: pomerium.config.ServiceAccount.created_at:type_name -> google.protobuf.Timestamp
-	115, // 97: pomerium.config.ServiceAccount.modified_at:type_name -> google.protobuf.Timestamp
-	115, // 98: pomerium.config.ServiceAccount.accessed_at:type_name -> google.protobuf.Timestamp
-	36,  // 99: pomerium.config.CreateKeyPairRequest.key_pair:type_name -> pomerium.config.KeyPair
-	36,  // 100: pomerium.config.CreateKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
-	31,  // 101: pomerium.config.CreatePolicyRequest.policy:type_name -> pomerium.config.Policy
-	31,  // 102: pomerium.config.CreatePolicyResponse.policy:type_name -> pomerium.config.Policy
-	23,  // 103: pomerium.config.CreateRouteRequest.route:type_name -> pomerium.config.Route
-	23,  // 104: pomerium.config.CreateRouteResponse.route:type_name -> pomerium.config.Route
-	40,  // 105: pomerium.config.CreateServiceAccountRequest.service_account:type_name -> pomerium.config.ServiceAccount
-	40,  // 106: pomerium.config.CreateServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
-	36,  // 107: pomerium.config.GetKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
-	31,  // 108: pomerium.config.GetPolicyResponse.policy:type_name -> pomerium.config.Policy
-	23,  // 109: pomerium.config.GetRouteResponse.route:type_name -> pomerium.config.Route
-	40,  // 110: pomerium.config.GetServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
-	32,  // 111: pomerium.config.GetSettingsResponse.settings:type_name -> pomerium.config.Settings
-	117, // 112: pomerium.config.ListKeyPairsRequest.filter:type_name -> google.protobuf.Struct
-	36,  // 113: pomerium.config.ListKeyPairsResponse.key_pairs:type_name -> pomerium.config.KeyPair
-	117, // 114: pomerium.config.ListPoliciesRequest.filter:type_name -> google.protobuf.Struct
-	31,  // 115: pomerium.config.ListPoliciesResponse.policies:type_name -> pomerium.config.Policy
-	117, // 116: pomerium.config.ListRoutesRequest.filter:type_name -> google.protobuf.Struct
-	23,  // 117: pomerium.config.ListRoutesResponse.routes:type_name -> pomerium.config.Route
-	117, // 118: pomerium.config.ListServiceAccountsRequest.filter:type_name -> google.protobuf.Struct
-	40,  // 119: pomerium.config.ListServiceAccountsResponse.service_accounts:type_name -> pomerium.config.ServiceAccount
-	117, // 120: pomerium.config.ListSettingsRequest.filter:type_name -> google.protobuf.Struct
-	32,  // 121: pomerium.config.ListSettingsResponse.settings:type_name -> pomerium.config.Settings
-	8,   // 122: pomerium.config.GetServerInfoResponse.server_type:type_name -> pomerium.config.ServerType
-	36,  // 123: pomerium.config.UpdateKeyPairRequest.key_pair:type_name -> pomerium.config.KeyPair
-	118, // 124: pomerium.config.UpdateKeyPairRequest.update_mask:type_name -> google.protobuf.FieldMask
-	36,  // 125: pomerium.config.UpdateKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
-	31,  // 126: pomerium.config.UpdatePolicyRequest.policy:type_name -> pomerium.config.Policy
-	118, // 127: pomerium.config.UpdatePolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
-	31,  // 128: pomerium.config.UpdatePolicyResponse.policy:type_name -> pomerium.config.Policy
-	23,  // 129: pomerium.config.UpdateRouteRequest.route:type_name -> pomerium.config.Route
-	118, // 130: pomerium.config.UpdateRouteRequest.update_mask:type_name -> google.protobuf.FieldMask
-	23,  // 131: pomerium.config.UpdateRouteResponse.route:type_name -> pomerium.config.Route
-	40,  // 132: pomerium.config.UpdateServiceAccountRequest.service_account:type_name -> pomerium.config.ServiceAccount
-	118, // 133: pomerium.config.UpdateServiceAccountRequest.update_mask:type_name -> google.protobuf.FieldMask
-	40,  // 134: pomerium.config.UpdateServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
-	32,  // 135: pomerium.config.UpdateSettingsRequest.settings:type_name -> pomerium.config.Settings
-	118, // 136: pomerium.config.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
-	32,  // 137: pomerium.config.UpdateSettingsResponse.settings:type_name -> pomerium.config.Settings
-	116, // 138: pomerium.config.HealthCheck.timeout:type_name -> google.protobuf.Duration
-	116, // 139: pomerium.config.HealthCheck.interval:type_name -> google.protobuf.Duration
-	116, // 140: pomerium.config.HealthCheck.initial_jitter:type_name -> google.protobuf.Duration
-	116, // 141: pomerium.config.HealthCheck.interval_jitter:type_name -> google.protobuf.Duration
-	119, // 142: pomerium.config.HealthCheck.unhealthy_threshold:type_name -> google.protobuf.UInt32Value
-	119, // 143: pomerium.config.HealthCheck.healthy_threshold:type_name -> google.protobuf.UInt32Value
-	119, // 144: pomerium.config.HealthCheck.alt_port:type_name -> google.protobuf.UInt32Value
-	120, // 145: pomerium.config.HealthCheck.reuse_connection:type_name -> google.protobuf.BoolValue
-	112, // 146: pomerium.config.HealthCheck.http_health_check:type_name -> pomerium.config.HealthCheck.HttpHealthCheck
-	113, // 147: pomerium.config.HealthCheck.tcp_health_check:type_name -> pomerium.config.HealthCheck.TcpHealthCheck
-	114, // 148: pomerium.config.HealthCheck.grpc_health_check:type_name -> pomerium.config.HealthCheck.GrpcHealthCheck
-	116, // 149: pomerium.config.HealthCheck.no_traffic_interval:type_name -> google.protobuf.Duration
-	116, // 150: pomerium.config.HealthCheck.no_traffic_healthy_interval:type_name -> google.protobuf.Duration
-	116, // 151: pomerium.config.HealthCheck.unhealthy_interval:type_name -> google.protobuf.Duration
-	116, // 152: pomerium.config.HealthCheck.unhealthy_edge_interval:type_name -> google.protobuf.Duration
-	116, // 153: pomerium.config.HealthCheck.healthy_edge_interval:type_name -> google.protobuf.Duration
-	117, // 154: pomerium.config.HealthCheck.transport_socket_match_criteria:type_name -> google.protobuf.Struct
-	119, // 155: pomerium.config.OutlierDetection.consecutive_5xx:type_name -> google.protobuf.UInt32Value
-	116, // 156: pomerium.config.OutlierDetection.interval:type_name -> google.protobuf.Duration
-	116, // 157: pomerium.config.OutlierDetection.base_ejection_time:type_name -> google.protobuf.Duration
-	119, // 158: pomerium.config.OutlierDetection.max_ejection_percent:type_name -> google.protobuf.UInt32Value
-	119, // 159: pomerium.config.OutlierDetection.enforcing_consecutive_5xx:type_name -> google.protobuf.UInt32Value
-	119, // 160: pomerium.config.OutlierDetection.enforcing_success_rate:type_name -> google.protobuf.UInt32Value
-	119, // 161: pomerium.config.OutlierDetection.success_rate_minimum_hosts:type_name -> google.protobuf.UInt32Value
-	119, // 162: pomerium.config.OutlierDetection.success_rate_request_volume:type_name -> google.protobuf.UInt32Value
-	119, // 163: pomerium.config.OutlierDetection.success_rate_stdev_factor:type_name -> google.protobuf.UInt32Value
-	119, // 164: pomerium.config.OutlierDetection.consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
-	119, // 165: pomerium.config.OutlierDetection.enforcing_consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
-	119, // 166: pomerium.config.OutlierDetection.consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
-	119, // 167: pomerium.config.OutlierDetection.enforcing_consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
-	119, // 168: pomerium.config.OutlierDetection.enforcing_local_origin_success_rate:type_name -> google.protobuf.UInt32Value
-	119, // 169: pomerium.config.OutlierDetection.failure_percentage_threshold:type_name -> google.protobuf.UInt32Value
-	119, // 170: pomerium.config.OutlierDetection.enforcing_failure_percentage:type_name -> google.protobuf.UInt32Value
-	119, // 171: pomerium.config.OutlierDetection.enforcing_failure_percentage_local_origin:type_name -> google.protobuf.UInt32Value
-	119, // 172: pomerium.config.OutlierDetection.failure_percentage_minimum_hosts:type_name -> google.protobuf.UInt32Value
-	119, // 173: pomerium.config.OutlierDetection.failure_percentage_request_volume:type_name -> google.protobuf.UInt32Value
-	116, // 174: pomerium.config.OutlierDetection.max_ejection_time:type_name -> google.protobuf.Duration
-	116, // 175: pomerium.config.OutlierDetection.max_ejection_time_jitter:type_name -> google.protobuf.Duration
-	120, // 176: pomerium.config.OutlierDetection.successful_active_health_check_uneject_host:type_name -> google.protobuf.BoolValue
-	120, // 177: pomerium.config.OutlierDetection.always_eject_one_host:type_name -> google.protobuf.BoolValue
-	121, // 178: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	121, // 179: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	101, // 180: pomerium.config.Settings.DataBrokerClusterNodes.nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNode
-	21,  // 181: pomerium.config.Settings.IdentityProvidersEntry.value:type_name -> pomerium.config.IdentityProvider
-	12,  // 182: pomerium.config.HealthCheck.HealthStatusSet.statuses:type_name -> pomerium.config.HealthCheck.HealthStatus
-	111, // 183: pomerium.config.HealthCheck.HttpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
-	111, // 184: pomerium.config.HealthCheck.HttpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
-	122, // 185: pomerium.config.HealthCheck.HttpHealthCheck.response_buffer_size:type_name -> google.protobuf.UInt64Value
-	110, // 186: pomerium.config.HealthCheck.HttpHealthCheck.expected_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
-	110, // 187: pomerium.config.HealthCheck.HttpHealthCheck.retriable_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
-	13,  // 188: pomerium.config.HealthCheck.HttpHealthCheck.codec_client_type:type_name -> pomerium.config.HealthCheck.CodecClientType
-	111, // 189: pomerium.config.HealthCheck.TcpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
-	111, // 190: pomerium.config.HealthCheck.TcpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
-	41,  // 191: pomerium.config.ConfigService.CreateKeyPair:input_type -> pomerium.config.CreateKeyPairRequest
-	43,  // 192: pomerium.config.ConfigService.CreatePolicy:input_type -> pomerium.config.CreatePolicyRequest
-	45,  // 193: pomerium.config.ConfigService.CreateRoute:input_type -> pomerium.config.CreateRouteRequest
-	47,  // 194: pomerium.config.ConfigService.CreateServiceAccount:input_type -> pomerium.config.CreateServiceAccountRequest
-	49,  // 195: pomerium.config.ConfigService.DeleteKeyPair:input_type -> pomerium.config.DeleteKeyPairRequest
-	51,  // 196: pomerium.config.ConfigService.DeletePolicy:input_type -> pomerium.config.DeletePolicyRequest
-	53,  // 197: pomerium.config.ConfigService.DeleteRoute:input_type -> pomerium.config.DeleteRouteRequest
-	55,  // 198: pomerium.config.ConfigService.DeleteServiceAccount:input_type -> pomerium.config.DeleteServiceAccountRequest
-	57,  // 199: pomerium.config.ConfigService.GetKeyPair:input_type -> pomerium.config.GetKeyPairRequest
-	59,  // 200: pomerium.config.ConfigService.GetPolicy:input_type -> pomerium.config.GetPolicyRequest
-	61,  // 201: pomerium.config.ConfigService.GetRoute:input_type -> pomerium.config.GetRouteRequest
-	79,  // 202: pomerium.config.ConfigService.GetServerInfo:input_type -> pomerium.config.GetServerInfoRequest
-	63,  // 203: pomerium.config.ConfigService.GetServiceAccount:input_type -> pomerium.config.GetServiceAccountRequest
-	65,  // 204: pomerium.config.ConfigService.GetSettings:input_type -> pomerium.config.GetSettingsRequest
-	67,  // 205: pomerium.config.ConfigService.ListAvailableLogFields:input_type -> pomerium.config.ListAvailableLogFieldsRequest
-	69,  // 206: pomerium.config.ConfigService.ListKeyPairs:input_type -> pomerium.config.ListKeyPairsRequest
-	71,  // 207: pomerium.config.ConfigService.ListPolicies:input_type -> pomerium.config.ListPoliciesRequest
-	73,  // 208: pomerium.config.ConfigService.ListRoutes:input_type -> pomerium.config.ListRoutesRequest
-	75,  // 209: pomerium.config.ConfigService.ListServiceAccounts:input_type -> pomerium.config.ListServiceAccountsRequest
-	77,  // 210: pomerium.config.ConfigService.ListSettings:input_type -> pomerium.config.ListSettingsRequest
-	81,  // 211: pomerium.config.ConfigService.UpdateKeyPair:input_type -> pomerium.config.UpdateKeyPairRequest
-	83,  // 212: pomerium.config.ConfigService.UpdatePolicy:input_type -> pomerium.config.UpdatePolicyRequest
-	85,  // 213: pomerium.config.ConfigService.UpdateRoute:input_type -> pomerium.config.UpdateRouteRequest
-	87,  // 214: pomerium.config.ConfigService.UpdateServiceAccount:input_type -> pomerium.config.UpdateServiceAccountRequest
-	89,  // 215: pomerium.config.ConfigService.UpdateSettings:input_type -> pomerium.config.UpdateSettingsRequest
-	42,  // 216: pomerium.config.ConfigService.CreateKeyPair:output_type -> pomerium.config.CreateKeyPairResponse
-	44,  // 217: pomerium.config.ConfigService.CreatePolicy:output_type -> pomerium.config.CreatePolicyResponse
-	46,  // 218: pomerium.config.ConfigService.CreateRoute:output_type -> pomerium.config.CreateRouteResponse
-	48,  // 219: pomerium.config.ConfigService.CreateServiceAccount:output_type -> pomerium.config.CreateServiceAccountResponse
-	50,  // 220: pomerium.config.ConfigService.DeleteKeyPair:output_type -> pomerium.config.DeleteKeyPairResponse
-	52,  // 221: pomerium.config.ConfigService.DeletePolicy:output_type -> pomerium.config.DeletePolicyResponse
-	54,  // 222: pomerium.config.ConfigService.DeleteRoute:output_type -> pomerium.config.DeleteRouteResponse
-	56,  // 223: pomerium.config.ConfigService.DeleteServiceAccount:output_type -> pomerium.config.DeleteServiceAccountResponse
-	58,  // 224: pomerium.config.ConfigService.GetKeyPair:output_type -> pomerium.config.GetKeyPairResponse
-	60,  // 225: pomerium.config.ConfigService.GetPolicy:output_type -> pomerium.config.GetPolicyResponse
-	62,  // 226: pomerium.config.ConfigService.GetRoute:output_type -> pomerium.config.GetRouteResponse
-	80,  // 227: pomerium.config.ConfigService.GetServerInfo:output_type -> pomerium.config.GetServerInfoResponse
-	64,  // 228: pomerium.config.ConfigService.GetServiceAccount:output_type -> pomerium.config.GetServiceAccountResponse
-	66,  // 229: pomerium.config.ConfigService.GetSettings:output_type -> pomerium.config.GetSettingsResponse
-	68,  // 230: pomerium.config.ConfigService.ListAvailableLogFields:output_type -> pomerium.config.ListAvailableLogFieldsResponse
-	70,  // 231: pomerium.config.ConfigService.ListKeyPairs:output_type -> pomerium.config.ListKeyPairsResponse
-	72,  // 232: pomerium.config.ConfigService.ListPolicies:output_type -> pomerium.config.ListPoliciesResponse
-	74,  // 233: pomerium.config.ConfigService.ListRoutes:output_type -> pomerium.config.ListRoutesResponse
-	76,  // 234: pomerium.config.ConfigService.ListServiceAccounts:output_type -> pomerium.config.ListServiceAccountsResponse
-	78,  // 235: pomerium.config.ConfigService.ListSettings:output_type -> pomerium.config.ListSettingsResponse
-	82,  // 236: pomerium.config.ConfigService.UpdateKeyPair:output_type -> pomerium.config.UpdateKeyPairResponse
-	84,  // 237: pomerium.config.ConfigService.UpdatePolicy:output_type -> pomerium.config.UpdatePolicyResponse
-	86,  // 238: pomerium.config.ConfigService.UpdateRoute:output_type -> pomerium.config.UpdateRouteResponse
-	88,  // 239: pomerium.config.ConfigService.UpdateServiceAccount:output_type -> pomerium.config.UpdateServiceAccountResponse
-	90,  // 240: pomerium.config.ConfigService.UpdateSettings:output_type -> pomerium.config.UpdateSettingsResponse
-	216, // [216:241] is the sub-list for method output_type
-	191, // [191:216] is the sub-list for method input_type
-	191, // [191:191] is the sub-list for extension type_name
-	191, // [191:191] is the sub-list for extension extendee
-	0,   // [0:191] is the sub-list for field type_name
+	103, // 82: pomerium.config.Settings.readonly_console_audiences:type_name -> pomerium.config.Settings.StringList
+	5,   // 83: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode
+	35,  // 84: pomerium.config.DownstreamMtlsSettings.match_subject_alt_names:type_name -> pomerium.config.SANMatcher
+	11,  // 85: pomerium.config.SANMatcher.san_type:type_name -> pomerium.config.SANMatcher.SANType
+	115, // 86: pomerium.config.KeyPair.created_at:type_name -> google.protobuf.Timestamp
+	115, // 87: pomerium.config.KeyPair.modified_at:type_name -> google.protobuf.Timestamp
+	7,   // 88: pomerium.config.KeyPair.status:type_name -> pomerium.config.KeyPairStatus
+	6,   // 89: pomerium.config.KeyPair.origin:type_name -> pomerium.config.KeyPairOrigin
+	39,  // 90: pomerium.config.KeyPair.certificate_info:type_name -> pomerium.config.CertificateInfo
+	38,  // 91: pomerium.config.CertificateInfo.issuer:type_name -> pomerium.config.Name
+	38,  // 92: pomerium.config.CertificateInfo.subject:type_name -> pomerium.config.Name
+	115, // 93: pomerium.config.CertificateInfo.not_before:type_name -> google.protobuf.Timestamp
+	115, // 94: pomerium.config.CertificateInfo.not_after:type_name -> google.protobuf.Timestamp
+	37,  // 95: pomerium.config.CertificateInfo.key_usage:type_name -> pomerium.config.KeyUsage
+	115, // 96: pomerium.config.ServiceAccount.expires_at:type_name -> google.protobuf.Timestamp
+	115, // 97: pomerium.config.ServiceAccount.created_at:type_name -> google.protobuf.Timestamp
+	115, // 98: pomerium.config.ServiceAccount.modified_at:type_name -> google.protobuf.Timestamp
+	115, // 99: pomerium.config.ServiceAccount.accessed_at:type_name -> google.protobuf.Timestamp
+	36,  // 100: pomerium.config.CreateKeyPairRequest.key_pair:type_name -> pomerium.config.KeyPair
+	36,  // 101: pomerium.config.CreateKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
+	31,  // 102: pomerium.config.CreatePolicyRequest.policy:type_name -> pomerium.config.Policy
+	31,  // 103: pomerium.config.CreatePolicyResponse.policy:type_name -> pomerium.config.Policy
+	23,  // 104: pomerium.config.CreateRouteRequest.route:type_name -> pomerium.config.Route
+	23,  // 105: pomerium.config.CreateRouteResponse.route:type_name -> pomerium.config.Route
+	40,  // 106: pomerium.config.CreateServiceAccountRequest.service_account:type_name -> pomerium.config.ServiceAccount
+	40,  // 107: pomerium.config.CreateServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
+	36,  // 108: pomerium.config.GetKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
+	31,  // 109: pomerium.config.GetPolicyResponse.policy:type_name -> pomerium.config.Policy
+	23,  // 110: pomerium.config.GetRouteResponse.route:type_name -> pomerium.config.Route
+	40,  // 111: pomerium.config.GetServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
+	32,  // 112: pomerium.config.GetSettingsResponse.settings:type_name -> pomerium.config.Settings
+	117, // 113: pomerium.config.ListKeyPairsRequest.filter:type_name -> google.protobuf.Struct
+	36,  // 114: pomerium.config.ListKeyPairsResponse.key_pairs:type_name -> pomerium.config.KeyPair
+	117, // 115: pomerium.config.ListPoliciesRequest.filter:type_name -> google.protobuf.Struct
+	31,  // 116: pomerium.config.ListPoliciesResponse.policies:type_name -> pomerium.config.Policy
+	117, // 117: pomerium.config.ListRoutesRequest.filter:type_name -> google.protobuf.Struct
+	23,  // 118: pomerium.config.ListRoutesResponse.routes:type_name -> pomerium.config.Route
+	117, // 119: pomerium.config.ListServiceAccountsRequest.filter:type_name -> google.protobuf.Struct
+	40,  // 120: pomerium.config.ListServiceAccountsResponse.service_accounts:type_name -> pomerium.config.ServiceAccount
+	117, // 121: pomerium.config.ListSettingsRequest.filter:type_name -> google.protobuf.Struct
+	32,  // 122: pomerium.config.ListSettingsResponse.settings:type_name -> pomerium.config.Settings
+	8,   // 123: pomerium.config.GetServerInfoResponse.server_type:type_name -> pomerium.config.ServerType
+	36,  // 124: pomerium.config.UpdateKeyPairRequest.key_pair:type_name -> pomerium.config.KeyPair
+	118, // 125: pomerium.config.UpdateKeyPairRequest.update_mask:type_name -> google.protobuf.FieldMask
+	36,  // 126: pomerium.config.UpdateKeyPairResponse.key_pair:type_name -> pomerium.config.KeyPair
+	31,  // 127: pomerium.config.UpdatePolicyRequest.policy:type_name -> pomerium.config.Policy
+	118, // 128: pomerium.config.UpdatePolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	31,  // 129: pomerium.config.UpdatePolicyResponse.policy:type_name -> pomerium.config.Policy
+	23,  // 130: pomerium.config.UpdateRouteRequest.route:type_name -> pomerium.config.Route
+	118, // 131: pomerium.config.UpdateRouteRequest.update_mask:type_name -> google.protobuf.FieldMask
+	23,  // 132: pomerium.config.UpdateRouteResponse.route:type_name -> pomerium.config.Route
+	40,  // 133: pomerium.config.UpdateServiceAccountRequest.service_account:type_name -> pomerium.config.ServiceAccount
+	118, // 134: pomerium.config.UpdateServiceAccountRequest.update_mask:type_name -> google.protobuf.FieldMask
+	40,  // 135: pomerium.config.UpdateServiceAccountResponse.service_account:type_name -> pomerium.config.ServiceAccount
+	32,  // 136: pomerium.config.UpdateSettingsRequest.settings:type_name -> pomerium.config.Settings
+	118, // 137: pomerium.config.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
+	32,  // 138: pomerium.config.UpdateSettingsResponse.settings:type_name -> pomerium.config.Settings
+	116, // 139: pomerium.config.HealthCheck.timeout:type_name -> google.protobuf.Duration
+	116, // 140: pomerium.config.HealthCheck.interval:type_name -> google.protobuf.Duration
+	116, // 141: pomerium.config.HealthCheck.initial_jitter:type_name -> google.protobuf.Duration
+	116, // 142: pomerium.config.HealthCheck.interval_jitter:type_name -> google.protobuf.Duration
+	119, // 143: pomerium.config.HealthCheck.unhealthy_threshold:type_name -> google.protobuf.UInt32Value
+	119, // 144: pomerium.config.HealthCheck.healthy_threshold:type_name -> google.protobuf.UInt32Value
+	119, // 145: pomerium.config.HealthCheck.alt_port:type_name -> google.protobuf.UInt32Value
+	120, // 146: pomerium.config.HealthCheck.reuse_connection:type_name -> google.protobuf.BoolValue
+	112, // 147: pomerium.config.HealthCheck.http_health_check:type_name -> pomerium.config.HealthCheck.HttpHealthCheck
+	113, // 148: pomerium.config.HealthCheck.tcp_health_check:type_name -> pomerium.config.HealthCheck.TcpHealthCheck
+	114, // 149: pomerium.config.HealthCheck.grpc_health_check:type_name -> pomerium.config.HealthCheck.GrpcHealthCheck
+	116, // 150: pomerium.config.HealthCheck.no_traffic_interval:type_name -> google.protobuf.Duration
+	116, // 151: pomerium.config.HealthCheck.no_traffic_healthy_interval:type_name -> google.protobuf.Duration
+	116, // 152: pomerium.config.HealthCheck.unhealthy_interval:type_name -> google.protobuf.Duration
+	116, // 153: pomerium.config.HealthCheck.unhealthy_edge_interval:type_name -> google.protobuf.Duration
+	116, // 154: pomerium.config.HealthCheck.healthy_edge_interval:type_name -> google.protobuf.Duration
+	117, // 155: pomerium.config.HealthCheck.transport_socket_match_criteria:type_name -> google.protobuf.Struct
+	119, // 156: pomerium.config.OutlierDetection.consecutive_5xx:type_name -> google.protobuf.UInt32Value
+	116, // 157: pomerium.config.OutlierDetection.interval:type_name -> google.protobuf.Duration
+	116, // 158: pomerium.config.OutlierDetection.base_ejection_time:type_name -> google.protobuf.Duration
+	119, // 159: pomerium.config.OutlierDetection.max_ejection_percent:type_name -> google.protobuf.UInt32Value
+	119, // 160: pomerium.config.OutlierDetection.enforcing_consecutive_5xx:type_name -> google.protobuf.UInt32Value
+	119, // 161: pomerium.config.OutlierDetection.enforcing_success_rate:type_name -> google.protobuf.UInt32Value
+	119, // 162: pomerium.config.OutlierDetection.success_rate_minimum_hosts:type_name -> google.protobuf.UInt32Value
+	119, // 163: pomerium.config.OutlierDetection.success_rate_request_volume:type_name -> google.protobuf.UInt32Value
+	119, // 164: pomerium.config.OutlierDetection.success_rate_stdev_factor:type_name -> google.protobuf.UInt32Value
+	119, // 165: pomerium.config.OutlierDetection.consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
+	119, // 166: pomerium.config.OutlierDetection.enforcing_consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
+	119, // 167: pomerium.config.OutlierDetection.consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
+	119, // 168: pomerium.config.OutlierDetection.enforcing_consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
+	119, // 169: pomerium.config.OutlierDetection.enforcing_local_origin_success_rate:type_name -> google.protobuf.UInt32Value
+	119, // 170: pomerium.config.OutlierDetection.failure_percentage_threshold:type_name -> google.protobuf.UInt32Value
+	119, // 171: pomerium.config.OutlierDetection.enforcing_failure_percentage:type_name -> google.protobuf.UInt32Value
+	119, // 172: pomerium.config.OutlierDetection.enforcing_failure_percentage_local_origin:type_name -> google.protobuf.UInt32Value
+	119, // 173: pomerium.config.OutlierDetection.failure_percentage_minimum_hosts:type_name -> google.protobuf.UInt32Value
+	119, // 174: pomerium.config.OutlierDetection.failure_percentage_request_volume:type_name -> google.protobuf.UInt32Value
+	116, // 175: pomerium.config.OutlierDetection.max_ejection_time:type_name -> google.protobuf.Duration
+	116, // 176: pomerium.config.OutlierDetection.max_ejection_time_jitter:type_name -> google.protobuf.Duration
+	120, // 177: pomerium.config.OutlierDetection.successful_active_health_check_uneject_host:type_name -> google.protobuf.BoolValue
+	120, // 178: pomerium.config.OutlierDetection.always_eject_one_host:type_name -> google.protobuf.BoolValue
+	121, // 179: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	121, // 180: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	101, // 181: pomerium.config.Settings.DataBrokerClusterNodes.nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNode
+	21,  // 182: pomerium.config.Settings.IdentityProvidersEntry.value:type_name -> pomerium.config.IdentityProvider
+	12,  // 183: pomerium.config.HealthCheck.HealthStatusSet.statuses:type_name -> pomerium.config.HealthCheck.HealthStatus
+	111, // 184: pomerium.config.HealthCheck.HttpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
+	111, // 185: pomerium.config.HealthCheck.HttpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
+	122, // 186: pomerium.config.HealthCheck.HttpHealthCheck.response_buffer_size:type_name -> google.protobuf.UInt64Value
+	110, // 187: pomerium.config.HealthCheck.HttpHealthCheck.expected_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
+	110, // 188: pomerium.config.HealthCheck.HttpHealthCheck.retriable_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
+	13,  // 189: pomerium.config.HealthCheck.HttpHealthCheck.codec_client_type:type_name -> pomerium.config.HealthCheck.CodecClientType
+	111, // 190: pomerium.config.HealthCheck.TcpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
+	111, // 191: pomerium.config.HealthCheck.TcpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
+	41,  // 192: pomerium.config.ConfigService.CreateKeyPair:input_type -> pomerium.config.CreateKeyPairRequest
+	43,  // 193: pomerium.config.ConfigService.CreatePolicy:input_type -> pomerium.config.CreatePolicyRequest
+	45,  // 194: pomerium.config.ConfigService.CreateRoute:input_type -> pomerium.config.CreateRouteRequest
+	47,  // 195: pomerium.config.ConfigService.CreateServiceAccount:input_type -> pomerium.config.CreateServiceAccountRequest
+	49,  // 196: pomerium.config.ConfigService.DeleteKeyPair:input_type -> pomerium.config.DeleteKeyPairRequest
+	51,  // 197: pomerium.config.ConfigService.DeletePolicy:input_type -> pomerium.config.DeletePolicyRequest
+	53,  // 198: pomerium.config.ConfigService.DeleteRoute:input_type -> pomerium.config.DeleteRouteRequest
+	55,  // 199: pomerium.config.ConfigService.DeleteServiceAccount:input_type -> pomerium.config.DeleteServiceAccountRequest
+	57,  // 200: pomerium.config.ConfigService.GetKeyPair:input_type -> pomerium.config.GetKeyPairRequest
+	59,  // 201: pomerium.config.ConfigService.GetPolicy:input_type -> pomerium.config.GetPolicyRequest
+	61,  // 202: pomerium.config.ConfigService.GetRoute:input_type -> pomerium.config.GetRouteRequest
+	79,  // 203: pomerium.config.ConfigService.GetServerInfo:input_type -> pomerium.config.GetServerInfoRequest
+	63,  // 204: pomerium.config.ConfigService.GetServiceAccount:input_type -> pomerium.config.GetServiceAccountRequest
+	65,  // 205: pomerium.config.ConfigService.GetSettings:input_type -> pomerium.config.GetSettingsRequest
+	67,  // 206: pomerium.config.ConfigService.ListAvailableLogFields:input_type -> pomerium.config.ListAvailableLogFieldsRequest
+	69,  // 207: pomerium.config.ConfigService.ListKeyPairs:input_type -> pomerium.config.ListKeyPairsRequest
+	71,  // 208: pomerium.config.ConfigService.ListPolicies:input_type -> pomerium.config.ListPoliciesRequest
+	73,  // 209: pomerium.config.ConfigService.ListRoutes:input_type -> pomerium.config.ListRoutesRequest
+	75,  // 210: pomerium.config.ConfigService.ListServiceAccounts:input_type -> pomerium.config.ListServiceAccountsRequest
+	77,  // 211: pomerium.config.ConfigService.ListSettings:input_type -> pomerium.config.ListSettingsRequest
+	81,  // 212: pomerium.config.ConfigService.UpdateKeyPair:input_type -> pomerium.config.UpdateKeyPairRequest
+	83,  // 213: pomerium.config.ConfigService.UpdatePolicy:input_type -> pomerium.config.UpdatePolicyRequest
+	85,  // 214: pomerium.config.ConfigService.UpdateRoute:input_type -> pomerium.config.UpdateRouteRequest
+	87,  // 215: pomerium.config.ConfigService.UpdateServiceAccount:input_type -> pomerium.config.UpdateServiceAccountRequest
+	89,  // 216: pomerium.config.ConfigService.UpdateSettings:input_type -> pomerium.config.UpdateSettingsRequest
+	42,  // 217: pomerium.config.ConfigService.CreateKeyPair:output_type -> pomerium.config.CreateKeyPairResponse
+	44,  // 218: pomerium.config.ConfigService.CreatePolicy:output_type -> pomerium.config.CreatePolicyResponse
+	46,  // 219: pomerium.config.ConfigService.CreateRoute:output_type -> pomerium.config.CreateRouteResponse
+	48,  // 220: pomerium.config.ConfigService.CreateServiceAccount:output_type -> pomerium.config.CreateServiceAccountResponse
+	50,  // 221: pomerium.config.ConfigService.DeleteKeyPair:output_type -> pomerium.config.DeleteKeyPairResponse
+	52,  // 222: pomerium.config.ConfigService.DeletePolicy:output_type -> pomerium.config.DeletePolicyResponse
+	54,  // 223: pomerium.config.ConfigService.DeleteRoute:output_type -> pomerium.config.DeleteRouteResponse
+	56,  // 224: pomerium.config.ConfigService.DeleteServiceAccount:output_type -> pomerium.config.DeleteServiceAccountResponse
+	58,  // 225: pomerium.config.ConfigService.GetKeyPair:output_type -> pomerium.config.GetKeyPairResponse
+	60,  // 226: pomerium.config.ConfigService.GetPolicy:output_type -> pomerium.config.GetPolicyResponse
+	62,  // 227: pomerium.config.ConfigService.GetRoute:output_type -> pomerium.config.GetRouteResponse
+	80,  // 228: pomerium.config.ConfigService.GetServerInfo:output_type -> pomerium.config.GetServerInfoResponse
+	64,  // 229: pomerium.config.ConfigService.GetServiceAccount:output_type -> pomerium.config.GetServiceAccountResponse
+	66,  // 230: pomerium.config.ConfigService.GetSettings:output_type -> pomerium.config.GetSettingsResponse
+	68,  // 231: pomerium.config.ConfigService.ListAvailableLogFields:output_type -> pomerium.config.ListAvailableLogFieldsResponse
+	70,  // 232: pomerium.config.ConfigService.ListKeyPairs:output_type -> pomerium.config.ListKeyPairsResponse
+	72,  // 233: pomerium.config.ConfigService.ListPolicies:output_type -> pomerium.config.ListPoliciesResponse
+	74,  // 234: pomerium.config.ConfigService.ListRoutes:output_type -> pomerium.config.ListRoutesResponse
+	76,  // 235: pomerium.config.ConfigService.ListServiceAccounts:output_type -> pomerium.config.ListServiceAccountsResponse
+	78,  // 236: pomerium.config.ConfigService.ListSettings:output_type -> pomerium.config.ListSettingsResponse
+	82,  // 237: pomerium.config.ConfigService.UpdateKeyPair:output_type -> pomerium.config.UpdateKeyPairResponse
+	84,  // 238: pomerium.config.ConfigService.UpdatePolicy:output_type -> pomerium.config.UpdatePolicyResponse
+	86,  // 239: pomerium.config.ConfigService.UpdateRoute:output_type -> pomerium.config.UpdateRouteResponse
+	88,  // 240: pomerium.config.ConfigService.UpdateServiceAccount:output_type -> pomerium.config.UpdateServiceAccountResponse
+	90,  // 241: pomerium.config.ConfigService.UpdateSettings:output_type -> pomerium.config.UpdateSettingsResponse
+	217, // [217:242] is the sub-list for method output_type
+	192, // [192:217] is the sub-list for method input_type
+	192, // [192:192] is the sub-list for extension type_name
+	192, // [192:192] is the sub-list for extension extendee
+	0,   // [0:192] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }

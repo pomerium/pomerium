@@ -376,26 +376,21 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		"envoy.filters.http.lua": {Fields: luaMetadata},
 	}
 
-	// if len(cfg.Options.ReadonlyConsoleAudiences.Value) > 0 {
-	// 	if slices.Contains(cfg.Options.ReadonlyConsoleAudiences.Value, routeHostname) {
-
-	// TODO
-	if route.TypedPerFilterConfig == nil {
-		route.TypedPerFilterConfig = map[string]*anypb.Any{}
-	}
-	route.TypedPerFilterConfig[PerFilterConfigStatefulSessionName] = PerFilterConfigStatefulSessionEnabled()
-	route.RequestHeadersToAdd = append(route.RequestHeadersToAdd,
-		&envoy_config_core_v3.HeaderValueOption{
-			Header: &envoy_config_core_v3.HeaderValue{
-				Key:   "x-pomerium-upstream-cluster",
-				Value: "%UPSTREAM_CLUSTER_RAW%",
+	if policy.IsBootstrapConsoleRoute(cfg.Options) {
+		if route.TypedPerFilterConfig == nil {
+			route.TypedPerFilterConfig = map[string]*anypb.Any{}
+		}
+		route.TypedPerFilterConfig[PerFilterConfigStatefulSessionName] = PerFilterConfigStatefulSessionEnabled()
+		route.RequestHeadersToAdd = append(route.RequestHeadersToAdd,
+			&envoy_config_core_v3.HeaderValueOption{
+				Header: &envoy_config_core_v3.HeaderValue{
+					Key:   "x-pomerium-upstream-cluster",
+					Value: "%UPSTREAM_CLUSTER_RAW%",
+				},
+				AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
 			},
-			AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
-		},
-	)
-
-	// 	}
-	// }
+		)
+	}
 
 	return route, nil
 }
@@ -646,7 +641,8 @@ func shouldDisableStreamIdleTimeout(options *config.Options, policy *config.Poli
 		policy.IsTCP() ||
 		policy.IsUDP() ||
 		policy.IsForKubernetes() || // disable for kubernetes so that tailing logs works (#2182)
-		policy.IsMCPServer() // MCP Streamable-HTTP uses long-lived SSE streams that must not be cut
+		policy.IsMCPServer() || // MCP Streamable-HTTP uses long-lived SSE streams that must not be cut
+		policy.IsBootstrapConsoleRoute(options)
 }
 
 func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrite *envoy_type_matcher_v3.RegexMatchAndSubstitute) {
