@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 	"testing"
-	"time"
+	"testing/synctest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -157,24 +157,23 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 	})
 
 	t.Run("rollback on max duration exceeded", func(t *testing.T) {
-		originalMaxDuration := transactionMaxDuration
-		transactionMaxDuration = 100 * time.Millisecond
-		t.Cleanup(func() { transactionMaxDuration = originalMaxDuration })
+		synctest.Test(t, func(t *testing.T) {
+			srv, client := newServers(t)
 
-		srv, client := newServers(t)
+			stream, err := client.Transaction(t.Context())
+			require.NoError(t, err)
 
-		stream, err := client.Transaction(t.Context())
-		require.NoError(t, err)
+			require.NotNil(t, beginTransaction(t, stream, "deadline").GetBegin())
+			sendOperation(t, stream, 1, putOperation(newTransactionRecord("deadline")))
+			_, err = stream.Recv()
+			require.NoError(t, err)
+			// the deadline runs on synctest's fake clock, so it can only elapse
+			// while every goroutine is blocked waiting for the commit
+			_, err = recvCommit(t, stream)
+			assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
 
-		require.NotNil(t, beginTransaction(t, stream, "deadline").GetBegin())
-		sendOperation(t, stream, 1, putOperation(newTransactionRecord("deadline")))
-		_, err = stream.Recv()
-		require.NoError(t, err)
-
-		_, err = recvCommit(t, stream)
-		assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
-
-		assertRecordMissing(t, srv, "deadline")
+			assertRecordMissing(t, srv, "deadline")
+		})
 	})
 
 	t.Run("rollback on backend internal error", func(t *testing.T) {
@@ -256,74 +255,74 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 	})
 
 	t.Run("atomic", func(t *testing.T) {
-		// TODO : this test is weird
-		srv, client := newServers(t)
+		synctest.Test(t, func(t *testing.T) {
+			srv, client := newServers(t)
 
-		// hold the key from the test side so the stream below is certainly suppressed
-		db, err := srv.(*backendServer).getBackend(t.Context())
-		require.NoError(t, err)
-		held, release := make(chan struct{}), make(chan struct{})
-		holder := make(chan error, 1)
-		go func() {
-			_, _, err := db.DoTransaction(t.Context(), "shared-key", func(tx storage.Transaction) error {
-				close(held)
-				<-release
-				_, err := tx.Submit(putOperation(newTransactionRecord("holder")))
-				return err
-			})
-			holder <- err
-		}()
-		<-held
+			// hold the key from the test side so the stream below certainly shares the result
+			db, err := srv.(*backendServer).getBackend(t.Context())
+			require.NoError(t, err)
+			held, release := make(chan struct{}), make(chan struct{})
+			holder := make(chan error, 1)
+			go func() {
+				_, _, err := db.DoTransaction(t.Context(), "shared-key", func(tx storage.Transaction) error {
+					close(held)
+					<-release
+					_, err := tx.Submit(putOperation(newTransactionRecord("holder")))
+					return err
+				})
+				holder <- err
+			}()
+			<-held
 
-		stream, err := client.Transaction(t.Context())
-		require.NoError(t, err)
-		sendBegin(t, stream, "shared-key")
-		sendOperation(t, stream, 1, putOperation(newTransactionRecord("suppressed")))
+			stream, err := client.Transaction(t.Context())
+			require.NoError(t, err)
+			sendBegin(t, stream, "shared-key")
+			sendOperation(t, stream, 1, putOperation(newTransactionRecord("shared")))
 
-		responses := make(chan *databrokerpb.TransactionStreamResponse, 1)
-		go func() {
-			res, err := stream.Recv()
-			if err == nil {
-				responses <- res
-			}
-			close(responses)
-		}()
+			responses := make(chan *databrokerpb.TransactionStreamResponse, 1)
+			go func() {
+				res, err := stream.Recv()
+				if err == nil {
+					responses <- res
+				}
+				close(responses)
+			}()
 
-		// while the key is held the stream is parked in singleflight, unacked
-		require.Never(t, func() bool {
+			// the stream is parked in singleflight, so once everything else is
+			// blocked no response can be in flight
+			synctest.Wait()
 			select {
-			case <-responses:
-				return true
+			case res := <-responses:
+				require.FailNow(t, "the sharing stream responded while the key was held", "%v", res)
 			default:
-				return false
 			}
-		}, 500*time.Millisecond, 25*time.Millisecond)
 
-		close(release)
-		require.NoError(t, <-holder)
+			close(release)
+			require.NoError(t, <-holder)
 
-		res, ok := <-responses
-		require.True(t, ok)
-		require.Nil(t, res.GetBegin(), "suppressed transaction should not be acked")
-		assert.True(t, res.GetCommit().GetShared())
+			res, ok := <-responses
+			require.True(t, ok)
+			require.Nil(t, res.GetBegin(), "a shared transaction should not be acked")
+			assert.True(t, res.GetCommit().GetShared())
 
-		assertRecordExists(t, srv, "holder")
-		assertRecordMissing(t, srv, "suppressed")
+			assertRecordExists(t, srv, "holder")
+			assertRecordMissing(t, srv, "shared")
 
-		next, err := client.Transaction(t.Context())
-		require.NoError(t, err)
-		require.NotNil(t, beginTransaction(t, next, "shared-key").GetBegin())
-		sendOperation(t, next, 1, getOperation("holder"))
-		assert.Equal(t, "holder", recvOperation(t, next).GetGet().GetRecord().GetId())
+			next, err := client.Transaction(t.Context())
+			require.NoError(t, err)
+			require.NotNil(t, beginTransaction(t, next, "shared-key").GetBegin())
+			sendOperation(t, next, 1, getOperation("holder"))
+			assert.Equal(t, "holder", recvOperation(t, next).GetGet().GetRecord().GetId())
 
-		sendOperation(t, next, 2, putOperation(newTransactionRecord("next")))
-		recvOperation(t, next)
-		sendCommit(t, next)
+			sendOperation(t, next, 2, putOperation(newTransactionRecord("next")))
+			recvOperation(t, next)
+			sendCommit(t, next)
 
-		nextCommit, err := recvCommit(t, next)
-		require.NoError(t, err)
-		assert.False(t, nextCommit.GetShared())
-		assertRecordExists(t, srv, "next")
+			nextCommit, err := recvCommit(t, next)
+			require.NoError(t, err)
+			assert.False(t, nextCommit.GetShared())
+			assertRecordExists(t, srv, "next")
+		})
 	})
 
 	t.Run("sequence echoes", func(t *testing.T) {
@@ -349,6 +348,26 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		require.NoError(t, err)
 	})
 
+	t.Run("backend closure", func(t *testing.T) {
+		server, client := newServers(t)
+		stream, err := client.Transaction(t.Context())
+		require.NoError(t, err)
+		require.NotNil(t, beginTransaction(t, stream, "reload").GetBegin())
+		sendOperation(t, stream, 1, putOperation(newTransactionRecord("record-1")))
+		require.NotNil(t, recvOperation(t, stream).GetPut())
+
+		// hack
+		bs := server.(*backendServer)
+		bs.mu.Lock()
+		bs.closeBackendLocked(t.Context())
+		bs.mu.Unlock()
+		// end hack
+
+		sendCommit(t, stream)
+		_, err = recvCommit(t, stream)
+		require.Error(t, err)
+		assertRecordMissing(t, server, "record-1")
+	})
 }
 
 func setBackend(t *testing.T, srv Server, wrap func(storage.Backend) storage.Backend) {
@@ -422,7 +441,7 @@ func sendBegin(t *testing.T, stream transactionStream, key string) {
 }
 
 // beginTransaction sends begin and reads the response saying whether this
-// transaction is running (begin arm) or was suppressed (commit arm).
+// transaction is running (begin arm) or shares another transaction's result (commit arm).
 func beginTransaction(t *testing.T, stream transactionStream, key string) *databrokerpb.TransactionStreamResponse {
 	t.Helper()
 
