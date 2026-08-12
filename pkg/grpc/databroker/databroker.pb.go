@@ -1853,6 +1853,7 @@ func (x *BeginTransaction) GetKey() string {
 
 type BeginTransactionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1887,8 +1888,16 @@ func (*BeginTransactionResponse) Descriptor() ([]byte, []int) {
 	return file_databroker_proto_rawDescGZIP(), []int{30}
 }
 
+func (x *BeginTransactionResponse) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
 type CommitTransaction struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1921,6 +1930,13 @@ func (x *CommitTransaction) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CommitTransaction.ProtoReflect.Descriptor instead.
 func (*CommitTransaction) Descriptor() ([]byte, []int) {
 	return file_databroker_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *CommitTransaction) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
 }
 
 type TransactionRequest struct {
@@ -2274,11 +2290,13 @@ func (*TransactionResponse_Query) isTransactionResponse_Operation() {}
 
 type CommitTransactionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	Key   string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	// shared is true when these results come from a concurrent transaction for the
-	// same key. The transactions that were shared never ran operations themselves.
-	Shared bool `protobuf:"varint,1,opt,name=shared,proto3" json:"shared,omitempty"`
+	// same key that shares results, like singleflight transactions.
+	// The transactions that were shared never ran operations themselves.
+	Shared bool `protobuf:"varint,2,opt,name=shared,proto3" json:"shared,omitempty"`
 	// records that were changed during this transaction.
-	Records       []*Record `protobuf:"bytes,2,rep,name=records,proto3" json:"records,omitempty"`
+	Records       []*Record `protobuf:"bytes,3,rep,name=records,proto3" json:"records,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2311,6 +2329,13 @@ func (x *CommitTransactionResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CommitTransactionResponse.ProtoReflect.Descriptor instead.
 func (*CommitTransactionResponse) Descriptor() ([]byte, []int) {
 	return file_databroker_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *CommitTransactionResponse) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
 }
 
 func (x *CommitTransactionResponse) GetShared() bool {
@@ -2669,9 +2694,11 @@ const file_databroker_proto_rawDesc = "" +
 	"\x05begin\x18\x04 \x01(\v2$.databroker.BeginTransactionResponseH\x00R\x05beginB\t\n" +
 	"\amessage\"$\n" +
 	"\x10BeginTransaction\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\"\x1a\n" +
-	"\x18BeginTransactionResponse\"\x13\n" +
-	"\x11CommitTransaction\"\xef\x01\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\",\n" +
+	"\x18BeginTransactionResponse\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\"%\n" +
+	"\x11CommitTransaction\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\"\xef\x01\n" +
 	"\x12TransactionRequest\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x03get\x18\x02 \x01(\v2\x16.databroker.GetRequestH\x00R\x03get\x12*\n" +
@@ -2691,10 +2718,11 @@ const file_databroker_proto_rawDesc = "" +
 	"\x03put\x18\x03 \x01(\v2\x17.databroker.PutResponseH\x00R\x03put\x121\n" +
 	"\x05patch\x18\x04 \x01(\v2\x19.databroker.PatchResponseH\x00R\x05patch\x121\n" +
 	"\x05query\x18\x05 \x01(\v2\x19.databroker.QueryResponseH\x00R\x05queryB\v\n" +
-	"\toperation\"a\n" +
-	"\x19CommitTransactionResponse\x12\x16\n" +
-	"\x06shared\x18\x01 \x01(\bR\x06shared\x12,\n" +
-	"\arecords\x18\x02 \x03(\v2\x12.databroker.RecordR\arecords\"Z\n" +
+	"\toperation\"s\n" +
+	"\x19CommitTransactionResponse\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
+	"\x06shared\x18\x02 \x01(\bR\x06shared\x12,\n" +
+	"\arecords\x18\x03 \x03(\v2\x12.databroker.RecordR\arecords\"Z\n" +
 	"\n" +
 	"Checkpoint\x12%\n" +
 	"\x0eserver_version\x18\x01 \x01(\x04R\rserverVersion\x12%\n" +

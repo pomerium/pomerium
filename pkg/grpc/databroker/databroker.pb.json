@@ -101,10 +101,23 @@
           "fullName": "databroker.BeginTransactionResponse",
           "description": "",
           "hasExtensions": false,
-          "hasFields": false,
+          "hasFields": true,
           "hasOneofs": false,
           "extensions": [],
-          "fields": []
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
         },
         {
           "name": "Checkpoint",
@@ -184,10 +197,23 @@
           "fullName": "databroker.CommitTransaction",
           "description": "",
           "hasExtensions": false,
-          "hasFields": false,
+          "hasFields": true,
           "hasOneofs": false,
           "extensions": [],
-          "fields": []
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
         },
         {
           "name": "CommitTransactionResponse",
@@ -200,8 +226,20 @@
           "extensions": [],
           "fields": [
             {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
               "name": "shared",
-              "description": "shared is true when these results come from a concurrent transaction for the\nsame key. The transactions that were shared never ran operations themselves.",
+              "description": "shared is true when these results come from a concurrent transaction for the\nsame key that shares results, like singleflight transactions.\nThe transactions that were shared never ran operations themselves.",
               "label": "",
               "type": "bool",
               "longType": "bool",

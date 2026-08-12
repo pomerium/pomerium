@@ -257,9 +257,13 @@ message BeginTransaction {
   string key = 1;
 }
 
-message BeginTransactionResponse {}
+message BeginTransactionResponse {
+  string key = 1;
+}
 
-message CommitTransaction {}
+message CommitTransaction {
+  string key = 1;
+}
 
 message TransactionRequest {
   string key = 1;
@@ -293,11 +297,13 @@ message TransactionResponse {
 }
 
 message CommitTransactionResponse {
+  string key = 1;
   // shared is true when these results come from a concurrent transaction for the
-  // same key. The transactions that were shared never ran operations themselves.
-  bool shared = 1;
+  // same key that shares results, like singleflight transactions.
+  // The transactions that were shared never ran operations themselves.
+  bool shared = 2;
   // records that were changed during this transaction.
-  repeated Record records = 2;
+  repeated Record records = 3;
 }
 
 

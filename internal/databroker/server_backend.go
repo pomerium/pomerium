@@ -903,13 +903,16 @@ func (srv *backendServer) Transaction(stream grpc.BidiStreamingServer[databroker
 	if begin.GetBegin() == nil {
 		return status.Error(codes.InvalidArgument, "the first message of a transaction must be begin")
 	}
+	txKey := begin.GetBegin().GetKey()
 
 	changed, shared, err := db.DoTransaction(ctx, begin.GetBegin().GetKey(), func(tx storage.Transaction) error {
 		// the ack tells the client it owns the transaction, so it knows to submit
 		err := stream.Send(&databrokerpb.TransactionStreamResponse{
 			Sequence: begin.GetSequence(),
 			Message: &databrokerpb.TransactionStreamResponse_Begin{
-				Begin: new(databrokerpb.BeginTransactionResponse),
+				Begin: &databrokerpb.BeginTransactionResponse{
+					Key: txKey,
+				},
 			},
 		})
 		if err != nil {
@@ -923,8 +926,16 @@ func (srv *backendServer) Transaction(stream grpc.BidiStreamingServer[databroker
 			}
 			switch {
 			case req.GetCommit() != nil:
+				if req.GetCommit().GetKey() != txKey {
+					return status.Errorf(codes.FailedPrecondition,
+						"transaction submitted a commit for unexpected key : %s, expected : %s", req.GetCommit().GetKey(), txKey)
+				}
 				return nil
 			case req.GetOperation() != nil:
+				if req.GetOperation().GetKey() != txKey {
+					return status.Errorf(codes.FailedPrecondition,
+						"transaction submitted an operation for unexpected key : %s, expected : %s", req.GetOperation().GetKey(), txKey)
+				}
 				res, err := tx.Submit(req.GetOperation())
 				if err := stream.Send(
 					constructStreamResponse(req.GetSequence(), res, err),
@@ -942,7 +953,7 @@ func (srv *backendServer) Transaction(stream grpc.BidiStreamingServer[databroker
 
 	return stream.Send(&databrokerpb.TransactionStreamResponse{
 		Message: &databrokerpb.TransactionStreamResponse_Commit{
-			Commit: &databrokerpb.CommitTransactionResponse{Shared: shared, Records: changed},
+			Commit: &databrokerpb.CommitTransactionResponse{Key: begin.GetBegin().GetKey(), Shared: shared, Records: changed},
 		},
 	})
 }
