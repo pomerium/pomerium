@@ -871,9 +871,7 @@ func (srv *backendServer) buildRecordTTLs(backend storage.Backend) map[string]ti
 	return ttls
 }
 
-// TODO: this should be much longer and callers should probably set their own transaction deadlines.
-// var rather than const so tests can shorten it.
-var transactionMaxDuration = time.Minute
+var transactionMaxDuration = 6 * time.Minute
 
 func (srv *backendServer) Transaction(stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse]) error {
 	ctx, span := srv.tracer.Start(stream.Context(), "databroker.grpc.Transaction")
@@ -920,14 +918,9 @@ func (srv *backendServer) Transaction(stream grpc.BidiStreamingServer[databroker
 				return nil
 			case req.GetOperation() != nil:
 				res, err := tx.Submit(req.GetOperation())
-				if err != nil {
-					return err
-				}
-				err = stream.Send(&databrokerpb.TransactionStreamResponse{
-					Sequence: req.GetSequence(),
-					Message:  &databrokerpb.TransactionStreamResponse_Operation{Operation: res},
-				})
-				if err != nil {
+				if err := stream.Send(
+					constructStreamResponse(req.GetSequence(), res, err),
+				); err != nil {
 					return err
 				}
 			default:
@@ -944,6 +937,22 @@ func (srv *backendServer) Transaction(stream grpc.BidiStreamingServer[databroker
 			Commit: &databrokerpb.CommitTransactionResponse{Shared: shared, Records: changed},
 		},
 	})
+}
+
+func constructStreamResponse(sequence uint64, resp *databrokerpb.TransactionResponse, err error) *databrokerpb.TransactionStreamResponse {
+	operation := &databrokerpb.TransactionResponseWithError{Response: resp}
+	if err != nil {
+		st, _ := status.FromError(err)
+		operation.Response = nil
+		operation.Err = &databrokerpb.RPCStatus{
+			Code:    st.Proto().GetCode(),
+			Message: st.Proto().GetMessage(),
+		}
+	}
+	return &databrokerpb.TransactionStreamResponse{
+		Sequence: sequence,
+		Message:  &databrokerpb.TransactionStreamResponse_Operation{Operation: operation},
+	}
 }
 
 // transactionReceiver reads from the stream on a goroutine so an idle timeout can
