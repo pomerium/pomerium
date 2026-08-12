@@ -1,5 +1,5 @@
 # Usage:
-#   make bench STORAGE=mem TESTCASE=concurrent_conflicting [CONC=4] [BENCHTIME=10x] [EXTRA=synchronous_commit]
+#   make -f Makefile.bench bench STORAGE=mem TESTCASE=concurrent_conflicting [CONC=4] [BENCHTIME=10x] [EXTRA=synchronous_commit]
 #
 # STORAGE:  mem | file | postgres
 # TESTCASE: concurrent_maybe_conflicting | concurrent_conflicting | concurrent_non-conflicting | all
@@ -33,8 +33,9 @@ bench:
 else
 bench:
 	go test -run '^$$' -bench '$(BENCH)' -benchtime=$(BENCHTIME) -benchmem \
-		-cpuprofile=$(NAME).cpu.out \
-		-memprofile=$(NAME).mem.out \
+		-cpuprofile=$(NAME).cpu.pprof \
+		-memprofile=$(NAME).mem.pprof \
+		-blockprofile=$(NAME).block.pprof \
 		-trace=$(NAME).trace.out \
 		-o $(NAME).test \
 		. | tee $(NAME).out
@@ -42,4 +43,4 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f *.cpu.out *.mem.out *.trace.out *.test *.out
+	rm -f *.cpu.pprof *.mem.pprof *.block.pprof *.trace.out *.test *.out
