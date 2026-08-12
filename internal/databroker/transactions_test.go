@@ -78,15 +78,15 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 
 		require.NotNil(t, beginTransaction(t, stream, "operations").GetBegin())
 
-		sendOperation(t, stream, 1, putOperation(newTransactionRecord("op-1")))
-		assert.Len(t, recvOperation(t, stream).GetPut().GetRecords(), 1)
+		sendOperation(t, stream, "operations", 1, putOperation(newTransactionRecord("op-1")))
+		assert.Len(t, recvOperation(t, stream, "operations").GetPut().GetRecords(), 1)
 
-		sendOperation(t, stream, 2, getOperation("op-1"))
-		assert.Equal(t, "op-1", recvOperation(t, stream).GetGet().GetRecord().GetId())
+		sendOperation(t, stream, "operations", 2, getOperation("op-1"))
+		assert.Equal(t, "op-1", recvOperation(t, stream, "operations").GetGet().GetRecord().GetId())
 
 		patched := newTransactionRecord("op-1")
 		patched.Data = protoutil.NewAny(&sessionpb.Session{Id: "op-1", UserId: "user-1"})
-		sendOperation(t, stream, 3, &databrokerpb.TransactionRequest{
+		sendOperation(t, stream, "operations", 3, &databrokerpb.TransactionRequest{
 			Operation: &databrokerpb.TransactionRequest_Patch{
 				Patch: &databrokerpb.PatchRequest{
 					Records:   []*databrokerpb.Record{patched},
@@ -94,17 +94,17 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 				},
 			},
 		})
-		assert.Len(t, recvOperation(t, stream).GetPatch().GetRecords(), 1)
+		assert.Len(t, recvOperation(t, stream, "operations").GetPatch().GetRecords(), 1)
 
-		sendOperation(t, stream, 4, &databrokerpb.TransactionRequest{
+		sendOperation(t, stream, "operations", 4, &databrokerpb.TransactionRequest{
 			Operation: &databrokerpb.TransactionRequest_Query{
 				Query: &databrokerpb.QueryRequest{Type: recordType(), Limit: 10},
 			},
 		})
-		assert.NotNil(t, recvOperation(t, stream).GetQuery())
+		assert.NotNil(t, recvOperation(t, stream, "operations").GetQuery())
 
-		sendCommit(t, stream)
-		commit, err := recvCommit(t, stream)
+		sendCommit(t, stream, "operations")
+		commit, err := recvCommit(t, stream, "operations")
 		require.NoError(t, err)
 		assert.False(t, commit.GetShared())
 
@@ -119,7 +119,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 
 		require.NotNil(t, beginTransaction(t, stream, "storage-error").GetBegin())
 
-		sendOperation(t, stream, 1, getOperation("missing"))
+		sendOperation(t, stream, "storage-error", 1, getOperation("missing"))
 		res, err := stream.Recv()
 		require.NoError(t, err)
 		assert.Equal(t, uint64(1), res.GetSequence())
@@ -127,11 +127,11 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		assert.Equal(t, int32(codes.NotFound), res.GetOperation().GetErr().GetCode())
 
 		// a failed operation does not end the transaction
-		sendOperation(t, stream, 2, putOperation(newTransactionRecord("after-error")))
-		assert.Len(t, recvOperation(t, stream).GetPut().GetRecords(), 1)
+		sendOperation(t, stream, "storage-error", 2, putOperation(newTransactionRecord("after-error")))
+		assert.Len(t, recvOperation(t, stream, "storage-error").GetPut().GetRecords(), 1)
 
-		sendCommit(t, stream)
-		_, err = recvCommit(t, stream)
+		sendCommit(t, stream, "storage-error")
+		_, err = recvCommit(t, stream, "storage-error")
 		require.NoError(t, err)
 
 		assertRecordExists(t, srv, "after-error")
@@ -144,12 +144,12 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		require.NoError(t, err)
 
 		require.NotNil(t, beginTransaction(t, stream, "stream-closed").GetBegin())
-		sendOperation(t, stream, 1, putOperation(newTransactionRecord("stream-closed")))
+		sendOperation(t, stream, "stream-closed", 1, putOperation(newTransactionRecord("stream-closed")))
 		_, err = stream.Recv()
 		require.NoError(t, err)
 		require.NoError(t, stream.CloseSend())
 
-		_, err = recvCommit(t, stream)
+		_, err = recvCommit(t, stream, "stream-closed")
 		assert.Error(t, err)
 		assert.NotErrorIs(t, err, io.EOF)
 
@@ -164,12 +164,12 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 			require.NoError(t, err)
 
 			require.NotNil(t, beginTransaction(t, stream, "deadline").GetBegin())
-			sendOperation(t, stream, 1, putOperation(newTransactionRecord("deadline")))
+			sendOperation(t, stream, "deadline", 1, putOperation(newTransactionRecord("deadline")))
 			_, err = stream.Recv()
 			require.NoError(t, err)
 			// the deadline runs on synctest's fake clock, so it can only elapse
 			// while every goroutine is blocked waiting for the commit
-			_, err = recvCommit(t, stream)
+			_, err = recvCommit(t, stream, "deadline")
 			assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
 
 			assertRecordMissing(t, srv, "deadline")
@@ -186,16 +186,16 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		require.NoError(t, err)
 
 		require.NotNil(t, beginTransaction(t, stream, "commit-error").GetBegin())
-		sendOperation(t, stream, 1, putOperation(newTransactionRecord("ok")))
+		sendOperation(t, stream, "commit-error", 1, putOperation(newTransactionRecord("ok")))
 		_, err = stream.Recv()
 		require.NoError(t, err)
 
-		sendOperation(t, stream, 2, putOperation(newTransactionRecord("error")))
+		sendOperation(t, stream, "commit-error", 2, putOperation(newTransactionRecord("error")))
 		_, err = stream.Recv()
 		require.NoError(t, err)
 
-		sendCommit(t, stream)
-		_, err = recvCommit(t, stream)
+		sendCommit(t, stream, "commit-error")
+		_, err = recvCommit(t, stream, "commit-error")
 		assert.Equal(t, codes.Internal, status.Code(err))
 		assert.ErrorContains(t, err, "error committing transaction")
 
@@ -211,12 +211,12 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		require.NoError(t, err)
 
 		require.NotNil(t, beginTransaction(t, stream, "cancel").GetBegin())
-		sendOperation(t, stream, 1, putOperation(newTransactionRecord("cancel-1")))
+		sendOperation(t, stream, "cancel", 1, putOperation(newTransactionRecord("cancel-1")))
 		_, err = stream.Recv()
 		require.NoError(t, err)
 		cancel()
 
-		_, err = recvCommit(t, stream)
+		_, err = recvCommit(t, stream, "cancel")
 		assert.Equal(t, codes.Canceled, status.Code(err))
 
 		assertRecordMissing(t, srv, "cancel-1")
@@ -228,9 +228,9 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
 
-		sendOperation(t, stream, 1, putOperation(newTransactionRecord("no-begin-1")))
+		sendOperation(t, stream, "no-begin", 1, putOperation(newTransactionRecord("no-begin-1")))
 
-		_, err = recvCommit(t, stream)
+		_, err = recvCommit(t, stream, "no-begin")
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		assertRecordMissing(t, srv, "no-begin-1")
@@ -243,15 +243,47 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		require.NoError(t, err)
 
 		require.NotNil(t, beginTransaction(t, stream, "double-begin").GetBegin())
-		sendOperation(t, stream, 1, putOperation(newTransactionRecord("double-begin-1")))
+		sendOperation(t, stream, "double-begin", 1, putOperation(newTransactionRecord("double-begin-1")))
 		_, err = stream.Recv()
 		require.NoError(t, err)
 		sendBegin(t, stream, "double-begin")
 
-		_, err = recvCommit(t, stream)
+		_, err = recvCommit(t, stream, "double-begin")
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		assertRecordMissing(t, srv, "double-begin-1")
+	})
+
+	t.Run("operation for another key is rejected", func(t *testing.T) {
+		srv, client := newServers(t)
+
+		stream, err := client.Transaction(t.Context())
+		require.NoError(t, err)
+
+		require.NotNil(t, beginTransaction(t, stream, "key-mismatch").GetBegin())
+		sendOperation(t, stream, "other-key", 1, putOperation(newTransactionRecord("key-mismatch-1")))
+
+		_, err = recvCommit(t, stream, "key-mismatch")
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+
+		assertRecordMissing(t, srv, "key-mismatch-1")
+	})
+
+	t.Run("messages for another key terminate the transaction", func(t *testing.T) {
+		srv, client := newServers(t)
+
+		stream, err := client.Transaction(t.Context())
+		require.NoError(t, err)
+
+		require.NotNil(t, beginTransaction(t, stream, "commit-mismatch").GetBegin())
+		sendOperation(t, stream, "commit-mismatch", 1, putOperation(newTransactionRecord("commit-mismatch")))
+		require.NotNil(t, recvOperation(t, stream, "commit-mismatch").GetPut())
+		sendCommit(t, stream, "other-key")
+
+		_, err = recvCommit(t, stream, "commit-mismatch")
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+
+		assertRecordMissing(t, srv, "commit-mismatch")
 	})
 
 	t.Run("atomic", func(t *testing.T) {
@@ -277,7 +309,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 			stream, err := client.Transaction(t.Context())
 			require.NoError(t, err)
 			sendBegin(t, stream, "shared-key")
-			sendOperation(t, stream, 1, putOperation(newTransactionRecord("shared")))
+			sendOperation(t, stream, "shared-key", 1, putOperation(newTransactionRecord("shared")))
 
 			responses := make(chan *databrokerpb.TransactionStreamResponse, 1)
 			go func() {
@@ -304,6 +336,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 			require.True(t, ok)
 			require.Nil(t, res.GetBegin(), "a shared transaction should not be acked")
 			assert.True(t, res.GetCommit().GetShared())
+			assert.Equal(t, "shared-key", res.GetCommit().GetKey())
 
 			assertRecordExists(t, srv, "holder")
 			assertRecordMissing(t, srv, "shared")
@@ -311,14 +344,14 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 			next, err := client.Transaction(t.Context())
 			require.NoError(t, err)
 			require.NotNil(t, beginTransaction(t, next, "shared-key").GetBegin())
-			sendOperation(t, next, 1, getOperation("holder"))
-			assert.Equal(t, "holder", recvOperation(t, next).GetGet().GetRecord().GetId())
+			sendOperation(t, next, "shared-key", 1, getOperation("holder"))
+			assert.Equal(t, "holder", recvOperation(t, next, "shared-key").GetGet().GetRecord().GetId())
 
-			sendOperation(t, next, 2, putOperation(newTransactionRecord("next")))
-			recvOperation(t, next)
-			sendCommit(t, next)
+			sendOperation(t, next, "shared-key", 2, putOperation(newTransactionRecord("next")))
+			recvOperation(t, next, "shared-key")
+			sendCommit(t, next, "shared-key")
 
-			nextCommit, err := recvCommit(t, next)
+			nextCommit, err := recvCommit(t, next, "shared-key")
 			require.NoError(t, err)
 			assert.False(t, nextCommit.GetShared())
 			assertRecordExists(t, srv, "next")
@@ -335,7 +368,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 
 		sequences := []uint64{7, 3, 9}
 		for i, sequence := range sequences {
-			sendOperation(t, stream, sequence, putOperation(newTransactionRecord(string(rune('a'+i)))))
+			sendOperation(t, stream, "sequence", sequence, putOperation(newTransactionRecord(string(rune('a'+i)))))
 		}
 		for _, sequence := range sequences {
 			res, err := stream.Recv()
@@ -343,8 +376,8 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 			assert.Equal(t, sequence, res.GetSequence())
 		}
 
-		sendCommit(t, stream)
-		_, err = recvCommit(t, stream)
+		sendCommit(t, stream, "sequence")
+		_, err = recvCommit(t, stream, "sequence")
 		require.NoError(t, err)
 	})
 
@@ -353,8 +386,8 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
 		require.NotNil(t, beginTransaction(t, stream, "reload").GetBegin())
-		sendOperation(t, stream, 1, putOperation(newTransactionRecord("record-1")))
-		require.NotNil(t, recvOperation(t, stream).GetPut())
+		sendOperation(t, stream, "reload", 1, putOperation(newTransactionRecord("record-1")))
+		require.NotNil(t, recvOperation(t, stream, "reload").GetPut())
 
 		// hack
 		bs := server.(*backendServer)
@@ -363,8 +396,8 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		bs.mu.Unlock()
 		// end hack
 
-		sendCommit(t, stream)
-		_, err = recvCommit(t, stream)
+		sendCommit(t, stream, "reload")
+		_, err = recvCommit(t, stream, "reload")
 		require.Error(t, err)
 		assertRecordMissing(t, server, "record-1")
 	})
@@ -448,24 +481,31 @@ func beginTransaction(t *testing.T, stream transactionStream, key string) *datab
 	sendBegin(t, stream, key)
 	res, err := stream.Recv()
 	require.NoError(t, err)
+	if begin := res.GetBegin(); begin != nil {
+		assert.Equal(t, key, begin.GetKey())
+	}
+	if commit := res.GetCommit(); commit != nil {
+		assert.Equal(t, key, commit.GetKey())
+	}
 	return res
 }
 
-func sendOperation(t *testing.T, stream transactionStream, sequence uint64, op *databrokerpb.TransactionRequest) {
+func sendOperation(t *testing.T, stream transactionStream, key string, sequence uint64, op *databrokerpb.TransactionRequest) {
 	t.Helper()
 
+	op.Key = key
 	require.NoError(t, stream.Send(&databrokerpb.TransactionStreamRequest{
 		Sequence: sequence,
 		Message:  &databrokerpb.TransactionStreamRequest_Operation{Operation: op},
 	}))
 }
 
-func sendCommit(t *testing.T, stream transactionStream) {
+func sendCommit(t *testing.T, stream transactionStream, key string) {
 	t.Helper()
 
 	require.NoError(t, stream.Send(&databrokerpb.TransactionStreamRequest{
 		Message: &databrokerpb.TransactionStreamRequest_Commit{
-			Commit: new(databrokerpb.CommitTransaction),
+			Commit: &databrokerpb.CommitTransaction{Key: key},
 		},
 	}))
 }
@@ -487,17 +527,18 @@ func getOperation(id string) *databrokerpb.TransactionRequest {
 }
 
 // recvOperation reads an operation response and asserts the operation itself did not fail.
-func recvOperation(t *testing.T, stream transactionStream) *databrokerpb.TransactionResponse {
+func recvOperation(t *testing.T, stream transactionStream, key string) *databrokerpb.TransactionResponse {
 	t.Helper()
 
 	res, err := stream.Recv()
 	require.NoError(t, err)
 	require.Nil(t, res.GetOperation().GetErr())
+	assert.Equal(t, key, res.GetOperation().GetResponse().GetKey())
 	return res.GetOperation().GetResponse()
 }
 
 // recvCommit reads responses until the commit arm arrives, ignoring operation responses.
-func recvCommit(t *testing.T, stream transactionStream) (*databrokerpb.CommitTransactionResponse, error) {
+func recvCommit(t *testing.T, stream transactionStream, key string) (*databrokerpb.CommitTransactionResponse, error) {
 	t.Helper()
 
 	for {
@@ -506,6 +547,7 @@ func recvCommit(t *testing.T, stream transactionStream) (*databrokerpb.CommitTra
 			return nil, err
 		}
 		if commit := res.GetCommit(); commit != nil {
+			assert.Equal(t, key, commit.GetKey())
 			return commit, nil
 		}
 	}
