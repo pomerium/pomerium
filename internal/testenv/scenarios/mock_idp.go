@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
@@ -27,6 +28,8 @@ type IDPOptions struct {
 	enableTLS        bool
 	enableDeviceAuth bool
 	enablePKCE       bool
+	rotationMode     mockidp.RotationMode
+	accessTokenTTL   time.Duration
 }
 
 type IDPOption func(*IDPOptions)
@@ -52,6 +55,24 @@ func WithEnableDeviceAuth(enableDeviceAuth bool) IDPOption {
 func WithEnablePKCE(enablePKCE bool) IDPOption {
 	return func(o *IDPOptions) {
 		o.enablePKCE = enablePKCE
+	}
+}
+
+// WithRotationMode selects how the IdP treats a presented refresh token. The
+// zero value keeps the historical behavior, where a presented token stays valid
+// forever.
+func WithRotationMode(mode RotationMode) IDPOption {
+	return func(o *IDPOptions) {
+		o.rotationMode = mode
+	}
+}
+
+// WithAccessTokenTTL sets the access token lifetime the provider reports. A
+// short one lets a test reach the state where a stored token is due for refresh
+// without waiting out a real provider's hour.
+func WithAccessTokenTTL(d time.Duration) IDPOption {
+	return func(o *IDPOptions) {
+		o.accessTokenTTL = d
 	}
 }
 
@@ -130,8 +151,27 @@ func NewIDP(users []*mockidp.User, opts ...IDPOption) *IDP {
 			Users:            users,
 			EnableDeviceAuth: options.enableDeviceAuth,
 			EnablePKCE:       options.enablePKCE,
+			RotationMode:     options.rotationMode,
+			AccessTokenTTL:   options.accessTokenTTL,
 		}),
 	}
 }
 
+// ValidRefreshTokenCount reports how many refresh tokens the provider would
+// still accept, so a scenario can assert what a rotation chain left behind.
+func (idp *IDP) ValidRefreshTokenCount() int { return idp.mockIDP.ValidRefreshTokenCount() }
+
+// RefreshCount reports how many refresh_token grants the provider has served,
+// which is what a test asserting "one presentation" has to measure.
+func (idp *IDP) RefreshCount() int64 { return idp.mockIDP.RefreshCount() }
+
 type User = mockidp.User
+
+// RotationMode selects the provider's refresh-token rotation semantics, so
+// callers configuring a scenario need not import the mock directly.
+type RotationMode = mockidp.RotationMode
+
+// RotateReuseDetect is the mode a scenario needs to make a replay visible: the
+// provider revokes the whole grant family when a consumed token is presented
+// again. Other modes are available through mockidp directly.
+const RotateReuseDetect = mockidp.RotateReuseDetect

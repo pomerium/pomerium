@@ -38,6 +38,15 @@ const (
 	IdentityManagerLastSessionRefreshErrorTimestamp = "identity_manager_last_session_refresh_error_timestamp"
 	// IdentityManagerLastSessionRefreshError is a counter of last session refresh errors
 	IdentityManagerLastSessionRefreshError = "identity_manager_last_session_refresh_errors"
+	// IdpSessionPresentations is a counter of upstream refresh tokens presented to an identity provider
+	IdpSessionPresentations = "idp_session_presentations_total"
+	// IdpSessionServedFromRecord is a counter of liveness answers served from the canonical record without an identity provider call
+	IdpSessionServedFromRecord = "idp_session_served_from_record_total"
+	// IdpSessionRecordsRetired is a counter of canonical upstream sessions retired, labeled by reason
+	IdpSessionRecordsRetired = "idp_session_records_retired_total"
+	// IdpSessionCallerBudgetTimeouts is a counter of callers that stopped waiting while a detached attempt ran on
+	IdpSessionCallerBudgetTimeouts = "idp_session_caller_budget_timeouts_total"
+
 	// IdentityManagerLastSessionRefreshSuccess is a counter of last session refresh success
 	IdentityManagerLastSessionRefreshSuccess = "identity_manager_last_session_refresh_success"
 

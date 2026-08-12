@@ -111,9 +111,14 @@ func TestOTLPTracing(t *testing.T) {
 
 			results := getResults()
 			var (
-				testEnvironmentLocalTest                  = fmt.Sprintf("Test Environment: %s", t.Name())
-				testEnvironmentAuthenticate               = "Test Environment: Authenticate"
-				authenticateOAuth2Client                  = "Authenticate: OAuth2 Client: GET /.well-known/jwks.json"
+				testEnvironmentLocalTest    = fmt.Sprintf("Test Environment: %s", t.Name())
+				testEnvironmentAuthenticate = "Test Environment: Authenticate"
+				authenticateOAuth2Client    = "Authenticate: OAuth2 Client: GET /.well-known/jwks.json"
+				// A login records the user's canonical upstream IdP session. That
+				// write is detached from the request, so it reports its own
+				// traces rather than appearing under the sign-in.
+				authenticateDatabrokerSetOptions          = "Authenticate: databroker.DataBrokerService/SetOptions"
+				authenticateDatabrokerTransaction         = "Authenticate: databroker.DataBrokerService/Transaction"
 				authorizeDatabrokerSync                   = "Authorize: databroker.DataBrokerService/Sync"
 				authorizeDatabrokerSyncLatest             = "Authorize: databroker.DataBrokerService/SyncLatest"
 				idpServerGetUserinfo                      = "IDP: Server: GET /oidc/userinfo"
@@ -136,6 +141,8 @@ func TestOTLPTracing(t *testing.T) {
 				Match{Name: testEnvironmentLocalTest, TraceCount: 1, Services: []string{"Authenticate", "Authorize", "Test Environment", "Control Plane", "Data Broker", "IDP"}},
 				Match{Name: testEnvironmentAuthenticate, TraceCount: 1, Services: allServices},
 				Match{Name: authenticateOAuth2Client, TraceCount: Greater(0)},
+				Match{Name: authenticateDatabrokerSetOptions, TraceCount: Greater(0)},
+				Match{Name: authenticateDatabrokerTransaction, TraceCount: Greater(0)},
 				Match{Name: dataBrokerClusteredServerUpdateLeader, TraceCount: Greater(0)},
 				Match{Name: dataBrokerClusteredServerUpdateServer, TraceCount: Greater(0)},
 				Match{Name: dataBrokerGRPCClientManagerOnConfigChange, TraceCount: Greater(0)},
@@ -343,6 +350,11 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 			"Data Broker: databroker.grpc.ServerInfo":                    {},
 			"Data Broker: databroker.grpc.SetCheckpoint":                 {},
 			"Data Broker: storage.pebble.GetOptions":                     {},
+			// A login records the user's canonical upstream IdP session on its
+			// own context, because that write outlives the request that started
+			// it, so it reports independently of the request's sampling decision.
+			"Authenticate: databroker.DataBrokerService/SetOptions":  {},
+			"Authenticate: databroker.DataBrokerService/Transaction": {},
 		}
 		actual := slices.Collect(maps.Keys(traces.ByName))
 		for _, name := range actual {

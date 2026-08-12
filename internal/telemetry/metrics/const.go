@@ -21,6 +21,9 @@ var (
 
 	TagKeyCgroup     = tag.MustNewKey("cgroup")
 	TagKeyActionName = tag.MustNewKey("action_name")
+
+	TagKeyIdpSessionOutcome    = tag.MustNewKey("outcome")
+	TagKeyIdpSessionDeadReason = tag.MustNewKey("dead_reason")
 )
 
 // Default distributions used by views in this package.
@@ -47,5 +50,6 @@ var (
 		HTTPServerViews,
 		InfoViews,
 		EnvoyViews,
+		IdpSessionViews,
 	}
 )

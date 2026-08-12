@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/events"
+	"github.com/pomerium/pomerium/internal/identity/idpsession"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -206,15 +207,29 @@ func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
 
 	dataBrokerClient := databrokerpb.NewDataBrokerServiceClient(d.localGRPCConnection)
 
+	getAuthenticator := func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+		if !cfg.Options.SupportsUserRefresh() {
+			return nil, fmt.Errorf("disabling refresh of user sessions")
+		}
+		return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
+	}
+
+	// One memoized getter for both consumers, rebuilt with this config
+	// generation. The store is now what calls the provider on the refresh path,
+	// so it is the one that must not rebuild a provider per refresh.
+	cachedGetAuthenticator := idpsession.CacheAuthenticators(getAuthenticator)
+
+	// The shared upstream IdP-session store is the single owner of each user's
+	// upstream refresh token. Routing the manager through it means a user's
+	// browser sessions and MCP sessions collapse to one IdP refresh per token
+	// lifetime instead of one each.
+	idpStore := idpsession.New(dataBrokerClient, cachedGetAuthenticator)
+
 	options := append([]manager.Option{
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithEventManager(d.eventsMgr),
-		manager.WithCachedGetAuthenticator(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
-			if !cfg.Options.SupportsUserRefresh() {
-				return nil, fmt.Errorf("disabling refresh of user sessions")
-			}
-			return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
-		}),
+		manager.WithGetAuthenticator(cachedGetAuthenticator),
+		manager.WithIDPSessionStore(idpStore),
 		manager.WithRefreshSessionAtIDTokenExpiration(manager.RefreshSessionAtIDTokenExpiration(
 			cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])),
 		manager.WithTracerProvider(d.tracerProvider),

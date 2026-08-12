@@ -21,6 +21,10 @@ const (
 	UnsupportedGrantType ErrorCode = "unsupported_grant_type"
 	// InvalidScope The requested scope is invalid, unknown, malformed, or exceeds the scope granted by the resource owner.
 	InvalidScope ErrorCode = "invalid_scope"
+	// ServerError The authorization server encountered an unexpected condition that prevented it from fulfilling the request (RFC 6749 §4.1.2.1). Unlike TemporarilyUnavailable it does not promise that a retry will help.
+	ServerError ErrorCode = "server_error"
+	// TemporarilyUnavailable The authorization server is temporarily unable to service the request (RFC 6749 §4.1.2.1). Returned with a 5xx status, it is the retryable counterpart of InvalidGrant: the grant was not refused, so the client keeps it and retries instead of re-authorizing.
+	TemporarilyUnavailable ErrorCode = "temporarily_unavailable"
 )
 
 type Error struct {

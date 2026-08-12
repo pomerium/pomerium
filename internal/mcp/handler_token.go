@@ -3,8 +3,10 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/identity/idpsession"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -23,6 +26,12 @@ import (
 )
 
 const (
+	// upstreamRecreateBudget caps the whole recreate sequence, however many store
+	// calls it takes. It leaves room inside the gateway's 15 second default route
+	// timeout for the databroker work around it, so the endpoint answers with its
+	// own 503 and a Retry-After rather than being replaced by a bodyless 504.
+	upstreamRecreateBudget = 12 * time.Second
+
 	// RefreshTokenTTL is the lifetime for MCP refresh tokens.
 	// The actual validity depends on whether the upstream IdP token can still be refreshed.
 	RefreshTokenTTL = 365 * 24 * time.Hour
@@ -423,6 +432,36 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 	// Try to get or recreate a valid session
 	newSession, newSessionRecordVersion, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
 	if err != nil {
+		if errors.Is(err, idpsession.ErrRecordUndecodable) {
+			// Stored bytes that do not parse are an operator problem: no retry
+			// interval and no client action will fix them, and nothing here may
+			// overwrite a record it cannot read.
+			log.Ctx(ctx).Error().Err(err).
+				Str("refresh-token-id", refreshTokenRecord.Id).
+				Msg("mcp/token/refresh: upstream idp session record could not be decoded")
+			oauth21.ErrorResponse(w, http.StatusInternalServerError, oauth21.ServerError)
+			return
+		}
+		if !srv.grantRefused(err) {
+			// An outage is not a sign-out. invalid_grant tells the client to
+			// discard this refresh token and start a new authorization, which
+			// would turn a momentary upstream failure into a forced re-login for
+			// every MCP client of this user. A 5xx keeps them on the same token.
+			// The store backs this off as failures repeat, so a cause no retry
+			// can fix stops being asked about every few seconds by every client
+			// of the user.
+			retryAfter := idpsession.DefaultRetryAfter
+			if hint, ok := idpsession.RetryAfter(err); ok && hint > 0 {
+				retryAfter = hint
+			}
+			log.Ctx(ctx).Warn().Err(err).
+				Str("refresh-token-id", refreshTokenRecord.Id).
+				Dur("retry-after", retryAfter).
+				Msg("mcp/token/refresh: upstream session temporarily unavailable; asking the client to retry")
+			w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
+			oauth21.ErrorResponse(w, http.StatusServiceUnavailable, oauth21.TemporarilyUnavailable)
+			return
+		}
 		log.Ctx(ctx).Error().Err(err).
 			Str("refresh-token-id", refreshTokenRecord.Id).
 			Msg("mcp/token/refresh: failed to get or recreate session")
@@ -509,8 +548,98 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 	writeTokenResponse(w, resp)
 }
 
-// getOrRecreateSession tries to get an existing valid session, or recreates it using the upstream refresh token.
+// grantRefused reports whether a failed session recreation ends the grant, so
+// the client must discard its refresh token and authorize again.
+//
+// Only the store's two terminal outcomes qualify. Everything else is reported as
+// retryable, including databroker failures, which arrive as typed gRPC status
+// errors that do not implement Temporary(). Answering invalid_grant to an
+// infrastructure failure would make every MCP client of the user discard a
+// refresh token that is still valid, which only a new login can undo.
+//
+// The legacy path, used when no store is wired, keeps its previous behavior:
+// its failures are not classified and end the grant.
+func (srv *Handler) grantRefused(err error) bool {
+	if srv.idpStore == nil {
+		return true
+	}
+	return errors.Is(err, idpsession.ErrUpstreamSessionDead) ||
+		errors.Is(err, idpsession.ErrNoUpstreamSession)
+}
+
+// getOrRecreateSession recreates a Pomerium session from the user's upstream IdP
+// session. When the shared store is wired it goes through EnsureLive, so this
+// MCP client shares one upstream refresh with the user's other MCP clients and
+// browser sessions instead of calling the IdP itself.
 func (srv *Handler) getOrRecreateSession(
+	ctx context.Context,
+	refreshTokenRecord *oauth21proto.MCPRefreshToken,
+) (*session.Session, uint64, error) {
+	if srv.idpStore != nil {
+		return srv.recreateSessionViaStore(ctx, refreshTokenRecord)
+	}
+	return srv.recreateSessionLegacy(ctx, refreshTokenRecord)
+}
+
+// recreateSessionViaStore builds a session from the shared upstream IdP session,
+// seeding the canonical record from this refresh token record on first use, for
+// refresh tokens issued before the store existed.
+func (srv *Handler) recreateSessionViaStore(
+	ctx context.Context,
+	rec *oauth21proto.MCPRefreshToken,
+) (*session.Session, uint64, error) {
+	// One budget for the whole sequence. Each store call bounds its own wait,
+	// but a seed followed by a second EnsureLive can chain several of them, and
+	// the gateway in front of this route gives the request 15 seconds total.
+	ctx, cancel := context.WithTimeout(ctx, upstreamRecreateBudget)
+	defer cancel()
+
+	// This grant mints a session that outlives the answer by hours, so liveness
+	// has to have been checked recently rather than merely not yet expired.
+	live, err := srv.idpStore.EnsureLive(ctx, rec.UserId, rec.IdpId, idpsession.RequireFresh())
+
+	// Only an absent record is this client's to seed. A dead one ends the grant:
+	// this client's copy belongs to the grant that died, so offering it could
+	// only resurrect a session the IdP has already finished with. Signing in
+	// again is what brings the user back.
+	if errors.Is(err, idpsession.ErrNoUpstreamSession) {
+		if rec.UpstreamRefreshToken == "" {
+			// Nothing to seed with, so retrying cannot recover this grant.
+			return nil, 0, fmt.Errorf("no upstream refresh token available: %w", err)
+		}
+		if serr := srv.idpStore.Register(ctx, rec.UserId, rec.IdpId, rec.UpstreamRefreshToken); serr != nil {
+			return nil, 0, fmt.Errorf("failed to seed upstream idp session: %w", serr)
+		}
+		live, err = srv.idpStore.EnsureLive(ctx, rec.UserId, rec.IdpId, idpsession.RequireFresh())
+		if errors.Is(err, idpsession.ErrNoUpstreamSession) {
+			// The record was written a moment ago, so reading it as absent is a
+			// lagging replica or a concurrent delete, not a statement about this
+			// grant. Reporting it as a refusal would tell the client to discard a
+			// token that was just accepted.
+			return nil, 0, fmt.Errorf("upstream idp session not readable after seeding, retry")
+		}
+	}
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to refresh upstream token: %w", err)
+	}
+
+	newSession := session.Create(rec.IdpId, uuid.NewString(), rec.UserId, time.Now(), srv.sessionExpiry)
+	newSession.OauthToken = manager.ToOAuthToken(live.Token)
+	if live.RawIDToken != "" {
+		newSession.SetRawIDToken(live.RawIDToken)
+	}
+	newSession.AddClaims(live.Claims)
+
+	version, err := srv.storage.PutSession(ctx, newSession)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to store new session: %w", err)
+	}
+	return newSession, version, nil
+}
+
+// recreateSessionLegacy is the pre-store path, used when no authenticator getter
+// and so no store is wired. It refreshes the upstream token itself.
+func (srv *Handler) recreateSessionLegacy(
 	ctx context.Context,
 	refreshTokenRecord *oauth21proto.MCPRefreshToken,
 ) (*session.Session, uint64, error) {

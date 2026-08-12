@@ -154,6 +154,21 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A dead canonical upstream session cannot be revived by anything this
+	// endpoint does: only a login supersedes it. Issuing a code here would mint
+	// tokens the very next refresh grant refuses, leaving the client to
+	// authorize and be refused in turn until something else fixes the record.
+	// Refusing now sends the user through the sign-in that does fix it.
+	if srv.upstreamSessionIsDead(ctx, sessionID, userID) {
+		log.Ctx(ctx).Info().
+			Str("user-id", userID).
+			Msg("mcp/authorize: upstream idp session is no longer valid, requiring a new sign-in")
+		httputil.NewError(http.StatusUnauthorized, errUpstreamSessionEnded).
+			WithDescription("Your session with the identity provider has ended. Sign in again to continue.").
+			ErrorResponse(ctx, w, r)
+		return
+	}
+
 	authReqID, err := srv.storage.CreateAuthorizationRequest(ctx, v)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to create authorization request")
@@ -360,4 +375,24 @@ func (srv *Handler) getOrFetchClient(ctx context.Context, clientID string) (*rfc
 	}
 
 	return srv.storage.GetClient(ctx, clientID)
+}
+
+// errUpstreamSessionEnded reports that the user's session with the identity
+// provider is over, so this authorization cannot produce tokens that work.
+var errUpstreamSessionEnded = errors.New("the upstream identity provider session has ended")
+
+// upstreamSessionIsDead reports whether this user's canonical upstream session
+// is a tombstone. It is best-effort: anything that prevents an answer lets the
+// authorization proceed, because refusing on an unreadable record would deny
+// service over an infrastructure problem.
+func (srv *Handler) upstreamSessionIsDead(ctx context.Context, sessionID, userID string) bool {
+	if srv.idpStore == nil {
+		return false
+	}
+	s, _, err := srv.storage.GetSession(ctx, sessionID)
+	if err != nil {
+		return false
+	}
+	dead, err := srv.idpStore.IsDeadHint(ctx, userID, s.GetIdpId())
+	return err == nil && dead
 }
