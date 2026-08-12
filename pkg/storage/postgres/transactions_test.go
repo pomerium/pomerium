@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"errors"
+	"os"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -69,6 +71,10 @@ func putRecord(tx storage.Transaction, id string) error {
 }
 
 func TestTransactionLeader(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
 	dsn := testutil.StartPostgres(t)
 	var databases atomic.Int64
 	dsnF := func(t *testing.T) string {
@@ -258,6 +264,10 @@ func startWaiter(
 }
 
 func TestTransactionWaiter(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
 	dsn := testutil.StartPostgres(t)
 	var databases atomic.Int64
 	dsnF := func(t *testing.T) string {
@@ -388,6 +398,10 @@ func TestTransactionWaiter(t *testing.T) {
 }
 
 func TestLockPrimitives(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
 	dsn := testutil.StartPostgres(t)
 	var databases atomic.Int64
 	dsnF := func(t *testing.T) string {
