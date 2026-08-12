@@ -25,7 +25,6 @@ import (
 )
 
 const (
-	transactionMaxDuration = 5 * time.Minute
 	transactionJoinBackoff = 10 * time.Millisecond
 	transactionJoinGrace   = time.Second
 )
@@ -78,8 +77,6 @@ func waitForResults(
 	ctx context.Context, conn *pooledConn, key string,
 ) ([]*databroker.Record, bool, error) {
 	caller := ctx
-	ctx, cancel := context.WithTimeout(ctx, transactionMaxDuration)
-	defer cancel()
 	// the leader publishes its flight right after taking the lock, so only that
 	// short window is worth polling for; the full duration is for the flight itself
 	graceCtx, cancelGrace := context.WithTimeout(ctx, transactionJoinGrace)

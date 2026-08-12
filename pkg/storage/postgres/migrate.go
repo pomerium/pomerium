@@ -228,6 +228,7 @@ var migrations = []func(context.Context, pgx.Tx) error{
 				flight_id TEXT NOT NULL,
 				completed BOOLEAN NOT NULL,
 				changed BYTEA[],
+				errCode SMALLINT,
 				error TEXT,
 				modified_at TIMESTAMPTZ NOT NULL DEFAULT now()
 			)
