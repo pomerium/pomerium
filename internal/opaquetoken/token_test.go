@@ -1,4 +1,4 @@
-package mcp
+package opaquetoken
 
 import (
 	"crypto/cipher"
@@ -13,18 +13,17 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-func TestCreateCode(t *testing.T) {
+func TestSeal(t *testing.T) {
 	key := cryptutil.NewKey()
 	testCipher, err := cryptutil.NewAEADCipher(key)
 	require.NoError(t, err)
 
 	tests := []struct {
 		name       string
-		typ        oauth21proto.CodeType
+		typ        Type
 		id         string
 		expires    time.Time
 		ad         string
@@ -33,8 +32,8 @@ func TestCreateCode(t *testing.T) {
 		errMessage string
 	}{
 		{
-			name:    "valid authorization code",
-			typ:     CodeTypeAuthorization,
+			name:    "valid authorization token",
+			typ:     TypeAuthorization,
 			id:      "test-id",
 			expires: time.Now().Add(time.Hour),
 			ad:      "test-ad",
@@ -42,8 +41,8 @@ func TestCreateCode(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid refresh code",
-			typ:     CodeTypeRefresh,
+			name:    "valid refresh token",
+			typ:     TypeRefresh,
 			id:      "test-id",
 			expires: time.Now().Add(time.Hour),
 			ad:      "test-ad",
@@ -51,8 +50,8 @@ func TestCreateCode(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid access code",
-			typ:     CodeTypeAccess,
+			name:    "valid access token",
+			typ:     TypeAccess,
 			id:      "test-id",
 			expires: time.Now().Add(time.Hour),
 			ad:      "test-ad",
@@ -61,7 +60,7 @@ func TestCreateCode(t *testing.T) {
 		},
 		{
 			name:       "empty id",
-			typ:        CodeTypeAuthorization,
+			typ:        TypeAuthorization,
 			id:         "",
 			expires:    time.Now().Add(time.Hour),
 			ad:         "test-ad",
@@ -71,7 +70,7 @@ func TestCreateCode(t *testing.T) {
 		},
 		{
 			name:       "empty expires",
-			typ:        CodeTypeAuthorization,
+			typ:        TypeAuthorization,
 			id:         "test-id",
 			expires:    time.Time{},
 			ad:         "test-ad",
@@ -80,7 +79,7 @@ func TestCreateCode(t *testing.T) {
 			errMessage: "validate",
 		},
 		{
-			name:       "invalid code type",
+			name:       "invalid type",
 			typ:        0, // Unspecified type
 			id:         "test-id",
 			expires:    time.Now().Add(time.Hour),
@@ -90,7 +89,7 @@ func TestCreateCode(t *testing.T) {
 			errMessage: "validate",
 		},
 		{
-			name:       "undefined code type",
+			name:       "undefined type",
 			typ:        99, // Undefined type
 			id:         "test-id",
 			expires:    time.Now().Add(time.Hour),
@@ -103,29 +102,29 @@ func TestCreateCode(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			code, err := CreateCode(tc.typ, tc.id, tc.expires, tc.ad, tc.cipher)
+			token, err := Seal(tc.typ, tc.id, tc.expires, tc.ad, tc.cipher, 0)
 
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errMessage != "" {
 					assert.Contains(t, err.Error(), tc.errMessage)
 				}
-				assert.Empty(t, code)
+				assert.Empty(t, token)
 			} else {
 				assert.NoError(t, err)
-				assert.NotEmpty(t, code)
+				assert.NotEmpty(t, token)
 
-				decodedCode, err := DecryptCode(tc.typ, code, tc.cipher, tc.ad, time.Now())
+				payload, err := Open(tc.typ, token, tc.cipher, tc.ad, time.Now())
 				require.NoError(t, err)
-				assert.Equal(t, tc.id, decodedCode.Id)
-				assert.Equal(t, tc.typ, decodedCode.GrantType)
-				assert.True(t, proto.Equal(timestamppb.New(tc.expires), decodedCode.ExpiresAt))
+				assert.Equal(t, tc.id, payload.Id)
+				assert.Equal(t, tc.typ, payload.Type)
+				assert.True(t, proto.Equal(timestamppb.New(tc.expires), payload.ExpiresAt))
 			}
 		})
 	}
 }
 
-func TestDecryptCode(t *testing.T) {
+func TestOpen(t *testing.T) {
 	key := cryptutil.NewKey()
 	testCipher, err := cryptutil.NewAEADCipher(key)
 	require.NoError(t, err)
@@ -134,79 +133,79 @@ func TestDecryptCode(t *testing.T) {
 	future := now.Add(time.Hour)
 	past := now.Add(-time.Hour)
 
-	validCode, err := CreateCode(CodeTypeAuthorization, "test-id", future, "test-ad", testCipher)
+	validToken, err := Seal(TypeAuthorization, "test-id", future, "test-ad", testCipher, 0)
 	require.NoError(t, err)
 
-	validRefreshCode, err := CreateCode(CodeTypeRefresh, "refresh-id", future, "test-ad", testCipher)
+	validRefreshToken, err := Seal(TypeRefresh, "refresh-id", future, "test-ad", testCipher, 0)
 	require.NoError(t, err)
 
-	expiredCode, err := CreateCode(CodeTypeAuthorization, "expired-id", past, "test-ad", testCipher)
+	expiredToken, err := Seal(TypeAuthorization, "expired-id", past, "test-ad", testCipher, 0)
 	require.NoError(t, err)
 
-	codeNoExpiry := &oauth21proto.Code{
-		Id:        "no-expiry",
-		GrantType: CodeTypeAuthorization,
+	payloadNoExpiry := &Payload{
+		Id:   "no-expiry",
+		Type: TypeAuthorization,
 	}
-	codeBytes, err := proto.Marshal(codeNoExpiry)
+	payloadBytes, err := proto.Marshal(payloadNoExpiry)
 	require.NoError(t, err)
-	ciphertext := cryptutil.Encrypt(testCipher, codeBytes, []byte("test-ad"))
-	codeNoExpiryStr := base64.StdEncoding.EncodeToString(ciphertext)
+	ciphertext := cryptutil.Encrypt(testCipher, payloadBytes, []byte("test-ad"))
+	tokenNoExpiry := base64.StdEncoding.EncodeToString(ciphertext)
 
 	tests := []struct {
 		name       string
-		typ        oauth21proto.CodeType
-		code       string
+		typ        Type
+		token      string
 		cipher     cipher.AEAD
 		ad         string
 		now        time.Time
-		want       *oauth21proto.Code
+		want       *Payload
 		wantErr    bool
 		errMessage string
 	}{
 		{
-			name:    "valid code",
-			typ:     CodeTypeAuthorization,
-			code:    validCode,
+			name:    "valid token",
+			typ:     TypeAuthorization,
+			token:   validToken,
 			cipher:  testCipher,
 			ad:      "test-ad",
 			now:     now,
-			want:    &oauth21proto.Code{Id: "test-id", ExpiresAt: timestamppb.New(future), GrantType: CodeTypeAuthorization},
+			want:    &Payload{Id: "test-id", ExpiresAt: timestamppb.New(future), Type: TypeAuthorization},
 			wantErr: false,
 		},
 		{
-			name:    "valid refresh code",
-			typ:     CodeTypeRefresh,
-			code:    validRefreshCode,
+			name:    "valid refresh token",
+			typ:     TypeRefresh,
+			token:   validRefreshToken,
 			cipher:  testCipher,
 			ad:      "test-ad",
 			now:     now,
-			want:    &oauth21proto.Code{Id: "refresh-id", ExpiresAt: timestamppb.New(future), GrantType: CodeTypeRefresh},
+			want:    &Payload{Id: "refresh-id", ExpiresAt: timestamppb.New(future), Type: TypeRefresh},
 			wantErr: false,
 		},
 		{
-			name:       "wrong code type",
-			typ:        CodeTypeAccess, // Using wrong type
-			code:       validCode,      // This was created with Authorization type
+			name:       "wrong type",
+			typ:        TypeAccess, // Using wrong type
+			token:      validToken, // minted with the authorization type
 			cipher:     testCipher,
 			ad:         "test-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "code type mismatch",
+			errMessage: "token type mismatch",
 		},
 		{
-			name:       "expired code",
-			typ:        CodeTypeAuthorization,
-			code:       expiredCode,
+			name:       "expired token",
+			typ:        TypeAuthorization,
+			token:      expiredToken,
 			cipher:     testCipher,
 			ad:         "test-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "code expired",
+			errMessage: "token expired",
 		},
 		{
 			name:       "nil expiration",
-			typ:        CodeTypeAuthorization,
-			code:       codeNoExpiryStr,
+			typ:        TypeAuthorization,
+			token:      tokenNoExpiry,
 			cipher:     testCipher,
 			ad:         "test-ad",
 			now:        now,
@@ -215,8 +214,8 @@ func TestDecryptCode(t *testing.T) {
 		},
 		{
 			name:       "invalid base64",
-			typ:        CodeTypeAuthorization,
-			code:       "not-base64",
+			typ:        TypeAuthorization,
+			token:      "not-base64",
 			cipher:     testCipher,
 			ad:         "test-ad",
 			now:        now,
@@ -225,8 +224,8 @@ func TestDecryptCode(t *testing.T) {
 		},
 		{
 			name:       "wrong authentication data",
-			typ:        CodeTypeAuthorization,
-			code:       validCode,
+			typ:        TypeAuthorization,
+			token:      validToken,
 			cipher:     testCipher,
 			ad:         "wrong-ad",
 			now:        now,
@@ -234,30 +233,30 @@ func TestDecryptCode(t *testing.T) {
 			errMessage: "message authentication failed",
 		},
 		{
-			name:       "unspecified code type",
+			name:       "unspecified type",
 			typ:        0, // Unspecified type
-			code:       validCode,
+			token:      validToken,
 			cipher:     testCipher,
 			ad:         "test-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "code type mismatch",
+			errMessage: "token type mismatch",
 		},
 		{
-			name:       "undefined code type",
+			name:       "undefined type",
 			typ:        99, // undefined type
-			code:       validCode,
+			token:      validToken,
 			cipher:     testCipher,
 			ad:         "test-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "code type mismatch",
+			errMessage: "token type mismatch",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := DecryptCode(tc.typ, tc.code, tc.cipher, tc.ad, tc.now)
+			got, err := Open(tc.typ, tc.token, tc.cipher, tc.ad, tc.now)
 
 			if tc.wantErr {
 				require.Error(t, err)

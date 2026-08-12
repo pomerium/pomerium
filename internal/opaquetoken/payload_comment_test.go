@@ -1,4 +1,4 @@
-package gen
+package opaquetoken
 
 import (
 	"os"
@@ -6,11 +6,11 @@ import (
 	"testing"
 )
 
-// TestCodeCommentsDoNotReferenceReviewFraming guards against leaking
+// TestPayloadCommentsDoNotReferenceReviewFraming guards against leaking
 // decision/alternatives framing (e.g. "option B") into shipped code. Comments
 // must describe behavior, not which review option a change came from.
-func TestCodeCommentsDoNotReferenceReviewFraming(t *testing.T) {
-	for _, path := range []string{"code.pb.go", "../proto/code.proto"} {
+func TestPayloadCommentsDoNotReferenceReviewFraming(t *testing.T) {
+	for _, path := range []string{"payload.pb.go", "payload.proto"} {
 		b, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
