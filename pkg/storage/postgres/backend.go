@@ -431,8 +431,6 @@ func (backend *Backend) DoTransaction(
 ) (changed []*databroker.Record, shared bool, err error) {
 	ctx, cancelMerge := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancelMerge(nil)
-	ctx, cancel := context.WithTimeout(ctx, transactionMaxDuration)
-	defer cancel()
 
 	var ran bool
 	res, err, _ := backend.txGroup.Do(key, func() (any, error) {
@@ -505,7 +503,7 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 		Int32("max_conns", pool.Config().MaxConns).
 		Int32("min_conns", pool.Config().MinConns).
 		Msg("initializing postgres backend with pool")
-	backend.texSem = semaphore.NewWeighted(int64(pool.Config().MaxConns) / 2)
+	backend.texSem = semaphore.NewWeighted(max(1, int64(pool.Config().MaxConns)/2))
 
 	err = otelpgx.RecordStats(pool)
 	if err != nil {
