@@ -1758,7 +1758,7 @@ func (x *TransactionStreamResponse) GetMessage() isTransactionStreamResponse_Mes
 	return nil
 }
 
-func (x *TransactionStreamResponse) GetOperation() *TransactionResponse {
+func (x *TransactionStreamResponse) GetOperation() *TransactionResponseWithError {
 	if x != nil {
 		if x, ok := x.Message.(*TransactionStreamResponse_Operation); ok {
 			return x.Operation
@@ -1790,7 +1790,7 @@ type isTransactionStreamResponse_Message interface {
 }
 
 type TransactionStreamResponse_Operation struct {
-	Operation *TransactionResponse `protobuf:"bytes,2,opt,name=operation,proto3,oneof"`
+	Operation *TransactionResponseWithError `protobuf:"bytes,2,opt,name=operation,proto3,oneof"`
 }
 
 type TransactionStreamResponse_Commit struct {
@@ -2045,6 +2045,111 @@ func (*TransactionRequest_Patch) isTransactionRequest_Operation() {}
 
 func (*TransactionRequest_Query) isTransactionRequest_Operation() {}
 
+type TransactionResponseWithError struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Response      *TransactionResponse   `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
+	Err           *RPCStatus             `protobuf:"bytes,2,opt,name=err,proto3" json:"err,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TransactionResponseWithError) Reset() {
+	*x = TransactionResponseWithError{}
+	mi := &file_databroker_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransactionResponseWithError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransactionResponseWithError) ProtoMessage() {}
+
+func (x *TransactionResponseWithError) ProtoReflect() protoreflect.Message {
+	mi := &file_databroker_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransactionResponseWithError.ProtoReflect.Descriptor instead.
+func (*TransactionResponseWithError) Descriptor() ([]byte, []int) {
+	return file_databroker_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *TransactionResponseWithError) GetResponse() *TransactionResponse {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *TransactionResponseWithError) GetErr() *RPCStatus {
+	if x != nil {
+		return x.Err
+	}
+	return nil
+}
+
+// mirrors "google/rpc/status.proto"'s relevant fields
+type RPCStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          int32                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RPCStatus) Reset() {
+	*x = RPCStatus{}
+	mi := &file_databroker_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RPCStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RPCStatus) ProtoMessage() {}
+
+func (x *RPCStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_databroker_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RPCStatus.ProtoReflect.Descriptor instead.
+func (*RPCStatus) Descriptor() ([]byte, []int) {
+	return file_databroker_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *RPCStatus) GetCode() int32 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RPCStatus) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type TransactionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Key   string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -2061,7 +2166,7 @@ type TransactionResponse struct {
 
 func (x *TransactionResponse) Reset() {
 	*x = TransactionResponse{}
-	mi := &file_databroker_proto_msgTypes[33]
+	mi := &file_databroker_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2073,7 +2178,7 @@ func (x *TransactionResponse) String() string {
 func (*TransactionResponse) ProtoMessage() {}
 
 func (x *TransactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[33]
+	mi := &file_databroker_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2086,7 +2191,7 @@ func (x *TransactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionResponse.ProtoReflect.Descriptor instead.
 func (*TransactionResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{33}
+	return file_databroker_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *TransactionResponse) GetKey() string {
@@ -2180,7 +2285,7 @@ type CommitTransactionResponse struct {
 
 func (x *CommitTransactionResponse) Reset() {
 	*x = CommitTransactionResponse{}
-	mi := &file_databroker_proto_msgTypes[34]
+	mi := &file_databroker_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2192,7 +2297,7 @@ func (x *CommitTransactionResponse) String() string {
 func (*CommitTransactionResponse) ProtoMessage() {}
 
 func (x *CommitTransactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[34]
+	mi := &file_databroker_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2205,7 +2310,7 @@ func (x *CommitTransactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitTransactionResponse.ProtoReflect.Descriptor instead.
 func (*CommitTransactionResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{34}
+	return file_databroker_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CommitTransactionResponse) GetShared() bool {
@@ -2232,7 +2337,7 @@ type Checkpoint struct {
 
 func (x *Checkpoint) Reset() {
 	*x = Checkpoint{}
-	mi := &file_databroker_proto_msgTypes[35]
+	mi := &file_databroker_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2244,7 +2349,7 @@ func (x *Checkpoint) String() string {
 func (*Checkpoint) ProtoMessage() {}
 
 func (x *Checkpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[35]
+	mi := &file_databroker_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2257,7 +2362,7 @@ func (x *Checkpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Checkpoint.ProtoReflect.Descriptor instead.
 func (*Checkpoint) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{35}
+	return file_databroker_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *Checkpoint) GetServerVersion() uint64 {
@@ -2282,7 +2387,7 @@ type GetCheckpointRequest struct {
 
 func (x *GetCheckpointRequest) Reset() {
 	*x = GetCheckpointRequest{}
-	mi := &file_databroker_proto_msgTypes[36]
+	mi := &file_databroker_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2294,7 +2399,7 @@ func (x *GetCheckpointRequest) String() string {
 func (*GetCheckpointRequest) ProtoMessage() {}
 
 func (x *GetCheckpointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[36]
+	mi := &file_databroker_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2307,7 +2412,7 @@ func (x *GetCheckpointRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCheckpointRequest.ProtoReflect.Descriptor instead.
 func (*GetCheckpointRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{36}
+	return file_databroker_proto_rawDescGZIP(), []int{38}
 }
 
 type GetCheckpointResponse struct {
@@ -2320,7 +2425,7 @@ type GetCheckpointResponse struct {
 
 func (x *GetCheckpointResponse) Reset() {
 	*x = GetCheckpointResponse{}
-	mi := &file_databroker_proto_msgTypes[37]
+	mi := &file_databroker_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2332,7 +2437,7 @@ func (x *GetCheckpointResponse) String() string {
 func (*GetCheckpointResponse) ProtoMessage() {}
 
 func (x *GetCheckpointResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[37]
+	mi := &file_databroker_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2345,7 +2450,7 @@ func (x *GetCheckpointResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCheckpointResponse.ProtoReflect.Descriptor instead.
 func (*GetCheckpointResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{37}
+	return file_databroker_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GetCheckpointResponse) GetCheckpoint() *Checkpoint {
@@ -2371,7 +2476,7 @@ type SetCheckpointRequest struct {
 
 func (x *SetCheckpointRequest) Reset() {
 	*x = SetCheckpointRequest{}
-	mi := &file_databroker_proto_msgTypes[38]
+	mi := &file_databroker_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2383,7 +2488,7 @@ func (x *SetCheckpointRequest) String() string {
 func (*SetCheckpointRequest) ProtoMessage() {}
 
 func (x *SetCheckpointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[38]
+	mi := &file_databroker_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2396,7 +2501,7 @@ func (x *SetCheckpointRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCheckpointRequest.ProtoReflect.Descriptor instead.
 func (*SetCheckpointRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{38}
+	return file_databroker_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *SetCheckpointRequest) GetCheckpoint() *Checkpoint {
@@ -2414,7 +2519,7 @@ type SetCheckpointResponse struct {
 
 func (x *SetCheckpointResponse) Reset() {
 	*x = SetCheckpointResponse{}
-	mi := &file_databroker_proto_msgTypes[39]
+	mi := &file_databroker_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2426,7 +2531,7 @@ func (x *SetCheckpointResponse) String() string {
 func (*SetCheckpointResponse) ProtoMessage() {}
 
 func (x *SetCheckpointResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[39]
+	mi := &file_databroker_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2439,7 +2544,7 @@ func (x *SetCheckpointResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCheckpointResponse.ProtoReflect.Descriptor instead.
 func (*SetCheckpointResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{39}
+	return file_databroker_proto_rawDescGZIP(), []int{41}
 }
 
 var File_databroker_proto protoreflect.FileDescriptor
@@ -2556,10 +2661,10 @@ const file_databroker_proto_rawDesc = "" +
 	"\x05begin\x18\x02 \x01(\v2\x1c.databroker.BeginTransactionH\x00R\x05begin\x12>\n" +
 	"\toperation\x18\x03 \x01(\v2\x1e.databroker.TransactionRequestH\x00R\toperation\x127\n" +
 	"\x06commit\x18\x04 \x01(\v2\x1d.databroker.CommitTransactionH\x00R\x06commitB\t\n" +
-	"\amessage\"\x82\x02\n" +
+	"\amessage\"\x8b\x02\n" +
 	"\x19TransactionStreamResponse\x12\x1a\n" +
-	"\bsequence\x18\x01 \x01(\x04R\bsequence\x12?\n" +
-	"\toperation\x18\x02 \x01(\v2\x1f.databroker.TransactionResponseH\x00R\toperation\x12?\n" +
+	"\bsequence\x18\x01 \x01(\x04R\bsequence\x12H\n" +
+	"\toperation\x18\x02 \x01(\v2(.databroker.TransactionResponseWithErrorH\x00R\toperation\x12?\n" +
 	"\x06commit\x18\x03 \x01(\v2%.databroker.CommitTransactionResponseH\x00R\x06commit\x12<\n" +
 	"\x05begin\x18\x04 \x01(\v2$.databroker.BeginTransactionResponseH\x00R\x05beginB\t\n" +
 	"\amessage\"$\n" +
@@ -2573,7 +2678,13 @@ const file_databroker_proto_rawDesc = "" +
 	"\x03put\x18\x03 \x01(\v2\x16.databroker.PutRequestH\x00R\x03put\x120\n" +
 	"\x05patch\x18\x04 \x01(\v2\x18.databroker.PatchRequestH\x00R\x05patch\x120\n" +
 	"\x05query\x18\x05 \x01(\v2\x18.databroker.QueryRequestH\x00R\x05queryB\v\n" +
-	"\toperation\"\xf4\x01\n" +
+	"\toperation\"\x84\x01\n" +
+	"\x1cTransactionResponseWithError\x12;\n" +
+	"\bresponse\x18\x01 \x01(\v2\x1f.databroker.TransactionResponseR\bresponse\x12'\n" +
+	"\x03err\x18\x02 \x01(\v2\x15.databroker.RPCStatusR\x03err\"9\n" +
+	"\tRPCStatus\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xf4\x01\n" +
 	"\x13TransactionResponse\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
 	"\x03get\x18\x02 \x01(\v2\x17.databroker.GetResponseH\x00R\x03get\x12+\n" +
@@ -2636,68 +2747,70 @@ func file_databroker_proto_rawDescGZIP() []byte {
 	return file_databroker_proto_rawDescData
 }
 
-var file_databroker_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_databroker_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
 var file_databroker_proto_goTypes = []any{
-	(*Record)(nil),                    // 0: databroker.Record
-	(*Versions)(nil),                  // 1: databroker.Versions
-	(*Options)(nil),                   // 2: databroker.Options
-	(*TypedOptions)(nil),              // 3: databroker.TypedOptions
-	(*ClearResponse)(nil),             // 4: databroker.ClearResponse
-	(*GetRequest)(nil),                // 5: databroker.GetRequest
-	(*GetResponse)(nil),               // 6: databroker.GetResponse
-	(*ListTypesResponse)(nil),         // 7: databroker.ListTypesResponse
-	(*QueryRequest)(nil),              // 8: databroker.QueryRequest
-	(*QueryResponse)(nil),             // 9: databroker.QueryResponse
-	(*PutRequest)(nil),                // 10: databroker.PutRequest
-	(*PutResponse)(nil),               // 11: databroker.PutResponse
-	(*PatchRequest)(nil),              // 12: databroker.PatchRequest
-	(*PatchResponse)(nil),             // 13: databroker.PatchResponse
-	(*ServerInfoResponse)(nil),        // 14: databroker.ServerInfoResponse
-	(*GetOptionsRequest)(nil),         // 15: databroker.GetOptionsRequest
-	(*GetOptionsResponse)(nil),        // 16: databroker.GetOptionsResponse
-	(*SetOptionsRequest)(nil),         // 17: databroker.SetOptionsRequest
-	(*SetOptionsResponse)(nil),        // 18: databroker.SetOptionsResponse
-	(*SyncRequest)(nil),               // 19: databroker.SyncRequest
-	(*SyncResponse)(nil),              // 20: databroker.SyncResponse
-	(*SyncLatestRequest)(nil),         // 21: databroker.SyncLatestRequest
-	(*SyncLatestResponse)(nil),        // 22: databroker.SyncLatestResponse
-	(*AcquireLeaseRequest)(nil),       // 23: databroker.AcquireLeaseRequest
-	(*AcquireLeaseResponse)(nil),      // 24: databroker.AcquireLeaseResponse
-	(*ReleaseLeaseRequest)(nil),       // 25: databroker.ReleaseLeaseRequest
-	(*RenewLeaseRequest)(nil),         // 26: databroker.RenewLeaseRequest
-	(*TransactionStreamRequest)(nil),  // 27: databroker.TransactionStreamRequest
-	(*TransactionStreamResponse)(nil), // 28: databroker.TransactionStreamResponse
-	(*BeginTransaction)(nil),          // 29: databroker.BeginTransaction
-	(*BeginTransactionResponse)(nil),  // 30: databroker.BeginTransactionResponse
-	(*CommitTransaction)(nil),         // 31: databroker.CommitTransaction
-	(*TransactionRequest)(nil),        // 32: databroker.TransactionRequest
-	(*TransactionResponse)(nil),       // 33: databroker.TransactionResponse
-	(*CommitTransactionResponse)(nil), // 34: databroker.CommitTransactionResponse
-	(*Checkpoint)(nil),                // 35: databroker.Checkpoint
-	(*GetCheckpointRequest)(nil),      // 36: databroker.GetCheckpointRequest
-	(*GetCheckpointResponse)(nil),     // 37: databroker.GetCheckpointResponse
-	(*SetCheckpointRequest)(nil),      // 38: databroker.SetCheckpointRequest
-	(*SetCheckpointResponse)(nil),     // 39: databroker.SetCheckpointResponse
-	(*anypb.Any)(nil),                 // 40: google.protobuf.Any
-	(*timestamppb.Timestamp)(nil),     // 41: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),       // 42: google.protobuf.Duration
-	(*structpb.Struct)(nil),           // 43: google.protobuf.Struct
-	(*fieldmaskpb.FieldMask)(nil),     // 44: google.protobuf.FieldMask
-	(*emptypb.Empty)(nil),             // 45: google.protobuf.Empty
+	(*Record)(nil),                       // 0: databroker.Record
+	(*Versions)(nil),                     // 1: databroker.Versions
+	(*Options)(nil),                      // 2: databroker.Options
+	(*TypedOptions)(nil),                 // 3: databroker.TypedOptions
+	(*ClearResponse)(nil),                // 4: databroker.ClearResponse
+	(*GetRequest)(nil),                   // 5: databroker.GetRequest
+	(*GetResponse)(nil),                  // 6: databroker.GetResponse
+	(*ListTypesResponse)(nil),            // 7: databroker.ListTypesResponse
+	(*QueryRequest)(nil),                 // 8: databroker.QueryRequest
+	(*QueryResponse)(nil),                // 9: databroker.QueryResponse
+	(*PutRequest)(nil),                   // 10: databroker.PutRequest
+	(*PutResponse)(nil),                  // 11: databroker.PutResponse
+	(*PatchRequest)(nil),                 // 12: databroker.PatchRequest
+	(*PatchResponse)(nil),                // 13: databroker.PatchResponse
+	(*ServerInfoResponse)(nil),           // 14: databroker.ServerInfoResponse
+	(*GetOptionsRequest)(nil),            // 15: databroker.GetOptionsRequest
+	(*GetOptionsResponse)(nil),           // 16: databroker.GetOptionsResponse
+	(*SetOptionsRequest)(nil),            // 17: databroker.SetOptionsRequest
+	(*SetOptionsResponse)(nil),           // 18: databroker.SetOptionsResponse
+	(*SyncRequest)(nil),                  // 19: databroker.SyncRequest
+	(*SyncResponse)(nil),                 // 20: databroker.SyncResponse
+	(*SyncLatestRequest)(nil),            // 21: databroker.SyncLatestRequest
+	(*SyncLatestResponse)(nil),           // 22: databroker.SyncLatestResponse
+	(*AcquireLeaseRequest)(nil),          // 23: databroker.AcquireLeaseRequest
+	(*AcquireLeaseResponse)(nil),         // 24: databroker.AcquireLeaseResponse
+	(*ReleaseLeaseRequest)(nil),          // 25: databroker.ReleaseLeaseRequest
+	(*RenewLeaseRequest)(nil),            // 26: databroker.RenewLeaseRequest
+	(*TransactionStreamRequest)(nil),     // 27: databroker.TransactionStreamRequest
+	(*TransactionStreamResponse)(nil),    // 28: databroker.TransactionStreamResponse
+	(*BeginTransaction)(nil),             // 29: databroker.BeginTransaction
+	(*BeginTransactionResponse)(nil),     // 30: databroker.BeginTransactionResponse
+	(*CommitTransaction)(nil),            // 31: databroker.CommitTransaction
+	(*TransactionRequest)(nil),           // 32: databroker.TransactionRequest
+	(*TransactionResponseWithError)(nil), // 33: databroker.TransactionResponseWithError
+	(*RPCStatus)(nil),                    // 34: databroker.RPCStatus
+	(*TransactionResponse)(nil),          // 35: databroker.TransactionResponse
+	(*CommitTransactionResponse)(nil),    // 36: databroker.CommitTransactionResponse
+	(*Checkpoint)(nil),                   // 37: databroker.Checkpoint
+	(*GetCheckpointRequest)(nil),         // 38: databroker.GetCheckpointRequest
+	(*GetCheckpointResponse)(nil),        // 39: databroker.GetCheckpointResponse
+	(*SetCheckpointRequest)(nil),         // 40: databroker.SetCheckpointRequest
+	(*SetCheckpointResponse)(nil),        // 41: databroker.SetCheckpointResponse
+	(*anypb.Any)(nil),                    // 42: google.protobuf.Any
+	(*timestamppb.Timestamp)(nil),        // 43: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),          // 44: google.protobuf.Duration
+	(*structpb.Struct)(nil),              // 45: google.protobuf.Struct
+	(*fieldmaskpb.FieldMask)(nil),        // 46: google.protobuf.FieldMask
+	(*emptypb.Empty)(nil),                // 47: google.protobuf.Empty
 }
 var file_databroker_proto_depIdxs = []int32{
-	40, // 0: databroker.Record.data:type_name -> google.protobuf.Any
-	41, // 1: databroker.Record.modified_at:type_name -> google.protobuf.Timestamp
-	41, // 2: databroker.Record.deleted_at:type_name -> google.protobuf.Timestamp
-	42, // 3: databroker.Options.ttl:type_name -> google.protobuf.Duration
+	42, // 0: databroker.Record.data:type_name -> google.protobuf.Any
+	43, // 1: databroker.Record.modified_at:type_name -> google.protobuf.Timestamp
+	43, // 2: databroker.Record.deleted_at:type_name -> google.protobuf.Timestamp
+	44, // 3: databroker.Options.ttl:type_name -> google.protobuf.Duration
 	2,  // 4: databroker.TypedOptions.options:type_name -> databroker.Options
 	0,  // 5: databroker.GetResponse.record:type_name -> databroker.Record
-	43, // 6: databroker.QueryRequest.filter:type_name -> google.protobuf.Struct
+	45, // 6: databroker.QueryRequest.filter:type_name -> google.protobuf.Struct
 	0,  // 7: databroker.QueryResponse.records:type_name -> databroker.Record
 	0,  // 8: databroker.PutRequest.records:type_name -> databroker.Record
 	0,  // 9: databroker.PutResponse.records:type_name -> databroker.Record
 	0,  // 10: databroker.PatchRequest.records:type_name -> databroker.Record
-	44, // 11: databroker.PatchRequest.field_mask:type_name -> google.protobuf.FieldMask
+	46, // 11: databroker.PatchRequest.field_mask:type_name -> google.protobuf.FieldMask
 	0,  // 12: databroker.PatchResponse.records:type_name -> databroker.Record
 	2,  // 13: databroker.GetOptionsResponse.options:type_name -> databroker.Options
 	2,  // 14: databroker.SetOptionsRequest.options:type_name -> databroker.Options
@@ -2707,64 +2820,66 @@ var file_databroker_proto_depIdxs = []int32{
 	0,  // 18: databroker.SyncLatestResponse.record:type_name -> databroker.Record
 	1,  // 19: databroker.SyncLatestResponse.versions:type_name -> databroker.Versions
 	3,  // 20: databroker.SyncLatestResponse.options:type_name -> databroker.TypedOptions
-	42, // 21: databroker.AcquireLeaseRequest.duration:type_name -> google.protobuf.Duration
-	42, // 22: databroker.RenewLeaseRequest.duration:type_name -> google.protobuf.Duration
+	44, // 21: databroker.AcquireLeaseRequest.duration:type_name -> google.protobuf.Duration
+	44, // 22: databroker.RenewLeaseRequest.duration:type_name -> google.protobuf.Duration
 	29, // 23: databroker.TransactionStreamRequest.begin:type_name -> databroker.BeginTransaction
 	32, // 24: databroker.TransactionStreamRequest.operation:type_name -> databroker.TransactionRequest
 	31, // 25: databroker.TransactionStreamRequest.commit:type_name -> databroker.CommitTransaction
-	33, // 26: databroker.TransactionStreamResponse.operation:type_name -> databroker.TransactionResponse
-	34, // 27: databroker.TransactionStreamResponse.commit:type_name -> databroker.CommitTransactionResponse
+	33, // 26: databroker.TransactionStreamResponse.operation:type_name -> databroker.TransactionResponseWithError
+	36, // 27: databroker.TransactionStreamResponse.commit:type_name -> databroker.CommitTransactionResponse
 	30, // 28: databroker.TransactionStreamResponse.begin:type_name -> databroker.BeginTransactionResponse
 	5,  // 29: databroker.TransactionRequest.get:type_name -> databroker.GetRequest
 	10, // 30: databroker.TransactionRequest.put:type_name -> databroker.PutRequest
 	12, // 31: databroker.TransactionRequest.patch:type_name -> databroker.PatchRequest
 	8,  // 32: databroker.TransactionRequest.query:type_name -> databroker.QueryRequest
-	6,  // 33: databroker.TransactionResponse.get:type_name -> databroker.GetResponse
-	11, // 34: databroker.TransactionResponse.put:type_name -> databroker.PutResponse
-	13, // 35: databroker.TransactionResponse.patch:type_name -> databroker.PatchResponse
-	9,  // 36: databroker.TransactionResponse.query:type_name -> databroker.QueryResponse
-	0,  // 37: databroker.CommitTransactionResponse.records:type_name -> databroker.Record
-	35, // 38: databroker.GetCheckpointResponse.checkpoint:type_name -> databroker.Checkpoint
-	35, // 39: databroker.SetCheckpointRequest.checkpoint:type_name -> databroker.Checkpoint
-	23, // 40: databroker.DataBrokerService.AcquireLease:input_type -> databroker.AcquireLeaseRequest
-	45, // 41: databroker.DataBrokerService.Clear:input_type -> google.protobuf.Empty
-	5,  // 42: databroker.DataBrokerService.Get:input_type -> databroker.GetRequest
-	15, // 43: databroker.DataBrokerService.GetOptions:input_type -> databroker.GetOptionsRequest
-	45, // 44: databroker.DataBrokerService.ListTypes:input_type -> google.protobuf.Empty
-	10, // 45: databroker.DataBrokerService.Put:input_type -> databroker.PutRequest
-	12, // 46: databroker.DataBrokerService.Patch:input_type -> databroker.PatchRequest
-	8,  // 47: databroker.DataBrokerService.Query:input_type -> databroker.QueryRequest
-	25, // 48: databroker.DataBrokerService.ReleaseLease:input_type -> databroker.ReleaseLeaseRequest
-	26, // 49: databroker.DataBrokerService.RenewLease:input_type -> databroker.RenewLeaseRequest
-	45, // 50: databroker.DataBrokerService.ServerInfo:input_type -> google.protobuf.Empty
-	17, // 51: databroker.DataBrokerService.SetOptions:input_type -> databroker.SetOptionsRequest
-	19, // 52: databroker.DataBrokerService.Sync:input_type -> databroker.SyncRequest
-	21, // 53: databroker.DataBrokerService.SyncLatest:input_type -> databroker.SyncLatestRequest
-	27, // 54: databroker.DataBrokerService.Transaction:input_type -> databroker.TransactionStreamRequest
-	36, // 55: databroker.CheckpointService.GetCheckpoint:input_type -> databroker.GetCheckpointRequest
-	38, // 56: databroker.CheckpointService.SetCheckpoint:input_type -> databroker.SetCheckpointRequest
-	24, // 57: databroker.DataBrokerService.AcquireLease:output_type -> databroker.AcquireLeaseResponse
-	4,  // 58: databroker.DataBrokerService.Clear:output_type -> databroker.ClearResponse
-	6,  // 59: databroker.DataBrokerService.Get:output_type -> databroker.GetResponse
-	16, // 60: databroker.DataBrokerService.GetOptions:output_type -> databroker.GetOptionsResponse
-	7,  // 61: databroker.DataBrokerService.ListTypes:output_type -> databroker.ListTypesResponse
-	11, // 62: databroker.DataBrokerService.Put:output_type -> databroker.PutResponse
-	13, // 63: databroker.DataBrokerService.Patch:output_type -> databroker.PatchResponse
-	9,  // 64: databroker.DataBrokerService.Query:output_type -> databroker.QueryResponse
-	45, // 65: databroker.DataBrokerService.ReleaseLease:output_type -> google.protobuf.Empty
-	45, // 66: databroker.DataBrokerService.RenewLease:output_type -> google.protobuf.Empty
-	14, // 67: databroker.DataBrokerService.ServerInfo:output_type -> databroker.ServerInfoResponse
-	18, // 68: databroker.DataBrokerService.SetOptions:output_type -> databroker.SetOptionsResponse
-	20, // 69: databroker.DataBrokerService.Sync:output_type -> databroker.SyncResponse
-	22, // 70: databroker.DataBrokerService.SyncLatest:output_type -> databroker.SyncLatestResponse
-	28, // 71: databroker.DataBrokerService.Transaction:output_type -> databroker.TransactionStreamResponse
-	37, // 72: databroker.CheckpointService.GetCheckpoint:output_type -> databroker.GetCheckpointResponse
-	39, // 73: databroker.CheckpointService.SetCheckpoint:output_type -> databroker.SetCheckpointResponse
-	57, // [57:74] is the sub-list for method output_type
-	40, // [40:57] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	35, // 33: databroker.TransactionResponseWithError.response:type_name -> databroker.TransactionResponse
+	34, // 34: databroker.TransactionResponseWithError.err:type_name -> databroker.RPCStatus
+	6,  // 35: databroker.TransactionResponse.get:type_name -> databroker.GetResponse
+	11, // 36: databroker.TransactionResponse.put:type_name -> databroker.PutResponse
+	13, // 37: databroker.TransactionResponse.patch:type_name -> databroker.PatchResponse
+	9,  // 38: databroker.TransactionResponse.query:type_name -> databroker.QueryResponse
+	0,  // 39: databroker.CommitTransactionResponse.records:type_name -> databroker.Record
+	37, // 40: databroker.GetCheckpointResponse.checkpoint:type_name -> databroker.Checkpoint
+	37, // 41: databroker.SetCheckpointRequest.checkpoint:type_name -> databroker.Checkpoint
+	23, // 42: databroker.DataBrokerService.AcquireLease:input_type -> databroker.AcquireLeaseRequest
+	47, // 43: databroker.DataBrokerService.Clear:input_type -> google.protobuf.Empty
+	5,  // 44: databroker.DataBrokerService.Get:input_type -> databroker.GetRequest
+	15, // 45: databroker.DataBrokerService.GetOptions:input_type -> databroker.GetOptionsRequest
+	47, // 46: databroker.DataBrokerService.ListTypes:input_type -> google.protobuf.Empty
+	10, // 47: databroker.DataBrokerService.Put:input_type -> databroker.PutRequest
+	12, // 48: databroker.DataBrokerService.Patch:input_type -> databroker.PatchRequest
+	8,  // 49: databroker.DataBrokerService.Query:input_type -> databroker.QueryRequest
+	25, // 50: databroker.DataBrokerService.ReleaseLease:input_type -> databroker.ReleaseLeaseRequest
+	26, // 51: databroker.DataBrokerService.RenewLease:input_type -> databroker.RenewLeaseRequest
+	47, // 52: databroker.DataBrokerService.ServerInfo:input_type -> google.protobuf.Empty
+	17, // 53: databroker.DataBrokerService.SetOptions:input_type -> databroker.SetOptionsRequest
+	19, // 54: databroker.DataBrokerService.Sync:input_type -> databroker.SyncRequest
+	21, // 55: databroker.DataBrokerService.SyncLatest:input_type -> databroker.SyncLatestRequest
+	27, // 56: databroker.DataBrokerService.Transaction:input_type -> databroker.TransactionStreamRequest
+	38, // 57: databroker.CheckpointService.GetCheckpoint:input_type -> databroker.GetCheckpointRequest
+	40, // 58: databroker.CheckpointService.SetCheckpoint:input_type -> databroker.SetCheckpointRequest
+	24, // 59: databroker.DataBrokerService.AcquireLease:output_type -> databroker.AcquireLeaseResponse
+	4,  // 60: databroker.DataBrokerService.Clear:output_type -> databroker.ClearResponse
+	6,  // 61: databroker.DataBrokerService.Get:output_type -> databroker.GetResponse
+	16, // 62: databroker.DataBrokerService.GetOptions:output_type -> databroker.GetOptionsResponse
+	7,  // 63: databroker.DataBrokerService.ListTypes:output_type -> databroker.ListTypesResponse
+	11, // 64: databroker.DataBrokerService.Put:output_type -> databroker.PutResponse
+	13, // 65: databroker.DataBrokerService.Patch:output_type -> databroker.PatchResponse
+	9,  // 66: databroker.DataBrokerService.Query:output_type -> databroker.QueryResponse
+	47, // 67: databroker.DataBrokerService.ReleaseLease:output_type -> google.protobuf.Empty
+	47, // 68: databroker.DataBrokerService.RenewLease:output_type -> google.protobuf.Empty
+	14, // 69: databroker.DataBrokerService.ServerInfo:output_type -> databroker.ServerInfoResponse
+	18, // 70: databroker.DataBrokerService.SetOptions:output_type -> databroker.SetOptionsResponse
+	20, // 71: databroker.DataBrokerService.Sync:output_type -> databroker.SyncResponse
+	22, // 72: databroker.DataBrokerService.SyncLatest:output_type -> databroker.SyncLatestResponse
+	28, // 73: databroker.DataBrokerService.Transaction:output_type -> databroker.TransactionStreamResponse
+	39, // 74: databroker.CheckpointService.GetCheckpoint:output_type -> databroker.GetCheckpointResponse
+	41, // 75: databroker.CheckpointService.SetCheckpoint:output_type -> databroker.SetCheckpointResponse
+	59, // [59:76] is the sub-list for method output_type
+	42, // [42:59] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_databroker_proto_init() }
@@ -2800,7 +2915,7 @@ func file_databroker_proto_init() {
 		(*TransactionRequest_Patch)(nil),
 		(*TransactionRequest_Query)(nil),
 	}
-	file_databroker_proto_msgTypes[33].OneofWrappers = []any{
+	file_databroker_proto_msgTypes[35].OneofWrappers = []any{
 		(*TransactionResponse_Get)(nil),
 		(*TransactionResponse_Put)(nil),
 		(*TransactionResponse_Patch)(nil),
@@ -2812,7 +2927,7 @@ func file_databroker_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_databroker_proto_rawDesc), len(file_databroker_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   40,
+			NumMessages:   42,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

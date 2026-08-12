@@ -247,9 +247,9 @@ message TransactionStreamRequest {
 message TransactionStreamResponse {
   uint64 sequence = 1;
   oneof message {
-    TransactionResponse       operation = 2;
-    CommitTransactionResponse commit    = 3;
-    BeginTransactionResponse  begin     = 4;
+    TransactionResponseWithError  operation = 2;
+    CommitTransactionResponse     commit    = 3;
+    BeginTransactionResponse      begin     = 4;
   }
 }
 
@@ -269,6 +269,17 @@ message TransactionRequest {
     PatchRequest patch = 4;
     QueryRequest query = 5;
   }
+}
+
+message TransactionResponseWithError {
+  TransactionResponse response   = 1;
+  RPCStatus err = 2;
+}
+
+// mirrors "google/rpc/status.proto"'s relevant fields
+message RPCStatus {
+  int32 code = 1;
+  string message = 2;
 }
 
 message TransactionResponse {
