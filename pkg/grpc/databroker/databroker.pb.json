@@ -729,6 +729,42 @@
           ]
         },
         {
+          "name": "RPCStatus",
+          "longName": "RPCStatus",
+          "fullName": "databroker.RPCStatus",
+          "description": "mirrors \"google/rpc/status.proto\"'s relevant fields",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "code",
+              "description": "",
+              "label": "",
+              "type": "int32",
+              "longType": "int32",
+              "fullType": "int32",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "message",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "Record",
           "longName": "Record",
           "fullName": "databroker.Record",
@@ -1352,6 +1388,42 @@
           ]
         },
         {
+          "name": "TransactionResponseWithError",
+          "longName": "TransactionResponseWithError",
+          "fullName": "databroker.TransactionResponseWithError",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "response",
+              "description": "",
+              "label": "",
+              "type": "TransactionResponse",
+              "longType": "TransactionResponse",
+              "fullType": "databroker.TransactionResponse",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "err",
+              "description": "",
+              "label": "",
+              "type": "RPCStatus",
+              "longType": "RPCStatus",
+              "fullType": "databroker.RPCStatus",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "TransactionStreamRequest",
           "longName": "TransactionStreamRequest",
           "fullName": "databroker.TransactionStreamRequest",
@@ -1437,9 +1509,9 @@
               "name": "operation",
               "description": "",
               "label": "",
-              "type": "TransactionResponse",
-              "longType": "TransactionResponse",
-              "fullType": "databroker.TransactionResponse",
+              "type": "TransactionResponseWithError",
+              "longType": "TransactionResponseWithError",
+              "fullType": "databroker.TransactionResponseWithError",
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "message",
