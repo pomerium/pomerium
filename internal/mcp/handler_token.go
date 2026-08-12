@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	"github.com/pomerium/pomerium/internal/opaquetoken"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
@@ -96,7 +97,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		Int("code-length", len(*tokenReq.Code)).
 		Msg("mcp/token/auth-code: decrypting authorization code")
 
-	code, err := DecryptCode(CodeTypeAuthorization, *tokenReq.Code, srv.cipher, *tokenReq.ClientId, time.Now())
+	code, err := opaquetoken.Open(opaquetoken.TypeAuthorization, *tokenReq.Code, srv.cipher, *tokenReq.ClientId, time.Now())
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/token/auth-code: failed to decrypt authorization code")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)

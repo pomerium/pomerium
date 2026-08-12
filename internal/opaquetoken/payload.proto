@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package opaquetoken;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/opaquetoken";
+
+// Type distinguishes what a token may be presented for. It is checked when the
+// token is opened, so a token minted for one purpose cannot be replayed as
+// another.
+//
+// Values are part of the token wire format and must never be renumbered.
+enum Type {
+  TYPE_UNSPECIFIED   = 0;
+  TYPE_AUTHORIZATION = 1;
+  TYPE_ACCESS        = 2;
+  TYPE_REFRESH       = 3;
+}
+
+// Payload is the sealed contents of an opaque token: a reference to a
+// databroker record, together with the metadata needed to validate that
+// reference.
+//
+// Field numbers are part of the token wire format and must never be
+// renumbered: tokens minted by earlier builds are still presented to newer
+// ones.
+message Payload {
+  // id is the id of the databroker record this token dereferences to.
+  string id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string   = {
+      min_len: 1,
+    }
+  ];
+  google.protobuf.Timestamp expires_at = 2 [(buf.validate.field).required = true];
+  Type type = 3 [
+    (buf.validate.field).required          = true,
+    (buf.validate.field).enum.defined_only = true
+  ];
+  // record_version is the databroker record version of the record referenced by
+  // this token, captured at issuance time. The authorize service replays it as a
+  // minimum-version hint when reading that record, providing read-your-writes
+  // across databroker replicas. Zero means no hint.
+  uint64 record_version = 4;
+}
