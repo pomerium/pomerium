@@ -21,10 +21,10 @@ var (
 	}
 )
 
-// StorageOperator submits storage operations during a singleflight operation to the databroker.
+// TX submits storage operations during a singleflight operation to the databroker.
 // It is safe for concurrent use, but operations are submitted sequentially to the underlying transaction.
 // When used concurrently, there is no guarantee on operation ordering.
-type StorageOperator interface {
+type TX interface {
 	Get(ctx context.Context, req *databroker.GetRequest) (resp *databroker.GetResponse, err error)
 	Put(ctx context.Context, req *databroker.PutRequest) (resp *databroker.PutResponse, err error)
 	Patch(ctx context.Context, req *databroker.PatchRequest) (resp *databroker.PatchResponse, err error)
@@ -46,7 +46,7 @@ func Do(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
 	key string,
-	work func(StorageOperator) error,
+	work func(TX) error,
 ) (changed []*databroker.Record, shared bool, err error) {
 	// rollback is expressed by ending the stream without a commit, so cancelling
 	// on every exit path both rolls back and unblocks the server handler
@@ -90,7 +90,11 @@ func Do(
 	commitSeq := op.Close()
 	err = stream.Send(&databroker.TransactionStreamRequest{
 		Sequence: commitSeq,
-		Message:  &databroker.TransactionStreamRequest_Commit{Commit: new(databroker.CommitTransaction)},
+		Message: &databroker.TransactionStreamRequest_Commit{
+			Commit: &databroker.CommitTransaction{
+				Key: key,
+			},
+		},
 	})
 	if err != nil {
 		if errors.Is(err, io.EOF) {
