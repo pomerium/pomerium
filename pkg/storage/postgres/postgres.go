@@ -411,12 +411,17 @@ type inFlightTransaction struct {
 	id        string
 	completed bool
 	changed   [][]byte
+	errCode   *int16
 	errText   *string
 }
 
 func (f *inFlightTransaction) result() ([]*databroker.Record, error) {
 	if f.errText != nil {
-		return nil, errors.New(*f.errText)
+		code := codes.Internal
+		if f.errCode != nil {
+			code = codes.Code(*f.errCode)
+		}
+		return nil, status.Error(code, *f.errText)
 	}
 	changed := make([]*databroker.Record, len(f.changed))
 	for i, raw := range f.changed {
@@ -432,10 +437,10 @@ func (f *inFlightTransaction) result() ([]*databroker.Record, error) {
 func getTransaction(ctx context.Context, q querier, key string) (*inFlightTransaction, error) {
 	f := new(inFlightTransaction)
 	err := q.QueryRow(ctx, `
-		SELECT flight_id, completed, changed, error
+		SELECT flight_id, completed, changed, errcode, error
 		FROM `+schemaName+`.`+transactionFlightsTableName+`
 		WHERE key = $1
-	`, key).Scan(&f.id, &f.completed, &f.changed, &f.errText)
+	`, key).Scan(&f.id, &f.completed, &f.changed, &f.errCode, &f.errText)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -450,7 +455,7 @@ func upsertNewEmptyTransaction(ctx context.Context, q querier, key, flightID str
 		INSERT INTO `+schemaName+`.`+transactionFlightsTableName+` (key, flight_id, completed)
 		VALUES ($1, $2, FALSE)
 		ON CONFLICT (key) DO UPDATE
-		SET flight_id = $2, completed = FALSE, changed = NULL, error = NULL, modified_at = now()
+		SET flight_id = $2, completed = FALSE, changed = NULL, errcode = NULL, error = NULL, modified_at = now()
 	`, key, flightID)
 	if err != nil {
 		return fmt.Errorf("postgres: failed to begin transaction flight: %w", err)
@@ -460,10 +465,15 @@ func upsertNewEmptyTransaction(ctx context.Context, q querier, key, flightID str
 
 func updateTransactionResults(ctx context.Context, q querier, key, flightID string, changed []*databroker.Record, flightErr error) error {
 	var raw [][]byte
+	var errCode *int16
 	var errText *string
 	if flightErr != nil {
-		s := flightErr.Error()
-		errText = &s
+		s := status.Convert(flightErr).Message()
+		c := status.Code(flightErr)
+		if c == codes.Unknown {
+			c = codes.Internal
+		}
+		errText, errCode = &s, new(int16(c))
 	} else {
 		raw = make([][]byte, len(changed))
 		for i, record := range changed {
@@ -477,9 +487,9 @@ func updateTransactionResults(ctx context.Context, q querier, key, flightID stri
 
 	_, err := q.Exec(ctx, `
 		UPDATE `+schemaName+`.`+transactionFlightsTableName+`
-		SET completed = TRUE, changed = $3, error = $4, modified_at = now()
+		SET completed = TRUE, changed = $3, errcode = $4, error = $5, modified_at = now()
 		WHERE key = $1 AND flight_id = $2
-	`, key, flightID, raw, errText)
+	`, key, flightID, raw, errCode, errText)
 	if err != nil {
 		return fmt.Errorf("postgres: failed to finish transaction flight: %w", err)
 	}
