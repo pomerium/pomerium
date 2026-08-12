@@ -34,7 +34,7 @@ func acquireTransactionLock(t *testing.T, pool *pgxpool.Pool, key string) *postg
 
 	conn, err := pool.Acquire(t.Context())
 	require.NoError(t, err)
-	lock := newPostgresLock(conn, key)
+	lock := newPostgresLock(newPooledConn(conn), key)
 	acquired, err := lock.tryAcquire(t.Context())
 	require.NoError(t, err)
 	require.True(t, acquired)
@@ -42,7 +42,7 @@ func acquireTransactionLock(t *testing.T, pool *pgxpool.Pool, key string) *postg
 	return lock
 }
 
-// waitForLeaderTest joins a flight the way doTransaction does: on a registered
+// waitForLeaderTest joins a flight the way wrapTransactionWithLock does: on a registered
 // connection that has failed to take the lock.
 func waitForLeaderTest(
 	ctx context.Context, t *testing.T, backend *Backend, pool *pgxpool.Pool, key string,
@@ -51,7 +51,7 @@ func waitForLeaderTest(
 
 	conn, err := pool.Acquire(ctx)
 	require.NoError(t, err)
-	lock := newPostgresLock(conn, key)
+	lock := newPostgresLock(newPooledConn(conn), key)
 	require.NoError(t, backend.register(lock.pooledConn))
 	defer backend.unregister(lock.pooledConn)
 	defer lock.release()
@@ -85,7 +85,7 @@ func TestTransactionLeader(t *testing.T) {
 		backend, serverVersion, pool := newTransactionTestBackend(t, dsnF(t))
 		lock := acquireTransactionLock(t, pool, "foo")
 
-		changed, err := backend.doTransactionLocked(t.Context(), pool, lock.pooledConn, serverVersion, "foo",
+		changed, err := backend.doTransactionLocked(t.Context(), lock.pooledConn, serverVersion, "foo",
 			func(tx storage.Transaction) error {
 				return putRecord(tx, "r1")
 			})
@@ -108,7 +108,7 @@ func TestTransactionLeader(t *testing.T) {
 		backend, serverVersion, pool := newTransactionTestBackend(t, dsnF(t))
 		lock := acquireTransactionLock(t, pool, "foo")
 
-		changed, err := backend.doTransactionLocked(t.Context(), pool, lock.pooledConn, serverVersion, "foo",
+		changed, err := backend.doTransactionLocked(t.Context(), lock.pooledConn, serverVersion, "foo",
 			func(tx storage.Transaction) error {
 				_ = putRecord(tx, "r1")
 				return errors.New("boom")
@@ -131,7 +131,7 @@ func TestTransactionLeader(t *testing.T) {
 		backend, serverVersion, pool := newTransactionTestBackend(t, dsnF(t))
 		lock := acquireTransactionLock(t, pool, "foo")
 
-		_, err := backend.doTransactionLocked(t.Context(), pool, lock.pooledConn, serverVersion, "foo",
+		_, err := backend.doTransactionLocked(t.Context(), lock.pooledConn, serverVersion, "foo",
 			func(tx storage.Transaction) error {
 				_ = putRecord(tx, "r1")
 				return errors.New("boom")
@@ -146,7 +146,7 @@ func TestTransactionLeader(t *testing.T) {
 		backend, serverVersion, pool := newTransactionTestBackend(t, dsnF(t))
 		lock := acquireTransactionLock(t, pool, "foo")
 
-		_, err := backend.doTransactionLocked(t.Context(), pool, lock.pooledConn, serverVersion, "foo",
+		_, err := backend.doTransactionLocked(t.Context(), lock.pooledConn, serverVersion, "foo",
 			func(tx storage.Transaction) error {
 				return putRecord(tx, "r1")
 			})
@@ -154,7 +154,7 @@ func TestTransactionLeader(t *testing.T) {
 		first, err := getTransaction(t.Context(), pool, "foo")
 		require.NoError(t, err)
 
-		_, err = backend.doTransactionLocked(t.Context(), pool, lock.pooledConn, serverVersion, "foo",
+		_, err = backend.doTransactionLocked(t.Context(), lock.pooledConn, serverVersion, "foo",
 			func(tx storage.Transaction) error {
 				return putRecord(tx, "r2")
 			})
@@ -174,7 +174,7 @@ func TestTransactionLeader(t *testing.T) {
 
 		for _, key := range []string{"foo", "bar"} {
 			lock := acquireTransactionLock(t, pool, key)
-			_, err := backend.doTransactionLocked(t.Context(), pool, lock.pooledConn, serverVersion, key,
+			_, err := backend.doTransactionLocked(t.Context(), lock.pooledConn, serverVersion, key,
 				func(tx storage.Transaction) error {
 					return putRecord(tx, key)
 				})
@@ -197,7 +197,7 @@ func TestTransactionLeader(t *testing.T) {
 		lock := acquireTransactionLock(t, pool, "foo")
 		lock.destroy()
 
-		_, err := backend.doTransactionLocked(t.Context(), pool, lock.pooledConn, serverVersion, "foo",
+		_, err := backend.doTransactionLocked(t.Context(), lock.pooledConn, serverVersion, "foo",
 			func(storage.Transaction) error { return nil })
 		assert.ErrorIs(t, err, errBackendClosed)
 	})
@@ -221,7 +221,7 @@ func startLeader(
 
 	lock := acquireTransactionLock(t, pool, key)
 	go func() {
-		changed, err := backend.doTransactionLocked(t.Context(), pool, lock.pooledConn, serverVersion, key,
+		changed, err := backend.doTransactionLocked(t.Context(), lock.pooledConn, serverVersion, key,
 			func(tx storage.Transaction) error {
 				close(started)
 				<-release
@@ -286,7 +286,7 @@ func TestTransactionWaiter(t *testing.T) {
 	t.Run("an already completed flight is not joined", func(t *testing.T) {
 		backend, serverVersion, pool := newTransactionTestBackend(t, dsnF(t))
 		lock := acquireTransactionLock(t, pool, "foo")
-		_, err := backend.doTransactionLocked(t.Context(), pool, lock.pooledConn, serverVersion, "foo",
+		_, err := backend.doTransactionLocked(t.Context(), lock.pooledConn, serverVersion, "foo",
 			func(tx storage.Transaction) error {
 				return putRecord(tx, "r1")
 			})
@@ -470,7 +470,7 @@ func newLockedPool(t *testing.T, dsn, key string) (*pgxpool.Pool, *postgresLock)
 	conn, err := pool.Acquire(t.Context())
 	require.NoError(t, err)
 
-	lock := newPostgresLock(conn, key)
+	lock := newPostgresLock(newPooledConn(conn), key)
 	acquired, err := lock.tryAcquire(t.Context())
 	require.NoError(t, err)
 	require.True(t, acquired)

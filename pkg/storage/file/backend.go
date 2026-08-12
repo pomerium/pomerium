@@ -399,16 +399,16 @@ func (backend *Backend) DoTransaction(
 	ctx context.Context,
 	key string,
 	fn func(tx storage.Transaction) error,
+	opts ...storage.TransactionOption,
 ) (changed []*databrokerpb.Record, shared bool, err error) {
 	if err := backend.init(); err != nil {
 		return nil, false, fmt.Errorf("pebble : error initializing : %w", err)
 	}
+	options := &storage.TransactionsOptions{}
+	options.Apply(opts...)
 
-	// singleflight reports shared to the owner of a flight too
-	var ran bool
-	res, err, _ := backend.txGroup.Do(key, func() (any, error) {
-		ran = true
-
+	switch options.TransactionType {
+	case databrokerpb.TransactionType_TRANSACTION_TYPE_NOLOCK:
 		tx := &transaction{
 			backend: backend,
 			ctx:     ctx,
@@ -416,15 +416,40 @@ func (backend *Backend) DoTransaction(
 		}
 		if err := fn(tx); err != nil {
 			tx.rollback()
-			return nil, err
+			return nil, false, err
 		}
 		if err := tx.Commit(); err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return tx.changed, nil
-	})
-	changed, _ = res.([]*databrokerpb.Record)
-	return changed, !ran, err
+		return tx.changed, false, nil
+	case databrokerpb.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT:
+		// singleflight reports shared to the owner of a flight too
+		var ran bool
+		res, err, _ := backend.txGroup.Do(key, func() (any, error) {
+			ran = true
+
+			tx := &transaction{
+				backend: backend,
+				ctx:     ctx,
+				batch:   backend.db.NewIndexedBatch(),
+			}
+			if err := fn(tx); err != nil {
+				tx.rollback()
+				return nil, err
+			}
+			if err := tx.Commit(); err != nil {
+				return nil, err
+			}
+			return tx.changed, nil
+		})
+		changed, _ = res.([]*databrokerpb.Record)
+		return changed, !ran, err
+	default:
+		return nil, false, status.Error(
+			codes.InvalidArgument,
+			fmt.Sprintf("invalid transaction type requested : %s", options.TransactionType.String()),
+		)
+	}
 }
 
 func (backend *Backend) cleanLocked(

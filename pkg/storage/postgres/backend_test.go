@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/storagetest"
@@ -135,7 +136,31 @@ func TestTransactions(t *testing.T) {
 		return backend
 	}
 
-	storagetest.TestTransaction(t, backendF, storagetest.TransactionTestOptions{})
+	storagetest.TestTransaction(t, backendF, storagetest.TransactionTestOptions{
+		Synctest:        false,
+		TransactionType: databroker.TransactionType_TRANSACTION_TYPE_NOLOCK,
+	})
+}
+
+func TestTransactionsSingleflight(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
+	dsn := testutil.StartPostgres(t)
+	var databases atomic.Int64
+	backendF := func(t *testing.T) storage.Backend {
+		backend := New(t.Context(), newTestDatabase(t, dsn, databases.Add(1)))
+		_, _, err := backend.init(t.Context())
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = backend.Close() })
+		return backend
+	}
+
+	storagetest.TestTransaction(t, backendF, storagetest.TransactionTestOptions{
+		Synctest:        false,
+		TransactionType: databroker.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT,
+	})
 }
 
 func TestTransactionsClustered(t *testing.T) {
@@ -161,7 +186,9 @@ func TestTransactionsClustered(t *testing.T) {
 		return leader, followers
 	}
 
-	storagetest.TestTransactionsClustered(t, clusterF, storagetest.TransactionTestOptions{})
+	storagetest.TestTransactionsClustered(t, clusterF, storagetest.TransactionTestOptions{
+		TransactionType: databroker.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT,
+	})
 }
 
 func newTestDatabase(t *testing.T, dsn string, n int64) string {

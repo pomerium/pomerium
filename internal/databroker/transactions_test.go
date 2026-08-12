@@ -56,27 +56,33 @@ func TestDatabrokerTransactions(t *testing.T) {
 	t.Parallel()
 
 	setups := []struct {
-		name       string
-		newServers transactionServersFunc
+		name            string
+		newServers      transactionServersFunc
+		transactionType databrokerpb.TransactionType
 	}{
-		{"backend", newBackendServers},
-		{"clustered follower", newFollowerServers},
+		{"backend", newBackendServers, databrokerpb.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT},
+		{"backend", newBackendServers, databrokerpb.TransactionType_TRANSACTION_TYPE_NOLOCK},
+		{"clustered follower", newFollowerServers, databrokerpb.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT},
+		{"clustered follower", newFollowerServers, databrokerpb.TransactionType_TRANSACTION_TYPE_NOLOCK},
 	}
 	for _, setup := range setups {
 		t.Run(setup.name, func(t *testing.T) {
-			testTransactions(t, setup.newServers)
+			testTransactions(t, setup.newServers, setup.transactionType)
 		})
 	}
 }
 
-func testTransactions(t *testing.T, newServers transactionServersFunc) {
+func testTransactions(t *testing.T, newServers transactionServersFunc, transactionType databrokerpb.TransactionType) {
+	if transactionType == databrokerpb.TransactionType_TRANSACTION_TYPE_UNKNOWN {
+		assert.Fail(t, "expected transaction type to be valid")
+	}
 	t.Run("get put patch query", func(t *testing.T) {
 		srv, client := newServers(t)
 
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
 
-		require.NotNil(t, beginTransaction(t, stream, "operations").GetBegin())
+		require.NotNil(t, beginTransaction(t, stream, "operations", transactionType).GetBegin())
 
 		sendOperation(t, stream, "operations", 1, putOperation(newTransactionRecord("op-1")))
 		assert.Len(t, recvOperation(t, stream, "operations").GetPut().GetRecords(), 1)
@@ -117,7 +123,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
 
-		require.NotNil(t, beginTransaction(t, stream, "storage-error").GetBegin())
+		require.NotNil(t, beginTransaction(t, stream, "storage-error", transactionType).GetBegin())
 
 		sendOperation(t, stream, "storage-error", 1, getOperation("missing"))
 		res, err := stream.Recv()
@@ -143,7 +149,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
 
-		require.NotNil(t, beginTransaction(t, stream, "stream-closed").GetBegin())
+		require.NotNil(t, beginTransaction(t, stream, "stream-closed", transactionType).GetBegin())
 		sendOperation(t, stream, "stream-closed", 1, putOperation(newTransactionRecord("stream-closed")))
 		_, err = stream.Recv()
 		require.NoError(t, err)
@@ -163,7 +169,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 			stream, err := client.Transaction(t.Context())
 			require.NoError(t, err)
 
-			require.NotNil(t, beginTransaction(t, stream, "deadline").GetBegin())
+			require.NotNil(t, beginTransaction(t, stream, "deadline", transactionType).GetBegin())
 			sendOperation(t, stream, "deadline", 1, putOperation(newTransactionRecord("deadline")))
 			_, err = stream.Recv()
 			require.NoError(t, err)
@@ -185,7 +191,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
 
-		require.NotNil(t, beginTransaction(t, stream, "commit-error").GetBegin())
+		require.NotNil(t, beginTransaction(t, stream, "commit-error", transactionType).GetBegin())
 		sendOperation(t, stream, "commit-error", 1, putOperation(newTransactionRecord("ok")))
 		_, err = stream.Recv()
 		require.NoError(t, err)
@@ -210,7 +216,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		stream, err := client.Transaction(ctx)
 		require.NoError(t, err)
 
-		require.NotNil(t, beginTransaction(t, stream, "cancel").GetBegin())
+		require.NotNil(t, beginTransaction(t, stream, "cancel", transactionType).GetBegin())
 		sendOperation(t, stream, "cancel", 1, putOperation(newTransactionRecord("cancel-1")))
 		_, err = stream.Recv()
 		require.NoError(t, err)
@@ -242,31 +248,16 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
 
-		require.NotNil(t, beginTransaction(t, stream, "double-begin").GetBegin())
+		require.NotNil(t, beginTransaction(t, stream, "double-begin", transactionType).GetBegin())
 		sendOperation(t, stream, "double-begin", 1, putOperation(newTransactionRecord("double-begin-1")))
 		_, err = stream.Recv()
 		require.NoError(t, err)
-		sendBegin(t, stream, "double-begin")
+		sendBegin(t, stream, "double-begin", transactionType)
 
 		_, err = recvCommit(t, stream, "double-begin")
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		assertRecordMissing(t, srv, "double-begin-1")
-	})
-
-	t.Run("operation for another key is rejected", func(t *testing.T) {
-		srv, client := newServers(t)
-
-		stream, err := client.Transaction(t.Context())
-		require.NoError(t, err)
-
-		require.NotNil(t, beginTransaction(t, stream, "key-mismatch").GetBegin())
-		sendOperation(t, stream, "other-key", 1, putOperation(newTransactionRecord("key-mismatch-1")))
-
-		_, err = recvCommit(t, stream, "key-mismatch")
-		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
-
-		assertRecordMissing(t, srv, "key-mismatch-1")
 	})
 
 	t.Run("messages for another key terminate the transaction", func(t *testing.T) {
@@ -275,7 +266,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
 
-		require.NotNil(t, beginTransaction(t, stream, "commit-mismatch").GetBegin())
+		require.NotNil(t, beginTransaction(t, stream, "commit-mismatch", transactionType).GetBegin())
 		sendOperation(t, stream, "commit-mismatch", 1, putOperation(newTransactionRecord("commit-mismatch")))
 		require.NotNil(t, recvOperation(t, stream, "commit-mismatch").GetPut())
 		sendCommit(t, stream, "other-key")
@@ -286,7 +277,27 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		assertRecordMissing(t, srv, "commit-mismatch")
 	})
 
-	t.Run("atomic", func(t *testing.T) {
+	t.Run("messages for another key terminate the transaction", func(t *testing.T) {
+		srv, client := newServers(t)
+
+		stream, err := client.Transaction(t.Context())
+		require.NoError(t, err)
+
+		require.NotNil(t, beginTransaction(t, stream, "commit-mismatch", transactionType).GetBegin())
+		sendOperation(t, stream, "commit-mismatch", 1, putOperation(newTransactionRecord("commit-mismatch")))
+		require.NotNil(t, recvOperation(t, stream, "commit-mismatch").GetPut())
+		sendCommit(t, stream, "other-key")
+
+		_, err = recvCommit(t, stream, "commit-mismatch")
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+
+		assertRecordMissing(t, srv, "commit-mismatch")
+	})
+
+	t.Run("singleflight held", func(t *testing.T) {
+		if transactionType != databrokerpb.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT {
+			t.Skip("dedupe test only applies to singleflight transactions")
+		}
 		synctest.Test(t, func(t *testing.T) {
 			srv, client := newServers(t)
 
@@ -301,14 +312,14 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 					<-release
 					_, err := tx.Submit(putOperation(newTransactionRecord("holder")))
 					return err
-				})
+				}, storage.WithTransactionType(transactionType))
 				holder <- err
 			}()
 			<-held
 
 			stream, err := client.Transaction(t.Context())
 			require.NoError(t, err)
-			sendBegin(t, stream, "shared-key")
+			sendBegin(t, stream, "shared-key", transactionType)
 			sendOperation(t, stream, "shared-key", 1, putOperation(newTransactionRecord("shared")))
 
 			responses := make(chan *databrokerpb.TransactionStreamResponse, 1)
@@ -343,7 +354,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 
 			next, err := client.Transaction(t.Context())
 			require.NoError(t, err)
-			require.NotNil(t, beginTransaction(t, next, "shared-key").GetBegin())
+			require.NotNil(t, beginTransaction(t, next, "shared-key", transactionType).GetBegin())
 			sendOperation(t, next, "shared-key", 1, getOperation("holder"))
 			assert.Equal(t, "holder", recvOperation(t, next, "shared-key").GetGet().GetRecord().GetId())
 
@@ -364,7 +375,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
 
-		require.NotNil(t, beginTransaction(t, stream, "sequence").GetBegin())
+		require.NotNil(t, beginTransaction(t, stream, "sequence", transactionType).GetBegin())
 
 		sequences := []uint64{7, 3, 9}
 		for i, sequence := range sequences {
@@ -385,7 +396,7 @@ func testTransactions(t *testing.T, newServers transactionServersFunc) {
 		server, client := newServers(t)
 		stream, err := client.Transaction(t.Context())
 		require.NoError(t, err)
-		require.NotNil(t, beginTransaction(t, stream, "reload").GetBegin())
+		require.NotNil(t, beginTransaction(t, stream, "reload", transactionType).GetBegin())
 		sendOperation(t, stream, "reload", 1, putOperation(newTransactionRecord("record-1")))
 		require.NotNil(t, recvOperation(t, stream, "reload").GetPut())
 
@@ -422,7 +433,7 @@ type txErrStorageBackend struct {
 	failOnID string
 }
 
-func (b *txErrStorageBackend) DoTransaction(ctx context.Context, key string, fn func(tx storage.Transaction) error) (
+func (b *txErrStorageBackend) DoTransaction(ctx context.Context, key string, fn func(tx storage.Transaction) error, opts ...storage.TransactionOption) (
 	changed []*databrokerpb.Record,
 	shared bool,
 	err error,
@@ -436,7 +447,7 @@ func (b *txErrStorageBackend) DoTransaction(ctx context.Context, key string, fn 
 			return status.Error(codes.Internal, "error committing transaction")
 		}
 		return nil
-	})
+	}, opts...)
 }
 
 type txErrTransaction struct {
@@ -463,22 +474,25 @@ func recordType() string {
 	return protoutil.NewAny(new(sessionpb.Session)).TypeUrl
 }
 
-func sendBegin(t *testing.T, stream transactionStream, key string) {
+func sendBegin(t *testing.T, stream transactionStream, key string, typ databrokerpb.TransactionType) {
 	t.Helper()
 
 	require.NoError(t, stream.Send(&databrokerpb.TransactionStreamRequest{
 		Message: &databrokerpb.TransactionStreamRequest_Begin{
-			Begin: &databrokerpb.BeginTransaction{Key: key},
+			Begin: &databrokerpb.BeginTransaction{
+				Key:  key,
+				Type: typ,
+			},
 		},
 	}))
 }
 
 // beginTransaction sends begin and reads the response saying whether this
 // transaction is running (begin arm) or shares another transaction's result (commit arm).
-func beginTransaction(t *testing.T, stream transactionStream, key string) *databrokerpb.TransactionStreamResponse {
+func beginTransaction(t *testing.T, stream transactionStream, key string, typ databrokerpb.TransactionType) *databrokerpb.TransactionStreamResponse {
 	t.Helper()
 
-	sendBegin(t, stream, key)
+	sendBegin(t, stream, key, typ)
 	res, err := stream.Recv()
 	require.NoError(t, err)
 	if begin := res.GetBegin(); begin != nil {

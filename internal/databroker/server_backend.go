@@ -946,7 +946,7 @@ func (srv *backendServer) Transaction(stream grpc.BidiStreamingServer[databroker
 				return status.Error(codes.InvalidArgument, "expected an operation or commit message")
 			}
 		}
-	})
+	}, storage.WithTransactionType(begin.GetBegin().GetType()))
 	if err != nil {
 		return err
 	}
