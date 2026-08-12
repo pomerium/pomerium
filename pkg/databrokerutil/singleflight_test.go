@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -21,6 +22,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
@@ -134,8 +136,10 @@ func TestSingleflight(t *testing.T) {
 	t.Run("commit", func(t *testing.T) {
 		srv, client := newSingleflightServer(t)
 
-		shared, err := databrokerutil.Do(t.Context(), client, "commit", func(tx databrokerutil.Transaction) error {
-			res, err := tx.Put(singleflightRecord("commit-1"), singleflightRecord("commit-2"))
+		changed, shared, err := databrokerutil.Do(t.Context(), client, "commit", func(op databrokerutil.StorageOperator) error {
+			res, err := op.Put(t.Context(), &databrokerpb.PutRequest{
+				Records: []*databrokerpb.Record{singleflightRecord("commit-1"), singleflightRecord("commit-2")},
+			})
 			if err != nil {
 				return err
 			}
@@ -144,6 +148,7 @@ func TestSingleflight(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.False(t, shared)
+		assert.Len(t, changed, 2)
 
 		assertExists(t, srv, "commit-1")
 		assertExists(t, srv, "commit-2")
@@ -152,11 +157,16 @@ func TestSingleflight(t *testing.T) {
 	t.Run("read your writes", func(t *testing.T) {
 		_, client := newSingleflightServer(t)
 
-		shared, err := databrokerutil.Do(t.Context(), client, "ryw", func(tx databrokerutil.Transaction) error {
-			if _, err := tx.Put(singleflightRecord("ryw-1")); err != nil {
+		_, shared, err := databrokerutil.Do(t.Context(), client, "ryw", func(op databrokerutil.StorageOperator) error {
+			if _, err := op.Put(t.Context(), &databrokerpb.PutRequest{
+				Records: []*databrokerpb.Record{singleflightRecord("ryw-1")},
+			}); err != nil {
 				return err
 			}
-			res, err := tx.Get(singleflightRecordType(), "ryw-1")
+			res, err := op.Get(t.Context(), &databrokerpb.GetRequest{
+				Type: singleflightRecordType(),
+				Id:   "ryw-1",
+			})
 			if err != nil {
 				return err
 			}
@@ -171,8 +181,10 @@ func TestSingleflight(t *testing.T) {
 		srv, client := newSingleflightServer(t)
 
 		rollback := errors.New("rollback")
-		shared, err := databrokerutil.Do(t.Context(), client, "rollback", func(tx databrokerutil.Transaction) error {
-			if _, err := tx.Put(singleflightRecord("rollback-1")); err != nil {
+		_, shared, err := databrokerutil.Do(t.Context(), client, "rollback", func(op databrokerutil.StorageOperator) error {
+			if _, err := op.Put(t.Context(), &databrokerpb.PutRequest{
+				Records: []*databrokerpb.Record{singleflightRecord("rollback-1")},
+			}); err != nil {
 				return err
 			}
 			return rollback
@@ -184,98 +196,122 @@ func TestSingleflight(t *testing.T) {
 	})
 
 	t.Run("shared", func(t *testing.T) {
-		srv, client := newSingleflightServer(t)
+		synctest.Test(t, func(t *testing.T) {
+			srv, client := newSingleflightServer(t)
 
-		held, release := make(chan struct{}), make(chan struct{})
-		holder := make(chan error, 1)
-		go func() {
-			_, err := databrokerutil.Do(t.Context(), client, "shared", func(tx databrokerutil.Transaction) error {
-				close(held)
-				<-release
-				_, err := tx.Put(singleflightRecord("holder"))
-				return err
-			})
-			holder <- err
-		}()
-		<-held
+			held, release := make(chan struct{}), make(chan struct{})
+			holder := make(chan error, 1)
+			go func() {
+				_, _, err := databrokerutil.Do(t.Context(), client, "shared", func(op databrokerutil.StorageOperator) error {
+					close(held)
+					<-release
+					_, err := op.Put(t.Context(), &databrokerpb.PutRequest{
+						Records: []*databrokerpb.Record{singleflightRecord("holder")},
+					})
+					return err
+				})
+				holder <- err
+			}()
+			<-held
 
-		sharedC := make(chan bool, 1)
-		go func() {
-			ran := false
-			shared, err := databrokerutil.Do(t.Context(), client, "shared", func(tx databrokerutil.Transaction) error {
-				ran = true
-				_, err := tx.Put(singleflightRecord("suppressed"))
-				return err
-			})
-			assert.NoError(t, err)
-			assert.False(t, ran, "work should not run for a suppressed transaction")
-			sharedC <- shared
-		}()
+			sharedC := make(chan bool, 1)
+			go func() {
+				ran := false
+				_, shared, err := databrokerutil.Do(t.Context(), client, "shared", func(op databrokerutil.StorageOperator) error {
+					ran = true
+					_, err := op.Put(t.Context(), &databrokerpb.PutRequest{
+						Records: []*databrokerpb.Record{singleflightRecord("shared")},
+					})
+					return err
+				})
+				assert.NoError(t, err)
+				assert.False(t, ran, "work should not run for a shared transaction")
+				sharedC <- shared
+			}()
+			// the waiter only shares the flight if the server sees its begin before
+			// the holder commits, so block until it is parked on the held key
+			synctest.Wait()
 
-		close(release)
-		require.NoError(t, <-holder)
-		assert.True(t, <-sharedC)
+			close(release)
+			require.NoError(t, <-holder)
+			assert.True(t, <-sharedC)
 
-		assertExists(t, srv, "holder")
+			assertExists(t, srv, "holder")
+		})
 	})
 
 	t.Run("shared client timeout does not cancel", func(t *testing.T) {
-		srv, client := newSingleflightServer(t)
+		synctest.Test(t, func(t *testing.T) {
+			srv, client := newSingleflightServer(t)
 
-		held, release := make(chan struct{}), make(chan struct{})
-		holder := make(chan error, 1)
-		go func() {
-			_, err := databrokerutil.Do(t.Context(), client, "timeout", func(tx databrokerutil.Transaction) error {
-				close(held)
-				<-release
-				_, err := tx.Put(singleflightRecord("timeout-holder"))
-				return err
+			held, release := make(chan struct{}), make(chan struct{})
+			holder := make(chan error, 1)
+			go func() {
+				_, _, err := databrokerutil.Do(t.Context(), client, "timeout", func(op databrokerutil.StorageOperator) error {
+					close(held)
+					<-release
+					_, err := op.Put(t.Context(), &databrokerpb.PutRequest{
+						Records: []*databrokerpb.Record{singleflightRecord("timeout-holder")},
+					})
+					return err
+				})
+				holder <- err
+			}()
+			<-held
+
+			// the timeout runs on synctest's fake clock, so it can only elapse once
+			// the waiter is parked on the held key
+			waiterCtx, cancelWaiter := context.WithTimeout(t.Context(), 100*time.Millisecond)
+			defer cancelWaiter()
+			_, _, err := databrokerutil.Do(waiterCtx, client, "timeout", func(databrokerutil.StorageOperator) error {
+				assert.Fail(t, "work should not run for a shared transaction")
+				return nil
 			})
-			holder <- err
-		}()
-		<-held
+			assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
 
-		waiterCtx, cancelWaiter := context.WithTimeout(t.Context(), 100*time.Millisecond)
-		defer cancelWaiter()
-		_, err := databrokerutil.Do(waiterCtx, client, "timeout", func(databrokerutil.Transaction) error {
-			assert.Fail(t, "work should not run for a shared transaction")
-			return nil
+			// the holder is unaffected by the shared client giving up
+			close(release)
+			require.NoError(t, <-holder)
+			assertExists(t, srv, "timeout-holder")
 		})
-		assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
-
-		// the holder is unaffected by the suppressed client giving up
-		close(release)
-		require.NoError(t, <-holder)
-		assertExists(t, srv, "timeout-holder")
 	})
 
 	t.Run("after transaction done", func(t *testing.T) {
 		_, client := newSingleflightServer(t)
 
-		var escaped databrokerutil.Transaction
-		_, err := databrokerutil.Do(t.Context(), client, "escaped", func(tx databrokerutil.Transaction) error {
-			escaped = tx
+		var escaped databrokerutil.StorageOperator
+		_, _, err := databrokerutil.Do(t.Context(), client, "escaped", func(op databrokerutil.StorageOperator) error {
+			escaped = op
 			return nil
 		})
 		require.NoError(t, err)
 
-		_, err = escaped.Put(singleflightRecord("escaped-1"))
-		assert.ErrorIs(t, err, databrokerutil.ErrTransactionClosed)
+		_, err = escaped.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{singleflightRecord("escaped-1")},
+		})
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
 	})
 
 	t.Run("operation error", func(t *testing.T) {
 		srv, client := newSingleflightServer(t)
 
 		var opErr error
-		shared, err := databrokerutil.Do(t.Context(), client, "op-error", func(tx databrokerutil.Transaction) error {
-			if _, err := tx.Put(singleflightRecord("op-error-1")); err != nil {
+		_, shared, err := databrokerutil.Do(t.Context(), client, "op-error", func(op databrokerutil.StorageOperator) error {
+			if _, err := op.Put(t.Context(), &databrokerpb.PutRequest{
+				Records: []*databrokerpb.Record{singleflightRecord("op-error-1")},
+			}); err != nil {
 				return err
 			}
-			// an empty operation is rejected by the backend, which fails the transaction
-			_, opErr = tx(new(databrokerpb.TransactionRequest))
+			// an invalid query filter is rejected by the backend, which fails the transaction
+			_, opErr = op.Query(t.Context(), &databrokerpb.QueryRequest{
+				Type: singleflightRecordType(),
+				Filter: &structpb.Struct{Fields: map[string]*structpb.Value{
+					"$or": structpb.NewStringValue("not-an-array"),
+				}},
+			})
 			return opErr
 		})
-		assert.Error(t, opErr)
+		assert.Equal(t, codes.InvalidArgument, status.Code(opErr))
 		assert.Equal(t, opErr, err)
 		assert.False(t, shared)
 
@@ -309,7 +345,7 @@ type keyFunc func() string
 
 type benchmarkOptions struct {
 	storage func(testing.TB) config.DataBrokerOptions
-	work    func(keyFunc) func(tx databrokerutil.Transaction) error
+	work    func(keyFunc) func(op databrokerutil.StorageOperator) error
 }
 
 type singleflightBench struct {
@@ -320,7 +356,7 @@ type singleflightBench struct {
 	wire        *wireCounter
 	concurrency int
 	key         func(iter, worker int) string
-	work        func(keyFunc) func(tx databrokerutil.Transaction) error
+	work        func(keyFunc) func(op databrokerutil.StorageOperator) error
 
 	wg               sync.WaitGroup
 	ran, sharedCount atomic.Int64
@@ -334,9 +370,11 @@ func newSingleflightBench(b *testing.B, concurrency int, key func(iter, worker i
 		opts.storage = memoryStorage
 	}
 	if opts.work == nil {
-		opts.work = func(k keyFunc) func(tx databrokerutil.Transaction) error {
-			return func(tx databrokerutil.Transaction) error {
-				_, err := tx.Put(singleflightRecord(k()))
+		opts.work = func(k keyFunc) func(op databrokerutil.StorageOperator) error {
+			return func(op databrokerutil.StorageOperator) error {
+				_, err := op.Put(b.Context(), &databrokerpb.PutRequest{
+					Records: []*databrokerpb.Record{singleflightRecord(k())},
+				})
 				return err
 			}
 		}
@@ -365,12 +403,12 @@ func (s *singleflightBench) start(iter, worker int, hold func()) {
 	s.wg.Go(func() {
 		k := s.key(iter, worker)
 		body := s.work(func() string { return k })
-		shared, err := databrokerutil.Do(s.ctx, s.client, k, func(tx databrokerutil.Transaction) error {
+		_, shared, err := databrokerutil.Do(s.ctx, s.client, k, func(op databrokerutil.StorageOperator) error {
 			s.ran.Add(1)
 			if hold != nil {
 				hold()
 			}
-			return body(tx)
+			return body(op)
 		})
 		if err != nil {
 			s.b.Error(err)

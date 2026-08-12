@@ -4,199 +4,342 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-var ErrTransactionClosed = errors.New("databrokerutil: transaction is closed")
+var (
+	ErrTransactionClosed  = errors.New("databrokerutil: transaction is closed")
+	ErrTransactionAborted = func(err error) error {
+		return status.Error(codes.Aborted, fmt.Sprintf("databrokerutil: transaction stream closed before commit : %s", err))
+	}
+)
 
-// Transaction is not safe for concurrent use: the underlying stream is a strict
-// request/response ping-pong.
-type Transaction func(
-	*databroker.TransactionRequest,
-) (*databroker.TransactionResponse, error)
+// StorageOperator submits storage operations during a singleflight operation to the databroker.
+// It is safe for concurrent use, but operations are submitted sequentially to the underlying transaction.
+// When used concurrently, there is no guarantee on operation ordering.
+type StorageOperator interface {
+	Get(ctx context.Context, req *databroker.GetRequest) (resp *databroker.GetResponse, err error)
+	Put(ctx context.Context, req *databroker.PutRequest) (resp *databroker.PutResponse, err error)
+	Patch(ctx context.Context, req *databroker.PatchRequest) (resp *databroker.PatchResponse, err error)
+	Query(ctx context.Context, req *databroker.QueryRequest) (resp *databroker.QueryResponse, err error)
+}
 
-// Do runs work inside a databroker transaction keyed by key.
-//
-// If work returns nil the transaction is committed; if it returns an error the
-// transaction is rolled back and that error is returned.
-//
-// Transactions are singleflight by key: if another transaction for the same key
-// is already in flight, work is not called and Do reports shared=true after the
-// in-flight transaction finishes.
+type transactionClient = grpc.BidiStreamingClient[databroker.TransactionStreamRequest, databroker.TransactionStreamResponse]
+
+// Do runs a distributed singleflight callback on storage operations inside the databroker.
+// Returning an error inside the callback rollsback all submitted storage operations.
+// Storage operations are only persisted on success.
+// Error handling:
+//   - `FailedPrecondition`: protocol errors, should not be retried.
+//   - `Aborted`: connectivity errors to the databroker during the singleflight, can be retried.
+//   - `DeadlineExceeded` : transaction exceeded the alloted time set by the server, can be retried.
+//   - `Internal`: storage errors related to locking mechanisms, persistence and other internal
+//     failures that can cause the singleflight to fail.
 func Do(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
 	key string,
-	work func(Transaction) error,
-) (shared bool, err error) {
+	work func(StorageOperator) error,
+) (changed []*databroker.Record, shared bool, err error) {
 	// rollback is expressed by ending the stream without a commit, so cancelling
-	// on every exit path both rolls back and unblocks the server handler. A
-	// deliberate rollback therefore shows up as a cancelled RPC server-side.
+	// on every exit path both rolls back and unblocks the server handler
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	stream, err := client.Transaction(ctx)
 	if err != nil {
-		return false, err
+		return nil, false, err
 	}
 
-	var seq uint64
-	next := func() uint64 {
-		seq++
-		return seq
-	}
-
-	err = stream.Send(&databroker.TransactionStreamRequest{
-		Sequence: next(),
-		Message: &databroker.TransactionStreamRequest_Begin{
-			Begin: &databroker.BeginTransaction{Key: key},
-		},
-	})
+	seq := uint64(1)
+	res, err := initiateHandshake(stream, seq, key)
 	if err != nil {
-		return false, err
+		if _, ok := status.FromError(err); !ok {
+			return nil, false, status.Error(codes.FailedPrecondition, fmt.Sprintf("databrokerutil: failed to initiate singleflight handshake : %s", err))
+		}
+		return nil, false, err
 	}
-
-	res, err := stream.Recv()
-	if err != nil {
-		return false, err
-	}
-	// a suppressed transaction is never acked: the first and only message is the commit
+	// a shared transaction is never acked: the first and only message is the commit
 	if commit := res.GetCommit(); commit != nil {
-		return commit.GetShared(), nil
+		return res.GetCommit().GetRecords(), commit.GetShared(), nil
 	}
 	if res.GetBegin() == nil {
-		return false, fmt.Errorf("databrokerutil: expected a begin response, got %T", res.GetMessage())
+		return nil, false, status.Error(codes.FailedPrecondition, fmt.Sprintf("databrokerutil: expected a begin response, got %T", res.GetMessage()))
 	}
 
-	var mu sync.Mutex
-	var done bool
-	var submitErr error // the first transport error should be treated as the transaction failing
-	tx := func(op *databroker.TransactionRequest) (*databroker.TransactionResponse, error) {
-		mu.Lock()
-		defer mu.Unlock()
-
-		if done {
-			return nil, ErrTransactionClosed
-		}
-		if submitErr != nil {
-			return nil, submitErr
-		}
-
-		err := stream.Send(&databroker.TransactionStreamRequest{
-			Sequence: next(),
-			Message:  &databroker.TransactionStreamRequest_Operation{Operation: op},
-		})
-		if err != nil {
-			submitErr = err
-			return nil, err
-		}
-
-		res, err := stream.Recv()
-		if err != nil {
-			submitErr = err
-			return nil, err
-		}
-		if res.GetOperation() == nil {
-			submitErr = fmt.Errorf("databrokerutil: expected an operation response, got %T", res.GetMessage())
-			return nil, submitErr
-		}
-		return res.GetOperation(), nil
-	}
-	defer func() {
-		mu.Lock()
-		done = true
-		mu.Unlock()
-	}()
-
-	if err := work(tx); err != nil {
-		// the stream error after a rollback is always context.Canceled and carries
-		// no information, so the caller's error is what's worth returning
-		return false, err
-	}
-	if submitErr != nil {
-		return false, submitErr
+	op := &storageOperatorStream{
+		sequenceNum: seq + 1,
+		key:         key,
+		stream:      stream,
 	}
 
+	if err := work(op); err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, false, ErrTransactionAborted(err)
+		}
+		return nil, false, err
+	}
+
+	commitSeq := op.Close()
 	err = stream.Send(&databroker.TransactionStreamRequest{
-		Sequence: next(),
+		Sequence: commitSeq,
 		Message:  &databroker.TransactionStreamRequest_Commit{Commit: new(databroker.CommitTransaction)},
 	})
 	if err != nil {
-		return false, err
+		if errors.Is(err, io.EOF) {
+			return nil, false, ErrTransactionAborted(err)
+		}
+		return nil, false, err
 	}
-
 	res, err = stream.Recv()
 	if err != nil {
-		return false, err
+		return nil, false, err
 	}
 	if res.GetCommit() == nil {
-		return false, fmt.Errorf("databrokerutil: expected a commit response, got %T", res.GetMessage())
+		return nil, false, status.Error(codes.FailedPrecondition, fmt.Sprintf("databrokerutil: expected a commit response, got %T", res.GetMessage()))
 	}
-	return res.GetCommit().GetShared(), nil
+	return res.GetCommit().GetRecords(), res.GetCommit().GetShared(), nil
 }
 
-// Get submits a get operation.
-func (tx Transaction) Get(recordType, id string) (*databroker.GetResponse, error) {
-	res, err := tx(&databroker.TransactionRequest{
-		Operation: &databroker.TransactionRequest_Get{
-			Get: &databroker.GetRequest{Type: recordType, Id: id},
+func initiateHandshake(
+	stream transactionClient,
+	sequence uint64,
+	key string,
+) (*databroker.TransactionStreamResponse, error) {
+	if err := stream.Send(&databroker.TransactionStreamRequest{
+		Sequence: sequence,
+		Message: &databroker.TransactionStreamRequest_Begin{
+			Begin: &databroker.BeginTransaction{Key: key},
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
-	if res.GetGet() == nil {
-		return nil, fmt.Errorf("databrokerutil: expected a get response, got %T", res.GetOperation())
-	}
-	return res.GetGet(), nil
+
+	res, err := stream.Recv()
+	return res, err
 }
 
-// Put submits a put operation.
-func (tx Transaction) Put(records ...*databroker.Record) (*databroker.PutResponse, error) {
-	res, err := tx(&databroker.TransactionRequest{
-		Operation: &databroker.TransactionRequest_Put{
-			Put: &databroker.PutRequest{Records: records},
+// assumes the begin handshake succeeded and we "own" the transaction.
+type storageOperatorStream struct {
+	key    string
+	stream transactionClient
+
+	sequenceNum uint64
+	mu          sync.Mutex
+	done        bool
+}
+
+func (s *storageOperatorStream) getSequenceNumLocked() uint64 {
+	s.sequenceNum++
+	return s.sequenceNum
+}
+
+func (s *storageOperatorStream) Get(_ context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.isClosedLocked(); err != nil {
+		return nil, err
+	}
+	sequence := s.getSequenceNumLocked()
+	sendReq := &databroker.TransactionStreamRequest{
+		Sequence: sequence,
+		Message: &databroker.TransactionStreamRequest_Operation{
+			Operation: &databroker.TransactionRequest{
+				Key: s.key,
+				Operation: &databroker.TransactionRequest_Get{
+					Get: req,
+				},
+			},
 		},
-	})
+	}
+	if err := s.stream.Send(sendReq); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.stream.Recv()
 	if err != nil {
 		return nil, err
 	}
-	if res.GetPut() == nil {
-		return nil, fmt.Errorf("databrokerutil: expected a put response, got %T", res.GetOperation())
+	if err := s.validateResponse(sendReq, resp, sequence); err != nil {
+		return nil, err
 	}
-	return res.GetPut(), nil
+
+	if rpcErr := resp.GetOperation().Err; rpcErr != nil {
+		return nil, status.Error(codes.Code(rpcErr.GetCode()), rpcErr.GetMessage())
+	}
+
+	return resp.GetOperation().GetResponse().GetGet(), nil
 }
 
-// Patch submits a patch operation.
-func (tx Transaction) Patch(mask *fieldmaskpb.FieldMask, records ...*databroker.Record) (*databroker.PatchResponse, error) {
-	res, err := tx(&databroker.TransactionRequest{
-		Operation: &databroker.TransactionRequest_Patch{
-			Patch: &databroker.PatchRequest{FieldMask: mask, Records: records},
+func (s *storageOperatorStream) Put(_ context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.isClosedLocked(); err != nil {
+		return nil, err
+	}
+	sequence := s.getSequenceNumLocked()
+	sendReq := &databroker.TransactionStreamRequest{
+		Sequence: sequence,
+		Message: &databroker.TransactionStreamRequest_Operation{
+			Operation: &databroker.TransactionRequest{
+				Key: s.key,
+				Operation: &databroker.TransactionRequest_Put{
+					Put: req,
+				},
+			},
 		},
-	})
+	}
+	if err := s.stream.Send(sendReq); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.stream.Recv()
 	if err != nil {
 		return nil, err
 	}
-	if res.GetPatch() == nil {
-		return nil, fmt.Errorf("databrokerutil: expected a patch response, got %T", res.GetOperation())
+	if err := s.validateResponse(sendReq, resp, sequence); err != nil {
+		return nil, err
 	}
-	return res.GetPatch(), nil
+
+	if rpcErr := resp.GetOperation().Err; rpcErr != nil {
+		return nil, status.Error(codes.Code(rpcErr.GetCode()), rpcErr.GetMessage())
+	}
+
+	return resp.GetOperation().GetResponse().GetPut(), nil
 }
 
-// Query submits a query operation.
-func (tx Transaction) Query(req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
-	res, err := tx(&databroker.TransactionRequest{
-		Operation: &databroker.TransactionRequest_Query{Query: req},
-	})
+func (s *storageOperatorStream) Patch(_ context.Context, req *databroker.PatchRequest) (*databroker.PatchResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.isClosedLocked(); err != nil {
+		return nil, err
+	}
+	sequence := s.getSequenceNumLocked()
+	sendReq := &databroker.TransactionStreamRequest{
+		Sequence: sequence,
+		Message: &databroker.TransactionStreamRequest_Operation{
+			Operation: &databroker.TransactionRequest{
+				Key: s.key,
+				Operation: &databroker.TransactionRequest_Patch{
+					Patch: req,
+				},
+			},
+		},
+	}
+	if err := s.stream.Send(sendReq); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.stream.Recv()
 	if err != nil {
 		return nil, err
 	}
-	if res.GetQuery() == nil {
-		return nil, fmt.Errorf("databrokerutil: expected a query response, got %T", res.GetOperation())
+	if err := s.validateResponse(sendReq, resp, sequence); err != nil {
+		return nil, err
 	}
-	return res.GetQuery(), nil
+
+	if rpcErr := resp.GetOperation().Err; rpcErr != nil {
+		return nil, status.Error(codes.Code(rpcErr.GetCode()), rpcErr.GetMessage())
+	}
+
+	return resp.GetOperation().GetResponse().GetPatch(), nil
+}
+
+func (s *storageOperatorStream) Query(_ context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.isClosedLocked(); err != nil {
+		return nil, err
+	}
+	sequence := s.getSequenceNumLocked()
+	sendReq := &databroker.TransactionStreamRequest{
+		Sequence: sequence,
+		Message: &databroker.TransactionStreamRequest_Operation{
+			Operation: &databroker.TransactionRequest{
+				Key: s.key,
+				Operation: &databroker.TransactionRequest_Query{
+					Query: req,
+				},
+			},
+		},
+	}
+	if err := s.stream.Send(sendReq); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.stream.Recv()
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateResponse(sendReq, resp, sequence); err != nil {
+		return nil, err
+	}
+
+	if rpcErr := resp.GetOperation().Err; rpcErr != nil {
+		return nil, status.Error(codes.Code(rpcErr.GetCode()), rpcErr.GetMessage())
+	}
+
+	return resp.GetOperation().GetResponse().GetQuery(), nil
+}
+
+func (s *storageOperatorStream) isClosedLocked() error {
+	if s.done {
+		return status.Error(codes.FailedPrecondition, "calling storage operations on a transaction that has been marked done")
+	}
+	return nil
+}
+
+func (s *storageOperatorStream) Close() uint64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.done = true
+	return s.sequenceNum
+}
+
+func (s *storageOperatorStream) validateResponse(
+	req *databroker.TransactionStreamRequest,
+	resp *databroker.TransactionStreamResponse,
+	sequence uint64,
+) error {
+	if resp.GetOperation() == nil {
+		return status.Error(codes.FailedPrecondition, "expected response to an operation from server")
+	}
+	if resp.GetSequence() != sequence {
+		return status.Error(codes.FailedPrecondition, "unexpected sequence gap in Transaction protocol")
+	}
+	if resp.GetOperation().Err == nil {
+		if err := checkOperationTypeMatch(req.GetOperation(), resp.GetOperation().GetResponse()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkOperationTypeMatch(req *databroker.TransactionRequest, resp *databroker.TransactionResponse) error {
+	var ok bool
+	switch req.GetOperation().(type) {
+	case *databroker.TransactionRequest_Get:
+		ok = resp.GetGet() != nil
+	case *databroker.TransactionRequest_Put:
+		ok = resp.GetPut() != nil
+	case *databroker.TransactionRequest_Patch:
+		ok = resp.GetPatch() != nil
+	case *databroker.TransactionRequest_Query:
+		ok = resp.GetQuery() != nil
+	}
+	if !ok {
+		return status.Errorf(
+			codes.FailedPrecondition,
+			"unexpected operation type in Transaction protocol: requested %T, got %T",
+			req.GetOperation(), resp.GetOperation(),
+		)
+	}
+	return nil
 }
