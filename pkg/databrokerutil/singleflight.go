@@ -48,6 +48,7 @@ func Do(
 	key string,
 	work func(TX) error,
 ) (changed []*databroker.Record, shared bool, err error) {
+
 	// rollback is expressed by ending the stream without a commit, so cancelling
 	// on every exit path both rolls back and unblocks the server handler
 	ctx, cancel := context.WithCancel(ctx)

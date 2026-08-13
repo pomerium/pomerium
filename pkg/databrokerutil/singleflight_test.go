@@ -3,10 +3,13 @@ package databrokerutil_test
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"runtime"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -20,8 +23,10 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/config"
@@ -57,7 +62,7 @@ func fileStorage(t testing.TB) config.DataBrokerOptions {
 	}
 }
 
-// postgresStorage hands every server its own database on one shared container,
+// postgresStorage hands every cluster its own database on one shared container,
 // which startPostgres starts on first use and ties to the parent benchmark.
 func postgresStorage(startPostgres func() string) func(testing.TB) config.DataBrokerOptions {
 	var databases atomic.Int64
@@ -319,9 +324,78 @@ func TestSingleflight(t *testing.T) {
 	})
 }
 
-// wireCounter tallies gRPC payload bytes on the client connection. The
-// benchmarks run over bufconn, so this is protocol traffic rather than actual
-// syscall-level IO.
+func BenchmarkSingleFlight_Concurrent(b *testing.B) {
+	restore := log.GetLevel()
+	log.SetLevel(zerolog.Disabled)
+	b.Cleanup(func() { log.SetLevel(restore) })
+
+	transport := parseTransport(b)
+	replicas := parseReplicas(b)
+	concurrency := parseConcurrency(b)
+
+	startPostgres := sync.OnceValue(func() string { return testutil.StartPostgres(b) })
+
+	stores := []struct {
+		name    string
+		options func(testing.TB) config.DataBrokerOptions
+	}{
+		{"mem", memoryStorage},
+		{"file", fileStorage},
+		{"postgres", postgresStorage(startPostgres)},
+	}
+	for _, storage := range stores {
+		b.Run(storage.name, func(b *testing.B) {
+			b.Run(transport.String(), func(b *testing.B) {
+				benchmarkConcurrent(b, func(iter, worker int) string {
+					return fmt.Sprintf("non-conflicting-%d-%d", iter, worker)
+				}, benchmarkOptions{
+					storage:     storage.options,
+					replicas:    replicas,
+					transport:   transport,
+					concurrency: concurrency,
+				})
+			})
+		})
+	}
+}
+
+func BenchmarkSingleFlight_ConcurrentConflicting(b *testing.B) {
+	restore := log.GetLevel()
+	log.SetLevel(zerolog.Disabled)
+	b.Cleanup(func() { log.SetLevel(restore) })
+
+	transport := parseTransport(b)
+	replicas := parseReplicas(b)
+	concurrency := parseConcurrency(b)
+
+	startPostgres := sync.OnceValue(func() string { return testutil.StartPostgres(b) })
+
+	stores := []struct {
+		name    string
+		options func(testing.TB) config.DataBrokerOptions
+	}{
+		{"mem", memoryStorage},
+		{"file", fileStorage},
+		{"postgres", postgresStorage(startPostgres)},
+	}
+	for _, storage := range stores {
+		b.Run(storage.name, func(b *testing.B) {
+			b.Run(transport.String(), func(b *testing.B) {
+				benchmarkConflicting(b, func(iter, _ int) string {
+					return fmt.Sprintf("conflicting-%d", iter)
+				}, benchmarkOptions{
+					storage:     storage.options,
+					replicas:    replicas,
+					transport:   transport,
+					concurrency: concurrency,
+				})
+			})
+		})
+	}
+}
+
+// wireCounter tallies gRPC payload bytes on the connections it is attached to.
+// Under bufconn this is protocol traffic rather than syscall-level IO.
 type wireCounter struct {
 	in, out atomic.Int64
 }
@@ -344,19 +418,21 @@ func (c *wireCounter) HandleConn(context.Context, stats.ConnStats) {}
 type keyFunc func() string
 
 type benchmarkOptions struct {
-	storage func(testing.TB) config.DataBrokerOptions
-	work    func(keyFunc) func(op databrokerutil.TX) error
+	storage     func(testing.TB) config.DataBrokerOptions
+	work        func(keyFunc) func(op databrokerutil.TX) error
+	replicas    int
+	concurrency int
+	transport   grpcTransport
 }
 
 type singleflightBench struct {
-	b           *testing.B
-	ctx         context.Context
-	server      databroker.Server
-	client      databrokerpb.DataBrokerServiceClient
-	wire        *wireCounter
-	concurrency int
-	key         func(iter, worker int) string
-	work        func(keyFunc) func(op databrokerutil.TX) error
+	b             *testing.B
+	ctx           context.Context
+	cluster       *cluster
+	wire, fwdWire *wireCounter
+	concurrency   int
+	key           func(iter, worker int) string
+	work          func(keyFunc) func(op databrokerutil.TX) error
 
 	wg               sync.WaitGroup
 	ran, sharedCount atomic.Int64
@@ -368,6 +444,9 @@ func newSingleflightBench(b *testing.B, concurrency int, key func(iter, worker i
 
 	if opts.storage == nil {
 		opts.storage = memoryStorage
+	}
+	if opts.replicas < 1 {
+		opts.replicas = 1
 	}
 	if opts.work == nil {
 		opts.work = func(k keyFunc) func(op databrokerutil.TX) error {
@@ -384,11 +463,12 @@ func newSingleflightBench(b *testing.B, concurrency int, key func(iter, worker i
 		b:           b,
 		ctx:         b.Context(),
 		wire:        new(wireCounter),
+		fwdWire:     new(wireCounter),
 		concurrency: concurrency,
 		key:         key,
 		work:        opts.work,
 	}
-	s.server, s.client = newSingleflightServerFor(b, opts.storage(b), grpc.WithStatsHandler(s.wire))
+	s.cluster = newCluster(b, opts.storage(b), opts.replicas, opts.transport, s.wire, s.fwdWire)
 
 	runtime.GC()
 	runtime.ReadMemStats(&s.before)
@@ -400,10 +480,11 @@ func newSingleflightBench(b *testing.B, concurrency int, key func(iter, worker i
 // start launches one worker; hold, when non-nil, blocks it inside its
 // transaction so callers can keep the flight open.
 func (s *singleflightBench) start(iter, worker int, hold func()) {
+	client := s.cluster.clients[worker%len(s.cluster.clients)]
 	s.wg.Go(func() {
 		k := s.key(iter, worker)
 		body := s.work(func() string { return k })
-		_, shared, err := databrokerutil.Do(s.ctx, s.client, k, func(op databrokerutil.TX) error {
+		_, shared, err := databrokerutil.Do(s.ctx, client, k, func(op databrokerutil.TX) error {
 			s.ran.Add(1)
 			if hold != nil {
 				hold()
@@ -426,9 +507,11 @@ func (s *singleflightBench) report() {
 
 	runtime.ReadMemStats(&s.after)
 	ops := float64(s.b.N * s.concurrency)
+	fwd := float64(s.fwdWire.in.Load() + s.fwdWire.out.Load())
 	s.b.ReportMetric(float64(s.sharedCount.Load())/ops, "shared/op")
-	s.b.ReportMetric(float64(s.wire.out.Load())/ops, "wire-out-B/op")
-	s.b.ReportMetric(float64(s.wire.in.Load())/ops, "wire-in-B/op")
+	s.b.ReportMetric(float64(s.wire.out.Load()+s.fwdWire.out.Load())/ops, "wire-out-B/op")
+	s.b.ReportMetric(float64(s.wire.in.Load()+s.fwdWire.in.Load())/ops, "wire-in-B/op")
+	s.b.ReportMetric(fwd/ops, "wire-fwd-B/op")
 	s.b.ReportMetric(float64(s.after.TotalAlloc-s.before.TotalAlloc)/ops, "heap-B/op")
 	s.b.ReportMetric(float64(s.after.HeapInuse-s.before.HeapInuse)/(1<<20), "heap-inuse-MB")
 	s.b.ReportMetric(float64(s.after.Sys)/(1<<20), "sys-MB")
@@ -436,28 +519,24 @@ func (s *singleflightBench) report() {
 
 // benchmarkConcurrent starts every worker at once and leaves whether they
 // overlap up to the scheduler.
-func benchmarkConcurrent(b *testing.B, concurrency int, key func(iter, worker int) string, opts benchmarkOptions) {
+func benchmarkConcurrent(b *testing.B, key func(iter, worker int) string, opts benchmarkOptions) {
 	b.Helper()
 
-	s := newSingleflightBench(b, concurrency, key, opts)
+	s := newSingleflightBench(b, opts.concurrency, key, opts)
 	for iter := 0; b.Loop(); iter++ {
-		for worker := range concurrency {
+		for worker := range opts.concurrency {
 			s.start(iter, worker, nil)
 		}
 		s.wg.Wait()
 	}
-	s.server.Stop()
+	s.cluster.stop()
 	s.report()
 }
 
-// benchmarkConflicting opens a transaction first and only starts the remaining
-// workers once it is in flight, so a round is one real transaction and N-1
-// sharers. A straggler that reaches the server after the holder commits starts
-// a flight of its own, so shared/op reports what was actually achieved.
-func benchmarkConflicting(b *testing.B, concurrency int, key func(iter, worker int) string, opts benchmarkOptions) {
+func benchmarkConflicting(b *testing.B, key func(iter, worker int) string, opts benchmarkOptions) {
 	b.Helper()
 
-	s := newSingleflightBench(b, concurrency, key, opts)
+	s := newSingleflightBench(b, opts.concurrency, key, opts)
 	for iter := 0; b.Loop(); iter++ {
 		held, release := make(chan struct{}), make(chan struct{})
 		s.start(iter, 0, func() {
@@ -466,7 +545,7 @@ func benchmarkConflicting(b *testing.B, concurrency int, key func(iter, worker i
 		})
 		<-held
 
-		for worker := 1; worker < concurrency; worker++ {
+		for worker := 1; worker < opts.concurrency; worker++ {
 			s.start(iter, worker, nil)
 		}
 		close(release)
@@ -476,50 +555,178 @@ func benchmarkConflicting(b *testing.B, concurrency int, key func(iter, worker i
 	s.report()
 }
 
-func BenchmarkSingleFlight(b *testing.B) {
-	restore := log.GetLevel()
-	log.SetLevel(zerolog.Disabled)
-	b.Cleanup(func() { log.SetLevel(restore) })
+var (
+	benchTransport = flag.String("singleflight.transport", "bufconn",
+		"transport to benchmark: bufconn, tcp")
+	benchReplicas = flag.Int("singleflight.replicas", 1,
+		"servers per cluster")
+	benchConcurrency = flag.Int("singleflight.concurrency", 8,
+		"max concurrent in-flight transactions")
+)
 
-	startPostgres := sync.OnceValue(func() string { return testutil.StartPostgres(b) })
+func parseTransport(b *testing.B) grpcTransport {
+	b.Helper()
 
-	stores := []struct {
-		name    string
-		options func(testing.TB) config.DataBrokerOptions
-	}{
-		{"mem", memoryStorage},
-		{"file", fileStorage},
-		{"postgres", postgresStorage(startPostgres)},
+	switch *benchTransport {
+	case "bufconn":
+		return transportBufconn
+	case "tcp":
+		return transportTCP
+	default:
+		b.Fatalf("unknown transport %q", *benchTransport)
+		return transportBufconn
 	}
-	for _, storage := range stores {
-		b.Run(storage.name, func(b *testing.B) {
-			concurrency := 1
-			for range 3 {
-				concurrency *= 2
-				b.Run(fmt.Sprintf("conc-%d", concurrency), func(b *testing.B) {
-					opts := benchmarkOptions{storage: storage.options}
+}
 
-					b.Run("concurrent maybe conflicting", func(b *testing.B) {
-						benchmarkConcurrent(b, concurrency, func(iter, _ int) string {
-							return fmt.Sprintf("conflicting-%d", iter)
-						}, opts)
-					})
+func parseReplicas(b *testing.B) int {
+	b.Helper()
 
-					// every worker contends for the same transaction, so all but one is shared
-					b.Run("concurrent conflicting", func(b *testing.B) {
-						benchmarkConflicting(b, concurrency, func(iter, _ int) string {
-							return fmt.Sprintf("conflicting-%d", iter)
-						}, opts)
-					})
+	if *benchReplicas < 1 {
+		b.Fatalf("invalid replica count %d, must be greater than 0", *benchReplicas)
+	}
+	return *benchReplicas
+}
 
-					// every worker gets its own key, so all transactions run for real
-					b.Run("concurrent non-conflicting", func(b *testing.B) {
-						benchmarkConcurrent(b, concurrency, func(iter, worker int) string {
-							return fmt.Sprintf("non-conflicting-%d-%d", iter, worker)
-						}, opts)
-					})
-				})
-			}
+func parseConcurrency(b *testing.B) int {
+	b.Helper()
+
+	if *benchConcurrency < 1 {
+		b.Fatalf("invalid concurrency %d, must be greater than 0", *benchConcurrency)
+	}
+	return *benchConcurrency
+}
+
+type grpcTransport int
+
+const (
+	transportBufconn grpcTransport = iota
+	transportTCP
+)
+
+func (tr grpcTransport) String() string {
+	if tr == transportTCP {
+		return "tcp"
+	}
+	return "bufconn"
+}
+
+type benchServer struct {
+	b      *testing.B
+	target string
+	dial   func(context.Context, string) (net.Conn, error)
+}
+
+func startBenchServer(b *testing.B, transport grpcTransport, register func(s *grpc.Server)) *benchServer {
+	b.Helper()
+
+	srv := &benchServer{b: b}
+
+	var li net.Listener
+	switch transport {
+	case transportTCP:
+		tcp, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(b, err)
+		li = tcp
+		srv.target = "passthrough:///" + tcp.Addr().String()
+	default:
+		bl := bufconn.Listen(1024 * 1024)
+		li = bl
+		srv.target = "passthrough://bufnet"
+		srv.dial = func(context.Context, string) (net.Conn, error) {
+			return bl.Dial()
+		}
+	}
+
+	s := grpc.NewServer()
+	register(s)
+	go func() {
+		err := s.Serve(li)
+		if errors.Is(err, grpc.ErrServerStopped) {
+			err = nil
+		}
+		require.NoError(b, err)
+	}()
+	b.Cleanup(s.Stop)
+
+	return srv
+}
+
+func (srv *benchServer) dialClient(dialOpts ...grpc.DialOption) *grpc.ClientConn {
+	srv.b.Helper()
+
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	if srv.dial != nil {
+		opts = append(opts, grpc.WithContextDialer(srv.dial))
+	}
+	opts = append(opts, dialOpts...)
+
+	cc, err := grpc.NewClient(srv.target, opts...)
+	require.NoError(srv.b, err)
+	srv.b.Cleanup(func() {
+		cc.Close()
+	})
+
+	return cc
+}
+
+func newBackend(t testing.TB, cfg *config.Config) databroker.Server {
+	t.Helper()
+
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+	srv.OnConfigChange(t.Context(), cfg)
+	return srv
+}
+
+type cluster struct {
+	servers []databroker.Server
+	clients []databrokerpb.DataBrokerServiceClient
+}
+
+func newCluster(
+	b *testing.B,
+	storage config.DataBrokerOptions,
+	replicas int,
+	transport grpcTransport,
+	wire, fwdWire *wireCounter,
+) *cluster {
+	b.Helper()
+
+	cfg := config.New(&config.Options{DataBroker: storage, SharedKey: cryptutil.NewBase64Key()})
+	sharedStorage := storage.StorageType == config.StoragePostgresName
+
+	c := new(cluster)
+	add := func(srv databroker.Server) *benchServer {
+		gs := startBenchServer(b, transport, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, srv)
 		})
+		c.servers = append(c.servers, srv)
+		c.clients = append(c.clients,
+			databrokerpb.NewDataBrokerServiceClient(gs.dialClient(grpc.WithStatsHandler(wire))))
+		return gs
+	}
+
+	leader := add(newBackend(b, cfg))
+	if sharedStorage {
+		_, err := c.servers[0].Get(b.Context(), &databrokerpb.GetRequest{
+			Type: singleflightRecordType(),
+			Id:   "migrate",
+		})
+		require.Equal(b, codes.NotFound, status.Code(err))
+	}
+
+	for range replicas - 1 {
+		if sharedStorage {
+			add(newBackend(b, cfg))
+			continue
+		}
+		add(databroker.NewForwardingServer(leader.dialClient(grpc.WithStatsHandler(fwdWire))))
+	}
+	return c
+}
+
+func (c *cluster) stop() {
+	for _, srv := range slices.Backward(c.servers) {
+		srv.Stop()
 	}
 }
