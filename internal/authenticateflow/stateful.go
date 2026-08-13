@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/identity/idpsession"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -42,6 +43,16 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
+
+// upstreamSessionSuperseder is the one idpsession.Store method this flow uses.
+// Typing the idpStore field as this interface rather than *idpsession.Store
+// makes the compiler enforce the invariant that used to be comment-only: a
+// login flow may install a fresh grant (Supersede) but can never call
+// EnsureLive or Register, which would refresh or seed from a copy this flow
+// has no business validating.
+type upstreamSessionSuperseder interface {
+	Supersede(ctx context.Context, userID, idpID, refreshToken, rawIDToken string) error
+}
 
 // Stateful implements the stateful authentication flow. In this flow, the
 // authenticate service has direct access to the databroker.
@@ -63,6 +74,12 @@ type Stateful struct {
 	authenticateURL *url.URL
 
 	dataBrokerClient databroker.DataBrokerServiceClient
+
+	// idpStore owns the canonical upstream IdP session. A login is the only
+	// event that produces a genuinely fresh upstream refresh token, so this flow
+	// is what installs it (Supersede) rather than leaving consumers to lazily
+	// seed the record from whatever copy they happen to hold.
+	idpStore upstreamSessionSuperseder
 
 	defaultIdentityProviderID string
 
@@ -155,6 +172,8 @@ func NewStateful(
 	s.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
 	s.codeReader = code.NewReader(databroker.NewStaticClientGetter(s.dataBrokerClient))
 	s.codeRevoker = code.NewRevoker(databroker.NewStaticClientGetter(s.dataBrokerClient))
+	// No authenticator getter: this store only ever supersedes, never refreshes.
+	s.idpStore = idpsession.New(s.dataBrokerClient, nil)
 	return s, nil
 }
 
@@ -507,6 +526,58 @@ func (s *Stateful) RevokeIdentityBinding(w http.ResponseWriter, r *http.Request,
 	return nil
 }
 
+const (
+	// idpSupersedeTimeout bounds one attempt at recording the canonical upstream
+	// session, generously: it covers the store's own bounded write retries.
+	idpSupersedeTimeout = 10 * time.Second
+	// idpSupersedeAttempts is how many times that is tried before giving up. The
+	// store already retries a busy record several times inside each attempt, so
+	// this is deliberately small: more here multiplies against that, which is
+	// worst exactly when the databroker is already struggling.
+	// This is not merely best-effort. When the canonical record is dead there is
+	// no lazy path that seeds it, because Register refuses a tombstone, so a
+	// login whose Supersede never lands produces a session the identity manager
+	// deletes at its first tick: the user signs in, appears to succeed, and is
+	// bounced. Landing this write is what ends that loop.
+	idpSupersedeAttempts = 2
+	// idpSupersedeBackoff is the wait between those attempts.
+	idpSupersedeBackoff = 500 * time.Millisecond
+)
+
+// recordUpstreamSession installs the canonical upstream IdP session for this
+// login, off the login's critical path and with bounded retries.
+//
+// Detached because the session is already persisted by the time this runs and
+// the browser should not wait on it. Retried because it is not optional: a dead
+// canonical record has no lazy path back, so a login whose write never lands
+// leaves the user signing in to a session that is deleted moments later.
+func (s *Stateful) recordUpstreamSession(ctx context.Context, userID, idpID, refreshToken, rawIDToken string) {
+	logger := log.Ctx(ctx).With().Str("user-id", userID).Str("idp-id", idpID).Logger()
+	// The logger is carried over but the request's span is not: this outlives the
+	// login it was started from, and its spans would otherwise be attached to a
+	// trace that has already been reported.
+	ctx = logger.WithContext(context.Background())
+	go func() {
+		var err error
+		for attempt := range idpSupersedeAttempts {
+			if attempt > 0 {
+				time.Sleep(idpSupersedeBackoff)
+			}
+			err = func() error {
+				ctx, cancel := context.WithTimeout(ctx, idpSupersedeTimeout)
+				defer cancel()
+				return s.idpStore.Supersede(ctx, userID, idpID, refreshToken, rawIDToken)
+			}()
+			if err == nil {
+				return
+			}
+		}
+		logger.Error().Err(err).
+			Msg("authenticate: could not record the upstream idp session for this login; " +
+				"sessions for this user may be deleted until another login records it")
+	}()
+}
+
 // PersistSession stores session and user data in the databroker.
 func (s *Stateful) PersistSession(
 	ctx context.Context,
@@ -547,6 +618,13 @@ func (s *Stateful) PersistSession(
 	}
 	h.DatabrokerServerVersion = new(res.GetServerVersion())
 	h.DatabrokerRecordVersion = new(res.GetRecord().GetVersion())
+
+	// The auth-code exchange that produced this token is the newest grant that
+	// exists for this user, so it outranks whatever the canonical record holds,
+	// including a tombstone, which is how a signed-out user signs back in.
+	if rt := accessToken.RefreshToken; rt != "" && s.idpStore != nil {
+		s.recordUpstreamSession(ctx, sess.GetUserId(), sess.GetIdpId(), rt, claims.RawIDToken)
+	}
 
 	return nil
 }

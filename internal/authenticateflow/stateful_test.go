@@ -25,12 +25,15 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
+	"github.com/pomerium/pomerium/internal/identity/idpsession"
+	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/internal/sessions"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/testutil/matchers"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	dbtestutil "github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
@@ -443,6 +446,10 @@ func TestPersistSession(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 	flow.dataBrokerClient = client
+	// The canonical upstream session is covered by
+	// TestPersistSession_SupersedesUpstreamSession against a real databroker;
+	// here it would only add an unmockable transaction stream.
+	flow.idpStore = nil
 
 	ctx := t.Context()
 
@@ -546,6 +553,55 @@ func TestPersistSession(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, proto.Uint64(1111), h.DatabrokerRecordVersion)
 	assert.Equal(t, proto.Uint64(2222), h.DatabrokerServerVersion)
+}
+
+// TestPersistSession_SupersedesUpstreamSession pins the login-side half of the
+// upstream-session ownership: an interactive login is the only event that
+// produces a genuinely fresh refresh token, so it installs the canonical record
+// instead of leaving consumers to seed it lazily from copies they may have held
+// since before a sign-out.
+func TestPersistSession_SupersedesUpstreamSession(t *testing.T) {
+	timeNow = func() time.Time { return time.Unix(1721965100, 0) }
+	t.Cleanup(func() { timeNow = time.Now })
+
+	ctx := testutil.GetContext(t, time.Minute)
+	opts := config.NewDefaultOptions()
+	opts.CookieExpire = 4 * time.Hour
+	flow, err := NewStateful(ctx, trace.NewNoopTracerProvider(), config.New(opts), nil, &pom_grpc.CachedOutboundGRPClientConn{})
+	require.NoError(t, err)
+
+	client := dbtestutil.NewTestDatabroker(t)
+	flow.dataBrokerClient = client
+	flow.idpStore = idpsession.New(client, nil)
+
+	h := &session.Handle{Id: "session-id", UserId: "user-id", IdentityProviderId: "idp-1"}
+	claims := identity.SessionClaims{Claims: map[string]any{"email": "user@example.com"}}
+	accessToken := &oauth2.Token{AccessToken: "access-token", RefreshToken: "fresh-refresh-token"}
+
+	require.NoError(t, flow.PersistSession(ctx, nil, h, claims, accessToken))
+
+	// The write is detached from the login, so it is observed rather than waited
+	// for: the browser must not be held while the canonical record is recorded.
+	var records []*databroker.Record
+	require.Eventually(t, func() bool {
+		res, err := client.Query(ctx, &databroker.QueryRequest{
+			Type:  "type.googleapis.com/oauth21.UpstreamIdPSession",
+			Limit: 10,
+		})
+		if err != nil {
+			return false
+		}
+		records = res.GetRecords()
+		return len(records) == 1
+	}, 15*time.Second, 20*time.Millisecond, "a login owns exactly one canonical upstream session")
+
+	var rec oauth21proto.UpstreamIdPSession
+	require.NoError(t, records[0].GetData().UnmarshalTo(&rec))
+	assert.Equal(t, "user-id", rec.GetUserId())
+	assert.Equal(t, "idp-1", rec.GetIdpId())
+	assert.Equal(t, "fresh-refresh-token", rec.GetUpstreamRefreshToken())
+	assert.Equal(t, oauth21proto.UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_LIVE, rec.GetState())
+	assert.Equal(t, uint64(1), rec.GetEpoch(), "a fresh grant starts a new epoch")
 }
 
 type mockAuthenticator struct {

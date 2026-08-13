@@ -3,6 +3,7 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/events"
+	"github.com/pomerium/pomerium/internal/identity/idpsession"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
@@ -230,29 +232,38 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 		return
 	}
 
-	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), NewSessionUnmarshaler(s))
-	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
-	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
-	if isTemporaryError(err) {
-		log.Ctx(ctx).Error().Err(err).
-			Str("user-id", s.GetUserId()).
-			Str("session-id", s.GetId()).
-			Msg("failed to refresh oauth2 token")
-		return
-	} else if err != nil {
-		log.Ctx(ctx).Error().Err(err).
-			Str("user-id", s.GetUserId()).
-			Str("session-id", s.GetId()).
-			Msg("failed to refresh oauth2 token, deleting session")
-		mgr.deleteSession(ctx, sessionID)
-		return
+	if store := mgr.cfg.Load().idpStore; store != nil {
+		// Refresh through the shared upstream IdP session, so this user's browser
+		// sessions and MCP sessions collapse to one IdP call and one owner of the
+		// upstream refresh token.
+		if !mgr.refreshViaStore(ctx, sessionID, s, store) {
+			return
+		}
+	} else {
+		newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), NewSessionUnmarshaler(s))
+		metrics.RecordIdentityManagerSessionRefresh(ctx, err)
+		mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
+		if idpsession.IsTemporary(err) {
+			log.Ctx(ctx).Error().Err(err).
+				Str("user-id", s.GetUserId()).
+				Str("session-id", s.GetId()).
+				Msg("failed to refresh oauth2 token")
+			return
+		} else if err != nil {
+			log.Ctx(ctx).Error().Err(err).
+				Str("user-id", s.GetUserId()).
+				Str("session-id", s.GetId()).
+				Msg("failed to refresh oauth2 token, deleting session")
+			mgr.deleteSession(ctx, sessionID)
+			return
+		}
+		s.OauthToken = ToOAuthToken(newToken)
 	}
-	s.OauthToken = ToOAuthToken(newToken)
 
 	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), newMultiUnmarshaler(newUserUnmarshaler(u), NewSessionUnmarshaler(s)))
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
-	if isTemporaryError(err) {
+	if idpsession.IsTemporary(err) {
 		log.Ctx(ctx).Error().Err(err).
 			Str("user-id", s.GetUserId()).
 			Str("session-id", s.GetId()).
@@ -271,6 +282,83 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	if u != nil {
 		mgr.updateUser(ctx, u)
 	}
+}
+
+// refreshViaStore repopulates s from the shared upstream IdP session. It returns
+// true when s was refreshed and the caller should continue (UpdateUserInfo +
+// persist); false when it already handled the outcome — a transient error keeps
+// the session, a dead upstream session (sign-out / revocation) deletes it.
+func (mgr *Manager) refreshViaStore(ctx context.Context, sessionID string, s *session.Session, store *idpsession.Store) bool {
+	// A scheduled refresh means something about this session hit its expiry, so
+	// asking for a token that merely has not expired would answer the wrong
+	// question. In particular the ID token can expire well before the access
+	// token, and it only advances when the store actually presents: served from
+	// the record, the session's ID token would stay stale, the scheduler would
+	// keep computing a past-due time from it, and this would run every cool-off
+	// period for the life of the session. The debounce window still collapses
+	// concurrent refreshes across replicas.
+	live, err := store.EnsureLive(ctx, s.GetUserId(), s.GetIdpId(), idpsession.RequireFresh())
+	if errors.Is(err, idpsession.ErrNoUpstreamSession) {
+		// Bootstrap during migration: seed the canonical record from this
+		// session's own refresh token, then retry once. A session with no
+		// refresh token can never be refreshed — delete it (matching the legacy
+		// path, where authenticator.Refresh would fail permanently).
+		rt := s.GetOauthToken().GetRefreshToken()
+		if rt == "" {
+			// Recorded like any other refresh outcome: a run of sessions deleted
+			// for this reason should be visible, not silent.
+			metrics.RecordIdentityManagerSessionRefresh(ctx, err)
+			mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
+			log.Ctx(ctx).Info().
+				Str("user-id", s.GetUserId()).
+				Str("session-id", sessionID).
+				Msg("no upstream refresh token, deleting session")
+			mgr.deleteSession(ctx, sessionID)
+			return false
+		}
+		if serr := store.Register(ctx, s.GetUserId(), s.GetIdpId(), rt); serr != nil {
+			// Every outcome of an attempted refresh is recorded, including the
+			// ones that end here, or a run of seeding failures would look like no
+			// refresh activity at all.
+			metrics.RecordIdentityManagerSessionRefresh(ctx, serr)
+			mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, serr)
+			if errors.Is(serr, idpsession.ErrUpstreamSessionDead) {
+				// This session's token is a copy of a grant that has already
+				// died; re-seeding it would resurrect a dead upstream session.
+				mgr.deleteDeadSession(ctx, sessionID, s.GetUserId(), serr)
+				return false
+			}
+			log.Ctx(ctx).Error().Err(serr).
+				Str("user-id", s.GetUserId()).
+				Str("session-id", sessionID).
+				Msg("failed to seed upstream idp session")
+			return false
+		}
+		live, err = store.EnsureLive(ctx, s.GetUserId(), s.GetIdpId(), idpsession.RequireFresh())
+	}
+	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
+	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
+	if errors.Is(err, idpsession.ErrUpstreamSessionDead) {
+		mgr.deleteDeadSession(ctx, sessionID, s.GetUserId(), err)
+		return false
+	} else if err != nil {
+		log.Ctx(ctx).Error().Err(err).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", sessionID).
+			Msg("failed to refresh upstream idp session")
+		return false
+	}
+
+	s.OauthToken = ToOAuthToken(live.Token)
+	// Assigned only when the provider said something about it: a new ID token, or
+	// an explicit withdrawal.
+	if raw, said := live.IDTokenUpdate(); said {
+		s.SetRawIDToken(raw)
+	}
+	if len(live.Claims) > 0 {
+		s.AddClaims(live.Claims)
+	}
+	return true
 }
 
 func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
@@ -303,7 +391,7 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 		err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.GetOauthToken()), newUserUnmarshaler(u))
 		metrics.RecordIdentityManagerUserRefresh(ctx, err)
 		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
-		if isTemporaryError(err) {
+		if idpsession.IsTemporary(err) {
 			log.Ctx(ctx).Error().Err(err).
 				Str("user-id", s.GetUserId()).
 				Str("session-id", s.GetId()).
@@ -320,6 +408,20 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 
 		mgr.updateUser(ctx, u)
 	}
+}
+
+// deleteDeadSession deletes a session whose canonical upstream IdP session has
+// permanently ended (sign-out, revocation, or an unrecoverable refresh
+// outcome): re-seeding it from this session's copy would resurrect a dead
+// grant, so the only remedy is a fresh login. Called from both the Register
+// and EnsureLive dead-session branches of refreshViaStore.
+func (mgr *Manager) deleteDeadSession(ctx context.Context, sessionID, userID string, deadErr error) {
+	log.Ctx(ctx).Info().
+		Str("user-id", userID).
+		Str("session-id", sessionID).
+		Str("dead-reason", idpsession.DeadReason(deadErr)).
+		Msg("upstream idp session is no longer valid, deleting session")
+	mgr.deleteSession(ctx, sessionID)
 }
 
 // deleteSession deletes a session from the databroke, the local data store, and the schedulers

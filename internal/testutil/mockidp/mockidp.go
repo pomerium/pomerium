@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,6 +30,27 @@ import (
 	"github.com/pomerium/pomerium/internal/oauth21"
 )
 
+// RotationMode selects how the mock IdP treats the presented refresh token on a
+// refresh_token grant, matching the behaviors real IdPs implement.
+type RotationMode int
+
+const (
+	// RotateKeepOld issues a new refresh token on every grant and keeps the
+	// presented one valid forever (no invalidation). This is the historical
+	// mockidp behavior and the default.
+	RotateKeepOld RotationMode = iota
+	// NonRotating returns the presented refresh token unchanged (no rotation).
+	NonRotating
+	// RotateInvalidate issues a new refresh token and invalidates the
+	// presented one immediately (strict one-time-use).
+	RotateInvalidate
+	// RotateReuseDetect is RotateInvalidate plus reuse detection: presenting an
+	// already-consumed token revokes the token's whole family, meaning every
+	// outstanding token descended from the same grant, the way Auth0, Okta and
+	// Entra treat replay as token theft.
+	RotateReuseDetect
+)
+
 type IDP struct {
 	publicJWK  jose.JSONWebKey
 	signingKey jose.SigningKey
@@ -39,15 +61,121 @@ type IDP struct {
 	enableDeviceAuth bool
 	enablePKCE       bool
 
+	rotationMode   RotationMode
+	omitExpiresIn  bool
+	accessTokenTTL time.Duration
+
 	// refresh token store
 	refreshTokensMu sync.RWMutex
 	refreshTokens   map[string]*refreshTokenData
+	// consumedTokens remembers tokens invalidated by rotation so
+	// RotateReuseDetect can recognize a replay and revoke the token's family.
+	consumedTokens map[string]*refreshTokenData
+
+	// fault injection / test hooks, guarded by hooksMu.
+	hooksMu           sync.Mutex
+	refreshBarrier    func(refreshToken string)
+	failRefreshStatus int
+	failRefreshCount  int
+	dropResponseCount int
+
+	// refreshCount counts refresh_token grants, so tests can assert a user's
+	// upstream session is refreshed once regardless of how many consumers
+	// depend on it.
+	refreshCount atomic.Int64
+}
+
+// RefreshCount returns the number of refresh_token grants served so far.
+func (idp *IDP) RefreshCount() int64 { return idp.refreshCount.Load() }
+
+// IssueRefreshToken mints a refresh token for a user, simulating the result of a
+// completed login without driving the full browser flow.
+func (idp *IDP) IssueRefreshToken(email, clientID string) string {
+	return idp.createRefreshToken(email, clientID)
+}
+
+// AuthCode returns the authorization code this mock's /oidc/auth endpoint would
+// issue for a user, so a test can run an auth-code exchange, and whatever that
+// exchange warms up client-side, without a browser flow.
+func (idp *IDP) AuthCode(email, clientID string) string {
+	return state{Email: email, ClientID: clientID}.Encode()
+}
+
+// RevokeAllRefreshTokens invalidates every stored refresh token, simulating the
+// user signing out at the IdP (subsequent refresh grants fail).
+func (idp *IDP) RevokeAllRefreshTokens() {
+	idp.refreshTokensMu.Lock()
+	idp.refreshTokens = make(map[string]*refreshTokenData)
+	idp.consumedTokens = make(map[string]*refreshTokenData)
+	idp.refreshTokensMu.Unlock()
+}
+
+// IsRefreshTokenValid reports whether a refresh_token grant presenting this
+// token would currently succeed.
+func (idp *IDP) IsRefreshTokenValid(token string) bool {
+	idp.refreshTokensMu.RLock()
+	defer idp.refreshTokensMu.RUnlock()
+	return validLocked(idp.refreshTokens[token])
+}
+
+// ValidRefreshTokenCount returns how many refresh tokens would currently be
+// accepted by the token endpoint.
+func (idp *IDP) ValidRefreshTokenCount() int {
+	idp.refreshTokensMu.RLock()
+	defer idp.refreshTokensMu.RUnlock()
+	n := 0
+	for _, data := range idp.refreshTokens {
+		if validLocked(data) {
+			n++
+		}
+	}
+	return n
+}
+
+// validLocked is the single "would the token endpoint accept this?" rule.
+// Callers must hold refreshTokensMu.
+func validLocked(data *refreshTokenData) bool {
+	return data != nil && !time.Now().After(data.ExpiresAt)
+}
+
+// SetRefreshBarrier installs a hook invoked at the start of every refresh_token
+// grant, before any token state is touched. Tests use it to hold two concurrent
+// refreshes in flight with the same token before either is processed. Pass nil
+// to remove.
+func (idp *IDP) SetRefreshBarrier(f func(refreshToken string)) {
+	idp.hooksMu.Lock()
+	idp.refreshBarrier = f
+	idp.hooksMu.Unlock()
+}
+
+// FailNextRefresh makes the next n refresh_token grants fail with the given HTTP
+// status before any token state is touched, simulating a transient IdP outage in
+// which the presented token stays valid.
+func (idp *IDP) FailNextRefresh(status, n int) {
+	idp.hooksMu.Lock()
+	idp.failRefreshStatus = status
+	idp.failRefreshCount = n
+	idp.hooksMu.Unlock()
+}
+
+// DropNextRefreshResponse makes the next n refresh_token grants execute fully at
+// the IdP, consuming and rotating the presented token per the rotation mode, but
+// replaces the response with a 502. This simulates the IdP performing the grant
+// while the response never reaches the client, through a timeout, crash or
+// network loss. The newly minted refresh token exists but is unknown to anyone.
+func (idp *IDP) DropNextRefreshResponse(n int) {
+	idp.hooksMu.Lock()
+	idp.dropResponseCount = n
+	idp.hooksMu.Unlock()
 }
 
 // refreshTokenData stores the data associated with a refresh token.
 type refreshTokenData struct {
-	Email     string
-	ClientID  string
+	Email    string
+	ClientID string
+	// Family identifies the grant lineage. The auth-code exchange mints a new
+	// family and every rotation inherits it. Reuse detection revokes by family.
+	Family    string
 	IssuedAt  time.Time
 	ExpiresAt time.Time
 }
@@ -56,6 +184,18 @@ type Config struct {
 	Users            []*User `json:"users"`
 	EnableDeviceAuth bool    `json:"enable_device_auth"`
 	EnablePKCE       bool    `json:"enable_pkce"`
+
+	// RotationMode selects the refresh-token rotation semantics. The zero
+	// value (RotateKeepOld) preserves the historical mockidp behavior.
+	RotationMode RotationMode `json:"-"`
+	// OmitExpiresIn drops expires_in from token responses, like the providers
+	// that leave the access token's lifetime unstated.
+	OmitExpiresIn bool `json:"-"`
+	// AccessTokenTTL overrides the access token lifetime reported as expires_in.
+	// A short one lets a test reach the state where a stored token is due for
+	// refresh in real time, rather than by moving a clock the store does not
+	// measure ages against.
+	AccessTokenTTL time.Duration `json:"-"`
 }
 
 func New(cfg Config) *IDP {
@@ -91,7 +231,11 @@ func New(cfg Config) *IDP {
 		userLookup:       userLookup,
 		enableDeviceAuth: cfg.EnableDeviceAuth,
 		enablePKCE:       cfg.EnablePKCE,
+		rotationMode:     cfg.RotationMode,
+		omitExpiresIn:    cfg.OmitExpiresIn,
+		accessTokenTTL:   cfg.AccessTokenTTL,
 		refreshTokens:    make(map[string]*refreshTokenData),
+		consumedTokens:   make(map[string]*refreshTokenData),
 	}
 }
 
@@ -269,15 +413,38 @@ func (idp *IDP) handleToken(w http.ResponseWriter, r *http.Request) {
 
 // handleRefreshToken handles the refresh_token grant type.
 func (idp *IDP) handleRefreshToken(w http.ResponseWriter, r *http.Request) {
+	idp.refreshCount.Add(1)
 	refreshToken := r.FormValue("refresh_token")
 	if refreshToken == "" {
 		http.Error(w, "missing refresh_token", http.StatusBadRequest)
 		return
 	}
 
-	data, valid := idp.validateRefreshToken(refreshToken)
+	// Test hook, letting concurrent refreshers meet before any state changes.
+	idp.hooksMu.Lock()
+	barrier := idp.refreshBarrier
+	idp.hooksMu.Unlock()
+	if barrier != nil {
+		barrier(refreshToken)
+	}
+
+	// Fault injection: transient outage before any token state is touched.
+	idp.hooksMu.Lock()
+	if idp.failRefreshCount > 0 {
+		idp.failRefreshCount--
+		status := idp.failRefreshStatus
+		idp.hooksMu.Unlock()
+		http.Error(w, "temporarily unavailable", status)
+		return
+	}
+	idp.hooksMu.Unlock()
+
+	data, valid := idp.consumeRefreshToken(refreshToken)
 	if !valid {
-		http.Error(w, "invalid or expired refresh_token", http.StatusUnauthorized)
+		// RFC 6749 §5.2 reports a refused grant as invalid_grant. Consumers
+		// classify refresh failures by this code, and an opaque status would be
+		// indistinguishable from an outage, so the mock returns it too.
+		serveOAuthError(w, http.StatusBadRequest, oauth21.InvalidGrant, "invalid or expired refresh_token")
 		return
 	}
 
@@ -288,11 +455,100 @@ func (idp *IDP) handleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Issue new tokens using the stored refresh token data
-	idp.serveToken(w, r, &state{
-		Email:    data.Email,
-		ClientID: data.ClientID,
-	})
+	idp.serveRefreshedToken(w, r, data, refreshToken)
+}
+
+// consumeRefreshToken validates the presented refresh token and applies the
+// rotation mode's consumption rules. Concurrent presentations of the same
+// one-time-use token are serialized here, so exactly one succeeds.
+func (idp *IDP) consumeRefreshToken(token string) (*refreshTokenData, bool) {
+	idp.refreshTokensMu.Lock()
+	defer idp.refreshTokensMu.Unlock()
+
+	data, ok := idp.refreshTokens[token]
+	if !ok {
+		// Reuse detection treats replaying a consumed token as theft and revokes
+		// the whole family.
+		if idp.rotationMode == RotateReuseDetect {
+			if consumed, wasConsumed := idp.consumedTokens[token]; wasConsumed {
+				idp.revokeFamilyLocked(consumed.Family)
+			}
+		}
+		return nil, false
+	}
+	if !validLocked(data) {
+		delete(idp.refreshTokens, token)
+		return nil, false
+	}
+
+	switch idp.rotationMode {
+	case NonRotating, RotateKeepOld:
+		// presented token stays valid
+	case RotateInvalidate, RotateReuseDetect:
+		delete(idp.refreshTokens, token)
+		consumed := *data
+		idp.consumedTokens[token] = &consumed
+	}
+	return data, true
+}
+
+// revokeFamilyLocked deletes every valid and consumed token in a family.
+// Callers must hold refreshTokensMu.
+func (idp *IDP) revokeFamilyLocked(family string) {
+	for tok, d := range idp.refreshTokens {
+		if d.Family == family {
+			delete(idp.refreshTokens, tok)
+		}
+	}
+	for tok, d := range idp.consumedTokens {
+		if d.Family == family {
+			delete(idp.consumedTokens, tok)
+		}
+	}
+}
+
+// serveRefreshedToken responds to a successful refresh_token grant, minting the
+// refresh token, or reusing it in NonRotating mode, per the rotation mode.
+func (idp *IDP) serveRefreshedToken(w http.ResponseWriter, r *http.Request, data *refreshTokenData, presented string) {
+	st := &state{Email: data.Email, ClientID: data.ClientID}
+
+	refreshToken := presented
+	if idp.rotationMode != NonRotating {
+		refreshToken = idp.createRefreshTokenInFamily(data.Email, data.ClientID, data.Family)
+	}
+
+	// Fault injection: the grant executed and rotation happened, but the response
+	// is lost. The client sees a 502, the old token is gone per the rotation
+	// mode, and the new one is unknown to anyone.
+	idp.hooksMu.Lock()
+	if idp.dropResponseCount > 0 {
+		idp.dropResponseCount--
+		idp.hooksMu.Unlock()
+		http.Error(w, "bad gateway (response lost in transit)", http.StatusBadGateway)
+		return
+	}
+	idp.hooksMu.Unlock()
+
+	serveJSON(w, idp.tokenResponse(st, refreshToken, st.GetIDToken(r, idp.userLookup).Encode(idp.signingKey)))
+}
+
+// tokenResponse builds a token endpoint response, leaving out expires_in when
+// the mock is configured to omit it.
+func (idp *IDP) tokenResponse(st *state, refreshToken, idToken string) map[string]any {
+	res := map[string]any{
+		"access_token":  st.Encode(),
+		"refresh_token": refreshToken,
+		"token_type":    "Bearer",
+		"id_token":      idToken,
+	}
+	if !idp.omitExpiresIn {
+		expiresIn := accessTokenExpiresIn
+		if idp.accessTokenTTL > 0 {
+			expiresIn = int(idp.accessTokenTTL.Seconds())
+		}
+		res["expires_in"] = expiresIn
+	}
+	return res
 }
 
 // accessTokenExpiresIn is the lifetime of access tokens in seconds.
@@ -302,20 +558,21 @@ const accessTokenExpiresIn = 3600 // 1 hour
 const refreshTokenLifetime = 30 * 24 * time.Hour // 30 days
 
 func (idp *IDP) serveToken(w http.ResponseWriter, r *http.Request, state *state) {
-	// Generate a new refresh token
+	// A fresh login (auth-code / device grant) starts a new token family.
 	refreshToken := idp.createRefreshToken(state.Email, state.ClientID)
 
-	serveJSON(w, map[string]any{
-		"access_token":  state.Encode(),
-		"refresh_token": refreshToken,
-		"token_type":    "Bearer",
-		"expires_in":    accessTokenExpiresIn,
-		"id_token":      state.GetIDToken(r, idp.userLookup).Encode(idp.signingKey),
-	})
+	serveJSON(w, idp.tokenResponse(state, refreshToken, state.GetIDToken(r, idp.userLookup).Encode(idp.signingKey)))
 }
 
-// createRefreshToken creates and stores a new refresh token.
+// createRefreshToken creates and stores a new refresh token in a new family, the
+// result of a fresh grant such as an auth-code exchange.
 func (idp *IDP) createRefreshToken(email, clientID string) string {
+	return idp.createRefreshTokenInFamily(email, clientID, uuid.NewString())
+}
+
+// createRefreshTokenInFamily creates and stores a new refresh token descended
+// from an existing grant family, the result of a rotation.
+func (idp *IDP) createRefreshTokenInFamily(email, clientID, family string) string {
 	token := uuid.NewString()
 	now := time.Now()
 
@@ -323,33 +580,13 @@ func (idp *IDP) createRefreshToken(email, clientID string) string {
 	idp.refreshTokens[token] = &refreshTokenData{
 		Email:     email,
 		ClientID:  clientID,
+		Family:    family,
 		IssuedAt:  now,
 		ExpiresAt: now.Add(refreshTokenLifetime),
 	}
 	idp.refreshTokensMu.Unlock()
 
 	return token
-}
-
-// validateRefreshToken validates a refresh token and returns the associated data.
-func (idp *IDP) validateRefreshToken(token string) (*refreshTokenData, bool) {
-	idp.refreshTokensMu.RLock()
-	data, ok := idp.refreshTokens[token]
-	idp.refreshTokensMu.RUnlock()
-
-	if !ok {
-		return nil, false
-	}
-
-	if time.Now().After(data.ExpiresAt) {
-		// Token expired, remove it
-		idp.refreshTokensMu.Lock()
-		delete(idp.refreshTokens, token)
-		idp.refreshTokensMu.Unlock()
-		return nil, false
-	}
-
-	return data, true
 }
 
 // handleUserInfo handles retrieving the user info.
@@ -423,6 +660,15 @@ func serveHTML(w http.ResponseWriter, html string) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(html)))
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.WriteString(w, html)
+}
+
+// serveOAuthError writes an RFC 6749 §5.2 error response, using the same body
+// shape Pomerium's own authorization server speaks.
+func serveOAuthError(w http.ResponseWriter, status int, code oauth21.ErrorCode, description string) {
+	bs, _ := json.Marshal(oauth21.Error{Code: code, Description: description})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = w.Write(bs)
 }
 
 func serveJSON(w http.ResponseWriter, obj any) {

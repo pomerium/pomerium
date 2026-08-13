@@ -254,11 +254,18 @@ to `POST /.pomerium/mcp/token` with `grant_type=refresh_token`:
    to the client that received it)
 2. Fetches the `MCPRefreshToken` record and validates it (not revoked, not
    expired, client ID matches)
-3. Recreates a Pomerium session by refreshing the upstream IdP token using
-   the stored `upstream_refresh_token`
+3. Recreates a Pomerium session from the user's canonical upstream IdP session
+   (`internal/identity/idpsession`), seeding that record from the stored
+   `upstream_refresh_token` if it does not exist yet
 4. If the upstream IdP rotated the refresh token, updates the record
 5. **Rotates the downstream token**: creates a new `MCPRefreshToken` record,
    marks the old one as revoked, and returns a new encrypted refresh token
+
+If the upstream session cannot be proven live right now, because of an IdP
+outage or another replica mid-refresh, the endpoint answers `503` with
+`temporarily_unavailable` and `Retry-After` rather than `invalid_grant`, so the
+client retries with the same refresh token instead of discarding it and
+re-authorizing. `invalid_grant` is reserved for a session that is actually over.
 
 ### Key Design Points
 
@@ -274,6 +281,10 @@ to `POST /.pomerium/mcp/token` with `grant_type=refresh_token`:
 - **Session recreation**: `MCPRefreshToken` stores the upstream IdP refresh
   token (not the upstream MCP server token). This allows Pomerium to create
   a fresh session via the IdP even after the original session has expired.
+  The token stored here is a seed, not the owner: once the canonical
+  `UpstreamIdPSession` record exists it owns and rotates the upstream refresh
+  token, and every MCP client of a user shares one upstream refresh with that
+  user's other sessions rather than refreshing on its own.
 
 ---
 

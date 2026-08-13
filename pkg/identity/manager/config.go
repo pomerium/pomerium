@@ -3,13 +3,13 @@ package manager
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/pomerium/pomerium/internal/events"
+	"github.com/pomerium/pomerium/internal/identity/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
@@ -31,6 +31,7 @@ type config struct {
 	now                               func() time.Time
 	eventMgr                          *events.Manager
 	getAuthenticator                  func(ctx context.Context, idpID string) (identity.Authenticator, error)
+	idpStore                          *idpsession.Store
 	tracerProvider                    oteltrace.TracerProvider
 }
 
@@ -54,30 +55,6 @@ func newConfig(options ...Option) *config {
 // An Option customizes the configuration used for the identity manager.
 type Option func(*config)
 
-// WithCachedGetAuthenticator sets the get authenticator function in the config.
-func WithCachedGetAuthenticator(getAuthenticator func(ctx context.Context, idpID string) (identity.Authenticator, error)) Option {
-	return func(cfg *config) {
-		var mu sync.Mutex
-		type state struct {
-			authenticator identity.Authenticator
-			err           error
-		}
-		lookup := map[string]state{}
-		cfg.getAuthenticator = func(ctx context.Context, idpID string) (identity.Authenticator, error) {
-			mu.Lock()
-			defer mu.Unlock()
-
-			s, ok := lookup[idpID]
-			if !ok {
-				s.authenticator, s.err = getAuthenticator(ctx, idpID)
-				lookup[idpID] = s
-			}
-
-			return s.authenticator, s.err
-		}
-	}
-}
-
 // WithDataBrokerClient sets the databroker client in the config.
 func WithDataBrokerClient(dataBrokerClient databroker.DataBrokerServiceClient) Option {
 	return func(cfg *config) {
@@ -89,6 +66,17 @@ func WithDataBrokerClient(dataBrokerClient databroker.DataBrokerServiceClient) O
 func WithGetAuthenticator(getAuthenticator func(ctx context.Context, idpID string) (identity.Authenticator, error)) Option {
 	return func(cfg *config) {
 		cfg.getAuthenticator = getAuthenticator
+	}
+}
+
+// WithIDPSessionStore sets the shared upstream IdP-session store. When set, the
+// manager refreshes browser sessions through it, so every browser session and
+// MCP session for one user shares a single upstream refresh and a single owner
+// of the upstream refresh token. When nil the manager uses the legacy
+// per-session refresh path.
+func WithIDPSessionStore(store *idpsession.Store) Option {
+	return func(cfg *config) {
+		cfg.idpStore = store
 	}
 }
 

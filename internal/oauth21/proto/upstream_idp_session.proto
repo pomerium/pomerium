@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+// UpstreamIdPSessionState distinguishes a live record from a durable
+// tombstone. UNSPECIFIED is read as LIVE for records written before this
+// field existed.
+enum UpstreamIdPSessionState {
+  UPSTREAM_IDP_SESSION_STATE_UNSPECIFIED = 0;
+  UPSTREAM_IDP_SESSION_STATE_LIVE        = 1;
+  UPSTREAM_IDP_SESSION_STATE_DEAD        = 2;
+}
+
+// UpstreamIdPSession is the canonical record of a user's session at an upstream
+// identity provider. It is keyed by (user_id, idp_id) through a deterministic
+// record id, so exactly one record exists per pair regardless of how many
+// browser sessions or MCP clients reference it.
+//
+// It owns and rotates the upstream refresh token. Browser sessions and MCP
+// sessions are projections repopulated from this record. Consumers that need to
+// check the user is still signed in call idpsession.Store.EnsureLive, which
+// refreshes against the IdP at most once per debounce window, anchored on
+// refreshed_at, so N consumers cause at most one IdP call per window.
+message UpstreamIdPSession {
+  // Deterministic id: "idpsess-" + sha256(url.Values{user_id,idp_id}.Encode()).
+  string id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // The user this session belongs to.
+  string user_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // The identity_provider id this session was established with.
+  string idp_id = 3;
+
+  // The upstream IdP refresh token. This record is its only owner: on each
+  // successful refresh the rotated token is written back here, so no projection
+  // holds a copy that another consumer's rotation could invalidate.
+  string upstream_refresh_token = 4;
+
+  // When the upstream token was last successfully refreshed. This is the
+  // cross-process debounce anchor: callers within min_refresh_interval of it
+  // reuse the cached result instead of calling the IdP again.
+  google.protobuf.Timestamp refreshed_at = 5;
+
+  // When the last-fetched upstream access token expires.
+  google.protobuf.Timestamp expires_at = 6;
+
+  // The most recent ID-token claims (flattened to dotted paths), so projections
+  // can be repopulated without a fresh IdP round-trip.
+  map<string, google.protobuf.ListValue> claims = 7;
+
+  // The most recent upstream access token and its type. Stored so an EnsureLive
+  // that finds the record still fresh can return a usable token to every
+  // projection without calling the IdP.
+  string upstream_access_token = 8;
+  string token_type = 9;
+
+  // The most recent raw upstream ID token, so projections can repopulate their
+  // id_token without a fresh IdP round-trip.
+  string raw_id_token = 10;
+
+  // generation counts successful refreshes within an epoch. A record still at 0
+  // has never completed one, so nothing is known about whether this provider
+  // rotates; that distinction decides whether an abandoned attempt's token may
+  // be presented again.
+  uint64 generation = 11;
+  // epoch increments on each Supersede, meaning a fresh grant from an
+  // interactive login, and generation restarts at 0 within the new epoch.
+  // Nothing reads epoch to make a decision: staleness within an epoch is caught
+  // by presented_generation, and a Supersede that lands mid-attempt is caught by
+  // the refresh_attempt_id check. It is kept for operators reading records and
+  // so a superseding write is visibly newer.
+  uint64 epoch = 12;
+  // State distinguishes a live record from a durable tombstone. UNSPECIFIED is
+  // read as LIVE for records written before this field existed.
+  UpstreamIdPSessionState state = 13;
+  // dead_reason labels why a DEAD record died: idp_revoked, unknown_outcome,
+  // pomerium_signout, or seed_invalid.
+  string dead_reason = 14;
+  // refresh_attempt_id is the write-ahead intent: non-empty means a refresh
+  // attempt presented (or may have presented) the refresh token and its
+  // outcome has not been committed yet.
+  string refresh_attempt_id = 15;
+  google.protobuf.Timestamp refresh_started_at = 16;
+  // presented_generation records which generation's refresh token the
+  // in-flight attempt presented.
+  uint64 presented_generation = 17;
+  // last_failure_at records when the most recent refresh failed. It is written
+  // for operators reading records directly; the backoff runs off
+  // consecutive_failures.
+  google.protobuf.Timestamp last_failure_at = 18;
+  uint32 consecutive_failures = 19;
+  // rotation_observed becomes true the first time a refresh response carries a
+  // refresh token different from the one presented. It gates whether a stale
+  // intent may be resolved by re-presenting, which is only safe when false.
+  bool rotation_observed = 20;
+
+  // 21 held token_fingerprint, which existed to let a tombstone accept some
+  // candidate tokens and refuse others. Revival is no longer decided by the
+  // candidate: only Supersede revives a dead record.
+  reserved 21;
+
+  // raw_id_token_cleared records that a refresh deliberately withdrew the ID
+  // token, as opposed to simply not carrying one. Most providers omit id_token
+  // on refresh and the last-known value is kept; a provider configured to
+  // overwrite it reports the absence, and that has to reach the projections or
+  // they keep asserting an identity the provider has withdrawn.
+  bool raw_id_token_cleared = 22;
+}

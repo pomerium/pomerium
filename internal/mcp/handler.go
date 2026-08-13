@@ -16,10 +16,10 @@ import (
 	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/identity/idpsession"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -42,8 +42,10 @@ const (
 	clientOAuthCallbackEndpoint = "/client/oauth/callback"
 )
 
-// AuthenticatorGetter is a function that returns an authenticator for the given IdP ID.
-type AuthenticatorGetter func(ctx context.Context, idpID string) (identity.Authenticator, error)
+// AuthenticatorGetter is a function that returns an authenticator for the given
+// IdP ID. It aliases the store's type so the two do not have to be converted at
+// every hand-off.
+type AuthenticatorGetter = idpsession.AuthenticatorGetter
 
 type Handler struct {
 	prefix  string
@@ -56,6 +58,7 @@ type Handler struct {
 	singleFlight            singleflight.Group
 	clientMetadataFetcher   *ClientMetadataFetcher
 	getAuthenticator        AuthenticatorGetter
+	idpStore                *idpsession.Store
 	sessionExpiry           time.Duration
 	httpClient              *http.Client // for upstream discovery fetches
 	asMetadataDomainMatcher *DomainMatcher
@@ -152,6 +155,16 @@ func New(
 
 	for _, opt := range opts {
 		opt(h)
+	}
+
+	// Route upstream IdP refreshes through the shared store so a user's MCP
+	// clients and browser sessions share one IdP refresh instead of one each.
+	if h.getAuthenticator != nil {
+		// Memoized, because the store rebuilding a provider per refresh would
+		// discard the client-auth style the provider learned; see
+		// idpsession.CacheAuthenticators. The cache lives as long as this
+		// handler, which is replaced on a configuration change.
+		h.idpStore = idpsession.New(client, idpsession.CacheAuthenticators(h.getAuthenticator))
 	}
 
 	return h, nil

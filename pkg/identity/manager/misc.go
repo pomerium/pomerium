@@ -1,9 +1,6 @@
 package manager
 
 import (
-	"context"
-	"errors"
-
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -29,18 +26,4 @@ func ToOAuthToken(token *oauth2.Token) *session.OAuthToken {
 		RefreshToken: token.RefreshToken,
 		ExpiresAt:    expiry,
 	}
-}
-
-func isTemporaryError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return true
-	}
-	var hasTemporary interface{ Temporary() bool }
-	if errors.As(err, &hasTemporary) && hasTemporary.Temporary() {
-		return true
-	}
-	return false
 }

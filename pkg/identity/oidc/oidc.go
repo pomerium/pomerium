@@ -63,6 +63,11 @@ type Provider struct {
 
 	mu       sync.Mutex
 	provider *go_oidc.Provider
+	// oauthConfig is the config built for provider. It is cached for the
+	// Provider's lifetime, alongside the discovery document it was built from,
+	// rather than rebuilt per call, because an *oauth2.Config carries the
+	// client-auth style it learned from the provider. See GetOauthConfig.
+	oauthConfig *oauth2.Config
 }
 
 // New creates a new instance of a generic OpenID Connect provider.
@@ -348,13 +353,35 @@ func (p *Provider) GetVerifier() (*go_oidc.IDTokenVerifier, error) {
 	return p.cfg.getVerifier(pp), nil
 }
 
-// GetOauthConfig gets the oauth.
+// GetOauthConfig gets the oauth config, caching it for the Provider's lifetime
+// alongside the discovery document it was built from. Neither has an
+// invalidation path; both live as long as the Provider does.
+//
+// The cache is not an optimization. An *oauth2.Config remembers which
+// client-authentication style the token endpoint accepted, in its internal
+// LazyAuthStyleCache. With a config allocated per call, x/oauth2 re-probes on
+// every token request, and a probe that gets an error back re-POSTs the same
+// request with the other style. For a refresh_token grant that presents a
+// one-time-use refresh token twice on a single failed call, which makes
+// reuse-detecting providers revoke the user's whole grant family. Keeping one
+// config per provider lets the login-time code exchange warm the style for the
+// provider's lifetime. Sharing it across concurrent calls is safe: x/oauth2
+// synchronizes that cache internally, and nothing here mutates the config after
+// it is built.
 func (p *Provider) GetOauthConfig() (*oauth2.Config, error) {
 	pp, err := p.GetProvider()
 	if err != nil {
 		return nil, err
 	}
-	return p.cfg.getOauthConfig(pp), nil
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.oauthConfig != nil {
+		return p.oauthConfig, nil
+	}
+	p.oauthConfig = p.cfg.getOauthConfig(pp)
+	return p.oauthConfig, nil
 }
 
 // SignOut uses the EndSessionURL endpoint to allow a logout session to be initiated.
