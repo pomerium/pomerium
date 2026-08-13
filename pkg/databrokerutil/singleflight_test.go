@@ -159,6 +159,31 @@ func TestSingleflight(t *testing.T) {
 		assertExists(t, srv, "commit-2")
 	})
 
+	t.Run("operations return their underlying storage errors", func(t *testing.T) {
+		srv, client := newSingleflightServer(t)
+		changed, shared, err := databrokerutil.Do(t.Context(), client, "absent-check", func(tx databrokerutil.TX) error {
+			_, err := tx.Get(t.Context(), &databrokerpb.GetRequest{
+				Type: singleflightRecordType(),
+				Id:   "absent",
+			})
+			assert.Error(t, err)
+			assert.Equal(t, codes.NotFound, status.Code(err))
+
+			resp, err := tx.Put(t.Context(), &databrokerpb.PutRequest{
+				Records: []*databrokerpb.Record{
+					singleflightRecord("absent"),
+				},
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, len(resp.GetRecords()), 1)
+			return nil
+		})
+		assert.NoError(t, err)
+		assert.False(t, shared)
+		assert.Equal(t, len(changed), 1)
+		assertExists(t, srv, "absent")
+	})
+
 	t.Run("read your writes", func(t *testing.T) {
 		_, client := newSingleflightServer(t)
 
