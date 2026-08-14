@@ -7,7 +7,7 @@ require (
 	buf.build/go/protovalidate v1.3.0
 	charm.land/bubbles/v2 v2.1.1
 	charm.land/bubbletea/v2 v2.0.8
-	charm.land/lipgloss/v2 v2.0.5
+	charm.land/lipgloss/v2 v2.0.6
 	cloud.google.com/go/storage v1.64.0
 	connectrpc.com/connect v1.20.0
 	connectrpc.com/grpchealth v1.5.0
@@ -33,8 +33,8 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/charmbracelet/colorprofile v0.4.3
-	github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7
-	github.com/charmbracelet/x/ansi v0.11.7
+	github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886
+	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/charmbracelet/x/vt v0.0.0-20260615092313-b57e5e6d29bb
 	github.com/charmbracelet/x/vttest v0.0.0-20260615092313-b57e5e6d29bb
 	github.com/cloudflare/circl v1.6.5
@@ -310,7 +310,7 @@ require (
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/libdns/libdns v1.1.1 // indirect
 	github.com/lmittmann/tint v1.1.3 // indirect
-	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
+	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/lyft/protoc-gen-star/v2 v2.0.4 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
