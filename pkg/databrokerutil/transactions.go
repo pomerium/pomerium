@@ -7,6 +7,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,6 +22,8 @@ var (
 	}
 )
 
+type transactionClient = grpc.BidiStreamingClient[databroker.TransactionStreamRequest, databroker.TransactionStreamResponse]
+
 // TX submits storage operations during a singleflight operation to the databroker.
 // It is safe for concurrent use, but operations are submitted sequentially to the underlying transaction.
 // When used concurrently, there is no guarantee on operation ordering.
@@ -31,9 +34,74 @@ type TX interface {
 	Query(ctx context.Context, req *databroker.QueryRequest) (resp *databroker.QueryResponse, err error)
 }
 
-type transactionClient = grpc.BidiStreamingClient[databroker.TransactionStreamRequest, databroker.TransactionStreamResponse]
+type Transaction struct {
+	key    string
+	client transactionClient
 
-// Do runs a distributed singleflight callback on storage operations inside the databroker.
+	operation *storageOperatorStream
+}
+
+func NewTransaction(
+	ctx context.Context,
+	client databroker.DataBrokerServiceClient,
+) (*Transaction, error) {
+	stream, err := client.Transaction(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seq := uint64(1)
+	key := uuid.New().String()
+	if _, err := initiateHandshake(
+		stream,
+		seq,
+		key,
+		databroker.TransactionType_TRANSACTION_TYPE_NOLOCK,
+	); err != nil {
+		if _, ok := status.FromError(err); !ok {
+			return nil, status.Error(codes.FailedPrecondition, fmt.Sprintf("databrokerutil: failed to initiate transaction handshake : %s", err))
+		}
+		return nil, err
+	}
+
+	return &Transaction{
+		client: stream,
+		operation: &storageOperatorStream{
+			key:         key,
+			stream:      stream,
+			sequenceNum: seq + 1,
+		},
+	}, nil
+}
+
+func (t *Transaction) TX() TX {
+	return t.operation
+}
+
+func (t *Transaction) Commit() ([]*databroker.Record, error) {
+	commitSeq := t.operation.Close()
+	err := t.client.Send(&databroker.TransactionStreamRequest{
+		Sequence: commitSeq,
+		Message: &databroker.TransactionStreamRequest_Commit{
+			Commit: new(databroker.CommitTransaction),
+		},
+	})
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, ErrTransactionAborted(err)
+		}
+		return nil, err
+	}
+	res, err := t.client.Recv()
+	if err != nil {
+		return nil, err
+	}
+	if res.GetCommit() == nil {
+		return nil, status.Error(codes.FailedPrecondition, fmt.Sprintf("databrokerutil: expected a commit response, got %T", res.GetMessage()))
+	}
+	return res.GetCommit().GetRecords(), nil
+}
+
+// DoSingleFlight runs a distributed singleflight callback on storage operations inside the databroker.
 // Returning an error inside the callback rollsback all submitted storage operations.
 // Storage operations are only persisted on success.
 // Error handling:
@@ -42,7 +110,7 @@ type transactionClient = grpc.BidiStreamingClient[databroker.TransactionStreamRe
 //   - `DeadlineExceeded` : transaction exceeded the alloted time set by the server, can be retried.
 //   - `Internal`: storage errors related to locking mechanisms, persistence and other internal
 //     failures that can cause the singleflight to fail.
-func Do(
+func DoSingleFlight(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
 	key string,
@@ -59,7 +127,7 @@ func Do(
 	}
 
 	seq := uint64(1)
-	res, err := initiateHandshake(stream, seq, key)
+	res, err := initiateHandshake(stream, seq, key, databroker.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT)
 	if err != nil {
 		if _, ok := status.FromError(err); !ok {
 			return nil, false, status.Error(codes.FailedPrecondition, fmt.Sprintf("databrokerutil: failed to initiate singleflight handshake : %s", err))
@@ -116,11 +184,15 @@ func initiateHandshake(
 	stream transactionClient,
 	sequence uint64,
 	key string,
+	transactionType databroker.TransactionType,
 ) (*databroker.TransactionStreamResponse, error) {
 	if err := stream.Send(&databroker.TransactionStreamRequest{
 		Sequence: sequence,
 		Message: &databroker.TransactionStreamRequest_Begin{
-			Begin: &databroker.BeginTransaction{Key: key},
+			Begin: &databroker.BeginTransaction{
+				Key:  key,
+				Type: transactionType,
+			},
 		},
 	}); err != nil {
 		return nil, err
@@ -129,6 +201,27 @@ func initiateHandshake(
 	res, err := stream.Recv()
 	return res, err
 }
+
+// func example(
+// 	ctx context.Context,
+// 	client databroker.DataBrokerServiceClient,
+// ) {
+// 	conn, err := databrokerutil.NewTransaction(ctx, client)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	tx := conn.TX()
+// 	tx.Get(ctx, &databroker.GetRequest{})
+// 	tx.Put(ctx, &databroker.PutRequest{})
+// 	tx.Patch(ctx, &databroker.PatchRequest{})
+// 	tx.Query(ctx, &databroker.QueryRequest{})
+
+// 	changed, err := conn.Commit()
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	fmt.Println(changed)
+// }
 
 // assumes the begin handshake succeeded and we "own" the transaction.
 type storageOperatorStream struct {

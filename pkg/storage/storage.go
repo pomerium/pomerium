@@ -67,11 +67,30 @@ type Backend interface {
 	// not run its callback and returns the in-flight call's error when it finishes.
 	// A shared caller receives the in-flight call's changed records.
 	// Callers of this method should not call tx.Commit()
-	DoTransaction(ctx context.Context, key string, cb func(tx Transaction) error) (
-		changed []*databroker.Record,
-		shared bool,
-		err error,
-	)
+	DoTransaction(
+		ctx context.Context,
+		key string,
+		cb func(tx Transaction) error,
+		opts ...TransactionOption,
+	) (changed []*databroker.Record, shared bool, err error)
+}
+
+type TransactionsOptions struct {
+	TransactionType databroker.TransactionType
+}
+
+func (o *TransactionsOptions) Apply(opts ...TransactionOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type TransactionOption func(o *TransactionsOptions)
+
+func WithTransactionType(typ databroker.TransactionType) TransactionOption {
+	return func(o *TransactionsOptions) {
+		o.TransactionType = typ
+	}
 }
 
 // A Transaction applies its submitted operations atomically on Commit.

@@ -427,23 +427,75 @@ func (backend *Backend) SyncLatest(
 }
 
 func (backend *Backend) DoTransaction(
-	ctx context.Context, key string, fn func(tx storage.Transaction) error,
+	ctx context.Context,
+	key string,
+	fn func(tx storage.Transaction) error,
+	opts ...storage.TransactionOption,
 ) (changed []*databroker.Record, shared bool, err error) {
 	ctx, cancelMerge := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancelMerge(nil)
 
-	var ran bool
-	res, err, _ := backend.txGroup.Do(key, func() (any, error) {
-		ran = true
-		if ctx.Err() != nil {
-			return nil, context.Cause(ctx)
+	options := &storage.TransactionsOptions{}
+	options.Apply(opts...)
+
+	switch options.TransactionType {
+	case databroker.TransactionType_TRANSACTION_TYPE_NOLOCK:
+		release, serverVersion, conn, err := backend.newTransactionConn(ctx)
+		defer release()
+		if err != nil {
+			return nil, false, err
+		}
+		b := backoff.WithContext(
+			backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3),
+			ctx,
+		)
+		pooledConn := newPooledConn(conn)
+		if err := backend.register(pooledConn); err != nil {
+			pooledConn.returnToPool()
+			return nil, false, err
+		}
+		defer backend.unregister(pooledConn)
+		defer pooledConn.returnToPool()
+
+		changed, err := backoff.RetryWithData(func() ([]*databroker.Record, error) {
+			changed, err := backend.runTransactionCallback(ctx, pooledConn, serverVersion, fn)
+			if isSerializationFailure(err) {
+				return nil, err
+			} else if err != nil {
+				return nil, backoff.Permanent(err)
+			}
+			return changed, nil
+		}, b)
+		if err != nil {
+			return nil, false, err
 		}
 
-		changed, joined, err := backend.doTransaction(ctx, key, fn)
-		return txResult{changed: changed, joined: joined}, err
-	})
-	r, _ := res.(txResult)
-	return r.changed, r.joined || !ran, err
+		if err := pooledConn.do(func(q querier) error {
+			return signalRecordChange(ctx, q)
+		}); err != nil {
+			return nil, false, err
+		}
+
+		return changed, false, nil
+	case databroker.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT:
+		var ran bool
+		res, err, _ := backend.txGroup.Do(key, func() (any, error) {
+			ran = true
+			if ctx.Err() != nil {
+				return nil, context.Cause(ctx)
+			}
+
+			changed, joined, err := backend.wrapTransactionWithLock(ctx, key, fn)
+			return txResult{changed: changed, joined: joined}, err
+		})
+		r, _ := res.(txResult)
+		return r.changed, r.joined || !ran, err
+	default:
+		return nil, false, status.Error(
+			codes.InvalidArgument,
+			fmt.Sprintf("invalid transaction type requested : %s", options.TransactionType.String()),
+		)
+	}
 }
 
 // Versions returns the versions of the storage backend.

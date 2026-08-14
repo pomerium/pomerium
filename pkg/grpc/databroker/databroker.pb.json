@@ -4,11 +4,35 @@
       "name": "databroker.proto",
       "description": "",
       "package": "databroker",
-      "hasEnums": false,
+      "hasEnums": true,
       "hasExtensions": false,
       "hasMessages": true,
       "hasServices": true,
-      "enums": [],
+      "enums": [
+        {
+          "name": "TransactionType",
+          "longName": "TransactionType",
+          "fullName": "databroker.TransactionType",
+          "description": "",
+          "values": [
+            {
+              "name": "TRANSACTION_TYPE_UNKNOWN",
+              "number": "0",
+              "description": ""
+            },
+            {
+              "name": "TRANSACTION_TYPE_NOLOCK",
+              "number": "1",
+              "description": ""
+            },
+            {
+              "name": "TRANSACTION_TYPE_SINGLEFLIGHT",
+              "number": "2",
+              "description": ""
+            }
+          ]
+        }
+      ],
       "extensions": [],
       "messages": [
         {
@@ -88,6 +112,18 @@
               "type": "string",
               "longType": "string",
               "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "type",
+              "description": "",
+              "label": "",
+              "type": "TransactionType",
+              "longType": "TransactionType",
+              "fullType": "databroker.TransactionType",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",

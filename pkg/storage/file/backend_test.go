@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -49,6 +50,27 @@ func TestClear(t *testing.T) {
 	t.Parallel()
 	backend := file.New(noop.NewTracerProvider(), "memory://")
 	storagetest.TestClear(t, backend)
+}
+
+func newTransactionBackend(t *testing.T) storage.Backend {
+	t.Helper()
+	backend := file.New(noop.NewTracerProvider(), "memory://")
+	t.Cleanup(func() { _ = backend.Close() })
+	return backend
+}
+
+func TestTransactions(t *testing.T) {
+	storagetest.TestTransaction(t, newTransactionBackend, storagetest.TransactionTestOptions{
+		Synctest:        true,
+		TransactionType: databroker.TransactionType_TRANSACTION_TYPE_NOLOCK,
+	})
+}
+
+func TestTransactionsSingleflight(t *testing.T) {
+	storagetest.TestTransaction(t, newTransactionBackend, storagetest.TransactionTestOptions{
+		Synctest:        true,
+		TransactionType: databroker.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT,
+	})
 }
 
 func BenchmarkGet(b *testing.B) {

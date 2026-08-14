@@ -257,6 +257,7 @@ message TransactionStreamResponse {
 
 message BeginTransaction {
   string key = 1;
+  TransactionType type = 2;
 }
 
 message BeginTransactionResponse {
@@ -297,6 +298,13 @@ message TransactionResponse {
     QueryResponse query = 5;
   }
 }
+
+enum TransactionType {
+  TRANSACTION_TYPE_UNKNOWN = 0;
+  TRANSACTION_TYPE_NOLOCK = 1;
+  TRANSACTION_TYPE_SINGLEFLIGHT = 2;
+}
+
 
 message CommitTransactionResponse {
   string key = 1;

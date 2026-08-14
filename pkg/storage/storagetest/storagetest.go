@@ -1412,9 +1412,15 @@ type TransactionTestOptions struct {
 	// Synctest requires a backend whose goroutines block only on in-process
 	// primitives; it makes the singleflight tests deterministic.
 	Synctest bool
+
+	TransactionType databroker.TransactionType
 }
 
-func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Backend, opts TransactionTestOptions) {
+func TestTransaction(
+	t *testing.T,
+	backendFactory func(t *testing.T) storage.Backend,
+	testOpts TransactionTestOptions,
+) {
 	t.Parallel()
 	t.Run("transactions", func(t *testing.T) {
 		t.Parallel()
@@ -1454,7 +1460,7 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 			assert.Equal(t, []string{"r2"}, recordIDs(res.GetQuery().GetRecords()))
 
 			return nil
-		})
+		}, storage.WithTransactionType(testOpts.TransactionType))
 		require.NoError(t, err)
 		require.False(t, shared)
 		assert.Equal(t, []string{"r1", "r2", "r2"}, recordIDs(changed))
@@ -1471,7 +1477,7 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 		_, _, err := backend.DoTransaction(t.Context(), "k", func(tx storage.Transaction) error {
 			_, err := tx.Submit(&databroker.TransactionRequest{Key: "bad"})
 			return err
-		})
+		}, storage.WithTransactionType(testOpts.TransactionType))
 		assert.Error(t, err)
 	})
 
@@ -1486,7 +1492,7 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 			_, err = tx.Submit(putRequest(newTestRecord(t, "r2", nil)))
 			require.NoError(t, err)
 			return errRollback
-		})
+		}, storage.WithTransactionType(testOpts.TransactionType))
 		assert.ErrorIs(t, err, errRollback)
 		assert.Empty(t, changed)
 		assert.False(t, shared)
@@ -1521,7 +1527,7 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 			require.NoError(t, err)
 			assert.Equal(t, "r1", res.GetGet().GetRecord().GetId())
 			return nil
-		})
+		}, storage.WithTransactionType(testOpts.TransactionType))
 		require.NoError(t, err)
 		assert.Equal(t, []string{"r1"}, recordIDs(changed))
 		assertChangedPersisted(t, backend, changed)
@@ -1547,18 +1553,24 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 			close(parked)
 			requireReceive(t, done, "backend.Put blocked while a transaction callback was running")
 			return nil
-		})
+		}, storage.WithTransactionType(testOpts.TransactionType))
 		require.NoError(t, err)
 	})
 
 	t.Run("singleflight dedup", func(t *testing.T) {
+		if testOpts.TransactionType != databroker.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT {
+			t.Skip("dedupe only applies to singleflight transactions")
+		}
 		t.Parallel()
-		testSingleflightDedup(t, backendFactory, opts)
+		testSingleflightDedup(t, backendFactory, testOpts)
 	})
 
 	t.Run("error sharing", func(t *testing.T) {
+		if testOpts.TransactionType != databroker.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT {
+			t.Skip("dedupe only applies to singleflight transactions")
+		}
 		t.Parallel()
-		testSingleflightErrorSharing(t, backendFactory, opts)
+		testSingleflightErrorSharing(t, backendFactory, testOpts)
 	})
 
 	t.Run("distinct keys run concurrently", func(t *testing.T) {
@@ -1574,14 +1586,14 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 				close(inA)
 				requireReceive(t, inB, "transaction b did not start concurrently")
 				return nil
-			})))
+			}, storage.WithTransactionType(testOpts.TransactionType))))
 		})
 		wg.Go(func() {
 			assert.NoError(t, txErr(backend.DoTransaction(context.Background(), "b", func(_ storage.Transaction) error {
 				close(inB)
 				requireReceive(t, inA, "transaction a did not start concurrently")
 				return nil
-			})))
+			}, storage.WithTransactionType(testOpts.TransactionType))))
 		})
 		wg.Wait()
 	})
@@ -1593,7 +1605,7 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 		changed, _, err := backend.DoTransaction(t.Context(), "k", func(tx storage.Transaction) error {
 			_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 			return err
-		})
+		}, storage.WithTransactionType(testOpts.TransactionType))
 		require.NoError(t, err)
 		assert.Equal(t, []string{"r1"}, recordIDs(changed))
 		assertChangedPersisted(t, backend, changed)
@@ -1605,7 +1617,7 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 			require.NoError(t, err)
 			assert.Equal(t, "r1", res.GetGet().GetRecord().GetId())
 			return nil
-		})))
+		}, storage.WithTransactionType(testOpts.TransactionType))))
 		assert.True(t, ran)
 	})
 
@@ -1615,7 +1627,7 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 
 		assert.NoError(t, txErr(backend.DoTransaction(t.Context(), "k", func(_ storage.Transaction) error {
 			return nil
-		})))
+		}, storage.WithTransactionType(testOpts.TransactionType))))
 	})
 	t.Run("backend close errors transaction", func(t *testing.T) {
 		t.Parallel()
@@ -1629,7 +1641,7 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 				<-release
 				_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 				return err
-			})))
+			}, storage.WithTransactionType(testOpts.TransactionType))))
 		}()
 		requireReceive(t, parked, "transaction did not start")
 		assert.NoError(t, backend.Close())
@@ -1645,17 +1657,20 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 
 		_, _, err := backend.DoTransaction(t.Context(), "k", func(_ storage.Transaction) error {
 			return nil
-		})
+		}, storage.WithTransactionType(testOpts.TransactionType))
 		assert.Error(t, err)
 	})
 }
 
 // TestTransactionsClustered tests
-func TestTransactionsClustered(t *testing.T, clusterFactory func(t *testing.T) (leader storage.Backend, followers []storage.Backend), opts TransactionTestOptions) {
+func TestTransactionsClustered(t *testing.T, clusterFactory func(t *testing.T) (leader storage.Backend, followers []storage.Backend), testOpts TransactionTestOptions) {
 	t.Parallel()
 	t.Run("singleflight dedup", func(t *testing.T) {
 		t.Parallel()
-		runFlight(t, opts.Synctest, func(t *testing.T) {
+		runFlight(t, testOpts.Synctest, func(t *testing.T) {
+			if testOpts.TransactionType != databroker.TransactionType_TRANSACTION_TYPE_SINGLEFLIGHT {
+				t.Skip("dedupe only applies to singleflight transactions")
+			}
 			leader, followers := clusterFactory(t)
 			require.NotEqual(t, 0, len(followers), "clustered transaction tests require followers")
 
@@ -1675,7 +1690,7 @@ func TestTransactionsClustered(t *testing.T, clusterFactory func(t *testing.T) (
 					time.Sleep(time.Second)
 					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 					return err
-				})
+				}, storage.WithTransactionType(testOpts.TransactionType))
 			})
 
 			requireReceive(t, started, "first transaction did not start")
@@ -1686,11 +1701,11 @@ func TestTransactionsClustered(t *testing.T, clusterFactory func(t *testing.T) (
 						callbacks.Add(1)
 						_, err := tx.Submit(putRequest(newTestRecord(t, fmt.Sprintf("w%d", i), nil)))
 						return err
-					})
+					}, storage.WithTransactionType(testOpts.TransactionType))
 				})
 			}
 
-			awaitFlight(t, opts.Synctest, &entered, int64(len(followers)))
+			awaitFlight(t, testOpts.Synctest, &entered, int64(len(followers)))
 			close(release)
 			wg.Wait()
 
@@ -1816,7 +1831,7 @@ func testSingleflightDedup(t *testing.T, backendFactory func(t *testing.T) stora
 				}
 				_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 				return err
-			})
+			}, storage.WithTransactionType(opts.TransactionType))
 		})
 
 		requireReceive(t, started, "first transaction did not start")
@@ -1827,7 +1842,7 @@ func testSingleflightDedup(t *testing.T, backendFactory func(t *testing.T) stora
 					callbacks.Add(1)
 					_, err := tx.Submit(putRequest(newTestRecord(t, fmt.Sprintf("w%d", i), nil)))
 					return err
-				})
+				}, storage.WithTransactionType(opts.TransactionType))
 			})
 		}
 
@@ -1883,7 +1898,7 @@ func testSingleflightErrorSharing(t *testing.T, backendFactory func(t *testing.T
 				_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 				require.NoError(t, err)
 				return errFail
-			})
+			}, storage.WithTransactionType(opts.TransactionType))
 		})
 
 		requireReceive(t, started, "first transaction did not start")
@@ -1893,7 +1908,7 @@ func testSingleflightErrorSharing(t *testing.T, backendFactory func(t *testing.T
 				results[i].changed, results[i].shared, results[i].err = backend.DoTransaction(context.Background(), "k", func(_ storage.Transaction) error {
 					callbacks.Add(1)
 					return errFail
-				})
+				}, storage.WithTransactionType(opts.TransactionType))
 			})
 		}
 
