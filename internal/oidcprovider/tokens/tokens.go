@@ -29,7 +29,7 @@ const (
 // CodePayload represents the data stored in an authorization code.
 type CodePayload struct {
 	ClientKey    ed25519.PublicKey
-	RequestUUID  string
+	RequestUUID  string // XXX: do we need this?
 	Expiration   time.Time
 	OriginalCode string
 }
@@ -47,7 +47,6 @@ func NewCodeEncryptor(aead cipher.AEAD) *CodeEncryptor {
 func (e CodeEncryptor) Encrypt(p *CodePayload, clientID string) string {
 	plaintext := strings.Join([]string{
 		base64.RawStdEncoding.EncodeToString(p.ClientKey),
-		url.QueryEscape(p.CallbackIP),
 		p.RequestUUID,
 		strconv.FormatInt(p.Expiration.Unix(), 10),
 		p.OriginalCode,
@@ -66,28 +65,23 @@ func (e CodeEncryptor) Decrypt(code, clientID string) (*CodePayload, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decrypt: %w", err)
 	}
-	parts := strings.SplitN(string(decrypted), ":", 5)
-	if len(parts) != 5 {
-		return nil, fmt.Errorf("format error: want 5 parts, got %d", len(parts))
+	parts := strings.SplitN(string(decrypted), ":", 4)
+	if len(parts) != 4 {
+		return nil, fmt.Errorf("format error: want 4 parts, got %d", len(parts))
 	}
 	clientKey, err := base64.RawStdEncoding.DecodeString(parts[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid client key: %w", err)
 	}
-	callbackIP, err := url.QueryUnescape(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid callback IP address: %w", err)
-	}
-	exp, err := strconv.ParseInt(parts[3], 10, 64)
+	exp, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid expiration: %w", err)
 	}
 	return &CodePayload{
 		ClientKey:    clientKey,
-		CallbackIP:   callbackIP,
-		RequestUUID:  parts[2],
+		RequestUUID:  parts[1],
 		Expiration:   time.Unix(exp, 0),
-		OriginalCode: parts[4],
+		OriginalCode: parts[3],
 	}, nil
 }
 

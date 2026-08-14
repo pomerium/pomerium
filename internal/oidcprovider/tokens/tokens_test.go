@@ -21,7 +21,6 @@ func TestCodeEncryptor(t *testing.T) {
 
 	examplePayload := &CodePayload{
 		ClientKey:    ed25519.PublicKey("12345678901234567890123456789012"),
-		CallbackIP:   "::1",
 		RequestUUID:  "195c073b-e369-4c8a-a429-85fa3a0c3d74",
 		Expiration:   time.Unix(1762887950, 0),
 		OriginalCode: "original-code",

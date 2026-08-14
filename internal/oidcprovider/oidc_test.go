@@ -23,9 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/oauth2"
-	"google.golang.org/protobuf/proto"
 
-	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/oidcprovider/tokens"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -36,7 +34,7 @@ import (
 //go:generate go run go.uber.org/mock/mockgen -write_package_comment=false -package oidcprovider -destination authenticator_mock_test.go github.com/pomerium/pomerium/pkg/identity Authenticator
 
 func TestConfiguration(t *testing.T) {
-	h, err := NewHandlers(t.Context(), minimalConfigOptions(), nil)
+	h, err := NewHandlers(t.Context(), minimalConfigOptions())
 	require.NoError(t, err)
 	router := mux.NewRouter()
 	h.Mount(router)
@@ -58,23 +56,13 @@ func TestConfiguration(t *testing.T) {
   ],
   "issuer": "https://example.com",
   "jwks_uri": "https://example.com/.well-known/jwks.json",
-  "request_object_signing_alg_values_supported": [
-"EdDSA"
-  ],
-  "request_parameter_supported": true,
   "response_types_supported": [
     "code"
   ],
   "scopes_supported": [
     "openid"
   ],
-  "subject_types_supported": [
-    "public"
-  ],
   "token_endpoint": "https://example.com/oidc/token",
-  "token_endpoint_auth_methods_supported": [
-    "private_key_jwt"
-  ],
   "userinfo_endpoint": "https://example.com/oidc/userinfo"
 }`, string(b))
 }
@@ -85,7 +73,7 @@ func TestJWKSEndpoint(t *testing.T) {
 	fixedSharedSecret := []byte("12345678901234567890123456789012")
 	o := minimalConfigOptions()
 	o.SharedKey = base64.StdEncoding.EncodeToString(fixedSharedSecret)
-	h, err := NewHandlers(t.Context(), o, nil)
+	h, err := NewHandlers(t.Context(), o)
 	require.NoError(t, err)
 	router := mux.NewRouter()
 	h.Mount(router)
@@ -112,9 +100,7 @@ func TestJWKSEndpoint(t *testing.T) {
 }
 
 func TestHandleAuth(t *testing.T) {
-	var e authEventRecorder
-
-	h, err := NewHandlers(t.Context(), minimalConfigOptions(), e.fn)
+	h, err := NewHandlers(t.Context(), minimalConfigOptions())
 	require.NoError(t, err)
 
 	t.Run("no request object", func(t *testing.T) {
@@ -175,22 +161,11 @@ func TestHandleAuth(t *testing.T) {
 		assert.Equal(t, "https://authenticate.my-domain.example.com", p.ClientID)
 		assert.Equal(t, "example-state", p.OriginalState)
 		assert.NoError(t, uuid.Validate(p.RequestUUID))
-
-		// Verify that an AuthEvent was logged.
-		require.Len(t, e.events, 1)
-		assert.Equal(t, events.AuthEvent{
-			Event:       events.AuthEventSignInRequest,
-			IP:          "2001:0db8::1",
-			Version:     "0.31.0+abcdefg linux/amd64",
-			RequestUUID: p.RequestUUID,
-			PubKey:      base64.RawStdEncoding.EncodeToString(expectedClientKey),
-			Domain:      proto.String("authenticate.my-domain.example.com"),
-		}, e.events[0])
 	})
 }
 
 func TestHandleCallback(t *testing.T) {
-	h, err := NewHandlers(t.Context(), minimalConfigOptions(), nil)
+	h, err := NewHandlers(t.Context(), minimalConfigOptions())
 	require.NoError(t, err)
 
 	t.Run("empty state", func(t *testing.T) {
@@ -268,15 +243,12 @@ func TestHandleCallback(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, clientKey, payload.ClientKey)
 		assert.Equal(t, "example-code", payload.OriginalCode)
-		assert.Equal(t, "1.2.3.4", payload.CallbackIP)
 		assert.Equal(t, "12345678-1234-5678-1234-567812345678", payload.RequestUUID)
 	})
 }
 
 func TestHandleToken_AuthorizationCode(t *testing.T) {
-	var e authEventRecorder
-
-	h, err := NewHandlers(t.Context(), minimalConfigOptions(), e.fn)
+	h, err := NewHandlers(t.Context(), minimalConfigOptions())
 	require.NoError(t, err)
 
 	t.Run("invalid request", func(t *testing.T) {
@@ -316,7 +288,6 @@ func TestHandleToken_AuthorizationCode(t *testing.T) {
 
 	code := h.codeEncryptor.Encrypt(&tokens.CodePayload{
 		ClientKey:    clientKey,
-		CallbackIP:   "1.2.3.4",
 		RequestUUID:  "12345678-1234-5678-1234-567812345678",
 		Expiration:   time.Now().Add(5 * time.Minute),
 		OriginalCode: "original-code",
@@ -412,19 +383,6 @@ func TestHandleToken_AuthorizationCode(t *testing.T) {
 		// The issuer and audience should be updated.
 		assert.Equal(t, "https://example.com", idTokenClaims.Issuer)
 		assert.Equal(t, jwt.Audience{"https://client.example.com:1234"}, idTokenClaims.Audience)
-
-		// Verify that an AuthEvent was logged.
-		require.Len(t, e.events, 1)
-		assert.Equal(t, events.AuthEvent{
-			Event:       events.AuthEventSignInComplete,
-			IP:          "1.2.3.4",
-			Version:     "0.31.0+abcdefg linux/amd64",
-			RequestUUID: "12345678-1234-5678-1234-567812345678",
-			PubKey:      base64.RawStdEncoding.EncodeToString(clientKey),
-			UID:         proto.String("user-id"),
-			Email:       proto.String("user@example.com"),
-			Domain:      proto.String("client.example.com"),
-		}, e.events[0])
 	})
 
 	t.Run("missing subject", func(t *testing.T) {
@@ -451,7 +409,7 @@ func TestHandleToken_AuthorizationCode(t *testing.T) {
 }
 
 func TestHandleToken_RefreshToken(t *testing.T) {
-	h, err := NewHandlers(t.Context(), minimalConfigOptions(), nil)
+	h, err := NewHandlers(t.Context(), minimalConfigOptions())
 	require.NoError(t, err)
 
 	// Set up a valid request.
@@ -579,7 +537,7 @@ func TestHandleToken_RefreshToken(t *testing.T) {
 }
 
 func TestHandleToken_UnsupportedGrantType(t *testing.T) {
-	h, err := NewHandlers(t.Context(), minimalConfigOptions(), nil)
+	h, err := NewHandlers(t.Context(), minimalConfigOptions())
 	require.NoError(t, err)
 
 	// Set up a valid client assertion.
@@ -624,7 +582,7 @@ func TestHandleToken_UnsupportedGrantType(t *testing.T) {
 }
 
 func TestHandleUserInfo(t *testing.T) {
-	h, err := NewHandlers(t.Context(), minimalConfigOptions(), nil)
+	h, err := NewHandlers(t.Context(), minimalConfigOptions())
 	require.NoError(t, err)
 
 	t.Run("no authorization", func(t *testing.T) {
@@ -899,7 +857,7 @@ func TestValidateClientID(t *testing.T) {
 }
 
 func TestValidateTokenRequest(t *testing.T) {
-	h, err := NewHandlers(t.Context(), minimalConfigOptions(), nil)
+	h, err := NewHandlers(t.Context(), minimalConfigOptions())
 	require.NoError(t, err)
 
 	var priv jose.JSONWebKey
@@ -1204,12 +1162,4 @@ func minimalConfigOptions() *config.Options {
 		Provider:              oidc.Name,
 		ProviderURL:           "https://unused.example.com",
 	}
-}
-
-type authEventRecorder struct {
-	events []events.AuthEvent
-}
-
-func (r *authEventRecorder) fn(_ context.Context, evt events.AuthEvent) {
-	r.events = append(r.events, evt)
 }

@@ -25,7 +25,6 @@ import (
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/oauth2"
 
-	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/oidcprovider/tokens"
 	"github.com/pomerium/pomerium/pkg/identity"
@@ -54,7 +53,6 @@ type Handlers struct {
 func NewHandlers(
 	ctx context.Context,
 	o *config.Options,
-	authEventFn events.AuthEventFn,
 ) (*Handlers, error) {
 	// TODO: instrument these handler methods for tracing
 	tracerProvider := trace.NewTracerProvider(ctx, "Authenticate")
@@ -111,7 +109,8 @@ func NewHandlers(
 }
 
 func deriveJWKS(sharedSecret []byte) (*jose.JSONWebKeySet, error) {
-	r2 := hkdf.New(sha256.New, sharedSecret, nil, []byte("hosted-authenticate-oidc-signing-key"))
+	// XXX: generate a random key and store in databroker?
+	r2 := hkdf.New(sha256.New, sharedSecret, nil, []byte("authenticate-oidc-signing-key"))
 	signingKey, err := keygen.ECDSALegacy(elliptic.P256(), r2)
 	if err != nil {
 		return nil, err
@@ -299,7 +298,6 @@ func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 	if code := q.Get("code"); code != "" {
 		q.Set("code", h.codeEncryptor.Encrypt(&tokens.CodePayload{
 			ClientKey:    state.ClientKey,
-			CallbackIP:   getClientIP(r),
 			RequestUUID:  state.RequestUUID,
 			Expiration:   time.Now().Add(5 * time.Minute),
 			OriginalCode: code,
@@ -368,8 +366,7 @@ type Grant interface {
 // authorizationCodeGrant completes the authorization code flow and logs an
 // AuthEventSignInComplete event.
 type authorizationCodeGrant struct {
-	idp         identity.Authenticator
-	authEventFn events.AuthEventFn
+	idp identity.Authenticator
 
 	clientID        string
 	payload         *tokens.CodePayload
@@ -381,19 +378,6 @@ func (a *authorizationCodeGrant) GetToken(ctx context.Context) (*oauth2.Token, *
 	token, err := a.idp.Authenticate(ctx, a.payload.OriginalCode, &userClaims)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	if a.authEventFn != nil {
-		a.authEventFn(ctx, events.AuthEvent{
-			Event:       events.AuthEventSignInComplete,
-			IP:          a.payload.CallbackIP,
-			Version:     a.pomeriumVersion,
-			RequestUUID: a.payload.RequestUUID,
-			PubKey:      pubKeyString(a.payload.ClientKey),
-			UID:         getStringClaim(userClaims, "sub"),
-			Email:       getStringClaim(userClaims, "email"),
-			Domain:      getDomainFromClientID(a.clientID),
-		})
 	}
 
 	return token, &userClaims, nil
@@ -499,7 +483,6 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 		clientKey = payload.ClientKey
 		grant = &authorizationCodeGrant{
 			idp:             h.idp,
-			authEventFn:     h.authEventFn,
 			clientID:        clientID,
 			payload:         payload,
 			pomeriumVersion: clientClaims.PomeriumVersion,
