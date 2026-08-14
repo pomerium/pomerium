@@ -25,7 +25,7 @@ func StartPostgres(tb testing.TB) (dsn string) {
 			"POSTGRES_PASSWORD": "pomeriumtest",
 			"POSTGRES_USER":     "pomeriumtest",
 		}),
-		testcontainers.WithCmd("-c", "max_connections=1000"),
+		testcontainers.WithCmd("-c", "max_connections=1000", "-c", "synchronous_commit=off"),
 		testcontainers.WithWaitStrategy(wait.ForSQL("5432/tcp", "pgx", func(host string, port network.Port) string {
 			return fmt.Sprintf("postgres://pomeriumtest:pomeriumtest@%s:%s/pomeriumtest?sslmode=disable", host, port.Port())
 		})),
