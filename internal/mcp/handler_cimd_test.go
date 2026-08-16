@@ -39,7 +39,7 @@ func TestGenerateClientIDMetadata(t *testing.T) {
 		},
 	})
 
-	hostInfo := NewHostInfo(cfg, nil)
+	hostInfo := NewHostInfo(cfg)
 	handler := &Handler{
 		hosts: hostInfo,
 	}
@@ -112,7 +112,7 @@ func TestGenerateClientIDMetadata(t *testing.T) {
 			},
 		})
 
-		hostInfoNoName := NewHostInfo(cfgNoName, nil)
+		hostInfoNoName := NewHostInfo(cfgNoName)
 		handlerNoName := &Handler{
 			hosts: hostInfoNoName,
 		}
@@ -140,7 +140,7 @@ func TestClientIDMetadataHandler(t *testing.T) {
 		},
 	})
 
-	hostInfo := NewHostInfo(cfg, nil)
+	hostInfo := NewHostInfo(cfg)
 	handler := &Handler{
 		hosts: hostInfo,
 	}

@@ -3,12 +3,19 @@ package mcp
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"time"
+
+	"golang.org/x/net/http/httpproxy"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // ErrSSRFBlocked is returned when a request is blocked by SSRF protection.
@@ -76,19 +83,64 @@ func (t *httpsOnlyTransport) RoundTrip(req *http.Request) (*http.Response, error
 // RFC 9728 §3.2) require a successful response to use 200 OK. Following
 // redirects would also undermine SSRF protection by allowing an attacker-
 // controlled endpoint to bounce requests to internal services.
-func NewSSRFSafeClient() *http.Client {
+//
+// HTTP(S) proxies are honored from the environment (HTTPS_PROXY / NO_PROXY),
+// read once when the client is constructed. (HTTP_PROXY never applies: every
+// request is forced to https, and that variable governs http:// targets only.)
+// Direct connections — where no proxy applies — still flow through
+// DialTLSContext and get full internal-IP validation. When a proxy IS
+// configured, Go tunnels via CONNECT and the proxy performs DNS resolution, so
+// dial-time IP validation no longer applies on that path; egress filtering is
+// then delegated to the operator-controlled proxy. HTTPS-only enforcement and
+// the redirect ban still hold regardless of the proxy, and the upstream domain
+// allowlist is checked (by hostname) at the application layer before any
+// request is made.
+//
+// rootCAs, when non-nil, is used to verify server certificates on both the
+// direct and proxied paths (e.g. for upstream servers using a private CA from
+// the Pomerium configuration). A nil pool uses the system roots.
+func NewSSRFSafeClient(cfg *config.Config) (*http.Client, error) {
+	// skip for testing environments
+	// where test servers run on localhost.
+	if cfg.Options.InsecureSkipMCPMetadataSSRFCheck {
+		return http.DefaultClient, nil
+	}
+
+	var rootCAs *x509.CertPool
+	if cfg.Options.CA != "" || cfg.Options.CAFile != "" {
+		pool, caErr := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
+		if caErr != nil {
+			return nil, fmt.Errorf("failed to load CA certificates: %w", caErr)
+		}
+		rootCAs = pool
+	}
+
 	dialer := &net.Dialer{
 		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}
 
+	proxyFunc := httpproxy.FromEnvironment().ProxyFunc()
+
+	baseTLS := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		RootCAs:    rootCAs,
+	}
+
 	transport := &http.Transport{
-		Proxy:                 nil, // disable proxy to prevent bypass
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			if req.URL.Scheme != "https" {
+				return nil, fmt.Errorf("%w: only https is allowed", ErrSSRFBlocked)
+			}
+			return proxyFunc(req.URL)
+		},
+		DialContext:           dialer.DialContext,
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          10,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig:       baseTLS.Clone(),
 		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			host, port, err := net.SplitHostPort(addr)
 			if err != nil {
@@ -105,10 +157,8 @@ func NewSSRFSafeClient() *http.Client {
 				return nil, err
 			}
 
-			cfg := &tls.Config{
-				MinVersion: tls.VersionTLS12,
-				ServerName: host,
-			}
+			cfg := baseTLS.Clone()
+			cfg.ServerName = host
 
 			tlsConn := tls.Client(rawConn, cfg)
 			if err := tlsConn.HandshakeContext(ctx); err != nil {
@@ -128,5 +178,5 @@ func NewSSRFSafeClient() *http.Client {
 			return fmt.Errorf("%w: redirects are not allowed", ErrSSRFBlocked)
 		},
 		Timeout: 30 * time.Second,
-	}
+	}, nil
 }
