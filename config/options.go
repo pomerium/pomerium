@@ -360,7 +360,12 @@ var defaultOptions = Options{
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
 func (o *Options) IsRuntimeFlagSet(flag RuntimeFlag) bool {
-	return o.RuntimeFlags[flag]
+	// a flag absent from the map falls back to its default: a persisted config written
+	// before the flag existed must not silently turn a default-enabled feature off
+	if v, ok := o.RuntimeFlags[flag]; ok {
+		return v
+	}
+	return defaultRuntimeFlags[flag]
 }
 
 var defaultSetResponseHeaders = map[string]string{
