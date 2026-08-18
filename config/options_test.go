@@ -1137,6 +1137,22 @@ func TestOptions_ApplySettings(t *testing.T) {
 		assert.Equal(t, "SSH_USER_CA_KEY", options.SSHUserCAKey)
 	})
 
+	t.Run("runtime flags", func(t *testing.T) {
+		opts := NewDefaultOptions()
+		opts.RuntimeFlags[RuntimeFlagMCPClientIDMetadata] = false
+		shared := opts.RuntimeFlags
+
+		opts.ApplySettings(t.Context(), nil, &configpb.Settings{
+			RuntimeFlags: map[string]bool{string(RuntimeFlagMCPDynamicClientRegistration): true},
+		})
+
+		// settings only override the flags they carry
+		assert.False(t, opts.IsRuntimeFlagSet(RuntimeFlagMCPClientIDMetadata))
+		assert.True(t, opts.IsRuntimeFlagSet(RuntimeFlagMCPDynamicClientRegistration))
+		// the original map is shared with the config being overlaid, so it must not be modified
+		assert.False(t, shared[RuntimeFlagMCPDynamicClientRegistration])
+	})
+
 	t.Run("empty", func(t *testing.T) {
 		opts := NewDefaultOptions()
 		// set a few non-default options too

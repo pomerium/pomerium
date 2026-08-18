@@ -1687,7 +1687,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	if settings.HasBrandingOptions() {
 		o.BrandingOptions = settings
 	}
-	copyMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
+	mergeMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
 		return RuntimeFlag(k), v
 	})
 	if settings.Http3AdvertisePort != nil {
@@ -2105,6 +2105,26 @@ func copyMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1
 		k1, v1 := convert(k, v)
 		(*dst)[k1] = v1
 	}
+}
+
+// mergeMap overlays src onto dst, leaving keys absent from src untouched, so an
+// overlay only overrides what it carries. dst is replaced rather than mutated in
+// place because the map may be shared with the config being overlaid.
+func mergeMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1 ~map[T1Key]T1Value, TMap2 ~map[T2Key]T2Value](
+	dst *TMap1,
+	src TMap2,
+	convert func(T2Key, T2Value) (T1Key, T1Value),
+) {
+	if len(src) == 0 {
+		return
+	}
+	merged := make(TMap1, len(*dst)+len(src))
+	maps.Copy(merged, *dst)
+	for k, v := range src {
+		k1, v1 := convert(k, v)
+		merged[k1] = v1
+	}
+	*dst = merged
 }
 
 func setCertificate(
