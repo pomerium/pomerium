@@ -33,6 +33,11 @@ var (
 	// RuntimeFlagMCP enables the MCP services for the authorize service
 	RuntimeFlagMCP = runtimeFlag("mcp", true)
 
+	// RuntimeFlagMCPClientIDMetadata advertises support for Client ID Metadata Documents in the
+	// MCP authorization server metadata. Disable it to present Pomerium as DCR-only: clients that
+	// prefer CIMD whenever it is advertised will then register dynamically instead.
+	RuntimeFlagMCPClientIDMetadata = runtimeFlag("mcp_client_id_metadata", true)
+
 	// RuntimeFlagMCPDynamicClientRegistration enables Dynamic Client Registration as an authorization
 	// method for upstream MCP servers
 	RuntimeFlagMCPDynamicClientRegistration = runtimeFlag("mcp_dynamic_client_registration", false)
