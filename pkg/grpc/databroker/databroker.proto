@@ -243,8 +243,6 @@ message TransactionResponse {
   }
 }
 
-
-
 message Checkpoint {
   uint64 server_version = 1;
   uint64 record_version = 2;
