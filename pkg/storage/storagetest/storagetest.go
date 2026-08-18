@@ -1556,7 +1556,6 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 
 			const waiters = 7
 			var callbacks atomic.Int64
-			started := make(chan struct{})
 			release := make(chan struct{})
 
 			var wg sync.WaitGroup
@@ -1564,14 +1563,14 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 			wg.Go(func() {
 				results[0].changed, results[0].shared, results[0].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
 					callbacks.Add(1)
-					close(started)
 					<-release
 					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 					return err
 				})
 			})
 
-			requireReceive(t, started, "first transaction did not start")
+			synctest.Wait()
+
 			for i := 1; i <= waiters; i++ {
 				wg.Go(func() {
 					results[i].changed, results[i].shared, results[i].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
@@ -1622,7 +1621,6 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 			const waiters = 3
 			errFail := errors.New("fail")
 			var callbacks atomic.Int64
-			started := make(chan struct{})
 			release := make(chan struct{})
 
 			var wg sync.WaitGroup
@@ -1630,7 +1628,6 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 			wg.Go(func() {
 				results[0].changed, results[0].shared, results[0].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
 					callbacks.Add(1)
-					close(started)
 					<-release
 					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
 					require.NoError(t, err)
@@ -1638,7 +1635,8 @@ func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Bac
 				})
 			})
 
-			requireReceive(t, started, "first transaction did not start")
+			synctest.Wait()
+
 			for i := 1; i <= waiters; i++ {
 				wg.Go(func() {
 					results[i].changed, results[i].shared, results[i].err = backend.DoTransaction(context.Background(), "k", func(_ storage.Transaction) error {
