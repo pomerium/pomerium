@@ -17,6 +17,7 @@ const (
 var (
 	errKeysMustBeStrings                    = errors.New("cannot convert nested map: all keys must be strings")
 	errZeroWeight                           = errors.New("zero load balancing weight not permitted")
+	errInvalidUpstreamWeight                = errors.New("invalid upstream weight")
 	errEndpointWeightsSpec                  = errors.New("either no weights should be provided, or all endpoints must have non-zero weight specified")
 	errHostnameMustBeSpecified              = errors.New("endpoint hostname must be specified")
 	errSchemeMustBeSpecified                = errors.New("url scheme must be provided")
