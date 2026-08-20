@@ -229,6 +229,10 @@ func (srv *clusteredLeaderServer) UpdateSettings(ctx context.Context, req *conne
 	return srv.local.UpdateSettings(ctx, req)
 }
 
+func (srv *clusteredLeaderServer) Transaction(stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse]) error {
+	return srv.local.Transaction(stream)
+}
+
 func (srv *clusteredLeaderServer) Stop() {
 	srv.cancel(nil)
 	<-srv.done
