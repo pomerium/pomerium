@@ -32,6 +32,14 @@ func (c *CertificatesIndex) Add(cert *x509.Certificate) {
 	}
 }
 
+// Delete deletes a certificate from the index.
+func (c *CertificatesIndex) Delete(cert *x509.Certificate) {
+	usage := getCertUsage(cert)
+	for _, name := range cert.DNSNames {
+		c.delete(name, usage)
+	}
+}
+
 // OverlapsWithExistingCertificate returns true if the certificate overlaps with an existing certificate.
 func (c *CertificatesIndex) OverlapsWithExistingCertificate(cert *x509.Certificate) (bool, string) {
 	if c == nil {
@@ -54,7 +62,18 @@ func (c *CertificatesIndex) add(name string, usage certUsage) {
 		names = make(map[string]certUsage)
 		c.index[suffix] = names
 	}
-	names[prefix] = usage
+	names[prefix] |= usage
+}
+
+func (c *CertificatesIndex) delete(name string, usage certUsage) {
+	prefix, suffix := splitDomainName(name)
+	names := c.index[suffix]
+	usage = names[prefix] &^ usage
+	if usage == 0 {
+		delete(names, prefix)
+	} else {
+		names[prefix] = usage
+	}
 }
 
 func (c *CertificatesIndex) match(name string, usage certUsage) bool {
