@@ -12,9 +12,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
-    "@types/node": "^25.9.3",
-    "testcontainers": "^12.0.4",
-    "typescript": "^6.0.3"
+    "@types/node": "^26.2.0",
+    "testcontainers": "^12.1.0",
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=22.0.0"
