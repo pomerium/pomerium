@@ -28,14 +28,14 @@ const clientMetadataEndpoint = "/client/metadata.json"
 //   - client_id: The URL of this document
 //   - redirect_uris: The Pomerium client OAuth callback endpoint
 //   - token_endpoint_auth_method: "none" (public client)
-func (h *Handler) ClientIDMetadata(w http.ResponseWriter, r *http.Request) {
+func (srv *Handler) ClientIDMetadata(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	log.Ctx(ctx).Debug().
 		Str("host", r.Host).
 		Msg("mcp/cimd: request received")
 
-	doc, ok := h.generateClientIDMetadata(r)
+	doc, ok := srv.generateClientIDMetadata(r)
 	if !ok {
 		log.Ctx(ctx).Debug().
 			Str("host", r.Host).
@@ -58,7 +58,7 @@ func (h *Handler) ClientIDMetadata(w http.ResponseWriter, r *http.Request) {
 
 // generateClientIDMetadata generates a CIMD document for the request host.
 // Returns (nil, false) if the host is not eligible for auto-discovery.
-func (h *Handler) generateClientIDMetadata(r *http.Request) (*ClientIDMetadataDocument, bool) {
+func (srv *Handler) generateClientIDMetadata(r *http.Request) (*ClientIDMetadataDocument, bool) {
 	requestHost := r.Host
 	if requestHost == "" {
 		return nil, false
@@ -71,12 +71,12 @@ func (h *Handler) generateClientIDMetadata(r *http.Request) (*ClientIDMetadataDo
 	}
 
 	// Check if this host uses auto-discovery mode (no upstream_oauth2)
-	if !h.hosts.UsesAutoDiscovery(hostname) {
+	if !srv.hosts.UsesAutoDiscovery(hostname) {
 		return nil, false
 	}
 
 	// Get server info for metadata - this validates the hostname against config
-	serverInfo, ok := h.hosts.GetServerHostInfo(hostname)
+	serverInfo, ok := srv.hosts.GetServerHostInfo(hostname)
 	if !ok {
 		return nil, false
 	}

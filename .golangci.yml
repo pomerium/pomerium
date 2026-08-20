@@ -23,6 +23,12 @@ linters:
     - unused
     - usestdlibvars
     - usetesting
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        # Workaround for https://github.com/golangci/golangci-lint/issues/6733 and https://github.com/golangci/golangci-lint/issues/6732
+        - "-SA4023"
   exclusions:
     generated: lax
     presets:
@@ -42,7 +48,7 @@ linters:
           - staticcheck
           - unparam
           - unused
-        path: _test\.go$|^tests/|^integration/|^samples/|^internal/testutil/|templates\.go$|^examples/
+        path: _test\.go$|^tests/|^integration/|^samples/|^internal/testutil/|templates\.go$|^examples/|^internal/testenv/
       - linters:
           - staticcheck
         path: (.+)\.go$
