@@ -68,38 +68,38 @@ type HandlerOption func(*Handler)
 // WithClientMetadataFetcher sets the client metadata fetcher.
 // This is primarily useful for testing.
 func WithClientMetadataFetcher(fetcher *ClientMetadataFetcher) HandlerOption {
-	return func(h *Handler) {
-		h.clientMetadataFetcher = fetcher
+	return func(srv *Handler) {
+		srv.clientMetadataFetcher = fetcher
 	}
 }
 
 // WithAuthenticatorGetter sets the authenticator getter function.
 // This is used to refresh upstream OAuth tokens when recreating sessions.
 func WithAuthenticatorGetter(getter AuthenticatorGetter) HandlerOption {
-	return func(h *Handler) {
-		h.getAuthenticator = getter
+	return func(srv *Handler) {
+		srv.getAuthenticator = getter
 	}
 }
 
 // WithSessionExpiry sets the session expiry duration.
 // This overrides the default from config.Options.CookieExpire.
 func WithSessionExpiry(d time.Duration) HandlerOption {
-	return func(h *Handler) {
-		h.sessionExpiry = d
+	return func(srv *Handler) {
+		srv.sessionExpiry = d
 	}
 }
 
 // WithHTTPClient sets the HTTP client used for upstream discovery fetches.
 func WithHTTPClient(client *http.Client) HandlerOption {
-	return func(h *Handler) {
-		h.httpClient = client
+	return func(srv *Handler) {
+		srv.httpClient = client
 	}
 }
 
 // SetClientMetadataFetcher replaces the client metadata fetcher.
 // This is exposed for testing purposes only.
-func (h *Handler) SetClientMetadataFetcher(fetcher *ClientMetadataFetcher) {
-	h.clientMetadataFetcher = fetcher
+func (srv *Handler) SetClientMetadataFetcher(fetcher *ClientMetadataFetcher) {
+	srv.clientMetadataFetcher = fetcher
 }
 
 func New(
@@ -158,7 +158,7 @@ func New(
 }
 
 // HandlerFunc returns a http.HandlerFunc that handles the mcp endpoints.
-func (h *Handler) HandlerFunc() http.HandlerFunc {
+func (srv *Handler) HandlerFunc() http.HandlerFunc {
 	r := mux.NewRouter()
 	// CORS for OAuth endpoints (token, registration, etc.).
 	// "authorization" is needed because the token endpoint supports
@@ -171,14 +171,14 @@ func (h *Handler) HandlerFunc() http.HandlerFunc {
 	r.Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	r.Path(path.Join(h.prefix, registerEndpoint)).Methods(http.MethodPost).HandlerFunc(h.RegisterClient)
-	r.Path(path.Join(h.prefix, authorizationEndpoint)).Methods(http.MethodGet).HandlerFunc(h.Authorize)
-	r.Path(path.Join(h.prefix, clientOAuthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ClientOAuthCallback)
-	r.Path(path.Join(h.prefix, clientMetadataEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ClientIDMetadata)
-	r.Path(path.Join(h.prefix, tokenEndpoint)).Methods(http.MethodPost).HandlerFunc(h.Token)
-	r.Path(path.Join(h.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ListRoutes)
-	r.Path(path.Join(h.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ConnectGet)
-	r.Path(path.Join(h.prefix, disconnectEndpoint)).Methods(http.MethodPost).HandlerFunc(h.DisconnectRoutes)
+	r.Path(path.Join(srv.prefix, registerEndpoint)).Methods(http.MethodPost).HandlerFunc(srv.RegisterClient)
+	r.Path(path.Join(srv.prefix, authorizationEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.Authorize)
+	r.Path(path.Join(srv.prefix, clientOAuthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ClientOAuthCallback)
+	r.Path(path.Join(srv.prefix, clientMetadataEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ClientIDMetadata)
+	r.Path(path.Join(srv.prefix, tokenEndpoint)).Methods(http.MethodPost).HandlerFunc(srv.Token)
+	r.Path(path.Join(srv.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ListRoutes)
+	r.Path(path.Join(srv.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ConnectGet)
+	r.Path(path.Join(srv.prefix, disconnectEndpoint)).Methods(http.MethodPost).HandlerFunc(srv.DisconnectRoutes)
 
 	return r.ServeHTTP
 }

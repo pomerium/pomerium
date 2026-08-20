@@ -171,7 +171,7 @@ func Drain(adminAddress netutil.InternalAddress) error {
 	u := &url.URL{
 		Scheme: "http",
 		Host:   "unix",
-		Path:   ("/drain_listeners"),
+		Path:   "/drain_listeners",
 	}
 	client := envoyAdminClient(adminAddress)
 

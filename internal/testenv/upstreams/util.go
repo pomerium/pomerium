@@ -74,9 +74,9 @@ func DoAuthenticatedRequest(
 		}
 
 		if options.authenticateAs != "" {
-			resp, err = AuthenticateFlow(ctx, client, req, options.authenticateAs, true) //nolint:bodyclose
+			resp, err = AuthenticateFlow(ctx, client, req, options.authenticateAs, true)
 		} else {
-			resp, err = client.Do(req) //nolint:bodyclose
+			resp, err = client.Do(req)
 		}
 		// retry on connection refused
 		span := oteltrace.SpanFromContext(ctx)
