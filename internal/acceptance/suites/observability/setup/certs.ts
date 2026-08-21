@@ -25,8 +25,8 @@ function mkcert(args: string[]): string {
     return execFileSync("mkcert", args, { encoding: "utf8" });
   } catch (err) {
     throw new Error(
-      `Failed to run \`mkcert ${args.join(" ")}\`. Is mkcert installed? ` +
-        `(brew install mkcert). Underlying error: ${(err as Error).message}`,
+      `Failed to run \`mkcert ${args.join(" ")}\`. Is mkcert installed and on your PATH? ` +
+        `See https://github.com/FiloSottile/mkcert#installation. Underlying error: ${(err as Error).message}`,
     );
   }
 }
