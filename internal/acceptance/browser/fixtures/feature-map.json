@@ -69,6 +69,36 @@
           "Preserve Host"
         ]
       }
+    },
+    "Hosted Authenticate": {
+      "description": "Hosted authenticate service (authenticate.pomerium.app): new hosted-IdP flow and legacy stateless flow",
+      "files": {
+        "hosted/new-ha-login.spec.ts": [
+          "Hosted IdP Flow",
+          "Signed Request Object",
+          "Login Negative"
+        ],
+        "hosted/new-ha-logout.spec.ts": [
+          "Hosted Sign-Out Confirm",
+          "Session Termination"
+        ],
+        "hosted/old-ha-login.spec.ts": [
+          "Stateless Sign-In",
+          "HPKE Redirect",
+          "Login Negative"
+        ],
+        "hosted/old-ha-logout.spec.ts": [
+          "Hosted Sign-Out Confirm",
+          "Sign-Out Cancel"
+        ],
+        "hosted/old-ha-session-timeout.spec.ts": [
+          "Cookie Expiry",
+          "Forced Re-Auth"
+        ],
+        "hosted/old-ha-priority.spec.ts": [
+          "Hosted URL Precedence"
+        ]
+      }
     }
   }
 }

@@ -18,7 +18,7 @@ mkdir -p "$ARTIFACTS_DIR/docker-logs" \
   "$ARTIFACTS_DIR/diagnostics" \
   "$ARTIFACTS_DIR/playwright"
 
-services=(keycloak pomerium upstream websocket-server)
+services=(keycloak pomerium upstream websocket-server pomerium-hosted-new pomerium-hosted-old pomerium-hosted-priority)
 
 for svc in "${services[@]}"; do
   "${COMPOSE[@]}" logs --no-color "$svc" > "$ARTIFACTS_DIR/docker-logs/${svc}.log" 2>&1 || true
@@ -39,16 +39,20 @@ done
 } > "$ARTIFACTS_DIR/diagnostics/network.txt"
 
 {
-  echo "=== Pomerium Config (Sanitized) ==="
-  if [ -f "${ROOT_DIR}/pomerium/config.yaml" ]; then
+  echo "=== Pomerium Configs (Sanitized) ==="
+  found=0
+  for config in "${ROOT_DIR}"/pomerium/*.yaml; do
+    [ -f "$config" ] || continue
+    found=1
+    echo "--- ${config##*/} ---"
     sed -e 's/\(secret:\s*\).*/\1[REDACTED]/' \
         -e 's/\(cookie_secret:\s*\).*/\1[REDACTED]/' \
         -e 's/\(shared_secret:\s*\).*/\1[REDACTED]/' \
         -e 's/\(idp_client_secret:\s*\).*/\1[REDACTED]/' \
-        "${ROOT_DIR}/pomerium/config.yaml"
-  else
-    echo "Config file not found"
-  fi
+        "$config"
+    echo ""
+  done
+  [ "$found" = 1 ] || echo "No config files found"
 } > "$ARTIFACTS_DIR/config/pomerium-config.txt"
 
 {
