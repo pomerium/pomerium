@@ -5,6 +5,7 @@
   "workspaces": [
     "mcp",
     "downstream-mtls",
-    "upstream-tls"
+    "upstream-tls",
+    "observability"
   ]
 }
