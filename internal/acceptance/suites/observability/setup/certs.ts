@@ -1,14 +1,7 @@
-// mkcert-based certificate generation (same approach as suites/mcp).
-//
-// Produces ONE wildcard leaf certificate for *.localhost.pomerium.io (which
-// covers verify. and authenticate.) plus localhost / 127.0.0.1, signed by the
-// local mkcert CA, into CERTS_DIR. Pomerium serves TLS with this leaf; the
-// browser and Playwright request contexts trust it via ignoreHTTPSErrors, so
-// nothing needs the CA installed.
-//
-// We deliberately do NOT run `mkcert -install` (which needs sudo to touch the
-// system trust store). Generating a cert auto-creates the local CA in CAROOT if
-// it does not already exist — that is all we need.
+// One wildcard leaf for *.localhost.pomerium.io (+ localhost / 127.0.0.1) from
+// the local mkcert CA. The browser trusts it via ignoreHTTPSErrors, so
+// `mkcert -install` (which needs sudo) is deliberately not run - generating a
+// cert auto-creates the CA in CAROOT, which is all we need.
 
 import { execFileSync } from "node:child_process";
 import { X509Certificate } from "node:crypto";
@@ -16,8 +9,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { CERTS_DIR } from "./constants.js";
 
-// Leaf file names; the in-container paths under /certs live in
-// setup/pomerium-config.ts, which is what puts them in the config.
+// In-container paths under /certs live in setup/pomerium-config.ts.
 const CERT_FILE = path.join(CERTS_DIR, "pomerium.crt");
 const KEY_FILE = path.join(CERTS_DIR, "pomerium.key");
 
@@ -51,9 +43,8 @@ function leafIsFresh(): boolean {
 }
 
 /**
- * Ensure the leaf cert/key exist in CERTS_DIR and are not about to expire.
- * Idempotent and cheap on the fast path (a file read, no subprocess), so both
- * the global-setup process and the worker can call it freely.
+ * Ensure the leaf exists and is not about to expire. Idempotent and cheap on the
+ * fast path (one file read), so any process can call it freely.
  */
 export function ensureCerts(): void {
   if (leafIsFresh()) return;

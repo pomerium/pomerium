@@ -1,24 +1,19 @@
 // Authorize-log field configuration and the sign-in decision trail
 // (QA plan: Core.Logging / authorize_log_fields).
 //
-// Authorize logs are the authorize service's per-check entries: JSON on stdout
-// with message "authorize check" and service "authorize". On top of the
-// configured fields the DECISION is always appended - `allow`, `deny`, and a
-// reason array named after each outcome - so assertLogFields requires those for
-// every authorize entry regardless of the field configuration.
+// Authorize logs are the authorize service's per-check entries, message
+// "authorize check". On top of the configured fields the DECISION is always
+// appended - `allow`, `deny`, and a reason array named after each outcome.
 //
-// The route is `allow_any_authenticated_user: true` and every case drives it
-// through a real browser, so the checks under assertion are the ones a user
-// actually causes: a denial before the session exists, the authenticate
-// service's own routes, then the allowed request.
+// Every case drives a real browser, so the checks asserted are the ones a user
+// causes: a denial before the session exists, the authenticate service's own
+// routes, then the allowed request.
 //
-// Field ground truth: pkg/logfields/authorize.go configures 18 defaults, but
-// several only materialize in specific situations (impersonate-* only when
-// impersonating, service-account-id only for service accounts,
-// removed-groups-count only when group filtering removed groups). A plain
-// logged-in browser request therefore materializes the 13 asserted below; the
-// helper derives the rest of the vocabulary as must-be-absent. The 2023 QA
-// plan's shorter list predates the route-checksum/route-id fields.
+// pkg/logfields/authorize.go configures 18 defaults, but several only
+// materialize in specific situations (impersonate-* when impersonating,
+// service-account-id for service accounts, removed-groups-count when group
+// filtering removed groups). A plain logged-in request materializes the 13
+// asserted below.
 
 import { expect, test } from "@playwright/test";
 import {

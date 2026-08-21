@@ -1,24 +1,16 @@
 // testcontainers orchestration for the observability e2e stack.
-// Modeled on internal/acceptance/suites/downstream-mtls/setup/containers.ts.
 //
-// Topology: one Docker network on which every service is reachable by a
-// *.localhost.pomerium.io alias that ALSO resolves to 127.0.0.1 on the host.
-// Ports are fixed and identical on host and container so the OIDC issuer URL
-// is byte-identical from the browser (front-channel) and from inside Pomerium
-// (back-channel).
-//
-//   keycloak.localhost.pomerium.io      HTTP  8080   (reuses ../../keycloak realm import)
+//   keycloak.localhost.pomerium.io      HTTP  8080   (../../keycloak realm import)
 //   upstream                            HTTP  8000   (pomerium/verify)
 //   jaeger                              OTLP  4317/4318 in-network; query API 16686 on the host
 //   verify./authenticate.localhost...   HTTPS 8443   (official pomerium image)
 //                                       +     9902   (metrics listener, when configured)
 //
-// Lifecycle: the config-INVARIANT services (network, Keycloak, upstream,
-// Jaeger) boot once in Playwright's global setup (runner process) and their
-// network name is handed to the workers via process.env. Pomerium itself is
-// started PER TEST by the worker (startPomerium below), because nearly every
-// case needs its own logging/metrics/tracing configuration; specs run serially
-// (workers: 1) so the fixed ports are never contended.
+// Ports are fixed and identical on host and container so the OIDC issuer URL is
+// byte-identical to the browser and to Pomerium. The config-invariant services
+// boot once in global setup and hand their network name to the workers via
+// process.env; Pomerium starts PER TEST, since nearly every case needs its own
+// configuration.
 
 import * as net from "node:net";
 import * as path from "node:path";
@@ -48,50 +40,40 @@ const ACCEPTANCE_DIR = path.resolve(SUITE_DIR, "..", "..");
 const KEYCLOAK_IMPORT_DIR = path.join(ACCEPTANCE_DIR, "keycloak");
 
 const KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.5.2";
-// Pomerium's own demo upstream. Pinned to the same digest the parent
-// acceptance suite uses (internal/acceptance/docker-compose.yml) so both
-// suites pull an identical build; override with VERIFY_IMAGE.
+// Same digest as internal/acceptance/docker-compose.yml; override with VERIFY_IMAGE.
 const UPSTREAM_IMAGE =
   process.env.VERIFY_IMAGE ||
   "pomerium/verify@sha256:6d9dd40deae8d3ae7517485febf6fd4e7de2692e9dc1a2859c00e3426559af96";
-// Jaeger v2 all-in-one: OTLP receivers on 4317 (gRPC) and 4318 (HTTP) are on
-// by default, spans are queryable through the classic API on 16686. Pinned by
-// DIGEST (the tag names the human-readable version, the digest makes it
-// immutable - same posture as the verify image above); override with
-// JAEGER_IMAGE. To bump: docker pull the new tag, then record the printed
-// digest here.
+// Jaeger v2 all-in-one: OTLP receivers on 4317/4318 and the classic query API
+// on 16686 are on by default. To bump: docker pull the new tag, record the
+// printed digest here, and re-capture the Jaeger UI locators in
+// tests/tracing-journeys.spec.ts, which drive the UI this digest pins.
 const JAEGER_IMAGE =
   process.env.JAEGER_IMAGE ||
   "jaegertracing/jaeger:2.20.0@sha256:46a886260e04002d8f45e213fc39063fa11a50446048fdaa64786fc0840cb9f8";
 const POMERIUM_IMAGE = process.env.POMERIUM_IMAGE || "pomerium/pomerium:main";
 
-// testcontainers reuses an already-present local image and never re-pulls a
-// mutable tag on its own. That silently pins the suite to a stale `:main` (a
-// two-month-old cached image once left suites/mcp defaulting `mcp` off and
-// 404'ing every route), so force a fresh pull whenever the image is a moving
-// tag. A pinned version/digest override is immutable, so leave it on the
-// default policy and skip the needless network round-trip.
+// testcontainers never re-pulls a mutable tag on its own, which silently pins
+// the suite to a stale `:main` - that once left suites/mcp defaulting `mcp` off
+// and 404'ing every route. Pinned versions and digests are immutable, so only
+// moving tags need the forced pull.
 function isMutableTag(image: string): boolean {
-  // A digest pin (@sha256:...) is immutable regardless of any tag.
-  if (image.includes("@")) return false;
+  if (image.includes("@")) return false; // digest pin
   const lastComponent = image.slice(image.lastIndexOf("/") + 1);
   const colon = lastComponent.indexOf(":");
-  // No tag → Docker defaults to the mutable `:latest`.
-  if (colon === -1) return true;
+  if (colon === -1) return true; // no tag → mutable `:latest`
   const tag = lastComponent.slice(colon + 1);
   return tag === "main" || tag === "latest";
 }
 
-// One forced pull per process is enough: `alwaysPull` bypasses the local-image
-// fast path, so leaving it on would spend a registry round-trip on each of the
-// ~20 per-test starts (and burn Docker Hub's anonymous rate limit).
+// One forced pull per process: `alwaysPull` costs a registry round-trip on every
+// one of the ~20 per-test starts.
 let pomeriumPulled = false;
 
 const STARTUP_TIMEOUT_MS = 240_000;
-// Pomerium boots in ~2s, so a long wait here buys nothing and risks blowing the
-// Playwright test timeout (120s) mid-start, which would abandon a container
-// holding the fixed ports. Keep the per-attempt wait short and bound the total
-// by POMERIUM_START_BUDGET_MS instead.
+// Pomerium boots in ~2s. A long per-attempt wait risks blowing the test timeout
+// mid-start and abandoning a container on the fixed ports; bound the total with
+// the budget instead.
 const POMERIUM_WAIT_TIMEOUT_MS = 30_000;
 const POMERIUM_START_BUDGET_MS = 75_000;
 const LOGS = !!process.env.OBS_E2E_LOGS;
@@ -106,11 +88,7 @@ interface BaseStack {
 
 let base: BaseStack | undefined;
 
-/**
- * Stream a container's output, optionally into `sink`. Enabled for stdout only
- * under OBS_E2E_LOGS; a sink is always attached when given, since assertions
- * read from it.
- */
+/** Stream output to the terminal under OBS_E2E_LOGS, and into `sink` if given. */
 function withLogs(c: GenericContainer, prefix: string, sink?: string[]): GenericContainer {
   if (!LOGS && !sink) return c;
   return c.withLogConsumer((stream) => {
@@ -154,10 +132,8 @@ export async function startBaseStack(): Promise<void> {
     );
 
     // --- Upstream (pomerium/verify) ----------------------------------------
-    // verify's /json returns the x-pomerium-claim-* headers Pomerium injected
-    // plus the parsed identity, which makes injected identity assertable. It
-    // has no host-exposed port (it is reached in-network via the "upstream"
-    // alias), so gate on its startup log rather than an HTTP probe.
+    // /json echoes the injected x-pomerium-claim-* headers and parsed identity;
+    // /headers echoes every header received. No host port, so gate on the log.
     const upstreamContainer = withLogs(
       new GenericContainer(UPSTREAM_IMAGE)
         .withNetwork(network)
@@ -168,9 +144,8 @@ export async function startBaseStack(): Promise<void> {
     );
 
     // --- Jaeger (OTLP collector + query API) --------------------------------
-    // Pomerium reaches the OTLP receivers in-network (jaeger:4317 / :4318), so
-    // those ports are not published; only the query API is, on its fixed port,
-    // for the tests and for humans debugging a run.
+    // Pomerium reaches the receivers in-network, so only the query API is
+    // published - for the tests and for humans debugging a run.
     const jaegerContainer = withLogs(
       new GenericContainer(JAEGER_IMAGE)
         .withNetwork(network)
@@ -181,8 +156,7 @@ export async function startBaseStack(): Promise<void> {
       "jaeger",
     );
 
-    // The services are independent; boot them concurrently (Keycloak dominates
-    // the wall time). Whatever started before a failure is stopped below.
+    // Independent; Keycloak dominates the wall time. Partial starts are cleaned up below.
     const track = async (c: GenericContainer) => void started.push(await c.start());
     await Promise.all([
       track(keycloakContainer),
@@ -249,14 +223,10 @@ async function portIsBound(port: number): Promise<boolean> {
 }
 
 /**
- * Wait until the fixed host ports are unbound.
- *
- * Docker releases a stopped container's port bindings asynchronously, some way
- * after stop() resolves. Binding them again too early either fails outright
- * ("port is already allocated") or - worse on Docker Desktop - appears to
- * succeed while the forward still points at the dead container, so the new
- * container looks unhealthy. Waiting for the ports as a precondition is what
- * makes the retry below a rare backstop rather than the mechanism.
+ * Wait until the fixed host ports are unbound. Docker releases bindings well
+ * after stop() resolves; rebinding too early either fails outright or (on Docker
+ * Desktop) succeeds with the forward still pointing at the dead container, which
+ * looks like an unhealthy start.
  */
 async function waitForPortsFree(ports: number[], timeoutMs = 30_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -309,10 +279,8 @@ function withLogTail(message: string, lines: string[]): string {
 }
 
 /**
- * Start a Pomerium container (official image) with the given configuration,
- * bound to host ports 8443 and 9902. At most one instance runs at a time - a
- * previous instance is stopped first. Called from spec files (worker process),
- * which reach the shared network via the name exported by global setup.
+ * Start Pomerium on host ports 8443 and 9902. At most one instance runs at a
+ * time; a previous one is stopped first.
  */
 export async function startPomerium(opts: PomeriumOptions): Promise<StartedPomerium> {
   if (currentPomerium) {
@@ -333,12 +301,10 @@ export async function startPomerium(opts: PomeriumOptions): Promise<StartedPomer
         .withStartupTimeout(POMERIUM_WAIT_TIMEOUT_MS)
         .start();
     } catch (err) {
-      // Classify by OUR OWN captured output rather than the wait strategy's
-      // error text. Output but no "server started" means Pomerium booted and
-      // rejected something - retrying would only hide a real config problem,
-      // so surface it with the logs. Otherwise the process was fine (or never
-      // ran) and the host-side probe is what failed, which a fresh start
-      // fixes; testcontainers has already removed the failed container.
+      // Classify by our own captured output, not the wait strategy's error text:
+      // output but no "server started" means Pomerium rejected the config, and
+      // retrying would hide that. Anything else is a failed host-side probe,
+      // which a fresh start fixes.
       const booted = lines.some((l) => l.includes(SERVER_STARTED));
       const startedAndFailed = lines.length > 0 && !booted;
       if (startedAndFailed || Date.now() > deadline) {
@@ -365,9 +331,8 @@ export async function startPomerium(opts: PomeriumOptions): Promise<StartedPomer
 }
 
 /**
- * Start Pomerium for the duration of one callback and always stop it. Specs
- * use this INSIDE the test body (not beforeAll) so a Playwright retry
- * re-creates the container instead of reusing a torn-down one.
+ * Start Pomerium for one callback and always stop it. Call this INSIDE the test
+ * body, not beforeAll, so a retry re-creates the container.
  */
 export async function withPomerium<T>(
   opts: PomeriumOptions,
@@ -382,13 +347,9 @@ export async function withPomerium<T>(
 }
 
 /**
- * Assert that a configuration is REJECTED at load: Pomerium must log
- * `errorPattern` and must never reach "server started". Throws (with the
- * container's output) when either expectation fails, so calling this IS the
- * assertion - no follow-up expect needed.
- *
- * No host ports are published: nothing ever connects to this container, and
- * leaving the fixed ports alone keeps it out of the port-release race.
+ * Assert a config is REJECTED at load: Pomerium must log `errorPattern` and never
+ * reach "server started". Throws with the output, so calling this IS the
+ * assertion. Publishes no ports, which keeps it out of the port-release race.
  */
 export async function startPomeriumExpectExit(
   opts: PomeriumOptions,
@@ -406,9 +367,8 @@ export async function startPomeriumExpectExit(
       .start();
     await container.stop().catch(() => {});
   } catch {
-    // The container exited before the wait strategy settled, or the pattern
-    // never appeared. Either way testcontainers tore it down; the assertions
-    // below run on whatever output was captured.
+    // Exited before the wait settled, or the pattern never appeared. Either way
+    // the assertions below run on whatever output was captured.
   }
 
   const output = lines.join("\n");

@@ -1,11 +1,6 @@
-// Pomerium configuration generator for per-test variants.
-//
-// Nearly every observability case needs its own logging / metrics / tracing
-// settings, so configs are generated at runtime into .gen/ (gitignored) and
-// bind-mounted into the Pomerium container by startPomerium. Files are written
-// as JSON, which is valid YAML - no YAML dependency needed.
-//
-// The defaults produce the QA plans' base configuration: a single route from
+// Per-test Pomerium configs, generated into .gen/ (gitignored) and bind-mounted
+// by startPomerium. Written as JSON, which is valid YAML - no YAML dependency.
+// The defaults are the QA plans' base config: one route from
 // verify.localhost.pomerium.io to the pomerium/verify upstream.
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -28,16 +23,9 @@ const CONTAINER_KEY_FILE = "/certs/pomerium.key";
 export interface ObservabilityConfigOptions {
   /** File name stem for the generated config (use the test case name). */
   name: string;
-  /**
-   * Serve the route with allow_public_unauthenticated_access instead of
-   * allow_any_authenticated_user. Used by the metrics and tracing specs, which
-   * only need traffic through the route and no identity.
-   */
+  /** allow_public_unauthenticated_access instead of allow_any_authenticated_user. */
   publicAccess?: boolean;
-  /**
-   * access_log_fields. Omitted (undefined) means Pomerium's built-in defaults;
-   * an explicit [] means "log no fields".
-   */
+  /** access_log_fields. undefined = Pomerium's defaults; [] = log no fields. */
   accessLogFields?: string[];
   /** authorize_log_fields; same nil-vs-empty semantics as accessLogFields. */
   authorizeLogFields?: string[];
@@ -45,11 +33,8 @@ export interface ObservabilityConfigOptions {
   metricsAddress?: string;
   /** metrics_basic_auth (base64 of user:pass - or a malformed value under test). */
   metricsBasicAuth?: string;
-  /**
-   * Any other top-level settings, spelled exactly as in the config file, e.g.
-   * { otel_traces_exporter: "otlp" }. Merged LAST, so these win over the
-   * typed options above.
-   */
+  /** Any other top-level keys, spelled as in the config file. Merged LAST, so
+   * these win over the typed options above - including replacing `routes`. */
   settings?: Record<string, unknown>;
 }
 
@@ -63,8 +48,7 @@ export function generateConfig(opts: ObservabilityConfigOptions): string {
   if (opts.publicAccess) {
     route.allow_public_unauthenticated_access = true;
   } else {
-    // The QA plans' base config: any signed-in user may reach the route, so an
-    // unauthenticated request triggers the full sign-in flow.
+    // Any signed-in user, so an unauthenticated request triggers the sign-in flow.
     route.allow_any_authenticated_user = true;
   }
 
@@ -81,9 +65,8 @@ export function generateConfig(opts: ObservabilityConfigOptions): string {
     // Test-only secrets (reproducible tests) - NEVER use them in production.
     cookie_secret: "dj5y7E03ULP9YebCgHNIXmxWnWfYlVXCgwbm9IEdysI=",
     shared_secret: "0CdEkgO02jgxmgSC2AdkqIbFELAN4CGw0v0RY85xNr4=",
-    // Access logs are emitted only when the effective proxy log level is
-    // info or below; debug also surfaces config/tracing diagnostics the
-    // specs assert on.
+    // Access logs need info or below; debug also surfaces the config/tracing
+    // diagnostics some specs assert on.
     log_level: "debug",
     jwt_claims_headers: { "X-Pomerium-Claim-Email": "email" },
     routes: [route],
@@ -101,22 +84,24 @@ export function generateConfig(opts: ObservabilityConfigOptions): string {
   return file;
 }
 
+/** otel_bsp_schedule_delay is an integer in MILLISECONDS, not a duration string. */
+export const TRACING_TO_JAEGER: Record<string, unknown> = {
+  otel_traces_exporter: "otlp",
+  otel_exporter_otlp_endpoint: JAEGER_OTLP_HTTP_URL,
+  otel_bsp_schedule_delay: 1000,
+};
+
 /**
- * A tracing-enabled config on the public route. `otel` overrides (or removes,
- * by passing undefined) individual keys of the working baseline, which is how
- * the enablement matrix expresses "the same thing but with X missing/changed".
- *
- * otel_bsp_schedule_delay is an INTEGER IN MILLISECONDS (not a duration
- * string); 1000 keeps span-export latency test-friendly.
+ * A tracing-enabled config on the public route. `otel` overrides a baseline key,
+ * or removes it by passing undefined - which is how the enablement matrix says
+ * "the same thing but with X missing".
  */
 export function tracingConfig(
   name: string,
   otel: Record<string, unknown> = {},
 ): string {
   const settings: Record<string, unknown> = {
-    otel_traces_exporter: "otlp",
-    otel_exporter_otlp_endpoint: JAEGER_OTLP_HTTP_URL,
-    otel_bsp_schedule_delay: 1000,
+    ...TRACING_TO_JAEGER,
     ...otel,
   };
   for (const [key, value] of Object.entries(settings)) {

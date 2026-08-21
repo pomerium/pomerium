@@ -1,17 +1,14 @@
 // Prometheus metrics endpoint (QA plan: Core.Metrics).
 //
-// metrics_address creates an Envoy-fronted listener (fixed host port 9902
-// here). Two paths, two backends, two DIFFERENT protection surfaces:
-//   /metrics        Pomerium's aggregated handler (pomerium_* + a scrape of
-//                   Envoy's stats, merged) - the only path metrics_basic_auth
-//                   covers.
-//   /metrics/envoy  Envoy itself, prefix-rewritten to admin /stats/prometheus
-//                   - NEVER behind basic auth (asserted below, so the gap is
-//                   at least documented behavior).
+// metrics_address creates an Envoy-fronted listener. Two paths, two DIFFERENT
+// protection surfaces:
+//   /metrics        Pomerium's aggregated handler - the only path
+//                   metrics_basic_auth covers.
+//   /metrics/envoy  Envoy admin /stats/prometheus - NEVER behind basic auth,
+//                   asserted below so the gap is documented behavior.
 //
-// This branch also rejects malformed metrics_basic_auth at config load
-// (config/options.go) instead of silently disabling authentication (the old
-// ENG-4311 behavior) - TC-MET-05 is the regression guard for that fix.
+// Malformed metrics_basic_auth is now rejected at config load instead of
+// silently disabling auth (ENG-4311); TC-MET-05 guards that fix.
 
 import { expect, test } from "@playwright/test";
 import {
@@ -23,12 +20,13 @@ import {
 } from "../helpers/metrics.js";
 import { hitMarkers } from "../helpers/traffic.js";
 import { startPomeriumExpectExit, withPomerium } from "../setup/containers.js";
+import { METRICS_PORT } from "../setup/constants.js";
 import { generateConfig } from "../setup/pomerium-config.js";
 
 const SCRAPER = { user: "scraper", pass: "s3cret" };
 
 const metricsEnabledConfig = () =>
-  generateConfig({ name: "met-enabled", metricsAddress: ":9902", publicAccess: true });
+  generateConfig({ name: "met-enabled", metricsAddress: `:${METRICS_PORT}`, publicAccess: true });
 
 /** Envoy's per-request counters, summed (exact family names vary by version). */
 function envoyRequestCount(body: string): number {
@@ -89,7 +87,7 @@ test.describe("Metrics endpoint", () => {
   test("TC-MET-04: metrics_basic_auth protects /metrics but not /metrics/envoy", async () => {
     const configFile = generateConfig({
       name: "met-basic-auth",
-      metricsAddress: ":9902",
+      metricsAddress: `:${METRICS_PORT}`,
       metricsBasicAuth: basicAuth64(SCRAPER.user, SCRAPER.pass),
       publicAccess: true,
     });
@@ -126,7 +124,7 @@ test.describe("Metrics endpoint", () => {
       {
         configFile: generateConfig({
           name: "met-bad-auth-b64",
-          metricsAddress: ":9902",
+          metricsAddress: `:${METRICS_PORT}`,
           metricsBasicAuth: "%%%not-base64%%%",
           publicAccess: true,
         }),
@@ -138,7 +136,7 @@ test.describe("Metrics endpoint", () => {
       {
         configFile: generateConfig({
           name: "met-bad-auth-colon",
-          metricsAddress: ":9902",
+          metricsAddress: `:${METRICS_PORT}`,
           // valid base64, but decodes to a string with no user:pass colon
           metricsBasicAuth: Buffer.from("nocolonhere").toString("base64"),
           publicAccess: true,

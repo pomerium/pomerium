@@ -1,10 +1,7 @@
-// Traffic generation: marker paths, the Keycloak sign-in round trip, and
-// requests against the protected route.
+// Marker paths, the Keycloak sign-in round trip, and requests against the route.
 //
-// Convention: specs that do not need an identity use a PUBLIC route and drive
-// it with these helpers (zero sign-in noise in logs/spans); specs that assert
-// identity fields sign in through the real Keycloak form once and then reuse
-// the page's cookie-sharing request context.
+// Specs needing no identity use a PUBLIC route (zero sign-in noise in logs and
+// spans); specs asserting identity fields sign in through the real Keycloak form.
 
 import { expect, request, type APIResponse, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
@@ -13,10 +10,9 @@ import { KEYCLOAK_HOSTNAME, TEST_USER, VERIFY_URL } from "../setup/constants.js"
 import { gotoStable } from "./nav.js";
 
 /**
- * A unique request path for one test, e.g. /e2e/trc-01-4f9a02c1. The upstream
- * 404s unknown paths, which is fine - access logs and spans record the path
- * and status either way, and the uniqueness is what scopes every assertion to
- * this test's own traffic.
+ * A unique path per test, e.g. /e2e/trc-01-4f9a02c1. The upstream 404s it, which
+ * is fine: logs and spans record path and status either way, and the uniqueness
+ * is what scopes assertions to this test's own traffic.
  */
 export function markerPath(prefix: string): string {
   return `/e2e/${prefix}-${randomUUID().slice(0, 8)}`;
@@ -28,23 +24,18 @@ function parkedOnErrorPage(page: Page): boolean {
 }
 
 /**
- * Drive the full OIDC round trip on a protected route: navigate, sign in as
- * the shared test user on the Keycloak form, and wait for the redirect back.
- *
- * Retried as a unit. The sign-in walks a redirect chain the test does not
- * drive (route -> authenticate -> Keycloak -> back), and on CI a hop can be
- * aborted when the Docker network reconfigures just after the per-test
- * container start - Chromium then parks on an error page and the wait for the
- * final URL times out. gotoStable protects the first navigation only, so the
- * chain needs its own retry.
+ * Drive the full OIDC round trip and return once the browser is back on the
+ * route host. Retried as a unit: the chain (route -> authenticate -> Keycloak ->
+ * back) has hops the test does not drive, and on CI one can be aborted by the
+ * Docker network reconfiguring after a container start. gotoStable protects only
+ * the first navigation.
  */
 export async function signIn(page: Page, fromUrl: string, attempts = 3): Promise<void> {
   const routeHostname = new URL(fromUrl).hostname;
   for (let attempt = 1; ; attempt++) {
     try {
       await gotoStable(page, fromUrl, { waitUntil: "domcontentloaded" });
-      // A retry after a partially completed flow can land already signed in,
-      // in which case there is no login form to fill.
+      // A retry can land already signed in, with no form to fill.
       if (!parkedOnErrorPage(page) && new URL(page.url()).hostname === routeHostname) return;
       await waitForKeycloakLoginPage(page, KEYCLOAK_HOSTNAME);
       await submitLoginForm(page, TEST_USER.email, TEST_USER.password);
@@ -59,9 +50,8 @@ export async function signIn(page: Page, fromUrl: string, attempts = 3): Promise
 }
 
 /**
- * Open a unique marker path on the protected route IN THE BROWSER and return
- * the marker. `headers` is applied to the page rather than the request, since a
- * navigation cannot carry per-request headers.
+ * Open a unique marker path IN THE BROWSER. `headers` goes on the page, not the
+ * request - a navigation cannot carry per-request headers.
  */
 export async function openMarker(
   page: Page,
@@ -74,10 +64,7 @@ export async function openMarker(
   return marker;
 }
 
-/**
- * GET one or more paths on the protected route concurrently, through a single
- * throwaway request context.
- */
+/** GET paths concurrently through one throwaway request context. */
 export async function getPaths(
   paths: string[],
   opts: { headers?: Record<string, string> } = {},
@@ -93,9 +80,8 @@ export async function getPaths(
 }
 
 /**
- * GET `count` unique marker paths and return the markers. Asserts each request
- * reached the upstream (a 5xx would mean the traffic never got there, making
- * any later "no spans"/"no log entry" assertion vacuous).
+ * GET `count` unique marker paths. Asserts each reached the upstream: a 5xx would
+ * make any later "no spans" / "no log entry" assertion vacuous.
  */
 export async function hitMarkers(prefix: string, count = 1): Promise<string[]> {
   const markers = Array.from({ length: count }, () => markerPath(prefix));

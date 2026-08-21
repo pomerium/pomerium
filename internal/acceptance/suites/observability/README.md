@@ -85,10 +85,10 @@ mutable tags), `VERIFY_IMAGE`, `JAEGER_IMAGE` (default pinned `jaegertracing/jae
   `quiesceLogs()` (drain + clear) *before* the traffic under test and poll with
   `waitForEntry()` after. Field configuration is asserted as **exact key sets**:
   `assertLogFields(entry, kind, expected)` requires the expected fields plus the always-on
-  envelope, and derives the must-be-*absent* set from the full field vocabulary in
-  `helpers/logs.ts` (mirroring `AllAccessLogFields()` / `AllAuthorizeLogFields()` in
-  `pkg/logfields`), so a test names only what it configured. TC-LOG-04 pins the envelope list
-  itself by configuring zero fields.
+  envelope and rejects *every* other key, so a test names only what it configured. Checking the
+  complement of the allowed set — rather than a hand-maintained mirror of `AllAccessLogFields()` /
+  `AllAuthorizeLogFields()` — means a field added to `pkg/logfields` cannot silently stop being
+  checked. TC-LOG-04 pins the envelope list itself by configuring zero fields.
 - **Metrics assertions** — plain `fetch` against `http://127.0.0.1:9902`. `/metrics` is
   Pomerium's aggregated handler (`pomerium_*` + scraped `envoy_*`, the only path
   `metrics_basic_auth` covers); `/metrics/envoy` is Envoy's raw `/stats/prometheus` and is
@@ -103,6 +103,17 @@ mutable tags), `VERIFY_IMAGE`, `JAEGER_IMAGE` (default pinned `jaegertracing/jae
   3s for Envoy-only assertions (the tracing configs set `otel_bsp_schedule_delay: 1000` — an
   integer in **milliseconds**, not a duration string). Positive cases run before negatives in the
   same file so a broken export pipeline fails loudly instead of green-lighting a negative.
+- **Jaeger UI journeys** — `tracing-journeys.spec.ts` asserts through the **browser** instead of the
+  query API: the same Chromium that signed in opens <http://127.0.0.1:16686>, searches, clicks into a
+  trace and reads it. Each step is a `test.step` and the Jaeger interaction is written out in the test
+  body (no helper), so the HTML report, the video and the retained trace all read as the journey.
+  Two waits are inherent and appear as `expect(async () => { await page.reload(); … }).toPass()`
+  loops: the Service dropdown is filled on page load, so it is reloaded until Envoy is known; and
+  Pomerium's own spans join a trace ~4s after Envoy's, so the search row is reloaded until it lists
+  `Control Plane` **before** the trace is opened — Jaeger's UI caches a fetched trace, so opening it
+  early would pin a partial one. Locators are testid/role-first with three class-based exceptions
+  (`.ant-select-item-option`, `a.span-name`, `.TracePageSearchBar`); `JAEGER_IMAGE` is
+  digest-pinned, so **bumping Jaeger means re-capturing these selectors**.
 - **Traffic** — the **logging** cases use an `allow_any_authenticated_user: true` route (the QA
   plans' base config) and open it **in a real browser** after a real Keycloak sign-in, so the field
   configuration is asserted against the traffic a user actually produces — the sign-in redirects
@@ -121,7 +132,8 @@ mutable tags), `VERIFY_IMAGE`, `JAEGER_IMAGE` (default pinned `jaegertracing/jae
 | `logging-authorize.spec.ts` | TC-LOG-10 default authorize fields for a signed-in request (13 materialized of 18 configured; decision fields always appended) · TC-LOG-11 `headers.Cookie` · TC-LOG-12 single field · TC-LOG-13 the sign-in decision trail: unauthenticated denial → internal `pomerium-route` checks → `user-ok` allow, plus the authenticate service's own log lines |
 | `metrics.spec.ts` | TC-MET-01 no `metrics_address` → port closed · TC-MET-02/03 aggregated `/metrics` (build info + envoy counters after traffic) and raw `/metrics/envoy`, sharing one container · TC-MET-04 basic auth (401/401/200) and the unprotected envoy path · TC-MET-05 malformed basic auth rejected at load (ENG-4311 fix guard) |
 | `tracing-enablement.spec.ts` | TC-TRC-01 exporter+generic endpoint → Envoy & Pomerium spans (ENG-1960 guard) · TC-TRC-04 traces-specific endpoint · TC-TRC-02 exporter only → none · TC-TRC-03 endpoint only → none · TC-TRC-05 exporter `none` · TC-TRC-06 `OTEL_SDK_DISABLED=true` |
-| `tracing-spans.spec.ts` | TC-TRC-10 one request → one trace, Envoy (`pomerium.envoy=true`) + Pomerium services share the trace id · TC-TRC-12 sampler 1.0 · TC-TRC-11 sampler 0.0 (Envoy scope) · TC-TRC-13 clamping (5.0→1.0, −1→0.0) |
+| `tracing-spans.spec.ts` | TC-TRC-10 one request → one trace, Envoy (`pomerium.envoy=true`) + Pomerium services share the trace id · TC-TRC-11 sampler 0.0 (Envoy scope) |
+| `tracing-journeys.spec.ts` | Browser-driven journeys through the **Jaeger UI**: TC-TRC-20 sign in → browse → search the UI → open the trace → read Envoy's `ingress:` span and Pomerium's own spans · TC-TRC-21 signing in *on* a path yields **two** traces for it — the refused 302 with the whole sign-in chain stitched in (`/.pomerium/sign_in`, `/oauth2/callback`, `/.pomerium/callback/`, all `internal:`) and the retry as its own trace · TC-TRC-22 the `traceparent` the upstream received (read off `/headers`) opens that exact trace id · TC-TRC-23 a policy-refused request → 403 page → `http.status_code=403` on the span |
 
 ## Follow-up backlog (from the QA plans, structured to slot in here)
 

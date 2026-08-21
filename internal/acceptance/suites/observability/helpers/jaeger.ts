@@ -1,10 +1,8 @@
 // Jaeger query-API client and span assertions.
 //
-// Pomerium exports OTLP to the Jaeger collector in-network; the tests read
-// spans back through the classic query API on the fixed host port. Jaeger's
-// store PERSISTS across the whole run (it boots once in global setup), so
-// every assertion is scoped by a unique per-test marker path (helpers/traffic
-// markerPath) - never by global trace counts.
+// Jaeger's store PERSISTS for the whole run (it boots once in global setup), so
+// every assertion is scoped by a unique per-test marker path - never by global
+// trace counts.
 
 import { setTimeout as sleep } from "node:timers/promises";
 import { JAEGER_QUERY_URL } from "../setup/constants.js";
@@ -55,10 +53,8 @@ async function fetchServices(): Promise<string[]> {
   return parsed.data ?? [];
 }
 
-/**
- * GET /api/traces for one service. Unknown services (nothing exported yet)
- * are a normal outcome for the negative cases -> empty list, never an error.
- */
+/** GET /api/traces. An unknown service (nothing exported yet) is a normal
+ * outcome for the negatives -> empty list, never an error. */
 async function fetchTraces(service: string): Promise<JaegerTrace[]> {
   const params = new URLSearchParams({ service, lookback: "1h", limit: "200" });
   const res = await fetch(`${JAEGER_QUERY_URL}/api/traces?${params}`, {
@@ -109,12 +105,11 @@ export function envoyProcessOf(trace: JaegerTrace): JaegerProcess | undefined {
 }
 
 /**
- * Poll until an Envoy trace referencing the marker shows up AND satisfies
- * `until` (when given). The predicate matters because span families flush on
- * DIFFERENT schedules - Envoy's spans (batch delay from the config) can arrive
- * seconds before Pomerium's own SDK spans (default 5s batch delay) join the
- * same trace - so callers asserting on trace composition must keep polling
- * past the first partial snapshot.
+ * Poll until an Envoy trace referencing the marker appears AND satisfies `until`.
+ * The predicate matters because the two span families flush on different
+ * schedules - Envoy's arrive seconds before Pomerium's own SDK spans join the
+ * same trace - so callers asserting composition must poll past the first
+ * partial snapshot.
  */
 export async function waitForMarkerTrace(
   marker: string,
@@ -144,13 +139,11 @@ export async function waitForMarkerTrace(
 }
 
 /**
- * Assert that NO span referencing any of the markers reaches the collector.
+ * Assert NO span referencing any marker reaches the collector.
  *
- * Jaeger keeps every span for the whole run and fetchTraces looks back an hour,
- * so a span exported at any point inside the window is still returned by a
- * query made after it: waiting out the window and then querying once is as
- * conclusive as polling throughout, for a seventh of the requests. The window
- * must exceed the batch-span-processor flush delay of the config under test.
+ * Jaeger retains every span and the query looks back an hour, so waiting out the
+ * window and querying once is as conclusive as polling through it. The window
+ * must exceed the batch flush delay of the config under test.
  */
 export async function expectNoMarkerSpans(
   marker: string | string[],

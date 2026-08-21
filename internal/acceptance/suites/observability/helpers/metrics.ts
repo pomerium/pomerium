@@ -1,10 +1,7 @@
-// Prometheus metrics-endpoint helpers.
-//
-// The metrics listener (metrics_address) is an Envoy-fronted listener on the
-// fixed host port 9902 (published unconditionally by startPomerium):
+// Prometheus metrics-endpoint helpers. On the fixed host port 9902:
 //   /metrics        -> Pomerium's aggregated handler (pomerium_* + scraped
-//                      envoy_* merged; the only path metrics_basic_auth covers)
-//   /metrics/envoy  -> rewritten to Envoy admin /stats/prometheus (raw envoy_*)
+//                      envoy_*; the only path metrics_basic_auth covers)
+//   /metrics/envoy  -> Envoy admin /stats/prometheus (raw envoy_*)
 
 import { METRICS_URL } from "../setup/constants.js";
 
@@ -66,21 +63,13 @@ function isTimeout(err: unknown): boolean {
 }
 
 /**
- * Assert nothing serves the metrics port. The port mapping always exists
- * (startPomerium publishes 9902 unconditionally), but with no metrics_address
- * there is no listener behind it.
+ * Assert nothing serves the metrics port. The mapping always exists, so the proof
+ * is the SHAPE of the failure, not its code: hosts either refuse outright
+ * (ECONNREFUSED) or, on the Linux CI runners, accept and immediately close
+ * (UND_ERR_SOCKET). Any transport-level rejection means no listener.
  *
- * The proof is the SHAPE of the failure, not its error code: how Docker rejects
- * a mapped-but-unbacked port is platform-dependent. Some hosts refuse the
- * connection outright (ECONNREFUSED); on the Linux CI runners docker-proxy
- * accepts it and immediately closes, which undici reports as UND_ERR_SOCKET
- * ("other side closed"). Any such transport-level rejection means no HTTP
- * listener is there.
- *
- * A timeout is deliberately NOT accepted. "No answer at all" could be a hung
- * proxy rather than an absent listener, and treating it as proof would let this
- * case pass green against a wedged stack - which is the whole risk of asserting
- * an absence.
+ * A timeout is deliberately NOT accepted: no answer at all could be a hung proxy,
+ * and treating that as proof would pass green against a wedged stack.
  */
 export async function expectMetricsPortClosed(): Promise<void> {
   let res: Response;

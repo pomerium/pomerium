@@ -1,17 +1,12 @@
 // Access-log field configuration (QA plan: Core.Logging / access_log_fields).
 //
-// Access logs are Envoy's per-request entries, shipped to the control plane
-// and emitted as JSON on stdout with message "http-request" and service
-// "envoy". The configured fields - and ONLY those - appear as top-level keys
-// next to the always-on envelope, so these tests assert exact key sets:
-// assertLogFields derives the must-be-absent set from the full field
-// vocabulary in helpers/logs.ts (mirroring pkg/logfields/access.go), so each
-// test only names what it configured.
+// Access logs are Envoy's per-request entries, emitted as JSON on stdout with
+// message "http-request". The configured fields - and ONLY those - sit next to
+// the always-on envelope, so each test names what it configured and
+// assertLogFields rejects every other key.
 //
-// The route is `allow_any_authenticated_user: true` and is opened in a real
-// browser after a real Keycloak sign-in, so the field configuration is asserted
-// against the traffic a user actually produces - the sign-in redirects through
-// the authenticate host included, not just one synthetic request.
+// The route is opened in a real browser after a real Keycloak sign-in, so the
+// configuration is asserted against the traffic a user actually produces.
 
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";

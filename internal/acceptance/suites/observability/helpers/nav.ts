@@ -1,11 +1,7 @@
-// Navigation helper that survives net::ERR_NETWORK_CHANGED.
-//
-// The suite restarts the Pomerium container between (and within) spec groups;
-// on CI that churns the runner's Docker network, and a navigation that races a
-// restart is aborted by Chromium with ERR_NETWORK_CHANGED. A Playwright
-// test-level retry does NOT help the specs that call startPomerium in the test
-// body - the retry restarts Pomerium and re-triggers the same churn. Retrying
-// only the navigation lets the network settle without touching the container.
+// Per-test Pomerium restarts churn the Docker network on CI, and a navigation
+// that races one is aborted with ERR_NETWORK_CHANGED. A test-level retry does not
+// help - it restarts Pomerium and re-triggers the churn - so retry just the
+// navigation and let the network settle.
 
 import type { Page, Response } from "@playwright/test";
 

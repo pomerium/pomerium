@@ -15,10 +15,11 @@
       }
     },
     "Tracing": {
-      "description": "OTEL tracing enablement matrix (exporter + endpoint, OTEL_SDK_DISABLED), Envoy+Pomerium trace correlation against a real Jaeger collector, and otel_traces_sampler_arg sampling/clamping",
+      "description": "OTEL tracing enablement matrix (exporter + endpoint, OTEL_SDK_DISABLED), Envoy+Pomerium trace correlation against a real Jaeger collector, otel_traces_sampler_arg sampling, and browser-driven user journeys through the Jaeger UI itself",
       "files": {
         "tracing-enablement.spec.ts": ["Exporter+Endpoint Spans", "Traces-Specific Endpoint", "Exporter Only", "Endpoint Only", "Exporter none", "OTEL_SDK_DISABLED"],
-        "tracing-spans.spec.ts": ["Single Trace Both Services", "Sampler 1.0", "Sampler 0.0", "Sampler Clamping"]
+        "tracing-spans.spec.ts": ["Single Trace Both Services", "Sampler 0.0"],
+        "tracing-journeys.spec.ts": ["Sign-in Journey in the Jaeger UI", "Sign-in Flow Stitched Trace", "Upstream traceparent Opens the Trace", "Policy-Denied Request Traced"]
       }
     }
   }

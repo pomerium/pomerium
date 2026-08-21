@@ -1,17 +1,14 @@
 // OTEL tracing enablement matrix (QA plan: Core.OTEL Tracing /
 // "Tracing requires an exporter and an endpoint").
 //
-// Tracing is on ONLY when otel_traces_exporter is set (to something other
-// than none/noop/"") AND at least one of the two endpoint settings is set.
-// The generic endpoint must enable Envoy tracing too - the regression
-// ENG-1960 was exactly that combination working for Pomerium's own spans but
-// not Envoy's - and OTEL_SDK_DISABLED=true in the environment overrides the
+// Tracing is on ONLY when otel_traces_exporter is set (to something other than
+// none/noop/"") AND one of the endpoint settings is set. The generic endpoint
+// must enable Envoy tracing too - ENG-1960 was exactly that combination working
+// for Pomerium's spans but not Envoy's - and OTEL_SDK_DISABLED overrides the
 // whole config.
 //
-// The positive cases run FIRST: they are the sanity gate proving the
-// export/query pipeline works, so a "no spans" negative can't pass because
-// the pipeline itself is broken. Jaeger's store persists across tests, so
-// every assertion is scoped by a unique marker path.
+// Positives run FIRST, as the gate proving the export pipeline works, so a
+// "no spans" negative cannot pass just because the pipeline is broken.
 
 import { expect, test } from "@playwright/test";
 import {
