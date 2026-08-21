@@ -1,0 +1,44 @@
+# Pomerium configuration for the Hosted Authenticate PRIORITY e2e test.
+#
+# BOTH a hosted authenticate_service_url AND a full idp_provider block are
+# configured. Expected behavior: sign-in still goes to
+# https://authenticate.pomerium.app - the hosted authenticate URL takes
+# priority over the configured IdP settings. Flow selection keys purely off
+# the authenticate hostname (config/options.go UseStatelessAuthenticateFlow),
+# so the browser must never be sent to the Keycloak IdP configured below.
+#
+# Started only with the "hosted" compose profile (make up-hosted). Requires
+# outbound internet access to reach authenticate.pomerium.app.
+
+address: :8446
+authenticate_service_url: https://authenticate.pomerium.app
+
+# Identity Provider (Keycloak) - present but expected to be superseded by the
+# hosted authenticate service above.
+idp_provider: oidc
+idp_provider_url: http://keycloak.localhost.pomerium.io:8080/realms/pomerium-e2e
+idp_client_id: pomerium
+idp_client_secret: pomerium-e2e-secret
+
+# TLS Configuration
+certificate_file: /certs/pomerium.crt
+certificate_key_file: /certs/pomerium.key
+
+# Secrets shared with pomerium/config.yaml.
+# These are test-only values - NEVER use in production
+cookie_secret: dj5y7E03ULP9YebCgHNIXmxWnWfYlVXCgwbm9IEdysI=
+shared_secret: 0CdEkgO02jgxmgSC2AdkqIbFELAN4CGw0v0RY85xNr4=
+
+# Logging
+log_level: debug
+
+# Pass the email claim as an HTTP header so the verify upstream can echo it
+jwt_claims_headers:
+  X-Pomerium-Claim-Email: email
+
+routes:
+  # Test route: any user authenticated via the hosted authenticate may access
+  - from: https://verify-hosted-priority.localhost.pomerium.io:8446
+    to: http://upstream:8000
+    pass_identity_headers: true
+    allow_any_authenticated_user: true
