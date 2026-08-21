@@ -163,12 +163,23 @@ test.describe("Tracing journeys through the Jaeger UI", () => {
 
       const markerRows = page.getByRole("row").filter({ hasText: marker });
 
-      await test.step("that one path produced TWO traces", async () => {
+      await test.step("that path produced a sign-in trace and a separate one for the retry", async () => {
         await expect(async () => {
           await page.reload();
-          await expect(markerRows).toHaveCount(2, FAIL_FAST);
-          // Only the sign-in trace has Authenticate, and it arrives last.
-          await expect(markerRows.filter({ hasText: "Authenticate" })).toHaveCount(1, FAIL_FAST);
+          // The sign-in chain is stitched into the refused request's trace, so
+          // that is the trace carrying Authenticate; the request that followed
+          // is its own. Do NOT pin the row count: Pomerium redirects once more
+          // to strip the query params it added, and whether that extra request
+          // lands in the same trace is timing-dependent (2 rows on macOS, 3 on
+          // the Linux CI runners). Both KINDS existing is the actual claim.
+          expect(
+            await markerRows.filter({ hasText: "Authenticate" }).count(),
+            "a trace carrying the sign-in",
+          ).toBeGreaterThan(0);
+          expect(
+            await markerRows.filter({ hasNotText: "Authenticate" }).count(),
+            "the request after sign-in, as a trace of its own",
+          ).toBeGreaterThan(0);
         }).toPass({ timeout: 30_000 });
       });
 
