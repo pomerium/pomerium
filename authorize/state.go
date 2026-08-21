@@ -35,6 +35,7 @@ type authorizeState struct {
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	sessionStore               *config.SessionStore
 	idpTokenSessionCreator     config.IncomingIDPTokenSessionCreator
+	idpResolver                *config.IdentityProviderResolver
 	authenticateFlow           authenticateFlow
 	syncQueriers               map[string]storage.Querier
 	mcp                        *mcp.Handler
@@ -56,8 +57,10 @@ func newAuthorizeStateFromConfig(
 
 	var err error
 	var previousEvaluator *evaluator.Evaluator
+	var previousIDPResolver *config.IdentityProviderResolver
 	if previousState != nil {
 		previousEvaluator = previousState.evaluator
+		previousIDPResolver = previousState.idpResolver
 	}
 
 	state.sharedKey, err = cfg.Options.GetSharedKey()
@@ -107,6 +110,15 @@ func newAuthorizeStateFromConfig(
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
+	// Built here, off the request path, reusing the previous generation's resolver
+	// when nothing it is built from changed. It cannot fail: a provider that could
+	// not be built rejects the tokens of its own issuer and reports itself
+	// unhealthy, rather than failing this state build. That distinction matters
+	// because OnConfigChange only logs a state-build error and keeps the previous
+	// state, so failing here would silently discard every unrelated route and
+	// policy change in this generation.
+	state.idpResolver = config.NewIdentityProviderResolverFromConfig(ctx, cfg, previousIDPResolver)
+
 	state.idpTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
 		tracerProvider,
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
@@ -122,6 +134,7 @@ func newAuthorizeStateFromConfig(
 			storage.InvalidateCacheForDataBrokerRecords(ctx, res.Records...)
 			return nil
 		},
+		config.WithIdentityProviderResolver(state.idpResolver),
 	)
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {

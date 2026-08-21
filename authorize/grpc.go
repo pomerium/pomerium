@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/contextutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -64,6 +65,24 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		headers := make(http.Header)
 		mcp.SetCORSHeaders(headers)
 		return mkDeniedCheckResponse(http.StatusNoContent, headers, ""), nil
+	}
+
+	// Cookie + Authorization: Bearer are mutually exclusive trust contexts,
+	// but only on bearer_token_format: jwt routes: cookies come from a
+	// browser, an external JWT comes from an M2M client, so a request
+	// carrying both is a misconfigured client or a confusion attempt —
+	// reject with 400. The IdP access/identity token formats predate this
+	// check and allow both credentials together (a logged-in browser may
+	// send its IdP token via Authorization; see TestBearerTokenFormat), and
+	// on pass-through routes the Authorization header belongs to the
+	// upstream, so neither may be rejected here.
+	cfg := a.currentConfig.Load()
+	if cfg.GetBearerTokenFormatForPolicy(req.Policy) == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT &&
+		hasCookieAndBearer(hreq, cfg.Options.CookieName) {
+		log.Ctx(ctx).Info().
+			Str("request-id", requestID).
+			Msg("request carried both a session cookie and an Authorization: Bearer header on a bearer_token_format:jwt route; rejecting as 400")
+		return a.deniedResponse(ctx, in, int32(http.StatusBadRequest), http.StatusText(http.StatusBadRequest), nil)
 	}
 
 	// load the session
@@ -299,4 +318,23 @@ func updateSpanWithMCPInfo(span oteltrace.Span, mcp evaluator.RequestMCP) {
 	if tc := mcp.ToolCall; tc != nil {
 		span.SetAttributes(attribute.String("mcp.tool", tc.Name))
 	}
+}
+
+// hasCookieAndBearer reports whether the request carries BOTH a Pomerium
+// session cookie AND an Authorization: Bearer header. The two are mutually
+// exclusive trust contexts (browser vs M2M).
+func hasCookieAndBearer(r *http.Request, cookieName string) bool {
+	if cookieName == "" {
+		return false
+	}
+	// Check the (cheap) Authorization header before parsing cookies: the
+	// common authenticated browser case carries a cookie but no bearer, so
+	// short-circuiting here skips cookie parsing on the hot path.
+	const prefix = "Bearer "
+	auth := r.Header.Get(httputil.HeaderAuthorization)
+	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+		return false
+	}
+	_, err := r.Cookie(cookieName)
+	return err == nil
 }

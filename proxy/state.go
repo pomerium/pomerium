@@ -37,9 +37,10 @@ type proxyState struct {
 	programmaticRedirectDomainWhitelist []string
 	authenticateFlow                    authenticateFlow
 	incomingIDPTokenSessionCreator      config.IncomingIDPTokenSessionCreator
+	idpResolver                         *config.IdentityProviderResolver
 }
 
-func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config, outboundGrpcConn *grpc.CachedOutboundGRPClientConn) (*proxyState, error) {
+func newProxyStateFromConfig(ctx context.Context, previousState *proxyState, tracerProvider oteltrace.TracerProvider, cfg *config.Config, outboundGrpcConn *grpc.CachedOutboundGRPClientConn) (*proxyState, error) {
 	err := ValidateOptions(cfg.Options)
 	if err != nil {
 		return nil, err
@@ -93,6 +94,16 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 		return nil, err
 	}
 
+	// Built here, off the request path, reusing the previous generation's resolver
+	// when nothing it is built from changed. It cannot fail; a provider that could
+	// not be built rejects only the tokens of its own issuer (see
+	// newAuthorizeStateFromConfig for the reasoning).
+	var previousIDPResolver *config.IdentityProviderResolver
+	if previousState != nil {
+		previousIDPResolver = previousState.idpResolver
+	}
+	state.idpResolver = config.NewIdentityProviderResolverFromConfig(ctx, cfg, previousIDPResolver)
+
 	state.incomingIDPTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
 		tracerProvider,
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
@@ -108,6 +119,7 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 			storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
 			return err
 		},
+		config.WithIdentityProviderResolver(state.idpResolver),
 	)
 
 	return state, nil

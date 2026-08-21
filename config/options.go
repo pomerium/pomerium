@@ -154,6 +154,13 @@ type Options struct {
 	Scopes                         []string  `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
 	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
 
+	// IdentityProviders declares additional identity providers, keyed by
+	// provider name. Currently usable only to verify JWT bearer tokens from
+	// non-interactive workloads on routes whose BearerTokenFormat is
+	// BEARER_TOKEN_FORMAT_JWT; the interactive SSO provider is still configured
+	// via the flat idp_* options above.
+	IdentityProviders map[string]IdentityProvider `mapstructure:"identity_providers" yaml:"identity_providers,omitempty"`
+
 	// RequestParams are custom request params added to the signin request as
 	// part of an Oauth2 code flow.
 	//
@@ -795,6 +802,11 @@ func (o *Options) Validate() error {
 				return err
 			}
 		}
+	}
+
+	// Validate JWT bearer-token options (BEARER_TOKEN_FORMAT_JWT).
+	if err := o.validateIdentityProviders(); err != nil {
+		return err
 	}
 
 	// Validate MCP options
@@ -1604,6 +1616,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setSlice(&o.Scopes, settings.Scopes)
 	setMap(&o.RequestParams, settings.RequestParams)
 	setStringList(&o.IDPAccessTokenAllowedAudiences, settings.IdpAccessTokenAllowedAudiences)
+	setIdentityProviders(&o.IdentityProviders, settings.IdentityProviders)
 	setSlice(&o.AuthorizeURLStrings, settings.AuthorizeServiceUrls)
 	set(&o.AuthorizeInternalURLString, settings.AuthorizeInternalServiceUrl)
 	set(&o.OverrideCertificateName, settings.OverrideCertificateName)
@@ -1728,6 +1741,7 @@ func (o *Options) ToProto() *configpb.Config {
 	settings.Scopes = o.Scopes
 	settings.RequestParams = o.RequestParams
 	copyOptionalStringList(&settings.IdpAccessTokenAllowedAudiences, o.IDPAccessTokenAllowedAudiences)
+	settings.IdentityProviders = identityProvidersToProto(o.IdentityProviders)
 	settings.AuthorizeServiceUrls = o.AuthorizeURLStrings
 	copySrcToOptionalDest(&settings.AuthorizeInternalServiceUrl, &o.AuthorizeInternalURLString)
 	copySrcToOptionalDest(&settings.OverrideCertificateName, &o.OverrideCertificateName)

@@ -1,12 +1,13 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed deps-observability test-observability test-observability-headed
+.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed deps-upstream-tls test-upstream-tls test-upstream-tls-headed deps-observability test-observability test-observability-headed
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
 BROWSER_DIR ?= browser
 MCP_DIR ?= suites/mcp
 DOWNSTREAM_MTLS_DIR ?= suites/downstream-mtls
+UPSTREAM_TLS_DIR ?= suites/upstream-tls
 OBSERVABILITY_DIR ?= suites/observability
 ARTIFACTS_DIR ?= artifacts
 
@@ -40,6 +41,11 @@ help:
 	@echo "  make deps-downstream-mtls        - Install suite deps + Chromium, refresh pomerium image"
 	@echo "  make test-downstream-mtls        - Run the downstream mTLS e2e suite (headless)"
 	@echo "  make test-downstream-mtls-headed - Run it with a visible browser"
+	@echo ""
+	@echo "Upstream TLS suite (testcontainers, self-contained - does NOT use the compose stack):"
+	@echo "  make deps-upstream-tls        - Install suite deps + Chromium, refresh pomerium image"
+	@echo "  make test-upstream-tls        - Run the upstream TLS/mTLS e2e suite (headless)"
+	@echo "  make test-upstream-tls-headed - Run it with a visible browser"
 	@echo ""
 	@echo "Observability suite (testcontainers, self-contained - does NOT use the compose stack):"
 	@echo "  make deps-observability        - Install suite deps + Chromium, refresh pomerium image (needs mkcert)"
@@ -109,6 +115,22 @@ test-downstream-mtls:
 
 test-downstream-mtls-headed:
 	$(MAKE) -C $(DOWNSTREAM_MTLS_DIR) test-headed
+
+# ---------------------------------------------------------------------------
+# Upstream TLS/mTLS e2e suite (internal/acceptance/suites/upstream-tls):
+# testcontainers-based and entirely self-contained - it boots its own Keycloak
+# + upstreams (verify + Node TLS/mTLS echo servers) + Pomerium (official image)
+# and does NOT use the compose stack above. Do not run `make up` and
+# `make test-upstream-tls` at the same time: both bind host ports 8443/8080.
+# ---------------------------------------------------------------------------
+deps-upstream-tls:
+	$(MAKE) -C $(UPSTREAM_TLS_DIR) deps
+
+test-upstream-tls:
+	$(MAKE) -C $(UPSTREAM_TLS_DIR) test
+
+test-upstream-tls-headed:
+	$(MAKE) -C $(UPSTREAM_TLS_DIR) test-headed
 
 # ---------------------------------------------------------------------------
 # Observability e2e suite (internal/acceptance/suites/observability):

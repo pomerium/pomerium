@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,7 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -25,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/authenticateapi"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -193,56 +196,93 @@ func Test_getTokenSessionID(t *testing.T) {
 	assert.Equal(t, "e0b8096c-54dd-5623-8098-5488f9c302db", getIdentityTokenSessionID(nil, "TOKEN"))
 	assert.Equal(t, "9c99d1d0-805e-51cb-b808-772ab654268b", getAccessTokenSessionID(&identitypb.Provider{Id: "IDP1"}, "TOKEN"))
 	assert.Equal(t, "0fe0e289-40bb-5ffe-b328-e290e043a652", getIdentityTokenSessionID(&identitypb.Provider{Id: "IDP1"}, "TOKEN"))
+	assert.Equal(t, "9175ce67-7b36-5d30-a901-26314c546a5a", jwtProviderSessionID("k8s-prod", "TOKEN"))
 }
 
-func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
+func TestGetIncomingBearerToken(t *testing.T) {
 	t.Parallel()
 
-	bearerTokenFormatIDPAccessToken := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN
+	fmtDefault := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT
+	fmtAccess := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN
+	fmtIdentity := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN
+	fmtJWT := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
 
 	for _, tc := range []struct {
-		name                    string
-		globalBearerTokenFormat *config.BearerTokenFormat
-		routeBearerTokenFormat  *config.BearerTokenFormat
-		headers                 http.Header
-		expectedOK              bool
-		expectedToken           string
+		name           string
+		globalFormat   *config.BearerTokenFormat
+		routeFormat    *config.BearerTokenFormat
+		headers        http.Header
+		expectedOK     bool
+		expectedToken  string
+		expectedFormat config.BearerTokenFormat
 	}{
 		{
-			name:       "empty headers",
+			name:       "empty headers, passthrough",
 			expectedOK: false,
 		},
 		{
-			name:       "bearer disabled",
-			headers:    http.Header{"Authorization": {"Bearer access token via bearer"}},
+			name:       "unset format ignores bearer (passthrough)",
+			headers:    http.Header{"Authorization": {"Bearer tok"}},
 			expectedOK: false,
 		},
 		{
-			name:                    "bearer enabled via options",
-			globalBearerTokenFormat: &bearerTokenFormatIDPAccessToken,
-			headers:                 http.Header{"Authorization": {"Bearer access token via bearer"}},
-			expectedOK:              true,
-			expectedToken:           "access token via bearer",
+			name:           "default format ignores bearer",
+			globalFormat:   &fmtDefault,
+			headers:        http.Header{"Authorization": {"Bearer tok"}},
+			expectedOK:     false,
+			expectedFormat: fmtDefault,
 		},
 		{
-			name:                   "bearer enabled via route",
-			routeBearerTokenFormat: &bearerTokenFormatIDPAccessToken,
-			headers:                http.Header{"Authorization": {"Bearer access token via bearer"}},
-			expectedOK:             true,
-			expectedToken:          "access token via bearer",
+			name:           "access token via options",
+			globalFormat:   &fmtAccess,
+			headers:        http.Header{"Authorization": {"Bearer tok"}},
+			expectedOK:     true,
+			expectedToken:  "tok",
+			expectedFormat: fmtAccess,
+		},
+		{
+			name:           "access token via route override",
+			routeFormat:    &fmtAccess,
+			headers:        http.Header{"Authorization": {"Bearer tok"}},
+			expectedOK:     true,
+			expectedToken:  "tok",
+			expectedFormat: fmtAccess,
+		},
+		{
+			name:           "identity token",
+			globalFormat:   &fmtIdentity,
+			headers:        http.Header{"Authorization": {"Bearer id-tok"}},
+			expectedOK:     true,
+			expectedToken:  "id-tok",
+			expectedFormat: fmtIdentity,
+		},
+		{
+			name:           "jwt",
+			routeFormat:    &fmtJWT,
+			headers:        http.Header{"Authorization": {"Bearer jwt-tok"}},
+			expectedOK:     true,
+			expectedToken:  "jwt-tok",
+			expectedFormat: fmtJWT,
+		},
+		{
+			name:           "jwt but non-Bearer auth header",
+			routeFormat:    &fmtJWT,
+			headers:        http.Header{"Authorization": {"Basic dXNlcjpwYXNz"}},
+			expectedOK:     false,
+			expectedFormat: fmtJWT,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			cfg := New(NewDefaultOptions())
-			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalBearerTokenFormat)
+			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalFormat)
 
 			var route *Policy
-			if tc.routeBearerTokenFormat != nil {
+			if tc.routeFormat != nil {
 				route = &Policy{
 					RouteOptions: RouteOptions{
-						BearerTokenFormat: nullable.FromPtr(tc.routeBearerTokenFormat),
+						BearerTokenFormat: nullable.FromPtr(tc.routeFormat),
 					},
 				}
 			}
@@ -253,74 +293,10 @@ func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
 				r.Header = tc.headers
 			}
 
-			actualToken, actualOK := cfg.GetIncomingIDPAccessTokenForPolicy(route, r)
+			actualToken, actualFormat, actualOK := cfg.getIncomingBearerToken(route, r)
 			assert.Equal(t, tc.expectedOK, actualOK)
 			assert.Equal(t, tc.expectedToken, actualToken)
-		})
-	}
-}
-
-func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
-	t.Parallel()
-
-	bearerTokenFormatIDPIdentityToken := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN
-
-	for _, tc := range []struct {
-		name                    string
-		globalBearerTokenFormat *config.BearerTokenFormat
-		routeBearerTokenFormat  *config.BearerTokenFormat
-		headers                 http.Header
-		expectedOK              bool
-		expectedToken           string
-	}{
-		{
-			name:       "empty headers",
-			expectedOK: false,
-		},
-		{
-			name:       "bearer disabled",
-			headers:    http.Header{"Authorization": {"Bearer identity token via bearer"}},
-			expectedOK: false,
-		},
-		{
-			name:                    "bearer enabled via options",
-			globalBearerTokenFormat: &bearerTokenFormatIDPIdentityToken,
-			headers:                 http.Header{"Authorization": {"Bearer identity token via bearer"}},
-			expectedOK:              true,
-			expectedToken:           "identity token via bearer",
-		},
-		{
-			name:                   "bearer enabled via route",
-			routeBearerTokenFormat: &bearerTokenFormatIDPIdentityToken,
-			headers:                http.Header{"Authorization": {"Bearer identity token via bearer"}},
-			expectedOK:             true,
-			expectedToken:          "identity token via bearer",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			cfg := New(NewDefaultOptions())
-			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalBearerTokenFormat)
-
-			var route *Policy
-			if tc.routeBearerTokenFormat != nil {
-				route = &Policy{
-					RouteOptions: RouteOptions{
-						BearerTokenFormat: nullable.FromPtr(tc.routeBearerTokenFormat),
-					},
-				}
-			}
-
-			r, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
-			require.NoError(t, err)
-			if tc.headers != nil {
-				r.Header = tc.headers
-			}
-
-			actualToken, actualOK := cfg.GetIncomingIDPIdentityTokenForPolicy(route, r)
-			assert.Equal(t, tc.expectedOK, actualOK)
-			assert.Equal(t, tc.expectedToken, actualToken)
+			assert.Equal(t, tc.expectedFormat, actualFormat)
 		})
 	}
 }
@@ -534,6 +510,64 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		assert.Equal(t, "U1", s.GetUserId())
 		assert.True(t, s.GetRefreshDisabled())
 	})
+	t.Run("jwt", func(t *testing.T) {
+		t.Parallel()
+
+		// Set up a mock JWT issuer (publishes OIDC discovery + JWKS).
+		idp := mockidp.New(mockidp.Config{})
+		issuer := idp.Start(t)
+
+		ctx := testutil.GetContext(t, time.Minute)
+		cfg := New(NewDefaultOptions())
+		cfg.Options.IdentityProviders = map[string]IdentityProvider{
+			"prod": {
+				Issuer:        issuer,
+				Audiences:     []string{"pomerium.example.com"},
+				SupportedAlgs: []string{"ES256"},
+			},
+		}
+
+		route := &Policy{
+			RouteOptions: RouteOptions{
+				BearerTokenFormat: nullable.From(config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT),
+			},
+			IdentityProviders: []string{"prod"},
+		}
+
+		now := time.Now()
+		tok := idp.SignJWT(map[string]any{
+			"iss": issuer,
+			"sub": "U1",
+			"aud": []string{"pomerium.example.com"},
+			"exp": now.Add(time.Hour).Unix(),
+			"iat": now.Unix(),
+			"nbf": now.Unix(),
+		})
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.example.com", nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		resolver := NewIdentityProviderResolverFromConfig(ctx, cfg, nil)
+		c := NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
+			func(_ context.Context, _, _ string) (*databroker.Record, error) {
+				return nil, storage.ErrNotFound
+			},
+			func(_ context.Context, records []*databroker.Record) error {
+				if assert.Len(t, records, 2, "should put session and user") {
+					assert.Equal(t, "type.googleapis.com/session.Session", records[0].Type)
+					assert.Equal(t, "type.googleapis.com/user.User", records[1].Type)
+				}
+				return nil
+			},
+			WithIdentityProviderResolver(resolver),
+		)
+		s, err := c.CreateSession(ctx, cfg, route, req)
+		assert.NoError(t, err)
+		assert.Equal(t, "prod/U1", s.GetUserId())
+		assert.Equal(t, "prod", s.GetIdpId())
+		assert.True(t, s.GetRefreshDisabled())
+	})
 	t.Run("proxy_protocol", func(t *testing.T) {
 		t.Parallel()
 
@@ -589,5 +623,257 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "U1", s.GetUserId())
 		assert.True(t, s.GetRefreshDisabled())
+	})
+}
+
+// TestJWTSingleflightKey checks the de-dup key is keyed on (provider name, raw
+// token): the same token under different providers must not collapse, and
+// different tokens must not collapse. Audiences are per-provider now, so they
+// are no longer part of the key — the provider name already scopes them.
+func TestJWTSingleflightKey(t *testing.T) {
+	t.Parallel()
+
+	const tok = "header.payload.sig"
+
+	assert.NotEqual(t,
+		jwtSingleflightKey("prod", tok),
+		jwtSingleflightKey("staging", tok),
+		"same token under different providers must not share a key")
+
+	assert.NotEqual(t,
+		jwtSingleflightKey("prod", tok),
+		jwtSingleflightKey("prod", "other.token.sig"),
+		"different tokens must not share a key")
+
+	assert.Equal(t,
+		jwtSingleflightKey("prod", tok),
+		jwtSingleflightKey("prod", tok),
+		"same (provider, token) must be stable")
+}
+
+// TestVerifyJWTAndCreateSession exercises the verify-and-create body factored
+// out of the singleflight wrapper: provider-namespaced identity, mandatory
+// `sub`, per-provider audience binding, the TTL cap, and non-persistence of the
+// raw JWT.
+func TestVerifyJWTAndCreateSession(t *testing.T) {
+	t.Parallel()
+
+	idp := mockidp.New(mockidp.Config{})
+	issuer := idp.Start(t)
+
+	ctx := testutil.GetContext(t, time.Minute)
+	cfg := New(NewDefaultOptions())
+	cfg.Options.CookieExpire = time.Hour // makes the TTL cap observable
+	cfg.Options.IdentityProviders = map[string]IdentityProvider{
+		"prod": {Issuer: issuer, Audiences: []string{"api-a"}, SupportedAlgs: []string{"ES256"}},
+	}
+	resolver := NewIdentityProviderResolverFromConfig(ctx, cfg, nil)
+	require.NotNil(t, resolver)
+
+	now := time.Now()
+	mkToken := func(sub string, aud []string, exp time.Time) string {
+		claims := map[string]any{
+			"iss": issuer,
+			"aud": aud,
+			"exp": exp.Unix(),
+			"iat": now.Unix(),
+			"nbf": now.Unix(),
+		}
+		if sub != "" {
+			claims["sub"] = sub
+		}
+		return idp.SignJWT(claims)
+	}
+	newCreator := func() *incomingIDPTokenSessionCreator {
+		return NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
+			func(_ context.Context, _, _ string) (*databroker.Record, error) {
+				return nil, storage.ErrNotFound
+			},
+			func(_ context.Context, _ []*databroker.Record) error { return nil },
+		).(*incomingIDPTokenSessionCreator)
+	}
+
+	t.Run("happy path sets provider-namespaced identity", func(t *testing.T) {
+		c := newCreator()
+		c.timeNow = func() time.Time { return now }
+		tok := mkToken("U1", []string{"api-a"}, now.Add(time.Hour))
+		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		require.NoError(t, err)
+		assert.Equal(t, "prod", s.GetIdpId())
+		assert.Equal(t, "prod/U1", s.GetUserId())
+		assert.Equal(t, jwtProviderSessionID("prod", tok), s.GetId())
+		assert.True(t, s.GetRefreshDisabled())
+		assert.Empty(t, s.GetIdToken().GetRaw(), "raw JWT must not be persisted")
+	})
+
+	t.Run("missing sub rejected", func(t *testing.T) {
+		c := newCreator()
+		tok := mkToken("", []string{"api-a"}, now.Add(time.Hour))
+		_, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+	})
+
+	t.Run("wrong audience for provider rejected", func(t *testing.T) {
+		c := newCreator()
+		tok := mkToken("U1", []string{"api-b"}, now.Add(time.Hour))
+		_, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+	})
+
+	t.Run("ttl capped at now+CookieExpire", func(t *testing.T) {
+		c := newCreator()
+		c.timeNow = func() time.Time { return now }
+		tok := mkToken("U1", []string{"api-a"}, now.Add(100*time.Hour)) // far beyond CookieExpire
+		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		require.NoError(t, err)
+		assert.WithinDuration(t, now.Add(time.Hour), s.GetExpiresAt().AsTime(), time.Second)
+	})
+
+	t.Run("ttl uses token exp when earlier than cap", func(t *testing.T) {
+		c := newCreator()
+		c.timeNow = func() time.Time { return now }
+		exp := now.Add(5 * time.Minute)
+		tok := mkToken("U1", []string{"api-a"}, exp)
+		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		require.NoError(t, err)
+		assert.WithinDuration(t, exp, s.GetExpiresAt().AsTime(), time.Second)
+	})
+
+	// A cached session whose capped TTL has lapsed must NOT be returned stale
+	// (authorize would reject it as expired) — it is re-minted, so a still-valid
+	// token longer-lived than CookieExpire keeps working.
+	t.Run("expired cached session is re-minted", func(t *testing.T) {
+		tok := mkToken("U1", []string{"api-a"}, now.Add(100*time.Hour))
+		sessionID := jwtProviderSessionID("prod", tok)
+
+		stale := session.New("prod", sessionID)
+		stale.UserId = "prod/STALE"
+		stale.ExpiresAt = timestamppb.New(now.Add(-time.Hour)) // already lapsed
+		anyStale, err := anypb.New(stale)
+		require.NoError(t, err)
+
+		c := NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
+			func(_ context.Context, _, id string) (*databroker.Record, error) {
+				if id == sessionID {
+					return &databroker.Record{Id: id, Data: anyStale}, nil
+				}
+				return nil, storage.ErrNotFound
+			},
+			func(_ context.Context, _ []*databroker.Record) error { return nil },
+		).(*incomingIDPTokenSessionCreator)
+		c.timeNow = func() time.Time { return now }
+
+		s, err := c.verifyJWTAndCreateSession(ctx, cfg, resolver, tok)
+		require.NoError(t, err)
+		assert.True(t, s.GetExpiresAt().AsTime().After(now), "re-minted session must have a future expiry")
+		assert.Equal(t, "prod/U1", s.GetUserId(), "must re-mint, not return the stale cached session")
+	})
+}
+
+// TestCreateSessionForJWT_RouteProviderScoping verifies the route's
+// identity_providers allowlist is enforced (on the unverified issuer, before
+// verification): a route allowing only idp-a rejects an idp-b token, while a
+// route with an empty allowlist accepts any configured provider.
+func TestCreateSessionForJWT_RouteProviderScoping(t *testing.T) {
+	t.Parallel()
+
+	idpA := mockidp.New(mockidp.Config{})
+	issuerA := idpA.Start(t)
+	idpB := mockidp.New(mockidp.Config{})
+	issuerB := idpB.Start(t)
+
+	ctx := testutil.GetContext(t, time.Minute)
+	cfg := New(NewDefaultOptions())
+	cfg.Options.IdentityProviders = map[string]IdentityProvider{
+		"idp-a": {Issuer: issuerA, Audiences: []string{"api"}, SupportedAlgs: []string{"ES256"}},
+		"idp-b": {Issuer: issuerB, Audiences: []string{"api"}, SupportedAlgs: []string{"ES256"}},
+	}
+
+	now := time.Now()
+	tokB := idpB.SignJWT(map[string]any{
+		"iss": issuerB,
+		"sub": "svc",
+		"aud": []string{"api"},
+		"exp": now.Add(time.Hour).Unix(),
+		"iat": now.Unix(),
+		"nbf": now.Unix(),
+	})
+
+	resolver := NewIdentityProviderResolverFromConfig(ctx, cfg, nil)
+	// Defaults to the resolver built above; subtests override it to cover an
+	// unset and a degraded resolver.
+	newCreator := func(opts ...IncomingIDPTokenSessionCreatorOption) *incomingIDPTokenSessionCreator {
+		opts = append([]IncomingIDPTokenSessionCreatorOption{
+			WithIdentityProviderResolver(resolver),
+		}, opts...)
+		return NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
+			func(_ context.Context, _, _ string) (*databroker.Record, error) {
+				return nil, storage.ErrNotFound
+			},
+			func(_ context.Context, _ []*databroker.Record) error { return nil },
+			opts...,
+		).(*incomingIDPTokenSessionCreator)
+	}
+	mkReq := func() *http.Request {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.example.com", nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokB)
+		return req
+	}
+	jwtRoute := func(providers ...string) *Policy {
+		return &Policy{
+			RouteOptions:      RouteOptions{BearerTokenFormat: nullable.From(config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT)},
+			IdentityProviders: providers,
+		}
+	}
+
+	t.Run("route allowing only idp-a rejects idp-b token", func(t *testing.T) {
+		_, err := newCreator().CreateSession(ctx, cfg, jwtRoute("idp-a"), mkReq())
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+	})
+
+	t.Run("route with empty allowlist accepts idp-b token", func(t *testing.T) {
+		s, err := newCreator().CreateSession(ctx, cfg, jwtRoute(), mkReq())
+		require.NoError(t, err)
+		assert.Equal(t, "idp-b/svc", s.GetUserId())
+		assert.Equal(t, "idp-b", s.GetIdpId())
+	})
+
+	// cfg is not consulted for provider definitions: a provider absent from the
+	// configuration a request is evaluated against still verifies, because the
+	// resolver — owned by the caller's state generation, which can lag cfg — is
+	// the authority.
+	t.Run("verification follows the resolver, not cfg", func(t *testing.T) {
+		next := New(NewDefaultOptions()) // no identity_providers at all
+		s, err := newCreator().CreateSession(ctx, next, jwtRoute(), mkReq())
+		require.NoError(t, err)
+		assert.Equal(t, "idp-b/svc", s.GetUserId())
+	})
+
+	// Without a resolver there is nothing to verify against, so JWT bearer routes
+	// must reject rather than fall through to any other session source.
+	t.Run("no resolver supplied", func(t *testing.T) {
+		c := newCreator(WithIdentityProviderResolver(nil))
+		_, err := c.CreateSession(ctx, cfg, jwtRoute(), mkReq())
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+	})
+
+	// A provider that failed to build rejects the tokens of its own issuer and
+	// says why, while the rest of the map keeps working — the caller's state build
+	// is not failed by it either.
+	t.Run("degraded resolver rejects only the broken provider", func(t *testing.T) {
+		degraded := New(NewDefaultOptions())
+		degraded.Options.IdentityProviders = maps.Clone(cfg.Options.IdentityProviders)
+		degraded.Options.CA = "@@@not-valid-base64-or-pem@@@" // disables every provider using it
+
+		c := newCreator(WithIdentityProviderResolver(
+			NewIdentityProviderResolverFromConfig(ctx, degraded, nil)))
+		_, err := c.CreateSession(ctx, cfg, jwtRoute(), mkReq())
+		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+		assert.ErrorIs(t, err, ErrNoMatchingIdentityProvider)
+		assert.ErrorContains(t, err, "error building CA cert pool")
 	})
 }
