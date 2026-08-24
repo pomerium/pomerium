@@ -85,12 +85,12 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.15.0
-	github.com/pomerium/datasource v0.18.2-0.20260818131526-916f58e9213d
+	github.com/pomerium/datasource v0.18.2-0.20260820130814-5ffec27af67c
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f
 	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-00010101000000-000000000000
 	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-00010101000000-000000000000
-	github.com/pomerium/protoutil v0.0.0-20260818131343-4485b4658dc5
-	github.com/pomerium/webauthn v0.0.0-20260818131442-5c5c6e123895
+	github.com/pomerium/protoutil v0.0.0-20260820130836-1ba63a4ed009
+	github.com/pomerium/webauthn v0.0.0-20260820130751-2a7708c96dd4
 	github.com/prometheus/client_golang v1.24.0
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.70.0
