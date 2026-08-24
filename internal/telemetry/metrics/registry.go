@@ -89,7 +89,7 @@ func (r *metricRegistry) setBuildInfo(service, hostname, envoyVersion string) {
 		metricdata.NewLabelValue(version.FullVersion()),
 		metricdata.NewLabelValue(envoyVersion),
 		metricdata.NewLabelValue(version.GitCommit),
-		metricdata.NewLabelValue((runtime.Version())),
+		metricdata.NewLabelValue(runtime.Version()),
 		metricdata.NewLabelValue(hostname),
 	)
 	if err != nil {

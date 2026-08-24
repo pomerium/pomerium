@@ -66,7 +66,7 @@ func (s *Scrollbar) VisualPageSize() int {
 
 func (s *Scrollbar) VisualSliderPageSize() int {
 	length := s.maxValue + s.height
-	return length / (s.VisualPageSize())
+	return length / s.VisualPageSize()
 }
 
 type HitTestResult int

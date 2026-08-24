@@ -365,7 +365,7 @@ LOOP:
 // Returns a value between monitorMinTickInterval and monitorMaxTickInterval, based
 // on the given saturation value in the range [0.0, 1.0].
 func computeScaledTickInterval(saturation float64) time.Duration {
-	return monitorMaxTickInterval - (time.Duration(float64(monitorMaxTickInterval-monitorMinTickInterval) * max(0.0, min(1.0, saturation)))).
+	return monitorMaxTickInterval - time.Duration(float64(monitorMaxTickInterval-monitorMinTickInterval)*max(0.0, min(1.0, saturation))).
 		Round(time.Millisecond)
 }
 

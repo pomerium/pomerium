@@ -42,7 +42,7 @@ linters:
           - staticcheck
           - unparam
           - unused
-        path: _test\.go$|^tests/|^integration/|^samples/|^internal/testutil/|templates\.go$|^examples/
+        path: _test\.go$|^tests/|^integration/|^samples/|^internal/testutil/|templates\.go$|^examples/|^internal/testenv/
       - linters:
           - staticcheck
         path: (.+)\.go$

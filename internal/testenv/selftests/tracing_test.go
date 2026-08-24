@@ -327,7 +327,7 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 
 	results := NewTraceResults(s.receiver.FlushResourceSpans())
 	traces := results.GetTraces()
-	if (len(traces.ByParticipant)) != 0 {
+	if len(traces.ByParticipant) != 0 {
 		// whether or not these show up is timing dependent, but not important
 		possibleTraces := map[string]struct{}{
 			"Test Environment: Start":                                    {},
