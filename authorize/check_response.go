@@ -439,6 +439,19 @@ func ShouldRedirect(cfg *config.Config, in *envoy_service_auth_v3.CheckRequest, 
 		return true
 	}
 
+	// Fetch Metadata (https://www.w3.org/TR/fetch-metadata/) is authoritative when
+	// the browser sends it: only a navigation (a document, an iframe, a frame) can
+	// complete an OAuth redirect. Everything else — fetch/XHR, EventSource, a
+	// WebSocket handshake, subresources — follows the 302 to the IdP, dies
+	// cross-origin and retries forever, so it must receive a 401 the client code
+	// can act on. `Sec-Fetch-Mode` is set by every modern browser on every request
+	// and cannot be set by page script; Accept-sniffing below stays as the
+	// fallback for non-browser clients that omit it (it cannot classify `*/*`,
+	// which is what a bare fetch() sends, and 302s `text/event-stream`).
+	if mode := requestHeaders["sec-fetch-mode"]; mode != "" {
+		return mode == "navigate"
+	}
+
 	accept, err := rfc7231.ParseAccept(requestHeaders["accept"])
 	if err != nil {
 		return true

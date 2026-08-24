@@ -471,6 +471,39 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 		}`, res)
 	})
 
+	t.Run("sec-fetch-mode", func(t *testing.T) {
+		t.Parallel()
+		cfg := config.New(config.NewDefaultOptions())
+		req := func(headers map[string]string) *envoy_service_auth_v3.CheckRequest {
+			return &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{Headers: headers},
+					},
+				},
+			}
+		}
+		// A navigation — top-level document or a frame — can complete the redirect.
+		assert.True(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "navigate", "sec-fetch-dest": "document", "accept": "text/html",
+		}), &evaluator.Request{}))
+		assert.True(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "navigate", "sec-fetch-dest": "iframe", "accept": "text/html",
+		}), &evaluator.Request{}))
+		// A bare fetch() sends `Accept: */*`, which Accept-sniffing cannot classify.
+		assert.False(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "cors", "sec-fetch-dest": "empty", "accept": "*/*",
+		}), &evaluator.Request{}))
+		// EventSource advertises text/event-stream and would otherwise be redirected.
+		assert.False(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "cors", "sec-fetch-dest": "empty", "accept": "text/event-stream",
+		}), &evaluator.Request{}))
+		assert.False(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "websocket", "sec-fetch-dest": "websocket",
+		}), &evaluator.Request{}))
+		// Without Fetch Metadata the Accept fallback still decides.
+		assert.True(t, ShouldRedirect(cfg, req(map[string]string{"accept": "text/html"}), &evaluator.Request{}))
+	})
 	t.Run("grpc", func(t *testing.T) {
 		t.Parallel()
 		ctx := t.Context()
@@ -823,6 +856,39 @@ func TestShouldRedirect(t *testing.T) {
 				},
 			},
 		}))
+	})
+	t.Run("sec-fetch-mode", func(t *testing.T) {
+		t.Parallel()
+		cfg := config.New(config.NewDefaultOptions())
+		req := func(headers map[string]string) *envoy_service_auth_v3.CheckRequest {
+			return &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{Headers: headers},
+					},
+				},
+			}
+		}
+		// A navigation — top-level document or a frame — can complete the redirect.
+		assert.True(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "navigate", "sec-fetch-dest": "document", "accept": "text/html",
+		}), &evaluator.Request{}))
+		assert.True(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "navigate", "sec-fetch-dest": "iframe", "accept": "text/html",
+		}), &evaluator.Request{}))
+		// A bare fetch() sends `Accept: */*`, which Accept-sniffing cannot classify.
+		assert.False(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "cors", "sec-fetch-dest": "empty", "accept": "*/*",
+		}), &evaluator.Request{}))
+		// EventSource advertises text/event-stream and would otherwise be redirected.
+		assert.False(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "cors", "sec-fetch-dest": "empty", "accept": "text/event-stream",
+		}), &evaluator.Request{}))
+		assert.False(t, ShouldRedirect(cfg, req(map[string]string{
+			"sec-fetch-mode": "websocket", "sec-fetch-dest": "websocket",
+		}), &evaluator.Request{}))
+		// Without Fetch Metadata the Accept fallback still decides.
+		assert.True(t, ShouldRedirect(cfg, req(map[string]string{"accept": "text/html"}), &evaluator.Request{}))
 	})
 	t.Run("grpc", func(t *testing.T) {
 		t.Parallel()
