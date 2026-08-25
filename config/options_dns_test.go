@@ -25,7 +25,7 @@ func TestDNSOptions_FromToProto(t *testing.T) {
 	}{
 		{
 			&configpb.Settings{DnsFailureRefreshRate: durationpb.New(3 * time.Second)},
-			config.DNSOptions{FailureRefreshRate: ptr(3 * time.Second)},
+			config.DNSOptions{FailureRefreshRate: new(3 * time.Second)},
 		},
 		{
 			&configpb.Settings{DnsLookupFamily: new("V4_ONLY")},
@@ -33,7 +33,7 @@ func TestDNSOptions_FromToProto(t *testing.T) {
 		},
 		{
 			&configpb.Settings{DnsQueryTimeout: durationpb.New(4 * time.Second)},
-			config.DNSOptions{QueryTimeout: ptr(4 * time.Second)},
+			config.DNSOptions{QueryTimeout: new(4 * time.Second)},
 		},
 		{
 			&configpb.Settings{DnsQueryTries: proto.Uint32(17)},
@@ -41,7 +41,7 @@ func TestDNSOptions_FromToProto(t *testing.T) {
 		},
 		{
 			&configpb.Settings{DnsRefreshRate: durationpb.New(5 * time.Second)},
-			config.DNSOptions{RefreshRate: ptr(5 * time.Second)},
+			config.DNSOptions{RefreshRate: new(5 * time.Second)},
 		},
 		{
 			&configpb.Settings{DnsUdpMaxQueries: proto.Uint32(111)},
@@ -70,13 +70,13 @@ func TestDNSOptions_Validate(t *testing.T) {
 		err     error
 	}{
 		{config.DNSOptions{}, nil},
-		{config.DNSOptions{FailureRefreshRate: ptr(time.Microsecond)}, config.ErrDNSFailureRefreshRateTooShort},
-		{config.DNSOptions{FailureRefreshRate: ptr(time.Millisecond)}, nil},
+		{config.DNSOptions{FailureRefreshRate: new(time.Microsecond)}, config.ErrDNSFailureRefreshRateTooShort},
+		{config.DNSOptions{FailureRefreshRate: new(time.Millisecond)}, nil},
 		{config.DNSOptions{LookupFamily: "<INVALID>"}, config.ErrUnknownDNSLookupFamily},
-		{config.DNSOptions{QueryTimeout: ptr(-time.Millisecond)}, config.ErrDNSQueryTimeoutMustBePositive},
-		{config.DNSOptions{QueryTimeout: ptr(time.Millisecond)}, nil},
-		{config.DNSOptions{RefreshRate: ptr(time.Microsecond)}, config.ErrDNSRefreshRateTooShort},
-		{config.DNSOptions{RefreshRate: ptr(time.Millisecond)}, nil},
+		{config.DNSOptions{QueryTimeout: new(-time.Millisecond)}, config.ErrDNSQueryTimeoutMustBePositive},
+		{config.DNSOptions{QueryTimeout: new(time.Millisecond)}, nil},
+		{config.DNSOptions{RefreshRate: new(time.Microsecond)}, config.ErrDNSRefreshRateTooShort},
+		{config.DNSOptions{RefreshRate: new(time.Millisecond)}, nil},
 	} {
 		err := tc.options.Validate()
 		if tc.err == nil {
@@ -85,8 +85,4 @@ func TestDNSOptions_Validate(t *testing.T) {
 			assert.ErrorIs(t, err, tc.err)
 		}
 	}
-}
-
-func ptr[T any](v T) *T {
-	return new(v)
 }
