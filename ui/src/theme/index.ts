@@ -6,10 +6,7 @@ import { common } from "@mui/material/colors";
 
 import { softShadows } from "./shadows";
 
-export const createTheme = (
-  primaryColor: string,
-  secondaryColor: string,
-): MuiTheme => {
+export const createTheme = (primaryColor: string, secondaryColor: string): MuiTheme => {
   return muiCreateTheme({
     components: {
       MuiBackdrop: {

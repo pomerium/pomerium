@@ -15,12 +15,9 @@ export type SubpageContextProviderProps = {
   children?: ReactNode;
   page?: string;
 };
-export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
-  page,
-  children,
-}) => {
+export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({ page, children }) => {
   const setSubpage = (subpage: string) => {
-    location.hash = "subpage=" + encodeURIComponent(subpage);
+    history.pushState(null, "", `#subpage=${encodeURIComponent(subpage)}`);
     setState({ ...state, subpage });
   };
   const hashParams = new URLSearchParams(location.hash.substring(1));

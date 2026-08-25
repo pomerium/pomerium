@@ -46,12 +46,7 @@ export const WebAuthnButton: FC<WebAuthnButtonProps> = ({
 
   return (
     <>
-      <Button
-        onClick={handleClickButton}
-        variant="contained"
-        disabled={!enable}
-        {...props}
-      >
+      <Button onClick={handleClickButton} variant="contained" disabled={!enable} {...props}>
         {text}
       </Button>
       <form ref={formRef} method="post" action={url}>

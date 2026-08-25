@@ -56,8 +56,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
   const userPictureUrl = (get(data, "user.claims.picture") ||
     get(data, "profile.claims.picture") ||
     undefined) as string | undefined;
-  const showAvatar =
-    data?.page !== "SignOutConfirm" && data?.page !== "SignedOut";
+  const showAvatar = data?.page !== "SignOutConfirm" && data?.page !== "SignedOut";
 
   const handleDrawerOpen = () => {
     setDrawerOpen(true);
@@ -83,10 +82,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
   };
 
   return (
-    <AppBar
-      position="fixed"
-      sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
-    >
+    <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
       <Toolbar>
         {!mdUp && includeSidebar ? (
           <>
@@ -116,11 +112,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
             >
               <DrawerHeader>
                 <IconButton onClick={handleDrawerClose}>
-                  {theme.direction === "ltr" ? (
-                    <ChevronLeft />
-                  ) : (
-                    <ChevronRight />
-                  )}
+                  {theme.direction === "ltr" ? <ChevronLeft /> : <ChevronRight />}
                 </IconButton>
               </DrawerHeader>
               <UserSidebarContent close={handleDrawerClose} data={data} />
