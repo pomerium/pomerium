@@ -17,10 +17,7 @@ export type DeviceCredentialsTableProps = {
   ids: string[];
   webAuthnUrl: string;
 };
-export const DeviceCredentialsTable: FC<DeviceCredentialsTableProps> = ({
-  ids,
-  webAuthnUrl,
-}) => {
+export const DeviceCredentialsTable: FC<DeviceCredentialsTableProps> = ({ ids, webAuthnUrl }) => {
   return (
     <TableContainer>
       <Table>
@@ -40,11 +37,7 @@ export const DeviceCredentialsTable: FC<DeviceCredentialsTableProps> = ({
                 <TableCell>
                   <form action={webAuthnUrl} method="POST">
                     <input type="hidden" name="action" value="unregister" />
-                    <input
-                      type="hidden"
-                      name="pomerium_device_credential_id"
-                      value={id}
-                    />
+                    <input type="hidden" name="pomerium_device_credential_id" value={id} />
                     <Button size="small" type="submit" variant="contained">
                       Delete
                     </Button>

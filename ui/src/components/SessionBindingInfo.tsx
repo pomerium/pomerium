@@ -77,9 +77,7 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                         aria-label="Copy fingerprint"
                         size="small"
                         onClick={() => {
-                          navigator.clipboard.writeText(
-                            s.DetailsSSH.FingerprintID,
-                          );
+                          navigator.clipboard.writeText(s.DetailsSSH.FingerprintID);
                         }}
                       >
                         <ContentCopyIcon fontSize="small"></ContentCopyIcon>
@@ -96,11 +94,7 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                       method="POST"
                       sx={{ display: "inline-flex", gap: 1 }}
                     >
-                      <input
-                        type="hidden"
-                        name="sessionBindingID"
-                        value={s.SessionBindingID}
-                      />
+                      <input type="hidden" name="sessionBindingID" value={s.SessionBindingID} />
                       <Button size="small" type="submit" variant="contained">
                         Revoke
                       </Button>
@@ -117,11 +111,7 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                         alignItems: "center",
                       }}
                     >
-                      <input
-                        type="hidden"
-                        name="sessionBindingID"
-                        value={s.SessionBindingID}
-                      />
+                      <input type="hidden" name="sessionBindingID" value={s.SessionBindingID} />
                       <Button
                         size="small"
                         type="submit"

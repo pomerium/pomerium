@@ -7,10 +7,10 @@ import Footer from "./components/Footer";
 import Header from "./components/Header";
 import RoutesPage from "./components/RoutesPage";
 import SessionBindingInfoPage from "./components/SessionBindingInfo";
+import SignedOutPage from "./components/SignedOutPage";
 import SignInSuccessPage from "./components/SignInSuccessPage";
 import SignInVerifyPage from "./components/SignInVerifyPage";
 import SignOutConfirmPage from "./components/SignOutConfirmPage";
-import SignedOutPage from "./components/SignedOutPage";
 import { ToolbarOffset } from "./components/ToolbarOffset";
 import UpstreamErrorPage from "./components/UpstreamErrorPage";
 import UserInfoPage from "./components/UserInfoPage";
@@ -24,19 +24,18 @@ const App: FC = () => {
   const secondary = data?.secondaryColor || "#49AAA1";
   const theme = createTheme(primary, secondary);
   let body: React.ReactNode = <></>;
-  if (
-    data?.page === "Error" &&
-    data?.statusText?.toLowerCase().includes("upstream") &&
-    !data?.statusText?.toLowerCase().includes("local")
-  ) {
-    data.page = "UpstreamError";
-  }
   switch (data?.page) {
     case "UpstreamError":
       body = <UpstreamErrorPage data={data} />;
       break;
     case "Error":
-      body = <ErrorPage data={data} />;
+      body =
+        data?.statusText?.toLowerCase().includes("upstream") &&
+        !data?.statusText?.toLowerCase().includes("local") ? (
+          <UpstreamErrorPage data={data} />
+        ) : (
+          <ErrorPage data={data} />
+        );
       break;
     case "Routes":
       body = <RoutesPage data={data} />;
@@ -66,9 +65,7 @@ const App: FC = () => {
   }
 
   useLayoutEffect(() => {
-    const favicon = document.getElementById(
-      "favicon",
-    ) as HTMLAnchorElement | null;
+    const favicon = document.getElementById("favicon") as HTMLAnchorElement | null;
     if (favicon) {
       favicon.href = data?.faviconUrl || "/.pomerium/favicon.ico";
     }
@@ -84,10 +81,7 @@ const App: FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SubpageContextProvider page={data?.page}>
-        <Header
-          includeSidebar={data?.page === "UserInfo" || data?.page === "Routes"}
-          data={data}
-        />
+        <Header includeSidebar={data?.page === "UserInfo" || data?.page === "Routes"} data={data} />
         <ToolbarOffset />
         <Box sx={{ overflow: "hidden", height: "calc(100vh - 120px)" }}>
           <Box
