@@ -144,8 +144,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 	if err := oauth21.ValidateAuthorizationRequest(client.ResponseMetadata, v); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to validate authorization request for client")
 		description := "The authorization request is not valid for this client."
-		var oauthErr oauth21.Error
-		if errors.As(err, &oauthErr) {
+		if oauthErr, ok := errors.AsType[oauth21.Error](err); ok {
 			description = oauthErr.Description
 		}
 		httputil.NewError(http.StatusBadRequest, err).
@@ -219,8 +218,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 			// Discovery errors are non-fatal — upstream may not need OAuth.
 			// Fall through to issue the auth code; ext_proc will catch if
 			// upstream actually returns 401 later.
-			var discoveryErr *DiscoveryError
-			if errors.As(resolveErr, &discoveryErr) {
+			if _, ok := errors.AsType[*DiscoveryError](resolveErr); ok {
 				log.Ctx(ctx).Warn().Err(resolveErr).
 					Str("host", r.Host).
 					Str("upstream_url", info.UpstreamURL).
