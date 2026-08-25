@@ -383,9 +383,9 @@ func TestAuthorize_ExpiredTokenWithRefreshToken_RefreshesSilently(t *testing.T) 
 		testUserID      = "test-user"
 	)
 
-	var tokenEndpointHits int32
+	var tokenEndpointHits atomic.Int32
 	tokenSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&tokenEndpointHits, 1)
+		tokenEndpointHits.Add(1)
 		require.NoError(t, r.ParseForm())
 		assert.Equal(t, "refresh_token", r.FormValue("grant_type"))
 		assert.Equal(t, "valid-refresh-token", r.FormValue("refresh_token"))
@@ -451,7 +451,7 @@ func TestAuthorize_ExpiredTokenWithRefreshToken_RefreshesSilently(t *testing.T) 
 	srv.Authorize(w, r)
 
 	// Primary assertion: refresh MUST happen rather than falling into resolveAutoDiscoveryAuth.
-	assert.Equal(t, int32(1), atomic.LoadInt32(&tokenEndpointHits),
+	assert.Equal(t, int32(1), tokenEndpointHits.Load(),
 		"expired token with refresh_token should trigger silent refresh against token_endpoint")
 	require.NotNil(t, storedToken, "refreshed token should be written back to storage")
 	assert.Equal(t, "new-access", storedToken.AccessToken)

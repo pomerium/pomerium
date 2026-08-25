@@ -37,7 +37,7 @@ type AccessTracker struct {
 	maxSize                int
 	debouncePeriod         time.Duration
 
-	droppedAccesses int64
+	droppedAccesses atomic.Int64
 }
 
 // NewAccessTracker creates a new SessionAccessTracker.
@@ -69,7 +69,7 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 		serviceAccountAccesses.Insert(serviceAccountID)
 	}
 	runSubmit := func() {
-		if dropped := atomic.SwapInt64(&tracker.droppedAccesses, 0); dropped > 0 {
+		if dropped := tracker.droppedAccesses.Swap(0); dropped > 0 {
 			log.Ctx(ctx).Error().
 				Int64("dropped", dropped).
 				Msg("authorize: failed to track all session accesses")
@@ -116,7 +116,7 @@ func (tracker *AccessTracker) TrackServiceAccountAccess(serviceAccountID string)
 	select {
 	case tracker.serviceAccountAccesses <- serviceAccountID:
 	default:
-		atomic.AddInt64(&tracker.droppedAccesses, 1)
+		tracker.droppedAccesses.Add(1)
 	}
 }
 
@@ -125,7 +125,7 @@ func (tracker *AccessTracker) TrackSessionAccess(sessionID string) {
 	select {
 	case tracker.sessionAccesses <- sessionID:
 	default:
-		atomic.AddInt64(&tracker.droppedAccesses, 1)
+		tracker.droppedAccesses.Add(1)
 	}
 }
 
