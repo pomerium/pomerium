@@ -3,17 +3,18 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/oauth2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/idpsession"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -218,6 +219,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		IssuedAt:             timestamppb.Now(),
 		ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		Scopes:               authReq.GetScopes(),
+		SessionId:            authReq.GetSessionId(),
 	}
 
 	log.Ctx(ctx).Debug().
@@ -453,6 +455,7 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 		IssuedAt:             timestamppb.Now(),
 		ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		Scopes:               refreshTokenRecord.Scopes,
+		SessionId:            newSession.Id,
 	}
 
 	log.Ctx(ctx).Debug().
@@ -509,90 +512,68 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 	writeTokenResponse(w, resp)
 }
 
+func (srv *Handler) getValidSession(ctx context.Context, sessionID string) (*session.Session, error) {
+	sess, _, err := srv.storage.GetSession(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	// intentionally don't call validate as that checks oauth token validaty.
+	now := time.Now()
+	if expiresAt := sess.GetExpiresAt(); expiresAt.AsTime().Year() > 1970 && now.After(expiresAt.AsTime()) {
+		return nil, fmt.Errorf("%w: session expired at %s", session.ErrSessionExpired, expiresAt.AsTime())
+	}
+	return sess, err
+}
+
 // getOrRecreateSession tries to get an existing valid session, or recreates it using the upstream refresh token.
 func (srv *Handler) getOrRecreateSession(
 	ctx context.Context,
 	refreshTokenRecord *oauth21proto.MCPRefreshToken,
 ) (*session.Session, uint64, error) {
-	log.Ctx(ctx).Debug().
-		Str("user-id", refreshTokenRecord.UserId).
-		Str("idp-id", refreshTokenRecord.IdpId).
-		Bool("has-upstream-refresh-token", refreshTokenRecord.UpstreamRefreshToken != "").
-		Msg("mcp/session: recreating session from refresh token")
-
-	// For now, we need to create a new session since we don't track the original session ID
-	// The session will be created using the upstream refresh token
-
-	if refreshTokenRecord.UpstreamRefreshToken == "" {
-		log.Ctx(ctx).Error().Msg("mcp/session: no upstream refresh token available")
-		return nil, 0, fmt.Errorf("no upstream refresh token available")
+	idpSessionID := idpsession.ID{
+		UserID: refreshTokenRecord.GetUserId(),
+		IdpID:  refreshTokenRecord.GetIdpId(),
 	}
 
-	// Create a new session first so we can populate it with claims from the upstream IdP
-	newSessionID := uuid.NewString()
-	newSession := session.Create(refreshTokenRecord.IdpId, newSessionID, refreshTokenRecord.UserId, time.Now(), srv.sessionExpiry)
+	sessID := refreshTokenRecord.GetSessionId()
 
-	log.Ctx(ctx).Debug().
-		Str("session-id", newSession.Id).
-		Str("user-id", newSession.UserId).
-		Str("idp-id", newSession.IdpId).
-		Time("expires-at", newSession.ExpiresAt.AsTime()).
-		Msg("mcp/session: created new session")
+	sess, err := srv.getValidSession(ctx, sessID)
+	if err == nil {
+		// refresh with IDP so a new token is presented to the MCP client
+		newOAuthToken, err := srv.idpSessionManager.Refresh(
+			ctx,
+			idpSessionID,
+			manager.NewSessionUnmarshaler(sess),
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to refresh session: %w", err)
+		}
+		sess.OauthToken = manager.ToOAuthToken(newOAuthToken)
 
-	// Refresh the upstream token to get a fresh access token and populate claims.
-	// We use NewSessionUnmarshaler to capture ID token claims from the upstream IdP.
-	// All failures are hard errors - no fallback behavior that could mask upstream IdP issues.
-	if srv.getAuthenticator == nil {
-		log.Ctx(ctx).Error().
-			Str("idp-id", refreshTokenRecord.IdpId).
-			Msg("mcp/session: no authenticator getter configured")
-		return nil, 0, fmt.Errorf("no authenticator configured for upstream token refresh")
+		version, err := srv.storage.PutSession(ctx, sess)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to store refreshed session: %w", err)
+		}
+		return sess, version, nil
 	}
 
-	log.Ctx(ctx).Debug().
-		Str("idp-id", refreshTokenRecord.IdpId).
-		Msg("mcp/session: getting authenticator for upstream token refresh")
+	if status.Code(err) != codes.NotFound && !errors.Is(err, session.ErrSessionExpired) {
+		return nil, 0, err
+	}
 
-	authenticator, err := srv.getAuthenticator(ctx, refreshTokenRecord.IdpId)
+	// session is expired
+	newSession := session.Create(refreshTokenRecord.IdpId, uuid.New().String(), refreshTokenRecord.UserId, time.Now(), srv.sessionExpiry)
+
+	// recreate a new session from the IdpSession data we have
+	token, err := srv.idpSessionManager.Refresh(
+		ctx,
+		idpSessionID,
+		manager.NewSessionUnmarshaler(newSession),
+	)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).
-			Str("idp-id", refreshTokenRecord.IdpId).
-			Msg("mcp/session: failed to get authenticator for upstream token refresh")
-		return nil, 0, fmt.Errorf("failed to get authenticator for IdP %q: %w", refreshTokenRecord.IdpId, err)
+		return nil, 0, err
 	}
-	if authenticator == nil {
-		log.Ctx(ctx).Error().
-			Str("idp-id", refreshTokenRecord.IdpId).
-			Msg("mcp/session: authenticator is nil")
-		return nil, 0, fmt.Errorf("authenticator is nil for IdP %q", refreshTokenRecord.IdpId)
-	}
-
-	log.Ctx(ctx).Debug().Msg("mcp/session: refreshing upstream OAuth token")
-	oldToken := &oauth2.Token{
-		RefreshToken: refreshTokenRecord.UpstreamRefreshToken,
-	}
-	// Use NewSessionUnmarshaler to capture ID token claims from the upstream IdP.
-	// This ensures the recreated session has the same claims as a fresh session.
-	newOAuthToken, err := authenticator.Refresh(ctx, oldToken, manager.NewSessionUnmarshaler(newSession))
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).
-			Str("idp-id", refreshTokenRecord.IdpId).
-			Msg("mcp/session: failed to refresh upstream token")
-		return nil, 0, fmt.Errorf("failed to refresh upstream token: %w", err)
-	}
-
-	if newOAuthToken != nil {
-		log.Ctx(ctx).Debug().
-			Bool("has-access-token", newOAuthToken.AccessToken != "").
-			Bool("has-new-refresh-token", newOAuthToken.RefreshToken != "").
-			Time("expiry", newOAuthToken.Expiry).
-			Int("num-claims", len(newSession.Claims)).
-			Msg("mcp/session: upstream token refreshed successfully with claims")
-	}
-
-	newSession.OauthToken = manager.ToOAuthToken(newOAuthToken)
-	log.Ctx(ctx).Debug().Msg("mcp/session: attached fresh OAuth token to session")
-
+	newSession.OauthToken = manager.ToOAuthToken(token)
 	// Store the new session
 	log.Ctx(ctx).Debug().
 		Str("session-id", newSession.Id).

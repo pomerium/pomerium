@@ -106,7 +106,6 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 		return nil, err
 	}
 	a.state.Store(state)
-
 	return a, nil
 }
 

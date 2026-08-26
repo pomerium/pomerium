@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/idpsession"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -70,6 +71,8 @@ type Stateful struct {
 	codeRevoker code.Revoker
 
 	signInHandler SSHSignInHandler
+
+	idpSessMgr idpsession.Manager
 }
 
 type StatefulFlowOptions struct {
@@ -155,6 +158,9 @@ func NewStateful(
 	s.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
 	s.codeReader = code.NewReader(databroker.NewStaticClientGetter(s.dataBrokerClient))
 	s.codeRevoker = code.NewRevoker(databroker.NewStaticClientGetter(s.dataBrokerClient))
+	s.idpSessMgr = idpsession.NewManager(databroker.NewStaticClientGetter(s.dataBrokerClient), func(_ context.Context, _ string) (identity.Authenticator, error) {
+		return nil, fmt.Errorf("idp not available from stateful flow")
+	})
 	return s, nil
 }
 
@@ -528,6 +534,14 @@ func (s *Stateful) PersistSession(
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 
+	// TODO : current implementation will conflict across browsers / devices
+	if err := s.idpSessMgr.Create(ctx, idpsession.ID{
+		UserID: h.UserId,
+		IdpID:  h.IdentityProviderId,
+	}, accessToken, claims.RawIDToken); err != nil {
+		return err
+	}
+
 	u, _ := user.Get(ctx, s.dataBrokerClient, sess.GetUserId())
 	if u == nil {
 		// if no user exists yet, create a new one
@@ -640,14 +654,25 @@ func (s *Stateful) RevokeSession(
 		return ""
 	}
 
-	var rawIDToken string
 	if sess.OauthToken != nil {
-		rawIDToken = sess.GetIdToken().GetRaw()
-		if err := authenticator.Revoke(ctx, manager.FromOAuthToken(sess.OauthToken)); err != nil {
+		// FIXME: hack because authenticate flow doesn't get an authenticator directly.
+		tempMgr := idpsession.NewManager(databroker.NewStaticClientGetter(s.dataBrokerClient),
+			func(_ context.Context, idpID string) (identity.Authenticator, error) {
+				if idpID != h.IdentityProviderId {
+					return nil, fmt.Errorf("bug: session handle IDP ID is not the IDP ID passed to session manager")
+				}
+				return authenticator, nil
+			})
+		// TODO : this will conflict with multiple browsers / devices
+		if err := tempMgr.Revoke(ctx, idpsession.ID{
+			UserID: sess.UserId,
+			IdpID:  h.IdentityProviderId,
+		}); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
+			return ""
 		}
 	}
-	return rawIDToken
+	return sess.GetIdToken().GetRaw()
 }
 
 // VerifySession checks that an existing session is still valid.
