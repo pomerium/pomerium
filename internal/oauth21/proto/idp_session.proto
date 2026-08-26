@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+message IDPSession {
+	string id = 1;
+    string raw_id_token = 2;
+    AccessToken access_token = 3;
+    RefreshToken refresh_token = 4;
+    SessionState state = 5;
+
+	// google.protobuf.Struct is used to implement identity.State
+	// with json Marshal/Unmarshal semantics.
+	google.protobuf.Struct claims = 6;
+
+	map<string,string> metadata = 7;
+}
+
+enum UpstreamIdPSessionState {
+  UPSTREAM_IDP_SESSION_STATE_UKNOWN = 0;
+  UPSTREAM_IDP_SESSION_STATE_VALID       = 1;
+  UPSTREAM_IDP_SESSION_STATE_INVALID        = 2;
+}
+
+message RefreshToken {
+	string token = 1;
+	google.protobuf.Timestamp refreshed_at = 2;
+	google.protobuf.Timestamp expires_at = 3;
+	
+	// tracking refresh state
+	uint64 generation = 4;
+	uint64 epoch = 5;
+}
+
+message AccessToken {
+	string token = 1;
+	// "Bearer" / "DPoP" / "MAC", ...
+	string type = 2;
+}
+
+message SessionState {
+	UpstreamIdPSessionState state = 1;
+	// holds readable string about details of a state
+	string details = 2;
+}
