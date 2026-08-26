@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/events"
+	"github.com/pomerium/pomerium/internal/idpsession"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
@@ -21,7 +22,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
-	"github.com/pomerium/pomerium/pkg/identity/identity"
+	"github.com/pomerium/pomerium/pkg/identity"
 	metrics_ids "github.com/pomerium/pomerium/pkg/metrics"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -41,6 +42,8 @@ type Manager struct {
 	dataStore                *dataStore
 	refreshSessionSchedulers map[string]*refreshSessionScheduler
 	updateUserInfoSchedulers map[string]*updateUserInfoScheduler
+
+	idpSessManager idpsession.Manager
 }
 
 // New creates a new identity manager.
@@ -53,6 +56,11 @@ func New(
 		updateUserInfoSchedulers: make(map[string]*updateUserInfoScheduler),
 	}
 	mgr.UpdateConfig(options...)
+	idpsession.NewManager(databroker.ClientGetterFunc(func() databroker.DataBrokerServiceClient {
+		return mgr.cfg.Load().dataBrokerClient
+	}), func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+		return mgr.cfg.Load().getAuthenticator(ctx, idpID)
+	})
 	return mgr
 }
 
@@ -230,22 +238,18 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 		return
 	}
 
-	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), NewSessionUnmarshaler(s))
+	newToken, err := mgr.idpSessManager.Refresh(ctx, idpsession.ID{
+		UserID: s.GetUserId(),
+		IdpID:  s.GetIdpId(),
+	}, NewSessionUnmarshaler(s))
 	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
-	if isTemporaryError(err) {
-		log.Ctx(ctx).Error().Err(err).
-			Str("user-id", s.GetUserId()).
-			Str("session-id", s.GetId()).
-			Msg("failed to refresh oauth2 token")
-		return
-	} else if err != nil {
+	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("user-id", s.GetUserId()).
 			Str("session-id", s.GetId()).
 			Msg("failed to refresh oauth2 token, deleting session")
 		mgr.deleteSession(ctx, sessionID)
-		return
 	}
 	s.OauthToken = ToOAuthToken(newToken)
 
