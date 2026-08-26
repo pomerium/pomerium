@@ -16,6 +16,7 @@ import (
 	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/idpsession"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -60,6 +61,8 @@ type Handler struct {
 	httpClient              *http.Client // for upstream discovery fetches
 	asMetadataDomainMatcher *DomainMatcher
 	dcrEnabled              bool
+
+	idpSessionManager idpsession.Manager
 }
 
 // HandlerOption is a functional option for configuring a Handler.
@@ -153,7 +156,7 @@ func New(
 	for _, opt := range opts {
 		opt(h)
 	}
-
+	h.idpSessionManager = idpsession.NewManager(databroker.NewStaticClientGetter(client), h.getAuthenticator)
 	return h, nil
 }
 
