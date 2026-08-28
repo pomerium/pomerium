@@ -81,6 +81,28 @@ message TokenRequest {
   // REQUIRED when using body parameters for client authentication.
   // The client secret.
   optional string client_secret = 7 [(buf.validate.field).string.min_len = 1];
+
+  option (buf.validate.message).cel = {
+    id:         "token_request.client_assertion_pair",
+    message:    "client_assertion and client_assertion_type must be provided together",
+    expression: "has(this.client_assertion) == has(this.client_assertion_type)",
+  };
+
+  // --- Client Authentication via JWT Assertion ---
+  // The assertion framework parameters are defined by RFC 7521 Section 4.2;
+  // the JWT profile that fills them in is RFC 7523 Section 2.2, and the
+  // assertion's own claims are specified in RFC 7523 Section 3.
+
+  // REQUIRED when authenticating with private_key_jwt or client_secret_jwt.
+  // The signed JWT bearing the client's authentication assertion.
+  optional string client_assertion = 8 [(buf.validate.field).string.min_len = 1];
+
+  // REQUIRED when client_assertion is present. RFC 7523 Section 2.2 defines the only
+  // value in use today, but the accepted set is deliberately not constrained here:
+  // this message is persisted, and pinning the value in the storage layer would
+  // reject records written by a future version that accepts another assertion type.
+  // The handler enforces the value it supports at authentication time.
+  optional string client_assertion_type = 9;
 }
 
 // Represents a successful response from the Token Endpoint (Section 3.2.3).
