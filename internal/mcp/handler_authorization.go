@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"buf.build/go/protovalidate"
@@ -19,6 +20,10 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
+
+var supportedTokenAuthMethodsForCIMD = []string{
+	rfc7591v1.TokenEndpointAuthMethodNone,
+}
 
 // Authorize handles the /authorize endpoint.
 func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
@@ -354,8 +359,58 @@ func (srv *Handler) getOrFetchClient(ctx context.Context, clientID string) (*rfc
 		if err != nil {
 			return nil, err
 		}
+
+		if err := srv.negotiateTokenEndpointAuthMethod(ctx, doc); err != nil {
+			return nil, err
+		}
+
 		return doc.ToClientRegistration(), nil
 	}
 
 	return srv.storage.GetClient(ctx, clientID)
+}
+
+func (srv *Handler) negotiateTokenEndpointAuthMethod(ctx context.Context, doc *ClientIDMetadataDocument) error {
+	if doc.TokenEndpointAuthMethod == "" {
+		log.Ctx(ctx).Info().
+			Str("client-id", doc.ClientID).
+			Msg("mcp/authorize: client did not specify a token endpoint auth method, defaulting to none")
+		doc.TokenEndpointAuthMethod = rfc7591v1.TokenEndpointAuthMethodClientSecretBasic
+	}
+
+	if !slices.Contains(supportedTokenAuthMethodsForCIMD, doc.TokenEndpointAuthMethod) {
+		log.Ctx(ctx).Info().
+			Str("client-id", doc.ClientID).
+			Str("preferred-auth-method", doc.TokenEndpointAuthMethod).
+			Strs("client-supported-auth-methods", doc.TokendEndpointAuthMethodsSupported).
+			Strs("pomerium-supported-auth-methods", supportedTokenAuthMethodsForCIMD).
+			Msg("mcp/authorize: client prefers a token endpoint auth method not supported by Pomerium, checking additional auth methods")
+
+		for _, method := range supportedTokenAuthMethodsForCIMD {
+			if slices.Contains(doc.TokendEndpointAuthMethodsSupported, method) {
+				log.Ctx(ctx).Info().
+					Str("client-id", doc.ClientID).
+					Str("auth-method", method).
+					Msg("mcp/authorize: negotiated token endpoint auth method")
+				doc.TokenEndpointAuthMethod = method
+				return nil
+			}
+		}
+
+		log.Ctx(ctx).Error().
+			Str("client-id", doc.ClientID).
+			Str("preferred-auth-method", doc.TokenEndpointAuthMethod).
+			Strs("client-supported-auth-methods", doc.TokendEndpointAuthMethodsSupported).
+			Strs("pomerium-supported-auth-methods", supportedTokenAuthMethodsForCIMD).
+			Msg("mcp/authorize: failed to negotiate a token endpoint auth method")
+
+		return fmt.Errorf("%w: no mutually suported token endpoint auth method", ErrClientMetadataValidation)
+	}
+
+	log.Ctx(ctx).Debug().
+		Str("client-id", doc.ClientID).
+		Str("auth-method", doc.TokenEndpointAuthMethod).
+		Msg("mcp/authorize: using client's preferred token endpoint auth method")
+
+	return nil
 }
