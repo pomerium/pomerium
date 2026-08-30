@@ -80,14 +80,17 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	root.Handle(endpoints.PathWellKnownPomerium+"/", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
 	root.Path(endpoints.PathJWKS).Methods(http.MethodGet).Handler(traceHandler(handlers.JWKSHandler(signingKey)))
 	root.Path(endpoints.PathHPKEPublicKey).Methods(http.MethodGet).Handler(traceHandler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey)))
-	dcrEnabled := cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCPDynamicClientRegistration)
+	metadataOptions := mcp.MetadataOptions{
+		DCREnabled:  cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCPDynamicClientRegistration),
+		CIMDEnabled: cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCPClientIDMetadata),
+	}
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		root.Path(mcp.WellKnownAuthorizationServerEndpoint).
 			Methods(http.MethodGet, http.MethodOptions).
-			Handler(mcp.AuthorizationServerMetadataHandler(mcp.DefaultPrefix, dcrEnabled))
+			Handler(mcp.AuthorizationServerMetadataHandler(mcp.DefaultPrefix, metadataOptions))
 		root.PathPrefix(mcp.WellKnownProtectedResourceEndpoint).
 			Methods(http.MethodGet, http.MethodOptions).
-			Handler(mcp.ProtectedResourceMetadataHandler(mcp.DefaultPrefix, dcrEnabled))
+			Handler(mcp.ProtectedResourceMetadataHandler(mcp.DefaultPrefix, metadataOptions))
 	}
 
 	return nil
