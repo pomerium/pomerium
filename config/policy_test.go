@@ -75,6 +75,50 @@ func Test_PolicyValidate(t *testing.T) {
 	}
 }
 
+func TestPolicyPresentationRedactsUpstreamCredentials(t *testing.T) {
+	const usernameCanary = "POLICY_UPSTREAM_USERNAME_CANARY"
+	const passwordCanary = "POLICY_UPSTREAM_PASSWORD_CANARY"
+	p := Policy{
+		From: "https://app.example.com",
+		To: WeightedURLs{{URL: url.URL{
+			Scheme: "https",
+			User:   url.UserPassword(usernameCanary, passwordCanary),
+		}}},
+	}
+
+	err := p.Validate()
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), usernameCanary)
+	assert.NotContains(t, err.Error(), passwordCanary)
+	assert.NotContains(t, p.String(), usernameCanary)
+	assert.NotContains(t, p.String(), passwordCanary)
+	assert.Contains(t, p.String(), "xxxxx")
+}
+
+func TestPolicyRuntimeUpstreamCredentialsAreNotRedacted(t *testing.T) {
+	const usernameCanary = "RUNTIME_UPSTREAM_USERNAME_CANARY"
+	const passwordCanary = "RUNTIME_UPSTREAM_PASSWORD_CANARY"
+	const tokenCanary = "RUNTIME_UPSTREAM_TOKEN_CANARY"
+	p := Policy{
+		From: "https://app.example.com",
+		To: mustParseWeightedURLs(t,
+			"https://"+usernameCanary+":"+passwordCanary+"@first.internal",
+			"https://"+tokenCanary+"@second.internal",
+		),
+	}
+
+	flattened, _, err := p.To.Flatten()
+	require.NoError(t, err)
+	require.Len(t, flattened, 2)
+	assert.Contains(t, flattened[0], usernameCanary)
+	assert.Contains(t, flattened[0], passwordCanary)
+	assert.Contains(t, flattened[1], tokenCanary)
+
+	pb, err := p.ToProto()
+	require.NoError(t, err)
+	assert.Equal(t, flattened, pb.GetTo(), "runtime route material must retain upstream credentials")
+}
+
 func Test_PolicyValidate_RedirectResponseCode(t *testing.T) {
 	t.Parallel()
 
