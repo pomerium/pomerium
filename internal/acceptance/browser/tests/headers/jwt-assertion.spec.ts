@@ -9,15 +9,11 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { login, clearAuthState } from "../../helpers/authn-flow.js";
+import { login } from "../../helpers/authn-flow.js";
 import { testUsers } from "../../fixtures/users.js";
 import { urls, testRoutes } from "../../fixtures/test-data.js";
 
 test.describe("JWT Assertion Header", () => {
-  test.beforeEach(async ({ page }) => {
-    await clearAuthState(page);
-  });
-
   test("claim headers should be passed to upstream", async ({ page }) => {
     const user = testUsers.alice;
 

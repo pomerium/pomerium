@@ -9,17 +9,13 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { login, clearAuthState, isLoggedIn } from "../../helpers/authn-flow.js";
+import { login, isLoggedIn } from "../../helpers/authn-flow.js";
 import { getSessionCookie } from "../../helpers/cookies.js";
 import { waitForTokenExpiry } from "../../helpers/wait.js";
 import { testUsers } from "../../fixtures/users.js";
 import { urls } from "../../fixtures/test-data.js";
 
 test.describe("Token Refresh", () => {
-  test.beforeEach(async ({ page }) => {
-    await clearAuthState(page);
-  });
-
   test("should maintain access after token expiry through refresh", async ({ page }) => {
     const user = testUsers.alice;
 
@@ -78,5 +74,4 @@ test.describe("Token Refresh", () => {
       "Session cookie should exist after refresh"
     ).toBeDefined();
   });
-
 });
