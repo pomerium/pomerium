@@ -1,6 +1,7 @@
 import { FullConfig } from "@playwright/test";
 import https from "https";
 import http from "http";
+import { urls, paths } from "./fixtures/test-data.js";
 
 /**
  * Global setup for Pomerium E2E acceptance tests.
@@ -39,20 +40,46 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     },
   ];
 
+  // Hosted-authenticate suite checks (make up-hosted). The three local
+  // instances only exist when the "hosted" compose profile is active, and the
+  // cloud check fails fast on missing internet / a hosted-service outage.
+  if (process.env.HOSTED_E2E) {
+    checks.push(
+      { name: "Pomerium hosted-new healthz", url: `${urls.authenticateHostedNew}/healthz` },
+      { name: "Pomerium hosted-old healthz", url: `${urls.verifyHostedOld}/healthz` },
+      {
+        name: "Pomerium hosted-priority healthz",
+        url: `${urls.verifyHostedPriority}/healthz`,
+      },
+      {
+        name: "Hosted authenticate (cloud) reachability",
+        url: `${urls.hostedAuthenticate}${paths.hpkePublicKey}`,
+      },
+    );
+  }
+
   console.log("Verifying service availability:");
 
-  for (const check of checks) {
-    try {
-      await checkUrl(check.url, check.name);
+  const results = await Promise.allSettled(
+    checks.map((check) => checkUrl(check.url, check.name))
+  );
+  let failedCheck: string | undefined;
+  results.forEach((result, i) => {
+    const check = checks[i];
+    if (result.status === "fulfilled") {
       console.log(`  ✓ ${check.name}: OK`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+    } else {
+      const message =
+        result.reason instanceof Error ? result.reason.message : String(result.reason);
       console.log(`  ✗ ${check.name}: ${message}`);
-      throw new Error(
-        `Service check failed for ${check.name}. ` +
-        `Ensure all services are running with 'make up' or 'docker compose up -d --wait'.`
-      );
+      failedCheck ??= check.name;
     }
+  });
+  if (failedCheck) {
+    throw new Error(
+      `Service check failed for ${failedCheck}. ` +
+      `Ensure all services are running with 'make up' or 'docker compose up -d --wait'.`
+    );
   }
 
   console.log("");
