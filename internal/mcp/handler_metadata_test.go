@@ -1,10 +1,13 @@
 package mcp_test
 
 import (
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/mcp"
@@ -56,4 +59,58 @@ func TestWWWAuthenticate(t *testing.T) {
 			}))
 		})
 	}
+}
+
+func TestAuthorizationServerMetadataHandler(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/.well-known/oauth-protected-resource", nil)
+	r.Host = "my-domain.internal"
+
+	t.Run("DCR disabled", func(t *testing.T) {
+		h := mcp.AuthorizationServerMetadataHandler("/prefix", false)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{
+			"authorization_endpoint": "https://my-domain.internal/prefix/authorize",
+			"authorization_response_iss_parameter_supported": true,
+			"client_id_metadata_document_supported": true,
+			"code_challenge_methods_supported": [ "S256" ],
+			"grant_types_supported": [ "authorization_code", "refresh_token" ],
+			"issuer": "https://my-domain.internal",
+			"response_types_supported": [ "code" ],
+			"revocation_endpoint": "https://my-domain.internal/prefix/revoke",
+			"revocation_endpoint_auth_methods_supported": [ "client_secret_post" ],
+			"service_documentation": "https://pomerium.com/docs",
+			"token_endpoint": "https://my-domain.internal/prefix/token",
+			"token_endpoint_auth_methods_supported": [ "none" ]
+		}`, string(b))
+	})
+
+	t.Run("DCR enabled", func(t *testing.T) {
+		h := mcp.AuthorizationServerMetadataHandler("/prefix", true)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{
+			"authorization_endpoint": "https://my-domain.internal/prefix/authorize",
+			"authorization_response_iss_parameter_supported": true,
+			"client_id_metadata_document_supported": true,
+			"code_challenge_methods_supported": [ "S256" ],
+			"grant_types_supported": [ "authorization_code", "refresh_token" ],
+			"issuer": "https://my-domain.internal",
+			"registration_endpoint": "https://my-domain.internal/prefix/register",
+			"response_types_supported": [ "code" ],
+			"revocation_endpoint": "https://my-domain.internal/prefix/revoke",
+			"revocation_endpoint_auth_methods_supported": [ "client_secret_post" ],
+			"service_documentation": "https://pomerium.com/docs",
+			"token_endpoint": "https://my-domain.internal/prefix/token",
+			"token_endpoint_auth_methods_supported": [ "client_secret_basic", "none" ]
+		}`, string(b))
+	})
 }
