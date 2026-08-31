@@ -2,13 +2,19 @@ package mcp
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
 func TestIsClientIDMetadataURL(t *testing.T) {
@@ -188,71 +194,6 @@ func TestClientMetadataFetcher_Fetch(t *testing.T) {
 		assert.Contains(t, err.Error(), "does not match URL")
 	})
 
-	t.Run("rejects when redirect_uris is missing", func(t *testing.T) {
-		clientIDURL := ""
-		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			metadata := map[string]any{
-				"client_id":                  clientIDURL,
-				"client_name":                "Test Client",
-				"token_endpoint_auth_method": "none",
-				// redirect_uris is missing
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(metadata)
-		}))
-		defer server.Close()
-
-		clientIDURL = server.URL + "/oauth/client.json"
-		server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			metadata := map[string]any{
-				"client_id":                  clientIDURL,
-				"client_name":                "Test Client",
-				"token_endpoint_auth_method": "none",
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(metadata)
-		})
-
-		fetcher := NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher())
-		_, err := fetcher.Fetch(context.Background(), clientIDURL)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrClientMetadataValidation)
-		assert.Contains(t, err.Error(), "redirect_uris is required")
-	})
-
-	t.Run("rejects client_secret_basic auth method", func(t *testing.T) {
-		clientIDURL := ""
-		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			metadata := map[string]any{
-				"client_id":                  clientIDURL,
-				"client_name":                "Test Client",
-				"redirect_uris":              []string{"http://localhost:8080/callback"},
-				"token_endpoint_auth_method": "client_secret_basic",
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(metadata)
-		}))
-		defer server.Close()
-
-		clientIDURL = server.URL + "/oauth/client.json"
-		server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			metadata := map[string]any{
-				"client_id":                  clientIDURL,
-				"client_name":                "Test Client",
-				"redirect_uris":              []string{"http://localhost:8080/callback"},
-				"token_endpoint_auth_method": "client_secret_basic",
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(metadata)
-		})
-
-		fetcher := NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher())
-		_, err := fetcher.Fetch(context.Background(), clientIDURL)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrClientMetadataValidation)
-		assert.Contains(t, err.Error(), "not allowed")
-	})
-
 	t.Run("rejects HTTP 404", func(t *testing.T) {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
@@ -331,4 +272,235 @@ func TestClientIDMetadataDocument_ToClientRegistration(t *testing.T) {
 	assert.Equal(t, "https://example.com", reg.ResponseMetadata.GetClientUri())
 	assert.Equal(t, "none", reg.ResponseMetadata.GetTokenEndpointAuthMethod())
 	assert.Nil(t, reg.ClientSecret, "client secret should be nil for metadata document clients")
+}
+
+func TestClientIDMetadataDocument_Validate(t *testing.T) {
+	tcs := []struct {
+		name    string
+		doc     ClientIDMetadataDocument
+		wantErr string
+	}{
+		{
+			name:    "missing redirect_uris",
+			doc:     ClientIDMetadataDocument{},
+			wantErr: "redirect_uris is required",
+		},
+		{
+			name: "rejects client basic auth",
+			doc: ClientIDMetadataDocument{
+				RedirectURIs:            []string{"https://client.example.com/callback"},
+				TokenEndpointAuthMethod: "client_secret_basic",
+			},
+			wantErr: "not allowed",
+		},
+
+		{
+			name: "insecure_jwks_uri",
+			doc: ClientIDMetadataDocument{
+				RedirectURIs: []string{"https://client.example.com/callback"},
+				JWKSURI:      "http://client.example.com/jwks.json",
+			},
+			wantErr: "must use the https scheme",
+		},
+		{
+			name: "private_key_jwt_without_keys",
+			doc: ClientIDMetadataDocument{
+				RedirectURIs:            []string{"https://client.example.com/callback"},
+				TokenEndpointAuthMethod: "private_key_jwt",
+			},
+			wantErr: "requires jwks_uri",
+		},
+
+		{
+			name: "jwks_uri",
+			doc: ClientIDMetadataDocument{
+				RedirectURIs:            []string{"https://client.example.com/callback"},
+				JWKSURI:                 "https://client.example.com/jwks.json",
+				TokenEndpointAuthMethod: rfc7591v1.TokenEndpointAuthMethodNone,
+			},
+			wantErr: "must be configured with \"private_key_jwt\"",
+		},
+		{
+			name: "valid private_key_jwt",
+			doc: ClientIDMetadataDocument{
+				RedirectURIs:            []string{"https://client.example.com/callback"},
+				TokenEndpointAuthMethod: "private_key_jwt",
+				JWKSURI:                 "https://client.example.com/jwks.json",
+			},
+		},
+		{
+			name: "valid",
+			doc: ClientIDMetadataDocument{
+				RedirectURIs: []string{"https://client.example.com/callback"},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		err := tc.doc.Validate()
+		if tc.wantErr != "" {
+			assert.ErrorIs(t, err, ErrClientMetadataValidation, tc.name)
+			assert.ErrorContains(t, err, tc.wantErr, tc.name)
+			continue
+		}
+		assert.NoError(t, err)
+	}
+}
+
+func TestJWKSFetcher(t *testing.T) {
+	t.Run("fetch successfully", func(t *testing.T) {
+		key := newAssertionTestKey(t, jose.RS256, "test-key")
+		client, jwksURI := jwksHandler(t, key.jwks())
+		assertion := key.sign(t, jwt.Claims{Subject: "test-client"})
+
+		jwks := NewJWKSFetcher(client, allowAllDomainMatcher())
+		keySet, err := jwks.KeySet(context.Background(), jwksURI)
+		require.NoError(t, err)
+
+		got, err := keySet.VerifySignature(context.Background(), assertion)
+		require.NoError(t, err)
+		var claims jwt.Claims
+		require.NoError(t, json.Unmarshal(got, &claims))
+		assert.Equal(t, "test-client", claims.Subject)
+	})
+
+	t.Run("fetch invalid key", func(t *testing.T) {
+		key := newAssertionTestKey(t, jose.RS256, "test-key")
+		invalidKey := newAssertionTestKey(t, jose.RS256, "test-key")
+		client, jwksURI := jwksHandler(t, key.jwks())
+		assertion := invalidKey.sign(t, jwt.Claims{Subject: "test-client"})
+
+		jwks := NewJWKSFetcher(client, allowAllDomainMatcher())
+		keySet, err := jwks.KeySet(context.Background(), jwksURI)
+		require.NoError(t, err)
+
+		_, sigErr := keySet.VerifySignature(context.Background(), assertion)
+		require.Error(t, sigErr)
+		assert.ErrorContains(t, sigErr, "failed to verify")
+	})
+
+	t.Run("fetch not found", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jwks.json", r.URL.Path)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+		jwks := NewJWKSFetcher(server.Client(), allowAllDomainMatcher())
+		ks, err := jwks.KeySet(context.Background(), server.URL+"/jwks.json")
+		require.NoError(t, err)
+
+		key := newAssertionTestKey(t, jose.RS256, "test-key")
+		assertion := key.sign(t, jwt.Claims{Subject: "test-client"})
+
+		_, sigErr := ks.VerifySignature(t.Context(), assertion)
+		require.Error(t, sigErr)
+		assert.ErrorContains(t, sigErr, "Not Found")
+	})
+
+	t.Run("invalid domain", func(t *testing.T) {
+		matcher := NewDomainMatcher([]string{"vscode.dev"})
+		key := newAssertionTestKey(t, jose.RS256, "test-key")
+		client, jwksURI := jwksHandler(t, key.jwks())
+
+		jwks := NewJWKSFetcher(client, matcher)
+		_, err := jwks.KeySet(context.Background(), jwksURI)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrDomainNotAllowed)
+	})
+
+	t.Run("no domain matcher", func(t *testing.T) {
+		key := newAssertionTestKey(t, jose.RS256, "test-key")
+		client, jwksURI := jwksHandler(t, key.jwks())
+
+		jwks := NewJWKSFetcher(client, nil)
+		_, err := jwks.KeySet(context.Background(), jwksURI)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrDomainNotAllowed)
+	})
+}
+
+type assertionTestKey struct {
+	alg        jose.SignatureAlgorithm
+	signingKey any
+	publicKey  any
+	kid        string
+}
+
+func newAssertionTestKey(
+	t *testing.T,
+	alg jose.SignatureAlgorithm,
+	kid string,
+) assertionTestKey {
+	t.Helper()
+
+	switch alg {
+	case jose.RS256:
+		private, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err)
+
+		return assertionTestKey{
+			alg:        alg,
+			signingKey: private,
+			publicKey:  private.Public(),
+			kid:        kid,
+		}
+
+	case jose.HS256:
+		secret := make([]byte, 32)
+		_, err := rand.Read(secret)
+		require.NoError(t, err)
+
+		return assertionTestKey{
+			alg:        alg,
+			signingKey: secret,
+			publicKey:  secret,
+			kid:        kid,
+		}
+
+	default:
+		t.Fatalf("unsupported test signing algorithm %q", alg)
+		return assertionTestKey{}
+	}
+}
+
+func (k assertionTestKey) jwks() jose.JSONWebKeySet {
+	return jose.JSONWebKeySet{
+		Keys: []jose.JSONWebKey{{
+			Key:       k.publicKey,
+			KeyID:     k.kid,
+			Algorithm: string(k.alg),
+			Use:       "sig",
+		}},
+	}
+}
+
+func (k assertionTestKey) sign(t *testing.T, claims jwt.Claims) string {
+	t.Helper()
+
+	signer, err := jose.NewSigner(
+		jose.SigningKey{
+			Algorithm: k.alg,
+			Key:       k.signingKey,
+		},
+		(&jose.SignerOptions{}).
+			WithHeader(jose.HeaderKey("kid"), k.kid),
+	)
+	require.NoError(t, err)
+
+	raw, err := jwt.Signed(signer).
+		Claims(claims).
+		CompactSerialize()
+	require.NoError(t, err)
+	return raw
+}
+
+func jwksHandler(t *testing.T, keys jose.JSONWebKeySet) (client *http.Client, uri string) {
+	t.Helper()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(keys)
+	}))
+	t.Cleanup(server.Close)
+	return server.Client(), server.URL + "/jwks.json"
 }

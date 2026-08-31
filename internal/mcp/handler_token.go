@@ -3,17 +3,23 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -48,6 +54,11 @@ func (srv *Handler) Token(w http.ResponseWriter, r *http.Request) {
 	req, err := srv.getTokenRequest(r)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/token: get token request failed")
+		if errors.Is(err, ErrClientAssertion) {
+			// RFC 7523 Section 3.2
+			oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidClient)
+			return
+		}
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidRequest)
 		return
 	}
@@ -291,6 +302,16 @@ func (srv *Handler) getTokenRequest(
 		return tokenReq, nil
 	}
 
+	if m == rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT {
+		if err := srv.verifyClientAssertion(ctx, tokenReq, clientReg, tokenEndpointAudiences(r, srv.prefix)); err != nil {
+			log.Ctx(ctx).Debug().Err(err).
+				Str("client-id", tokenReq.GetClientId()).
+				Msg("mcp/token: private_key_jwt authentication failed")
+			return nil, fmt.Errorf("%w : %w", ErrClientAssertion, err)
+		}
+		return tokenReq, nil
+	}
+
 	secret := clientReg.ClientSecret
 	if secret == nil {
 		return nil, fmt.Errorf("client registration does not have a client secret")
@@ -319,6 +340,14 @@ func (srv *Handler) getTokenRequest(
 	}
 
 	return tokenReq, nil
+}
+
+// issuer or token endpoint
+func tokenEndpointAudiences(r *http.Request, prefix string) []string {
+	issuer := url.URL{Scheme: "https", Host: r.Host}
+	endpoint := issuer
+	endpoint.Path = path.Join(prefix, tokenEndpoint)
+	return []string{endpoint.String(), issuer.String()}
 }
 
 func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request, tokenReq *oauth21proto.TokenRequest) {
@@ -664,4 +693,113 @@ func writeTokenResponse(w http.ResponseWriter, resp *oauth21proto.TokenResponse)
 	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
+}
+
+// ErrClientAssertion represents a failure to authenticate a client via "private_key_jwt"
+var ErrClientAssertion = errors.New("client assertion authentication failed")
+
+// accept only common asymmetric algs.
+func clientAssertionSigAlgs() []string {
+	return []string{"RS256", "ES256", "EdDSA"}
+}
+
+// verifyClientAssertion authenticates a token request that uses "private_key_jwt"
+func (srv *Handler) verifyClientAssertion(
+	ctx context.Context,
+	tokenReq *oauth21proto.TokenRequest,
+	clientReg *rfc7591v1.ClientRegistration,
+	expectedAud []string,
+) error {
+	clientID := tokenReq.GetClientId()
+	// ClientAssertionTypeJWTBearer is the only assertion type defined for OAuth client
+	// authentication RFC 7523 Section 2.2
+	if tokenReq.GetClientAssertionType() != rfc7591v1.GrantTypesJWTBearer {
+		return fmt.Errorf(" unsupported client_assertion_type %q", tokenReq.GetClientAssertionType())
+	}
+
+	alg, err := clientAssertionAlgorithm(tokenReq.GetClientAssertion())
+	if err != nil {
+		return err
+	}
+
+	keySet, err := srv.jwksFetcher.KeySet(ctx, clientReg.ResponseMetadata.GetJwksUri())
+	if err != nil {
+		return err
+	}
+
+	payload, err := keySet.VerifySignature(ctx, tokenReq.GetClientAssertion())
+	if err != nil {
+		return fmt.Errorf("signature verification failed: %w", err)
+	}
+
+	var claims jwtutil.Claims
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return fmt.Errorf("could not parse assertion claims: %w", err)
+	}
+
+	if err := validateClientAssertionClaims(claims, clientID, expectedAud); err != nil {
+		return err
+	}
+
+	log.Ctx(ctx).Debug().
+		Str("client-id", clientID).
+		Str("alg", alg).
+		Msg("mcp/token: client assertion verified")
+
+	return nil
+}
+
+func clientAssertionAlgorithm(assertion string) (string, error) {
+	tok, err := jose.ParseSigned(assertion)
+	if err != nil {
+		return "", fmt.Errorf("could not parse assertion: %w", err)
+	}
+
+	if len(tok.Signatures) != 1 {
+		// RFC 7523 Section 2.2
+		return "", fmt.Errorf("assertion must carry exactly one signature, got %d", len(tok.Signatures))
+	}
+
+	alg := tok.Signatures[0].Header.Algorithm
+	if !slices.Contains(clientAssertionSigAlgs(), alg) {
+		return "", fmt.Errorf("unsupported signature algorithm %q", alg)
+	}
+	return alg, nil
+}
+
+// RFC 7523 Section 3 validation,
+// * Omitting optional jti replay validation
+// * Omitting optional old iat validation
+func validateClientAssertionClaims(claims jwtutil.Claims, clientID string, expectedAud []string) error {
+	if issuer, _ := claims.GetIssuer(); issuer != clientID {
+		return fmt.Errorf("assertion iss %q does not match client_id %q", issuer, clientID)
+	}
+	if subject, _ := claims.GetSubject(); subject != clientID {
+		return fmt.Errorf("assertion sub %q does not match client_id %q", subject, clientID)
+	}
+
+	aud, _ := claims.GetAudience()
+	if !slices.ContainsFunc(
+		aud,
+		func(a string) bool {
+			return slices.Contains(expectedAud, a)
+		},
+	) {
+		return fmt.Errorf("assertion aud %v does not contain this token endpoint", aud)
+	}
+
+	expiry, ok := claims.GetExpirationTime()
+	if !ok {
+		return fmt.Errorf("no expiration")
+	}
+
+	now := time.Now()
+	skew := time.Minute
+	if expiry.Before(now.Add(-skew)) {
+		return fmt.Errorf("expired")
+	}
+	if notBefore, ok := claims.GetNotBefore(); ok && notBefore.After(now.Add(skew)) {
+		return fmt.Errorf("not yet valid")
+	}
+	return nil
 }

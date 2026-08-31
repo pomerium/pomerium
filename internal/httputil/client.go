@@ -151,3 +151,54 @@ func Do(ctx context.Context, method, endpoint, userAgent string, headers map[str
 	}
 	return nil
 }
+
+var ErrResponseTooLarge = errors.New("response exceeds maximum size")
+
+func NewSizeLimitClient(base *http.Client, maxSize int64) *http.Client {
+	if base == nil {
+		base = http.DefaultClient
+	}
+	client := *base
+	client.Transport = newSizeLimitRoundTripper(client.Transport, maxSize)
+	return &client
+}
+
+// round tripper that caps reading from resp body size.
+func newSizeLimitRoundTripper(base http.RoundTripper, maxSize int64) http.RoundTripper {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return responseSizeLimitedRoundTripper{base: base, maxSize: maxSize}
+}
+
+type responseSizeLimitedRoundTripper struct {
+	base    http.RoundTripper
+	maxSize int64
+}
+
+func (t responseSizeLimitedRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	res, err := t.base.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	res.Body = &limitedBody{ReadCloser: res.Body, remaining: t.maxSize}
+	return res, nil
+}
+
+type limitedBody struct {
+	io.ReadCloser
+	remaining int64
+}
+
+func (b *limitedBody) Read(p []byte) (int, error) {
+	// Extra padding for EOF on messages of exactly maxSize
+	if int64(len(p)) > b.remaining+1 {
+		p = p[:b.remaining+1]
+	}
+	n, err := b.ReadCloser.Read(p)
+	b.remaining -= int64(n)
+	if b.remaining < 0 {
+		return 0, ErrResponseTooLarge
+	}
+	return n, err
+}

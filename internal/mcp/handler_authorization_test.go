@@ -469,7 +469,7 @@ func TestAuthorize_ExpiredTokenWithRefreshToken_RefreshesSilently(t *testing.T) 
 func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 	srv := &Handler{}
 
-	cases := []struct {
+	tcs := []struct {
 		name      string
 		preferred string
 		supported []string
@@ -479,27 +479,33 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 		{
 			name:      "preferred_supported",
 			preferred: rfc7591v1.TokenEndpointAuthMethodNone,
-			supported: []string{"private_key_jwt", rfc7591v1.TokenEndpointAuthMethodNone},
+			supported: []string{"tls_client_auth", rfc7591v1.TokenEndpointAuthMethodNone},
 			expect:    rfc7591v1.TokenEndpointAuthMethodNone,
 		},
 		{
 			name:      "negotiated",
-			preferred: "private_key_jwt",
-			supported: []string{"private_key_jwt", rfc7591v1.TokenEndpointAuthMethodNone},
+			preferred: "tls_client_auth",
+			supported: []string{"tls_client_auth", rfc7591v1.TokenEndpointAuthMethodNone},
 			expect:    rfc7591v1.TokenEndpointAuthMethodNone,
 		},
 		{
-			name:      "no_overlap",
-			preferred: "private_key_jwt",
-			supported: []string{"private_key_jwt", "tls_client_auth"},
-			expectErr: true,
-			expect:    "private_key_jwt",
+			name:      "private_key_jwt preferred",
+			preferred: "tls_client_auth",
+			supported: []string{"tls_client_auth", rfc7591v1.TokenEndpointAuthMethodNone, rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT},
+			expect:    rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT,
 		},
 		{
-			name:      "empty_supported",
-			expect:    "private_key_jwt",
-			preferred: "private_key_jwt",
-			supported: nil,
+			name:      "no overlap",
+			preferred: "tls_client_auth",
+			supported: []string{"tls_client_auth", "client_secret_jwt"},
+			expectErr: true,
+			expect:    "tls_client_auth",
+		},
+		{
+			name:      "empty supported",
+			expect:    "tls_client_auth",
+			preferred: "tls_client_auth",
+			supported: []string{},
 			expectErr: true,
 		},
 		{
@@ -511,22 +517,20 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			doc := &ClientIDMetadataDocument{
-				ClientID:                           "https://example.com/oauth/client.json",
-				RedirectURIs:                       []string{"https://client.example.com/callback"},
-				TokenEndpointAuthMethod:            tc.preferred,
-				TokendEndpointAuthMethodsSupported: tc.supported,
-			}
+	for _, tc := range tcs {
+		doc := &ClientIDMetadataDocument{
+			ClientID:                           "https://example.com/oauth/client.json",
+			RedirectURIs:                       []string{"https://client.example.com/callback"},
+			TokenEndpointAuthMethod:            tc.preferred,
+			TokendEndpointAuthMethodsSupported: tc.supported,
+		}
 
-			err := srv.negotiateTokenEndpointAuthMethod(context.Background(), doc)
-			if tc.expectErr {
-				assert.ErrorIs(t, err, ErrClientMetadataValidation)
-			} else {
-				assert.NoError(t, err)
-			}
-			assert.Equal(t, tc.expect, doc.TokenEndpointAuthMethod)
-		})
+		err := srv.negotiateTokenEndpointAuthMethod(context.Background(), doc)
+		if tc.expectErr {
+			assert.ErrorIs(t, err, ErrClientMetadataValidation, tc.name)
+		} else {
+			assert.NoError(t, err, tc.name)
+		}
+		assert.Equal(t, tc.expect, doc.TokenEndpointAuthMethod, tc.name)
 	}
 }

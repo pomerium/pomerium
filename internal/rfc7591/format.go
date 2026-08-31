@@ -13,6 +13,7 @@ const (
 	TokenEndpointAuthMethodNone              = "none"
 	TokenEndpointAuthMethodClientSecretBasic = "client_secret_basic"
 	TokenEndpointAuthMethodClientSecretPost  = "client_secret_post"
+	TokenEndpointAuthMethodPrivateKeyJWT     = "private_key_jwt" //nolint:gosec
 
 	GrantTypesAuthorizationCode = "authorization_code"
 	GrantTypesImplicit          = "implicit"

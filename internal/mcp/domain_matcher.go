@@ -36,6 +36,9 @@ func (m *DomainMatcher) IsAllowed(hostname string) bool {
 // ValidateURLDomain checks if the URL's hostname is in the allowed domains list.
 // Returns an error if the domain is not allowed.
 func (m *DomainMatcher) ValidateURLDomain(u *url.URL) error {
+	if m == nil {
+		return fmt.Errorf("%w: no allowed domains configured", ErrDomainNotAllowed)
+	}
 	hostname := u.Hostname()
 	if !m.IsAllowed(hostname) {
 		return fmt.Errorf("%w: %q is not in allowed domains", ErrDomainNotAllowed, hostname)

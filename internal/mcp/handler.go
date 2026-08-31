@@ -55,6 +55,7 @@ type Handler struct {
 	// prefix: "dcr:" for dynamic client registrations, "mcp:" for upstream token refreshes.
 	singleFlight            singleflight.Group
 	clientMetadataFetcher   *ClientMetadataFetcher
+	jwksFetcher             *JWKSFetcher
 	getAuthenticator        AuthenticatorGetter
 	sessionExpiry           time.Duration
 	httpClient              *http.Client // for upstream discovery fetches
@@ -136,12 +137,15 @@ func New(
 	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
 
 	h := &Handler{
-		prefix:                  prefix,
-		trace:                   tracerProvider,
-		storage:                 NewStorage(client),
-		cipher:                  cipher,
-		hosts:                   NewHostInfo(cfg, http.DefaultClient),
-		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
+		prefix:                prefix,
+		trace:                 tracerProvider,
+		storage:               NewStorage(client),
+		cipher:                cipher,
+		hosts:                 NewHostInfo(cfg, http.DefaultClient),
+		clientMetadataFetcher: NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
+		// jwksFetcher fetches from the jwks_uri the client advertises for CIMD,
+		// so it goes through the same allowlist
+		jwksFetcher:             NewJWKSFetcher(cimdHTTPClient, domainMatcher),
 		sessionExpiry:           cfg.Options.CookieExpire,
 		httpClient:              http.DefaultClient,
 		asMetadataDomainMatcher: asDomainMatcher,

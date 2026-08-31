@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -24,6 +27,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/databroker"
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -1049,4 +1053,263 @@ func TestSessionUnmarshalerInRefresh(t *testing.T) {
 
 	// Note: With a valid JWT, the ID token would be parsed and set on the session.
 	// See pkg/identity/manager/data_test.go TestSession_RefreshUpdate for an example with a valid JWT.
+}
+
+func TestValidateAssertionClaims(t *testing.T) {
+	now := time.Now()
+	clientID := "https://client.example.com/oauth/client.json"
+	aud := "https://mcp.example.com/.pomerium/mcp/token"
+	validAssertionClaims := jwt.Claims{
+		Issuer:   clientID,
+		Subject:  clientID,
+		Audience: jwt.Audience{aud},
+		ID:       "foo",
+		IssuedAt: jwt.NewNumericDate(now),
+		Expiry:   jwt.NewNumericDate(now.Add(5 * time.Minute)),
+	}
+
+	data, err := json.Marshal(validAssertionClaims)
+	require.NoError(t, err)
+
+	vClaims := jwtutil.Claims{}
+	require.NoError(t, vClaims.UnmarshalJSON(data))
+
+	assert.NoError(t, validateClientAssertionClaims(
+		vClaims,
+		clientID,
+		[]string{aud},
+	))
+
+	cloneMutator := func(
+		mut func(c jwtutil.Claims) jwtutil.Claims,
+	) func(jwtutil.Claims) jwtutil.Claims {
+		return func(c jwtutil.Claims) jwtutil.Claims {
+			c2 := maps.Clone(c)
+			return mut(c2)
+		}
+	}
+
+	invalidCases := []struct {
+		name      string
+		toInvalid func(c jwtutil.Claims) jwtutil.Claims
+		wantError string
+	}{
+		{
+			name: "iss mismatch",
+			toInvalid: func(c jwtutil.Claims) jwtutil.Claims {
+				c["iss"] = "https://impersonate.com/oauth/client.json"
+				return c
+			},
+			wantError: "does not match client_id",
+		},
+		{
+			name: "sub mismatch",
+			toInvalid: func(c jwtutil.Claims) jwtutil.Claims {
+				c["iss"] = "https://impersonate.com/oauth/client.json"
+				return c
+			},
+			wantError: "does not match client_id",
+		},
+		{
+			name: "wrong aud",
+			toInvalid: func(c jwtutil.Claims) jwtutil.Claims {
+				c["aud"] = "https://impersonate.com/oauth/client.json"
+				return c
+			},
+		},
+		{
+			name: "no expiration",
+			toInvalid: func(c jwtutil.Claims) jwtutil.Claims {
+				delete(c, "exp")
+				return c
+			},
+			wantError: "no expiration",
+		},
+		{
+			name: "expired",
+			toInvalid: func(c jwtutil.Claims) jwtutil.Claims {
+				c["exp"] = time.Now().Add(-time.Hour).Unix()
+				return c
+			},
+			wantError: "expired",
+		},
+		{
+			name: "not yet valid",
+			toInvalid: func(c jwtutil.Claims) jwtutil.Claims {
+				c["nbf"] = time.Now().Add(time.Hour).Unix()
+				return c
+			},
+		},
+	}
+
+	for _, tc := range invalidCases {
+		mut := cloneMutator(tc.toInvalid)
+		badClaims := mut(vClaims)
+		assert.ErrorContains(t, validateClientAssertionClaims(
+			badClaims,
+			clientID,
+			[]string{aud},
+		), tc.wantError, tc.name)
+	}
+}
+
+func TestVerifyClientAssertion2(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		clientID := "foo"
+		key := newAssertionTestKey(t, jose.RS256, "key-1")
+		aud := []string{
+			"https://example.com/.pomerium/mcp/oauth/token",
+		}
+		client, jwksURI := jwksHandler(t, key.jwks())
+		reg := &rfc7591v1.ClientRegistration{
+			ResponseMetadata: &rfc7591v1.Metadata{
+				JwksUri: new(jwksURI),
+			},
+		}
+		now := time.Now()
+		assertion := key.sign(t, jwt.Claims{
+			Issuer:   clientID,
+			Subject:  clientID,
+			Audience: aud,
+			ID:       "jti-1",
+			IssuedAt: jwt.NewNumericDate(now),
+			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+		})
+		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
+		srv := &Handler{
+			jwksFetcher: NewJWKSFetcher(client, allowAllDomainMatcher()),
+		}
+		assert.NoError(t, srv.verifyClientAssertion(t.Context(), req, reg, aud))
+	})
+
+	t.Run("invalid key", func(t *testing.T) {
+		clientID := "foo"
+		key := newAssertionTestKey(t, jose.RS256, "key-1")
+		invalidKey := newAssertionTestKey(t, jose.RS256, "key-2")
+		aud := []string{
+			"https://example.com/.pomerium/mcp/oauth/token",
+		}
+		client, jwksURI := jwksHandler(t, key.jwks())
+		reg := &rfc7591v1.ClientRegistration{
+			ResponseMetadata: &rfc7591v1.Metadata{
+				JwksUri: new(jwksURI),
+			},
+		}
+		now := time.Now()
+		assertion := invalidKey.sign(t, jwt.Claims{
+			Issuer:   clientID,
+			Subject:  clientID,
+			Audience: aud,
+			ID:       "jti-1",
+			IssuedAt: jwt.NewNumericDate(now),
+			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+		})
+		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
+		srv := &Handler{
+			jwksFetcher: NewJWKSFetcher(client, allowAllDomainMatcher()),
+		}
+		assert.ErrorContains(t, srv.verifyClientAssertion(t.Context(), req, reg, aud), "failed to verify")
+	})
+
+	t.Run("unsupported alg", func(t *testing.T) {
+		clientID := "foo"
+		key := newAssertionTestKey(t, jose.HS256, "key-1")
+		aud := []string{
+			"https://example.com/.pomerium/mcp/oauth/token",
+		}
+		client, jwksURI := jwksHandler(t, key.jwks())
+		reg := &rfc7591v1.ClientRegistration{
+			ResponseMetadata: &rfc7591v1.Metadata{
+				JwksUri: new(jwksURI),
+			},
+		}
+		now := time.Now()
+		assertion := key.sign(t, jwt.Claims{
+			Issuer:   clientID,
+			Subject:  clientID,
+			Audience: aud,
+			ID:       "jti-1",
+			IssuedAt: jwt.NewNumericDate(now),
+			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+		})
+		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
+		srv := &Handler{
+			jwksFetcher: NewJWKSFetcher(client, allowAllDomainMatcher()),
+		}
+		assert.ErrorContains(t, srv.verifyClientAssertion(t.Context(), req, reg, aud), "unsupported")
+	})
+
+	t.Run("invalid assertion type", func(t *testing.T) {
+		clientID := "foo"
+		key := newAssertionTestKey(t, jose.RS256, "key-1")
+		aud := []string{
+			"https://example.com/.pomerium/mcp/oauth/token",
+		}
+		client, jwksURI := jwksHandler(t, key.jwks())
+		reg := &rfc7591v1.ClientRegistration{
+			ResponseMetadata: &rfc7591v1.Metadata{
+				JwksUri: new(jwksURI),
+			},
+		}
+		now := time.Now()
+		assertion := key.sign(t, jwt.Claims{
+			Issuer:   clientID,
+			Subject:  clientID,
+			Audience: aud,
+			ID:       "jti-1",
+			IssuedAt: jwt.NewNumericDate(now),
+			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+		})
+
+		for _, clientAssert := range []string{
+			rfc7591v1.GrantTypesSAML2Bearer,
+			rfc7591v1.GrantTypesDeviceCode,
+		} {
+			req := tokenRequest(clientAssert, clientID, assertion)
+			srv := &Handler{
+				jwksFetcher: NewJWKSFetcher(client, allowAllDomainMatcher()),
+			}
+			assert.ErrorContains(t, srv.verifyClientAssertion(t.Context(), req, reg, aud), "unsupported")
+		}
+	})
+
+	t.Run("no jwks URI", func(t *testing.T) {
+		clientID := "foo"
+		key := newAssertionTestKey(t, jose.RS256, "key-1")
+		aud := []string{
+			"https://example.com/.pomerium/mcp/oauth/token",
+		}
+		client, _ := jwksHandler(t, key.jwks())
+		reg := &rfc7591v1.ClientRegistration{
+			ResponseMetadata: &rfc7591v1.Metadata{
+				TokenEndpointAuthMethod: new(rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT),
+				JwksUri:                 new(""),
+			},
+		}
+		now := time.Now()
+		assertion := key.sign(t, jwt.Claims{
+			Issuer:   clientID,
+			Subject:  clientID,
+			Audience: aud,
+			ID:       "jti-1",
+			IssuedAt: jwt.NewNumericDate(now),
+			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+		})
+		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
+		srv := &Handler{
+			jwksFetcher: NewJWKSFetcher(client, allowAllDomainMatcher()),
+		}
+		assert.ErrorContains(t, srv.verifyClientAssertion(t.Context(), req, reg, aud), "empty")
+	})
+}
+
+func tokenRequest(
+	assertType, clientID, assertion string,
+) *oauth21proto.TokenRequest {
+	return &oauth21proto.TokenRequest{
+		GrantType:           "authorization_code",
+		ClientId:            new(clientID),
+		ClientAssertion:     new(assertion),
+		ClientAssertionType: new(assertType),
+	}
 }

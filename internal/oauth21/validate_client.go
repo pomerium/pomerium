@@ -28,11 +28,13 @@ func ValidateAuthorizationRequestCodeChallenge(
 ) error {
 	m := client.GetTokenEndpointAuthMethod()
 	switch m {
-	case rfc7591v1.TokenEndpointAuthMethodNone:
+	case rfc7591v1.TokenEndpointAuthMethodNone, rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT:
 		if req.GetCodeChallenge() == "" {
 			return Error{
-				Code:        InvalidRequest,
-				Description: "code challenge are required when token endpoint auth method is 'none'",
+				Code: InvalidRequest,
+				Description: fmt.Sprintf(
+					"code challenge are required when token endpoint auth method is '%s'", m,
+				),
 			}
 		}
 	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
