@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -197,11 +198,14 @@ func NewTraceClientFromConfig(opts otelconfig.Config) (otlptrace.Client, error) 
 				otlptracegrpc.WithTimeout(defaultTimeout),
 			), nil
 		case "http/protobuf", "":
-			return otlptracehttp.NewClient(
-				otlptracehttp.WithEndpointURL(endpoint),
+			httpOpts := []otlptracehttp.Option{
 				otlptracehttp.WithHeaders(headers),
 				otlptracehttp.WithTimeout(defaultTimeout),
-			), nil
+			}
+			if endpointURL := otlpTracesEndpointURL(endpoint, signalSpecificEndpoint); endpointURL != "" {
+				httpOpts = append(httpOpts, otlptracehttp.WithEndpointURL(endpointURL))
+			}
+			return otlptracehttp.NewClient(httpOpts...), nil
 		default:
 			return nil, fmt.Errorf(`unknown otlp trace exporter protocol %q, expected one of ["grpc", "http/protobuf"]`, protocol)
 		}
@@ -210,6 +214,24 @@ func NewTraceClientFromConfig(opts otelconfig.Config) (otlptrace.Client, error) 
 	default:
 		return nil, fmt.Errorf(`unknown otlp trace exporter %q, expected one of ["otlp", "none"]`, *opts.OtelTracesExporter)
 	}
+}
+
+// otlpTracesEndpointURL applies the OTLP spec's path rules for an OTLP/HTTP
+// endpoint: a signal-specific endpoint is used as-is, while a generic endpoint
+// is a base URL to which the "/v1/traces" path is appended.
+// [otlptracehttp.WithEndpointURL] does not do this itself; it uses the path of
+// the given URL as-is, and normalizes an empty path to the root path. An empty
+// endpoint is returned unchanged, leaving the SDK's own default in place.
+func otlpTracesEndpointURL(endpoint string, signalSpecific bool) string {
+	if endpoint == "" || signalSpecific {
+		return endpoint
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return endpoint
+	}
+	u.Path = path.Join(u.Path, "/v1/traces")
+	return u.String()
 }
 
 func BestEffortProtocolFromOTLPEndpoint(endpoint string, specificEnv bool) string {
