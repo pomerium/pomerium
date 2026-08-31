@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	NewSpanObserver = newSpanObserver
-	NewSpanTracker  = newSpanTracker
+	NewSpanObserver       = newSpanObserver
+	NewSpanTracker        = newSpanTracker
+	OTLPTracesEndpointURL = otlpTracesEndpointURL
 )
 
 type XStackTraceProcessor = stackTraceProcessor

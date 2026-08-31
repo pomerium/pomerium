@@ -565,6 +565,24 @@ func TestNewTraceClientFromConfig(t *testing.T) {
 	}
 }
 
+func TestOTLPTracesEndpointURL(t *testing.T) {
+	t.Parallel()
+
+	t.Run("generic endpoint is a base URL", func(t *testing.T) {
+		assert.Equal(t, "http://127.0.0.1:4318/v1/traces", trace.OTLPTracesEndpointURL("http://127.0.0.1:4318", false))
+		assert.Equal(t, "http://127.0.0.1:4318/v1/traces", trace.OTLPTracesEndpointURL("http://127.0.0.1:4318/", false))
+		assert.Equal(t, "https://example.com/base/v1/traces", trace.OTLPTracesEndpointURL("https://example.com/base", false))
+	})
+	t.Run("signal-specific endpoint is used as-is", func(t *testing.T) {
+		assert.Equal(t, "http://127.0.0.1:4318/v1/traces", trace.OTLPTracesEndpointURL("http://127.0.0.1:4318/v1/traces", true))
+		assert.Equal(t, "http://127.0.0.1:4318", trace.OTLPTracesEndpointURL("http://127.0.0.1:4318", true))
+	})
+	t.Run("invalid inputs", func(t *testing.T) {
+		assert.Equal(t, "", trace.OTLPTracesEndpointURL("", false))
+		assert.Equal(t, "http://\x7f", trace.OTLPTracesEndpointURL("http://\x7f", false))
+	})
+}
+
 func TestBestEffortProtocolFromOTLPEndpoint(t *testing.T) {
 	t.Parallel()
 
