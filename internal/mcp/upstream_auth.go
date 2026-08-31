@@ -571,8 +571,7 @@ func isNotFound(err error) bool {
 // HTTP 4xx responses from the token endpoint are permanent: the AS is rejecting the request.
 // Everything else (network errors, 5xx, parse errors) is transient.
 func isTokenRefreshPermanent(err error) bool {
-	var tokenErr *tokenEndpointError
-	if errors.As(err, &tokenErr) {
+	if tokenErr, ok := errors.AsType[*tokenEndpointError](err); ok {
 		return tokenErr.StatusCode >= 400 && tokenErr.StatusCode < 500
 	}
 	return false

@@ -164,7 +164,7 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string, dcrEnabled b
 		ResponseTypesSupported:                     []string{"code"},
 		CodeChallengeMethodsSupported:              []string{"S256"},
 		TokenEndpoint:                              P(path.Join(prefix, tokenEndpoint)),
-		TokenEndpointAuthMethodsSupported:          []string{"client_secret_basic", "none"},
+		TokenEndpointAuthMethodsSupported:          []string{"none"},
 		GrantTypesSupported:                        []string{"authorization_code", "refresh_token"},
 		RevocationEndpoint:                         P(path.Join(prefix, revocationEndpoint)),
 		RevocationEndpointAuthMethodsSupported:     []string{"client_secret_post"},
@@ -173,6 +173,7 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string, dcrEnabled b
 	}
 	if dcrEnabled {
 		md.RegistrationEndpoint = P(path.Join(prefix, registerEndpoint))
+		md.TokenEndpointAuthMethodsSupported = []string{"client_secret_basic", "none"}
 	}
 	return md
 }

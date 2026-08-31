@@ -180,8 +180,7 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 
 			// Discovery errors are non-fatal but should be surfaced to the user
 			// by appending error info to the redirect URL.
-			var discoveryErr *DiscoveryError
-			if errors.As(resolveErr, &discoveryErr) {
+			if _, ok := errors.AsType[*DiscoveryError](resolveErr); ok {
 				reqID := requestid.FromContext(ctx)
 				log.Ctx(ctx).Warn().Err(resolveErr).
 					Str("redirect-url", redirectURL).

@@ -49,12 +49,12 @@ func TestDeleteDeadlock(t *testing.T) {
 			_, err := migrate(ctx, tx)
 			return err
 		}))
-	var version uint64
+	var version atomic.Uint64
 
 	for range 10 {
 		require.NoError(t, putRecordAndChange(ctx, conn1, &databroker.Record{
 			Type:       "example",
-			Version:    atomic.AddUint64(&version, 1),
+			Version:    version.Add(1),
 			Id:         uuid.NewString(),
 			Data:       protoutil.NewAnyString("example"),
 			ModifiedAt: timestamppb.New(tm1),

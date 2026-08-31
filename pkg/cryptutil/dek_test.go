@@ -19,10 +19,10 @@ func TestDataEncryptionKey(t *testing.T) {
 	t.Run("roundtrip string", func(t *testing.T) {
 		dek, err := GenerateDataEncryptionKey()
 		require.NoError(t, err)
-		ciphertext := dek.EncryptString(("HELLO WORLD"))
+		ciphertext := dek.EncryptString("HELLO WORLD")
 		plaintext, err := dek.DecryptString(ciphertext)
 		require.NoError(t, err)
-		require.Equal(t, ("HELLO WORLD"), plaintext)
+		require.Equal(t, "HELLO WORLD", plaintext)
 	})
 	t.Run("KeyBytes", func(t *testing.T) {
 		dek, err := GenerateDataEncryptionKey()

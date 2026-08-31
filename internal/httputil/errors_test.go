@@ -29,8 +29,7 @@ func TestHTTPError_ErrorResponse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				err := NewError(tt.Status, tt.Err)
-				var e *HTTPError
-				if errors.As(err, &e) {
+				if e, ok := errors.AsType[*HTTPError](err); ok {
 					e.ErrorResponse(r.Context(), w, r)
 				} else {
 					http.Error(w, "coulnd't convert error type", http.StatusTeapot)
