@@ -26,8 +26,9 @@ func CreateCode(
 	expires time.Time,
 	ad string,
 	cipher cipher.AEAD,
+	iat time.Time,
 ) (string, error) {
-	return CreateCodeWithRecordVersion(typ, id, expires, ad, cipher, 0)
+	return CreateCodeWithRecordVersion(typ, id, expires, ad, cipher, 0, iat)
 }
 
 // CreateCodeWithRecordVersion is like CreateCode but also embeds a databroker
@@ -40,6 +41,7 @@ func CreateCodeWithRecordVersion(
 	ad string,
 	cipher cipher.AEAD,
 	recordVersion uint64,
+	iat time.Time,
 ) (string, error) {
 	if expires.IsZero() {
 		return "", fmt.Errorf("validate: zero expiration")
@@ -50,6 +52,7 @@ func CreateCodeWithRecordVersion(
 		ExpiresAt:     timestamppb.New(expires),
 		GrantType:     typ,
 		RecordVersion: recordVersion,
+		Iat:           timestamppb.New(iat),
 	}
 
 	err := protovalidate.Validate(&v)

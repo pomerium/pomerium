@@ -32,4 +32,7 @@ message Code {
   // minimum-version hint when reading that record, providing read-your-writes
   // across databroker replicas. Zero means no hint.
   uint64 record_version = 4;
+
+  // iat is the time we issued the token at
+  google.protobuf.Timestamp iat = 5;
 }
