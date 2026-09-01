@@ -473,6 +473,7 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 		name      string
 		preferred string
 		supported []string
+		noJWKS    bool
 		expect    string
 		expectErr bool
 	}{
@@ -493,6 +494,15 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 			preferred: "tls_client_auth",
 			supported: []string{"tls_client_auth", rfc7591v1.TokenEndpointAuthMethodNone, rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT},
 			expect:    rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT,
+		},
+		{
+			// private_key_jwt is unusable without a jwks_uri, so it must not be
+			// selected over a method the client can actually satisfy.
+			name:      "private_key_jwt without jwks_uri",
+			preferred: "tls_client_auth",
+			supported: []string{rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT, rfc7591v1.TokenEndpointAuthMethodNone},
+			noJWKS:    true,
+			expect:    rfc7591v1.TokenEndpointAuthMethodNone,
 		},
 		{
 			name:      "no overlap",
@@ -523,8 +533,10 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 			RedirectURIs:                       []string{"https://client.example.com/callback"},
 			TokenEndpointAuthMethod:            tc.preferred,
 			TokendEndpointAuthMethodsSupported: tc.supported,
-			// negotiation only offers private_key_jwt to a client that can use it
-			JWKSURI: "https://client.example.com/jwks.json",
+			JWKSURI:                            "https://client.example.com/jwks.json",
+		}
+		if tc.noJWKS {
+			doc.JWKSURI = ""
 		}
 
 		err := srv.negotiateTokenEndpointAuthMethod(context.Background(), doc)

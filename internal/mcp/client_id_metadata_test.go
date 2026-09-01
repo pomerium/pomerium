@@ -496,7 +496,16 @@ func (k assertionTestKey) sign(t *testing.T, claims jwt.Claims) string {
 
 func jwksHandler(t *testing.T, keys jose.JSONWebKeySet) (client *http.Client, uri string) {
 	t.Helper()
+	return jwksHandlerFunc(t, keys, nil)
+}
+
+// jwksHandlerFunc serves keys over TLS, calling onRequest, if set, per request.
+func jwksHandlerFunc(t *testing.T, keys jose.JSONWebKeySet, onRequest func()) (client *http.Client, uri string) {
+	t.Helper()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if onRequest != nil {
+			onRequest()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(keys)
 	}))

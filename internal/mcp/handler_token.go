@@ -343,10 +343,9 @@ func (srv *Handler) getTokenRequest(
 }
 
 // tokenEndpointAudiences returns the audience values an assertion may name: the
-// issuer or the token endpoint. The hostname is validated against the configured
-// routes first, because the /.pomerium/ prefix is served from Envoy's catch-all
-// virtual host and an unvalidated Host header would let a caller name any
-// audience it liked. An unrecognized host yields no acceptable audience.
+// issuer or the token endpoint. The /.pomerium/ prefix is served from Envoy's
+// catch-all virtual host, so the Host header is validated against the configured
+// routes before it is trusted to name an audience.
 func (srv *Handler) tokenEndpointAudiences(r *http.Request) []string {
 	if _, ok := srv.hosts.GetServerHostInfo(stripPort(r.Host)); !ok {
 		return nil
@@ -775,9 +774,8 @@ func clientAssertionAlgorithm(assertion string) (string, error) {
 }
 
 // maxClientAssertionLifetime bounds how far in the future an assertion may
-// expire. Without a jti replay store, this is what keeps a captured assertion
-// from being a durable credential. RFC 7523 Section 3 permits rejecting an exp
-// that is unreasonably far in the future.
+// expire. Without a jti replay store this is what keeps a captured assertion
+// from becoming a durable credential.
 const maxClientAssertionLifetime = 5 * time.Minute
 
 // RFC 7523 Section 3 validation,
