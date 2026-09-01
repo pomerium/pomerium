@@ -523,6 +523,8 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 			RedirectURIs:                       []string{"https://client.example.com/callback"},
 			TokenEndpointAuthMethod:            tc.preferred,
 			TokendEndpointAuthMethodsSupported: tc.supported,
+			// negotiation only offers private_key_jwt to a client that can use it
+			JWKSURI: "https://client.example.com/jwks.json",
 		}
 
 		err := srv.negotiateTokenEndpointAuthMethod(context.Background(), doc)

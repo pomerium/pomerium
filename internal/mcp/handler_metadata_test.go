@@ -111,7 +111,7 @@ func TestAuthorizationServerMetadataHandler(t *testing.T) {
 			"revocation_endpoint_auth_methods_supported": [ "client_secret_post" ],
 			"service_documentation": "https://pomerium.com/docs",
 			"token_endpoint": "https://my-domain.internal/prefix/token",
-			"token_endpoint_auth_methods_supported": [ "private_key_jwt", "client_secret_basic", "none" ],
+			"token_endpoint_auth_methods_supported": [ "client_secret_basic", "none" ],
 			"token_endpoint_auth_signing_alg_values_supported": [ "RS256", "ES256", "EdDSA"]
 		}`, string(b))
 	})

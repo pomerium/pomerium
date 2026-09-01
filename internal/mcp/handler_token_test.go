@@ -1173,7 +1173,7 @@ func TestVerifyClientAssertion2(t *testing.T) {
 			Audience: aud,
 			ID:       "jti-1",
 			IssuedAt: jwt.NewNumericDate(now),
-			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
 		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
 		srv := &Handler{
@@ -1202,7 +1202,7 @@ func TestVerifyClientAssertion2(t *testing.T) {
 			Audience: aud,
 			ID:       "jti-1",
 			IssuedAt: jwt.NewNumericDate(now),
-			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
 		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
 		srv := &Handler{
@@ -1230,7 +1230,7 @@ func TestVerifyClientAssertion2(t *testing.T) {
 			Audience: aud,
 			ID:       "jti-1",
 			IssuedAt: jwt.NewNumericDate(now),
-			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
 		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
 		srv := &Handler{
@@ -1258,7 +1258,7 @@ func TestVerifyClientAssertion2(t *testing.T) {
 			Audience: aud,
 			ID:       "jti-1",
 			IssuedAt: jwt.NewNumericDate(now),
-			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
 
 		for _, clientAssert := range []string{
@@ -1293,7 +1293,7 @@ func TestVerifyClientAssertion2(t *testing.T) {
 			Audience: aud,
 			ID:       "jti-1",
 			IssuedAt: jwt.NewNumericDate(now),
-			Expiry:   jwt.NewNumericDate(now.Add(time.Hour)),
+			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
 		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
 		srv := &Handler{

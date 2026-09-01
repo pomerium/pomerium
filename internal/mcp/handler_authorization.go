@@ -390,7 +390,7 @@ func (srv *Handler) negotiateTokenEndpointAuthMethod(ctx context.Context, doc *C
 			Msg("mcp/authorize: client prefers a token endpoint auth method not supported by Pomerium, checking additional auth methods")
 
 		for _, method := range supportedTokenAuthMethodsForCIMD {
-			if slices.Contains(doc.TokendEndpointAuthMethodsSupported, method) {
+			if slices.Contains(doc.TokendEndpointAuthMethodsSupported, method) && doc.canAuthenticateWith(method) {
 				log.Ctx(ctx).Info().
 					Str("client-id", doc.ClientID).
 					Str("auth-method", method).

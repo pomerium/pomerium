@@ -174,7 +174,7 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string, dcrEnabled b
 	}
 	if dcrEnabled {
 		md.RegistrationEndpoint = P(path.Join(prefix, registerEndpoint))
-		md.TokenEndpointAuthMethodsSupported = []string{"private_key_jwt", "client_secret_basic", "none"}
+		md.TokenEndpointAuthMethodsSupported = []string{"client_secret_basic", "none"}
 	}
 	return md
 }

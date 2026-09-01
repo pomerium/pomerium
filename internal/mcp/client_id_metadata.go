@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
+	lru "github.com/hashicorp/golang-lru/v2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
@@ -211,6 +212,18 @@ func (doc *ClientIDMetadataDocument) Validate() error {
 	return nil
 }
 
+// canAuthenticateWith reports whether the document carries the material a given
+// token endpoint auth method needs. Only consulted when picking among the
+// alternatives the client advertises; a method the client explicitly asked for
+// is still validated strictly, so a misconfiguration is an error rather than a
+// silent downgrade.
+func (doc *ClientIDMetadataDocument) canAuthenticateWith(method string) bool {
+	if method == rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT {
+		return doc.JWKSURI != ""
+	}
+	return true
+}
+
 func (doc *ClientIDMetadataDocument) validateKeySet() error {
 	if doc.JWKSURI != "" {
 		u, err := url.Parse(doc.JWKSURI)
@@ -219,9 +232,6 @@ func (doc *ClientIDMetadataDocument) validateKeySet() error {
 		}
 		if u.Scheme != "https" {
 			return fmt.Errorf("jwks_uri must use the https scheme")
-		}
-		if doc.TokenEndpointAuthMethod != rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT {
-			return fmt.Errorf("jwks_uri must be configured with \"private_key_jwt\", not : %q", doc.TokenEndpointAuthMethod)
 		}
 	}
 
@@ -340,19 +350,29 @@ const MaxJWKSSize = 1024 * 1024 // 1MB
 
 var ErrJWKSFetch = errors.New("failed to fetch client JWKS")
 
+// JWKSKeySetCacheSize bounds how many distinct jwks_uri key sets are retained.
+// jwks_uri comes from client-controlled metadata, so this must stay bounded.
+const JWKSKeySetCacheSize = 256
+
 // JWKSFetcher fetches client-side jwks_uris for validation
 type JWKSFetcher struct {
 	httpClient    *http.Client
 	domainMatcher *DomainMatcher
+	keySets       *lru.Cache[string, *go_oidc.RemoteKeySet]
 }
 
 func NewJWKSFetcher(httpClient *http.Client, domainMatcher *DomainMatcher) *JWKSFetcher {
 	if httpClient == nil {
 		panic("NewJWKSFetcher: httpClient must not be nil")
 	}
+	keySets, err := lru.New[string, *go_oidc.RemoteKeySet](JWKSKeySetCacheSize)
+	if err != nil {
+		panic("NewJWKSFetcher: " + err.Error())
+	}
 	return &JWKSFetcher{
 		httpClient:    httputil.NewSizeLimitClient(httpClient, MaxJWKSSize),
 		domainMatcher: domainMatcher,
+		keySets:       keySets,
 	}
 }
 
@@ -370,9 +390,16 @@ func (j *JWKSFetcher) KeySet(ctx context.Context, jwksURI string) (*go_oidc.Remo
 	if err := j.domainMatcher.ValidateURLDomain(u); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrJWKSFetch, err)
 	}
+	if ks, ok := j.keySets.Get(jwksURI); ok {
+		return ks, nil
+	}
+
+	// A RemoteKeySet caches keys and coalesces in-flight fetches internally, but
+	// only per instance, so it has to outlive the request that created it.
 	ks := go_oidc.NewRemoteKeySet(
-		go_oidc.ClientContext(ctx, j.httpClient),
+		go_oidc.ClientContext(context.WithoutCancel(ctx), j.httpClient),
 		jwksURI,
 	)
+	j.keySets.Add(jwksURI, ks)
 	return ks, nil
 }

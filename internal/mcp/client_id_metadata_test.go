@@ -312,13 +312,12 @@ func TestClientIDMetadataDocument_Validate(t *testing.T) {
 		},
 
 		{
-			name: "jwks_uri",
+			name: "jwks_uri without private_key_jwt",
 			doc: ClientIDMetadataDocument{
 				RedirectURIs:            []string{"https://client.example.com/callback"},
 				JWKSURI:                 "https://client.example.com/jwks.json",
 				TokenEndpointAuthMethod: rfc7591v1.TokenEndpointAuthMethodNone,
 			},
-			wantErr: "must be configured with \"private_key_jwt\"",
 		},
 		{
 			name: "valid private_key_jwt",
