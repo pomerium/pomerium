@@ -357,6 +357,8 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 		Msg("mcp/token/refresh: refresh token decrypted, fetching stored record")
 
 	// Get the stored refresh token record
+	// TODO : this refresh token doesn't get the latest refresh token, but we can use a session.Session databroker syncer
+	// to propagate the up-to-date refresh token
 	refreshTokenRecord, err := srv.storage.GetMCPRefreshToken(ctx, refreshCode.Id)
 	if status.Code(err) == codes.NotFound {
 		log.Ctx(ctx).Error().
@@ -622,13 +624,14 @@ func (srv *Handler) createTokenResponse(
 	refreshTokenRecord *oauth21proto.MCPRefreshToken,
 	scopes []string,
 ) (*oauth21proto.TokenResponse, error) {
-	accessToken, err := srv.GetAccessTokenForSessionWithVersion(sessionID, sessionRecordVersion, sessionExpiresAt)
+	now := time.Now()
+	accessToken, err := srv.GetAccessTokenForSessionWithVersion(sessionID, sessionRecordVersion, sessionExpiresAt, now)
 	if err != nil {
 		return nil, fmt.Errorf("create access token: %w", err)
 	}
 
 	// Create encrypted refresh token that references the stored record
-	refreshToken, err := srv.CreateRefreshToken(refreshTokenRecord.Id, refreshTokenRecord.ClientId, refreshTokenRecord.ExpiresAt.AsTime())
+	refreshToken, err := srv.CreateRefreshToken(refreshTokenRecord.Id, refreshTokenRecord.ClientId, refreshTokenRecord.ExpiresAt.AsTime(), now)
 	if err != nil {
 		return nil, fmt.Errorf("create refresh token: %w", err)
 	}

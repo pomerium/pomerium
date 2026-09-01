@@ -279,13 +279,14 @@ func (srv *Handler) AuthorizationResponse(
 		http.Redirect(w, r, req.GetRedirectUri(), http.StatusFound)
 		return
 	}
-
+	now := time.Now()
 	code, err := CreateCode(
 		CodeTypeAuthorization,
 		id,
-		time.Now().Add(time.Minute*10),
+		now.Add(time.Minute*10),
 		req.ClientId,
 		srv.cipher,
+		now,
 	)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize-response: failed to create code")
