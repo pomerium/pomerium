@@ -191,9 +191,8 @@ type limitedBody struct {
 }
 
 func (b *limitedBody) Read(p []byte) (int, error) {
-	// Extra padding for EOF on messages of exactly maxSize.
-	// Compared this way round because remaining+1 overflows near math.MaxInt64.
-	if b.remaining < int64(len(p)) {
+	// Extra padding for EOF on messages of exactly maxSize
+	if int64(len(p)) > b.remaining+1 {
 		p = p[:b.remaining+1]
 	}
 	n, err := b.ReadCloser.Read(p)
