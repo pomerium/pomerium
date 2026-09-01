@@ -748,9 +748,8 @@ func (srv *backendServer) newBackendAndSetupLocked(ctx context.Context) (storage
 }
 
 func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storage.Backend) error {
-	reqCap := uint64(50000)
 	if err := backend.SetOptions(ctx, "type.googleapis.com/session.SessionBindingRequest", &databrokerpb.Options{
-		Capacity:        &reqCap,
+		Capacity:        new(uint64(50000)),
 		IndexableFields: []string{"key"},
 		Ttl:             durationpb.New(15 * time.Minute),
 	}); err != nil {
@@ -788,6 +787,12 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 			"state_id",
 		},
 		Ttl: durationpb.New(15 * time.Minute),
+	}); err != nil {
+		return err
+	}
+
+	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.MCPRefreshToken", &databrokerpb.Options{
+		Capacity: new(uint64(50000)),
 	}); err != nil {
 		return err
 	}
