@@ -43,6 +43,12 @@ type ClientIDMetadataDocument struct {
 	// Per draft, MUST NOT be client_secret_basic, client_secret_post, client_secret_jwt.
 	TokenEndpointAuthMethod string `json:"token_endpoint_auth_method,omitempty"`
 
+	// RFC8414 Oauth 2.0 Server Metadata
+	// OPTIONAL. JSON array containing a list of client authentication
+	// methods supported by this token endpoint.  Client authentication
+	// method values are used in the "token_endpoint_auth_method". See above.
+	TokendEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported,omitempty"`
+
 	// Scope is OPTIONAL.
 	Scope string `json:"scope,omitempty"`
 
