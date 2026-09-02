@@ -19,13 +19,15 @@ func ParseTokenRequest(r *http.Request) (*gen.TokenRequest, error) {
 	basicID, basicSecret, basicOK := r.BasicAuth()
 
 	v := &gen.TokenRequest{
-		GrantType:    r.Form.Get("grant_type"),
-		Code:         optionalFormParam(r, "code"),
-		CodeVerifier: optionalFormParam(r, "code_verifier"),
-		ClientId:     optionalFormParam(r, "client_id"),
-		RefreshToken: optionalFormParam(r, "refresh_token"),
-		Scope:        optionalFormParam(r, "scope"),
-		ClientSecret: optionalFormParam(r, "client_secret"),
+		GrantType:           r.Form.Get("grant_type"),
+		Code:                optionalFormParam(r, "code"),
+		CodeVerifier:        optionalFormParam(r, "code_verifier"),
+		ClientId:            optionalFormParam(r, "client_id"),
+		RefreshToken:        optionalFormParam(r, "refresh_token"),
+		Scope:               optionalFormParam(r, "scope"),
+		ClientSecret:        optionalFormParam(r, "client_secret"),
+		ClientAssertion:     optionalFormParam(r, "client_assertion"),
+		ClientAssertionType: optionalFormParam(r, "client_assertion_type"),
 	}
 
 	if basicOK {

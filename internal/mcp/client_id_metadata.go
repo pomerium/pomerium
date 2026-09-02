@@ -11,7 +11,11 @@ import (
 	"slices"
 	"strings"
 
+	go_oidc "github.com/coreos/go-oidc/v3/oidc"
+
+	"github.com/pomerium/pomerium/internal/httputil"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	"github.com/pomerium/pomerium/internal/version"
 )
 
 // ClientIDMetadataDocument represents the metadata document fetched from a URL-based client_id.
@@ -88,7 +92,7 @@ func NewClientMetadataFetcher(httpClient *http.Client, domainMatcher *DomainMatc
 		panic("NewClientMetadataFetcher: httpClient must not be nil")
 	}
 	return &ClientMetadataFetcher{
-		httpClient:    httpClient,
+		httpClient:    httputil.NewSizeLimitClient(httpClient, MaxClientMetadataDocumentSize),
 		domainMatcher: domainMatcher,
 	}
 }
@@ -170,44 +174,14 @@ func (f *ClientMetadataFetcher) Fetch(ctx context.Context, clientIDURL string) (
 		return nil, fmt.Errorf("%w: client_id is not a valid metadata URL", ErrClientMetadataValidation)
 	}
 
-	// Check if domain is allowed BEFORE making any HTTP request
-	u, _ := url.Parse(clientIDURL) // Already validated by IsClientIDMetadataURL
-	if f.domainMatcher == nil {
-		return nil, fmt.Errorf("%w: no allowed domains configured", ErrDomainNotAllowed)
-	}
+	u, _ := url.Parse(clientIDURL) // already validated by previous check
 	if err := f.domainMatcher.ValidateURLDomain(u); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrClientMetadataValidation, err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, clientIDURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrClientMetadataFetch, err)
-	}
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := f.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrClientMetadataFetch, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: HTTP status %d", ErrClientMetadataFetch, resp.StatusCode)
-	}
-
-	// Limit response size to prevent DoS
-	limitedReader := io.LimitReader(resp.Body, MaxClientMetadataDocumentSize+1)
-	data, err := io.ReadAll(limitedReader)
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to read response: %w", ErrClientMetadataFetch, err)
-	}
-	if len(data) > MaxClientMetadataDocumentSize {
-		return nil, fmt.Errorf("%w: response exceeds maximum size of %d bytes", ErrClientMetadataFetch, MaxClientMetadataDocumentSize)
-	}
-
 	var doc ClientIDMetadataDocument
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("%w: invalid JSON: %w", ErrClientMetadataFetch, err)
+	if err := f.fetchJSON(ctx, clientIDURL, &doc); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrClientMetadataFetch, err)
 	}
 
 	// Validate: client_id in document MUST match the URL exactly (simple string comparison per RFC 3986 Section 6.2.1)
@@ -215,21 +189,46 @@ func (f *ClientMetadataFetcher) Fetch(ctx context.Context, clientIDURL string) (
 		return nil, fmt.Errorf("%w: client_id in document (%q) does not match URL (%q)", ErrClientMetadataValidation, doc.ClientID, clientIDURL)
 	}
 
-	// Validate: redirect_uris is required
+	return &doc, nil
+}
+
+// Validate does static validation that the CIMD has fields that make sense
+// with the provided information.
+func (doc *ClientIDMetadataDocument) Validate() error {
 	if len(doc.RedirectURIs) == 0 {
-		return nil, fmt.Errorf("%w: redirect_uris is required", ErrClientMetadataValidation)
+		return fmt.Errorf("%w: redirect_uris is required", ErrClientMetadataValidation)
 	}
 
-	// Validate: token_endpoint_auth_method must not be secret-based
-	if doc.TokenEndpointAuthMethod != "" {
-		switch doc.TokenEndpointAuthMethod {
-		case "client_secret_basic", "client_secret_post", "client_secret_jwt":
-			return nil, fmt.Errorf("%w: token_endpoint_auth_method %q is not allowed for client metadata documents",
-				ErrClientMetadataValidation, doc.TokenEndpointAuthMethod)
+	switch doc.TokenEndpointAuthMethod {
+	case "client_secret_basic", "client_secret_post", "client_secret_jwt":
+		return fmt.Errorf("%w: token_endpoint_auth_method %q is not allowed for client metadata documents",
+			ErrClientMetadataValidation, doc.TokenEndpointAuthMethod)
+	}
+
+	if err := doc.validateKeySet(); err != nil {
+		return fmt.Errorf("%w: %w", ErrClientMetadataValidation, err)
+	}
+	return nil
+}
+
+func (doc *ClientIDMetadataDocument) validateKeySet() error {
+	if doc.JWKSURI != "" {
+		u, err := url.Parse(doc.JWKSURI)
+		if err != nil {
+			return fmt.Errorf("jwks_uri is not a valid URL: %w", err)
+		}
+		if u.Scheme != "https" {
+			return fmt.Errorf("jwks_uri must use the https scheme")
+		}
+		if doc.TokenEndpointAuthMethod != rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT {
+			return fmt.Errorf("jwks_uri must be configured with \"private_key_jwt\", not : %q", doc.TokenEndpointAuthMethod)
 		}
 	}
 
-	return &doc, nil
+	if doc.TokenEndpointAuthMethod == rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT && doc.JWKSURI == "" {
+		return fmt.Errorf("token_endpoint_auth_method %q requires jwks_uri", doc.TokenEndpointAuthMethod)
+	}
+	return nil
 }
 
 // ToClientRegistration converts a ClientIDMetadataDocument to a ClientRegistration
@@ -301,4 +300,79 @@ func (doc *ClientIDMetadataDocument) ValidateRedirectURI(redirectURI string) err
 		return nil
 	}
 	return fmt.Errorf("%w: redirect_uri %q is not in the list of registered redirect URIs", ErrClientMetadataValidation, redirectURI)
+}
+
+func (f *ClientMetadataFetcher) fetchJSON(ctx context.Context, rawURL string, out any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", version.UserAgent())
+
+	resp, err := f.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP status %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	return nil
+}
+
+// MaxJWKSSize is the maximum size of a fetched JSON Web Key Set.
+// While there's no maximum size enforced by an RFC, it is provided by the CIMD
+// document so it's probably a good idea to guard against DoS.
+// From looking around at implementations/best practices, 1MB seems to be a reasonable cap.
+const MaxJWKSSize = 1024 * 1024 // 1MB
+
+var ErrJWKSFetch = errors.New("failed to fetch client JWKS")
+
+// JWKSFetcher fetches client-side jwks_uris for validation
+type JWKSFetcher struct {
+	httpClient    *http.Client
+	domainMatcher *DomainMatcher
+}
+
+func NewJWKSFetcher(httpClient *http.Client, domainMatcher *DomainMatcher) *JWKSFetcher {
+	if httpClient == nil {
+		panic("NewJWKSFetcher: httpClient must not be nil")
+	}
+	return &JWKSFetcher{
+		httpClient:    httputil.NewSizeLimitClient(httpClient, MaxJWKSSize),
+		domainMatcher: domainMatcher,
+	}
+}
+
+func (j *JWKSFetcher) KeySet(ctx context.Context, jwksURI string) (*go_oidc.RemoteKeySet, error) {
+	if jwksURI == "" {
+		return nil, fmt.Errorf("%w: empty jwks_uri", ErrJWKSFetch)
+	}
+	u, err := url.Parse(jwksURI)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid jwks_uri: %w", ErrJWKSFetch, err)
+	}
+	if u.Scheme != "https" {
+		return nil, fmt.Errorf("%w: jwks_uri must use the https scheme", ErrJWKSFetch)
+	}
+	if err := j.domainMatcher.ValidateURLDomain(u); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrJWKSFetch, err)
+	}
+	ks := go_oidc.NewRemoteKeySet(
+		go_oidc.ClientContext(ctx, j.httpClient),
+		jwksURI,
+	)
+	return ks, nil
 }

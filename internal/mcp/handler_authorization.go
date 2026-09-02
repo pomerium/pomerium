@@ -21,7 +21,9 @@ import (
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
+// supportedTokenAuthMethodsForCIMD is ordered by preference
 var supportedTokenAuthMethodsForCIMD = []string{
+	rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT,
 	rfc7591v1.TokenEndpointAuthMethodNone,
 }
 
@@ -359,11 +361,12 @@ func (srv *Handler) getOrFetchClient(ctx context.Context, clientID string) (*rfc
 		if err != nil {
 			return nil, err
 		}
-
 		if err := srv.negotiateTokenEndpointAuthMethod(ctx, doc); err != nil {
 			return nil, err
 		}
-
+		if err := doc.Validate(); err != nil {
+			return nil, err
+		}
 		return doc.ToClientRegistration(), nil
 	}
 
