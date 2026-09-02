@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -81,4 +82,29 @@ func TestTokenEndpointAudiencesRejectsUnconfiguredHost(t *testing.T) {
 	r.Host = "evil-as.example"
 	assert.Empty(t, srv.tokenEndpointAudiences(r),
 		"the /.pomerium/ prefix is served from Envoy's catch-all vhost, so Host must be validated")
+}
+
+// getOrFetchClient is the only production caller of Validate; without this the
+// call can be deleted outright and the package suite still passes.
+func TestGetOrFetchClientValidatesFetchedDocument(t *testing.T) {
+	var clientID string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"client_id":                  clientID,
+			"client_name":                "Test Client",
+			"token_endpoint_auth_method": "none",
+			// redirect_uris deliberately absent
+		})
+	}))
+	t.Cleanup(server.Close)
+	clientID = server.URL + "/oauth/client.json"
+
+	srv := &Handler{
+		clientMetadataFetcher: NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher()),
+	}
+	_, err := srv.getOrFetchClient(t.Context(), clientID)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrClientMetadataValidation)
+	assert.ErrorContains(t, err, "redirect_uris is required")
 }
