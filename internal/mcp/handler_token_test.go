@@ -25,6 +25,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/databroker"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	"github.com/pomerium/pomerium/internal/opaquetoken"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databroker_grpc "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -254,7 +255,7 @@ func TestTokenHandler_StoresRefreshToken(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create an authorization code
-	authCode, err := CreateCode(CodeTypeAuthorization, authReqID, time.Now().Add(time.Hour), clientID, testCipher)
+	authCode, err := opaquetoken.Seal(opaquetoken.TypeAuthorization, authReqID, time.Now().Add(time.Hour), clientID, testCipher, 0)
 	require.NoError(t, err)
 
 	// Make token request

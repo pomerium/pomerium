@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	"github.com/pomerium/pomerium/internal/opaquetoken"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
@@ -280,12 +281,13 @@ func (srv *Handler) AuthorizationResponse(
 		return
 	}
 
-	code, err := CreateCode(
-		CodeTypeAuthorization,
+	code, err := opaquetoken.Seal(
+		opaquetoken.TypeAuthorization,
 		id,
 		time.Now().Add(time.Minute*10),
 		req.ClientId,
 		srv.cipher,
+		0,
 	)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize-response: failed to create code")

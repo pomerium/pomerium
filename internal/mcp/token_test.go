@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/internal/opaquetoken"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -34,7 +35,7 @@ func TestAccessTokenPrefix(t *testing.T) {
 	})
 
 	t.Run("bare", func(t *testing.T) {
-		bare, err := CreateCodeWithRecordVersion(CodeTypeAccess, "session-2", expires, "", srv.cipher, 7)
+		bare, err := opaquetoken.Seal(opaquetoken.TypeAccess, "session-2", expires, "", srv.cipher, 7)
 		require.NoError(t, err)
 		require.False(t, strings.HasPrefix(bare, accessTokenPrefix))
 
@@ -60,7 +61,7 @@ func TestRefreshTokenPrefix(t *testing.T) {
 	})
 
 	t.Run("bare", func(t *testing.T) {
-		bare, err := CreateCode(CodeTypeRefresh, "session-4", expires, "client-b", srv.cipher)
+		bare, err := opaquetoken.Seal(opaquetoken.TypeRefresh, "session-4", expires, "client-b", srv.cipher, 0)
 		require.NoError(t, err)
 		require.False(t, strings.HasPrefix(bare, refreshTokenPrefix))
 
