@@ -174,7 +174,12 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string, dcrEnabled b
 	}
 	if dcrEnabled {
 		md.RegistrationEndpoint = P(path.Join(prefix, registerEndpoint))
-		md.TokenEndpointAuthMethodsSupported = []string{"client_secret_basic", "none"}
+		// Dynamic registration adds a way to obtain credentials; it does not
+		// change how a metadata document client authenticates, so it may only
+		// add to this list. Replacing it would tell a client that published a
+		// key to fall back to none.
+		md.TokenEndpointAuthMethodsSupported = append(
+			md.TokenEndpointAuthMethodsSupported, "client_secret_basic")
 	}
 	return md
 }

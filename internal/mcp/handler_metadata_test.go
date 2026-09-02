@@ -1,6 +1,7 @@
 package mcp_test
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -111,8 +112,25 @@ func TestAuthorizationServerMetadataHandler(t *testing.T) {
 			"revocation_endpoint_auth_methods_supported": [ "client_secret_post" ],
 			"service_documentation": "https://pomerium.com/docs",
 			"token_endpoint": "https://my-domain.internal/prefix/token",
-			"token_endpoint_auth_methods_supported": [ "client_secret_basic", "none" ],
+			"token_endpoint_auth_methods_supported": [ "private_key_jwt", "none", "client_secret_basic" ],
 			"token_endpoint_auth_signing_alg_values_supported": [ "RS256", "ES256", "EdDSA"]
 		}`, string(b))
+	})
+
+	// Dynamic client registration adds a way to register; it does not change how
+	// a client ID metadata document client authenticates. RFC 8414 makes this
+	// list authoritative, so withdrawing private_key_jwt from it tells a client
+	// that published a key to fall back to none.
+	t.Run("enabling DCR only adds auth methods", func(t *testing.T) {
+		methods := func(dcrEnabled bool) []string {
+			w := httptest.NewRecorder()
+			mcp.AuthorizationServerMetadataHandler("/prefix", dcrEnabled).ServeHTTP(w, r)
+			var md struct {
+				TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported"`
+			}
+			require.NoError(t, json.NewDecoder(w.Result().Body).Decode(&md))
+			return md.TokenEndpointAuthMethodsSupported
+		}
+		assert.Subset(t, methods(true), methods(false))
 	})
 }
