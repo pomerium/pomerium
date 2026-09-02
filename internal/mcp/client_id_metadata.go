@@ -384,7 +384,9 @@ func NewJWKSFetcher(httpClient *http.Client, domainMatcher *DomainMatcher) *JWKS
 	}
 }
 
-func (j *JWKSFetcher) KeySet(ctx context.Context, jwksURI string) (*go_oidc.RemoteKeySet, error) {
+// KeySet accepts a context for symmetry with the other fetchers but does not
+// use it: the returned key set outlives the request, as explained below.
+func (j *JWKSFetcher) KeySet(_ context.Context, jwksURI string) (*go_oidc.RemoteKeySet, error) {
 	if jwksURI == "" {
 		return nil, fmt.Errorf("%w: empty jwks_uri", ErrJWKSFetch)
 	}

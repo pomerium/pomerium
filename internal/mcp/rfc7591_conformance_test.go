@@ -1,9 +1,6 @@
 package mcp
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -49,24 +46,13 @@ func TestClientAssertionTypeIsTheRFC7523Value(t *testing.T) {
 // client_secret_basic" default cannot apply to a metadata document. Apart from
 // the omission this is the MCP specification's own example document.
 func TestCIMDWithoutTokenEndpointAuthMethod(t *testing.T) {
-	var clientID string
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"client_id":      clientID,
-			"client_name":    "Example MCP Client",
-			"redirect_uris":  []string{"http://127.0.0.1:3000/callback"},
-			"grant_types":    []string{"authorization_code"},
-			"response_types": []string{"code"},
-			// token_endpoint_auth_method deliberately omitted
-		})
-	}))
-	t.Cleanup(server.Close)
-	clientID = server.URL + "/oauth/client-metadata.json"
-
-	srv := &Handler{
-		clientMetadataFetcher: NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher()),
-	}
+	srv, clientID := cimdHandler(t, map[string]any{
+		"client_name":    "Example MCP Client",
+		"redirect_uris":  []string{"http://127.0.0.1:3000/callback"},
+		"grant_types":    []string{"authorization_code"},
+		"response_types": []string{"code"},
+		// token_endpoint_auth_method deliberately omitted
+	})
 	reg, err := srv.getOrFetchClient(t.Context(), clientID)
 	require.NoError(t, err, "a client that omits token_endpoint_auth_method must not be rejected")
 	assert.Equal(t, rfc7591v1.TokenEndpointAuthMethodNone,

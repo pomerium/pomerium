@@ -11,12 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,6 +21,8 @@ import (
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func countingJWKSHandler(t *testing.T, keys jose.JSONWebKeySet) (*http.Client, string, *atomic.Int64) {
@@ -92,25 +91,31 @@ func TestTokenEndpointAudiencesRejectsUnconfiguredHost(t *testing.T) {
 		"the /.pomerium/ prefix is served from Envoy's catch-all vhost, so Host must be validated")
 }
 
-// getOrFetchClient is the only production caller of Validate; without this the
-// call can be deleted outright and the package suite still passes.
-func TestGetOrFetchClientValidatesFetchedDocument(t *testing.T) {
-	var clientID string
+// cimdHandler serves doc as a client ID metadata document, filling in the
+// client_id the draft requires it to match, and returns a Handler that fetches
+// from it along with that client_id.
+func cimdHandler(t *testing.T, doc map[string]any) (srv *Handler, clientID string) {
+	t.Helper()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"client_id":                  clientID,
-			"client_name":                "Test Client",
-			"token_endpoint_auth_method": "none",
-			// redirect_uris deliberately absent
-		})
+		_ = json.NewEncoder(w).Encode(doc)
 	}))
 	t.Cleanup(server.Close)
 	clientID = server.URL + "/oauth/client.json"
-
-	srv := &Handler{
+	doc["client_id"] = clientID
+	return &Handler{
 		clientMetadataFetcher: NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher()),
-	}
+	}, clientID
+}
+
+// getOrFetchClient is the only production caller of Validate; without this the
+// call can be deleted outright and the package suite still passes.
+func TestGetOrFetchClientValidatesFetchedDocument(t *testing.T) {
+	srv, clientID := cimdHandler(t, map[string]any{
+		"client_name":                "Test Client",
+		"token_endpoint_auth_method": "none",
+		// redirect_uris deliberately absent
+	})
 	_, err := srv.getOrFetchClient(t.Context(), clientID)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrClientMetadataValidation)
