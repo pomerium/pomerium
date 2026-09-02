@@ -312,13 +312,12 @@ func TestClientIDMetadataDocument_Validate(t *testing.T) {
 		},
 
 		{
-			name: "jwks_uri",
+			name: "jwks_uri without private_key_jwt",
 			doc: ClientIDMetadataDocument{
 				RedirectURIs:            []string{"https://client.example.com/callback"},
 				JWKSURI:                 "https://client.example.com/jwks.json",
 				TokenEndpointAuthMethod: rfc7591v1.TokenEndpointAuthMethodNone,
 			},
-			wantErr: "must be configured with \"private_key_jwt\"",
 		},
 		{
 			name: "valid private_key_jwt",
@@ -497,7 +496,16 @@ func (k assertionTestKey) sign(t *testing.T, claims jwt.Claims) string {
 
 func jwksHandler(t *testing.T, keys jose.JSONWebKeySet) (client *http.Client, uri string) {
 	t.Helper()
+	return jwksHandlerFunc(t, keys, nil)
+}
+
+// jwksHandlerFunc serves keys over TLS, calling onRequest, if set, per request.
+func jwksHandlerFunc(t *testing.T, keys jose.JSONWebKeySet, onRequest func()) (client *http.Client, uri string) {
+	t.Helper()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if onRequest != nil {
+			onRequest()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(keys)
 	}))

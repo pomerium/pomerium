@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/shogo82148/go-sfv"
+
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // AuthorizationServerMetadata represents the OAuth 2.0 Authorization Server Metadata (RFC 8414).
@@ -174,7 +176,12 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string, dcrEnabled b
 	}
 	if dcrEnabled {
 		md.RegistrationEndpoint = P(path.Join(prefix, registerEndpoint))
-		md.TokenEndpointAuthMethodsSupported = []string{"private_key_jwt", "client_secret_basic", "none"}
+		// Dynamic registration adds a way to obtain credentials; it does not
+		// change how a metadata document client authenticates, so it may only
+		// add to this set. Replacing it would tell a client that published a
+		// key to fall back to none.
+		md.TokenEndpointAuthMethodsSupported = slices.Unique(
+			append(md.TokenEndpointAuthMethodsSupported, "client_secret_basic"))
 	}
 	return md
 }

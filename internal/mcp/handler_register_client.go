@@ -150,11 +150,22 @@ func createClientRegistrationFromMetadata(
 		ResponseMetadata: responseMetadata,
 	}
 
-	if requestMetadata.GetTokenEndpointAuthMethod() != rfc7591v1.TokenEndpointAuthMethodNone {
+	switch m := responseMetadata.GetTokenEndpointAuthMethod(); m {
+	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
+		rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
 		registration.ClientSecret = &rfc7591v1.ClientSecret{
 			Value:     cryptutil.NewRandomStringN(32),
 			CreatedAt: timestamppb.Now(),
 		}
+	case rfc7591v1.TokenEndpointAuthMethodNone:
+	default:
+		// The metadata document path negotiates private_key_jwt, but dynamic
+		// registration does not offer it: it is absent from the advertised
+		// token_endpoint_auth_methods_supported, and the JWKS fetcher is gated on
+		// the client ID metadata domain allowlist, which says nothing about a
+		// dynamically registered client. Accepting it would register a client
+		// that can never complete a token exchange.
+		return nil, fmt.Errorf("unsupported token_endpoint_auth_method %q", m)
 	}
 
 	return registration, nil

@@ -9,6 +9,10 @@ import (
 	"github.com/pomerium/pomerium/internal/oauth21/gen"
 )
 
+// ClientAssertionTypeJWTBearer is the client_assertion_type value for the JWT
+// profile, RFC 7523 Section 2.2. It is not the Section 2.1 grant type URN.
+const ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" //nolint:gosec
+
 func ParseTokenRequest(r *http.Request) (*gen.TokenRequest, error) {
 	err := r.ParseForm()
 	if err != nil {

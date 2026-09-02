@@ -473,6 +473,7 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 		name      string
 		preferred string
 		supported []string
+		noJWKS    bool
 		expect    string
 		expectErr bool
 	}{
@@ -495,6 +496,15 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 			expect:    rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT,
 		},
 		{
+			// private_key_jwt is unusable without a jwks_uri, so it must not be
+			// selected over a method the client can actually satisfy.
+			name:      "private_key_jwt without jwks_uri",
+			preferred: "tls_client_auth",
+			supported: []string{rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT, rfc7591v1.TokenEndpointAuthMethodNone},
+			noJWKS:    true,
+			expect:    rfc7591v1.TokenEndpointAuthMethodNone,
+		},
+		{
 			name:      "no overlap",
 			preferred: "tls_client_auth",
 			supported: []string{"tls_client_auth", "client_secret_jwt"},
@@ -509,11 +519,22 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 			expectErr: true,
 		},
 		{
+			// A metadata document may not use client_secret_basic, so RFC 7591's
+			// default for an omitted method cannot apply; it means no preference.
 			name:      "no preferred",
-			expect:    "client_secret_basic",
 			preferred: "",
 			supported: nil,
-			expectErr: true,
+			noJWKS:    true,
+			expect:    rfc7591v1.TokenEndpointAuthMethodNone,
+		},
+		{
+			// token_endpoint_auth_methods_supported is an RFC 8414 server metadata
+			// field; a client publishing a key is not obliged to also list it. No
+			// preference must not downgrade such a client to a public one.
+			name:      "no preferred with a published key",
+			preferred: "",
+			supported: nil,
+			expect:    rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT,
 		},
 	}
 
@@ -523,6 +544,10 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 			RedirectURIs:                       []string{"https://client.example.com/callback"},
 			TokenEndpointAuthMethod:            tc.preferred,
 			TokendEndpointAuthMethodsSupported: tc.supported,
+			JWKSURI:                            "https://client.example.com/jwks.json",
+		}
+		if tc.noJWKS {
+			doc.JWKSURI = ""
 		}
 
 		err := srv.negotiateTokenEndpointAuthMethod(context.Background(), doc)

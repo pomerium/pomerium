@@ -303,7 +303,7 @@ func (srv *Handler) getTokenRequest(
 	}
 
 	if m == rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT {
-		if err := srv.verifyClientAssertion(ctx, tokenReq, clientReg, tokenEndpointAudiences(r, srv.prefix)); err != nil {
+		if err := srv.verifyClientAssertion(ctx, tokenReq, clientReg, srv.tokenEndpointAudiences(r)); err != nil {
 			log.Ctx(ctx).Debug().Err(err).
 				Str("client-id", tokenReq.GetClientId()).
 				Msg("mcp/token: private_key_jwt authentication failed")
@@ -342,11 +342,17 @@ func (srv *Handler) getTokenRequest(
 	return tokenReq, nil
 }
 
-// issuer or token endpoint
-func tokenEndpointAudiences(r *http.Request, prefix string) []string {
+// tokenEndpointAudiences returns the audience values an assertion may name: the
+// issuer or the token endpoint. The /.pomerium/ prefix is served from Envoy's
+// catch-all virtual host, so the Host header is validated against the configured
+// routes before it is trusted to name an audience.
+func (srv *Handler) tokenEndpointAudiences(r *http.Request) []string {
+	if _, ok := srv.hosts.GetServerHostInfo(stripPort(r.Host)); !ok {
+		return nil
+	}
 	issuer := url.URL{Scheme: "https", Host: r.Host}
 	endpoint := issuer
-	endpoint.Path = path.Join(prefix, tokenEndpoint)
+	endpoint.Path = path.Join(srv.prefix, tokenEndpoint)
 	return []string{endpoint.String(), issuer.String()}
 }
 
@@ -711,9 +717,9 @@ func (srv *Handler) verifyClientAssertion(
 	expectedAud []string,
 ) error {
 	clientID := tokenReq.GetClientId()
-	// ClientAssertionTypeJWTBearer is the only assertion type defined for OAuth client
-	// authentication RFC 7523 Section 2.2
-	if tokenReq.GetClientAssertionType() != rfc7591v1.GrantTypesJWTBearer {
+	// The only assertion type defined for OAuth client authentication,
+	// RFC 7523 Section 2.2.
+	if tokenReq.GetClientAssertionType() != oauth21.ClientAssertionTypeJWTBearer {
 		return fmt.Errorf(" unsupported client_assertion_type %q", tokenReq.GetClientAssertionType())
 	}
 
@@ -767,6 +773,11 @@ func clientAssertionAlgorithm(assertion string) (string, error) {
 	return alg, nil
 }
 
+// maxClientAssertionLifetime bounds how far in the future an assertion may
+// expire. Without a jti replay store this is what keeps a captured assertion
+// from becoming a durable credential.
+const maxClientAssertionLifetime = 5 * time.Minute
+
 // RFC 7523 Section 3 validation,
 // * Omitting optional jti replay validation
 // * Omitting optional old iat validation
@@ -797,6 +808,9 @@ func validateClientAssertionClaims(claims jwtutil.Claims, clientID string, expec
 	skew := time.Minute
 	if expiry.Before(now.Add(-skew)) {
 		return fmt.Errorf("expired")
+	}
+	if expiry.After(now.Add(maxClientAssertionLifetime + skew)) {
+		return fmt.Errorf("expires more than %v in the future", maxClientAssertionLifetime)
 	}
 	if notBefore, ok := claims.GetNotBefore(); ok && notBefore.After(now.Add(skew)) {
 		return fmt.Errorf("not yet valid")

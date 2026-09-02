@@ -374,46 +374,50 @@ func (srv *Handler) getOrFetchClient(ctx context.Context, clientID string) (*rfc
 }
 
 func (srv *Handler) negotiateTokenEndpointAuthMethod(ctx context.Context, doc *ClientIDMetadataDocument) error {
-	if doc.TokenEndpointAuthMethod == "" {
-		log.Ctx(ctx).Info().
+	stated := doc.TokenEndpointAuthMethod
+
+	if stated != "" && slices.Contains(supportedTokenAuthMethodsForCIMD, stated) {
+		log.Ctx(ctx).Debug().
 			Str("client-id", doc.ClientID).
-			Msg("mcp/authorize: client did not specify a token endpoint auth method, defaulting to none")
-		doc.TokenEndpointAuthMethod = rfc7591v1.TokenEndpointAuthMethodClientSecretBasic
+			Str("auth-method", stated).
+			Msg("mcp/authorize: using client's preferred token endpoint auth method")
+		return nil
 	}
 
-	if !slices.Contains(supportedTokenAuthMethodsForCIMD, doc.TokenEndpointAuthMethod) {
-		log.Ctx(ctx).Info().
-			Str("client-id", doc.ClientID).
-			Str("preferred-auth-method", doc.TokenEndpointAuthMethod).
-			Strs("client-supported-auth-methods", doc.TokendEndpointAuthMethodsSupported).
-			Strs("pomerium-supported-auth-methods", supportedTokenAuthMethodsForCIMD).
-			Msg("mcp/authorize: client prefers a token endpoint auth method not supported by Pomerium, checking additional auth methods")
-
-		for _, method := range supportedTokenAuthMethodsForCIMD {
-			if slices.Contains(doc.TokendEndpointAuthMethodsSupported, method) {
-				log.Ctx(ctx).Info().
-					Str("client-id", doc.ClientID).
-					Str("auth-method", method).
-					Msg("mcp/authorize: negotiated token endpoint auth method")
-				doc.TokenEndpointAuthMethod = method
-				return nil
-			}
-		}
-
-		log.Ctx(ctx).Error().
-			Str("client-id", doc.ClientID).
-			Str("preferred-auth-method", doc.TokenEndpointAuthMethod).
-			Strs("client-supported-auth-methods", doc.TokendEndpointAuthMethodsSupported).
-			Strs("pomerium-supported-auth-methods", supportedTokenAuthMethodsForCIMD).
-			Msg("mcp/authorize: failed to negotiate a token endpoint auth method")
-
-		return fmt.Errorf("%w: no mutually suported token endpoint auth method", ErrClientMetadataValidation)
-	}
-
-	log.Ctx(ctx).Debug().
+	log.Ctx(ctx).Info().
 		Str("client-id", doc.ClientID).
-		Str("auth-method", doc.TokenEndpointAuthMethod).
-		Msg("mcp/authorize: using client's preferred token endpoint auth method")
+		Str("preferred-auth-method", stated).
+		Strs("client-supported-auth-methods", doc.TokendEndpointAuthMethodsSupported).
+		Strs("pomerium-supported-auth-methods", supportedTokenAuthMethodsForCIMD).
+		Msg("mcp/authorize: negotiating a token endpoint auth method")
 
-	return nil
+	// A stated method Pomerium does not support may only fall back to another
+	// method the client also advertised. An omitted one advertises no
+	// preference to honour: RFC 7591 would default it to client_secret_basic,
+	// which a metadata document may not use, so any method the document can
+	// satisfy is eligible instead. That case cannot fail, because "none" is
+	// always last in preference order and always satisfiable.
+	for _, method := range supportedTokenAuthMethodsForCIMD {
+		if stated != "" && !slices.Contains(doc.TokendEndpointAuthMethodsSupported, method) {
+			continue
+		}
+		if !doc.canAuthenticateWith(method) {
+			continue
+		}
+		log.Ctx(ctx).Info().
+			Str("client-id", doc.ClientID).
+			Str("auth-method", method).
+			Msg("mcp/authorize: negotiated token endpoint auth method")
+		doc.TokenEndpointAuthMethod = method
+		return nil
+	}
+
+	log.Ctx(ctx).Error().
+		Str("client-id", doc.ClientID).
+		Str("preferred-auth-method", stated).
+		Strs("client-supported-auth-methods", doc.TokendEndpointAuthMethodsSupported).
+		Strs("pomerium-supported-auth-methods", supportedTokenAuthMethodsForCIMD).
+		Msg("mcp/authorize: failed to negotiate a token endpoint auth method")
+
+	return fmt.Errorf("%w: no mutually supported token endpoint auth method", ErrClientMetadataValidation)
 }
