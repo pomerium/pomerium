@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/mcp"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 func TestWWWAuthenticate(t *testing.T) {
@@ -132,5 +133,8 @@ func TestAuthorizationServerMetadataHandler(t *testing.T) {
 			return md.TokenEndpointAuthMethodsSupported
 		}
 		assert.Subset(t, methods(true), methods(false))
+		// RFC 8414 defines this as a set of values, so unioning must not
+		// duplicate a method the base list already carries.
+		assert.Equal(t, slices.Unique(methods(true)), methods(true))
 	})
 }
