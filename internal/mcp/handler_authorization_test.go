@@ -519,11 +519,22 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 			expectErr: true,
 		},
 		{
+			// A metadata document may not use client_secret_basic, so RFC 7591's
+			// default for an omitted method cannot apply; it means no preference.
 			name:      "no preferred",
-			expect:    "client_secret_basic",
 			preferred: "",
 			supported: nil,
-			expectErr: true,
+			noJWKS:    true,
+			expect:    rfc7591v1.TokenEndpointAuthMethodNone,
+		},
+		{
+			// token_endpoint_auth_methods_supported is an RFC 8414 server metadata
+			// field; a client publishing a key is not obliged to also list it. No
+			// preference must not downgrade such a client to a public one.
+			name:      "no preferred with a published key",
+			preferred: "",
+			supported: nil,
+			expect:    rfc7591v1.TokenEndpointAuthMethodPrivateKeyJWT,
 		},
 	}
 

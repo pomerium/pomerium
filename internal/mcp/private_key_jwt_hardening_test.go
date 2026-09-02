@@ -3,9 +3,6 @@ package mcp
 import (
 	"context"
 	"encoding/json"
-	"github.com/google/uuid"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,12 +11,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
@@ -47,7 +49,7 @@ func TestJWKSKeySetIsReusedAcrossRequests(t *testing.T) {
 			IssuedAt: jwt.NewNumericDate(now),
 			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
-		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
+		req := tokenRequest(oauth21.ClientAssertionTypeJWTBearer, clientID, assertion)
 		require.NoError(t, srv.verifyClientAssertion(t.Context(), req, reg, aud))
 	}
 	assert.Equal(t, int64(1), count.Load(),
@@ -66,7 +68,7 @@ func TestClientAssertionLifetimeIsBounded(t *testing.T) {
 	now := time.Now()
 
 	sign := func(d time.Duration) *oauth21proto.TokenRequest {
-		return tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, key.sign(t, jwt.Claims{
+		return tokenRequest(oauth21.ClientAssertionTypeJWTBearer, clientID, key.sign(t, jwt.Claims{
 			Issuer: clientID, Subject: clientID, Audience: aud,
 			IssuedAt: jwt.NewNumericDate(now), Expiry: jwt.NewNumericDate(now.Add(d)),
 		}))
@@ -192,7 +194,7 @@ func TestTokenEndpointPrivateKeyJWTEndToEnd(t *testing.T) {
 			"code":                  {authCode},
 			"client_id":             {clientID},
 			"code_verifier":         {codeVerifier},
-			"client_assertion_type": {rfc7591v1.GrantTypesJWTBearer},
+			"client_assertion_type": {oauth21.ClientAssertionTypeJWTBearer},
 			"client_assertion":      {assertion},
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, prefix+"/token", strings.NewReader(form.Encode()))
@@ -249,7 +251,7 @@ func TestTokenEndpointPrivateKeyJWTEndToEnd(t *testing.T) {
 		form := url.Values{
 			"grant_type": {"authorization_code"}, "code": {newAuthCode(t)},
 			"client_id": {clientID}, "code_verifier": {codeVerifier},
-			"client_assertion_type": {rfc7591v1.GrantTypesJWTBearer},
+			"client_assertion_type": {oauth21.ClientAssertionTypeJWTBearer},
 			"client_assertion":      {sign("https://" + evil)},
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, prefix+"/token", strings.NewReader(form.Encode()))

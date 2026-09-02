@@ -28,6 +28,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/jwtutil"
+	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -1175,7 +1176,7 @@ func TestVerifyClientAssertion2(t *testing.T) {
 			IssuedAt: jwt.NewNumericDate(now),
 			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
-		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
+		req := tokenRequest(oauth21.ClientAssertionTypeJWTBearer, clientID, assertion)
 		srv := &Handler{
 			jwksFetcher: NewJWKSFetcher(client, allowAllDomainMatcher()),
 		}
@@ -1204,7 +1205,7 @@ func TestVerifyClientAssertion2(t *testing.T) {
 			IssuedAt: jwt.NewNumericDate(now),
 			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
-		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
+		req := tokenRequest(oauth21.ClientAssertionTypeJWTBearer, clientID, assertion)
 		srv := &Handler{
 			jwksFetcher: NewJWKSFetcher(client, allowAllDomainMatcher()),
 		}
@@ -1232,7 +1233,7 @@ func TestVerifyClientAssertion2(t *testing.T) {
 			IssuedAt: jwt.NewNumericDate(now),
 			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
-		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
+		req := tokenRequest(oauth21.ClientAssertionTypeJWTBearer, clientID, assertion)
 		srv := &Handler{
 			jwksFetcher: NewJWKSFetcher(client, allowAllDomainMatcher()),
 		}
@@ -1295,7 +1296,7 @@ func TestVerifyClientAssertion2(t *testing.T) {
 			IssuedAt: jwt.NewNumericDate(now),
 			Expiry:   jwt.NewNumericDate(now.Add(2 * time.Minute)),
 		})
-		req := tokenRequest(rfc7591v1.GrantTypesJWTBearer, clientID, assertion)
+		req := tokenRequest(oauth21.ClientAssertionTypeJWTBearer, clientID, assertion)
 		srv := &Handler{
 			jwksFetcher: NewJWKSFetcher(client, allowAllDomainMatcher()),
 		}

@@ -717,9 +717,9 @@ func (srv *Handler) verifyClientAssertion(
 	expectedAud []string,
 ) error {
 	clientID := tokenReq.GetClientId()
-	// ClientAssertionTypeJWTBearer is the only assertion type defined for OAuth client
-	// authentication RFC 7523 Section 2.2
-	if tokenReq.GetClientAssertionType() != rfc7591v1.GrantTypesJWTBearer {
+	// The only assertion type defined for OAuth client authentication,
+	// RFC 7523 Section 2.2.
+	if tokenReq.GetClientAssertionType() != oauth21.ClientAssertionTypeJWTBearer {
 		return fmt.Errorf(" unsupported client_assertion_type %q", tokenReq.GetClientAssertionType())
 	}
 

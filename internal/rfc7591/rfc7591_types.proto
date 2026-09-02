@@ -165,7 +165,7 @@ message Metadata {
   // OPTIONAL. String indicator of the requested authentication method for the
   // token endpoint. Default is "client_secret_basic".
   optional string token_endpoint_auth_method = 2 [(buf.validate.field).string = {
-    in: ["none", "client_secret_post", "client_secret_basic"],
+    in: ["none", "client_secret_post", "client_secret_basic", "private_key_jwt"],
   }];
 
   // OPTIONAL. Array of OAuth 2.0 grant type strings that the client can use.

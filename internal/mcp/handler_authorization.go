@@ -374,13 +374,10 @@ func (srv *Handler) getOrFetchClient(ctx context.Context, clientID string) (*rfc
 }
 
 func (srv *Handler) negotiateTokenEndpointAuthMethod(ctx context.Context, doc *ClientIDMetadataDocument) error {
-	if doc.TokenEndpointAuthMethod == "" {
-		log.Ctx(ctx).Info().
-			Str("client-id", doc.ClientID).
-			Msg("mcp/authorize: client did not specify a token endpoint auth method, defaulting to none")
-		doc.TokenEndpointAuthMethod = rfc7591v1.TokenEndpointAuthMethodClientSecretBasic
-	}
-
+	// RFC 7591 makes client_secret_basic the default when the method is omitted,
+	// but a metadata document may not use it, so an omission cannot mean that
+	// here. Treat it as no preference and negotiate, rather than downgrading a
+	// client that published a key straight to "none".
 	if !slices.Contains(supportedTokenAuthMethodsForCIMD, doc.TokenEndpointAuthMethod) {
 		log.Ctx(ctx).Info().
 			Str("client-id", doc.ClientID).
@@ -400,6 +397,23 @@ func (srv *Handler) negotiateTokenEndpointAuthMethod(ctx context.Context, doc *C
 			}
 		}
 
+		// With no stated preference there is nothing to fail to honour, so fall
+		// back to whatever the document can actually satisfy. A published
+		// jwks_uri is what makes private_key_jwt satisfiable, and it is preferred
+		// over none, so a client that published a key is not treated as public.
+		if doc.TokenEndpointAuthMethod == "" {
+			for _, method := range supportedTokenAuthMethodsForCIMD {
+				if doc.canAuthenticateWith(method) {
+					log.Ctx(ctx).Info().
+						Str("client-id", doc.ClientID).
+						Str("auth-method", method).
+						Msg("mcp/authorize: client did not specify a token endpoint auth method")
+					doc.TokenEndpointAuthMethod = method
+					return nil
+				}
+			}
+		}
+
 		log.Ctx(ctx).Error().
 			Str("client-id", doc.ClientID).
 			Str("preferred-auth-method", doc.TokenEndpointAuthMethod).
@@ -407,7 +421,7 @@ func (srv *Handler) negotiateTokenEndpointAuthMethod(ctx context.Context, doc *C
 			Strs("pomerium-supported-auth-methods", supportedTokenAuthMethodsForCIMD).
 			Msg("mcp/authorize: failed to negotiate a token endpoint auth method")
 
-		return fmt.Errorf("%w: no mutually suported token endpoint auth method", ErrClientMetadataValidation)
+		return fmt.Errorf("%w: no mutually supported token endpoint auth method", ErrClientMetadataValidation)
 	}
 
 	log.Ctx(ctx).Debug().
