@@ -24,6 +24,7 @@ type idpSessionSyncer struct {
 
 func newIdpSessionSyncer(
 	clientB databroker.ClientGetter,
+	authenticateGetter func(ctx context.Context, idpID string) (identity.Authenticator, error),
 	dataStore *dataStore,
 	notifier SyncNotifier,
 ) *idpSessionSyncer {
@@ -38,10 +39,8 @@ func newIdpSessionSyncer(
 		now: func() time.Time {
 			return time.Now()
 		},
-		eventMgr: events.New(),
-		getAuthenticator: func(ctx context.Context, idpID string) (identity.Authenticator, error) {
-			panic("get me from config")
-		},
+		eventMgr:         events.New(),
+		getAuthenticator: authenticateGetter,
 	}
 	return &idpSessionSyncer{
 		clientB:        clientB,

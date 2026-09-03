@@ -7,6 +7,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/identity"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -21,9 +22,34 @@ type IdentityManager struct {
 	bindingSyncer    *bindingSyncer
 }
 
+type options struct {
+	reconcileInterval time.Duration
+}
+
+func (o *options) Apply(opts ...Option) {
+	for _, opt := range opts {
+
+		opt(o)
+	}
+}
+
+type Option func(o *options)
+
+func WithReconcileInterval(d time.Duration) Option {
+	return func(o *options) {
+		o.reconcileInterval = d
+	}
+}
+
 func NewIdentityManager(
 	clientB databroker.ClientGetter,
+	authenticateGetter func(ctx context.Context, idpID string) (identity.Authenticator, error),
+	o ...Option,
 ) *IdentityManager {
+	opts := options{
+		reconcileInterval: time.Second * 30,
+	}
+	opts.Apply(o...)
 
 	datastore := newDataStore()
 	reconciler := databrokerutil.NewReconciler(
@@ -33,7 +59,7 @@ func NewIdentityManager(
 		func([]*databroker.Record) {},
 		bindingCmp,
 	)
-	synchronizedReconciler := newSynchronizedReconciler(reconciler, datastore)
+	synchronizedReconciler := newSynchronizedReconciler(opts.reconcileInterval, reconciler, datastore)
 
 	return &IdentityManager{
 		identReconciler: synchronizedReconciler,
@@ -41,7 +67,10 @@ func NewIdentityManager(
 		datastore:       datastore,
 		bindingSyncer:   newBindingSyncer(clientB, datastore, synchronizedReconciler),
 		idpSessionSyncer: newIdpSessionSyncer(
-			clientB, datastore, newSourceNotifier(sourceIDPSessions, synchronizedReconciler),
+			clientB,
+			authenticateGetter,
+			datastore,
+			newSourceNotifier(sourceIDPSessions, synchronizedReconciler),
 		),
 	}
 }

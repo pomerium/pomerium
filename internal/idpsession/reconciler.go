@@ -26,6 +26,7 @@ type synchronizedReconciler struct {
 	reconciler databrokerutil.Reconciler
 	required   *set.Set[syncSource]
 	ready      *set.Set[syncSource]
+	interval   time.Duration
 
 	// reconcileLocker mutex. Prevents races between readiness check &
 	// potential concurrent syncer Clear invocations
@@ -35,6 +36,7 @@ type synchronizedReconciler struct {
 }
 
 func newSynchronizedReconciler(
+	interval time.Duration,
 	reconciler databrokerutil.Reconciler,
 	ds sync.Locker,
 ) *synchronizedReconciler {
@@ -52,6 +54,7 @@ func newSynchronizedReconciler(
 		wake:            make(chan struct{}, 1),
 		reconciler:      reconciler,
 		reconcileLocker: ds,
+		interval:        interval,
 	}
 }
 
@@ -83,7 +86,7 @@ func (r *synchronizedReconciler) wakeup() {
 }
 
 func (r *synchronizedReconciler) Run(ctx context.Context) error {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(r.interval)
 	defer ticker.Stop()
 
 	for {

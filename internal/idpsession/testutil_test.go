@@ -1,14 +1,20 @@
 package idpsession
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -98,4 +104,58 @@ func recordSetDiff(want, got databroker.RecordSet) string {
 
 func recordSetBundleDiff(want, got databroker.RecordSetBundle) string {
 	return cmp.Diff(want, got, protocmp.Transform())
+}
+
+type mockAuthenticator struct {
+	identity.Authenticator
+
+	refreshResult       *oauth2.Token
+	refreshError        error
+	revokeError         error
+	updateUserInfoError error
+}
+
+func (mock *mockAuthenticator) Refresh(_ context.Context, _ *oauth2.Token, _ identity.State) (*oauth2.Token, error) {
+	return mock.refreshResult, mock.refreshError
+}
+
+func (mock *mockAuthenticator) Revoke(_ context.Context, _ *oauth2.Token) error {
+	return mock.revokeError
+}
+
+func (mock *mockAuthenticator) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ any) error {
+	return mock.updateUserInfoError
+}
+
+func newSessionWithBinding(s *session.Session, idpsessionID string) []*databroker.Record {
+	return []*databroker.Record{
+		databroker.NewRecord(s),
+		databroker.NewRecord(&idpsession.IDPSessionBinding{
+			Id:           s.GetId(),
+			TypeUrl:      protoutil.GetTypeURL(s),
+			IdpSessionId: idpsessionID,
+		}),
+	}
+}
+
+func newUserWithBinding(u *user.User, idpsessionID string) []*databroker.Record {
+	return []*databroker.Record{
+		databroker.NewRecord(u),
+		databroker.NewRecord(&idpsession.IDPSessionBinding{
+			Id:           u.GetId(),
+			TypeUrl:      protoutil.GetTypeURL(u),
+			IdpSessionId: idpsessionID,
+		}),
+	}
+}
+
+func newMCPWithBinding(m *oauth21.MCPRefreshToken, idpsessionID string) []*databroker.Record {
+	return []*databroker.Record{
+		databroker.NewRecord(m),
+		databroker.NewRecord(&idpsession.IDPSessionBinding{
+			Id:           m.GetId(),
+			TypeUrl:      protoutil.GetTypeURL(m),
+			IdpSessionId: idpsessionID,
+		}),
+	}
 }

@@ -8,11 +8,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
 	identitymanager "github.com/pomerium/pomerium/pkg/identity/manager"
+	"google.golang.org/protobuf/proto"
 )
 
 func bindingCmp(r1, r2 *databroker.Record) bool {
 	// TODO : maybe needs a reconciler that uses patch from recordSetsBudles
-	panic("implement me")
+	return proto.Equal(r1.GetData(), r2.GetData())
 }
 
 type idpSessionApplier struct {

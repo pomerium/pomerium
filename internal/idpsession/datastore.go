@@ -121,7 +121,8 @@ func (ds *dataStore) deleteRecordType(typeURL string) {
 // reconciler helpers
 
 func (ds *dataStore) getCurrentChangesetLocked(_ context.Context) (databroker.RecordSetBundle, error) {
-	return ds.recordSet, nil
+	curSet := ds.recordSet
+	return curSet, nil
 }
 
 func (ds *dataStore) lookupBindingsLocked(isID string) []*idpsession.IDPSessionBinding {
@@ -129,15 +130,25 @@ func (ds *dataStore) lookupBindingsLocked(isID string) []*idpsession.IDPSessionB
 }
 
 func (ds *dataStore) targetChangeSetLocked(_ context.Context) (databroker.RecordSetBundle, error) {
-	newRecordSet := make(databroker.RecordSetBundle)
+	target := make(databroker.RecordSetBundle)
+	// never delete user.User. Add them here first so changes get applied
+	if userSet, ok := ds.recordSet["type.googleapis.com/user.User"]; ok {
+		for _, user := range userSet {
+			target.Add(user)
+		}
+	}
+
 	for _, idpSess := range ds.idpSessions {
 		retBindings := ds.lookupBindingsLocked(idpSess.Id)
 		for _, binding := range retBindings {
 			got, ok := ds.recordSet.Get(binding.TypeUrl, binding.Id)
 			if !ok {
-				// fine to skip, a subsequent reconcile will pick this case up
+				// !!!!!
+				// TODO : if we want to keep this bidirectional relationship, then we need to always put the binding alongside
+				// the session implementation.
 				continue
 			}
+			target.Add(databroker.NewRecord(binding))
 			applier := idpSessionApplier{IDPSession: idpSess}
 			rec := proto.CloneOf(got)
 
@@ -148,25 +159,26 @@ func (ds *dataStore) targetChangeSetLocked(_ context.Context) (databroker.Record
 					panic(err)
 				}
 				applier.ApplyToSession(sess)
-				newRecordSet.Add(databroker.NewRecord(sess))
+				target.Add(databroker.NewRecord(sess))
 			case "type.googleapis.com/user.User":
 				user := &user.User{}
 				if err := rec.GetData().UnmarshalTo(user); err != nil {
 					panic(err)
 				}
 				applier.ApplyToUser(user)
-				newRecordSet.Add(databroker.NewRecord(user))
+				target.Add(databroker.NewRecord(user))
 			case "type.googleapis.com/oauth21.MCPRefreshToken":
 				mcp := &oauth21.MCPRefreshToken{}
 				if err := rec.GetData().UnmarshalTo(mcp); err != nil {
 					panic(err)
 				}
 				applier.ApplyToMCP(mcp)
-				newRecordSet.Add(databroker.NewRecord(mcp))
+				target.Add(databroker.NewRecord(mcp))
 			default:
 				panic(fmt.Sprintf("%s not yet supported as a binding dependency", typeURL))
 			}
 		}
 	}
-	return newRecordSet, nil
+	// never delete user.User
+	return target, nil
 }

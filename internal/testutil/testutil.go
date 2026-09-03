@@ -135,11 +135,16 @@ type tHelper = interface {
 
 // collectT is a test collector that tracks assertion failures.
 type collectT struct {
-	errors []error
+	errors    []error
+	onFailure func(error)
 }
 
 func (c *collectT) Errorf(format string, args ...any) {
-	c.errors = append(c.errors, fmt.Errorf(format, args...))
+	err := fmt.Errorf(format, args...)
+	c.errors = append(c.errors, err)
+	if c.onFailure != nil {
+		c.onFailure(err)
+	}
 }
 
 func (c *collectT) Failed() bool {
@@ -161,9 +166,17 @@ func AssertConsistentlyWithT(
 	}
 
 	ch := make(chan *collectT, 1)
+	failed := make(chan error, 1)
 
 	checkCond := func() {
-		collect := new(collectT)
+		collect := &collectT{
+			onFailure: func(err error) {
+				select {
+				case failed <- err:
+				default:
+				}
+			},
+		}
 		defer func() {
 			ch <- collect
 		}()
@@ -183,6 +196,9 @@ func AssertConsistentlyWithT(
 
 	for {
 		select {
+		case err := <-failed:
+			assert.Fail(t, "Condition was not consistently satisfied", append(msgAndArgs, err)...)
+			return
 		case <-timer.C:
 			return
 		case <-tickC:

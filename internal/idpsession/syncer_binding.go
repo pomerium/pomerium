@@ -111,9 +111,11 @@ func (b *bindingSyncer) handleBinding(_ context.Context, rec *databroker.Record)
 	}
 	if rec.GetDeletedAt() != nil {
 		b.dataStore.deleteMapping(binding)
+		b.dataStore.deleteRecord(rec)
 		return nil
 	}
 	b.dataStore.updateMapping(binding)
+	b.dataStore.addRecord(rec)
 	return nil
 }
 
