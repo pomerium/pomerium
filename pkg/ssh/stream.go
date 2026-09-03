@@ -491,7 +491,8 @@ func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, state *StreamS
 		}
 		err := sh.discovery.PortForwardManager().RemovePermission(
 			request.CancelTcpipForwardRequest.RemoteAddress,
-			request.CancelTcpipForwardRequest.RemotePort)
+			request.CancelTcpipForwardRequest.RemotePort,
+		)
 		if err != nil {
 			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
 				Success:      false,
@@ -556,7 +557,8 @@ func (sh *StreamHandler) ServeChannel(
 		currentUsername := reply.CurrentUser.Username()
 		channel := NewChannelImpl(
 			newStreamHandlerInterfaceImpl(sh, currentUsername, downstreamInfo.DownstreamChannelId, reply.StreamAuthInfo),
-			stream, downstreamInfo)
+			stream, downstreamInfo,
+		)
 		switch msg.ChanType {
 		case ChannelTypeSession:
 			ch := NewChannelHandler(channel, sh.cliCtrl, sh.config)
@@ -683,6 +685,12 @@ func (sh *StreamHandler) reauth(ctx context.Context, state *StreamState) error {
 	}
 	err := sh.auth.EvaluateDelayed(ctx, state.StreamAuthInfo, state.CurrentUser)
 	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			log.Ctx(ctx).Debug().Err(err).
+				Uint64("stream-id", sh.downstream.StreamId).
+				Msg("terminating stream: session no longer present on reauth")
+			return errNoLongerAuthorized
+		}
 		return err
 	}
 	return nil

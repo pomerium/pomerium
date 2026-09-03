@@ -417,7 +417,8 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 			eCtx,
 			"ssh-auth-session-sync",
 			sm,
-			databrokerutil.WithTypeURL("type.googleapis.com/session.Session"))
+			databrokerutil.WithTypeURL("type.googleapis.com/session.Session"),
+		)
 		return syncer.Run(eCtx)
 	})
 
@@ -584,7 +585,8 @@ func buildClusterLoadAssignment(clusterID string, clusterEndpoints map[uint64]*e
 func compareEndpoints(a, b *envoy_config_endpoint_v3.LbEndpoint) int {
 	return cmp.Compare(
 		a.GetEndpoint().GetAddress().GetSocketAddress().GetAddress(),
-		b.GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
+		b.GetEndpoint().GetAddress().GetSocketAddress().GetAddress(),
+	)
 }
 
 func buildEndpointMetadata(info portforward.RoutePortForwardInfo) *extensions_ssh.EndpointMetadata {
@@ -664,8 +666,10 @@ func (sm *StreamManager) endpointsUpdateLoop(ctx context.Context) {
 	}
 }
 
+var errNoLongerAuthorized = status.Error(codes.PermissionDenied, "no longer authorized")
+
 func (sm *StreamManager) terminateStreamLocked(streamID uint64) {
 	if sh, ok := sm.activeStreams[streamID]; ok {
-		sh.Handler.Terminate(status.Errorf(codes.PermissionDenied, "no longer authorized"))
+		sh.Handler.Terminate(errNoLongerAuthorized)
 	}
 }
