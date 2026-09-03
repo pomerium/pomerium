@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package idpsession;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/idpsession";
+
+message IDToken {
+  string                    issuer     = 1;
+  string                    subject    = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  google.protobuf.Timestamp issued_at  = 4;
+  string                    raw        = 5;
+}
+
+message OAuthToken {
+  string                    access_token  = 1;
+  string                    token_type    = 2;
+  google.protobuf.Timestamp expires_at    = 3;
+  string                    refresh_token = 4;
+}
+
+
+message IDPSession {
+  string id = 1;
+  // FIXME: used for identity.State
+  string raw_id_token = 2;
+  IDToken id_token = 3;
+  OAuthToken oauth_token = 4;
+  SessionState state = 5;
+  // google.protobuf.Struct is used to implement identity.State
+  // with json Marshal/Unmarshal semantics.
+  google.protobuf.Struct claims = 6;
+  
+  string idp_id = 9;
+  string user_id = 10;
+}
+
+message IDPSessionBinding {
+    string id = 1;
+    string type_url = 2;
+    string idp_session_id = 3;
+}
+
+
+
+enum UpstreamIdPSessionState {
+  UPSTREAM_IDP_SESSION_STATE_UKNOWN = 0;
+  UPSTREAM_IDP_SESSION_STATE_VALID = 1;
+  UPSTREAM_IDP_SESSION_STATE_INVALID = 2;
+}
+
+message SessionState {
+	UpstreamIdPSessionState state = 1;
+	// holds readable string about details of a state
+	string details = 2;
+}
