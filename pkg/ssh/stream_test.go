@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	. "go.uber.org/mock/gomock" //nolint
 	gossh "golang.org/x/crypto/ssh"
+	xterm "golang.org/x/term"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1592,6 +1593,20 @@ func render(t *testing.T, emu *vt.SafeEmulator) string {
 	return sb.String()
 }
 
+func (s *StreamHandlerSuite) newTestTerminal(cols, rows int) *vttest.Terminal {
+	s.T().Helper()
+	term, err := vttest.NewTerminal(s.T(), cols, rows)
+	s.Require().NoError(err)
+
+	// set raw mode to hide echo
+	pty, ok := term.Input().(*os.File)
+	s.Require().Truef(ok, "expected the terminal's pty to be an *os.File, got %T", term.Input())
+	_, err = xterm.MakeRaw(int(pty.Fd()))
+	s.Require().NoError(err)
+
+	return term
+}
+
 type routesPortalTestHookOutput struct {
 	stream *mockChannelStream
 	peerID uint32
@@ -1689,8 +1704,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal() {
 |                                       |`[1:]),
 	}
 
-	emu, err := vttest.NewTerminal(s.T(), 39, 10)
-	s.Require().NoError(err)
+	emu := s.newTestTerminal(39, 10)
 
 	var ok bool
 	currentFrame := 0
@@ -1804,8 +1818,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
 |                                |`[1:]),
 	}
 
-	emu, err := vttest.NewTerminal(s.T(), 39, 10)
-	s.Require().NoError(err)
+	emu := s.newTestTerminal(39, 10)
 
 	var portalOk bool
 	var handoffOk bool
