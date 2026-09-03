@@ -37,10 +37,8 @@ const nonceSizeLimit = 300 // not part of the OIDC spec
 type Handlers struct {
 	issuerURL string
 
-	stateEncryptor        *tokens.StateEncryptor
-	codeEncryptor         *tokens.CodeEncryptor
-	accessTokenEncryptor  *tokens.AccessTokenEncryptor
-	refreshTokenEncryptor *tokens.RefreshTokenEncryptor
+	codeEncryptor        *tokens.CodeEncryptor
+	accessTokenEncryptor *tokens.AccessTokenEncryptor
 
 	// key set for ID tokens that we sign
 	publicJWKS jose.JSONWebKeySet
@@ -88,16 +86,16 @@ func NewHandlers(
 		publicJWKS.Keys[i] = jwks.Keys[i].Public()
 	}
 
+	// XXX: extract allowed client_id values
+
 	return &Handlers{
-		issuerURL:             issuerURL,
-		codeEncryptor:         tokens.NewCodeEncryptor(aead),
-		accessTokenEncryptor:  tokens.NewAccessTokenEncryptor(aead),
-		refreshTokenEncryptor: tokens.NewRefreshTokenEncryptor(aead),
-		stateEncryptor:        tokens.NewStateEncryptor(aead),
-		idTokenSigner:         idTokenSigner,
-		publicJWKS:            publicJWKS,
-		getSessionHandle:      getSessionHandle,
-		getUserInfoData:       getUserInfoData,
+		issuerURL:            issuerURL,
+		codeEncryptor:        tokens.NewCodeEncryptor(aead),
+		accessTokenEncryptor: tokens.NewAccessTokenEncryptor(aead),
+		idTokenSigner:        idTokenSigner,
+		publicJWKS:           publicJWKS,
+		getSessionHandle:     getSessionHandle,
+		getUserInfoData:      getUserInfoData,
 	}, nil
 }
 
@@ -142,7 +140,7 @@ func (h *Handlers) HandleOIDCConfiguration(w http.ResponseWriter, _ *http.Reques
 		"id_token_signing_alg_values_supported": []string{"RS256"},
 		"token_endpoint_auth_methods_supported": []string{"client_secret_post"}, // XXX: support client_secret_basic
 		"response_types_supported":              []string{"code"},
-		"scopes_supported":                      []string{"openid"},
+		"scopes_supported":                      []string{"email", "openid"},
 	}
 	serveJSON(w, config)
 }
