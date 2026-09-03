@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -27,6 +28,11 @@ func NewPortalProgram(ctx context.Context, routes []string, width, height int, o
 	l.Styles.Title = titleStyle
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.HelpStyle = helpStyle
+	// pin the quit keybinding so it doesn't change with upstream defaults
+	l.KeyMap.Quit = key.NewBinding(
+		key.WithKeys("q", "esc"),
+		key.WithHelp("q", "quit"),
+	)
 
 	return &PortalProgram{
 		Program: tea.NewProgram(portalModel{list: l}, append(opts,
