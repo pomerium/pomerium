@@ -3,13 +3,13 @@ package oidcprovider
 import (
 	"context"
 	"crypto"
-	"crypto/elliptic"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/oidcprovider/tokens"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
@@ -74,7 +75,7 @@ func NewHandlers(
 		return nil, err
 	}
 	idTokenSigner, err := jose.NewSigner(
-		jose.SigningKey{Algorithm: jose.ES256, Key: jwks.Keys[0]},
+		jose.SigningKey{Algorithm: jose.RS256, Key: jwks.Keys[0]},
 		(&jose.SignerOptions{}).WithType("JWT"),
 	)
 	if err != nil {
@@ -101,16 +102,19 @@ func NewHandlers(
 }
 
 func deriveJWKS(sharedSecret []byte) (*jose.JSONWebKeySet, error) {
-	// XXX: generate a random key and store in databroker?
-	r2 := hkdf.New(sha256.New, sharedSecret, nil, []byte("authenticate-oidc-signing-key"))
-	signingKey, err := keygen.ECDSALegacy(elliptic.P256(), r2)
+	r := hkdf.New(sha256.New, sharedSecret, nil, []byte("authenticate-oidc-signing-key"))
+	var seed [32]byte
+	if _, err := io.ReadFull(r, seed[:]); err != nil {
+		return nil, err
+	}
+	signingKey, err := keygen.RSA(2048, seed[:])
 	if err != nil {
 		return nil, err
 	}
 	jwk := jose.JSONWebKey{
 		Key:       signingKey,
 		Use:       "sig",
-		Algorithm: string(jose.ES256),
+		Algorithm: string(jose.RS256),
 	}
 	thumbprint, err := jwk.Thumbprint(crypto.SHA256)
 	if err != nil {
@@ -126,18 +130,17 @@ func (h *Handlers) HandleOIDCConfiguration(w http.ResponseWriter, _ *http.Reques
 	var rootURL *url.URL
 	rootURL, _ = url.Parse(h.issuerURL)
 	config := map[string]interface{}{
-		"issuer": h.issuerURL,
-		// XXX: extract path values to endpoints file
-		"authorization_endpoint":                rootURL.ResolveReference(&url.URL{Path: "/oidc/auth"}).String(),
-		"token_endpoint":                        rootURL.ResolveReference(&url.URL{Path: "/oidc/token"}).String(),
-		"jwks_uri":                              rootURL.ResolveReference(&url.URL{Path: "/.well-known/jwks.json"}).String(),
-		"userinfo_endpoint":                     rootURL.ResolveReference(&url.URL{Path: "/oidc/userinfo"}).String(),
-		"end_session_endpoint":                  rootURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
+		"issuer":                                h.issuerURL,
+		"authorization_endpoint":                rootURL.ResolveReference(&url.URL{Path: endpoints.PathOIDCAuth}).String(),
+		"token_endpoint":                        rootURL.ResolveReference(&url.URL{Path: endpoints.PathOIDCToken}).String(),
+		"jwks_uri":                              rootURL.ResolveReference(&url.URL{Path: endpoints.PathOIDCJWKS}).String(),
+		"userinfo_endpoint":                     rootURL.ResolveReference(&url.URL{Path: endpoints.PathOIDCUserInfo}).String(),
+		"end_session_endpoint":                  rootURL.ResolveReference(&url.URL{Path: endpoints.PathPomeriumSignOut}).String(),
 		"grant_types_supported":                 []string{"authorization_code"},
 		"subject_types_supported":               []string{"public"},
 		"code_challenge_methods_supported":      []string{"S256"},
-		"id_token_signing_alg_values_supported": []string{"ES256"},
-		"token_endpoint_auth_methods_supported": []string{"client_secret_post"},
+		"id_token_signing_alg_values_supported": []string{"RS256"},
+		"token_endpoint_auth_methods_supported": []string{"client_secret_post"}, // XXX: support client_secret_basic
 		"response_types_supported":              []string{"code"},
 		"scopes_supported":                      []string{"openid"},
 	}

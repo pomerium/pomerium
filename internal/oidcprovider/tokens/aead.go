@@ -5,15 +5,16 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"io"
 
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 )
 
 func DeriveEncryptionCipher(sharedSecret []byte) (cipher.AEAD, error) {
-	r1 := hkdf.New(sha256.New, sharedSecret, nil, []byte("hosted-authenticate-oidc-encryption-key"))
+	r := hkdf.New(sha256.New, sharedSecret, nil, []byte("authenticate-oidc-encryption-key"))
 	encryptionKey := make([]byte, chacha20poly1305.KeySize)
-	if _, err := r1.Read(encryptionKey); err != nil {
+	if _, err := io.ReadFull(r, encryptionKey); err != nil {
 		return nil, err
 	}
 	return chacha20poly1305.NewX(encryptionKey)
