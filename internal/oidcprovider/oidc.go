@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/oauth21"
 	"github.com/pomerium/pomerium/internal/oidcprovider/tokens"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -323,7 +324,7 @@ func validateCodeChallenge(method, challenge string) (string, error) {
 	case "":
 		return "", nil
 	case "S256":
-		b, err := base64.URLEncoding.DecodeString(challenge)
+		b, err := base64.RawURLEncoding.DecodeString(challenge)
 		if err != nil || len(b) != sha256.Size {
 			return "", errors.New("invalid code_challenge")
 		}
@@ -454,8 +455,7 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 	verifier := r.FormValue("code_verifier")
 	challenge := payload.S256CodeChallenge
 	if verifier != "" || challenge != "" {
-		hashed := sha256.Sum256([]byte(verifier))
-		if challenge != base64.URLEncoding.EncodeToString(hashed[:]) {
+		if !oauth21.VerifyPKCES256(verifier, challenge) {
 			return nil, errors.New("incorrect code_verifier")
 		}
 	}
