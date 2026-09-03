@@ -26,7 +26,7 @@ COPY --from=ui /build/ui/dist ./ui/dist
 RUN make build-go NAME=pomerium
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/base-nossl-debian12:debug@sha256:a3daf2b7eeda76578b93c8d08b9143224865cb9426fbff6fd0a036db4769b8d9
+FROM gcr.io/distroless/base-nossl-debian12:debug@sha256:51c3587676d971b6744b1ac93bc7f64c6604e14b70ed87d1f353a6c060407e8a
 ENV AUTOCERT_DIR=/data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
