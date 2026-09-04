@@ -307,5 +307,9 @@ func (srv *forwardingServer) UpdateSettings(ctx context.Context, req *connect.Re
 	return connect.NewResponse(m), nil
 }
 
+func (srv *forwardingServer) Transaction(stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse]) error {
+	return grpcutil.ForwardBidiStream(srv.forwarder, stream, databrokerpb.NewDataBrokerServiceClient(srv.cc).Transaction)
+}
+
 func (srv *forwardingServer) Stop()                                              {}
 func (srv *forwardingServer) OnConfigChange(_ context.Context, _ *config.Config) {}

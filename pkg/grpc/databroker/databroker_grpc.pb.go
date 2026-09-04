@@ -34,6 +34,7 @@ const (
 	DataBrokerService_SetOptions_FullMethodName   = "/databroker.DataBrokerService/SetOptions"
 	DataBrokerService_Sync_FullMethodName         = "/databroker.DataBrokerService/Sync"
 	DataBrokerService_SyncLatest_FullMethodName   = "/databroker.DataBrokerService/SyncLatest"
+	DataBrokerService_Transaction_FullMethodName  = "/databroker.DataBrokerService/Transaction"
 )
 
 // DataBrokerServiceClient is the client API for DataBrokerService service.
@@ -70,6 +71,17 @@ type DataBrokerServiceClient interface {
 	Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SyncResponse], error)
 	// SyncLatest streams the latest version of every record.
 	SyncLatest(ctx context.Context, in *SyncLatestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SyncLatestResponse], error)
+	// Transaction opens a transaction.
+	// Transaction is used for synchronizing one-time read and update Operations
+	// that require atomic updates.
+	// The stream's lifetime is the transaction's lifetime.
+	// The first message must be `begin`, the last must be `commit`, and a
+	// stream that ends any other way rolls back. Operations are atomic but not
+	// isolated, and there is no conflict handling for concurrent updates not wrapped
+	// with the same transaction key.
+	// Concurrent transactions are singleflight; sharing a key waits for the first transaction
+	// to finish with its result, and get the same result.
+	Transaction(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TransactionStreamRequest, TransactionStreamResponse], error)
 }
 
 type dataBrokerServiceClient struct {
@@ -238,6 +250,19 @@ func (c *dataBrokerServiceClient) SyncLatest(ctx context.Context, in *SyncLatest
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type DataBrokerService_SyncLatestClient = grpc.ServerStreamingClient[SyncLatestResponse]
 
+func (c *dataBrokerServiceClient) Transaction(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TransactionStreamRequest, TransactionStreamResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &DataBrokerService_ServiceDesc.Streams[2], DataBrokerService_Transaction_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[TransactionStreamRequest, TransactionStreamResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DataBrokerService_TransactionClient = grpc.BidiStreamingClient[TransactionStreamRequest, TransactionStreamResponse]
+
 // DataBrokerServiceServer is the server API for DataBrokerService service.
 // All implementations should embed UnimplementedDataBrokerServiceServer
 // for forward compatibility.
@@ -272,6 +297,17 @@ type DataBrokerServiceServer interface {
 	Sync(*SyncRequest, grpc.ServerStreamingServer[SyncResponse]) error
 	// SyncLatest streams the latest version of every record.
 	SyncLatest(*SyncLatestRequest, grpc.ServerStreamingServer[SyncLatestResponse]) error
+	// Transaction opens a transaction.
+	// Transaction is used for synchronizing one-time read and update Operations
+	// that require atomic updates.
+	// The stream's lifetime is the transaction's lifetime.
+	// The first message must be `begin`, the last must be `commit`, and a
+	// stream that ends any other way rolls back. Operations are atomic but not
+	// isolated, and there is no conflict handling for concurrent updates not wrapped
+	// with the same transaction key.
+	// Concurrent transactions are singleflight; sharing a key waits for the first transaction
+	// to finish with its result, and get the same result.
+	Transaction(grpc.BidiStreamingServer[TransactionStreamRequest, TransactionStreamResponse]) error
 }
 
 // UnimplementedDataBrokerServiceServer should be embedded to have
@@ -322,6 +358,9 @@ func (UnimplementedDataBrokerServiceServer) Sync(*SyncRequest, grpc.ServerStream
 }
 func (UnimplementedDataBrokerServiceServer) SyncLatest(*SyncLatestRequest, grpc.ServerStreamingServer[SyncLatestResponse]) error {
 	return status.Error(codes.Unimplemented, "method SyncLatest not implemented")
+}
+func (UnimplementedDataBrokerServiceServer) Transaction(grpc.BidiStreamingServer[TransactionStreamRequest, TransactionStreamResponse]) error {
+	return status.Error(codes.Unimplemented, "method Transaction not implemented")
 }
 func (UnimplementedDataBrokerServiceServer) testEmbeddedByValue() {}
 
@@ -581,6 +620,13 @@ func _DataBrokerService_SyncLatest_Handler(srv interface{}, stream grpc.ServerSt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type DataBrokerService_SyncLatestServer = grpc.ServerStreamingServer[SyncLatestResponse]
 
+func _DataBrokerService_Transaction_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(DataBrokerServiceServer).Transaction(&grpc.GenericServerStream[TransactionStreamRequest, TransactionStreamResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DataBrokerService_TransactionServer = grpc.BidiStreamingServer[TransactionStreamRequest, TransactionStreamResponse]
+
 // DataBrokerService_ServiceDesc is the grpc.ServiceDesc for DataBrokerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -647,6 +693,12 @@ var DataBrokerService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "SyncLatest",
 			Handler:       _DataBrokerService_SyncLatest_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "Transaction",
+			Handler:       _DataBrokerService_Transaction_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "databroker.proto",

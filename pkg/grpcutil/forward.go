@@ -107,6 +107,62 @@ func ForwardStream[Res any, Req any](
 	})
 }
 
+// ForwardBidiStream takes a bidirectional server stream and copies it to a
+// bidirectional client stream.
+func ForwardBidiStream[Req any, Res any](
+	forwarder Forwarder,
+	serverStream grpc.BidiStreamingServer[Req, Res],
+	getClientStream func(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Req, Res], error),
+	opts ...grpc.CallOption,
+) error {
+	return forwarder.Forward(serverStream.Context(), func(ctx context.Context) error {
+		ctx, cancel := context.WithCancelCause(ctx)
+		defer cancel(nil)
+
+		clientStream, err := getClientStream(ctx, opts...)
+		if err != nil {
+			return err
+		}
+
+		// copy requests from the server stream to the client stream
+		go func() {
+			for {
+				msg, err := serverStream.Recv()
+				if errors.Is(err, io.EOF) {
+					if err := clientStream.CloseSend(); err != nil {
+						cancel(err)
+					}
+					return
+				} else if err != nil {
+					cancel(err)
+					return
+				}
+
+				err = clientStream.Send(msg)
+				if err != nil {
+					cancel(err)
+					return
+				}
+			}
+		}()
+
+		// copy responses from the client stream to the server stream
+		for {
+			msg, err := clientStream.Recv()
+			if errors.Is(err, io.EOF) {
+				return nil
+			} else if err != nil {
+				return errors.Join(err, context.Cause(ctx))
+			}
+
+			err = serverStream.Send(msg)
+			if err != nil {
+				return err
+			}
+		}
+	})
+}
+
 // ForwardUnary forwards a unary request to a gRPC client.
 func ForwardUnary[Res any, Req any](
 	ctx context.Context,
