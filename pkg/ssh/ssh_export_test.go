@@ -11,20 +11,12 @@ import (
 
 func (a *Auth) UnexportedHandlePublicKeyMethodRequest(
 	ctx context.Context,
-	info StreamAuthInfo,
+	streamInfo StreamInfo,
+	authInfo StreamAuthInfo,
 	user api.UserRequest,
 	req *extensions_ssh.PublicKeyMethodRequest,
-) (PublicKeyAuthMethodResponse, error) {
-	return a.handlePublicKeyMethodRequest(ctx, info, user, req)
-}
-
-func (a *Auth) UnexportedHandleKeyboardInteractiveMethodRequest(
-	ctx context.Context,
-	info StreamAuthInfo,
-	user api.UserRequest,
-	querier KeyboardInteractiveQuerier,
-) (KeyboardInteractiveAuthMethodResponse, error) {
-	return a.handleKeyboardInteractiveMethodRequest(ctx, info, user, querier)
+) (AuthMethodResponse, error) {
+	return a.handlePublicKeyMethodRequest(ctx, streamInfo, authInfo, user, req)
 }
 
 func (sm *StreamManager) UnexportedEdsCache() *cache.LinearCache {
@@ -39,6 +31,4 @@ func (i *InMemoryPolicyIndexer) UnexportedState() *inMemoryIndexerState { //revi
 	return &i.state
 }
 
-func (i *StreamAuthInfo) UnexportedAllMethodsValid() bool {
-	return i.allMethodsValid()
-}
+var UnexportedSessionIDFromFingerprint = sessionIDFromFingerprint
