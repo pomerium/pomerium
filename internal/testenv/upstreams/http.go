@@ -41,17 +41,18 @@ const (
 )
 
 type RequestOptions struct {
-	requestCtx     context.Context
-	path           string
-	query          url.Values
-	headers        map[string]string
-	authenticateAs string
-	body           any
-	clientCerts    []tls.Certificate
-	clientHook     func(*http.Client) *http.Client
-	dialerHook     func(*websocket.Dialer, *url.URL) (*websocket.Dialer, *url.URL)
-	dialProtocol   Protocol
-	trace          *httptrace.ClientTrace
+	requestCtx       context.Context
+	path             string
+	query            url.Values
+	headers          map[string]string
+	authenticateAs   string
+	body             any
+	clientCerts      []tls.Certificate
+	clientHook       func(*http.Client) *http.Client
+	dialerHook       func(*websocket.Dialer, *url.URL) (*websocket.Dialer, *url.URL)
+	dialProtocol     Protocol
+	useProxyProtocol bool
+	trace            *httptrace.ClientTrace
 }
 
 type RequestOption func(*RequestOptions)
@@ -126,6 +127,12 @@ func DialerHook(f func(*websocket.Dialer, *url.URL) (*websocket.Dialer, *url.URL
 func DialProtocol(protocol Protocol) RequestOption {
 	return func(o *RequestOptions) {
 		o.dialProtocol = protocol
+	}
+}
+
+func UseProxyProtocol(useProxyProtocol bool) RequestOption {
+	return func(o *RequestOptions) {
+		o.useProxyProtocol = useProxyProtocol
 	}
 }
 
@@ -387,7 +394,7 @@ func (h *httpUpstream) newClient(options *RequestOptions) *http.Client {
 		Certificates: options.clientCerts,
 	}
 	transport.DialTLSContext = nil
-	if h.Env().Config().Options.UseProxyProtocol {
+	if options.useProxyProtocol {
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			var zeroDialer net.Dialer
 			conn, err := zeroDialer.DialContext(ctx, network, addr)
