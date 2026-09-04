@@ -27,6 +27,7 @@ _dirs=(
 	identity
 	registry
 	session
+	idpsession
 	user
 	testproto
 )
