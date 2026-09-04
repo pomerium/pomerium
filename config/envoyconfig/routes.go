@@ -451,6 +451,7 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 	}
 	routeTimeout := getRouteTimeout(options, policy)
 	idleTimeout := getRouteIdleTimeout(options, policy)
+	maxStreamDuration := getRouteMaxStreamDuration(options, policy)
 	prefixRewrite, regexRewrite := getRewriteOptions(policy)
 	upgradeConfigs := []*envoy_config_route_v3.RouteAction_UpgradeConfig{
 		{
@@ -496,11 +497,12 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 		ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
 			Cluster: clusterName,
 		},
-		UpgradeConfigs: upgradeConfigs,
-		Timeout:        routeTimeout,
-		IdleTimeout:    idleTimeout,
-		PrefixRewrite:  prefixRewrite,
-		RegexRewrite:   regexRewrite,
+		UpgradeConfigs:    upgradeConfigs,
+		Timeout:           routeTimeout,
+		IdleTimeout:       idleTimeout,
+		MaxStreamDuration: maxStreamDuration,
+		PrefixRewrite:     prefixRewrite,
+		RegexRewrite:      regexRewrite,
 		HashPolicy: []*envoy_config_route_v3.RouteAction_HashPolicy{
 			// hash by the routing key, which is added by authorize.
 			{
@@ -636,6 +638,19 @@ func getRouteIdleTimeout(options *config.Options, policy *config.Policy) *durati
 	return idleTimeout
 }
 
+func getRouteMaxStreamDuration(options *config.Options, policy *config.Policy) *envoy_config_route_v3.RouteAction_MaxStreamDuration {
+	if options.WriteTimeout > 0 {
+		// If write_timeout is set in the config it will apply to all routes, so
+		// check if the route needs to override this.
+		if shouldDisableMaxStreamDuration(options, policy) {
+			return &envoy_config_route_v3.RouteAction_MaxStreamDuration{
+				MaxStreamDuration: durationpb.New(0),
+			}
+		}
+	}
+	return nil
+}
+
 func shouldDisableStreamIdleTimeout(options *config.Options, policy *config.Policy) bool {
 	return policy.GetAllowWebsockets(options) ||
 		policy.IsTCP() ||
@@ -643,6 +658,10 @@ func shouldDisableStreamIdleTimeout(options *config.Options, policy *config.Poli
 		policy.IsForKubernetes() || // disable for kubernetes so that tailing logs works (#2182)
 		policy.IsMCPServer() || // MCP Streamable-HTTP uses long-lived SSE streams that must not be cut
 		policy.IsBootstrapConsoleRoute(options)
+}
+
+func shouldDisableMaxStreamDuration(options *config.Options, policy *config.Policy) bool {
+	return policy.IsBootstrapConsoleRoute(options)
 }
 
 func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrite *envoy_type_matcher_v3.RegexMatchAndSubstitute) {
