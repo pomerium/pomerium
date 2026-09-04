@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -440,6 +441,7 @@ func (s *SSHTestSuite) newClientConfig(loginName string, route string, userEmail
 }
 
 func (s *SSHTestSuite) dialFrom127002(cc *gossh.ClientConfig) (*gossh.Client, error) {
+	s.Require().Equal(runtime.GOOS, "linux") // macos only binds 127.0.0.1 on lo by default
 	s.T().Helper()
 	dialer := &net.Dialer{
 		LocalAddr: &net.TCPAddr{
@@ -709,7 +711,8 @@ allow:
 		})
 	})
 
-	rt.AddRouteTest(`
+	if runtime.GOOS == "linux" {
+		rt.AddRouteTest(`
 allow:
   and:
     - authenticated_user: {}
@@ -717,25 +720,26 @@ deny:
   or:
     - source_ip: "127.0.0.1"
 `, func(api RouteTestAPI) {
-		s.Run("source ip unauthorized", func() {
-			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
-			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
-			defer verify()
-			_, err := s.upstream.Dial(cc)
-			s.ErrorContains(err, "Permission Denied")
-		})
-		s.Run("source ip not unauthorized", func() {
-			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
-			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
-			defer verify()
+			s.Run("source ip unauthorized", func() {
+				cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+				verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
+				defer verify()
+				_, err := s.upstream.Dial(cc)
+				s.ErrorContains(err, "Permission Denied")
+			})
+			s.Run("source ip not unauthorized", func() {
+				cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
+				verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+				defer verify()
 
-			client, err := s.dialFrom127002(cc)
-			s.Require().NoError(err)
+				client, err := s.dialFrom127002(cc)
+				s.Require().NoError(err)
 
-			VerifyWorkingShell(s.T(), client)
-			client.Close()
+				VerifyWorkingShell(s.T(), client)
+				client.Close()
+			})
 		})
-	})
+	}
 
 	rt.AddRouteTest(`
 allow:
@@ -780,46 +784,48 @@ deny:
 		})
 	})
 
-	rt.AddRouteTest(`
+	if runtime.GOOS == "linux" {
+		rt.AddRouteTest(`
 allow:
   and:
     - source_ip: "127.0.0.2"
     - ssh_username: "username"
     - authenticated_user: {}
 `, func(api RouteTestAPI) {
-		s.Run("source ip not allowed", func() {
-			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
-			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
-			defer verify()
-			_, err := s.upstream.Dial(cc)
-			s.ErrorContains(err, "Permission Denied")
-		})
-		s.Run("source ip allowed, but username not allowed", func() {
-			cc := s.newClientConfig("root", api.RouteName(), api.RouteUserEmail(2))
-			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
-			defer verify()
-			_, err := s.dialFrom127002(cc)
-			s.ErrorContains(err, "Permission Denied")
-		})
-		s.Run("source ip and username allowed", func() {
-			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(3))
-			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
-			defer verify()
+			s.Run("source ip not allowed", func() {
+				cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+				verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
+				defer verify()
+				_, err := s.upstream.Dial(cc)
+				s.ErrorContains(err, "Permission Denied")
+			})
+			s.Run("source ip allowed, but username not allowed", func() {
+				cc := s.newClientConfig("root", api.RouteName(), api.RouteUserEmail(2))
+				verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
+				defer verify()
+				_, err := s.dialFrom127002(cc)
+				s.ErrorContains(err, "Permission Denied")
+			})
+			s.Run("source ip and username allowed", func() {
+				cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(3))
+				verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+				defer verify()
 
-			client, err := s.dialFrom127002(cc)
-			s.Require().NoError(err)
+				client, err := s.dialFrom127002(cc)
+				s.Require().NoError(err)
 
-			VerifyWorkingShell(s.T(), client)
-			client.Close()
+				VerifyWorkingShell(s.T(), client)
+				client.Close()
+			})
+			s.Run("neither source ip nor username allowed", func() {
+				cc := s.newClientConfig("root", api.RouteName(), api.RouteUserEmail(4))
+				verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
+				defer verify()
+				_, err := s.upstream.Dial(cc)
+				s.ErrorContains(err, "Permission Denied")
+			})
 		})
-		s.Run("neither source ip nor username allowed", func() {
-			cc := s.newClientConfig("root", api.RouteName(), api.RouteUserEmail(4))
-			verify := expectAuthSequence(s.T(), cc, seqDeniedImmediately(s.T()))
-			defer verify()
-			_, err := s.upstream.Dial(cc)
-			s.ErrorContains(err, "Permission Denied")
-		})
-	})
+	}
 
 	rt.AddRouteTest(`
 allow:
@@ -1613,7 +1619,7 @@ func (s *SSHTestSuite) TestWhoami() {
 
 	output, err := sess.CombinedOutput("whoami")
 	s.Require().NoError(err)
-	s.Regexp((`
+	s.Regexp(`
 User ID:    .*
 Session ID: .+
 Expires at: .* \(in \d+h\d+m\d+s\)
@@ -1627,7 +1633,7 @@ Claims:
   iss: "https://mock-idp\..*"
   name: ""
   sub: ".*"
-`[1:]), string(output))
+`[1:], string(output))
 }
 
 func (s *SSHTestSuite) TestRateLimitService() {
