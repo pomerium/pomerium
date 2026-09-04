@@ -6,6 +6,7 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/config"
 )
@@ -44,6 +45,7 @@ func (b *Builder) buildDebugHTTPConnectionManagerFilter() *envoy_config_listener
 						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
 							Cluster: "pomerium-control-plane-debug",
 						},
+						Timeout: durationpb.New(0),
 					},
 				},
 			},
@@ -59,6 +61,7 @@ func (b *Builder) buildDebugHTTPConnectionManagerFilter() *envoy_config_listener
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
 			HTTPRouterFilter(),
 		},
+		RequestTimeout: durationpb.New(0),
 	})
 }
 
