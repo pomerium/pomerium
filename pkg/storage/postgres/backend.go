@@ -10,6 +10,8 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -39,7 +41,14 @@ type Backend struct {
 	mu            sync.RWMutex
 	pool          *pgxpool.Pool
 	serverVersion uint64
+
+	txGroup singleflight.Group
+	txMu    sync.Mutex
+	txs     map[killable]struct{}
+	texSem  *semaphore.Weighted
 }
+
+var errBackendClosed = status.Error(codes.Unavailable, "storage/postgres: backend closed")
 
 // New creates a new Backend.
 func New(ctx context.Context, dsn string, options ...Option) *Backend {
@@ -106,17 +115,23 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 
 // Close closes the underlying database connection.
 func (backend *Backend) Close() error {
-	backend.mu.Lock()
-	defer backend.mu.Unlock()
-
 	backend.close()
 
-	if backend.pool != nil {
-		backend.pool.Close()
-		backend.pool = nil
+	for _, tx := range backend.takeRegisteredTxs() {
+		tx.kill(errBackendClosed)
+	}
+
+	backend.mu.Lock()
+	pool := backend.pool
+	backend.pool = nil
+	backend.mu.Unlock()
+	if pool != nil {
+		pool.Close()
 	}
 	return nil
 }
+
+const inFlightTransactionsTTL = 10 * time.Minute
 
 // Clean removes all changes before the given cutoff.
 func (backend *Backend) Clean(ctx context.Context, options storage.CleanOptions) error {
@@ -143,6 +158,13 @@ func (backend *Backend) Clean(ctx context.Context, options storage.CleanOptions)
 			anyDeleted = true
 		}
 	}
+
+	// delete old transactions, they should not count towrds signalling record changes.
+	delN, tErr := deleteOldInflightTransactions(ctx, pool, time.Now().Add(-inFlightTransactionsTTL))
+	if tErr != nil {
+		cleanupErr = fmt.Errorf("postgres: error deleting old in flight transactions : %w", tErr)
+	}
+	log.Ctx(ctx).Debug().Int64("in-flight", delN).Dur("ttl", inFlightTransactionsTTL).Msg("cleaned up old in-flight transactions")
 
 	if anyDeleted {
 		if err := signalRecordChange(ctx, pool); err != nil && cleanupErr == nil {
@@ -405,9 +427,23 @@ func (backend *Backend) SyncLatest(
 }
 
 func (backend *Backend) DoTransaction(
-	context.Context, string, func(tx storage.Transaction) error,
+	ctx context.Context, key string, fn func(tx storage.Transaction) error,
 ) (changed []*databroker.Record, shared bool, err error) {
-	panic("implement me")
+	ctx, cancelMerge := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancelMerge(nil)
+
+	var ran bool
+	res, err, _ := backend.txGroup.Do(key, func() (any, error) {
+		ran = true
+		if ctx.Err() != nil {
+			return nil, context.Cause(ctx)
+		}
+
+		changed, joined, err := backend.doTransaction(ctx, key, fn)
+		return txResult{changed: changed, joined: joined}, err
+	})
+	r, _ := res.(txResult)
+	return r.changed, r.joined || !ran, err
 }
 
 // Versions returns the versions of the storage backend.
@@ -426,6 +462,10 @@ func (backend *Backend) Versions(ctx context.Context) (serverVersion, earliestRe
 }
 
 func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *pgxpool.Pool, err error) {
+	if backend.closeCtx.Err() != nil {
+		return 0, nil, context.Cause(backend.closeCtx)
+	}
+
 	backend.mu.RLock()
 	serverVersion = backend.serverVersion
 	pool = backend.pool
@@ -459,6 +499,11 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 	if err != nil {
 		return serverVersion, nil, fmt.Errorf("error creating pgxpool: %w", err)
 	}
+	log.Ctx(ctx).Debug().
+		Int32("max_conns", pool.Config().MaxConns).
+		Int32("min_conns", pool.Config().MinConns).
+		Msg("initializing postgres backend with pool")
+	backend.texSem = semaphore.NewWeighted(max(1, int64(pool.Config().MaxConns)/2))
 
 	err = otelpgx.RecordStats(pool)
 	if err != nil {
