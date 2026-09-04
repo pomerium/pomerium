@@ -109,8 +109,6 @@ type Environment interface {
 
 	NewDataBrokerServiceClient() databroker.DataBrokerServiceClient
 
-	Config() *config.Config
-
 	// Add adds the given [Modifier] to the environment. All modifiers will be
 	// invoked upon calling Start() to apply individual modifications to the
 	// configuration before starting the Pomerium server.

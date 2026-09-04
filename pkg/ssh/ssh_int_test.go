@@ -447,7 +447,7 @@ func (s *SSHTestSuite) dialFrom127002(cc *gossh.ClientConfig) (*gossh.Client, er
 			Port: 0,
 		},
 	}
-	addr := s.env.Config().Options.SSHAddr
+	addr := net.JoinHostPort(s.env.Host(), fmt.Sprintf("%d", s.env.Ports().ProxySSH.Value()))
 	conn, err := dialer.Dial("tcp", addr)
 	if err != nil {
 		return nil, err

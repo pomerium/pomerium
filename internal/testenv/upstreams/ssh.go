@@ -199,7 +199,7 @@ func (h *sshUpstream) handleConnection(ctx context.Context, conn net.Conn) {
 
 // Dial implements SSHUpstream.
 func (h *sshUpstream) Dial(config *ssh.ClientConfig) (*ssh.Client, error) {
-	return ssh.Dial("tcp", h.Env().Config().Options.SSHAddr, config)
+	return ssh.Dial("tcp", net.JoinHostPort(h.Env().Host(), fmt.Sprintf("%d", h.Env().Ports().ProxySSH.Value())), config)
 }
 
 // DirectDial implements SSHUpstream.
