@@ -81,6 +81,8 @@ type DataBrokerServiceClient interface {
 	// with the same transaction key.
 	// Concurrent transactions are singleflight; sharing a key waits for the first transaction
 	// to finish with its result, and get the same result.
+	// Clients requiring mutually exclusive long running transactions should prefer using databrokerutil.Do
+	// instead of calling this API directly.
 	Transaction(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TransactionStreamRequest, TransactionStreamResponse], error)
 }
 
@@ -307,6 +309,8 @@ type DataBrokerServiceServer interface {
 	// with the same transaction key.
 	// Concurrent transactions are singleflight; sharing a key waits for the first transaction
 	// to finish with its result, and get the same result.
+	// Clients requiring mutually exclusive long running transactions should prefer using databrokerutil.Do
+	// instead of calling this API directly.
 	Transaction(grpc.BidiStreamingServer[TransactionStreamRequest, TransactionStreamResponse]) error
 }
 
