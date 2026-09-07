@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/zeebo/xxh3"
+
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 func GenerateCertName(cert *x509.Certificate) *string {
@@ -314,7 +316,15 @@ func (t *domainTrie[T]) Insert(route T) {
 		// ignore invalid urls, they will be assigned generic fallback names
 		return
 	}
-	parts := strings.Split(u.Hostname(), ".")
+
+	hostname := u.Hostname()
+	if strings.HasPrefix(u.Scheme, "tcp+") || strings.HasPrefix(u.Scheme, "udp+") {
+		if domains := urlutil.GetDomainsForURL(u, false); len(domains) > 0 {
+			hostname = urlutil.StripPort(domains[0])
+		}
+	}
+
+	parts := strings.Split(hostname, ".")
 	slices.Reverse(parts)
 	cur := t.root
 	for _, part := range parts[:len(parts)-1] {

@@ -50,6 +50,13 @@ func TestRouteFromConfigRoute(t *testing.T) {
 			ConnectCommand: "pomerium-cli udp dns.example.com:53",
 		},
 		{
+			ID:             "7b2efd6bc00173d7",
+			Name:           "production-database",
+			Type:           portal.RouteTypeTCP,
+			From:           "tcp+https://proxy.corp.example.com:8443/postgres.internal.example.com:5432",
+			ConnectCommand: "pomerium-cli tcp tcp+https://proxy.corp.example.com:8443/postgres.internal.example.com:5432",
+		},
+		{
 			ID:             "8544b096d71c5dfe",
 			Name:           "redis",
 			Type:           portal.RouteTypeTCP,
@@ -83,7 +90,11 @@ func TestRouteFromConfigRoute(t *testing.T) {
 			To:   to2,
 		},
 		{
-			Name: "redis",
+			Name: "production-database",
+			From: "tcp+https://proxy.corp.example.com:8443/postgres.internal.example.com:5432",
+			To:   to3,
+		},
+		{
 			From: "tcp+https://proxy.corp.example.com:8443/redis.internal.example.com:6379",
 			To:   to3,
 		},
