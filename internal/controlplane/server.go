@@ -177,6 +177,8 @@ func NewServer(
 		updateConfig:    make(chan *config.Config, 1),
 		healthMetrics:   metrics,
 		options:         options,
+
+		outboundGRPCConnection: pom_grpc.CachedOutboundGRPClientConn{Name: "controlplane"},
 	}
 	srv.currentConfig.Store(cfg)
 	srv.httpRouter.Store(mux.NewRouter())

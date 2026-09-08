@@ -128,3 +128,18 @@ func TestCachedOutboundGRPClientConn_GetSameOptions(t *testing.T) {
 
 	assert.Same(t, cc1, cc2, "same options should return the cached connection")
 }
+
+func TestChangedOutboundOptions(t *testing.T) {
+	t.Parallel()
+
+	prev := &OutboundOptions{OutboundPort: "1", InstallationID: "", ServiceName: "all", SignedJWTKey: []byte("k1")}
+	assert.Empty(t, changedOutboundOptions(prev, prev))
+	assert.Equal(t, []string{`installation_id: "" -> "b"`},
+		changedOutboundOptions(prev, &OutboundOptions{OutboundPort: "1", InstallationID: "b", ServiceName: "all", SignedJWTKey: []byte("k1")}))
+	assert.Equal(t, []string{
+		`outbound_port: "1" -> "2"`,
+		`installation_id: "" -> "b"`,
+		`service_name: "all" -> "proxy"`,
+		"signed_jwt_key: changed",
+	}, changedOutboundOptions(prev, &OutboundOptions{OutboundPort: "2", InstallationID: "b", ServiceName: "proxy", SignedJWTKey: []byte("k2")}))
+}
