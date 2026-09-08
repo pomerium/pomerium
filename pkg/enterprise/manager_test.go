@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/fileutil"
 )
 
 func TestBuildOptions(t *testing.T) {
@@ -34,11 +35,11 @@ func TestBuildOptions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, enabled)
 		assert.Equal(t, map[string]any{
-			"cache_dir":               filepath.Join(dir, "cache", "pomerium", "enterprise-console"),
+			"cache_dir":               fileutil.EnterpriseConsoleCacheDir(),
 			"database_encryption_key": "oKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKA=",
-			"database_url":            "sqlite://" + path.Join(dir, "data", "pomerium", "enterprise-console", "data.sqlite"),
+			"database_url":            "sqlite://" + path.Join(fileutil.EnterpriseConsoleDataDir(), "data.sqlite"),
 			"databroker_service_url":  "http://localhost:5443",
-			"prometheus_data_dir":     filepath.Join(dir, "data", "pomerium", "enterprise-console", "prometheus"),
+			"prometheus_data_dir":     filepath.Join(fileutil.EnterpriseConsoleDataDir(), "prometheus"),
 			"url":                     "https://example.com",
 			"shared_secret":           "oKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKA=",
 			"signing_key":             "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUlSMHFBTklRUlJvNTNyaFpIRGwyRG9iYXFUMnlXMk0xWlgvOHdyQ05wUFlvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFT0tSS2tkRmZjY2FRcVFqaUEvQ0t1NHZTM3IyUVVQZUtoS2ZxbkxiVFRic09PcjRGN1h3UQovYWpmWFdVcFhUUWFQdDZncW1oeGREMHp0VFVQYm10NUp3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=",
