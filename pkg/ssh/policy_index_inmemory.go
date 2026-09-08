@@ -282,7 +282,7 @@ func newKnownSession(ctx context.Context, record *session.Session) *knownSession
 		Record: record, // can be nil
 		tunnelAuthorizedRoutesCache: newAuthorizedRoutesCache(ctx, "upstream tunnel",
 			SSHEvaluator.EvaluateUpstreamTunnel,
-			PolicyIndexSubscriber.UpdateTunnelAuthorizedRoutes,
+			PolicyIndexSubscriber.UpdateAuthorizedRoutes,
 			func(i *inMemoryIndexerState) []knownRoute { return i.AllTunnelEnabledRoutes }),
 	}
 }
