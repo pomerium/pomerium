@@ -756,7 +756,6 @@ func (a *Auth) BuildTargetChannelFilters(_ context.Context, _ StreamInfo, authIn
 
 	enableSessionRecording := route.SessionRecording.IsSet && route.SessionRecording.Value.Enabled.Or(false)
 	var mirrorReceiver string
-	var mirrorOptions []string
 
 	if authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Approved {
 		md := authInfo.GetAccessRequestMetadata()
@@ -766,12 +765,9 @@ func (a *Auth) BuildTargetChannelFilters(_ context.Context, _ StreamInfo, authIn
 		if v, ok := md["session_mirroring_receiver"]; ok { // format is "cluster-id;ip:port"
 			mirrorReceiver = v
 		}
-		if v, ok := md["session_mirroring_options"]; ok { // format is "option1;option2[;...]"
-			mirrorOptions = strings.Split(v, ";")
-		}
 	}
 	if mirrorReceiver != "" {
-		mirrorCfg, err := buildSSHMirroringConfig(mirrorReceiver, mirrorOptions)
+		mirrorCfg, err := buildSSHMirroringConfig(mirrorReceiver)
 		if err != nil {
 			return nil, nil, status.Errorf(codes.Internal, "failed to build ssh mirroring config: %s", err)
 		}
@@ -809,7 +805,7 @@ func buildSSHRecordingConfig(sessionID, userID string) *corev3.TypedExtensionCon
 	}
 }
 
-func buildSSHMirroringConfig(receiver string, options []string) (*corev3.TypedExtensionConfig, error) {
+func buildSSHMirroringConfig(receiver string) (*corev3.TypedExtensionConfig, error) {
 	receiverClusterName, receiverIP, ok := strings.Cut(receiver, ";")
 	if !ok {
 		return nil, errors.New("malformed receiver string")
