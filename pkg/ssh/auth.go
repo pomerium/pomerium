@@ -633,13 +633,13 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authI
 func (a *Auth) BuildTargetChannelFilters(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
 	hostname := user.Hostname()
 	if hostname == "" {
-		return nil, nil, fmt.Errorf("no hostname")
+		return nil, nil, status.Errorf(codes.Internal, "no hostname")
 	}
 	// TODO: optimize looking up routes by hostname
 	opts := a.currentConfig.Load().Options
 	route := opts.GetRouteForSSHHostname(hostname)
 	if route == nil {
-		return nil, nil, fmt.Errorf("no route")
+		return nil, nil, status.Errorf(codes.Internal, "no route")
 	}
 	addr := SocketAddressFromString(route)
 	if !route.SessionRecording.IsSet || !route.SessionRecording.Value.Enabled.Or(false) {
