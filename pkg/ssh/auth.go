@@ -858,14 +858,13 @@ func buildSSHMirroringConfig(receiver string) (*corev3.TypedExtensionConfig, err
 	if !ok {
 		return nil, errors.New("malformed receiver string")
 	}
-	portValue := uint32(443)
 	ip, port, err := net.SplitHostPort(receiverIP)
 	if err != nil {
 		return nil, err
 	}
-	portNum, err := strconv.ParseUint(port, 10, 32)
-	if err == nil {
-		portValue = uint32(portNum)
+	portNum, err := strconv.ParseUint(port, 10, 16)
+	if err != nil {
+		return nil, err
 	}
 	return &corev3.TypedExtensionConfig{
 		Name: "session_mirroring",
@@ -879,7 +878,7 @@ func buildSSHMirroringConfig(receiver string) (*corev3.TypedExtensionConfig, err
 			},
 			ReceiverClusterEndpoint: &mirroring_ssh.UpstreamTargetExtensionConfig_Endpoint{
 				Ip:   ip,
-				Port: portValue,
+				Port: uint32(portNum),
 			},
 		}),
 	}, nil
