@@ -175,7 +175,13 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 	}
 
 	if _, ok := options["databroker_service_url"]; !ok {
-		options["databroker_service_url"] = "http://localhost:5443"
+		urls, err := cfg.Options.GetInternalDataBrokerURLs()
+		if err != nil {
+			return nil, false, fmt.Errorf("error getting internal databroker service urls: %w", err)
+		} else if len(urls) == 0 {
+			return nil, false, fmt.Errorf("no internal databroker service urls defined")
+		}
+		options["databroker_service_url"] = urls[0].String()
 	}
 
 	if _, ok := options["database_url"]; !ok {
