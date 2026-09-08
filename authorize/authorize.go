@@ -113,6 +113,8 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		tracerProvider:  tracerProvider,
 		tracer:          tracer,
 		recordingServer: atomic.Pointer[recording.Server]{},
+
+		outboundGrpcConn: grpc.CachedOutboundGRPClientConn{Name: "authorize"},
 	}
 	a.currentConfig.Store(cfg)
 	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn)
