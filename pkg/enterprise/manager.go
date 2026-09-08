@@ -94,6 +94,9 @@ func (mgr *Manager) updateLocked() error {
 		if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 			return fmt.Errorf("error creating enterprise console cache directory: %w", err)
 		}
+		if err := os.RemoveAll(dataDir); err != nil {
+			return fmt.Errorf("error deleting enterprise console data directory: %w", err)
+		}
 		if err := os.MkdirAll(dataDir, 0o700); err != nil {
 			return fmt.Errorf("error creating enterprise console data directory: %w", err)
 		}
