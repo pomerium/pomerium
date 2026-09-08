@@ -52,6 +52,7 @@ func (mgr *Manager) Close() {
 	defer mgr.mu.Unlock()
 	if mgr.process != nil {
 		_ = mgr.process.Kill()
+		mgr.process = nil
 	}
 }
 
