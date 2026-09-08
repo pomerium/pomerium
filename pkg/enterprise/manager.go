@@ -10,8 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"sync"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/go-cmp/cmp"
 	"github.com/rs/zerolog"
 
@@ -26,15 +29,17 @@ type Manager struct {
 	config.ChangeDispatcher
 	ctx context.Context
 
-	mu      sync.RWMutex
-	cfg     *config.Config
-	options map[string]any
-	process *os.Process
+	mu             sync.RWMutex
+	cfg            *config.Config
+	options        map[string]any
+	process        *os.Process
+	restartBackoff *backoff.ExponentialBackOff
 }
 
 // New creates a new enterprise manager.
 func New(ctx context.Context, src config.Source) *Manager {
 	mgr := &Manager{ctx: ctx}
+	mgr.restartBackoff = backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0))
 	src.OnConfigChange(context.Background(), func(ctx context.Context, cfg *config.Config) {
 		mgr.update(ctx, cfg)
 	})
@@ -60,6 +65,8 @@ func (mgr *Manager) GetConfig() *config.Config {
 func (mgr *Manager) update(ctx context.Context, cfg *config.Config) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
+
+	mgr.restartBackoff.Reset()
 
 	mgr.cfg = cfg.Clone()
 	if err := mgr.updateLocked(); err != nil {
@@ -132,10 +139,29 @@ func (mgr *Manager) updateLocked() error {
 			return fmt.Errorf("error starting enterprise console process: %w", err)
 		}
 		mgr.process = cmd.Process
+		go mgr.watchStartedCommand(cmd)
 	}
 
 	mgr.options = options
 	return nil
+}
+
+func (mgr *Manager) watchStartedCommand(cmd *exec.Cmd) {
+	err := cmd.Wait()
+
+	mgr.mu.Lock()
+	if cmd.Process == mgr.process {
+		log.Error().Err(err).Msg("enterprise: console process exited, restarting")
+		mgr.process = nil
+		time.AfterFunc(mgr.restartBackoff.NextBackOff(), func() {
+			mgr.mu.Lock()
+			if err := mgr.updateLocked(); err != nil {
+				log.Error().Err(err).Msg("enterprise: error restarting console")
+			}
+			mgr.mu.Unlock()
+		})
+	}
+	mgr.mu.Unlock()
 }
 
 func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err error) {
@@ -184,7 +210,9 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 		} else if len(urls) == 0 {
 			return nil, false, fmt.Errorf("no internal databroker service urls defined")
 		}
-		options["databroker_service_url"] = urls[0].String()
+		// the enterprise console seems to prefer localhost to 127.0.0.1 for this
+		rawURL := strings.ReplaceAll(urls[0].String(), "127.0.0.1:", "localhost:")
+		options["databroker_service_url"] = rawURL
 	}
 
 	if _, ok := options["database_url"]; !ok {
