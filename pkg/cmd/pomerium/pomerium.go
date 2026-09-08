@@ -150,7 +150,11 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	src = config.NewFileWatcherSource(ctx, src)
 
 	// possibly run the embedded enterprise console
-	src = enterprise.New(src)
+	enterpriseManager := enterprise.New(ctx, src)
+	context.AfterFunc(ctx, func() {
+		enterpriseManager.Close()
+	})
+	src = enterpriseManager
 
 	src, err = autocert.New(ctx, src)
 	if err != nil {

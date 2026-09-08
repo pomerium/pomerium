@@ -24,6 +24,7 @@ import (
 // A Manager manages an enterprise installation.
 type Manager struct {
 	config.ChangeDispatcher
+	ctx context.Context
 
 	mu      sync.RWMutex
 	cfg     *config.Config
@@ -32,13 +33,21 @@ type Manager struct {
 }
 
 // New creates a new enterprise manager.
-func New(src config.Source) *Manager {
-	mgr := new(Manager)
+func New(ctx context.Context, src config.Source) *Manager {
+	mgr := &Manager{ctx: ctx}
 	src.OnConfigChange(context.Background(), func(ctx context.Context, cfg *config.Config) {
 		mgr.update(ctx, cfg)
 	})
 	mgr.update(context.Background(), src.GetConfig())
 	return mgr
+}
+
+func (mgr *Manager) Close() {
+	mgr.mu.Lock()
+	defer mgr.mu.Unlock()
+	if mgr.process != nil {
+		_ = mgr.process.Kill()
+	}
 }
 
 // GetConfig returns the current config.
@@ -100,7 +109,7 @@ func (mgr *Manager) updateLocked() error {
 
 		log.Info().Msg("enterprise: starting console process")
 
-		cmd := exec.Command("pomerium-console", "serve", "--config", path.Join(dataDir, "config.yaml")) //nolint:gosec
+		cmd := exec.CommandContext(mgr.ctx, "pomerium-console", "serve", "--config", path.Join(dataDir, "config.yaml")) //nolint:gosec
 
 		// handle logs
 		stderr, err := cmd.StderrPipe()
