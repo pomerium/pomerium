@@ -250,12 +250,11 @@ func NewServer(
 	// handler is safe to install even when no MCP routes exist yet.
 	extProcHandler := options.extProcHandler
 	if extProcHandler == nil {
-		mcpHandler, handlerErr := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
-		if handlerErr != nil {
-			return nil, fmt.Errorf("mcp upstream auth handler: %w", handlerErr)
+		srv.mcpExtProcHandler, err = mcp.NewUpstreamAuthHandler(ctx, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("mcp upstream auth handler: %w", err)
 		}
-		extProcHandler = mcpHandler
-		srv.mcpExtProcHandler = mcpHandler
+		extProcHandler = srv.mcpExtProcHandler
 	}
 	extproc.NewServer(extProcHandler, options.extProcCallback).Register(srv.GRPCServer)
 
@@ -488,7 +487,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	// are resolvable by the time Envoy begins routing to them. nil when a
 	// test injects its own handler via WithExtProcHandler.
 	if srv.mcpExtProcHandler != nil {
-		srv.mcpExtProcHandler.OnConfigChange(cfg)
+		srv.mcpExtProcHandler.OnConfigChange(ctx, cfg)
 	}
 
 	res, err := srv.buildDiscoveryResources(ctx)

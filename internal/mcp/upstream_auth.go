@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/singleflight"
 	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -22,7 +22,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -79,89 +78,117 @@ func newPendingUpstreamAuth(p newPendingUpstreamAuthParams, setup *upstreamOAuth
 // All upstream auth modes (auto-discovery, pre-registered, fully static) use a unified
 // UpstreamMCPToken storage path.
 //
-// hosts and asMetadataDomainMatcher refresh via OnConfigChange; both are held
-// behind atomic pointers so request-path readers stay lock-free.
+// The handler lives for the whole process. hosts, asMetadataDomainMatcher and
+// dataBrokerClient refresh via OnConfigChange and are held behind atomic
+// pointers so request-path readers stay lock-free.
 type UpstreamAuthHandler struct {
 	storage                 HandlerStorage
 	hosts                   *HostInfo
 	httpClient              *http.Client
 	asMetadataDomainMatcher atomic.Pointer[DomainMatcher]
 	singleFlight            singleflight.Group
+
+	tracerProvider         oteltrace.TracerProvider
+	outboundGRPCConnection grpc.CachedOutboundGRPClientConn
+	dataBrokerClient       atomic.Pointer[databroker.DataBrokerServiceClient]
 }
 
-// NewUpstreamAuthHandler creates a new UpstreamAuthHandler.
+// UpstreamAuthHandlerOption configures an UpstreamAuthHandler.
+type UpstreamAuthHandlerOption func(*UpstreamAuthHandler)
+
+// WithUpstreamHTTPClient sets the HTTP client used for upstream discovery and
+// token refresh. By default a client trusting the configured CA is used.
+func WithUpstreamHTTPClient(client *http.Client) UpstreamAuthHandlerOption {
+	return func(h *UpstreamAuthHandler) {
+		h.httpClient = client
+	}
+}
+
+// WithStorage replaces the handler's storage (for tests)
+func WithStorage(storage HandlerStorage) UpstreamAuthHandlerOption {
+	return func(h *UpstreamAuthHandler) {
+		h.storage = storage
+	}
+}
+
+// NewUpstreamAuthHandler creates an UpstreamAuthHandler for cfg.
 func NewUpstreamAuthHandler(
-	storage HandlerStorage,
-	hosts *HostInfo,
-	httpClient *http.Client,
-	asMetadataDomainMatcher *DomainMatcher,
-) *UpstreamAuthHandler {
-	h := &UpstreamAuthHandler{
-		storage:    storage,
-		hosts:      hosts,
-		httpClient: httpClient,
-	}
-	h.asMetadataDomainMatcher.Store(asMetadataDomainMatcher)
-	return h
-}
-
-// OnConfigChange refreshes the handler's host index and AS-metadata domain allowlist
-// so that config updates delivered after the handler was constructed become visible
-// to ext_proc lookups.
-func (h *UpstreamAuthHandler) OnConfigChange(cfg *config.Config) {
-	h.hosts.OnConfigChange(cfg)
-	var allowed []string
-	if cfg != nil {
-		allowed = cfg.Options.GetMCPAllowedAsMetadataDomains()
-	}
-	h.asMetadataDomainMatcher.Store(NewDomainMatcher(allowed))
-}
-
-// NewUpstreamAuthHandlerFromConfig creates an UpstreamAuthHandler using the provided config
-// and outbound gRPC connection. This is the primary factory used by the controlplane server.
-func NewUpstreamAuthHandlerFromConfig(
 	ctx context.Context,
 	cfg *config.Config,
-	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
+	opts ...UpstreamAuthHandlerOption,
 ) (*UpstreamAuthHandler, error) {
-	tracerProvider := trace.NewTracerProvider(ctx, "MCP-ExtProc")
+	h := &UpstreamAuthHandler{
+		tracerProvider:         trace.NewTracerProvider(ctx, "MCP-ExtProc"),
+		outboundGRPCConnection: grpc.CachedOutboundGRPClientConn{Name: "mcp-extproc"},
+	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	if h.httpClient == nil {
+		h.httpClient = newUpstreamHTTPClient(ctx, cfg)
+	}
+	if h.storage == nil {
+		h.storage = NewStorage(h) // the handler resolves its own client per use
+	}
+	if err := h.updateDataBrokerClient(ctx, cfg); err != nil {
+		return nil, err
+	}
+	h.hosts = NewHostInfo(cfg, h.httpClient)
+	h.asMetadataDomainMatcher.Store(NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains()))
+	return h, nil
+}
 
+// GetDataBrokerServiceClient returns the current DataBrokerServiceClient.
+func (h *UpstreamAuthHandler) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return *h.dataBrokerClient.Load()
+}
+
+// OnConfigChange refreshes the handler's databroker client, host index and
+// AS-metadata domain allowlist so that config updates delivered after the
+// handler was constructed become visible to ext_proc lookups.
+func (h *UpstreamAuthHandler) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	// On failure the previous client stays referenced until the next config
+	// change. An invalid shared key fails before the cached connection is
+	// touched; a failed re-dial leaves the cache empty, so the next change
+	// dials afresh.
+	if err := h.updateDataBrokerClient(ctx, cfg); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("mcp_upstream_auth: error updating databroker client")
+	}
+	h.hosts.OnConfigChange(cfg)
+	h.asMetadataDomainMatcher.Store(NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains()))
+}
+
+// updateDataBrokerClient builds the databroker client for cfg
+func (h *UpstreamAuthHandler) updateDataBrokerClient(ctx context.Context, cfg *config.Config) error {
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
-		return nil, fmt.Errorf("shared key: %w", err)
+		return fmt.Errorf("mcp_upstream_auth: shared key: %w", err)
 	}
-
-	dataBrokerConn, err := outboundGrpcConn.Get(ctx, &grpc.OutboundOptions{
+	cc, err := h.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
 		SignedJWTKey:   sharedKey,
-	}, googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))))
+	}, googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(h.tracerProvider))))
 	if err != nil {
-		return nil, fmt.Errorf("databroker connection: %w", err)
+		return fmt.Errorf("mcp_upstream_auth: databroker connection: %w", err)
 	}
+	client := databroker.NewDataBrokerServiceClient(cc)
+	h.dataBrokerClient.Store(&client)
+	return nil
+}
 
-	storage := NewStorage(databroker.NewDataBrokerServiceClient(dataBrokerConn))
-
-	httpClient := http.DefaultClient
-	if cfg.Options.CA != "" || cfg.Options.CAFile != "" {
-		rootCAs, caErr := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
-		if caErr != nil {
-			log.Ctx(ctx).Warn().Err(caErr).Msg("mcp_upstream_auth: error loading custom CA, using system defaults")
-		} else {
-			transport := http.DefaultTransport.(*http.Transport).Clone()
-			transport.TLSClientConfig = &tls.Config{
-				RootCAs:    rootCAs,
-				MinVersion: tls.VersionTLS12,
-			}
-			httpClient = &http.Client{Transport: transport}
-		}
+// newUpstreamHTTPClient returns an HTTP client trusting the configured CAs, or
+// the default client when they cannot be loaded.
+func newUpstreamHTTPClient(ctx context.Context, cfg *config.Config) *http.Client {
+	tlsConfig, err := cfg.GetTLSClientConfig()
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("mcp_upstream_auth: error loading custom CA, using system defaults")
+		return http.DefaultClient
 	}
-
-	hosts := NewHostInfo(cfg, httpClient)
-	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
-
-	return NewUpstreamAuthHandler(storage, hosts, httpClient, asDomainMatcher), nil
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = tlsConfig
+	return &http.Client{Transport: transport}
 }
 
 // GetUpstreamToken looks up a cached upstream token for the given route context and host.

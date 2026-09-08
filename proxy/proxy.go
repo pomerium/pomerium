@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -82,7 +83,7 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	p.currentConfig.Store(config.New(config.NewDefaultOptions()))
 	p.currentRouter.Store(httputil.NewRouter())
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn,
+		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p,
 			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
 				return cfg.Options.GetAuthenticator(ctx, tracerProvider, idpID)
 			}),
@@ -102,6 +103,11 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	return p, nil
 }
 
+// GetDataBrokerServiceClient implements databroker.ClientGetter
+func (p *Proxy) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return p.state.Load().dataBrokerClient
+}
+
 // Mount mounts the http handler to a mux router.
 func (p *Proxy) Mount(r *mux.Router) {
 	r.PathPrefix("/").Handler(p)
@@ -113,27 +119,28 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
+	p.currentConfig.Store(cfg)
+	if err := p.setHandlers(ctx, cfg.Options); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
+	}
+	state, err := newProxyStateFromConfig(ctx, p.state.Load(), p.tracerProvider, cfg, p.outboundGrpcConn)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
+		return
+	}
+	p.state.Store(state)
+
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p.outboundGrpcConn,
+		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p,
 			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
 				return cfg.Options.GetAuthenticator(ctx, p.tracerProvider, idpID)
 			}),
 		)
 		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
+			log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update mcp handler from configuration settings")
 		} else {
 			p.mcp.Store(mcpHandler)
 		}
-	}
-
-	p.currentConfig.Store(cfg)
-	if err := p.setHandlers(ctx, cfg.Options); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
-	}
-	if state, err := newProxyStateFromConfig(ctx, p.state.Load(), p.tracerProvider, cfg, p.outboundGrpcConn); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
-	} else {
-		p.state.Store(state)
 	}
 }
 
