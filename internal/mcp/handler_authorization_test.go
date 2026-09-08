@@ -465,3 +465,68 @@ func TestAuthorize_ExpiredTokenWithRefreshToken_RefreshesSilently(t *testing.T) 
 		"should redirect to client redirect_uri after silent refresh, got %q", loc)
 	assert.Contains(t, loc, "code=", "redirect should carry the authorization code")
 }
+
+func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
+	srv := &Handler{}
+
+	cases := []struct {
+		name      string
+		preferred string
+		supported []string
+		expect    string
+		expectErr bool
+	}{
+		{
+			name:      "preferred_supported",
+			preferred: rfc7591v1.TokenEndpointAuthMethodNone,
+			supported: []string{"private_key_jwt", rfc7591v1.TokenEndpointAuthMethodNone},
+			expect:    rfc7591v1.TokenEndpointAuthMethodNone,
+		},
+		{
+			name:      "negotiated",
+			preferred: "private_key_jwt",
+			supported: []string{"private_key_jwt", rfc7591v1.TokenEndpointAuthMethodNone},
+			expect:    rfc7591v1.TokenEndpointAuthMethodNone,
+		},
+		{
+			name:      "no_overlap",
+			preferred: "private_key_jwt",
+			supported: []string{"private_key_jwt", "tls_client_auth"},
+			expectErr: true,
+			expect:    "private_key_jwt",
+		},
+		{
+			name:      "empty_supported",
+			expect:    "private_key_jwt",
+			preferred: "private_key_jwt",
+			supported: nil,
+			expectErr: true,
+		},
+		{
+			name:      "no preferred",
+			expect:    "client_secret_basic",
+			preferred: "",
+			supported: nil,
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := &ClientIDMetadataDocument{
+				ClientID:                           "https://example.com/oauth/client.json",
+				RedirectURIs:                       []string{"https://client.example.com/callback"},
+				TokenEndpointAuthMethod:            tc.preferred,
+				TokendEndpointAuthMethodsSupported: tc.supported,
+			}
+
+			err := srv.negotiateTokenEndpointAuthMethod(context.Background(), doc)
+			if tc.expectErr {
+				assert.ErrorIs(t, err, ErrClientMetadataValidation)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tc.expect, doc.TokenEndpointAuthMethod)
+		})
+	}
+}
