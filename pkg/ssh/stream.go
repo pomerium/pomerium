@@ -139,6 +139,10 @@ type StreamAuthInfo interface {
 	GetSessionId() string
 	GetUserId() string
 	GetSessionBindingId() string
+
+	// Two person approval
+	GetAccessRequestState() extensions_ssh.AccessRequestState
+	GetAccessRequestMetadata() map[string]string
 }
 
 func authInfoHasPublicKey(info StreamAuthInfo) bool {

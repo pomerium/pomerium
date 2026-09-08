@@ -28,6 +28,7 @@ import (
 	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
@@ -63,22 +64,24 @@ type Evaluator interface {
 }
 
 type AuthRequest struct {
-	Username         string
-	Hostname         string
-	PublicKey        string // No encoding
-	SessionID        string
-	SourceAddress    string
-	SessionBindingID string
-	LogOnlyIfDenied  bool
+	Username              string
+	Hostname              string
+	PublicKey             string // No encoding
+	SessionID             string
+	SourceAddress         string
+	SessionBindingID      string
+	LogOnlyIfDenied       bool
+	AccessRequestApproved bool
 }
 
 type Auth struct {
-	evaluator      Evaluator
-	currentConfig  *atomic.Pointer[config.Config]
-	tracerProvider oteltrace.TracerProvider
-	tracer         oteltrace.Tracer
-	codeIssuer     code.Issuer
-	codeMetrics    *code.Metrics
+	evaluator        Evaluator
+	currentConfig    *atomic.Pointer[config.Config]
+	tracerProvider   oteltrace.TracerProvider
+	tracer           oteltrace.Tracer
+	codeIssuer       code.Issuer
+	codeMetrics      *code.Metrics
+	accessRequestMgr *StreamAccessRequestManager
 }
 
 type Options struct {
@@ -111,7 +114,7 @@ func NewAuth(
 	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
 	codeIssuer code.Issuer,
-	_ any, // temporary placeholder
+	accessRequestMgr *StreamAccessRequestManager,
 	opts ...Option,
 ) *Auth {
 	options := Options{
@@ -131,6 +134,7 @@ func NewAuth(
 		options.tracer,
 		codeIssuer,
 		metrics,
+		accessRequestMgr,
 	}
 }
 
@@ -347,6 +351,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	}
 
 	var sessionID, userID, sessionBindingID string
+	var accessRequestApproved bool
 
 	if !authInfoHasSession(authInfo) {
 		// No session (this is the most common case)
@@ -367,21 +372,37 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 		userID = authInfo.GetUserId()
 		sessionBindingID = authInfo.GetSessionBindingId()
 
-		// (not implemented yet)
-		_ = sessionID
-		_ = userID
-		_ = sessionBindingID
+		if authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Pending {
+			if policy == nil {
+				panic("bug: two-person approval requested with no route info")
+			}
 
-		panic("bug: keyboard-interactive auth request is not valid in this state")
+			timeout := cfg.Options.SSHTwoPersonApprovalRequestTimeout.Or(5 * time.Minute)
+			reply, err := a.handleTwoPersonApproval(ctx, timeout, policy, streamInfo, authInfo, querier)
+			if err != nil {
+				return AuthMethodResponse{}, err
+			}
+			if !reply.Approved {
+				return AuthMethodResponse{}, status.Errorf(codes.PermissionDenied, "access request denied")
+			}
+
+			accessRequestApproved = true
+			pendingAuthContextUpdates.AccessRequestState = extensions_ssh.AccessRequestState_Approved
+			pendingAuthContextUpdates.AccessRequestMetadata = reply.Metadata
+		} else {
+			// Shouldn't be able to get here
+			panic("bug: keyboard-interactive auth request is not valid in this state")
+		}
 	}
 
 	res, err := a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, AuthRequest{
-		Username:         user.Username(),
-		Hostname:         user.Hostname(),
-		PublicKey:        string(authInfo.GetPublicKey()),
-		SourceAddress:    streamInfo.SourceAddress,
-		SessionID:        sessionID,
-		SessionBindingID: sessionBindingID,
+		Username:              user.Username(),
+		Hostname:              user.Hostname(),
+		PublicKey:             string(authInfo.GetPublicKey()),
+		SourceAddress:         streamInfo.SourceAddress,
+		SessionID:             sessionID,
+		SessionBindingID:      sessionBindingID,
+		AccessRequestApproved: accessRequestApproved,
 	}, streamInfo.InitialAuthComplete)
 	if err != nil {
 		return AuthMethodResponse{}, err
@@ -404,23 +425,106 @@ func processSessionEvaluateResult(
 	res *evaluator.Result,
 	pendingAuthContextUpdates *extensions_ssh.AuthContext,
 ) (AuthMethodResponse, error) {
-	if res.Allow.Value {
-		if !res.Deny.Value {
-			// The session is valid and there are no deny reasons
-			pendingAuthContextUpdates.SessionBindingId = ids.SessionBindingID
-			pendingAuthContextUpdates.SessionId = ids.SessionID
-			pendingAuthContextUpdates.UserId = ids.UserID
+	if res.Allow.Value && !res.Deny.Value {
+		pendingAuthContextUpdates.SessionBindingId = ids.SessionBindingID
+		pendingAuthContextUpdates.SessionId = ids.SessionID
+		pendingAuthContextUpdates.UserId = ids.UserID
 
-			return AuthMethodResponse{
-				AllowMethod:              true, // publickey
-				NoFurtherMethodsRequired: true,
-				ContextUpdates:           pendingAuthContextUpdates, // public key + session
-			}, nil
-		}
+		return AuthMethodResponse{
+			AllowMethod:              true,
+			NoFurtherMethodsRequired: true,
+			ContextUpdates:           pendingAuthContextUpdates,
+		}, nil
+	}
+
+	if twoPersonAuthRequired(res) {
+		// The session is valid
+		pendingAuthContextUpdates.SessionBindingId = ids.SessionBindingID
+		pendingAuthContextUpdates.SessionId = ids.SessionID
+		pendingAuthContextUpdates.UserId = ids.UserID
+		// Two person auth is required
+		pendingAuthContextUpdates.AccessRequestState = extensions_ssh.AccessRequestState_Pending
+
+		return AuthMethodResponse{
+			AllowMethod:            true,
+			NextRequiredAuthMethod: MethodKeyboardInteractive,
+			ContextUpdates:         pendingAuthContextUpdates,
+		}, nil
 	}
 
 	// Deny
 	return AuthMethodResponse{}, nil
+}
+
+func twoPersonAuthRequired(res *evaluator.Result) bool {
+	// Note that the same "ssh-access-request-required" reason is checked in both
+	// allow and deny reasons (contrary to the way ssh_publickey and source_ip
+	// reasons are handled). This is because you can use the
+	// ssh_access_request_approved criteria in an allow block using and/or, or in
+	// a deny block using not/nor. The failure reason is always
+	// "ssh-access-request-required" regardless because not/nor will swap the
+	// success and failure reasons for criteria used in those blocks.
+
+	if res.Allow.Value == res.Deny.Value {
+		// Either the allow or deny criteria failed, but not both. If the last
+		// remaining reason for whichever one was rejected is
+		// "ssh-access-request-required", then two person auth is required. If there
+		// are any other unrelated failure reasons then the request is denied.
+		if res.Allow.Value && len(res.Deny.Reasons) == 1 &&
+			res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {
+			return true
+		} else if !res.Deny.Value && len(res.Allow.Reasons) == 1 &&
+			res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {
+			return true
+		}
+	} else if !res.Allow.Value {
+		// This handles the unusual case of redundant criteria, as in:
+		//
+		//  allow:
+		//    and:
+		//      - ssh_access_request_approved: {}
+		//  deny:
+		//    not:
+		//      - ssh_access_request_approved: {}
+		if len(res.Allow.Reasons) == 1 && len(res.Deny.Reasons) == 1 &&
+			res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) &&
+			res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *Auth) handleTwoPersonApproval(
+	ctx context.Context,
+	timeout time.Duration,
+	policy *config.Policy,
+	streamInfo StreamInfo,
+	authInfo StreamAuthInfo,
+	querier KeyboardInteractiveQuerier,
+) (AccessRequestReply, error) {
+	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleTwoPersonApproval")
+	defer span.End()
+
+	ctx, ca := context.WithTimeout(ctx, timeout)
+	defer ca()
+
+	_, err := querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
+		Name:        fmt.Sprintf("Waiting for approval (timeout: %s)", timeout),
+		Instruction: fmt.Sprintf("Request ID: %s", fmt.Sprintf("%x", streamInfo.StreamID)),
+		Prompts:     nil,
+	})
+	if err != nil {
+		return AccessRequestReply{}, err
+	}
+
+	return a.accessRequestMgr.DoRequest(ctx, timeout, &session.StreamAccessRequestParams{
+		Protocol:  session.ProtocolSSH,
+		SessionId: authInfo.GetSessionId(),
+		UserId:    authInfo.GetUserId(),
+		StreamId:  streamInfo.StreamID,
+		ClusterId: envoyconfig.GetClusterID(policy),
+	})
 }
 
 func (a *Auth) handleLogin(
@@ -630,7 +734,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authI
 }
 
 // BuildTargetChannelFilters implements [AuthInterface].
-func (a *Auth) BuildTargetChannelFilters(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
+func (a *Auth) BuildTargetChannelFilters(_ context.Context, _ StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
 	hostname := user.Hostname()
 	if hostname == "" {
 		return nil, nil, status.Errorf(codes.Internal, "no hostname")
@@ -642,20 +746,20 @@ func (a *Auth) BuildTargetChannelFilters(ctx context.Context, streamInfo StreamI
 		return nil, nil, status.Errorf(codes.Internal, "no route")
 	}
 	addr := SocketAddressFromString(route)
-	if !route.SessionRecording.IsSet || !route.SessionRecording.Value.Enabled.Or(false) {
-		return addr, []*corev3.TypedExtensionConfig{}, nil
+	extensionConfigs := []*corev3.TypedExtensionConfig{}
+
+	enableSessionRecording := route.SessionRecording.IsSet && route.SessionRecording.Value.Enabled.Or(false)
+
+	if authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Approved {
+		md := authInfo.GetAccessRequestMetadata()
+		if _, ok := md["enable_session_recording"]; ok {
+			enableSessionRecording = true
+		}
 	}
-	sess, err := a.GetSession(ctx, streamInfo, authInfo)
-	if err != nil {
-		return nil, nil, fmt.Errorf("no session")
+	if enableSessionRecording {
+		extensionConfigs = append(extensionConfigs, buildSSHRecordingConfig(authInfo.GetSessionId(), authInfo.GetUserId()))
 	}
-	if recordingConfig := buildSSHRecordingConfig(&route.SessionRecording.Value, sess.GetId(), sess.GetUserId()); recordingConfig != nil {
-		return addr,
-			[]*corev3.TypedExtensionConfig{
-				recordingConfig,
-			}, nil
-	}
-	return addr, []*corev3.TypedExtensionConfig{}, nil
+	return addr, extensionConfigs, nil
 }
 
 func SocketAddressFromString(route *config.Policy) *corev3.SocketAddress {
@@ -674,13 +778,7 @@ func SocketAddressFromString(route *config.Policy) *corev3.SocketAddress {
 	return sa
 }
 
-func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID string) *corev3.TypedExtensionConfig {
-	if recCfg == nil {
-		return nil
-	}
-	if !recCfg.Enabled.Or(false) {
-		return nil
-	}
+func buildSSHRecordingConfig(sessionID, userID string) *corev3.TypedExtensionConfig {
 	ext := &xssh.UpstreamTargetExtensionConfig{
 		SessionId: sessionID,
 		UserId:    userID,

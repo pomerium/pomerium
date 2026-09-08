@@ -5329,6 +5329,14 @@ components:
           description: |-
             ID of a managed key pair to use as the SSH user-CA key, as an
              alternative to file or inline values.
+        sshTwoPersonApprovalRequestTimeout:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: ssh_two_person_approval_request_timeout
+          description: |-
+            Maximum duration for pending two-person approval requests before they expire and are denied.
+             Defaults to 5 minutes.
         mcpAllowedClientIdDomains:
           type: array
           items:

@@ -7163,6 +7163,18 @@
               "defaultValue": ""
             },
             {
+              "name": "ssh_two_person_approval_request_timeout",
+              "description": "Maximum duration for pending two-person approval requests before they expire and are denied.\nDefaults to 5 minutes.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_ssh_two_person_approval_request_timeout",
+              "defaultValue": ""
+            },
+            {
               "name": "mcp_allowed_client_id_domains",
               "description": "mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.\nSupports wildcard patterns like \"*.example.com\".\nThis is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.",
               "label": "repeated",
