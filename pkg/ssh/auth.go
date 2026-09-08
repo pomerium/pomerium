@@ -377,10 +377,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 				panic("bug: two-person approval requested with no route info")
 			}
 
-			timeout := 5 * time.Minute
-			if cfg.Options.SSHTwoPersonApprovalRequestTimeout != 0 {
-				timeout = cfg.Options.SSHTwoPersonApprovalRequestTimeout
-			}
+			timeout := cfg.Options.SSHTwoPersonApprovalRequestTimeout.Or(5 * time.Minute)
 			reply, err := a.handleTwoPersonApproval(ctx, timeout, policy, streamInfo, authInfo, querier)
 			if err != nil {
 				return AuthMethodResponse{}, err
