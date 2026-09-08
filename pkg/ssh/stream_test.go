@@ -136,6 +136,13 @@ func (s *StreamHandlerSuite) SetupTest() {
 	s.ctrl = NewController(s.T())
 	s.mockAuth = mock_ssh.NewMockAuthInterface(s.ctrl)
 	s.mockAuth.EXPECT().BuildTargetChannelFilters(Any(), Any(), Any(), Any()).AnyTimes()
+	// Extra auth info is informational and not used directly by pomerium core
+	s.mockAuth.EXPECT().GetExtraAuthInfo(Any(), Any(), Any()).
+		Return(&extensions_ssh.ExtraAuthInfo{
+			Audience: []string{"mock"},
+		}).
+		MinTimes(0).
+		MaxTimes(1)
 	s.cleanup = []func(){}
 	s.errC = make(chan error, 1)
 
@@ -198,6 +205,7 @@ func marshalAny(msg proto.Message) *anypb.Any {
 }
 
 func (s *StreamHandlerSuite) expectError(fn func(), msg string) {
+	s.T().Helper()
 	fn()
 	select {
 	case err := <-s.errC:
@@ -291,6 +299,7 @@ func (s *StreamHandlerSuite) msgUpstreamConnected() *extensions_ssh.ClientMessag
 }
 
 func (s *StreamHandlerSuite) expectAllowUpstream(sh *ssh.StreamHandler, hostname string) {
+	s.T().Helper()
 	select {
 	case msg := <-sh.WriteC():
 		if authResp := msg.GetAuthResponse(); authResp != nil {
@@ -309,6 +318,7 @@ func (s *StreamHandlerSuite) expectAllowUpstream(sh *ssh.StreamHandler, hostname
 }
 
 func (s *StreamHandlerSuite) expectDeny(sh *ssh.StreamHandler, partial bool, methods []string) {
+	s.T().Helper()
 	select {
 	case msg := <-sh.WriteC():
 		if authResp := msg.GetAuthResponse(); authResp != nil {
@@ -327,6 +337,7 @@ func (s *StreamHandlerSuite) expectDeny(sh *ssh.StreamHandler, partial bool, met
 }
 
 func (s *StreamHandlerSuite) expectAllowInternal(sh *ssh.StreamHandler) {
+	s.T().Helper()
 	select {
 	case msg := <-sh.WriteC():
 		if authResp := msg.GetAuthResponse(); authResp != nil {
@@ -344,6 +355,7 @@ func (s *StreamHandlerSuite) expectAllowInternal(sh *ssh.StreamHandler) {
 }
 
 func (s *StreamHandlerSuite) expectPrompt(sh *ssh.StreamHandler) {
+	s.T().Helper()
 	select {
 	case msg := <-sh.WriteC():
 		if authResp := msg.GetAuthResponse(); authResp != nil {
@@ -2235,6 +2247,9 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 				SessionId:                  "fake-session-id",
 				SessionBindingId:           "fake-session-binding-id",
 				UserId:                     "fake-user-id",
+			},
+			ExtraAuthInfo: &extensions_ssh.ExtraAuthInfo{
+				Audience: []string{"mock"},
 			},
 			Target: &extensions_ssh.AllowResponse_Upstream{
 				Upstream: &extensions_ssh.UpstreamTarget{
