@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func policyNameFunc() func(*config.Policy) string {
@@ -2559,4 +2560,100 @@ func Test_setHostRewriteOptions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_statefulSessionFilterEnabledForConsoleRoutes(t *testing.T) {
+	t.Parallel()
+
+	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
+	t.Run("audiences not set", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                      "https://console.example.com",
+					To:                        mustParseWeightedURLs(t, "https://console-int.example.com:8701"),
+					AllowAnyAuthenticatedUser: true,
+					PassIdentityHeaders:       new(true),
+				},
+			},
+		}), "console.example.com")
+		require.NoError(t, err)
+		assert.NotContains(t, routes[0].TypedPerFilterConfig, PerFilterConfigStatefulSessionName)
+		for _, h := range routes[0].RequestHeadersToAdd {
+			assert.NotEqual(t, "x-pomerium-upstream-cluster", h.Header.Key)
+		}
+	})
+
+	t.Run("audiences set", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                      "https://console.example.com",
+					To:                        mustParseWeightedURLs(t, "https://console-int.example.com:8701"),
+					AllowAnyAuthenticatedUser: true,
+					PassIdentityHeaders:       new(true),
+				},
+			},
+			GlobalOptions: config.GlobalOptions{
+				ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
+			},
+		}), "console.example.com")
+		require.NoError(t, err)
+
+		assert.Contains(t, routes[0].TypedPerFilterConfig, PerFilterConfigStatefulSessionName)
+		testutil.AssertProtoJSONEqual(t, `
+{
+  "@type": "type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSessionPerRoute",
+  "statefulSession": {
+    "sessionState": {
+      "name": "envoy.http.stateful_session.envelope",
+      "typedConfig": {
+        "@type":  "type.googleapis.com/envoy.extensions.http.stateful_session.envelope.v3.EnvelopeSessionState",
+        "header": {
+          "name": "x-pomerium-stateful-session-id"
+        }
+      }
+    },
+    "strict": true
+  }
+}`, routes[0].TypedPerFilterConfig[PerFilterConfigStatefulSessionName])
+		found := false
+		for _, h := range routes[0].RequestHeadersToAdd {
+			if h.Header.Key == "x-pomerium-upstream-cluster" {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "x-pomerium-upstream-cluster not found in request_headers_to_add")
+	})
+
+	t.Run("non-matching routes with audiences set", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                      "https://not-console.example.com",
+					To:                        mustParseWeightedURLs(t, "https://console-int.example.com:8701"),
+					AllowAnyAuthenticatedUser: true,
+					PassIdentityHeaders:       new(true),
+				},
+			},
+			GlobalOptions: config.GlobalOptions{
+				ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
+			},
+		}), "not-console.example.com")
+		require.NoError(t, err)
+		assert.NotContains(t, routes[0].TypedPerFilterConfig, PerFilterConfigStatefulSessionName)
+		for _, h := range routes[0].RequestHeadersToAdd {
+			assert.NotEqual(t, "x-pomerium-upstream-cluster", h.Header.Key)
+		}
+	})
 }
