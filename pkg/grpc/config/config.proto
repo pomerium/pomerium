@@ -1088,6 +1088,9 @@ message Settings {
   // ID of a managed key pair to use as the SSH user-CA key, as an
   // alternative to file or inline values.
   optional string ssh_user_ca_key_pair_id = 168;
+  // Maximum duration for pending two-person approval requests before they expire and are denied.
+  // Defaults to 5 minutes.
+  optional google.protobuf.Duration ssh_two_person_approval_request_timeout = 190;
   // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
