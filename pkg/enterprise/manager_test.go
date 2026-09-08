@@ -16,6 +16,7 @@ func TestBuildOptions(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	t.Setenv("HOME", filepath.Join(dir, "home"))
 	t.Run("disabled", func(t *testing.T) {
 		cfg := config.New(config.NewDefaultOptions())
 		options, enabled, err := buildOptions(cfg)
