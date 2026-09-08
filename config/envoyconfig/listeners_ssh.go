@@ -155,31 +155,6 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 	}
 	if slices.Contains(extensionsToLoad, ExtensionSSHSessionMirroring) {
 		ext := &mirroring_ssh.ChannelFilterConfig{}
-		// for _, audience := range cfg.Options.ReadonlyConsoleAudiences.Value {
-		// 	for _, route := range cfg.Options.GetAllPoliciesIndexed() {
-		// 		if !strings.Contains(route.From, audience) {
-		// 			continue
-		// 		}
-		// 		u, err := config.ParseWeightedURL(route.From)
-		// 		if err == nil {
-		// 			if hostname := u.URL.Hostname(); hostname == audience {
-		// 				ext.AllowedReceivers = append(ext.AllowedReceivers, &mirroring_ssh.ReceiverServiceConfig{
-		// 					Hostname: hostname,
-		// 					GrpcService: &envoy_config_core_v3.GrpcService{
-		// 						TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
-		// 							EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-		// 								ClusterName: GetClusterID(route),
-		// 							},
-		// 						},
-		// 					},
-		// 				})
-		// 				break
-		// 			}
-		// 		}
-		// 	}
-		// }
-
-		// if len(ext.AllowedReceivers) > 0 {
 		ts := &xds_type_v3.TypedStruct{
 			TypeUrl: "type.googleapis.com/" + string(ext.ProtoReflect().Descriptor().FullName()),
 			Value:   &structpb.Struct{},
@@ -195,8 +170,6 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 			Name:        "session_mirroring",
 			TypedConfig: marshalAny(ts),
 		})
-		// }
-
 	}
 
 	filters = append(
