@@ -104,7 +104,7 @@ func TestBuildListeners(t *testing.T) {
 							}]
 						}
 					}
-				}`, httpConfig.Get("httpFilters.9").String(),
+				}`, httpConfig.Get("httpFilters.10").String(),
 					"should add alt-svc header")
 			case "quic-ingress":
 				hasQUIC = true
