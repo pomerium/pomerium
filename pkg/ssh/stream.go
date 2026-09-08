@@ -468,7 +468,8 @@ func (sh *StreamHandler) handleHandoffRequest(ctx context.Context, state *Stream
 	addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamInfo, state.AuthContext, state.CurrentUser)
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("failed to build extensions for filters")
-		filters = []*corev3.TypedExtensionConfig{}
+		req.Err <- err
+		return
 	}
 	req.Reply <- buildHandoffAction(state, req.PtyInfo, addr, filters)
 }
@@ -737,7 +738,9 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 		// If this method was allowed and there are no methods remaining, auth is
 		// successful
 		state.InitialAuthComplete = true
-		sh.sendAllowResponse(ctx, state)
+		if err := sh.sendAllowResponse(ctx, state); err != nil {
+			return err
+		}
 	} else {
 		log.Ctx(ctx).Debug().Msg("ssh: unauthenticated methods remain, sending deny response")
 		sh.sendDenyResponseWithRemainingMethods(response.AllowMethod, state)
@@ -849,7 +852,7 @@ func (sh *StreamHandler) sendDenyResponseWithRemainingMethods(partial bool, stat
 	}
 }
 
-func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamState) {
+func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamState) error {
 	var allow *extensions_ssh.AllowResponse
 	if !state.CurrentUser.Valid() {
 		panic("bug: current user invalid")
@@ -861,7 +864,7 @@ func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamSta
 		addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamInfo, state.AuthContext, state.CurrentUser)
 		if err != nil {
 			log.Ctx(ctx).Err(err).Msg("failed to build channel filters")
-			filters = []*corev3.TypedExtensionConfig{}
+			return err
 		}
 		allow = buildUpstreamAllowResponse(state, addr, filters)
 	}
@@ -875,6 +878,7 @@ func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamSta
 			},
 		},
 	}
+	return nil
 }
 
 func (sh *StreamHandler) sendInfoPrompts(prompts *extensions_ssh.KeyboardInteractiveInfoPrompts) {
