@@ -1232,8 +1232,21 @@ allow:
           - "{{ routeUserEmail 1 }}"
           - "{{ routeUserEmail 2 }}"
 deny:
-  or:
-    - ssh_access_request_not_approved: {}
+  nor:
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		accessRequestTest(api)
+	})
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+          - "{{ routeUserEmail 2 }}"
+deny:
+  not:
+    - ssh_access_request_approved: {}
 `, func(api RouteTestAPI) {
 		accessRequestTest(api)
 	})
@@ -1249,9 +1262,10 @@ deny:
 	}
 	rt.AddRouteTest(`
 allow:
-  and:
-    - email: "{{ routeUserEmail 1 }}"
-    - ssh_access_request_not_approved: {}
+  not:
+    - email:
+        in: ["{{ routeUserEmail 2 }}"]
+    - ssh_access_request_approved: {}
 `, func(api RouteTestAPI) {
 		misconfiguredAccessRequestIgnoredTest(api)
 	})
@@ -1267,9 +1281,10 @@ deny:
 	})
 	rt.AddRouteTest(`
 allow:
-  and:
-    - email: "{{ routeUserEmail 1 }}"
-    - ssh_access_request_not_approved: {}
+  not:
+    - email:
+        in: ["{{ routeUserEmail 2 }}"]
+    - ssh_access_request_approved: {}
 deny:
   or:
     - ssh_access_request_approved: {}
@@ -1283,7 +1298,9 @@ allow:
   and:
     - email: "{{ routeUserEmail 1 }}"
     - ssh_access_request_approved: {}
-    - ssh_access_request_not_approved: {}
+deny:
+  and:
+    - ssh_access_request_approved: {}
 `, func(api RouteTestAPI) {
 		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 		requestID := make(chan string, 1)
@@ -1322,8 +1339,8 @@ allow:
     - email: "{{ routeUserEmail 1 }}"
     - ssh_access_request_approved: {}
 deny:
-  or:
-    - ssh_access_request_not_approved: {}
+  nor:
+    - ssh_access_request_approved: {}
 `, func(api RouteTestAPI) {
 		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
 		approveAndVerifySuccess(cc)
