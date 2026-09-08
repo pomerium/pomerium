@@ -54,7 +54,7 @@ import (
 // handle however, such as rejecting a public key via policy, then accepting a different one after
 // a retry. If the current version would reject the request but the future version accepts it, the
 // test case is skipped.
-const future = false
+const future = true
 
 type PublicKeyType int
 
