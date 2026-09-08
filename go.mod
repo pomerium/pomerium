@@ -86,7 +86,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.11.0
 	github.com/pomerium/datasource v0.18.2-0.20260712023818-d0e40970f4c4
-	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260721000143-fdaed27b8404
+	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260904201503-cb81c5a09085
 	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-00010101000000-000000000000
 	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-00010101000000-000000000000
 	github.com/pomerium/protoutil v0.0.0-20260903003736-c0c6cb1eb609
@@ -450,5 +450,3 @@ ignore (
 	./ospkg
 	./ui/node_modules
 )
-
-replace github.com/pomerium/envoy-custom => ../envoy-custom.w1
