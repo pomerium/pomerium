@@ -80,7 +80,7 @@ func NewConfigSource(
 		dbConfigs:              map[string]dbConfig{},
 		dbVersionedConfigs:     map[string]dbConfig{},
 		bundle:                 NewConfigBundle(),
-		outboundGRPCConnection: new(grpc.CachedOutboundGRPClientConn),
+		outboundGRPCConnection: &grpc.CachedOutboundGRPClientConn{Name: "databroker-config"},
 	}
 	for _, li := range listeners {
 		src.OnConfigChange(ctx, li)

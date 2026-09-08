@@ -1,7 +1,9 @@
 package grpc
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -91,6 +93,9 @@ func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other
 
 // CachedOutboundGRPClientConn keeps a cached outbound gRPC client connection open based on options.
 type CachedOutboundGRPClientConn struct {
+	// Name identifies the owner of the connection in logs.
+	Name string
+
 	mu          sync.Mutex
 	opts        *OutboundOptions
 	current     *grpc.ClientConn
@@ -106,8 +111,13 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	if cache.current != nil && cmp.Equal(cache.opts, opts) {
 		return cache.current, nil
 	}
-	log.Ctx(ctx).Info().Msg("outbound client connection has changed meaningfully, reloading")
-	if cache.current != nil {
+	if cache.current == nil {
+		log.Ctx(ctx).Info().Str("owner", cache.Name).Msg("creating outbound client connection")
+	} else {
+		log.Ctx(ctx).Info().
+			Str("owner", cache.Name).
+			Strs("changed", changedOutboundOptions(cache.opts, opts)).
+			Msg("outbound client connection has changed meaningfully, reloading")
 		if cache.stopCleanup() {
 			// We prevented the AfterFunc from running; close the connection ourselves.
 			cache.current.Close()
@@ -130,11 +140,29 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 
 	cache.stopCleanup = context.AfterFunc(ctx, func() {
 		defer close(done)
-		log.Ctx(ctx).Info().Msg("stopping outbound client connection")
+		log.Ctx(ctx).Info().Str("owner", cache.Name).Msg("stopping outbound client connection")
 		if err := cc.Close(); err != nil {
-			log.Ctx(ctx).Err(err).Msg("failed to stop outbound client connection")
+			log.Ctx(ctx).Err(err).Str("owner", cache.Name).Msg("failed to stop outbound client connection")
 		}
-		log.Ctx(ctx).Info().Msg("ready to create new outbound client connection")
+		log.Ctx(ctx).Info().Str("owner", cache.Name).Msg("ready to create new outbound client connection")
 	})
 	return cache.current, nil
+}
+
+// changedOutboundOptions names the fields that differ between two sets of options,
+// with their before and after values. The signed JWT key is never rendered.
+func changedOutboundOptions(prev, next *OutboundOptions) []string {
+	var changed []string
+	diff := func(name, before, after string) {
+		if before != after {
+			changed = append(changed, fmt.Sprintf("%s: %q -> %q", name, before, after))
+		}
+	}
+	diff("outbound_port", prev.OutboundPort, next.OutboundPort)
+	diff("installation_id", prev.InstallationID, next.InstallationID)
+	diff("service_name", prev.ServiceName, next.ServiceName)
+	if !bytes.Equal(prev.SignedJWTKey, next.SignedJWTKey) {
+		changed = append(changed, "signed_jwt_key: changed")
+	}
+	return changed
 }

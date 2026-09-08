@@ -67,7 +67,7 @@ type Proxy struct {
 // Function returns an error if options fail to validate.
 func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Proxy")
-	outboundGrpcConn := &grpc.CachedOutboundGRPClientConn{}
+	outboundGrpcConn := &grpc.CachedOutboundGRPClientConn{Name: "proxy"}
 	state, err := newProxyStateFromConfig(ctx, nil, tracerProvider, cfg, outboundGrpcConn)
 	if err != nil {
 		return nil, err
