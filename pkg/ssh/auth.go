@@ -459,10 +459,11 @@ func processSessionEvaluateResult(
 func twoPersonAuthRequired(res *evaluator.Result) bool {
 	// Note that the same "ssh-access-request-required" reason is checked in both
 	// allow and deny reasons (contrary to the way ssh_publickey and source_ip
-	// reasons are handled). This is because you can use either the
-	// ssh_access_request_approved criteria in an allow block, or the
-	// ssh_access_request_not_approved criteria in a deny block, and the failure
-	// reason is always "ssh-access-request-required" regardless.
+	// reasons are handled). This is because you can use the
+	// ssh_access_request_approved criteria in an allow block using and/or, or in
+	// a deny block using not/nor. The failure reason is always
+	// "ssh-access-request-required" regardless because not/nor will swap the
+	// success and failure reasons for criteria used in those blocks.
 
 	if res.Allow.Value == res.Deny.Value {
 		// Either the allow or deny criteria failed, but not both. If the last
@@ -483,8 +484,8 @@ func twoPersonAuthRequired(res *evaluator.Result) bool {
 		//    and:
 		//      - ssh_access_request_approved: {}
 		//  deny:
-		//    or:
-		//      - ssh_access_request_not_approved: {}
+		//    not:
+		//      - ssh_access_request_approved: {}
 		if len(res.Allow.Reasons) == 1 && len(res.Deny.Reasons) == 1 &&
 			res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) &&
 			res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {

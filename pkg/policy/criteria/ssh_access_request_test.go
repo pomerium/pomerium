@@ -41,8 +41,8 @@ func TestSSHAccessRequestNotApproved(t *testing.T) {
 	t.Run("denied", func(t *testing.T) {
 		res, err := evaluate(t, `
 deny:
-  or:
-    - ssh_access_request_not_approved: {}
+  nor:
+    - ssh_access_request_approved: {}
 `, []*databroker.Record{}, Input{SSH: InputSSH{AccessRequestApproved: false}})
 		require.NoError(t, err)
 		assert.Equal(t, A{false, A{}}, res["allow"])
@@ -52,8 +52,8 @@ deny:
 	t.Run("not denied", func(t *testing.T) {
 		res, err := evaluate(t, `
 deny:
-  or:
-    - ssh_access_request_not_approved: {}
+  nor:
+    - ssh_access_request_approved: {}
 `, []*databroker.Record{}, Input{SSH: InputSSH{AccessRequestApproved: true}})
 		require.NoError(t, err)
 		assert.Equal(t, A{false, A{}}, res["allow"])
@@ -63,12 +63,12 @@ deny:
 
 func TestSSHAccessRequestIncorrectPolicies(t *testing.T) {
 	t.Parallel()
-	t.Run("ssh_access_request_not_approved in allow block", func(t *testing.T) {
+	t.Run("ssh_access_request_approved in not-allow block", func(t *testing.T) {
 		{ // this should be a no-op
 			res, err := evaluate(t, `
 allow:
-  and:
-    - ssh_access_request_not_approved: {}
+  not:
+    - ssh_access_request_approved: {}
 `, []*databroker.Record{}, Input{SSH: InputSSH{AccessRequestApproved: false}})
 			require.NoError(t, err)
 			assert.Equal(t, A{true, A{ReasonSSHAccessRequestRequired}, M{}}, res["allow"])
@@ -78,8 +78,8 @@ allow:
 		{ // this shouldn't be possible normally
 			res, err := evaluate(t, `
 allow:
-  and:
-    - ssh_access_request_not_approved: {}
+  not:
+    - ssh_access_request_approved: {}
 `, []*databroker.Record{}, Input{SSH: InputSSH{AccessRequestApproved: true}})
 			require.NoError(t, err)
 			assert.Equal(t, A{false, A{ReasonSSHAccessRequestOK}, M{}}, res["allow"])
@@ -115,33 +115,13 @@ deny:
 allow:
   and:
     - ssh_access_request_approved: {}
-    - ssh_access_request_not_approved: {}
-`, []*databroker.Record{}, Input{SSH: InputSSH{AccessRequestApproved: false}})
-		require.NoError(t, err)
-		assert.Equal(t, A{false, A{ReasonSSHAccessRequestRequired}, M{}}, res["allow"])
-		assert.Equal(t, A{false, A{}}, res["deny"])
-
-		res, err = evaluate(t, `
-allow:
-  and:
-    - ssh_access_request_approved: {}
-    - ssh_access_request_not_approved: {}
-`, []*databroker.Record{}, Input{SSH: InputSSH{AccessRequestApproved: true}})
-		require.NoError(t, err)
-		assert.Equal(t, A{false, A{ReasonSSHAccessRequestOK}, M{}}, res["allow"])
-		assert.Equal(t, A{false, A{}}, res["deny"])
-
-		res, err = evaluate(t, `
-allow:
-  and:
-    - ssh_access_request_approved: {}
 deny:
   or:
     - ssh_access_request_approved: {}
 `, []*databroker.Record{}, Input{SSH: InputSSH{AccessRequestApproved: true}})
 		require.NoError(t, err)
-		assert.Equal(t, A{false, A{ReasonSSHAccessRequestOK}, M{}}, res["allow"])
-		assert.Equal(t, A{false, A{}}, res["deny"])
+		assert.Equal(t, A{true, A{ReasonSSHAccessRequestOK}, M{}}, res["allow"])
+		assert.Equal(t, A{true, A{ReasonSSHAccessRequestOK}, M{}}, res["deny"])
 	})
 
 	t.Run("redundant criteria", func(t *testing.T) {
@@ -150,8 +130,8 @@ allow:
   and:
     - ssh_access_request_approved: {}
 deny:
-  or:
-    - ssh_access_request_not_approved: {}
+  nor:
+    - ssh_access_request_approved: {}
 `, []*databroker.Record{}, Input{SSH: InputSSH{AccessRequestApproved: false}})
 		require.NoError(t, err)
 		assert.Equal(t, A{false, A{ReasonSSHAccessRequestRequired}, M{}}, res["allow"])
@@ -162,8 +142,8 @@ allow:
   and:
     - ssh_access_request_approved: {}
 deny:
-  or:
-    - ssh_access_request_not_approved: {}
+  nor:
+    - ssh_access_request_approved: {}
 `, []*databroker.Record{}, Input{SSH: InputSSH{AccessRequestApproved: true}})
 		require.NoError(t, err)
 		assert.Equal(t, A{true, A{ReasonSSHAccessRequestOK}, M{}}, res["allow"])
