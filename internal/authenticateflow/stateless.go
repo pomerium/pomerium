@@ -29,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/hpke"
@@ -218,6 +219,7 @@ func (s *Stateless) SignIn(
 func (s *Stateless) PersistSession(
 	ctx context.Context,
 	w http.ResponseWriter,
+	_ *http.Request,
 	h *session.Handle,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
@@ -421,6 +423,8 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 		u = &user.User{Id: h.UserId}
 	}
 	u.PopulateFromClaims(profile.Claims.AsMap())
+	idpSess := idpsessionpb.NewFromSession(sess, profile.GetClaims())
+	bindingDetails := browserBindingDetails(r)
 
 	redirectURI, err := getRedirectURIFromValues(values)
 	if err != nil {
@@ -429,10 +433,13 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 
 	// save the records
 	res, err := s.dataBrokerClient.Put(r.Context(), &databroker.PutRequest{
-		Records: []*databroker.Record{
-			databroker.NewRecord(sess),
-			databroker.NewRecord(u),
-		},
+		Records: append(
+			append(
+				[]*databroker.Record{databroker.NewRecord(idpSess)},
+				idpsessionpb.NewBoundRecords(idpSess.GetId(), idpsessionpb.BindingProtocol_BINDING_PROTOCOL_BROWSER, bindingDetails, sess)...,
+			),
+			idpsessionpb.NewBoundRecords(idpSess.GetId(), idpsessionpb.BindingProtocol_BINDING_PROTOCOL_BROWSER, bindingDetails, u)...,
+		),
 	})
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving databroker records: %w", err))

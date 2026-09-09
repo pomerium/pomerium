@@ -351,6 +351,35 @@ func TestAuthenticate_SignOutNoConfirmationForHosted(t *testing.T) {
 	assert.Equal(t, "https://authenticate.pomerium.app/.pomerium/signed_out", result.Header.Get("Location"))
 }
 
+func TestForceLoginResponseWriter(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		location string
+		want     string
+	}{
+		{
+			name:     "adds prompt",
+			location: "https://idp.example.com/authorize?client_id=pomerium",
+			want:     "https://idp.example.com/authorize?client_id=pomerium&prompt=login",
+		},
+		{
+			name:     "overrides provider prompt",
+			location: "https://idp.example.com/authorize?prompt=select_account",
+			want:     "https://idp.example.com/authorize?prompt=login",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			w := forceLoginResponseWriter{ResponseWriter: recorder}
+			w.Header().Set("Location", tc.location)
+			w.WriteHeader(http.StatusFound)
+			assert.Equal(t, tc.want, recorder.Header().Get("Location"))
+		})
+	}
+}
+
 func TestAuthenticate_OAuthCallback(t *testing.T) {
 	t.Parallel()
 
@@ -906,7 +935,7 @@ func (*stubFlow) SignIn(http.ResponseWriter, *http.Request, *session.Handle) err
 }
 
 func (*stubFlow) PersistSession(
-	context.Context, http.ResponseWriter, *session.Handle, identity.SessionClaims, *oauth2.Token,
+	context.Context, http.ResponseWriter, *http.Request, *session.Handle, identity.SessionClaims, *oauth2.Token,
 ) error {
 	return nil
 }

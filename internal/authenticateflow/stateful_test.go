@@ -454,9 +454,10 @@ func TestPersistSession(t *testing.T) {
 	// PersistSession should copy data from the sessions.Handle,
 	// identity.SessionClaims, and oauth2.Token into a Session and User record.
 	h := &session.Handle{
-		Id:     "session-id",
-		UserId: "user-id",
-		Aud:    jwt.Audience{"route.example.com"},
+		Id:                 "session-id",
+		UserId:             "user-id",
+		IdentityProviderId: "idp-id",
+		Aud:                jwt.Audience{"route.example.com"},
 	}
 	claims := identity.SessionClaims{
 		Claims: map[string]any{
@@ -483,35 +484,31 @@ func TestPersistSession(t *testing.T) {
 
 	client.EXPECT().Put(ctx, gomock.Any()).DoAndReturn(
 		func(_ context.Context, r *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
-			require.Len(t, r.Records, 1)
-			record := r.GetRecord()
-			assert.Equal(t, "type.googleapis.com/user.User", record.Type)
-			assert.Equal(t, "user-id", record.Id)
-			assert.Nil(t, record.DeletedAt)
+			require.Len(t, r.Records, 5)
+			byTypeAndID := make(map[string]*databroker.Record)
+			for _, record := range r.GetRecords() {
+				byTypeAndID[record.GetType()+"/"+record.GetId()] = record
+				assert.Nil(t, record.GetDeletedAt())
+			}
 
-			// Verify that claims data is populated into the User record.
+			userRecord := byTypeAndID["type.googleapis.com/user.User/user-id"]
+			require.NotNil(t, userRecord)
 			var u user.User
-			record.GetData().UnmarshalTo(&u)
-			assert.Equal(t, "user-id", u.Id)
+			require.NoError(t, userRecord.GetData().UnmarshalTo(&u))
 			assert.Equal(t, expectedClaims, u.Claims)
 
-			// A real response would include the record, but here we can skip it as it isn't used.
-			return &databroker.PutResponse{}, nil
-		})
-
-	client.EXPECT().Put(ctx, gomock.Any()).DoAndReturn(
-		func(_ context.Context, r *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
-			require.Len(t, r.Records, 1)
-			record := r.GetRecord()
-			assert.Equal(t, "type.googleapis.com/session.Session", record.Type)
-			assert.Equal(t, "session-id", record.Id)
-			assert.Nil(t, record.DeletedAt)
+			record := byTypeAndID["type.googleapis.com/session.Session/session-id"]
+			require.NotNil(t, record)
+			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSession/idp_id=idp-id&user_id=user-id"])
+			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSessionBinding/session-id"])
+			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSessionBinding/user-id"])
 
 			var s session.Session
 			record.GetData().UnmarshalTo(&s)
 			testutil.AssertProtoEqual(t, &session.Session{
 				Id:         "session-id",
 				UserId:     "user-id",
+				IdpId:      "idp-id",
 				IssuedAt:   timestamppb.New(time.Unix(1721965100, 0)),
 				AccessedAt: timestamppb.New(time.Unix(1721965100, 0)),
 				ExpiresAt:  timestamppb.New(time.Unix(1721979500, 0)),
@@ -542,7 +539,9 @@ func TestPersistSession(t *testing.T) {
 			}, nil
 		})
 
-	err = flow.PersistSession(ctx, nil, h, claims, accessToken)
+	req := httptest.NewRequest(http.MethodGet, "https://authenticate.example.com/callback", nil)
+	req.Header.Set("User-Agent", "test-browser/1.0")
+	err = flow.PersistSession(ctx, nil, req, h, claims, accessToken)
 	assert.NoError(t, err)
 	assert.Equal(t, proto.Uint64(1111), h.DatabrokerRecordVersion)
 	assert.Equal(t, proto.Uint64(2222), h.DatabrokerServerVersion)

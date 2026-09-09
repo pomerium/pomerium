@@ -10,6 +10,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
 } from "@mui/material";
 import type { FC } from "react";
 
@@ -33,6 +34,7 @@ const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({ data }) => {
 };
 
 const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
+  // TODO: SSH uses a weird identity binding we won't need when we migrate to idpsession.IDPSession.
   return (
     <>
       <TableContainer component={Paper} sx={{ maxWidth: 1200, mb: 2 }}>
@@ -40,31 +42,22 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
           <TableHead>
             <TableRow>
               <TableCell variant="head">Protocol</TableCell>
-              <TableCell variant="head" sx={{ whiteSpace: "nowrap" }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  Fingerprint
-                  <SmallTooltip description="Run `ssh-keygen -l -f <client-pub-key>` to check against your fingerprint" />
-                </Box>
-              </TableCell>
-              <TableCell variant="head">Initiated From</TableCell>
-              <TableCell variant="head">IssuedAt</TableCell>
-              <TableCell variant="head">ExpiresAt</TableCell>
+              <TableCell variant="head">Resource</TableCell>
+              <TableCell variant="head">Client</TableCell>
+              <TableCell variant="head">Initiated at</TableCell>
+              <TableCell variant="head">Expires at</TableCell>
               <TableCell variant="head">Actions</TableCell>
-              <TableCell variant="head">
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  Remember me?
-                  <SmallTooltip description="When enabled, your client is persistently bound to your user. Revoking removes this persistent binding." />
-                </Box>
-              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.sessionBindings
-              ?.filter((s) => s.Protocol === "ssh")
-              .map((s) => (
-                <TableRow key={s.DetailsSSH.FingerprintID}>
-                  <TableCell>{s.Protocol}</TableCell>
-                  <TableCell component="th" scope="row">
+            {data.sessionBindings?.map((s) => (
+              <TableRow
+                key={`${s.Protocol}:${s.Resource}:${s.SessionBindingID}`}
+              >
+                <TableCell>{s.Protocol}</TableCell>
+                <TableCell component="th" scope="row">
+                  <Typography variant="body2">{s.Resource}</Typography>
+                  {s.DetailsSSH && (
                     <Box
                       sx={{
                         display: "flex",
@@ -72,24 +65,33 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {s.DetailsSSH.FingerprintID}
+                      <Typography variant="caption">
+                        {s.DetailsSSH.FingerprintID}
+                      </Typography>
+                      <SmallTooltip description="Run `ssh-keygen -l -f <client-pub-key>` to check against this fingerprint" />
                       <IconButton
                         aria-label="Copy fingerprint"
                         size="small"
                         onClick={() => {
                           navigator.clipboard.writeText(
-                            s.DetailsSSH.FingerprintID,
+                            s.DetailsSSH?.FingerprintID ?? "",
                           );
                         }}
                       >
-                        <ContentCopyIcon fontSize="small"></ContentCopyIcon>
+                        <ContentCopyIcon fontSize="small" />
                       </IconButton>
                     </Box>
-                  </TableCell>
-                  <TableCell>{s.DetailsSSH.SourceAddress}</TableCell>
-                  <TableCell>{s.IssuedAt}</TableCell>
-                  <TableCell>{s.ExpiresAt}</TableCell>
-                  <TableCell>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">
+                    {s.ClientAddress || "Not recorded"}
+                  </Typography>
+                </TableCell>
+                <TableCell>{s.InitiatedAt || "Not recorded"}</TableCell>
+                <TableCell>{s.ExpiresAt}</TableCell>
+                <TableCell>
+                  {s.RevokeSessionBindingURL ? (
                     <Box
                       component="form"
                       action={s.RevokeSessionBindingURL}
@@ -101,39 +103,21 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                         name="sessionBindingID"
                         value={s.SessionBindingID}
                       />
+                      <input
+                        type="hidden"
+                        name="protocol"
+                        value={s.Protocol}
+                      />
                       <Button size="small" type="submit" variant="contained">
                         Revoke
                       </Button>
                     </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box
-                      component="form"
-                      action={s.RevokeIdentityBindingURL}
-                      method="POST"
-                      sx={{
-                        display: "inline-flex",
-                        gap: 1,
-                        alignItems: "center",
-                      }}
-                    >
-                      <input
-                        type="hidden"
-                        name="sessionBindingID"
-                        value={s.SessionBindingID}
-                      />
-                      <Button
-                        size="small"
-                        type="submit"
-                        variant="contained"
-                        disabled={!s.HasIdentityBinding}
-                      >
-                        Revoke
-                      </Button>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </TableContainer>
