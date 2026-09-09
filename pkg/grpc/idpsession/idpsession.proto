@@ -22,8 +22,8 @@ message OAuthToken {
   string                    refresh_token = 4;
 }
 
-// IDPSession represents a long lived user session. The ID of this record is always the 
-// user_id from the upstream IDP.
+// IDPSession represents a long lived user session with an upstream IDP. 
+// The ID of this record is always the user_id from the upstream IDP.
 message IDPSession {
   string id = 1;
   string raw_id_token = 2;
@@ -37,7 +37,6 @@ message IDPSession {
   string user_id = 10;
 }
 
-
 enum BindingProtocol {
   BINDING_PROTOCOL_UNKNOWN = 0;
   BINDING_PROTOCOL_BROWSER = 1;
@@ -48,14 +47,14 @@ enum BindingProtocol {
 // is used to map (in a concurrently safe way) which Pomerium client sessions 
 // belong to a user's IDP session.
 // In particular, a Binding's ID must match its corresponding client session's ID. The 
-// type of client it is bound type is represented by its type_url field.
+// type of client it is bound to is represented by its type_url field.
 // It acts an authoritative source about the state of the session (active vs revoked).
 // A Binding must point to their parent IDPSession.
 // Direct deletion can leave a client session active, so consumers of the Binding
 // record must mark it revoked instead.
 // After being revoked, bindings are cleaned up after a grace period to allow for 
 // client sessions to be deterministically invalidated.
-// The deletion or invalidation of its parent IDPSession invalidates all depedent client 
+// The invalidation of its parent IDPSession invalidates all depedent client 
 // sessions.
 message Binding {
     string id = 1;
@@ -76,8 +75,6 @@ enum BindingState {
   BindingState_ACTIVE = 0;
   BindingState_REVOKED = 1;
 }
-
-
 
 enum UpstreamIdPSessionState {
   UPSTREAM_IDP_SESSION_STATE_UKNOWN = 0;

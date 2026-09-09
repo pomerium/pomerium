@@ -47,21 +47,10 @@ func (ds *dataStore) reset() {
 	ds.recordSet = make(databroker.RecordSetBundle)
 }
 
-func (ds *dataStore) deleteAllIDPSessions() {
-	ds.Lock()
-	defer ds.Unlock()
-	ds.idpSessions = make(map[string]*idpsession.IDPSession)
-}
-
 func (ds *dataStore) deleteIDPSession(id string) {
 	ds.Lock()
 	defer ds.Unlock()
 	delete(ds.idpSessions, id)
-	for bindingID, binding := range ds.idpToBindings[id] {
-		binding = proto.CloneOf(binding)
-		binding.State = idpsession.BindingState_BindingState_REVOKED
-		ds.idpToBindings[id][bindingID] = binding
-	}
 }
 
 func (ds *dataStore) putIDPSession(is *idpsession.IDPSession) {
@@ -175,9 +164,9 @@ func (ds *dataStore) targetChangeSetLocked(_ context.Context) (databroker.Record
 	for idpSessionID, bindings := range ds.idpToBindings {
 		idpSess := ds.idpSessions[idpSessionID]
 		for _, binding := range bindings {
-			// immediately invalidate binding by deleting it.
+			// an invalid idpsession revokes its bindings.
 			if idpSess.GetState().GetState() == idpsession.UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID {
-				continue
+				binding = binding.Revoke()
 			}
 			if revokedAt := binding.GetRevokedAt(); revokedAt != nil && now.After(revokedAt.AsTime().Add(ds.bindingGracePeriod)) {
 				// delete the binding

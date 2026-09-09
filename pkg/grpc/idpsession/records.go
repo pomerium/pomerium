@@ -170,3 +170,15 @@ func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceCl
 	})
 	return putErr
 }
+
+func (b *Binding) Revoke() *Binding {
+	if b.GetState() == BindingState_BindingState_REVOKED && b.GetRevokedAt() != nil {
+		return b
+	}
+	b = proto.CloneOf(b)
+	b.State = BindingState_BindingState_REVOKED
+	if b.RevokedAt == nil {
+		b.RevokedAt = timestamppb.New(time.Now())
+	}
+	return b
+}

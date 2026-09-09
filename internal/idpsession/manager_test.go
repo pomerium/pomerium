@@ -228,10 +228,8 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 		}
 	}, 5*time.Second, 10*time.Millisecond, "deleting a dependent should not delete its authoritative binding")
 
-	// deleting the IDP session should clean up remaining dependencies.
-
-	_, delErr4 := storage.DeleteDataBrokerRecord(t.Context(), client, "type.googleapis.com/idpsession.IDPSession", "foo")
-	require.NoError(t, delErr4)
+	// invalidating the IDP session should clean up remaining dependencies.
+	require.NoError(t, idpsession.RevokeIDPSession(t.Context(), client, "foo", "revoked by user"))
 
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
 		// _, err :=
@@ -387,15 +385,36 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
 		for _, rec := range bindingsAndRecords {
+			if rec.GetId() == "sessionB" {
+				// already cleaned up by the binding revocation above.
+				continue
+			}
 			if rec.GetData().GetTypeUrl() == "type.googleapis.com/idpsession.IDPSession" {
 				_, err := client.Get(t.Context(), &databroker.GetRequest{
 					Type: rec.GetData().GetTypeUrl(),
 					Id:   rec.GetId(),
 				})
-				assert.NoError(collect, err, "idpsession should not be immediately deleted")
+				assert.NoError(collect, err, "idpsession should not be cleaned up immediately")
 				continue
 			}
 			if rec.GetData().GetTypeUrl() == "type.googleapis.com/user.User" {
+				_, err := client.Get(t.Context(), &databroker.GetRequest{
+					Type: rec.GetData().GetTypeUrl(),
+					Id:   rec.GetId(),
+				})
+				assert.NoError(collect, err, "user records should never be deleted")
+				continue
+			}
+
+			if rec.GetData().GetTypeUrl() == "type.googleapis.com/idpsession.Binding" {
+				got, err := client.Get(t.Context(), &databroker.GetRequest{
+					Type: rec.GetData().GetTypeUrl(),
+					Id:   rec.GetId(),
+				})
+				assert.NoError(collect, err, "bindings should not be cleaned up immediately")
+				binding := &idpsession.Binding{}
+				assert.NoError(collect, got.GetRecord().GetData().UnmarshalTo(binding))
+				assert.Equal(collect, idpsession.BindingState_BindingState_REVOKED.String(), binding.State.String())
 				continue
 			}
 			_, err := client.Get(t.Context(), &databroker.GetRequest{
@@ -414,12 +433,23 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 	timeMu.Unlock()
 
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
-		_, err := client.Get(t.Context(), &databroker.GetRequest{
-			Type: "type.googleapis.com/idpsession.IDPSession",
-			Id:   "foo",
-		})
+		for _, rec := range bindingsAndRecords {
+			if rec.GetData().GetTypeUrl() == "type.googleapis.com/user.User" {
+				_, err := client.Get(t.Context(), &databroker.GetRequest{
+					Type: rec.GetData().GetTypeUrl(),
+					Id:   rec.GetId(),
+				})
+				assert.NoError(collect, err, "userinfo should never be deleted")
+				continue
+			}
+			// all the other records should be cleaned up now
+			_, err := client.Get(t.Context(), &databroker.GetRequest{
+				Type: rec.GetData().GetTypeUrl(),
+				Id:   rec.GetId(),
+			})
 
-		assert.Error(collect, err)
-		assert.Equal(collect, codes.NotFound, status.Code(err))
+			assert.Error(collect, err)
+			assert.Equal(collect, codes.NotFound, status.Code(err))
+		}
 	}, 5*time.Second, 10*time.Millisecond)
 }
