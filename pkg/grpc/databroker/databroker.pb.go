@@ -176,12 +176,12 @@ type Options struct {
 	// !! Only string fields are supported by all backends as a valid indexable target.
 	//
 	// Functionality:
-	//  * `user.name` will attempt to index the `name` field on the nested message identified by `user`
-	//  * if invalid fields that do not exist on the message are specified, they are not indexed
-	//  * if a record has an empty value (like "") for the field, it is skipped for indexing.
-	//  * setting this option causes the underlying store to re-index each record
-	//  * for postgres this is a no-op, since the database can index jsonb fields on records
-	//    implicitly
+	//   - `user.name` will attempt to index the `name` field on the nested message identified by `user`
+	//   - if invalid fields that do not exist on the message are specified, they are not indexed
+	//   - if a record has an empty value (like "") for the field, it is skipped for indexing.
+	//   - setting this option causes the underlying store to re-index each record
+	//   - for postgres this is a no-op, since the database can index jsonb fields on records
+	//     implicitly
 	//
 	// records can then be fetched using a databroker query request using an equals filter
 	// that matches the field-path to the value specified

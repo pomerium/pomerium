@@ -2,13 +2,12 @@ package identity
 
 import (
 	"encoding/json"
-	"fmt"
 	"maps"
-	"reflect"
 
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/pomerium/pomerium/pkg/mapsutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -66,30 +65,7 @@ func (claims Claims) Claims(v any) error {
 //
 //	{ "a": { "b": { "c": 12345 } } } => { "a.b.c": [12345] }
 func (claims Claims) Flatten() FlattenedClaims {
-	flattened := make(FlattenedClaims)
-	for k, v := range claims {
-		rv := reflect.ValueOf(v)
-		switch rv.Kind() {
-		case reflect.Map:
-			subClaims := make(Claims)
-			iter := rv.MapRange()
-			for iter.Next() {
-				subClaims[fmt.Sprint(iter.Key().Interface())] = iter.Value().Interface()
-			}
-			for sk, sv := range subClaims.Flatten() {
-				flattened[k+"."+sk] = sv
-			}
-		case reflect.Slice:
-			slc := make([]any, rv.Len())
-			for i := 0; i < rv.Len(); i++ {
-				slc[i] = rv.Index(i).Interface()
-			}
-			flattened[k] = slc
-		default:
-			flattened[k] = []any{v}
-		}
-	}
-	return flattened
+	return FlattenedClaims(mapsutil.Flatten(claims))
 }
 
 // ToAnyMap converts the claims into a map of string => any.
