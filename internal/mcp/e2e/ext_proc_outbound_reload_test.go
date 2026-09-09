@@ -180,7 +180,7 @@ func putConfigRecord(ctx context.Context, t *testing.T, client databrokerpb.Data
 // upstream OAuth.
 func startPlainUpstream(t *testing.T, host string, hits *atomic.Int32) net.Listener {
 	t.Helper()
-	listener, err := testenv.Listen(t.Context(), host)
+	listener, err := net.Listen("tcp", net.JoinHostPort(host, "0"))
 	require.NoError(t, err)
 	srv := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
