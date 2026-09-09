@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
@@ -93,7 +94,7 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 			},
 		}
 
-		handler := NewUpstreamAuthHandler(store, hosts, upstreamSrv.Client(), allowLocalhost())
+		handler := newTestUpstreamAuthHandler(t, cfg, store, upstreamSrv.Client())
 
 		routeCtx := &extproc.RouteContext{
 			RouteID: "route-123",
@@ -627,7 +628,6 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
 
 		var capturedPending *oauth21proto.PendingUpstreamAuth
 		store := &testUpstreamAuthStorage{
@@ -637,7 +637,7 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 			},
 		}
 
-		handler := NewUpstreamAuthHandler(store, hosts, srv.Client(), allowLocalhost())
+		handler := newTestUpstreamAuthHandler(t, cfg, store, srv.Client())
 
 		routeCtx := &extproc.RouteContext{
 			RouteID: "route-123",
@@ -1228,4 +1228,15 @@ func (s *autoDiscoveryTestStorage) PutUpstreamMCPToken(ctx context.Context, toke
 		return s.putUpstreamMCPTokenFunc(ctx, token)
 	}
 	return nil
+}
+
+// newTestUpstreamAuthHandler builds a handler for cfg that talks to the
+// loopback servers tests run and keeps its state in store.
+func newTestUpstreamAuthHandler(t *testing.T, cfg *config.Config, store HandlerStorage, httpClient *http.Client) *UpstreamAuthHandler {
+	t.Helper()
+	cfg.Options.MCPAllowedASMetadataDomains = []string{"127.0.0.1"}
+	cfg.Options.SharedKey = cryptutil.NewBase64Key()
+	h, err := NewUpstreamAuthHandler(t.Context(), cfg, WithStorage(store), WithUpstreamHTTPClient(httpClient))
+	require.NoError(t, err)
+	return h
 }

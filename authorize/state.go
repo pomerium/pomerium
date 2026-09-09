@@ -47,6 +47,7 @@ func newAuthorizeStateFromConfig(
 	cfg *config.Config,
 	store *store.Store,
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
+	dataBrokerClient databroker.ClientGetter,
 ) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
@@ -90,7 +91,7 @@ func newAuthorizeStateFromConfig(
 
 	var evaluatorOptions []evaluator.Option
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn)
+		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, dataBrokerClient)
 		if err != nil {
 			return nil, fmt.Errorf("authorize: failed to create mcp handler: %w", err)
 		}

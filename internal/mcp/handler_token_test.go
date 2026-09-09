@@ -209,7 +209,7 @@ func setupTestDatabroker(ctx context.Context, t *testing.T) *Storage {
 	require.NoError(t, err)
 
 	client := databroker_grpc.NewDataBrokerServiceClient(conn)
-	return NewStorage(client)
+	return NewStorage(databroker_grpc.NewStaticClientGetter(client))
 }
 
 func TestTokenHandler_StoresRefreshToken(t *testing.T) {
