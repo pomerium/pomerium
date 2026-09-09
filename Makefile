@@ -63,11 +63,6 @@ get-envoy: ## Fetch envoy binaries
 deps-build: get-envoy ## Install build dependencies
 	@echo "==> $@"
 
-.PHONY: deps-release
-deps-release: get-envoy ## Install release dependencies
-	@echo "==> $@"
-	@$(GO) install github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION}
-
 .PHONY: proto-before
 proto-before:
 	@echo "==> $@"
@@ -199,10 +194,15 @@ clean: ## Cleanup any build binaries or packages.
 	$(RM) -r /tmp/pomerium-protoc
 	$(RM) -r /tmp/pomerium-protoc-3pp
 
-.PHONY: snapshot
-snapshot: deps-build deps-release ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
+.PHONY: goreleaser-check
+goreleaser-check:
 	@echo "==> $@"
-	@goreleaser release --clean -f .github/goreleaser.yaml --snapshot
+	@$(GO) run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} check -f .github/goreleaser.yaml
+
+.PHONY: snapshot
+snapshot: deps-build ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
+	@echo "==> $@"
+	@$(GO) run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --clean -f .github/goreleaser.yaml --snapshot
 
 .PHONY: npm-install
 npm-install:
