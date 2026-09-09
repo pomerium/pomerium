@@ -1,6 +1,6 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed deps-upstream-tls test-upstream-tls test-upstream-tls-headed
+.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers up-hosted test-suite-hosted test-hosted test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed deps-upstream-tls test-upstream-tls test-upstream-tls-headed
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
@@ -24,6 +24,9 @@ help:
 	@echo "  make test-suite-authn  - Run authn tests"
 	@echo "  make test-suite-authz  - Run authz tests"
 	@echo "  make test-suite-headers  - Run headers tests"
+	@echo "  make test-suite-hosted   - Run hosted-authenticate tests (real cloud;"
+	@echo "                             needs internet + optional HOSTED_TEST_EMAIL/PASSWORD)"
+	@echo "  make up-hosted    - Start the stack incl. hosted-authenticate instances"
 	@echo "  make down         - Stop the stack"
 	@echo "  make logs         - Tail container logs"
 	@echo "  make status       - Show container and health status"
@@ -57,9 +60,9 @@ deps:
 up:
 	$(COMPOSE) up -d --build --wait
 
-# Stop the test stack
+# Stop the test stack (includes the "hosted" profile services, if started)
 down:
-	$(COMPOSE) down -v
+	$(COMPOSE) --profile hosted down -v
 
 # Run all tests (headless)
 test: up
@@ -83,12 +86,24 @@ test-suite-authz: up
 test-suite-headers: up
 	cd $(BROWSER_DIR) && npm run test:headers
 
+# Start the test stack INCLUDING the hosted-authenticate instances
+up-hosted:
+	$(COMPOSE) --profile hosted up -d --build --wait
+
+# Hosted-authenticate suite: talks to the REAL https://authenticate.pomerium.app
+# (requires outbound internet). Positive login/logout/timeout tests additionally
+# need HOSTED_TEST_EMAIL and HOSTED_TEST_PASSWORD (a real hosted-IdP account)
+# exported in the environment; without them those tests are skipped.
+test-suite-hosted: up-hosted
+	cd $(BROWSER_DIR) && HOSTED_E2E=1 npm run test:hosted
+
 # Backward-compatible aliases
 test-headed: test-mode-headed
 test-debug: test-mode-debug
 test-authn: test-suite-authn
 test-authz: test-suite-authz
 test-headers: test-suite-headers
+test-hosted: test-suite-hosted
 
 # Run tests via Go test wrapper
 test-go: up

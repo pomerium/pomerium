@@ -85,6 +85,45 @@ make status
 - Update Keycloak token lifetimes or mappers in `internal/acceptance/keycloak/realm.json`.
 - Update URLs and timeouts in `internal/acceptance/browser/fixtures/test-data.ts`.
 
+## Hosted authenticate suite (`browser/tests/hosted/`)
+
+Automates the QA test plan cases for both hosted-authenticate flavors against
+the REAL cloud service `https://authenticate.pomerium.app`:
+
+- **New HA** (`idp_provider: hosted` + local authenticate) - `pomerium-hosted-new`
+  (`:8444`, `pomerium/config-hosted-new.yaml`)
+- **Old HA** (stateless flow, `authenticate_service_url: https://authenticate.pomerium.app`) -
+  `pomerium-hosted-old` (`:8445`, `cookie_expire: 90s` for the session-timeout test)
+- **Priority** (hosted URL + a full Keycloak IdP block; hosted must win) -
+  `pomerium-hosted-priority` (`:8446`)
+
+These services sit behind the `hosted` compose profile and the specs are gated
+on `HOSTED_E2E=1`, so the default `make test` / PR CI never starts them and
+reports every hosted test as skipped.
+
+```bash
+# everything that needs no account (redirect shapes, invalid/empty creds, priority):
+make test-suite-hosted
+
+# full suite - positive login/logout/timeout tests need a real hosted-IdP account:
+HOSTED_TEST_EMAIL='qa@example.com' HOSTED_TEST_PASSWORD='...' make test-suite-hosted
+```
+
+Notes:
+
+- Requires outbound internet; `global-setup.ts` fails fast with a named check
+  when the cloud service is unreachable.
+- Tests that log in are serialized (`--workers=1`) and only ever use the real
+  account for positive paths; invalid-credential tests use random fake emails,
+  so the account cannot be locked out.
+- `HA.Google single-sign.positive` from the QA plan is intentionally NOT
+  automated (real Google login cannot be driven by automation) - manual only.
+- All selectors, copy strings, and captured live-UI facts for the cloud
+  sign-in and sign-out UI live in `browser/helpers/hosted.ts` only (see its
+  module header). If the hosted UI changes, re-capture with
+  `cd browser && npx playwright codegen --ignore-https-errors
+  https://verify-hosted.localhost.pomerium.io:8444` and update that one file.
+
 ## CI
 
 Workflow lives in `.github/workflows/acceptance.yaml` and installs Node, Go, and Playwright dependencies. Artifacts are collected under `internal/acceptance/artifacts/`.

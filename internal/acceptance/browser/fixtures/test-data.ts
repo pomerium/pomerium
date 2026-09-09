@@ -25,6 +25,27 @@ export const urls = {
 
   /** Cross-origin base used for CORS browser-context tests */
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:8081",
+
+  /** New-HA route URL (idp_provider: hosted; started via `make up-hosted`) */
+  verifyHostedNew:
+    process.env.VERIFY_HOSTED_NEW_URL || "https://verify-hosted.localhost.pomerium.io:8444",
+
+  /** New-HA local authenticate service URL (= the derived OIDC client_id) */
+  authenticateHostedNew:
+    process.env.AUTHENTICATE_HOSTED_NEW_URL ||
+    "https://authenticate-hosted.localhost.pomerium.io:8444",
+
+  /** Old-HA (stateless flow) route URL */
+  verifyHostedOld:
+    process.env.VERIFY_HOSTED_OLD_URL || "https://verify-hosted-old.localhost.pomerium.io:8445",
+
+  /** Old-HA route URL on the instance that ALSO has a Keycloak IdP block (priority test) */
+  verifyHostedPriority:
+    process.env.VERIFY_HOSTED_PRIORITY_URL ||
+    "https://verify-hosted-priority.localhost.pomerium.io:8446",
+
+  /** The real hosted authenticate service (cloud) */
+  hostedAuthenticate: process.env.HOSTED_AUTHENTICATE_URL || "https://authenticate.pomerium.app",
 };
 
 /**
@@ -218,6 +239,9 @@ export const timeouts = {
 
   /** Poll interval for waiting operations */
   pollInterval: 500,
+
+  /** cookie_expire on the old-HA instance (pomerium/config-hosted-old.yaml) */
+  hostedCookieExpire: 90000,
 };
 
 /**
