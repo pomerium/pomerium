@@ -26,6 +26,7 @@ type LogRecorder struct {
 	LogRecorderOptions
 	t            testing.TB
 	canceled     <-chan struct{}
+	testDone     <-chan struct{}
 	buf          *buffer
 	recordedLogs []map[string]any
 
@@ -123,10 +124,15 @@ var _ io.ReadWriteCloser = (*buffer)(nil)
 func (e *environment) NewLogRecorder(opts ...LogRecorderOption) *LogRecorder {
 	options := LogRecorderOptions{}
 	options.apply(opts...)
+	testDone := make(chan struct{})
+	e.t.Cleanup(func() {
+		close(testDone)
+	})
 	lr := &LogRecorder{
 		LogRecorderOptions: options,
 		t:                  e.t,
 		canceled:           e.Context().Done(),
+		testDone:           testDone,
 		buf:                newBuffer(),
 	}
 	e.logWriter.Add(lr.buf)
@@ -211,12 +217,16 @@ func (lr *LogRecorder) WaitForMatch(expectedLog map[string]any, timeout ...time.
 			lr.t.Error("timed out waiting for log")
 		case <-lr.canceled:
 			lr.t.Error("canceled")
+		case <-lr.testDone:
+			lr.t.Error("test failed")
 		}
 	} else {
 		select {
 		case <-found:
 		case <-lr.canceled:
 			lr.t.Error("canceled")
+		case <-lr.testDone:
+			lr.t.Error("test failed")
 		}
 	}
 	lr.buf.Close()

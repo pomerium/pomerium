@@ -48,7 +48,8 @@ func TestBearerTokenFormat(t *testing.T) {
 
 		// first request is a normal login
 		r1, err := up.Get(route,
-			upstreams.AuthenticateAs("test@example.com"))
+			upstreams.AuthenticateAs("test@example.com"),
+			upstreams.UseProxyProtocol(useProxyProtocol))
 		require.NoError(t, err)
 		defer r1.Body.Close()
 		accessToken, err := io.ReadAll(r1.Body)
@@ -58,7 +59,8 @@ func TestBearerTokenFormat(t *testing.T) {
 		r2, err := up.Get(route,
 			upstreams.Headers(map[string]string{
 				"Authorization": "Bearer " + string(accessToken),
-			}))
+			}),
+			upstreams.UseProxyProtocol(useProxyProtocol))
 		require.NoError(t, err)
 		defer r2.Body.Close()
 		data, err := io.ReadAll(r2.Body)
