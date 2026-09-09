@@ -98,7 +98,7 @@ func TestHandleUpstreamResponse_ConfiguredUpstreamBasePath(t *testing.T) {
 		},
 	}
 
-	handler := NewUpstreamAuthHandler(store, hosts, upstreamSrv.Client(), allowLocalhost())
+	handler := newTestUpstreamAuthHandler(t, cfg, store, upstreamSrv.Client())
 
 	routeCtx := &extproc.RouteContext{
 		RouteID: "route-123",

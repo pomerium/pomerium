@@ -100,7 +100,7 @@ func TestExtProcUsesUpdatedDatabrokerConfigForLateMCPRoute(t *testing.T) {
 
 	// Seed the upstream MCP token under the same composite key ext_proc will
 	// derive from (user_id, route_id, upstream_server).
-	storage := mcp.NewStorage(dbClient)
+	storage := mcp.NewStorage(databrokerpb.NewStaticClientGetter(dbClient))
 	require.NoError(t, storage.PutUpstreamMCPToken(ctx, &oauth21proto.UpstreamMCPToken{
 		UserId:         sa.UserId,
 		RouteId:        seededRouteID,

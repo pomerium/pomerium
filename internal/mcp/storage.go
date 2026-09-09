@@ -45,16 +45,16 @@ type HandlerStorage interface {
 
 // Storage implements HandlerStorage using a databroker client.
 type Storage struct {
-	client databroker.DataBrokerServiceClient
+	clientGetter databroker.ClientGetter
 }
 
 // NewStorage creates a new Storage instance.
-func NewStorage(
-	client databroker.DataBrokerServiceClient,
-) *Storage {
-	return &Storage{
-		client: client,
-	}
+func NewStorage(client databroker.ClientGetter) *Storage {
+	return &Storage{clientGetter: client}
+}
+
+func (storage *Storage) client() databroker.DataBrokerServiceClient {
+	return storage.clientGetter.GetDataBrokerServiceClient()
 }
 
 func (storage *Storage) RegisterClient(
@@ -63,7 +63,7 @@ func (storage *Storage) RegisterClient(
 ) (string, error) {
 	data := protoutil.NewAny(req)
 	id := uuid.NewString()
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:   id,
 			Data: data,
@@ -81,7 +81,7 @@ func (storage *Storage) GetClient(
 	id string,
 ) (*rfc7591v1.ClientRegistration, error) {
 	v := new(rfc7591v1.ClientRegistration)
-	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,
 	})
@@ -103,7 +103,7 @@ func (storage *Storage) CreateAuthorizationRequest(
 ) (string, error) {
 	data := protoutil.NewAny(req)
 	id := uuid.NewString()
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:   id,
 			Data: data,
@@ -121,7 +121,7 @@ func (storage *Storage) GetAuthorizationRequest(
 	id string,
 ) (*oauth21proto.AuthorizationRequest, error) {
 	v := new(oauth21proto.AuthorizationRequest)
-	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,
 	})
@@ -142,7 +142,7 @@ func (storage *Storage) DeleteAuthorizationRequest(
 	id string,
 ) error {
 	data := protoutil.NewAny(&oauth21proto.AuthorizationRequest{})
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:        id,
 			Data:      data,
@@ -158,7 +158,7 @@ func (storage *Storage) DeleteAuthorizationRequest(
 
 func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Session, uint64, error) {
 	v := new(session.Session)
-	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,
 	})
@@ -180,7 +180,7 @@ func (storage *Storage) PutMCPRefreshToken(
 	token *oauth21proto.MCPRefreshToken,
 ) error {
 	data := protoutil.NewAny(token)
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:   token.Id,
 			Data: data,
@@ -213,7 +213,7 @@ func (storage *Storage) GetMCPRefreshToken(
 	id string,
 ) (*oauth21proto.MCPRefreshToken, error) {
 	v := new(oauth21proto.MCPRefreshToken)
-	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,
 	})
@@ -235,7 +235,7 @@ func (storage *Storage) DeleteMCPRefreshToken(
 	id string,
 ) error {
 	data := protoutil.NewAny(&oauth21proto.MCPRefreshToken{})
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:        id,
 			Data:      data,
@@ -272,7 +272,7 @@ func (storage *Storage) PutUpstreamMCPToken(
 		return err
 	}
 	data := protoutil.NewAny(token)
-	_, err = storage.client.Put(ctx, &databroker.PutRequest{
+	_, err = storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:   id,
 			Data: data,
@@ -302,7 +302,7 @@ func (storage *Storage) GetUpstreamMCPToken(
 		return nil, err
 	}
 	v := new(oauth21proto.UpstreamMCPToken)
-	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,
 	})
@@ -328,7 +328,7 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 		return err
 	}
 	data := protoutil.NewAny(&oauth21proto.UpstreamMCPToken{})
-	_, err = storage.client.Put(ctx, &databroker.PutRequest{
+	_, err = storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:        id,
 			Data:      data,
@@ -349,7 +349,7 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 
 // PutSession stores a session in the databroker.
 func (storage *Storage) PutSession(ctx context.Context, s *session.Session) (uint64, error) {
-	res, err := session.Put(ctx, storage.client, s)
+	res, err := session.Put(ctx, storage.client(), s)
 	if err != nil {
 		return 0, err
 	}
@@ -373,7 +373,7 @@ func (storage *Storage) PutPendingUpstreamAuth(
 		return fmt.Errorf("pending upstream auth requires non-empty user_id and downstream_host")
 	}
 	data := protoutil.NewAny(pending)
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:   id,
 			Data: data,
@@ -392,7 +392,7 @@ func (storage *Storage) GetPendingUpstreamAuth(
 	userID, host string,
 ) (*oauth21proto.PendingUpstreamAuth, error) {
 	v := new(oauth21proto.PendingUpstreamAuth)
-	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   pendingUpstreamAuthID(userID, host),
 	})
@@ -413,7 +413,7 @@ func (storage *Storage) DeletePendingUpstreamAuth(
 	userID, host string,
 ) error {
 	data := protoutil.NewAny(&oauth21proto.PendingUpstreamAuth{})
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:        pendingUpstreamAuthID(userID, host),
 			Data:      data,
@@ -434,7 +434,7 @@ func (storage *Storage) GetPendingUpstreamAuthByState(
 	stateID string,
 ) (*oauth21proto.PendingUpstreamAuth, error) {
 	v := new(oauth21proto.PendingUpstreamAuth)
-	res, err := storage.client.Query(ctx, &databroker.QueryRequest{
+	res, err := storage.client().Query(ctx, &databroker.QueryRequest{
 		Type:  protoutil.GetTypeURL(v),
 		Limit: 1,
 		Filter: &structpb.Struct{Fields: map[string]*structpb.Value{
@@ -467,7 +467,7 @@ func (storage *Storage) GetUpstreamOAuthClient(
 	issuer, downstreamHost string,
 ) (*oauth21proto.UpstreamOAuthClient, error) {
 	v := new(oauth21proto.UpstreamOAuthClient)
-	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   upstreamOAuthClientID(issuer, downstreamHost),
 	})
@@ -495,7 +495,7 @@ func (storage *Storage) PutUpstreamOAuthClient(
 	}
 	id := upstreamOAuthClientID(client.Issuer, client.DownstreamHost)
 	data := protoutil.NewAny(client)
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:   id,
 			Data: data,
