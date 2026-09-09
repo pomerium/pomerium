@@ -919,3 +919,66 @@ func (m *mockMCPAccessTokenProvider) GetAccessTokenForSession(_ string, _ time.T
 	}
 	return m.sessionToken, nil
 }
+
+func TestHeadersEvaluator_GoogleCloudServerlessToken(t *testing.T) {
+	// Not parallel: withMockGCP mutates package-level globals.
+
+	privateJWK, _ := newJWK(t)
+	iat := time.Unix(1686870680, 0)
+
+	t.Run("resolves token when serverless auth enabled", func(t *testing.T) {
+		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature"))
+		})
+
+		ctx := t.Context()
+		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(
+			&session.Session{Id: "s1"},
+		))
+		s := store.New()
+		s.UpdateSigningKey(privateJWK)
+		e := NewHeadersEvaluator(s)
+
+		output, err := e.Evaluate(ctx, &Request{
+			Policy: &config.Policy{
+				EnableGoogleCloudServerlessAuthentication: true,
+				To: config.WeightedURLs{
+					{URL: *mustParseURL("https://my-service.a.run.app")},
+				},
+				SetRequestHeaders: map[string]string{
+					"X-Custom-Auth": "Bearer ${pomerium.google_cloud_serverless_token}",
+				},
+			},
+			Session: RequestSession{ID: "s1"},
+		}, rego.EvalTime(iat))
+		require.NoError(t, err)
+		assert.Equal(t, "Bearer eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature",
+			output.Headers.Get("X-Custom-Auth"))
+	})
+
+	t.Run("resolves to empty when serverless auth disabled", func(t *testing.T) {
+		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("should-not-be-called"))
+		})
+
+		ctx := t.Context()
+		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(
+			&session.Session{Id: "s1"},
+		))
+		s := store.New()
+		s.UpdateSigningKey(privateJWK)
+		e := NewHeadersEvaluator(s)
+
+		output, err := e.Evaluate(ctx, &Request{
+			Policy: &config.Policy{
+				EnableGoogleCloudServerlessAuthentication: false,
+				SetRequestHeaders: map[string]string{
+					"X-Custom-Auth": "Token ${pomerium.google_cloud_serverless_token}",
+				},
+			},
+			Session: RequestSession{ID: "s1"},
+		}, rego.EvalTime(iat))
+		require.NoError(t, err)
+		assert.Equal(t, "Token ", output.Headers.Get("X-Custom-Auth"))
+	})
+}
