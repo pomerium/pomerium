@@ -15,7 +15,9 @@ type SessionInfoData struct {
 type SessionBindingData struct {
 	SessionBindingID         string
 	Protocol                 string
-	IssuedAt                 string
+	Resource                 string
+	ClientAddress            string
+	InitiatedAt              string
 	ExpiresAt                string
 	RevokeSessionBindingURL  string
 	RevokeIdentityBindingURL string
