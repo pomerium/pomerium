@@ -311,8 +311,8 @@ func (x *OAuthToken) GetRefreshToken() string {
 	return ""
 }
 
-// IDPSession represents a long lived user session. The ID of this record is always the
-// user_id from the upstream IDP.
+// IDPSession represents a long lived user session with an upstream IDP.
+// The ID of this record is always the user_id from the upstream IDP.
 type IDPSession struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -419,14 +419,14 @@ func (x *IDPSession) GetUserId() string {
 // is used to map (in a concurrently safe way) which Pomerium client sessions
 // belong to a user's IDP session.
 // In particular, a Binding's ID must match its corresponding client session's ID. The
-// type of client it is bound type is represented by its type_url field.
+// type of client it is bound to is represented by its type_url field.
 // It acts an authoritative source about the state of the session (active vs revoked).
 // A Binding must point to their parent IDPSession.
 // Direct deletion can leave a client session active, so consumers of the Binding
 // record must mark it revoked instead.
 // After being revoked, bindings are cleaned up after a grace period to allow for
 // client sessions to be deterministically invalidated.
-// The deletion or invalidation of its parent IDPSession invalidates all depedent client
+// The invalidation of its parent IDPSession invalidates all depedent client
 // sessions.
 type Binding struct {
 	state protoimpl.MessageState `protogen:"open.v1"`

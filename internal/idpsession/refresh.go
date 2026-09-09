@@ -19,12 +19,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/identity"
 	metrics_ids "github.com/pomerium/pomerium/pkg/metrics"
-	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-// TODO : this could use some simplification
 type RefreshConfig struct {
-	// dataBrokerClient                  databroker.DataBrokerServiceClient
 	SessionRefreshGracePeriod         time.Duration
 	SessionRefreshCoolOffDuration     time.Duration
 	RefreshSessionAtIDTokenExpiration RefreshSessionAtIDTokenExpiration
@@ -112,15 +109,12 @@ func (mgr *refreshManager) onUpdateIDPSession(ctx context.Context, s *idpsession
 	mgr.refreshMu.Unlock()
 }
 
-func (mgr *refreshManager) deleteIDPSession(ctx context.Context, id string) {
+func (mgr *refreshManager) revokeIDPSession(ctx context.Context, id string, reason string) {
 	log.Ctx(ctx).Debug().
 		Str("idpsession-id", id).
 		Msg("deleting idpsession")
-	mgr.dataStore.deleteIDPSession(id)
-	_, err := storage.DeleteDataBrokerRecord(
-		ctx, mgr.clientB.GetDataBrokerServiceClient(), "type.googleapis.com/idpsession.IDPSession", id,
-	)
-	if err != nil {
+
+	if err := idpsession.RevokeIDPSession(ctx, mgr.clientB.GetDataBrokerServiceClient(), id, reason); err != nil {
 		log.Ctx(ctx).Err(err).Str("idpsession-id", id).Msg("failed to delete session, a future reconcile will pick this up")
 	}
 	mgr.cleanUpSchedulers(id)
@@ -176,7 +170,7 @@ func (mgr *refreshManager) updateUserInfo(ctx context.Context, id string) {
 	authenticator, err := mgr.cfg.Load().GetAuthenticator(ctx, u.GetIdpId())
 	if err != nil {
 		l.Err(err).Msg("no authenticator configured")
-		mgr.deleteIDPSession(ctx, id)
+		mgr.revokeIDPSession(ctx, id, "no authenticator")
 		return
 	}
 
@@ -187,8 +181,8 @@ func (mgr *refreshManager) updateUserInfo(ctx context.Context, id string) {
 		l.Err(err).Msg("failed to update user info")
 		return
 	} else if err != nil {
-		l.Err(err).Msg("failed to update user info, deleting session")
-		mgr.deleteIDPSession(ctx, id)
+		l.Err(err).Msg("failed to update user info, revoking session")
+		mgr.revokeIDPSession(ctx, id, "failed to update user info")
 		return
 	}
 	if err := mgr.patchUserInfo(ctx, u); err != nil {
@@ -237,7 +231,7 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 	authenticator, err := mgr.cfg.Load().GetAuthenticator(ctx, s.GetIdpId())
 	if err != nil {
 		l.Info().Err(err).Msg("no authenticator defined deleting session")
-		mgr.deleteIDPSession(ctx, id)
+		mgr.revokeIDPSession(ctx, id, "no authenticator")
 		return
 	}
 
@@ -271,8 +265,7 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 		return
 	} else if err != nil {
 		l.Err(err).Msg("failed to refresh oauth2 token, deleting session")
-		// TODO : this should probably stay delete
-		mgr.deleteIDPSession(ctx, id)
+		mgr.revokeIDPSession(ctx, id, fmt.Sprintf("failed to refresh oauth2 token : %s", err))
 		return
 	}
 	UpdateOAuthToken(newToken, s)
@@ -284,8 +277,7 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 		return
 	} else if err != nil {
 		l.Err(err).Msg("failed to update user info, deleting idpsession")
-		// TODO : this should probably stay delete
-		mgr.deleteIDPSession(ctx, id)
+		mgr.revokeIDPSession(ctx, id, fmt.Sprintf("failed to update userinfo : %s", err))
 		return
 	}
 	if err := mgr.updateToken(ctx, s); err != nil {
