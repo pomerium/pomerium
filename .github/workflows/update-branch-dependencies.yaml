@@ -36,6 +36,13 @@ jobs:
       - name: Proto
         run: make proto
 
+      - name: GoReleaser checks
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          make goreleaser-check snapshot
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
         with:
