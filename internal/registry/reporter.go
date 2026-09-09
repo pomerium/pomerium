@@ -34,7 +34,7 @@ type Reporter struct {
 // NewReporter creates a new Reporter.
 func NewReporter(tracerProvider oteltrace.TracerProvider) *Reporter {
 	return &Reporter{
-		outboundGRPCConnection: new(grpc.CachedOutboundGRPClientConn),
+		outboundGRPCConnection: &grpc.CachedOutboundGRPClientConn{Name: "registry"},
 		tracerProvider:         tracerProvider,
 	}
 }

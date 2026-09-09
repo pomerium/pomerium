@@ -68,7 +68,8 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 
 	a := &Authenticate{
-		backgroundCtx: ctx,
+		backgroundCtx:    ctx,
+		outboundGrpcConn: grpc.CachedOutboundGRPClientConn{Name: "authenticate"},
 
 		accessTokenVerificationCount: metrics.Int64Counter("authenticate.idp_access_token.verifications",
 			metric.WithDescription("Number of IDP access token verifications."),
