@@ -186,12 +186,14 @@ export type SessionBindingInfoPageData = BasePageData &
 export type SessionBindingData = {
   SessionBindingID: string;
   Protocol: string;
-  IssuedAt: string;
+  Resource: string;
+  ClientAddress: string;
+  InitiatedAt: string;
   ExpiresAt: string;
   RevokeSessionBindingURL: string;
   HasIdentityBinding: boolean;
   RevokeIdentityBindingURL: string;
-  DetailsSSH: DetailsSSH;
+  DetailsSSH?: DetailsSSH;
 };
 
 export type DetailsSSH = {
