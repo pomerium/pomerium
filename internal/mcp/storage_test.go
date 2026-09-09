@@ -59,7 +59,7 @@ func TestStorage(t *testing.T) {
 	require.NoError(t, err)
 
 	client := databroker_grpc.NewDataBrokerServiceClient(conn)
-	storage := mcp.NewStorage(client)
+	storage := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(client))
 
 	t.Run("client registration", func(t *testing.T) {
 		t.Parallel()
