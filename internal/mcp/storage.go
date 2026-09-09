@@ -14,6 +14,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -26,9 +27,11 @@ type HandlerStorage interface {
 	GetClient(ctx context.Context, id string) (*rfc7591v1.ClientRegistration, error)
 	CreateAuthorizationRequest(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error)
 	GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
+	GetIDPSession(ctx context.Context, id string) (*idpsessionpb.IDPSession, error)
 	DeleteAuthorizationRequest(ctx context.Context, id string) error
+	GetBinding(ctx context.Context, id string) (*idpsessionpb.Binding, error)
 	GetSession(ctx context.Context, id string) (*session.Session, uint64, error)
-	PutSession(ctx context.Context, s *session.Session) (uint64, error)
+	PutSession(ctx context.Context, s *session.Session, details ...[2]string) (uint64, error)
 	PutMCPRefreshToken(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
 	GetMCPRefreshToken(ctx context.Context, id string) (*oauth21proto.MCPRefreshToken, error)
 	DeleteMCPRefreshToken(ctx context.Context, id string) error
@@ -181,11 +184,11 @@ func (storage *Storage) PutMCPRefreshToken(
 ) error {
 	data := protoutil.NewAny(token)
 	_, err := storage.client().Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{{
-			Id:   token.Id,
-			Data: data,
-			Type: data.TypeUrl,
-		}},
+		Records: idpsessionpb.NewBoundRecords(token.GetUserId(),
+			idpsessionpb.BindingProtocol_BINDING_PROTOCOL_MCP,
+			map[string]string{
+				"mcp_client_id": token.ClientId,
+			}, token),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to store MCP refresh token: %w", err)
@@ -347,13 +350,59 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 	return nil
 }
 
+func (storage *Storage) GetBinding(ctx context.Context, id string) (*idpsessionpb.Binding, error) {
+	bind := &idpsessionpb.Binding{}
+	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
+		Id:   id,
+		Type: protoutil.GetTypeURL(bind),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := rec.GetRecord().GetData().UnmarshalTo(bind); err != nil {
+		return nil, err
+	}
+	return bind, nil
+}
+
+func (storage *Storage) GetIDPSession(ctx context.Context, id string) (*idpsessionpb.IDPSession, error) {
+	idpSess := &idpsessionpb.IDPSession{}
+	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
+		Id:   id,
+		Type: protoutil.GetTypeURL(idpSess),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := rec.GetRecord().GetData().UnmarshalTo(idpSess); err != nil {
+		return nil, err
+	}
+
+	return idpSess, nil
+}
+
 // PutSession stores a session in the databroker.
-func (storage *Storage) PutSession(ctx context.Context, s *session.Session) (uint64, error) {
-	res, err := session.Put(ctx, storage.client(), s)
+func (storage *Storage) PutSession(ctx context.Context, s *session.Session, details ...[2]string) (uint64, error) {
+	deets := map[string]string{}
+	for _, pair := range details {
+		deets[pair[0]] = pair[1]
+	}
+	res, err := storage.client().Put(ctx, &databroker.PutRequest{
+		Records: idpsessionpb.NewBoundRecords(s.GetUserId(),
+			idpsessionpb.BindingProtocol_BINDING_PROTOCOL_MCP,
+			deets,
+			s,
+		),
+	})
 	if err != nil {
 		return 0, err
 	}
-	return res.GetRecord().GetVersion(), nil
+	for _, record := range res.GetRecords() {
+		if record.GetType() == protoutil.GetTypeURL(s) && record.GetId() == s.GetId() {
+			return record.GetVersion(), nil
+		}
+	}
+	return 0, fmt.Errorf("put session response did not contain session record %q", s.GetId())
 }
 
 // pendingUpstreamAuthID builds the composite key for a PendingUpstreamAuth record.

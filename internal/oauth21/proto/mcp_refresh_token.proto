@@ -45,4 +45,7 @@ message MCPRefreshToken {
 
   // Whether this refresh token has been revoked
   bool revoked = 9;
+
+  // Current session id the refresh token is associated with
+  string session_id = 10;
 }
