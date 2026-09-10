@@ -1,0 +1,68 @@
+# Usage:
+#   make -f Makefile.bench bench STORAGE=file TESTCASE=concurrent_conflicting [CONC=8] [TRANSPORT=tcp] [REPLICAS=3] [BENCHTIME=5s] [EXTRA=example]
+#
+# STORAGE:   mem | file | postgres | all
+# TESTCASE:  concurrent | concurrent_conflicting | all
+# CONC:      -singleflight.concurrency, in-flight transactions per round
+# TRANSPORT: bufconn | tcp | all
+# REPLICAS:  -singleflight.replicas, servers per cluster | all
+# BENCHTIME: passed to -benchtime
+# EXTRA:     optional annotation inserted in output file names
+
+STORAGE ?= mem
+TESTCASE ?= concurrent_conflicting
+CONC ?= 8
+TRANSPORT ?= bufconn
+REPLICAS ?= 1
+BENCHTIME ?= 30s
+EXTRA ?=
+
+STORAGES := mem file postgres
+TESTCASES := concurrent concurrent_conflicting
+TRANSPORTS := bufconn tcp
+REPLICA_COUNTS := 1 3
+
+BENCHFUNC_concurrent := BenchmarkSingleFlight_Concurrent
+BENCHFUNC_concurrent_conflicting := BenchmarkSingleFlight_ConcurrentConflicting
+BENCHFUNC := $(BENCHFUNC_$(TESTCASE))
+
+NAME := $(STORAGE)_$(TRANSPORT)_replicas-$(REPLICAS)_conc-$(CONC)$(if $(EXTRA),_$(EXTRA),)_$(TESTCASE)
+BENCH := ^$(BENCHFUNC)$$/^$(STORAGE)$$/^$(TRANSPORT)$$
+
+FANOUT = $(MAKE) --no-print-directory bench STORAGE=$(STORAGE) TESTCASE=$(TESTCASE) CONC=$(CONC) TRANSPORT=$(TRANSPORT) REPLICAS=$(REPLICAS) EXTRA=$(EXTRA) BENCHTIME=$(BENCHTIME)
+
+.PHONY: bench
+ifeq ($(TESTCASE),all)
+bench:
+	@for tc in $(TESTCASES); do $(FANOUT) TESTCASE=$$tc || exit 1; done
+else ifeq ($(STORAGE),all)
+bench:
+	@for s in $(STORAGES); do $(FANOUT) STORAGE=$$s || exit 1; done
+else ifeq ($(TRANSPORT),all)
+bench:
+	@for tr in $(TRANSPORTS); do $(FANOUT) TRANSPORT=$$tr || exit 1; done
+else ifeq ($(REPLICAS),all)
+bench:
+	@for r in $(REPLICA_COUNTS); do $(FANOUT) REPLICAS=$$r || exit 1; done
+else
+ifeq ($(BENCHFUNC),)
+bench:
+	@echo "unknown TESTCASE=$(TESTCASE), expected one of: $(TESTCASES) all" >&2; exit 1
+else
+bench:
+	go test -run '^$$' -bench '$(BENCH)' -benchtime=$(BENCHTIME) -benchmem \
+		-singleflight.transport=$(TRANSPORT) \
+		-singleflight.replicas=$(REPLICAS) \
+		-singleflight.concurrency=$(CONC) \
+		-cpuprofile=$(NAME).cpu.pprof \
+		-memprofile=$(NAME).mem.pprof \
+		-blockprofile=$(NAME).block.pprof \
+		-trace=$(NAME).trace.out \
+		-o $(NAME).test \
+		. | tee $(NAME).out
+endif
+endif
+
+.PHONY: clean
+clean:
+	rm -f *.cpu.pprof *.mem.pprof *.block.pprof *.trace.out *.test *.out
