@@ -1075,6 +1075,7 @@ func (srv *backendConfigServer) updateLocalRecords(cfg *configpb.Config) {
 	if settings != nil && !proto.Equal(settings, new(configpb.Settings)) {
 		settings.Id = new(LocalRecordIDPrefix + "settings")
 		settings.OriginatorId = new("local")
+		protoutil.ScrubSensitive(settings)
 		c.Put(&databrokerpb.Record{
 			Id:   settings.GetId(),
 			Type: recordType,
@@ -1091,6 +1092,7 @@ func (srv *backendConfigServer) updateLocalRecords(cfg *configpb.Config) {
 		if route != nil && !proto.Equal(route, new(configpb.Route)) {
 			route.Id = new(fmt.Sprintf(LocalRecordIDPrefix+"route/%d", i))
 			route.OriginatorId = new("local")
+			protoutil.ScrubSensitive(route)
 			c.Put(&databrokerpb.Record{
 				Id:   route.GetId(),
 				Type: recordType,

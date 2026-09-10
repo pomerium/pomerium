@@ -15,6 +15,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // registerTools walks a protobuf FileDescriptor's services and registers each
@@ -116,7 +118,8 @@ func registerMethod(
 			if !ok {
 				err := fmt.Errorf(
 					"update %q requires an entity id and a matching Get* method on the service",
-					methodName)
+					methodName,
+				)
 				for _, mapErr := range cfg.errMappers {
 					err = mapErr(ctx, method, err)
 				}
@@ -155,7 +158,7 @@ func registerMethod(
 		// so the response can advertise what's hidden.
 		redacted := SensitiveFieldsSet(respMsg)
 
-		ScrubSensitive(respMsg)
+		protoutil.ScrubSensitive(respMsg)
 
 		scrubbedJSON, err := protojson.Marshal(respMsg)
 		if err != nil {

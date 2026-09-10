@@ -258,8 +258,9 @@ func TestConfigLocalSettings(t *testing.T) {
 	}
 	assert.Contains(t, ids, "local/settings", "should return local settings")
 
-	_, err = client.GetSettings(t.Context(), connect.NewRequest(&configpb.GetSettingsRequest{
+	getRes, err := client.GetSettings(t.Context(), connect.NewRequest(&configpb.GetSettingsRequest{
 		For: &configpb.GetSettingsRequest_Id{Id: "local/settings"},
 	}))
 	assert.NoError(t, err)
+	assert.Empty(t, getRes.Msg.Settings.SharedSecret, "should remove sensitive values")
 }
