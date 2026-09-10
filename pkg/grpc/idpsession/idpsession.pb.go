@@ -428,6 +428,8 @@ func (x *IDPSession) GetUserId() string {
 // client sessions to be deterministically invalidated.
 // The invalidation of its parent IDPSession invalidates all depedent client
 // sessions.
+// Binding IDs should be unique to a client session and never re-used on subsequent bindings
+// of the same client session type.
 type Binding struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`

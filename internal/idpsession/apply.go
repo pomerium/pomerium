@@ -30,6 +30,7 @@ type idpSessionApplier struct {
 	*idpsession.IDPSession
 }
 
+// TODO : this represents a large chunk of allocations in the reconcile loop & cpu time spent in the loop. Let's see how much we can optimize this.
 func (i *idpSessionApplier) ApplyToSession(s *session.Session) *session.Session {
 	if s == nil {
 		return nil

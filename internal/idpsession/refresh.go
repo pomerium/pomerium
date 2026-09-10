@@ -32,27 +32,29 @@ type RefreshConfig struct {
 	TracerProvider                    oteltrace.TracerProvider
 }
 
+type idpSessionGetter interface {
+	GetIDPSession(id string) *idpsession.IDPSession
+}
 type refreshManager struct {
 	refreshMu sync.Mutex
 
 	refreshSessionSchedulers map[string]*refreshIDPSessionScheduler
 	userInfoSchedulers       map[string]*updateUserInfoScheduler
 	cfg                      atomic.Pointer[RefreshConfig]
-	dataStore                *dataStore
-
-	clientB databroker.ClientGetter
+	store                    idpSessionGetter
+	clientB                  databroker.ClientGetter
 }
 
 func newRefreshManager(
 	cfg RefreshConfig,
-	dataStore *dataStore,
+	store idpSessionGetter,
 	clientB databroker.ClientGetter,
 ) *refreshManager {
 	mgr := &refreshManager{
 		refreshSessionSchedulers: map[string]*refreshIDPSessionScheduler{},
 		userInfoSchedulers:       map[string]*updateUserInfoScheduler{},
 		cfg:                      atomic.Pointer[RefreshConfig]{},
-		dataStore:                dataStore,
+		store:                    store,
 		clientB:                  clientB,
 	}
 	mgr.cfg.Store(&cfg)
@@ -141,8 +143,6 @@ func (mgr *refreshManager) updateToken(ctx context.Context, s *idpsession.IDPSes
 	if err != nil {
 		return fmt.Errorf("failed to create fieldmask for idpsession")
 	}
-	// TODO : consider in-memory patch here for racing schedulers. or use singleflight for refresh / userinfo callbacks.
-	mgr.dataStore.putIDPSession(s)
 	_, err = mgr.clientB.GetDataBrokerServiceClient().Patch(ctx, &databroker.PatchRequest{
 		Records: []*databroker.Record{
 			databroker.NewRecord(proto.CloneOf(s)),
@@ -158,7 +158,7 @@ func (mgr *refreshManager) updateToken(ctx context.Context, s *idpsession.IDPSes
 func (mgr *refreshManager) updateUserInfo(ctx context.Context, id string) {
 	log.Ctx(ctx).Info().Str("idpsession-id", id).Msg("updating user info")
 
-	u := mgr.dataStore.getIDPSession(id)
+	u := mgr.store.GetIDPSession(id)
 	if u == nil {
 		log.Ctx(ctx).Error().
 			Str("idpsession-id", id).
@@ -199,8 +199,6 @@ func (mgr *refreshManager) patchUserInfo(ctx context.Context, u *idpsession.IDPS
 	if err != nil {
 		return fmt.Errorf("failed to create fieldmask for idpsession")
 	}
-	// TODO : consider in-memory patch here for racing schedulers. or use singleflight for refresh / userinfo callbacks.
-	mgr.dataStore.putIDPSession(u)
 	_, err = mgr.clientB.GetDataBrokerServiceClient().Patch(ctx, &databroker.PatchRequest{
 		Records: []*databroker.Record{
 			databroker.NewRecord(proto.CloneOf(u)),
@@ -218,7 +216,7 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 		Str("idpsession-id", id).
 		Msg("refreshing session")
 
-	s := mgr.dataStore.getIDPSession(id)
+	s := mgr.store.GetIDPSession(id)
 
 	if s == nil {
 		log.Ctx(ctx).Info().

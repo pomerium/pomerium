@@ -6,24 +6,25 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/databrokerutil"
 )
 
 type synchronizedReconciler struct {
 	mu              sync.Mutex
 	ready           bool
-	reconciler      databrokerutil.Reconciler
+	applier         *changeSetApplier
+	now             func() time.Time
 	reconcileLocker sync.Locker
 	interval        time.Duration
 	wake            chan struct{}
 }
 
-func newSynchronizedReconciler(interval time.Duration, reconciler databrokerutil.Reconciler, ds sync.Locker) *synchronizedReconciler {
+func newSynchronizedReconciler(interval time.Duration, applier *changeSetApplier, ds sync.Locker, now func() time.Time) *synchronizedReconciler {
 	return &synchronizedReconciler{
-		reconciler:      reconciler,
+		applier:         applier,
 		reconcileLocker: ds,
 		interval:        interval,
 		wake:            make(chan struct{}, 1),
+		now:             now,
 	}
 }
 
@@ -37,6 +38,7 @@ func (r *synchronizedReconciler) Updated() {
 	r.mu.Lock()
 	r.ready = true
 	r.mu.Unlock()
+	// TODO : add some sort of debounce/batching.
 	select {
 	case r.wake <- struct{}{}:
 	default:
@@ -67,7 +69,7 @@ func (r *synchronizedReconciler) reconcile(ctx context.Context) {
 	r.reconcileLocker.Lock()
 	defer r.reconcileLocker.Unlock()
 	// !! critical path. Prevents a wakeup trigger and a Clear trigger racing while the reconciler runs.
-	if err := r.reconciler.Reconcile(ctx); err != nil {
+	if err := r.applier.ReconcileAtLocked(ctx, r.now()); err != nil {
 		log.Ctx(ctx).Err(err).Msg("reconcile")
 	}
 }
