@@ -37,6 +37,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 )
@@ -281,7 +282,23 @@ func (api *routeTestAPI) StaticUserEmail(userPlaceholder int) string {
 	return fmt.Sprintf(api.staticUserFmt, userPlaceholder) + "@example.com"
 }
 
-func (rt *RouteTests) AddRouteTest(pplTemplate string, fn func(api RouteTestAPI)) {
+type AddRouteTestOptions struct {
+	editPolicyFunc func(*config.Policy)
+}
+
+type AddRouteTestOption func(*AddRouteTestOptions)
+
+func WithEditPolicyFunc(fn func(*config.Policy)) AddRouteTestOption {
+	return func(o *AddRouteTestOptions) {
+		o.editPolicyFunc = fn
+	}
+}
+
+func (rt *RouteTests) AddRouteTest(pplTemplate string, fn func(api RouteTestAPI), opts ...AddRouteTestOption) {
+	options := AddRouteTestOptions{}
+	for _, op := range opts {
+		op(&options)
+	}
 	rt.s.Require().NotContains(pplTemplate, "\t", "ppl template yaml must not contain tab characters")
 	_, _, line, _ := runtime.Caller(1)
 	tcNamePrefix := fmt.Sprintf("route-test-%d", line)
@@ -340,8 +357,9 @@ func (rt *RouteTests) AddRouteTest(pplTemplate string, fn func(api RouteTestAPI)
 		rt.testCases = append(rt.testCases, routeTestCase{
 			testName: tcNamePrefix + tcNameSuffix,
 			opts: RouteOptions{
-				Name: routeName,
-				PPL:  out.String(),
+				Name:       routeName,
+				PPL:        out.String(),
+				EditPolicy: options.editPolicyFunc,
 			},
 			testFunc: fn,
 			api: &routeTestAPI{
@@ -1168,7 +1186,7 @@ deny:
 		})
 	})
 
-	approveAndVerifySuccess := func(cc *gossh.ClientConfig) {
+	dialAndApproveRequest := func(cc *gossh.ClientConfig, addMetadata ...map[string]string) (*gossh.Client, error) {
 		s.T().Helper()
 		requestID := make(chan string, 1)
 		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
@@ -1178,20 +1196,24 @@ deny:
 			case id := <-requestID:
 				s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
 					req.State = session.StreamAccessRequest_Approved
+					if len(addMetadata) != 0 {
+						req.Metadata = addMetadata[0]
+					}
 				})
 			case <-s.T().Context().Done():
 			}
 		}()
 		client, err := s.upstream.Dial(cc)
-		s.Require().NoError(err)
-		VerifyWorkingShell(s.T(), client)
-		client.Close()
+		return client, err
 	}
 
 	accessRequestTest := func(api RouteTestAPI) {
 		s.Run("request approved", func() {
 			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
-			approveAndVerifySuccess(cc)
+			client, err := dialAndApproveRequest(cc)
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
 		})
 		s.Run("request denied", func() {
 			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
@@ -1329,7 +1351,10 @@ allow:
     - ssh_access_request_approved: {}
 `, func(api RouteTestAPI) {
 		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
-		approveAndVerifySuccess(cc)
+		client, err := dialAndApproveRequest(cc)
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		client.Close()
 	})
 
 	// redundant conditions
@@ -1343,8 +1368,96 @@ deny:
     - ssh_access_request_approved: {}
 `, func(api RouteTestAPI) {
 		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
-		approveAndVerifySuccess(cc)
+		client, err := dialAndApproveRequest(cc)
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		client.Close()
 	})
+
+	// approve with metadata
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+          - "{{ routeUserEmail 2 }}"
+          - "{{ routeUserEmail 3 }}"
+          - "{{ routeUserEmail 4 }}"
+          - "{{ routeUserEmail 5 }}"
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		s.Run("recording override enable", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+			_, err := dialAndApproveRequest(cc, map[string]string{
+				"session_recording_override": "enabled",
+			})
+			// the channel filter won't exist here, and envoy will send an error containing the filter name
+			s.ErrorContains(err, "authorization server requested an unknown channel filter: 'session_recording'")
+		})
+		s.Run("mirroring enabled", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
+			_, err := dialAndApproveRequest(cc, map[string]string{
+				"session_mirroring_receiver": "fake-cluster-id;127.0.0.1:12345",
+			})
+			// same as above, but enable the mirroring filter instead
+			s.ErrorContains(err, "authorization server requested an unknown channel filter: 'session_mirroring'")
+		})
+		// various internal error cases
+		s.Run("receiver string is invalid", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(3))
+			_, err := dialAndApproveRequest(cc, map[string]string{
+				"session_mirroring_receiver": "invalid-format",
+			})
+			s.ErrorContains(err, "malformed receiver string")
+		})
+		s.Run("receiver port missing", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(4))
+			_, err := dialAndApproveRequest(cc, map[string]string{
+				"session_mirroring_receiver": "fake-cluster-id;127.0.0.1",
+			})
+			s.ErrorContains(err, "address 127.0.0.1: missing port in address")
+		})
+		s.Run("receiver port invalid", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(5))
+			_, err := dialAndApproveRequest(cc, map[string]string{
+				"session_mirroring_receiver": "fake-cluster-id;127.0.0.1:70000",
+			})
+			s.ErrorContains(err, "value out of range")
+		})
+	})
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+          - "{{ routeUserEmail 2 }}"
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		s.Run("recording override disable", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+			client, err := dialAndApproveRequest(cc, map[string]string{
+				"session_recording_override": "disabled",
+			})
+			// if recording is successfully disabled, then the connection won't error
+			s.Require().NoError(err)
+			VerifyWorkingShell(s.T(), client)
+			client.Close()
+		})
+		s.Run("mirroring enabled", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
+			_, err := dialAndApproveRequest(cc, map[string]string{
+				"session_recording_override": "disabled",
+				"session_mirroring_receiver": "fake-cluster-id;127.0.0.1:12345",
+			})
+			s.ErrorContains(err, "authorization server requested an unknown channel filter: 'session_mirroring'")
+		})
+	}, WithEditPolicyFunc(func(p *config.Policy) {
+		p.SessionRecording = nullable.From(config.SessionRecording{
+			Enabled: nullable.From(true),
+		})
+	}))
 
 	rt.Start()
 

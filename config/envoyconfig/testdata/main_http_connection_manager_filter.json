@@ -84,7 +84,9 @@
           "statusOnError": {
             "code": "ServiceUnavailable"
           },
-          "metadataContextNamespaces": ["com.pomerium.client-certificate-info"]
+          "metadataContextNamespaces": [
+            "com.pomerium.client-certificate-info"
+          ]
         }
       },
       {
@@ -101,7 +103,9 @@
           "messageTimeout": "10s",
           "metadataOptions": {
             "forwardingNamespaces": {
-              "untyped": ["envoy.filters.http.ext_authz"]
+              "untyped": [
+                "envoy.filters.http.ext_authz"
+              ]
             }
           }
         }
@@ -178,6 +182,13 @@
         }
       },
       {
+        "name": "envoy.filters.http.stateful_session",
+        "disabled": true,
+        "typedConfig": {
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSession"
+        }
+      },
+      {
         "name": "envoy.filters.http.router",
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
@@ -237,7 +248,11 @@
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "plain"
@@ -313,7 +328,11 @@
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "json"
@@ -354,14 +373,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["DC"]
+                    "flags": [
+                      "DC"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -416,14 +441,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["DF"]
+                    "flags": [
+                      "DF"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -478,14 +509,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["DI"]
+                    "flags": [
+                      "DI"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -540,14 +577,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["DO"]
+                    "flags": [
+                      "DO"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -602,14 +645,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["DPE"]
+                    "flags": [
+                      "DPE"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -664,14 +713,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["DT"]
+                    "flags": [
+                      "DT"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -726,14 +781,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["FI"]
+                    "flags": [
+                      "FI"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -788,14 +849,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["IH"]
+                    "flags": [
+                      "IH"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -850,14 +917,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["LH"]
+                    "flags": [
+                      "LH"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -912,14 +985,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["LR"]
+                    "flags": [
+                      "LR"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -974,14 +1053,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["NC"]
+                    "flags": [
+                      "NC"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1036,14 +1121,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["NFCF"]
+                    "flags": [
+                      "NFCF"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1098,14 +1189,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["NR"]
+                    "flags": [
+                      "NR"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1160,14 +1257,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["OM"]
+                    "flags": [
+                      "OM"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1222,14 +1325,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["RFCF"]
+                    "flags": [
+                      "RFCF"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1284,14 +1393,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["RL"]
+                    "flags": [
+                      "RL"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1346,14 +1461,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["RLSE"]
+                    "flags": [
+                      "RLSE"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1408,14 +1529,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["SI"]
+                    "flags": [
+                      "SI"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1470,14 +1597,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["UC"]
+                    "flags": [
+                      "UC"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1532,14 +1665,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["UF"]
+                    "flags": [
+                      "UF"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1594,14 +1733,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["UH"]
+                    "flags": [
+                      "UH"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1656,14 +1801,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["UMSDR"]
+                    "flags": [
+                      "UMSDR"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1718,14 +1869,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["UO"]
+                    "flags": [
+                      "UO"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1780,14 +1937,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["UPE"]
+                    "flags": [
+                      "UPE"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1842,14 +2005,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["UR"]
+                    "flags": [
+                      "UR"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1904,14 +2073,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["URX"]
+                    "flags": [
+                      "URX"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
@@ -1966,14 +2141,20 @@
               "filters": [
                 {
                   "responseFlagFilter": {
-                    "flags": ["UT"]
+                    "flags": [
+                      "UT"
+                    ]
                   }
                 },
                 {
                   "metadataFilter": {
                     "matcher": {
                       "filter": "envoy.filters.http.lua",
-                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "path": [
+                        {
+                          "key": "pomerium_local_reply_type"
+                        }
+                      ],
                       "value": {
                         "stringMatch": {
                           "exact": "grpc"
