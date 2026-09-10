@@ -229,16 +229,37 @@ func TestConfigSettings(t *testing.T) {
 			Id: proto.String(databroker.GlobalSettingsID),
 		}, res.Msg.GetSettings(), protocmp.Transform()))
 	})
-	t.Run("local", func(t *testing.T) {
-		t.Parallel()
-		res, err := client.ListSettings(t.Context(), connect.NewRequest(&configpb.ListSettingsRequest{}))
-		require.NoError(t, err)
-		var ids []string
-		for _, settings := range res.Msg.Settings {
-			ids = append(ids, settings.GetId())
-		}
-		assert.Contains(t, ids, "local/settings", "should return local settings")
-	})
 
 	storagetest.TestConfigServiceSettings(t, client)
+}
+
+func TestConfigLocalSettings(t *testing.T) {
+	t.Parallel()
+
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+	}))
+
+	mux := http.NewServeMux()
+	mux.Handle(configconnect.NewConfigServiceHandler(srv))
+	h := httptest.NewServer(mux)
+	t.Cleanup(h.Close)
+
+	client := configconnect.NewConfigServiceClient(http.DefaultClient, h.URL)
+
+	res, err := client.ListSettings(t.Context(), connect.NewRequest(&configpb.ListSettingsRequest{}))
+	require.NoError(t, err)
+	var ids []string
+	for _, settings := range res.Msg.Settings {
+		ids = append(ids, settings.GetId())
+	}
+	assert.Contains(t, ids, "local/settings", "should return local settings")
+
+	_, err = client.GetSettings(t.Context(), connect.NewRequest(&configpb.GetSettingsRequest{
+		For: &configpb.GetSettingsRequest_Id{Id: "local/settings"},
+	}))
+	assert.NoError(t, err)
 }
