@@ -7,31 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
-
-func TestBindingCmpComparesEmbeddedMessages(t *testing.T) {
-	t.Parallel()
-
-	r1 := databroker.NewRecord(&user.User{Id: "u1", Claims: map[string]*structpb.ListValue{
-		"email":  {Values: []*structpb.Value{structpb.NewStringValue("alice@example.com")}},
-		"groups": {Values: []*structpb.Value{structpb.NewStringValue("engineering")}},
-	}})
-	r2 := databroker.NewRecord(&user.User{Id: "u1", Claims: map[string]*structpb.ListValue{
-		"groups": {Values: []*structpb.Value{structpb.NewStringValue("engineering")}},
-		"email":  {Values: []*structpb.Value{structpb.NewStringValue("alice@example.com")}},
-	}})
-
-	assert.True(t, bindingCmp(r1, r2))
-
-	r2 = databroker.NewRecord(&user.User{Id: "u1", Claims: map[string]*structpb.ListValue{
-		"email": {Values: []*structpb.Value{structpb.NewStringValue("bob@example.com")}},
-	}})
-	assert.False(t, bindingCmp(r1, r2))
-}
 
 func TestApplySessionClaims(t *testing.T) {
 	claims, err := structpb.NewStruct(map[string]any{

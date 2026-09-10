@@ -15,7 +15,7 @@ import (
 
 type IdentityManager struct {
 	clientB        databroker.ClientGetter
-	datastore      *dataStore
+	store          *changeSetStore
 	refreshManager *refreshManager
 
 	leaseTTL time.Duration
@@ -63,6 +63,16 @@ func WithLeaseTTL(ttl time.Duration) Option {
 	}
 }
 
+var DefaultRefreshConfig = &RefreshConfig{
+	SessionRefreshGracePeriod:         1 * time.Minute,
+	SessionRefreshCoolOffDuration:     10 * time.Second,
+	UpdateUserInfoInterval:            10 * time.Minute,
+	RefreshSessionAtIDTokenExpiration: true,
+	TracerProvider:                    noop.TracerProvider{},
+	EventMgr:                          events.New(),
+	Now:                               time.Now,
+}
+
 func NewIdentityManagerV2(
 	clientB databroker.ClientGetter,
 	authenticateGetter func(ctx context.Context, idpID string) (identity.Authenticator, error),
@@ -73,37 +83,27 @@ func NewIdentityManagerV2(
 		now: func() time.Time {
 			return time.Now()
 		},
-		leaseTTL: 30 * time.Second,
-		refreshConfig: &RefreshConfig{
-			SessionRefreshGracePeriod:         1 * time.Minute,
-			SessionRefreshCoolOffDuration:     10 * time.Second,
-			UpdateUserInfoInterval:            10 * time.Minute,
-			RefreshSessionAtIDTokenExpiration: true,
-			TracerProvider:                    noop.TracerProvider{},
-			EventMgr:                          events.New(),
-			Now:                               time.Now,
-			GetAuthenticator:                  authenticateGetter,
-		},
+		leaseTTL:      30 * time.Second,
+		refreshConfig: DefaultRefreshConfig,
 	}
 	opts.Apply(o...)
 
-	datastore := newDataStore(opts.now)
-	reconciler := databrokerutil.NewReconciler(
-		clientB,
-		datastore.getCurrentChangesetLocked,
-		datastore.targetChangeSetLocked,
-		func([]*databroker.Record) {},
-		bindingCmp,
+	store := newChangeSetStore()
+	applier := newChangeSetApplier(clientB, store)
+	synchronizedReconciler := newSynchronizedReconciler(
+		opts.reconcileInterval,
+		applier,
+		store,
+		opts.now,
 	)
-	synchronizedReconciler := newSynchronizedReconciler(opts.reconcileInterval, reconciler, datastore)
-	refreshMgr := newRefreshManager(*opts.refreshConfig, datastore, clientB)
+	refreshMgr := newRefreshManager(*opts.refreshConfig, store, clientB, authenticateGetter)
 
 	return &IdentityManager{
 		identReconciler: synchronizedReconciler,
 		clientB:         clientB,
-		datastore:       datastore,
+		store:           store,
 		refreshManager:  refreshMgr,
-		identitySyncer:  newIdentitySyncer(clientB, datastore, refreshMgr, synchronizedReconciler),
+		identitySyncer:  newIdentitySyncer(clientB, store, applier, refreshMgr, synchronizedReconciler, opts.now),
 		leaseTTL:        opts.leaseTTL,
 	}
 }
@@ -116,7 +116,6 @@ func (s *IdentityManager) GetDataBrokerServiceClient() databroker.DataBrokerServ
 	return s.clientB.GetDataBrokerServiceClient()
 }
 
-// Run runs the manager. This method blocks until an error occurs or the given context is canceled.
 func (s *IdentityManager) Run(ctx context.Context) error {
 	leaser := databrokerutil.NewLeaser(
 		"identity_manager_v2",

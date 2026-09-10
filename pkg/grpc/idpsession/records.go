@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -124,12 +125,8 @@ func RevokeBinding(ctx context.Context, client databroker.DataBrokerServiceClien
 		return err
 	}
 
-	if binding.GetRevokedAt() != nil {
-		return nil
-	}
 	nB := proto.CloneOf(binding)
 	nB.State = BindingState_BindingState_REVOKED
-	nB.RevokedAt = timestamppb.Now()
 	_, putErr := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{
 			databroker.NewRecord(nB),
@@ -138,47 +135,41 @@ func RevokeBinding(ctx context.Context, client databroker.DataBrokerServiceClien
 	return putErr
 }
 
-func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string, reason string) error {
+func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string, reason string) (*oauth2.Token, error) {
 	rec, err := client.Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/idpsession.IDPSession",
 		Id:   id,
 	})
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return nil
+			return nil, nil
 		}
-		return err
+		return nil, err
 	}
 	idpSess := &IDPSession{}
 	if err := rec.Record.GetData().UnmarshalTo(idpSess); err != nil {
-		return err
+		return nil, err
 	}
 
-	if idpSess.GetState().GetInvalidatedAt() != nil {
-		return nil
-	}
 	iS := proto.CloneOf(idpSess)
 	iS.State = &SessionState{
-		State:         UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID,
-		InvalidatedAt: timestamppb.Now(),
-		Details:       reason,
+		State:   UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID,
+		Details: reason,
 	}
 	_, putErr := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{
 			databroker.NewRecord(iS),
 		},
 	})
-	return putErr
+
+	return FromOAuthToken(idpSess), putErr
 }
 
 func (b *Binding) Revoke() *Binding {
-	if b.GetState() == BindingState_BindingState_REVOKED && b.GetRevokedAt() != nil {
+	if b.GetState() == BindingState_BindingState_REVOKED {
 		return b
 	}
 	b = proto.CloneOf(b)
 	b.State = BindingState_BindingState_REVOKED
-	if b.RevokedAt == nil {
-		b.RevokedAt = timestamppb.New(time.Now())
-	}
 	return b
 }

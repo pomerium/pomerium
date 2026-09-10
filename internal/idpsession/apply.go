@@ -1,30 +1,13 @@
 package idpsession
 
 import (
-	"google.golang.org/protobuf/proto"
-
 	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
-	identitymanager "github.com/pomerium/pomerium/pkg/identity/manager"
+	"github.com/pomerium/pomerium/pkg/mapsutil"
 )
-
-func bindingCmp(r1, r2 *databroker.Record) bool {
-	// this can probably be improved to use fieldmask patching directly
-	// in the comparator.
-	m1, err := r1.GetData().UnmarshalNew()
-	if err != nil {
-		return false
-	}
-	m2, err := r2.GetData().UnmarshalNew()
-	if err != nil {
-		return false
-	}
-	return proto.Equal(m1, m2)
-}
 
 type idpSessionApplier struct {
 	*idpsession.IDPSession
@@ -55,13 +38,14 @@ func (i *idpSessionApplier) ApplyToSession(s *session.Session) *session.Session 
 		}
 	}
 	if i.Claims != nil {
-		claims, err := i.Claims.MarshalJSON()
-		if err != nil {
-			panic(err)
-		}
-		if err := identitymanager.NewSessionUnmarshaler(s).UnmarshalJSON(claims); err != nil {
-			panic(err)
-		}
+		claims := i.Claims.AsMap()
+		// same as pkg/identity/manager/data.go#104
+		// To preserve existing behavior: filter out claims not related to user info.
+		delete(claims, "iss")
+		delete(claims, "sub")
+		delete(claims, "exp")
+		delete(claims, "iat")
+		s.AddClaims(identity.FlattenedClaims(mapsutil.Flatten(claims)))
 	}
 	return s
 }
@@ -73,7 +57,7 @@ func (i *idpSessionApplier) ApplyToUser(u *user.User) {
 	if i == nil || i.Claims == nil {
 		return
 	}
-	u.Claims = identity.Claims(i.Claims.AsMap()).Flatten().ToPB()
+	u.AddClaims(identity.Claims(i.Claims.AsMap()).Flatten())
 }
 
 func (i *idpSessionApplier) ApplyToMCP(token *oauth21.MCPRefreshToken) *oauth21.MCPRefreshToken {

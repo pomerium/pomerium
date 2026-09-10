@@ -2,6 +2,7 @@ package idpsession
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -28,32 +29,36 @@ type RefreshConfig struct {
 	UpdateUserInfoInterval            time.Duration
 	Now                               func() time.Time
 	EventMgr                          *events.Manager
-	GetAuthenticator                  func(ctx context.Context, idpID string) (identity.Authenticator, error)
 	TracerProvider                    oteltrace.TracerProvider
 }
 
+type idpSessionGetter interface {
+	GetIDPSession(id string) *idpsession.IDPSession
+}
 type refreshManager struct {
 	refreshMu sync.Mutex
 
 	refreshSessionSchedulers map[string]*refreshIDPSessionScheduler
 	userInfoSchedulers       map[string]*updateUserInfoScheduler
 	cfg                      atomic.Pointer[RefreshConfig]
-	dataStore                *dataStore
-
-	clientB databroker.ClientGetter
+	store                    idpSessionGetter
+	clientB                  databroker.ClientGetter
+	getAuthenticator         func(ctx context.Context, idpID string) (identity.Authenticator, error)
 }
 
 func newRefreshManager(
 	cfg RefreshConfig,
-	dataStore *dataStore,
+	store idpSessionGetter,
 	clientB databroker.ClientGetter,
+	getAuthenticator func(ctx context.Context, idpID string) (identity.Authenticator, error),
 ) *refreshManager {
 	mgr := &refreshManager{
 		refreshSessionSchedulers: map[string]*refreshIDPSessionScheduler{},
 		userInfoSchedulers:       map[string]*updateUserInfoScheduler{},
 		cfg:                      atomic.Pointer[RefreshConfig]{},
-		dataStore:                dataStore,
+		store:                    store,
 		clientB:                  clientB,
+		getAuthenticator:         getAuthenticator,
 	}
 	mgr.cfg.Store(&cfg)
 	return mgr
@@ -114,7 +119,7 @@ func (mgr *refreshManager) revokeIDPSession(ctx context.Context, id string, reas
 		Str("idpsession-id", id).
 		Msg("deleting idpsession")
 
-	if err := idpsession.RevokeIDPSession(ctx, mgr.clientB.GetDataBrokerServiceClient(), id, reason); err != nil {
+	if _, err := idpsession.RevokeIDPSession(ctx, mgr.clientB.GetDataBrokerServiceClient(), id, reason); err != nil {
 		log.Ctx(ctx).Err(err).Str("idpsession-id", id).Msg("failed to delete session, a future reconcile will pick this up")
 	}
 	mgr.cleanUpSchedulers(id)
@@ -141,8 +146,6 @@ func (mgr *refreshManager) updateToken(ctx context.Context, s *idpsession.IDPSes
 	if err != nil {
 		return fmt.Errorf("failed to create fieldmask for idpsession")
 	}
-	// TODO : consider in-memory patch here for racing schedulers. or use singleflight for refresh / userinfo callbacks.
-	mgr.dataStore.putIDPSession(s)
 	_, err = mgr.clientB.GetDataBrokerServiceClient().Patch(ctx, &databroker.PatchRequest{
 		Records: []*databroker.Record{
 			databroker.NewRecord(proto.CloneOf(s)),
@@ -158,7 +161,7 @@ func (mgr *refreshManager) updateToken(ctx context.Context, s *idpsession.IDPSes
 func (mgr *refreshManager) updateUserInfo(ctx context.Context, id string) {
 	log.Ctx(ctx).Info().Str("idpsession-id", id).Msg("updating user info")
 
-	u := mgr.dataStore.getIDPSession(id)
+	u := mgr.store.GetIDPSession(id)
 	if u == nil {
 		log.Ctx(ctx).Error().
 			Str("idpsession-id", id).
@@ -167,14 +170,14 @@ func (mgr *refreshManager) updateUserInfo(ctx context.Context, id string) {
 	}
 
 	l := log.Ctx(ctx).With().Str("idpsession-id", id).Str("user-id", u.UserId).Logger()
-	authenticator, err := mgr.cfg.Load().GetAuthenticator(ctx, u.GetIdpId())
+	authenticator, err := mgr.getAuthenticator(ctx, u.GetIdpId())
 	if err != nil {
 		l.Err(err).Msg("no authenticator configured")
 		mgr.revokeIDPSession(ctx, id, "no authenticator")
 		return
 	}
 
-	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(u), u)
+	err = authenticator.UpdateUserInfo(ctx, idpsession.FromOAuthToken(u), u)
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
@@ -199,8 +202,6 @@ func (mgr *refreshManager) patchUserInfo(ctx context.Context, u *idpsession.IDPS
 	if err != nil {
 		return fmt.Errorf("failed to create fieldmask for idpsession")
 	}
-	// TODO : consider in-memory patch here for racing schedulers. or use singleflight for refresh / userinfo callbacks.
-	mgr.dataStore.putIDPSession(u)
 	_, err = mgr.clientB.GetDataBrokerServiceClient().Patch(ctx, &databroker.PatchRequest{
 		Records: []*databroker.Record{
 			databroker.NewRecord(proto.CloneOf(u)),
@@ -218,7 +219,7 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 		Str("idpsession-id", id).
 		Msg("refreshing session")
 
-	s := mgr.dataStore.getIDPSession(id)
+	s := mgr.store.GetIDPSession(id)
 
 	if s == nil {
 		log.Ctx(ctx).Info().
@@ -228,7 +229,7 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 	}
 	l := log.Ctx(ctx).With().Str("idpsession-id", id).Str("user-id", s.GetUserId()).Logger()
 
-	authenticator, err := mgr.cfg.Load().GetAuthenticator(ctx, s.GetIdpId())
+	authenticator, err := mgr.getAuthenticator(ctx, s.GetIdpId())
 	if err != nil {
 		l.Info().Err(err).Msg("no authenticator defined deleting session")
 		mgr.revokeIDPSession(ctx, id, "no authenticator")
@@ -249,7 +250,7 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 		Time("id-token-expires-at", s.GetIdToken().GetExpiresAt().AsTime()).
 		Msg("HACK idpsession/refresh: refreshing with token")
 
-	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s), s)
+	newToken, err := authenticator.Refresh(ctx, idpsession.FromOAuthToken(s), s)
 	if newToken != nil {
 		// FIXME: hack
 		l.Warn().
@@ -268,8 +269,8 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 		mgr.revokeIDPSession(ctx, id, fmt.Sprintf("failed to refresh oauth2 token : %s", err))
 		return
 	}
-	UpdateOAuthToken(newToken, s)
-	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s), s)
+	idpsession.UpdateOAuthToken(newToken, s)
+	err = authenticator.UpdateUserInfo(ctx, idpsession.FromOAuthToken(s), s)
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
@@ -298,4 +299,18 @@ func (mgr *refreshManager) recordLastError(id string, err error) {
 		Message: err.Error(),
 		Id:      id,
 	})
+}
+
+func isTemporaryError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	var hasTemporary interface{ Temporary() bool }
+	if errors.As(err, &hasTemporary) && hasTemporary.Temporary() {
+		return true
+	}
+	return false
 }

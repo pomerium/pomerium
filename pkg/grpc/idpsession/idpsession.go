@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
+	"golang.org/x/oauth2"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 
@@ -103,4 +104,29 @@ func ParseIDToken(idToken string) (*IDToken, error) {
 		ExpiresAt: timestamppb.New(claims.Expiry.Time()),
 		IssuedAt:  timestamppb.New(claims.IssuedAt.Time()),
 	}, nil
+}
+
+// FromOAuthToken converts an idpsession token to oauth2.Token.
+func FromOAuthToken(idpSess *IDPSession) *oauth2.Token {
+	token := idpSess.GetOauthToken()
+	return &oauth2.Token{
+		AccessToken:  token.GetAccessToken(),
+		TokenType:    token.GetTokenType(),
+		RefreshToken: token.GetRefreshToken(),
+		Expiry:       token.GetExpiresAt().AsTime(),
+	}
+}
+
+// UpdateOAuthToken applies an oauth2.Token to an idpsession.
+func UpdateOAuthToken(token *oauth2.Token, idpSess *IDPSession) {
+	if idpSess.OauthToken == nil {
+		idpSess.OauthToken = new(OAuthToken)
+	}
+
+	idpSess.OauthToken.AccessToken = token.AccessToken
+	idpSess.OauthToken.TokenType = token.TokenType
+	idpSess.OauthToken.ExpiresAt = timestamppb.New(token.Expiry)
+	if token.RefreshToken != "" {
+		idpSess.OauthToken.RefreshToken = token.RefreshToken
+	}
 }
