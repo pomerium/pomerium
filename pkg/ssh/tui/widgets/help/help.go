@@ -41,11 +41,9 @@ func (hm *Model) KeyMap() help.KeyMap { return hm.DisplayedKeyMap }
 
 func NewModel(config Config) *Model {
 	m := &Model{
-		Model: help.Model{
-			ShortSeparator: config.Options.ShortSeparator,
-			FullSeparator:  config.Options.FullSeparator,
-			Ellipsis:       config.Options.Ellipsis,
-		},
+		ShortSeparator: config.Options.ShortSeparator,
+		FullSeparator:  config.Options.FullSeparator,
+		Ellipsis:       config.Options.Ellipsis,
 	}
 	config.Styles.Attach(&m.Model.Styles)
 	return m

@@ -134,10 +134,8 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 		components:   components.NewGroup(cfr, config.Components...),
 		mouseMode:    tea.MouseModeCellMotion,
 		headerModel: header.NewModel(header.Config{
-			Options: header.Options{
-				LeftAlignedSegments:  config.Header.LeftAlignedSegments(config.Styles),
-				RightAlignedSegments: config.Header.RightAlignedSegments(config.Styles),
-			},
+			LeftAlignedSegments:  config.Header.LeftAlignedSegments(config.Styles),
+			RightAlignedSegments: config.Header.RightAlignedSegments(config.Styles),
 		}),
 		helpModel: help.NewModel(help.Config{
 			Styles: style.Bind(config.Styles, func(base *Styles, _ style.NewStyleFunc) help.Styles {
@@ -161,13 +159,11 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 
 	m.headerWidget = core.NewWidget(IDHeader, m.headerModel)
 	m.backgroundWidget = core.NewWidget(IDBackground, label.NewModel(label.Config{
-		Options: label.Options{
-			Text: fmt.Sprintf("Press %s to %s",
-				m.components.MnemonicBinding().Help().Key,
-				m.components.MnemonicBinding().Help().Desc),
-			HAlign: lipgloss.Center,
-			VAlign: lipgloss.Center,
-		},
+		Text: fmt.Sprintf("Press %s to %s",
+			m.components.MnemonicBinding().Help().Key,
+			m.components.MnemonicBinding().Help().Desc),
+		HAlign: lipgloss.Center,
+		VAlign: lipgloss.Center,
 	}))
 	m.dialogWidget = core.NewWidget(IDDialog, m.dialogModel)
 	m.contextMenuWidget = core.NewWidget(IDMenu, m.contextMenuModel)
@@ -257,11 +253,9 @@ func (m *Model) showMotd() tea.Cmd {
 	}
 	return m.showDialog(dialog.Options{
 		Contents: core.NewWidget("", label.NewModel(label.Config{
-			Options: label.Options{
-				Text:   m.motd.Text,
-				HAlign: lipgloss.Left,
-				VAlign: lipgloss.Top,
-			},
+			Text:   m.motd.Text,
+			HAlign: lipgloss.Left,
+			VAlign: lipgloss.Top,
 			Styles: style.Bind(m.config.Styles, func(base *Styles, _ style.NewStyleFunc) label.Styles {
 				return label.Styles{
 					Normal: base.MotdText,

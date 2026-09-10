@@ -401,9 +401,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			[]protoreflect.ProtoMessage{},
 			&Request{
 				Policy: &config.Policy{
-					RouteOptions: config.RouteOptions{
-						LoadBalancingPolicy: nullable.FromPtr(configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum()),
-					},
+					LoadBalancingPolicy: nullable.FromPtr(configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum()),
 				},
 				Session: RequestSession{ID: "s1"},
 			})
@@ -722,9 +720,7 @@ func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
 						Hostname: hostname,
 					},
 					Policy: &config.Policy{
-						RouteOptions: config.RouteOptions{
-							JWTIssuerFormat: nullable.FromPtr(tc.routeFormat),
-						},
+						JWTIssuerFormat: nullable.FromPtr(tc.routeFormat),
 					},
 				})
 			require.NoError(t, err)

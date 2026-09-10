@@ -30,14 +30,18 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-// GlobalSettingsID is the default global settings id if none is provided.
-const GlobalSettingsID = "78408adf-56e4-41d0-af6a-ca1b2d8d2cb6"
+const (
+	// GlobalSettingsID is the default global settings id if none is provided.
+	GlobalSettingsID = "78408adf-56e4-41d0-af6a-ca1b2d8d2cb6"
+	// LocalRecordIDPrefix is the id prefix for local records.
+	LocalRecordIDPrefix = "local/"
+)
 
 type backendConfigServer struct {
 	*backendServer
 
-	configMu      sync.Mutex
-	configRecords map[string]storage.RecordCollection
+	localMu      sync.Mutex
+	localRecords map[string]storage.RecordCollection
 }
 
 func (srv *backendConfigServer) CreateKeyPair(
@@ -102,6 +106,9 @@ func (srv *backendConfigServer) CreateRoute(
 	entity := proto.CloneOf(req.Msg.GetRoute())
 	if entity == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route is required"))
+	}
+	if strings.HasPrefix(entity.GetId(), LocalRecordIDPrefix) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("local routes cannot be created"))
 	}
 	entity.CreatedAt = timestamppb.Now()
 
@@ -201,6 +208,9 @@ func (srv *backendConfigServer) DeleteRoute(
 
 	if req.Msg.GetId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route id is required"))
+	}
+	if strings.HasPrefix(req.Msg.GetId(), LocalRecordIDPrefix) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("local routes cannot be deleted"))
 	}
 
 	entity := &configpb.Route{Id: new(req.Msg.GetId())}
@@ -641,6 +651,9 @@ func (srv *backendConfigServer) UpdateRoute(
 	} else if entity.GetId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route id is required"))
 	}
+	if strings.HasPrefix(entity.GetId(), LocalRecordIDPrefix) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("local routes cannot be updated"))
+	}
 
 	original := proto.CloneOf(entity)
 	_, err := srv.getEntity(ctx, original)
@@ -730,6 +743,9 @@ func (srv *backendConfigServer) UpdateSettings(
 	}
 	if entity.Id == nil {
 		entity.Id = new(GlobalSettingsID)
+	}
+	if strings.HasPrefix(entity.GetId(), LocalRecordIDPrefix) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("local settings cannot be updated"))
 	}
 
 	original := proto.CloneOf(entity)
@@ -865,7 +881,7 @@ func (srv *backendConfigServer) getEntity(
 
 	record, err := srv.getRecordFromBackend(ctx, recordType, recordTypeName, entity.GetId())
 	if storage.IsNotFound(err) {
-		record, err = srv.getRecordFromConfig(ctx, recordType, recordTypeName, entity.GetId())
+		record, err = srv.getRecordFromLocal(ctx, recordType, recordTypeName, entity.GetId())
 	}
 	if err != nil {
 		return nil, err
@@ -898,14 +914,14 @@ func (srv *backendConfigServer) getRecordFromBackend(
 	return record, nil
 }
 
-func (srv *backendConfigServer) getRecordFromConfig(
+func (srv *backendConfigServer) getRecordFromLocal(
 	_ context.Context,
 	recordType, recordTypeName, recordID string,
 ) (*databrokerpb.Record, error) {
-	srv.configMu.Lock()
-	defer srv.configMu.Unlock()
+	srv.localMu.Lock()
+	defer srv.localMu.Unlock()
 
-	c, ok := srv.configRecords[recordType]
+	c, ok := srv.localRecords[recordType]
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found (id=%s)", recordTypeName, recordID))
 	}
@@ -942,7 +958,7 @@ func (srv *backendConfigServer) listRecords[T any, TMsg interface {
 	}
 	records = append(records, backendRecords...)
 
-	configRecords, err := srv.listAllRecordsFromConfig(ctx, recordType, expr)
+	configRecords, err := srv.listAllRecordsFromLocal(ctx, recordType, expr)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1001,15 +1017,15 @@ func (srv *backendConfigServer) listAllRecordsFromBackend(
 	return records, nil
 }
 
-func (srv *backendConfigServer) listAllRecordsFromConfig(
+func (srv *backendConfigServer) listAllRecordsFromLocal(
 	_ context.Context,
 	recordType string,
 	expr storage.FilterExpression,
 ) ([]*databrokerpb.Record, error) {
-	srv.configMu.Lock()
-	defer srv.configMu.Unlock()
+	srv.localMu.Lock()
+	defer srv.localMu.Unlock()
 
-	c, ok := srv.configRecords[recordType]
+	c, ok := srv.localRecords[recordType]
 	if !ok {
 		return nil, nil
 	}
@@ -1050,35 +1066,35 @@ func (srv *backendConfigServer) putEntity(
 	return records[0], nil
 }
 
-func (srv *backendConfigServer) updateConfig(cfg *configpb.Config) {
-	srv.configMu.Lock()
-	defer srv.configMu.Unlock()
+func (srv *backendConfigServer) updateLocalRecords(cfg *configpb.Config) {
+	srv.localMu.Lock()
+	defer srv.localMu.Unlock()
 
-	srv.configRecords = map[string]storage.RecordCollection{}
+	srv.localRecords = map[string]storage.RecordCollection{}
 
 	// add settings
 	c := storage.NewRecordCollection()
 	recordType := grpcutil.GetTypeURL(new(configpb.Settings))
-	srv.configRecords[recordType] = c
+	srv.localRecords[recordType] = c
 	settings := proto.CloneOf(cfg.GetSettings())
 	if settings != nil && !proto.Equal(settings, new(configpb.Settings)) {
-		settings.Id = new("local-settings")
+		settings.Id = new(LocalRecordIDPrefix + "settings")
 		settings.OriginatorId = new("local")
 		c.Put(&databrokerpb.Record{
 			Id:   settings.GetId(),
 			Type: recordType,
-			Data: protoutil.NewAny(cfg.Settings),
+			Data: protoutil.NewAny(settings),
 		})
 	}
 
 	// add routes
 	c = storage.NewRecordCollection()
 	recordType = grpcutil.GetTypeURL(new(configpb.Route))
-	srv.configRecords[recordType] = c
+	srv.localRecords[recordType] = c
 	for i, route := range cfg.GetRoutes() {
 		route = proto.CloneOf(route)
 		if route != nil && !proto.Equal(route, new(configpb.Route)) {
-			route.Id = new(fmt.Sprintf("local-route-%d", i))
+			route.Id = new(fmt.Sprintf(LocalRecordIDPrefix+"route/%d", i))
 			route.OriginatorId = new("local")
 			c.Put(&databrokerpb.Record{
 				Id:   route.GetId(),

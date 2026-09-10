@@ -531,8 +531,6 @@ message Route {
       read_only: true,
     }
   ];
-  // Whether or not the route can be edited.
-  optional bool readonly = 96;
 }
 
 // Configuration for an upstream tunnel. Applies to routes whose upstream is
@@ -1151,8 +1149,6 @@ message Settings {
       read_only: true,
     }
   ];
-  // Whether or not the settings can be edited.
-  optional bool readonly = 189;
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses

@@ -326,10 +326,8 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 	sh.runOnce = true
 	state := &StreamState{
 		RemainingUnauthenticatedMethods: []string{MethodPublicKey},
-		StreamAuthInfo: StreamAuthInfo{
-			StreamID:      sh.downstream.StreamId,
-			SourceAddress: sh.downstream.SourceAddress.GetSocketAddress().GetAddress(),
-		},
+		StreamID:                        sh.downstream.StreamId,
+		SourceAddress:                   sh.downstream.SourceAddress.GetSocketAddress().GetAddress(),
 	}
 	cancelReauth := sh.periodicReauth()
 	defer cancelReauth()

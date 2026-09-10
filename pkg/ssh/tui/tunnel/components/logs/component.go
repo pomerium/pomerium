@@ -23,13 +23,11 @@ func (c *ComponentFactory) NewWidget(component components.Component) core.Widget
 		Styles: style.Bind(c.config.Styles, func(base *Styles, _ style.NewStyleFunc) logviewer.Styles {
 			return base.Styles
 		}),
-		Options: logviewer.Options{
-			KeyMap:           logviewer.DefaultKeyMap,
-			BorderTitleLeft:  c.config.Title,
-			BorderTitleRight: fmt.Sprintf("[%s]", component.Mnemonic()),
-			ShowTimestamp:    true,
-			BufferSize:       c.config.Scrollback,
-		},
+		KeyMap:           logviewer.DefaultKeyMap,
+		BorderTitleLeft:  c.config.Title,
+		BorderTitleRight: fmt.Sprintf("[%s]", component.Mnemonic()),
+		ShowTimestamp:    true,
+		BufferSize:       c.config.Scrollback,
 	}))
 }
 

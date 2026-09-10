@@ -62,7 +62,7 @@ func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api 
 
 	svc := &Source{
 		api:            api,
-		source:         source{ready: make(chan struct{})},
+		ready:          make(chan struct{}),
 		fileCachePath:  fileCachePath,
 		fileCipher:     cipher,
 		checkForUpdate: make(chan struct{}, 1),

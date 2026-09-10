@@ -327,11 +327,9 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("http1", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config.New(&config.Options{
-			GlobalOptions: config.GlobalOptions{
-				CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP1),
-			},
-			Cert: aExampleComCert,
-			Key:  aExampleComKey,
+			CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP1),
+			Cert:      aExampleComCert,
+			Key:       aExampleComKey,
 		}), nil)
 		require.NoError(t, err)
 
@@ -355,11 +353,9 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("http2", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config.New(&config.Options{
-			GlobalOptions: config.GlobalOptions{
-				CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP2),
-			},
-			Cert: aExampleComCert,
-			Key:  aExampleComKey,
+			CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP2),
+			Cert:      aExampleComCert,
+			Key:       aExampleComKey,
 		}), nil)
 		require.NoError(t, err)
 

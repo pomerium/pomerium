@@ -281,9 +281,7 @@ func TestGetIncomingBearerToken(t *testing.T) {
 			var route *Policy
 			if tc.routeFormat != nil {
 				route = &Policy{
-					RouteOptions: RouteOptions{
-						BearerTokenFormat: nullable.FromPtr(tc.routeFormat),
-					},
+					BearerTokenFormat: nullable.FromPtr(tc.routeFormat),
 				}
 			}
 
@@ -528,9 +526,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		}
 
 		route := &Policy{
-			RouteOptions: RouteOptions{
-				BearerTokenFormat: nullable.From(config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT),
-			},
+			BearerTokenFormat: nullable.From(config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT),
 			IdentityProviders: []string{"prod"},
 		}
 
@@ -825,7 +821,7 @@ func TestCreateSessionForJWT_RouteProviderScoping(t *testing.T) {
 	}
 	jwtRoute := func(providers ...string) *Policy {
 		return &Policy{
-			RouteOptions:      RouteOptions{BearerTokenFormat: nullable.From(config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT)},
+			BearerTokenFormat: nullable.From(config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT),
 			IdentityProviders: providers,
 		}
 	}

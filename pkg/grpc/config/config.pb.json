@@ -5033,18 +5033,6 @@
               "isoneof": true,
               "oneofdecl": "_namespace_name",
               "defaultValue": ""
-            },
-            {
-              "name": "readonly",
-              "description": "Whether or not the route can be edited.",
-              "label": "optional",
-              "type": "bool",
-              "longType": "bool",
-              "fullType": "bool",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_readonly",
-              "defaultValue": ""
             }
           ]
         },
@@ -7376,18 +7364,6 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
-              "name": "readonly",
-              "description": "Whether or not the settings can be edited.",
-              "label": "optional",
-              "type": "bool",
-              "longType": "bool",
-              "fullType": "bool",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_readonly",
               "defaultValue": ""
             }
           ]

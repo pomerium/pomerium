@@ -2030,10 +2030,6 @@ func (m *Route) validate(all bool) error {
 		// no validation rules for NamespaceName
 	}
 
-	if m.Readonly != nil {
-		// no validation rules for Readonly
-	}
-
 	if len(errors) > 0 {
 		return RouteMultiError(errors)
 	}
@@ -4787,10 +4783,6 @@ func (m *Settings) validate(all bool) error {
 
 	if m.HeadersWithUnderscoresAction != nil {
 		// no validation rules for HeadersWithUnderscoresAction
-	}
-
-	if m.Readonly != nil {
-		// no validation rules for Readonly
 	}
 
 	if len(errors) > 0 {

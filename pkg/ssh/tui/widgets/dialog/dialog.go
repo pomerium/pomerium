@@ -81,11 +81,9 @@ func (m *Model) Reset(options Options) {
 					Focused: base.SelectedButton,
 				}
 			}),
-			Options: label.Options{
-				Text:   bc.Label,
-				HAlign: lipgloss.Center,
-				VAlign: lipgloss.Center,
-			},
+			Text:   bc.Label,
+			HAlign: lipgloss.Center,
+			VAlign: lipgloss.Center,
 		}))
 		buttonCells = append(buttonCells, layout.RowCell{
 			Title: bc.Label,

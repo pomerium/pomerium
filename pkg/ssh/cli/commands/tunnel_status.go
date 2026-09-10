@@ -46,192 +46,186 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 
 	cfg := tunnel.Config{
 		Styles: style.Reactive(tm, tunnel.NewStyles),
-		Options: tunnel.Options{
-			Header: tunnel.HeaderOptions{
-				LeftAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.Segment {
-					return []header.Segment{
-						{
-							Label:   "App Name",
-							Content: func(*models.Session) string { return tunnel.AppName },
-							Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
-								return header.SegmentStyles{
-									Base: newStyle().
-										BorderStyle(style.SingleLineRoundedBorder).
-										BorderLeft(true).
-										BorderRight(true).
-										Bold(true).
-										Background(base.HeaderSegments.Colors.BrandPrimary.Normal).
-										Foreground(base.HeaderSegments.Colors.BrandPrimary.ContrastingText).
-										BorderForeground(base.HeaderSegments.Colors.BrandPrimary.Normal),
-								}
-							}),
+		Header: tunnel.HeaderOptions{
+			LeftAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.Segment {
+				return []header.Segment{
+					{
+						Label:   "App Name",
+						Content: func(*models.Session) string { return tunnel.AppName },
+						Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
+							return header.SegmentStyles{
+								Base: newStyle().
+									BorderStyle(style.SingleLineRoundedBorder).
+									BorderLeft(true).
+									BorderRight(true).
+									Bold(true).
+									Background(base.HeaderSegments.Colors.BrandPrimary.Normal).
+									Foreground(base.HeaderSegments.Colors.BrandPrimary.ContrastingText).
+									BorderForeground(base.HeaderSegments.Colors.BrandPrimary.Normal),
+							}
+						}),
+					},
+				}
+			},
+			RightAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.Segment {
+				return []header.Segment{
+					{
+						Label: "Session ID",
+						Content: func(s *models.Session) string {
+							if s == nil {
+								return ""
+							}
+							return s.SessionID
 						},
-					}
-				},
-				RightAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.Segment {
-					return []header.Segment{
-						{
-							Label: "Session ID",
-							Content: func(s *models.Session) string {
-								if s == nil {
-									return ""
-								}
-								return s.SessionID
-							},
-							Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
-								return header.SegmentStyles{
-									Base: newStyle().Foreground(base.HeaderSegments.Colors.TextFaint1).PaddingLeft(1).PaddingRight(1),
-								}
-							}),
-							OnClick: func(session *models.Session, _ uv.Position) tea.Cmd {
-								return tea.Batch(
-									tea.SetClipboard(session.SessionID),
-									logviewer.AddLogs("Session ID copied to clipboard"),
-								)
-							},
+						Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
+							return header.SegmentStyles{
+								Base: newStyle().Foreground(base.HeaderSegments.Colors.TextFaint1).PaddingLeft(1).PaddingRight(1),
+							}
+						}),
+						OnClick: func(session *models.Session, _ uv.Position) tea.Cmd {
+							return tea.Batch(
+								tea.SetClipboard(session.SessionID),
+								logviewer.AddLogs("Session ID copied to clipboard"),
+							)
 						},
-						{
-							Label: "Client IP",
-							Content: func(s *models.Session) string {
-								if s == nil {
-									return ""
-								}
-								return s.ClientIP
-							},
-							Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
-								return header.SegmentStyles{
-									Base: newStyle().Foreground(base.HeaderSegments.Colors.TextFaint1).PaddingLeft(1).PaddingRight(1),
-								}
-							}),
+					},
+					{
+						Label: "Client IP",
+						Content: func(s *models.Session) string {
+							if s == nil {
+								return ""
+							}
+							return s.ClientIP
 						},
-						{
-							Label: "Email",
-							Content: func(s *models.Session) string {
-								if s == nil {
-									return ""
-								}
-								return s.EmailOrUserID()
-							},
-							OnClick: func(session *models.Session, globalPos uv.Position) tea.Cmd {
-								return menu.ShowMenu(menu.Options{
-									Anchor: globalPos,
-									Entries: []menu.Entry{
-										{
-											Label: "Disconnect",
-											OnSelected: func() tea.Cmd {
-												return tea.Quit
-											},
-										},
-										{
-											Label: "Log Out",
-											OnSelected: func() tea.Cmd {
-												return dialog.ShowDialog(dialog.Options{
-													Contents: core.NewWidget("", label.NewModel(label.Config{
-														Options: label.Options{
-															Text: fmt.Sprintf("Currently logged in as: %s",
-																lipgloss.NewStyle().Bold(true).Inline(true).Render(session.EmailOrUserID())),
-															HAlign: lipgloss.Center,
-														},
-														Styles: style.Bind(baseStyles, func(base *tunnel.Styles, _ style.NewStyleFunc) label.Styles {
-															return label.Styles{Normal: base.DialogText.Padding(0, 1, 1, 1)}
-														}).SetUpdateEnabled(false),
-													})),
-													Buttons: []dialog.ButtonConfig{
-														{
-															Label:   "Log Out",
-															Default: true,
-															OnClick: func() tea.Cmd {
-																return messages.ExitWithError(cli.ErrDeleteSessionOnExit)
-															},
-														},
-														{
-															Label:   "Cancel",
-															OnClick: dialog.Close,
-														},
-													},
-													ButtonsAlignment: lipgloss.Center,
-													ActionRequired:   true,
-												})
-											},
-										},
-										{
-											Label: "Show User Details",
-											OnSelected: func() tea.Cmd {
-												info := session.Format()
-												return dialog.ShowDialog(dialog.Options{
-													Contents: core.NewWidget("", label.NewModel(label.Config{
-														Options: label.Options{
-															Text:   info,
-															HAlign: lipgloss.Left,
-														},
-														Styles: style.Bind(baseStyles, func(base *tunnel.Styles, _ style.NewStyleFunc) label.Styles {
-															return label.Styles{Normal: base.DialogText.Padding(0, 1)}
-														}).SetUpdateEnabled(false),
-													})),
-													Buttons: []dialog.ButtonConfig{
-														{
-															Label:   "Close",
-															Default: true,
-															OnClick: dialog.Close,
-														},
-													},
-													ButtonsAlignment: lipgloss.Center,
-												})
-											},
+						Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
+							return header.SegmentStyles{
+								Base: newStyle().Foreground(base.HeaderSegments.Colors.TextFaint1).PaddingLeft(1).PaddingRight(1),
+							}
+						}),
+					},
+					{
+						Label: "Email",
+						Content: func(s *models.Session) string {
+							if s == nil {
+								return ""
+							}
+							return s.EmailOrUserID()
+						},
+						OnClick: func(session *models.Session, globalPos uv.Position) tea.Cmd {
+							return menu.ShowMenu(menu.Options{
+								Anchor: globalPos,
+								Entries: []menu.Entry{
+									{
+										Label: "Disconnect",
+										OnSelected: func() tea.Cmd {
+											return tea.Quit
 										},
 									},
-								})
-							},
-							Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
-								return header.SegmentStyles{
-									Base: newStyle().
-										BorderStyle(style.SingleLineRoundedBorder).
-										BorderLeft(true).
-										BorderRight(true).
-										Bold(true).
-										Background(base.HeaderSegments.Colors.BrandSecondary.Normal).
-										Foreground(base.HeaderSegments.Colors.BrandSecondary.ContrastingText).
-										BorderForeground(base.HeaderSegments.Colors.BrandSecondary.Normal),
-								}
-							}),
+									{
+										Label: "Log Out",
+										OnSelected: func() tea.Cmd {
+											return dialog.ShowDialog(dialog.Options{
+												Contents: core.NewWidget("", label.NewModel(label.Config{
+													Text: fmt.Sprintf("Currently logged in as: %s",
+														lipgloss.NewStyle().Bold(true).Inline(true).Render(session.EmailOrUserID())),
+													HAlign: lipgloss.Center,
+													Styles: style.Bind(baseStyles, func(base *tunnel.Styles, _ style.NewStyleFunc) label.Styles {
+														return label.Styles{Normal: base.DialogText.Padding(0, 1, 1, 1)}
+													}).SetUpdateEnabled(false),
+												})),
+												Buttons: []dialog.ButtonConfig{
+													{
+														Label:   "Log Out",
+														Default: true,
+														OnClick: func() tea.Cmd {
+															return messages.ExitWithError(cli.ErrDeleteSessionOnExit)
+														},
+													},
+													{
+														Label:   "Cancel",
+														OnClick: dialog.Close,
+													},
+												},
+												ButtonsAlignment: lipgloss.Center,
+												ActionRequired:   true,
+											})
+										},
+									},
+									{
+										Label: "Show User Details",
+										OnSelected: func() tea.Cmd {
+											info := session.Format()
+											return dialog.ShowDialog(dialog.Options{
+												Contents: core.NewWidget("", label.NewModel(label.Config{
+													Text:   info,
+													HAlign: lipgloss.Left,
+													Styles: style.Bind(baseStyles, func(base *tunnel.Styles, _ style.NewStyleFunc) label.Styles {
+														return label.Styles{Normal: base.DialogText.Padding(0, 1)}
+													}).SetUpdateEnabled(false),
+												})),
+												Buttons: []dialog.ButtonConfig{
+													{
+														Label:   "Close",
+														Default: true,
+														OnClick: dialog.Close,
+													},
+												},
+												ButtonsAlignment: lipgloss.Center,
+											})
+										},
+									},
+								},
+							})
 						},
-					}
-				},
+						Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
+							return header.SegmentStyles{
+								Base: newStyle().
+									BorderStyle(style.SingleLineRoundedBorder).
+									BorderLeft(true).
+									BorderRight(true).
+									Bold(true).
+									Background(base.HeaderSegments.Colors.BrandSecondary.Normal).
+									Foreground(base.HeaderSegments.Colors.BrandSecondary.ContrastingText).
+									BorderForeground(base.HeaderSegments.Colors.BrandSecondary.Normal),
+							}
+						}),
+					},
+				}
 			},
-			Components: []components.Component{
-				components.New().
-					RowHint(0).
-					Height(-2).
-					Mnemonic("1").
-					Type(channels.Type),
-				components.New().
-					RowHint(1).ColumnHint(0).
-					Height(-2).
-					Width(-1).
-					Mnemonic("2").
-					Type(permissions.Type),
-				components.New().
-					RowHint(1).ColumnHint(1).
-					Height(-2).
-					Width(-3).
-					Mnemonic("3").
-					Type(routes.Type),
-				components.New().
-					RowHint(2).
-					Height(-1).
-					Mnemonic("4").
-					Type(logs.Type),
-			},
-			FetchMotd: func(_ models.Session) *tunnel.MotdOptions {
-				// Example:
-				// return &tunnel.MotdOptions{
-				// 	Text:            "Important Server Message",
-				// 	StartupBehavior: tunnel.ShowOnceOnStart,
-				// }
-				return nil
-			},
-			ShowPerfInfo: false,
 		},
+		Components: []components.Component{
+			components.New().
+				RowHint(0).
+				Height(-2).
+				Mnemonic("1").
+				Type(channels.Type),
+			components.New().
+				RowHint(1).ColumnHint(0).
+				Height(-2).
+				Width(-1).
+				Mnemonic("2").
+				Type(permissions.Type),
+			components.New().
+				RowHint(1).ColumnHint(1).
+				Height(-2).
+				Width(-3).
+				Mnemonic("3").
+				Type(routes.Type),
+			components.New().
+				RowHint(2).
+				Height(-1).
+				Mnemonic("4").
+				Type(logs.Type),
+		},
+		FetchMotd: func(_ models.Session) *tunnel.MotdOptions {
+			// Example:
+			// return &tunnel.MotdOptions{
+			// 	Text:            "Important Server Message",
+			// 	StartupBehavior: tunnel.ShowOnceOnStart,
+			// }
+			return nil
+		},
+		ShowPerfInfo: false,
 	}
 
 	r := components.NewComponentFactoryRegistry()
@@ -239,10 +233,8 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 		channels.Type,
 		channels.NewComponentFactory(channels.Config{
 			Styles: style.Reactive(tm, channels.DefaultStyles),
-			Options: channels.Options{
-				Title:  "Active Connections",
-				KeyMap: table.DefaultKeyMap,
-			},
+			Title:  "Active Connections",
+			KeyMap: table.DefaultKeyMap,
 		}),
 	)
 
@@ -250,10 +242,8 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 		permissions.Type,
 		permissions.NewComponentFactory(permissions.Config{
 			Styles: style.Reactive(tm, permissions.DefaultStyles),
-			Options: permissions.Options{
-				Title:  "Client Requests",
-				KeyMap: table.DefaultKeyMap,
-			},
+			Title:  "Client Requests",
+			KeyMap: table.DefaultKeyMap,
 		}),
 	)
 
@@ -261,47 +251,45 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 		routes.Type,
 		routes.NewComponentFactory(routes.Config{
 			Styles: style.Reactive(tm, routes.DefaultStyles),
-			Options: routes.Options{
-				Title:  "Port Forward Status",
-				KeyMap: table.DefaultKeyMap,
-				RowContextOptions: func(model *routes.TableModel, row int) []menu.Entry {
-					item := model.GetItem(row)
-					entries := []menu.Entry{
-						{
-							Label: "Copy Remote URL",
-							OnSelected: func() tea.Cmd {
-								return tea.SetClipboard(item.From)
-							},
-							RequiresClipboardSupport: true,
+			Title:  "Port Forward Status",
+			KeyMap: table.DefaultKeyMap,
+			RowContextOptions: func(model *routes.TableModel, row int) []menu.Entry {
+				item := model.GetItem(row)
+				entries := []menu.Entry{
+					{
+						Label: "Copy Remote URL",
+						OnSelected: func() tea.Cmd {
+							return tea.SetClipboard(item.From)
 						},
-					}
-					if len(item.To) == 1 {
-						entries = append(entries, menu.Entry{
-							Label: "Edit Local Address",
-							OnSelected: func() tea.Cmd {
-								return model.Edit(row, routes.RoutesColLocal,
-									func(cellContents string, textinput *textinput.Model) func(string) {
-										textinput.CharLimit = 255
-										textinput.Prompt = ""
-										textinput.Placeholder = ""
-										textinput.SetValue(cellContents)
-										textinput.SetCursor(len(cellContents) + 1)
-										textinput.Validate = validateAddress
-										return func(text string) {
-											to, err := config.ParseWeightedURL(text)
-											if err == nil {
-												item.To = config.WeightedURLs{*to}
-												ctrl.RouteDataModel().EditRoute(item)
-											}
+						RequiresClipboardSupport: true,
+					},
+				}
+				if len(item.To) == 1 {
+					entries = append(entries, menu.Entry{
+						Label: "Edit Local Address",
+						OnSelected: func() tea.Cmd {
+							return model.Edit(row, routes.RoutesColLocal,
+								func(cellContents string, textinput *textinput.Model) func(string) {
+									textinput.CharLimit = 255
+									textinput.Prompt = ""
+									textinput.Placeholder = ""
+									textinput.SetValue(cellContents)
+									textinput.SetCursor(len(cellContents) + 1)
+									textinput.Validate = validateAddress
+									return func(text string) {
+										to, err := config.ParseWeightedURL(text)
+										if err == nil {
+											item.To = config.WeightedURLs{*to}
+											ctrl.RouteDataModel().EditRoute(item)
 										}
-									},
-								)
-							},
-						})
-					}
+									}
+								},
+							)
+						},
+					})
+				}
 
-					return entries
-				},
+				return entries
 			},
 		}),
 	)
@@ -309,12 +297,10 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 	r.RegisterFactory(
 		logs.Type,
 		logs.NewComponentFactory(logs.Config{
-			Styles: style.Reactive(tm, logs.DefaultStyles),
-			Options: logs.Options{
-				Title:      "Logs",
-				KeyMap:     logviewer.DefaultKeyMap,
-				Scrollback: 256,
-			},
+			Styles:     style.Reactive(tm, logs.DefaultStyles),
+			Title:      "Logs",
+			KeyMap:     logviewer.DefaultKeyMap,
+			Scrollback: 256,
 		}),
 	)
 

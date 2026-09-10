@@ -215,9 +215,7 @@ var (
 // HTTP creates a new HTTP upstream server.
 func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPUpstream {
 	options := HTTPUpstreamOptions{
-		CommonUpstreamOptions: CommonUpstreamOptions{
-			displayName: "HTTP Upstream",
-		},
+		displayName: "HTTP Upstream",
 	}
 	for _, op := range opts {
 		op.applyHTTP(&options)

@@ -61,7 +61,7 @@ func NewBackendServer(tracerProvider oteltrace.TracerProvider) Server {
 	srv.backendConfigServer = &backendConfigServer{
 		backendServer: srv,
 	}
-	srv.backendConfigServer.updateConfig(new(configpb.Config))
+	srv.backendConfigServer.updateLocalRecords(new(configpb.Config))
 
 	srv.stopCtx, srv.stop = context.WithCancelCause(context.Background())
 	srv.stopWG.Go(func() {
@@ -666,7 +666,7 @@ func (srv *backendServer) Stop() {
 }
 
 func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	srv.updateConfig(cfg.Options.ToProto())
+	srv.updateLocalRecords(cfg.Options.ToProto())
 
 	srv.mu.Lock()
 	defer srv.mu.Unlock()

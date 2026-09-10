@@ -43,9 +43,7 @@ func Test_requireProxyProtocol(t *testing.T) {
 	})
 	t.Run("disabled for quic", func(t *testing.T) {
 		li, err := b.buildMainListener(t.Context(), config.New(&config.Options{
-			GlobalOptions: config.GlobalOptions{
-				CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP3),
-			},
+			CodecType:        nullable.From(configpb.CodecType_CODEC_TYPE_HTTP3),
 			SharedKey:        cryptutil.NewBase64Key(),
 			UseProxyProtocol: true,
 		}), false, true)
