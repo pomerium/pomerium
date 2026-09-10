@@ -9,7 +9,9 @@ import (
 	"iter"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -34,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -1400,5 +1403,528 @@ func TestClear(t *testing.T, backend storage.Backend) {
 func truncateTimestamps(ts ...*timestamppb.Timestamp) {
 	for _, t := range ts {
 		t.Nanos = (t.Nanos / 1000) * 1000
+	}
+}
+
+const transactionTestTimeout = 10 * time.Second
+
+func TestTransaction(t *testing.T, backendFactory func(t *testing.T) storage.Backend) {
+	t.Parallel()
+	t.Run("transactions", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+
+		r1 := newTestRecord(t, "r1", map[string]any{"name": "alice"})
+		r2 := newTestRecord(t, "r2", map[string]any{"name": "bob"})
+
+		changed, shared, err := backend.DoTransaction(t.Context(), "k", func(tx storage.Transaction) error {
+			res, err := tx.Submit(putRequest(r1, r2))
+			require.NoError(t, err)
+			assert.Equal(t, "put", res.GetKey())
+			assert.Len(t, res.GetPut().GetRecords(), 2)
+			assert.NotZero(t, res.GetPut().GetServerVersion())
+
+			res, err = tx.Submit(getRequest("r1"))
+			require.NoError(t, err)
+			assert.Equal(t, "get", res.GetKey())
+			assert.Equal(t, "r1", res.GetGet().GetRecord().GetId())
+
+			res, err = tx.Submit(patchRequest(
+				&fieldmaskpb.FieldMask{Paths: []string{"fields"}},
+				newTestRecord(t, "r2", map[string]any{"name": "carol"}),
+			))
+			require.NoError(t, err)
+			assert.Equal(t, "patch", res.GetKey())
+			assert.Len(t, res.GetPatch().GetRecords(), 1)
+
+			res, err = tx.Submit(queryRequest(""))
+			require.NoError(t, err)
+			assert.Equal(t, "query", res.GetKey())
+			assert.ElementsMatch(t, []string{"r1", "r2"}, recordIDs(res.GetQuery().GetRecords()))
+			assert.Equal(t, int64(2), res.GetQuery().GetTotalCount())
+
+			res, err = tx.Submit(queryRequest("carol"))
+			require.NoError(t, err)
+			assert.Equal(t, []string{"r2"}, recordIDs(res.GetQuery().GetRecords()))
+
+			return nil
+		})
+		require.NoError(t, err)
+		require.False(t, shared)
+		assert.Equal(t, []string{"r1", "r2", "r2"}, recordIDs(changed))
+		assertChangedPersisted(t, backend, changed)
+		record, err := backend.Get(t.Context(), "example", "r2")
+		require.NoError(t, err)
+		assert.Contains(t, record.GetData().String(), "carol")
+	})
+
+	t.Run("unsupported operation", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+
+		_, _, err := backend.DoTransaction(t.Context(), "k", func(tx storage.Transaction) error {
+			_, err := tx.Submit(&databroker.TransactionRequest{Key: "bad"})
+			return err
+		})
+		assert.Error(t, err)
+	})
+
+	t.Run("atomic", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+
+		errRollback := errors.New("rollback")
+		changed, shared, err := backend.DoTransaction(t.Context(), "k", func(tx storage.Transaction) error {
+			_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
+			require.NoError(t, err)
+			_, err = tx.Submit(putRequest(newTestRecord(t, "r2", nil)))
+			require.NoError(t, err)
+			return errRollback
+		})
+		assert.ErrorIs(t, err, errRollback)
+		assert.Empty(t, changed)
+		assert.False(t, shared)
+
+		for _, id := range []string{"r1", "r2"} {
+			_, err := backend.Get(t.Context(), "example", id)
+			assert.ErrorIs(t, err, storage.ErrNotFound)
+		}
+	})
+
+	t.Run("read your writes", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+
+		submitted := make(chan struct{})
+		checked := make(chan struct{})
+		go func() {
+			defer close(checked)
+			<-submitted
+			_, err := backend.Get(context.Background(), "example", "r1")
+			assert.ErrorIs(t, err, storage.ErrNotFound)
+		}()
+
+		changed, _, err := backend.DoTransaction(t.Context(), "k", func(tx storage.Transaction) error {
+			_, err := tx.Submit(putRequest(newTestRecord(t, "r1", map[string]any{"name": "alice"})))
+			require.NoError(t, err)
+
+			close(submitted)
+			requireReceive(t, checked, "concurrent Get did not complete")
+
+			res, err := tx.Submit(getRequest("r1"))
+			require.NoError(t, err)
+			assert.Equal(t, "r1", res.GetGet().GetRecord().GetId())
+			return nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"r1"}, recordIDs(changed))
+		assertChangedPersisted(t, backend, changed)
+	})
+
+	// do not holdup other backup operations across an open transaction
+	t.Run("backend not blocked during callback", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+
+		parked := make(chan struct{})
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			<-parked
+			_, err := backend.Put(context.Background(), []*databroker.Record{newTestRecord(t, "other", nil)})
+			assert.NoError(t, err)
+		}()
+
+		_, _, err := backend.DoTransaction(t.Context(), "k", func(tx storage.Transaction) error {
+			_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
+			require.NoError(t, err)
+			close(parked)
+			requireReceive(t, done, "backend.Put blocked while a transaction callback was running")
+			return nil
+		})
+		require.NoError(t, err)
+	})
+
+	// the singleflight tests run in a synctest bubble: synctest.Wait returns
+	// once every other goroutine is durably blocked, and with the owner parked
+	// on release the waiters can only be parked inside the flight. This
+	// requires a backend that blocks on in-process primitives only.
+	t.Run("singleflight dedup", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			backend := backendFactory(t)
+
+			const waiters = 7
+			var callbacks atomic.Int64
+			release := make(chan struct{})
+
+			var wg sync.WaitGroup
+			results := make([]flightResult, waiters+1)
+			wg.Go(func() {
+				results[0].changed, results[0].shared, results[0].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+					callbacks.Add(1)
+					<-release
+					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
+					return err
+				})
+			})
+
+			synctest.Wait()
+
+			for i := 1; i <= waiters; i++ {
+				wg.Go(func() {
+					results[i].changed, results[i].shared, results[i].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+						callbacks.Add(1)
+						_, err := tx.Submit(putRequest(newTestRecord(t, fmt.Sprintf("w%d", i), nil)))
+						return err
+					})
+				})
+			}
+
+			synctest.Wait()
+			close(release)
+			wg.Wait()
+
+			assert.Equal(t, int64(1), callbacks.Load(),
+				"a deduped callback ran, or an owned one did not")
+
+			allChanged := slices.Map(results, func(r flightResult) []*databroker.Record {
+				return r.changed
+			})
+			assertEveryRecordSetEqual(t, allChanged...)
+
+			for i, r := range results {
+				assert.NoError(t, r.err)
+				assertChangedPersisted(t, backend, r.changed)
+
+				own := "r1"
+				if i > 0 {
+					own = fmt.Sprintf("w%d", i)
+				}
+				_, err := backend.Get(t.Context(), "example", own)
+				if r.shared {
+					assert.NotContains(t, recordIDs(r.changed), own)
+					assert.ErrorIs(t, err, storage.ErrNotFound)
+				} else {
+					assert.Equal(t, []string{own}, recordIDs(r.changed))
+					assert.NoError(t, err)
+				}
+			}
+		})
+	})
+
+	t.Run("error sharing", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			backend := backendFactory(t)
+
+			const waiters = 3
+			errFail := errors.New("fail")
+			var callbacks atomic.Int64
+			release := make(chan struct{})
+
+			var wg sync.WaitGroup
+			results := make([]flightResult, waiters+1)
+			wg.Go(func() {
+				results[0].changed, results[0].shared, results[0].err = backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+					callbacks.Add(1)
+					<-release
+					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
+					require.NoError(t, err)
+					return errFail
+				})
+			})
+
+			synctest.Wait()
+
+			for i := 1; i <= waiters; i++ {
+				wg.Go(func() {
+					results[i].changed, results[i].shared, results[i].err = backend.DoTransaction(context.Background(), "k", func(_ storage.Transaction) error {
+						callbacks.Add(1)
+						return errFail
+					})
+				})
+			}
+
+			synctest.Wait()
+			close(release)
+			wg.Wait()
+
+			assert.Equal(t, int64(1), callbacks.Load(), "a deduped callback ran")
+			for _, r := range results {
+				assert.ErrorIs(t, r.err, errFail)
+				assert.Empty(t, r.changed, "a rolled back transaction reported changed records")
+			}
+			_, err := backend.Get(t.Context(), "example", "r1")
+			assert.ErrorIs(t, err, storage.ErrNotFound)
+		})
+	})
+
+	t.Run("distinct keys run concurrently", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+
+		inA := make(chan struct{})
+		inB := make(chan struct{})
+
+		var wg sync.WaitGroup
+		wg.Go(func() {
+			assert.NoError(t, txErr(backend.DoTransaction(context.Background(), "a", func(_ storage.Transaction) error {
+				close(inA)
+				requireReceive(t, inB, "transaction b did not start concurrently")
+				return nil
+			})))
+		})
+		wg.Go(func() {
+			assert.NoError(t, txErr(backend.DoTransaction(context.Background(), "b", func(_ storage.Transaction) error {
+				close(inB)
+				requireReceive(t, inA, "transaction a did not start concurrently")
+				return nil
+			})))
+		})
+		wg.Wait()
+	})
+
+	t.Run("sequential calls are not deduped", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+
+		changed, _, err := backend.DoTransaction(t.Context(), "k", func(tx storage.Transaction) error {
+			_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
+			return err
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"r1"}, recordIDs(changed))
+		assertChangedPersisted(t, backend, changed)
+
+		var ran bool
+		require.NoError(t, txErr(backend.DoTransaction(t.Context(), "k", func(tx storage.Transaction) error {
+			ran = true
+			res, err := tx.Submit(getRequest("r1"))
+			require.NoError(t, err)
+			assert.Equal(t, "r1", res.GetGet().GetRecord().GetId())
+			return nil
+		})))
+		assert.True(t, ran)
+	})
+
+	t.Run("empty callback", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+
+		assert.NoError(t, txErr(backend.DoTransaction(t.Context(), "k", func(_ storage.Transaction) error {
+			return nil
+		})))
+	})
+	t.Run("backend close errors transaction", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+
+		parked := make(chan struct{})
+		release := make(chan struct{})
+		go func() {
+			assert.Error(t, txErr(backend.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+				close(parked)
+				<-release
+				_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
+				return err
+			})))
+		}()
+		requireReceive(t, parked, "transaction did not start")
+		assert.NoError(t, backend.Close())
+		_, err := backend.Get(t.Context(), "foo", "foo")
+		assert.Error(t, err)
+		close(release)
+	})
+
+	t.Run("transaction after close", func(t *testing.T) {
+		t.Parallel()
+		backend := backendFactory(t)
+		require.NoError(t, backend.Close())
+
+		_, _, err := backend.DoTransaction(t.Context(), "k", func(_ storage.Transaction) error {
+			return nil
+		})
+		assert.Error(t, err)
+	})
+}
+
+// TestTransactionsClustered tests
+func TestTransactionsClustered(t *testing.T, clusterFactory func(t *testing.T) (leader storage.Backend, followers []storage.Backend)) {
+	t.Parallel()
+	t.Run("singleflight dedup", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			leader, followers := clusterFactory(t)
+			require.NotEqual(t, 0, len(followers), "clustered transaction tests require followers")
+
+			var entered, callbacks atomic.Int64
+			started := make(chan struct{})
+			release := make(chan struct{})
+
+			var wg sync.WaitGroup
+			results := make([]flightResult, len(followers)+1)
+			wg.Go(func() {
+				results[0].changed, results[0].shared, results[0].err = leader.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+					callbacks.Add(1)
+					close(started)
+					<-release
+					// FIXME: I'm not sure there is a way to ensure followers have joined at this point,
+					// other than implementing a field to read directly in the respective backends.
+					time.Sleep(time.Second)
+					_, err := tx.Submit(putRequest(newTestRecord(t, "r1", nil)))
+					return err
+				})
+			})
+
+			requireReceive(t, started, "first transaction did not start")
+			for i, follower := range followers {
+				wg.Go(func() {
+					entered.Add(1)
+					results[i+1].changed, results[i+1].shared, results[i+1].err = follower.DoTransaction(context.Background(), "k", func(tx storage.Transaction) error {
+						callbacks.Add(1)
+						_, err := tx.Submit(putRequest(newTestRecord(t, fmt.Sprintf("w%d", i), nil)))
+						return err
+					})
+				})
+			}
+
+			synctest.Wait()
+			close(release)
+			wg.Wait()
+
+			assert.Equal(t, 1, callbacks.Load(),
+				"a deduped callback ran, or an owned one did not")
+
+			allChanged := slices.Map(results, func(r flightResult) []*databroker.Record {
+				return r.changed
+			})
+
+			assertEveryRecordSetEqual(t, allChanged...)
+
+			for i, r := range results {
+				assert.NoError(t, r.err)
+				assertChangedPersisted(t, leader, r.changed)
+
+				own := "r1"
+				if i > 0 {
+					own = fmt.Sprintf("w%d", i)
+				}
+				_, err := leader.Get(t.Context(), "example", own)
+				if r.shared {
+					assert.NotContains(t, recordIDs(r.changed), own)
+					assert.ErrorIs(t, err, storage.ErrNotFound)
+				} else {
+					assert.Equal(t, []string{own}, recordIDs(r.changed))
+					assert.NoError(t, err)
+				}
+			}
+		})
+	})
+}
+
+func newTestRecord(t *testing.T, id string, fields map[string]any) *databroker.Record {
+	t.Helper()
+	s, err := structpb.NewStruct(fields)
+	require.NoError(t, err)
+	return &databroker.Record{Type: "example", Id: id, Data: protoutil.NewAny(s)}
+}
+
+// assertChangedPersisted checks that the last change reported for each record is
+// what the backend now returns. Earlier entries for a record are superseded by a
+// later operation in the same transaction, so only the last one can still match.
+func assertChangedPersisted(t *testing.T, backend storage.Backend, changed []*databroker.Record) {
+	t.Helper()
+	latest := map[string]*databroker.Record{}
+	for _, record := range changed {
+		latest[record.GetType()+"/"+record.GetId()] = record
+	}
+	for _, want := range latest {
+		got, err := backend.Get(context.Background(), want.GetType(), want.GetId())
+		if !assert.NoError(t, err) {
+			continue
+		}
+		testutil.AssertProtoEqual(t, maskModifiedAt(want), maskModifiedAt(got))
+	}
+}
+
+func maskModifiedAt(record *databroker.Record) *databroker.Record {
+	masked := proto.CloneOf(record)
+	masked.ModifiedAt = nil
+	return masked
+}
+
+func requireReceive[T any](t *testing.T, ch <-chan T, msg string) T {
+	t.Helper()
+	select {
+	case v := <-ch:
+		return v
+	case <-time.After(transactionTestTimeout):
+		require.FailNow(t, "timed out", msg)
+		var zero T
+		return zero
+	}
+}
+
+type flightResult struct {
+	changed []*databroker.Record
+	shared  bool
+	err     error
+}
+
+func txErr(_ []*databroker.Record, _ bool, err error) error {
+	return err
+}
+
+func putRequest(records ...*databroker.Record) *databroker.TransactionRequest {
+	return &databroker.TransactionRequest{
+		Key:       "put",
+		Operation: &databroker.TransactionRequest_Put{Put: &databroker.PutRequest{Records: records}},
+	}
+}
+
+func getRequest(id string) *databroker.TransactionRequest {
+	return &databroker.TransactionRequest{
+		Key:       "get",
+		Operation: &databroker.TransactionRequest_Get{Get: &databroker.GetRequest{Type: "example", Id: id}},
+	}
+}
+
+func patchRequest(fields *fieldmaskpb.FieldMask, records ...*databroker.Record) *databroker.TransactionRequest {
+	return &databroker.TransactionRequest{
+		Key: "patch",
+		Operation: &databroker.TransactionRequest_Patch{Patch: &databroker.PatchRequest{
+			Records:   records,
+			FieldMask: fields,
+		}},
+	}
+}
+
+func queryRequest(query string) *databroker.TransactionRequest {
+	return &databroker.TransactionRequest{
+		Key: "query",
+		Operation: &databroker.TransactionRequest_Query{Query: &databroker.QueryRequest{
+			Type:  "example",
+			Query: query,
+			Limit: 100,
+		}},
+	}
+}
+
+func recordIDs(records []*databroker.Record) []string {
+	ids := make([]string, 0, len(records))
+	for _, record := range records {
+		ids = append(ids, record.GetId())
+	}
+	return ids
+}
+
+func assertEveryRecordSetEqual(t *testing.T, recordSets ...[]*databroker.Record) {
+	t.Helper()
+	require.Greater(t, len(recordSets), 1, "more than one record set needs to be compared for equality")
+
+	expected := recordSets[0]
+	for _, actual := range recordSets[1:] {
+		assert.Empty(t, cmp.Diff(expected, actual, protocmp.Transform()))
 	}
 }

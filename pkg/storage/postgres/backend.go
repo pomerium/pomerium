@@ -404,6 +404,12 @@ func (backend *Backend) SyncLatest(
 	return serverVersion, recordVersion, backend.iterateLatestRecords(ctx, expr), nil
 }
 
+func (backend *Backend) DoTransaction(
+	context.Context, string, func(tx storage.Transaction) error,
+) (changed []*databroker.Record, shared bool, err error) {
+	panic("implement me")
+}
+
 // Versions returns the versions of the storage backend.
 func (backend *Backend) Versions(ctx context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
 	serverVersion, pool, err := backend.init(ctx)
