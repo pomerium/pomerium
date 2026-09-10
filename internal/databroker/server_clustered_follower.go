@@ -395,6 +395,12 @@ func (srv *clusteredFollowerServer) UpdateSettings(ctx context.Context, req *con
 	})
 }
 
+func (srv *clusteredFollowerServer) Transaction(stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse]) error {
+	return srv.invokeReadWrite(stream.Context(), func(handler Server) error {
+		return handler.Transaction(stream)
+	})
+}
+
 func (srv *clusteredFollowerServer) Stop() {
 	srv.cancel(errClusteredFollowerServerStopped)
 	<-srv.done

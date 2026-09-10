@@ -323,6 +323,26 @@ func (mr *MockDataBrokerServiceClientMockRecorder) SyncLatest(ctx, in any, opts 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncLatest", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).SyncLatest), varargs...)
 }
 
+// Transaction mocks base method.
+func (m *MockDataBrokerServiceClient) Transaction(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[databroker.TransactionStreamRequest, databroker.TransactionStreamResponse], error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Transaction", varargs...)
+	ret0, _ := ret[0].(grpc.BidiStreamingClient[databroker.TransactionStreamRequest, databroker.TransactionStreamResponse])
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Transaction indicates an expected call of Transaction.
+func (mr *MockDataBrokerServiceClientMockRecorder) Transaction(ctx any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transaction", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).Transaction), varargs...)
+}
+
 // MockDataBrokerServiceServer is a mock of DataBrokerServiceServer interface.
 type MockDataBrokerServiceServer struct {
 	ctrl     *gomock.Controller
@@ -553,6 +573,20 @@ func (m *MockDataBrokerServiceServer) SyncLatest(arg0 *databroker.SyncLatestRequ
 func (mr *MockDataBrokerServiceServerMockRecorder) SyncLatest(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncLatest", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).SyncLatest), arg0, arg1)
+}
+
+// Transaction mocks base method.
+func (m *MockDataBrokerServiceServer) Transaction(arg0 grpc.BidiStreamingServer[databroker.TransactionStreamRequest, databroker.TransactionStreamResponse]) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Transaction", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Transaction indicates an expected call of Transaction.
+func (mr *MockDataBrokerServiceServerMockRecorder) Transaction(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transaction", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).Transaction), arg0)
 }
 
 // MockUnsafeDataBrokerServiceServer is a mock of UnsafeDataBrokerServiceServer interface.

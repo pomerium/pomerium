@@ -202,5 +202,9 @@ func (srv *erroringServer) UpdateSettings(_ context.Context, _ *connect.Request[
 	return nil, srv.err
 }
 
+func (srv *erroringServer) Transaction(_ grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse]) error {
+	return srv.err
+}
+
 func (srv *erroringServer) Stop()                                              {}
 func (srv *erroringServer) OnConfigChange(_ context.Context, _ *config.Config) {}

@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -661,6 +662,31 @@ func (srv *backendServer) syncOptionsByType(ctx context.Context, typeURL string,
 func (srv *backendServer) Stop() {
 	srv.stop(context.Canceled)
 	srv.stopWG.Wait()
+
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+	srv.closeBackendLocked(srv.stopCtx)
+}
+
+func (srv *backendServer) closeBackendLocked(ctx context.Context) {
+	if srv.backend != nil {
+		err := srv.backend.Close()
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing backend")
+		}
+		srv.backend = nil
+
+		// clear the global cache
+		storage.GlobalCache.InvalidateAll()
+	}
+
+	if srv.registry != nil {
+		err := srv.registry.Close()
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing registry")
+		}
+		srv.registry = nil
+	}
 }
 
 func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
@@ -695,24 +721,7 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	srv.storageConnectionString = storageConnectionString
 	srv.sharedKey = sharedKey
 
-	if srv.backend != nil {
-		err := srv.backend.Close()
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing backend")
-		}
-		srv.backend = nil
-
-		// clear the global cache
-		storage.GlobalCache.InvalidateAll()
-	}
-
-	if srv.registry != nil {
-		err := srv.registry.Close()
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing registry")
-		}
-		srv.registry = nil
-	}
+	srv.closeBackendLocked(ctx)
 }
 
 func (srv *backendServer) getBackend(ctx context.Context) (backend storage.Backend, err error) {
@@ -868,4 +877,153 @@ func (srv *backendServer) buildRecordTTLs(backend storage.Backend) map[string]ti
 		}
 	}
 	return ttls
+}
+
+var transactionMaxDuration = 6 * time.Minute
+
+func (srv *backendServer) Transaction(stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse]) error {
+	ctx, span := srv.tracer.Start(stream.Context(), "databroker.grpc.Transaction")
+	defer span.End()
+
+	ctx, cancel := context.WithTimeout(ctx, transactionMaxDuration)
+	defer cancel()
+
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return err
+	}
+
+	recv := newTransactionReceiver(ctx, stream)
+	defer recv.stop()
+
+	begin, err := recv.next()
+	if err != nil {
+		return err
+	}
+	if begin.GetBegin() == nil {
+		return status.Error(codes.InvalidArgument, "the first message of a transaction must be begin")
+	}
+	txKey := begin.GetBegin().GetKey()
+
+	changed, shared, err := db.DoTransaction(ctx, begin.GetBegin().GetKey(), func(tx storage.Transaction) error {
+		// the ack tells the client it owns the transaction, so it knows to submit
+		err := stream.Send(&databrokerpb.TransactionStreamResponse{
+			Sequence: begin.GetSequence(),
+			Message: &databrokerpb.TransactionStreamResponse_Begin{
+				Begin: &databrokerpb.BeginTransactionResponse{
+					Key: txKey,
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+
+		for {
+			req, err := recv.next()
+			if err != nil {
+				return err
+			}
+			switch {
+			case req.GetCommit() != nil:
+				if req.GetCommit().GetKey() != txKey {
+					return status.Errorf(codes.FailedPrecondition,
+						"transaction submitted a commit for unexpected key : %s, expected : %s", req.GetCommit().GetKey(), txKey)
+				}
+				return nil
+			case req.GetOperation() != nil:
+				if req.GetOperation().GetKey() != txKey {
+					return status.Errorf(codes.FailedPrecondition,
+						"transaction submitted an operation for unexpected key : %s, expected : %s", req.GetOperation().GetKey(), txKey)
+				}
+				res, err := tx.Submit(req.GetOperation())
+				if err := stream.Send(
+					constructStreamResponse(req.GetSequence(), res, err),
+				); err != nil {
+					return err
+				}
+			default:
+				return status.Error(codes.InvalidArgument, "expected an operation or commit message")
+			}
+		}
+	})
+	if err != nil {
+		return err
+	}
+
+	return stream.Send(&databrokerpb.TransactionStreamResponse{
+		Message: &databrokerpb.TransactionStreamResponse_Commit{
+			Commit: &databrokerpb.CommitTransactionResponse{Key: begin.GetBegin().GetKey(), Shared: shared, Records: changed},
+		},
+	})
+}
+
+func constructStreamResponse(sequence uint64, resp *databrokerpb.TransactionResponse, err error) *databrokerpb.TransactionStreamResponse {
+	operation := &databrokerpb.TransactionResponseWithError{Response: resp}
+	if err != nil {
+		st, _ := status.FromError(err)
+		operation.Response = nil
+		operation.Err = &databrokerpb.RPCStatus{
+			Code:    st.Proto().GetCode(),
+			Message: st.Proto().GetMessage(),
+		}
+	}
+	return &databrokerpb.TransactionStreamResponse{
+		Sequence: sequence,
+		Message:  &databrokerpb.TransactionStreamResponse_Operation{Operation: operation},
+	}
+}
+
+// transactionReceiver reads from the stream on a goroutine so an idle timeout can
+// interrupt a blocking Recv, which gRPC only unblocks when the handler returns.
+type transactionReceiver struct {
+	ctx  context.Context
+	msgs chan *databrokerpb.TransactionStreamRequest
+	errs chan error
+	done chan struct{}
+}
+
+func newTransactionReceiver(
+	ctx context.Context,
+	stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse],
+) *transactionReceiver {
+	recv := &transactionReceiver{
+		ctx:  ctx,
+		msgs: make(chan *databrokerpb.TransactionStreamRequest),
+		errs: make(chan error, 1),
+		done: make(chan struct{}),
+	}
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err != nil {
+				recv.errs <- err
+				return
+			}
+			select {
+			case recv.msgs <- msg:
+			case <-recv.done:
+				return
+			}
+		}
+	}()
+	return recv
+}
+
+func (recv *transactionReceiver) next() (*databrokerpb.TransactionStreamRequest, error) {
+	select {
+	case msg := <-recv.msgs:
+		return msg, nil
+	case err := <-recv.errs:
+		return nil, err
+	case <-recv.ctx.Done():
+		if errors.Is(recv.ctx.Err(), context.DeadlineExceeded) {
+			return nil, status.Error(codes.DeadlineExceeded, "transaction deadline exceeded")
+		}
+		return nil, context.Cause(recv.ctx)
+	}
+}
+
+func (recv *transactionReceiver) stop() {
+	close(recv.done)
 }
