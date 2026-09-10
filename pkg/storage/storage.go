@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -145,5 +146,7 @@ func matchProtoMapValue(fd protoreflect.FieldDescriptor, m protoreflect.Map, que
 
 // IsNotFound returns true if the error is because a record was not found.
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || status.Code(err) == codes.NotFound
+	return errors.Is(err, ErrNotFound) ||
+		status.Code(err) == codes.NotFound ||
+		connect.CodeOf(err) == connect.CodeNotFound
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/file"
@@ -60,6 +61,7 @@ func NewBackendServer(tracerProvider oteltrace.TracerProvider) Server {
 	srv.backendConfigServer = &backendConfigServer{
 		backendServer: srv,
 	}
+	srv.backendConfigServer.updateConfig(new(configpb.Config))
 
 	srv.stopCtx, srv.stop = context.WithCancelCause(context.Background())
 	srv.stopWG.Go(func() {
@@ -664,6 +666,8 @@ func (srv *backendServer) Stop() {
 }
 
 func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	srv.updateConfig(cfg.Options.ToProto())
+
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 

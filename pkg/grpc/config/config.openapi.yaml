@@ -4110,6 +4110,12 @@ components:
           title: namespace_name
           description: The name of the namespace for the route.
           readOnly: true
+        readonly:
+          type:
+            - boolean
+            - "null"
+          title: readonly
+          description: Whether or not the route can be edited.
       title: Route
       additionalProperties: false
       description: Configuration for a route.
@@ -5452,6 +5458,12 @@ components:
           description: When the settings were last modified.
           readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
+        readonly:
+          type:
+            - boolean
+            - "null"
+          title: readonly
+          description: Whether or not the settings can be edited.
       title: Settings
       additionalProperties: false
       description: Global Pomerium configuration settings.

@@ -1782,6 +1782,8 @@ type Route struct {
 	AssignedPolicies []*EntityInfo `protobuf:"bytes,91,rep,name=assigned_policies,json=assignedPolicies,proto3" json:"assigned_policies,omitempty"`
 	// The name of the namespace for the route.
 	NamespaceName *string `protobuf:"bytes,92,opt,name=namespace_name,json=namespaceName,proto3,oneof" json:"namespace_name,omitempty"`
+	// Whether or not the route can be edited.
+	Readonly      *bool `protobuf:"varint,96,opt,name=readonly,proto3,oneof" json:"readonly,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2423,6 +2425,13 @@ func (x *Route) GetNamespaceName() string {
 		return *x.NamespaceName
 	}
 	return ""
+}
+
+func (x *Route) GetReadonly() bool {
+	if x != nil && x.Readonly != nil {
+		return *x.Readonly
+	}
+	return false
 }
 
 // Configuration for an upstream tunnel. Applies to routes whose upstream is
@@ -3483,7 +3492,9 @@ type Settings struct {
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.
-	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,170,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	ModifiedAt *timestamppb.Timestamp `protobuf:"bytes,170,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	// Whether or not the settings can be edited.
+	Readonly      *bool `protobuf:"varint,189,opt,name=readonly,proto3,oneof" json:"readonly,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4552,6 +4563,13 @@ func (x *Settings) GetModifiedAt() *timestamppb.Timestamp {
 		return x.ModifiedAt
 	}
 	return nil
+}
+
+func (x *Settings) GetReadonly() bool {
+	if x != nil && x.Readonly != nil {
+		return *x.Readonly
+	}
+	return false
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses
@@ -9577,7 +9595,7 @@ const file_config_proto_rawDesc = "" +
 	"\x0esupported_algs\x18\x03 \x03(\tR\rsupportedAlgs\x12\x1c\n" +
 	"\taudiences\x18\x04 \x03(\tR\taudiences\",\n" +
 	"\x10SessionRecording\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\"\xe2/\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\"\x900\n" +
 	"\x05Route\x12\x13\n" +
 	"\x02id\x18\x1c \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18P \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -9671,7 +9689,8 @@ const file_config_proto_rawDesc = "" +
 	"modifiedAt\x12O\n" +
 	"\x11enforced_policies\x18Z \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x10enforcedPolicies\x12O\n" +
 	"\x11assigned_policies\x18[ \x03(\v2\x1b.pomerium.config.EntityInfoB\x05\xbaG\x02\x18\x01R\x10assignedPolicies\x121\n" +
-	"\x0enamespace_name\x18\\ \x01(\tB\x05\xbaG\x02\x18\x01H\x1fR\rnamespaceName\x88\x01\x01\x1a$\n" +
+	"\x0enamespace_name\x18\\ \x01(\tB\x05\xbaG\x02\x18\x01H\x1fR\rnamespaceName\x88\x01\x01\x12\x1f\n" +
+	"\breadonly\x18` \x01(\bH R\breadonly\x88\x01\x01\x1a$\n" +
 	"\n" +
 	"StringList\x12\x16\n" +
 	"\x06values\x18\x01 \x03(\tR\x06values\x1a_\n" +
@@ -9716,7 +9735,8 @@ const file_config_proto_rawDesc = "" +
 	"\x18_healthy_panic_thresholdB\x11\n" +
 	"\x0f_allow_upgradesB\x14\n" +
 	"\x12_session_recordingB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x05\x10\x06J\x04\b6\x107J\x04\b$\x10%\"\xc2\x01\n" +
+	"\x0f_namespace_nameB\v\n" +
+	"\t_readonlyJ\x04\b\x05\x10\x06J\x04\b6\x107J\x04\b$\x10%\"\xc2\x01\n" +
 	"\x0eUpstreamTunnel\x12>\n" +
 	"\n" +
 	"ssh_policy\x18\x01 \x01(\v2\x1a.pomerium.config.PPLPolicyH\x00R\tsshPolicy\x88\x01\x01\x12&\n" +
@@ -9790,7 +9810,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xb3i\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xe2i\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9951,7 +9971,8 @@ const file_config_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12C\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
-	"modifiedAt\x1a_\n" +
+	"modifiedAt\x12 \n" +
+	"\breadonly\x18\xbd\x01 \x01(\bH\x7fR\breadonly\x88\x01\x01\x1a_\n" +
 	"\vCertificate\x12\x1d\n" +
 	"\n" +
 	"cert_bytes\x18\x03 \x01(\fR\tcertBytes\x12!\n" +
@@ -10110,7 +10131,8 @@ const file_config_proto_rawDesc = "" +
 	"\x0f_normalize_pathB\x10\n" +
 	"\x0e_merge_slashesB#\n" +
 	"!_path_with_escaped_slashes_actionB\"\n" +
-	" _headers_with_underscores_actionJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\x87\x01\n" +
+	" _headers_with_underscores_actionB\v\n" +
+	"\t_readonlyJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\x87\x01\n" +
 	"\x13BlobStorageSettings\x12\"\n" +
 	"\n" +
 	"bucket_uri\x18\x01 \x01(\tH\x00R\tbucketUri\x88\x01\x01\x12*\n" +

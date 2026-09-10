@@ -46,6 +46,7 @@ type RouteOptions struct {
 	BearerTokenFormat   Value[configpb.BearerTokenFormat]   `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 	JWTIssuerFormat     Value[configpb.IssuerFormat]        `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 	LoadBalancingPolicy Value[configpb.LoadBalancingPolicy] `json:"load_balancing_policy,omitzero" mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty"`
+	Readonly            Value[bool]                         `json:"readonly,omitzero" mapstructure:"readonly" yaml:"readonly,omitempty"`
 	SessionRecording    Value[SessionRecording]             `json:"session_recording,omitzero" mapstructure:"session_recording" yaml:"session_recording,omitempty"`
 }
 
@@ -86,6 +87,7 @@ type GlobalOptions struct {
 	MergeSlashes                 Value[bool]                                  `json:"merge_slashes,omitzero" mapstructure:"merge_slashes" yaml:"merge_slashes,omitempty"`
 	NormalizePath                Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
 	PathWithEscapedSlashesAction Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
+	Readonly                     Value[bool]                                  `json:"readonly,omitzero" mapstructure:"readonly" yaml:"readonly,omitempty"`
 	SessionRecordingConcurrency  Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
 }
 
@@ -240,6 +242,7 @@ func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
 		setNullableLoadBalancingPolicyFromProto(&dst.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullableBoolFromProto(&dst.Readonly, src.Readonly),
 		setNullableSessionRecordingFromProto(&dst.SessionRecording, src.SessionRecording),
 	)
 }
@@ -445,6 +448,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.MergeSlashes, src.MergeSlashes),
 		setNullableBoolFromProto(&dst.NormalizePath, src.NormalizePath),
 		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
+		setNullableBoolFromProto(&dst.Readonly, src.Readonly),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
@@ -693,6 +697,7 @@ func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
 		setNullableLoadBalancingPolicyToProto(&obj.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullableBoolToProto(&obj.Readonly, src.Readonly),
 		setNullableSessionRecordingToProto(&obj.SessionRecording, src.SessionRecording),
 	)
 }
@@ -888,6 +893,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.MergeSlashes, src.MergeSlashes),
 		setNullableBoolToProto(&obj.NormalizePath, src.NormalizePath),
 		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
+		setNullableBoolToProto(&obj.Readonly, src.Readonly),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
