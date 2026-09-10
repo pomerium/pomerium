@@ -958,10 +958,7 @@ func (srv *backendConfigServer) listRecords[T any, TMsg interface {
 	}
 	records = append(records, backendRecords...)
 
-	configRecords, err := srv.listAllRecordsFromLocal(ctx, recordType, expr)
-	if err != nil {
-		return nil, 0, err
-	}
+	configRecords := srv.listAllRecordsFromLocal(recordType, expr)
 	records = append(records, configRecords...)
 
 	total = uint64(len(records))
@@ -1018,19 +1015,20 @@ func (srv *backendConfigServer) listAllRecordsFromBackend(
 }
 
 func (srv *backendConfigServer) listAllRecordsFromLocal(
-	_ context.Context,
 	recordType string,
 	expr storage.FilterExpression,
-) ([]*databrokerpb.Record, error) {
+) []*databrokerpb.Record {
 	srv.localMu.Lock()
 	defer srv.localMu.Unlock()
 
 	c, ok := srv.localRecords[recordType]
 	if !ok {
-		return nil, nil
+		return nil
 	}
 
-	return c.List(expr)
+	// just silently ignore errors related to expr filtering
+	records, _ := c.List(expr)
+	return records
 }
 
 func (srv *backendConfigServer) putEntity(
