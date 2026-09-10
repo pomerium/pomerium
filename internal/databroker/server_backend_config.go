@@ -364,14 +364,18 @@ func (srv *backendConfigServer) GetSettings(
 		// core only supports a single cluster, so always return not found
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("settings not found"))
 	case *configpb.GetSettingsRequest_Id:
-		entity.Id = new(req.Msg.GetId())
+		if req.Msg.GetId() == "" {
+			entity.Id = new(GlobalSettingsID)
+		} else {
+			entity.Id = new(req.Msg.GetId())
+		}
 	default:
 		entity.Id = new(GlobalSettingsID)
 	}
 
 	record, err := srv.getEntity(ctx, entity)
 	// for settings, treat a not found error as an empty settings object
-	if storage.IsNotFound(err) && req.Msg.GetId() == GlobalSettingsID {
+	if storage.IsNotFound(err) && entity.GetId() == GlobalSettingsID {
 		// do nothing
 	} else if err != nil {
 		return nil, err
