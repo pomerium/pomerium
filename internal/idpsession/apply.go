@@ -9,7 +9,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
-	identitymanager "github.com/pomerium/pomerium/pkg/identity/manager"
+	"github.com/pomerium/pomerium/pkg/mapsutil"
 )
 
 func bindingCmp(r1, r2 *databroker.Record) bool {
@@ -30,7 +30,6 @@ type idpSessionApplier struct {
 	*idpsession.IDPSession
 }
 
-// TODO : this represents a large chunk of allocations in the reconcile loop & cpu time spent in the loop. Let's see how much we can optimize this.
 func (i *idpSessionApplier) ApplyToSession(s *session.Session) *session.Session {
 	if s == nil {
 		return nil
@@ -56,13 +55,14 @@ func (i *idpSessionApplier) ApplyToSession(s *session.Session) *session.Session 
 		}
 	}
 	if i.Claims != nil {
-		claims, err := i.Claims.MarshalJSON()
-		if err != nil {
-			panic(err)
-		}
-		if err := identitymanager.NewSessionUnmarshaler(s).UnmarshalJSON(claims); err != nil {
-			panic(err)
-		}
+		sessionClaims := mapsutil.Flatten(i.Claims.AsMap())
+		// same as pkg/identity/manager/data.go#104
+		// To preserve existing behavior: filter out claims not related to user info.
+		delete(sessionClaims, "iss")
+		delete(sessionClaims, "sub")
+		delete(sessionClaims, "exp")
+		delete(sessionClaims, "iat")
+		s.Claims = identity.FlattenedClaims(sessionClaims).ToPB()
 	}
 	return s
 }

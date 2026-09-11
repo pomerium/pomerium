@@ -48,8 +48,9 @@ const (
 )
 
 type boundRef struct {
-	typeURL string
-	state   idpsession.BindingState
+	typeURL      string
+	idpSessionID string
+	state        idpsession.BindingState
 }
 
 // A changeSetStore keeps track of idpsession.IDPSession and the records they are bound to through
@@ -57,16 +58,22 @@ type boundRef struct {
 type changeSetStore struct {
 	*sync.Mutex
 
+	// holds state
 	idpSessions map[string]*idpsession.IDPSession
-	// idpsession id -> binding id -> binding
-	bindings map[string]map[string]boundRef
+
+	// binding id -> references + state
+	bindingsRef map[string]boundRef
+
+	// idpsession id -> binding id
+	bindings map[string]map[string]struct{}
 }
 
 func newChangeSetStore() *changeSetStore {
 	return &changeSetStore{
 		Mutex:       &sync.Mutex{},
 		idpSessions: map[string]*idpsession.IDPSession{},
-		bindings:    map[string]map[string]boundRef{},
+		bindingsRef: map[string]boundRef{},
+		bindings:    map[string]map[string]struct{}{},
 	}
 }
 
@@ -74,7 +81,8 @@ func (s *changeSetStore) reset() {
 	s.Lock()
 	defer s.Unlock()
 	s.idpSessions = map[string]*idpsession.IDPSession{}
-	s.bindings = map[string]map[string]boundRef{}
+	s.bindingsRef = map[string]boundRef{}
+	s.bindings = map[string]map[string]struct{}{}
 }
 
 func (s *changeSetStore) putIDPSession(sess *idpsession.IDPSession) {
@@ -105,21 +113,27 @@ func (s *changeSetStore) putBinding(binding *idpsession.Binding) {
 	defer s.Unlock()
 	idpSessionID := binding.GetIdpSessionId()
 	if _, ok := s.bindings[idpSessionID]; !ok {
-		s.bindings[idpSessionID] = map[string]boundRef{}
+		s.bindings[idpSessionID] = map[string]struct{}{}
 	}
-	s.bindings[idpSessionID][binding.GetId()] = boundRef{
-		typeURL: binding.GetTypeUrl(),
-		state:   binding.GetState(),
+	s.bindings[idpSessionID][binding.GetId()] = struct{}{}
+	s.bindingsRef[binding.GetId()] = boundRef{
+		typeURL:      binding.GetTypeUrl(),
+		idpSessionID: idpSessionID,
+		state:        binding.GetState(),
 	}
 }
 
 func (s *changeSetStore) deleteBinding(binding *idpsession.Binding) {
 	s.Lock()
 	defer s.Unlock()
-	idpSessionID := binding.GetIdpSessionId()
-	delete(s.bindings[idpSessionID], binding.GetId())
-	if len(s.bindings[idpSessionID]) == 0 {
-		delete(s.bindings, idpSessionID)
+	ref, ok := s.bindingsRef[binding.GetId()]
+	if !ok {
+		return
+	}
+	delete(s.bindingsRef, binding.GetId())
+	delete(s.bindings[ref.idpSessionID], binding.GetId())
+	if len(s.bindings[ref.idpSessionID]) == 0 {
+		delete(s.bindings, ref.idpSessionID)
 	}
 }
 
@@ -128,12 +142,12 @@ func (s *changeSetStore) idpSessionLocked(id string) (*idpsession.IDPSession, bo
 	return sess, ok
 }
 
-func (s *changeSetStore) bindingLocked(idpSessionID string, bindingID string) (boundRef, bool) {
-	ref, ok := s.bindings[idpSessionID][bindingID]
+func (s *changeSetStore) bindingLocked(bindingID string) (boundRef, bool) {
+	ref, ok := s.bindingsRef[bindingID]
 	return ref, ok
 }
 
-func (s *changeSetStore) bindingsLocked(idpSessionID string) map[string]boundRef {
+func (s *changeSetStore) bindingsLocked(idpSessionID string) map[string]struct{} {
 	return s.bindings[idpSessionID]
 }
 
@@ -141,9 +155,7 @@ type ChangeSet struct {
 	At            time.Time
 	RecordID      string
 	RecordTypeURL string
-	// IDPSessionID is set for idpsession.Binding changes
-	IDPSessionID string
-	changeType   ChangeSetType
+	changeType    ChangeSetType
 }
 
 func changeSetLess(a, b ChangeSet) bool {
@@ -208,7 +220,6 @@ func (a *changeSetApplier) onUpdateBinding(binding *idpsession.Binding, at time.
 		At:            at,
 		RecordID:      binding.GetId(),
 		RecordTypeURL: bindingTypeURL,
-		IDPSessionID:  binding.GetIdpSessionId(),
 		changeType:    changePropagate,
 	}
 	if binding.GetState() == idpsession.BindingState_BindingState_REVOKED {
@@ -300,15 +311,18 @@ func (a *changeSetApplier) computeChangeSet(ctx context.Context, changeOps map[r
 		}
 		a.propagateIDPSessionLocked(ctx, changeOps, sess, at)
 	case bindingTypeURL:
-		ref, ok := a.store.bindingLocked(cs.IDPSessionID, cs.RecordID)
+		ref, ok := a.store.bindingLocked(cs.RecordID)
 		if !ok {
 			return
 		}
-		if cs.changeType == changeDelete {
-			a.deleteBindingLocked(changeOps, cs.IDPSessionID, cs.RecordID, ref, at)
-			return
+		switch cs.changeType {
+		case changeDelete:
+			a.deleteBindingLocked(changeOps, cs.RecordID, ref, at)
+		case changeRevoke:
+			a.revokeBindingLocked(changeOps, cs.RecordID, ref, at)
+		default:
+			a.propagateBindingLocked(ctx, changeOps, cs.RecordID, ref, at)
 		}
-		a.propagateBindingLocked(ctx, changeOps, cs.IDPSessionID, cs.RecordID, ref, at)
 	default:
 		log.Ctx(ctx).Error().
 			Str("record-type", cs.RecordTypeURL).
@@ -333,32 +347,35 @@ func (a *changeSetApplier) propagateIDPSessionLocked(
 		})
 	}
 
-	for bindingID, ref := range a.store.bindingsLocked(sess.GetId()) {
-		if invalid {
-			a.revokeBindingLocked(ops, sess.GetId(), bindingID, ref, at)
+	for bindingID := range a.store.bindingsLocked(sess.GetId()) {
+		ref, ok := a.store.bindingLocked(bindingID)
+		if !ok {
 			continue
 		}
-		a.propagateBindingLocked(ctx, ops, sess.GetId(), bindingID, ref, at)
+		if invalid {
+			a.revokeBindingLocked(ops, bindingID, ref, at)
+			continue
+		}
+		a.propagateBindingLocked(ctx, ops, bindingID, ref, at)
 	}
 }
 
 func (a *changeSetApplier) propagateBindingLocked(
 	ctx context.Context,
 	ops map[recordKey]recordOp,
-	idpSessionID string,
 	bindingID string,
 	ref boundRef,
 	at time.Time,
 ) {
 	// we can't treat an absent idpsession as proof that the session no longer
 	// exists due to potential timing issues with the syncer.
-	sess, ok := a.store.idpSessionLocked(idpSessionID)
+	sess, ok := a.store.idpSessionLocked(ref.idpSessionID)
 	if !ok {
 		return
 	}
 	if ref.state == idpsession.BindingState_BindingState_REVOKED ||
 		sess.GetState().GetState() == idpsession.UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID {
-		a.revokeBindingLocked(ops, idpSessionID, bindingID, ref, at)
+		a.revokeBindingLocked(ops, bindingID, ref, at)
 		return
 	}
 
@@ -378,7 +395,6 @@ func (a *changeSetApplier) propagateBindingLocked(
 
 func (a *changeSetApplier) revokeBindingLocked(
 	ops map[recordKey]recordOp,
-	idpSessionID string,
 	bindingID string,
 	ref boundRef,
 	at time.Time,
@@ -406,14 +422,12 @@ func (a *changeSetApplier) revokeBindingLocked(
 		At:            at.Add(bindingGracePeriod),
 		RecordID:      bindingID,
 		RecordTypeURL: bindingTypeURL,
-		IDPSessionID:  idpSessionID,
 		changeType:    changeDelete,
 	})
 }
 
 func (a *changeSetApplier) deleteBindingLocked(
 	ops map[recordKey]recordOp,
-	idpSessionID string,
 	bindingID string,
 	ref boundRef,
 	at time.Time,
@@ -429,7 +443,7 @@ func (a *changeSetApplier) deleteBindingLocked(
 	ops[recordKey{bindingTypeURL, bindingID}] = deleteOp(databroker.NewRecord(&idpsession.Binding{
 		Id:           bindingID,
 		TypeUrl:      ref.typeURL,
-		IdpSessionId: idpSessionID,
+		IdpSessionId: ref.idpSessionID,
 		State:        ref.state,
 	}), at)
 }
