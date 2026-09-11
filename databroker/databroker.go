@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/events"
+	"github.com/pomerium/pomerium/internal/idpsession"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -40,10 +41,11 @@ import (
 
 // DataBroker represents the databroker service.
 type DataBroker struct {
-	cfg         *databrokerConfig
-	srv         databroker.Server
-	identityMgr *manager.Manager
-	eventsMgr   *events.Manager
+	cfg           *databrokerConfig
+	srv           databroker.Server
+	identityMgr   *manager.Manager
+	identityMgrV2 *idpsession.IdentityManager
+	eventsMgr     *events.Manager
 
 	localListener       net.Listener
 	localGRPCServer     *grpc.Server
@@ -188,7 +190,7 @@ func (d *DataBroker) Run(ctx context.Context) error {
 		return grpcutil.ServeWithGracefulStop(ctx, d.localGRPCServer, d.localListener, time.Second*5)
 	})
 	eg.Go(func() error {
-		return d.identityMgr.Run(ctx)
+		return d.identityMgrV2.Run(ctx)
 	})
 	return eg.Wait()
 }
@@ -204,27 +206,42 @@ func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
 	}
 	d.sharedKey.Store(&sharedKey)
 
-	dataBrokerClient := databrokerpb.NewDataBrokerServiceClient(d.localGRPCConnection)
+	// dataBrokerClient := databrokerpb.NewDataBrokerServiceClient(d.localGRPCConnection)
 
-	options := append([]manager.Option{
-		manager.WithDataBrokerClient(dataBrokerClient),
-		manager.WithEventManager(d.eventsMgr),
-		manager.WithCachedGetAuthenticator(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
-			if !cfg.Options.SupportsUserRefresh() {
-				return nil, fmt.Errorf("disabling refresh of user sessions")
-			}
-			return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
-		}),
-		manager.WithRefreshSessionAtIDTokenExpiration(manager.RefreshSessionAtIDTokenExpiration(
-			cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])),
-		manager.WithTracerProvider(d.tracerProvider),
-	}, d.cfg.managerOptions...)
+	// options := append([]manager.Option{
+	// 	manager.WithDataBrokerClient(dataBrokerClient),
+	// 	manager.WithEventManager(d.eventsMgr),
+	// 	manager.WithCachedGetAuthenticator(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+	// 		if !cfg.Options.SupportsUserRefresh() {
+	// 			return nil, fmt.Errorf("disabling refresh of user sessions")
+	// 		}
+	// 		return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
+	// 	}),
+	// 	manager.WithRefreshSessionAtIDTokenExpiration(manager.RefreshSessionAtIDTokenExpiration(
+	// 		cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])),
+	// 	manager.WithTracerProvider(d.tracerProvider),
+	// }, d.cfg.managerOptions...)
 
-	if d.identityMgr == nil {
-		d.identityMgr = manager.New(options...)
+	if d.identityMgrV2 == nil {
+		clientGetter := databrokerpb.ClientGetterFunc(func() databrokerpb.DataBrokerServiceClient {
+			return d.GetLocalDatabrokerServiceClient()
+		})
+		d.identityMgrV2 = idpsession.NewIdentityManagerV2(
+			clientGetter, func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+				if !cfg.Options.SupportsUserRefresh() {
+					return nil, fmt.Errorf("disabling refresh of user sessions")
+				}
+				return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
+			})
 	} else {
-		d.identityMgr.UpdateConfig(options...)
+		// TODO : update
 	}
+
+	// if d.identityMgr == nil {
+	// 	d.identityMgr = manager.New(options...)
+	// } else {
+	// 	d.identityMgr.UpdateConfig(options...)
+	// }
 
 	return nil
 }

@@ -258,12 +258,31 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 		r = r.WithContext(ctx)
 	}
 
-	err = authenticator.SignIn(w, r, encodedState)
+	err = authenticator.SignIn(forceLoginResponseWriter{ResponseWriter: w}, r, encodedState)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError,
 			fmt.Errorf("failed to sign in: %w", err))
 	}
 	return nil
+}
+
+type forceLoginResponseWriter struct {
+	http.ResponseWriter
+}
+
+// FIXME:
+// !!! HACK
+func (w forceLoginResponseWriter) WriteHeader(statusCode int) {
+	if location := w.Header().Get("Location"); location != "" {
+		if u, err := url.Parse(location); err == nil {
+			query := u.Query()
+			query.Set("prompt", "login")
+			query.Set("max_age", "0")
+			u.RawQuery = query.Encode()
+			w.Header().Set("Location", u.String())
+		}
+	}
+	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 // OAuthCallback handles the callback from the identity provider.
@@ -391,7 +410,7 @@ Or contact your administrator.
 	}
 
 	// save the session and access token to the databroker/cookie store
-	if err := state.flow.PersistSession(ctx, w, h, claims, accessToken); err != nil {
+	if err := state.flow.PersistSession(ctx, w, r, h, claims, accessToken); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 
