@@ -43,22 +43,18 @@ func (c *ComponentFactory) NewWidget(component components.Component) core.Widget
 			Styles: style.Bind(c.config.Styles, func(base *Styles, _ style.NewStyleFunc) table.Styles {
 				return base.Styles
 			}),
-			Options: table.Options{
-				ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
-					PermsColHostname: {Title: "Hostname", Size: -1},
-					PermsColPort:     {Title: "Port", Size: 8 + 1},
-					PermsColRoutes:   {Title: "Routes", Size: 7 + 1 + 1},
-				}),
-				BorderTitleLeft:  c.config.Title,
-				BorderTitleRight: fmt.Sprintf("[%s]", component.Mnemonic()),
-			},
-			Events: TableEvents{
-				OnRowMenuRequested: func(self *TableModel, globalPos uv.Position, index int) tea.Cmd {
-					return menu.ShowMenu(menu.Options{
-						Anchor:  globalPos,
-						Entries: c.config.GetRowContextOptions(self, index),
-					})
-				},
+			ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
+				PermsColHostname: {Title: "Hostname", Size: -1},
+				PermsColPort:     {Title: "Port", Size: 8 + 1},
+				PermsColRoutes:   {Title: "Routes", Size: 7 + 1 + 1},
+			}),
+			BorderTitleLeft:  c.config.Title,
+			BorderTitleRight: fmt.Sprintf("[%s]", component.Mnemonic()),
+			OnRowMenuRequested: func(self *TableModel, globalPos uv.Position, index int) tea.Cmd {
+				return menu.ShowMenu(menu.Options{
+					Anchor:  globalPos,
+					Entries: c.config.GetRowContextOptions(self, index),
+				})
 			},
 		}),
 	)

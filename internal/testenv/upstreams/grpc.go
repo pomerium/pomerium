@@ -75,9 +75,7 @@ var (
 // GRPC creates a new GRPC upstream server.
 func GRPC(creds credentials.TransportCredentials, opts ...GRPCUpstreamOption) GRPCUpstream {
 	options := GRPCUpstreamOptions{
-		CommonUpstreamOptions: CommonUpstreamOptions{
-			displayName: "GRPC Upstream",
-		},
+		displayName: "GRPC Upstream",
 	}
 	for _, op := range opts {
 		op.applyGRPC(&options)

@@ -347,11 +347,9 @@ func (h *Handler) openWriter(ctx context.Context, id string, fmtType recording.R
 		return st, nil
 	}
 	cw, err := blob.NewChunkWriter(ctx, blob.SchemaV1WithKey{
-		SchemaV1: blob.SchemaV1{
-			ClusterID:     *h.managedPrefix.Load(),
-			RecordingType: string(convertFormat(fmtType)),
-		},
-		Key: id,
+		ClusterID:     *h.managedPrefix.Load(),
+		RecordingType: string(convertFormat(fmtType)),
+		Key:           id,
 	}, h.bucket.Load())
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("openWriter: failed to open new chunk writer")

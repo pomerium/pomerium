@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // TestParseConnectError_AllCodes round-trips every documented connect.Code
@@ -232,12 +233,12 @@ func TestScrubSensitive_NilAndInvalid(t *testing.T) {
 	t.Parallel()
 
 	// nil proto.Message — must not panic.
-	ScrubSensitive(nil)
+	protoutil.ScrubSensitive(nil)
 
 	// Empty / unset sub-message: ProtoReflect on a nil-typed pointer
 	// produces an invalid Message. scrubMessage must skip it cleanly.
 	var route *configpb.Route // typed nil
-	ScrubSensitive(route)
+	protoutil.ScrubSensitive(route)
 
 	// Same shape for the sensitive-fields collector.
 	assert.Nil(t, SensitiveFieldsSet(nil))

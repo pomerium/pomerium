@@ -51,9 +51,7 @@ type tcpUpstream struct {
 
 func TCP(opts ...TCPUpstreamOption) TCPUpstream {
 	options := TCPUpstreamOptions{
-		CommonUpstreamOptions: CommonUpstreamOptions{
-			displayName: "TCP Upstream",
-		},
+		displayName: "TCP Upstream",
 	}
 	for _, op := range opts {
 		op.applyTCP(&options)

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -98,8 +99,41 @@ func TestConfigServiceRoutes(t *testing.T) {
 	t.Cleanup(h.Close)
 
 	client := configconnect.NewConfigServiceClient(http.DefaultClient, h.URL)
-
 	storagetest.TestConfigServiceRoutes(t, client)
+}
+
+func TestConfigServiceLocalRoutes(t *testing.T) {
+	t.Parallel()
+
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+	to, err := url.Parse("https://to.example.com")
+	require.NoError(t, err)
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+		Routes: []config.Policy{{
+			From: "https://from.example.com",
+			To: config.WeightedURLs{{
+				URL: *to,
+			}},
+		}},
+	}))
+
+	mux := http.NewServeMux()
+	mux.Handle(configconnect.NewConfigServiceHandler(srv))
+	h := httptest.NewServer(mux)
+	t.Cleanup(h.Close)
+
+	client := configconnect.NewConfigServiceClient(http.DefaultClient, h.URL)
+
+	res, err := client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{}))
+	require.NoError(t, err)
+	var ids []string
+	for _, route := range res.Msg.Routes {
+		ids = append(ids, route.GetId())
+	}
+	assert.Contains(t, ids, "local/route/0", "should return local routes")
 }
 
 func TestConfigServiceServiceAccounts(t *testing.T) {
@@ -197,4 +231,36 @@ func TestConfigSettings(t *testing.T) {
 	})
 
 	storagetest.TestConfigServiceSettings(t, client)
+}
+
+func TestConfigLocalSettings(t *testing.T) {
+	t.Parallel()
+
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+	}))
+
+	mux := http.NewServeMux()
+	mux.Handle(configconnect.NewConfigServiceHandler(srv))
+	h := httptest.NewServer(mux)
+	t.Cleanup(h.Close)
+
+	client := configconnect.NewConfigServiceClient(http.DefaultClient, h.URL)
+
+	res, err := client.ListSettings(t.Context(), connect.NewRequest(&configpb.ListSettingsRequest{}))
+	require.NoError(t, err)
+	var ids []string
+	for _, settings := range res.Msg.Settings {
+		ids = append(ids, settings.GetId())
+	}
+	assert.Contains(t, ids, "local/settings", "should return local settings")
+
+	getRes, err := client.GetSettings(t.Context(), connect.NewRequest(&configpb.GetSettingsRequest{
+		For: &configpb.GetSettingsRequest_Id{Id: "local/settings"},
+	}))
+	assert.NoError(t, err)
+	assert.Empty(t, getRes.Msg.Settings.SharedSecret, "should remove sensitive values")
 }

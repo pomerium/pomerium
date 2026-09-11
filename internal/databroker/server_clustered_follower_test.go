@@ -190,7 +190,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 		local := databroker.NewBackendServer(noop.NewTracerProvider())
 
 		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
-		t.Cleanup(follower.Stop)
+		follower.Stop()
 
 		cp1 := &databrokerpb.Checkpoint{
 			ServerVersion: 100,

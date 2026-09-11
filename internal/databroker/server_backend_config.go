@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -29,11 +30,18 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-// GlobalSettingsID is the default global settings id if none is provided.
-const GlobalSettingsID = "78408adf-56e4-41d0-af6a-ca1b2d8d2cb6"
+const (
+	// GlobalSettingsID is the default global settings id if none is provided.
+	GlobalSettingsID = "78408adf-56e4-41d0-af6a-ca1b2d8d2cb6"
+	// LocalRecordIDPrefix is the id prefix for local records.
+	LocalRecordIDPrefix = "local/"
+)
 
 type backendConfigServer struct {
 	*backendServer
+
+	localMu      sync.Mutex
+	localRecords map[string]storage.RecordCollection
 }
 
 func (srv *backendConfigServer) CreateKeyPair(
@@ -98,6 +106,9 @@ func (srv *backendConfigServer) CreateRoute(
 	entity := proto.CloneOf(req.Msg.GetRoute())
 	if entity == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route is required"))
+	}
+	if strings.HasPrefix(entity.GetId(), LocalRecordIDPrefix) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("local routes cannot be created"))
 	}
 	entity.CreatedAt = timestamppb.Now()
 
@@ -197,6 +208,9 @@ func (srv *backendConfigServer) DeleteRoute(
 
 	if req.Msg.GetId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route id is required"))
+	}
+	if strings.HasPrefix(req.Msg.GetId(), LocalRecordIDPrefix) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("local routes cannot be deleted"))
 	}
 
 	entity := &configpb.Route{Id: new(req.Msg.GetId())}
@@ -350,19 +364,20 @@ func (srv *backendConfigServer) GetSettings(
 		// core only supports a single cluster, so always return not found
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("settings not found"))
 	case *configpb.GetSettingsRequest_Id:
-		// core only supports a single settings with the GlobalSettingsID
-		// any other id should return not found
-		if req.Msg.GetId() != GlobalSettingsID {
-			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("settings not found"))
+		if req.Msg.GetId() == "" {
+			entity.Id = new(GlobalSettingsID)
+		} else {
+			entity.Id = new(req.Msg.GetId())
 		}
-		entity.Id = new(req.Msg.GetId())
 	default:
 		entity.Id = new(GlobalSettingsID)
 	}
 
 	record, err := srv.getEntity(ctx, entity)
 	// for settings, treat a not found error as an empty settings object
-	if err != nil && !storage.IsNotFound(err) {
+	if storage.IsNotFound(err) && entity.GetId() == GlobalSettingsID {
+		// do nothing
+	} else if err != nil {
 		return nil, err
 	}
 	entity.ModifiedAt = record.GetModifiedAt()
@@ -396,7 +411,7 @@ func (srv *backendConfigServer) ListKeyPairs(
 
 	recordType := grpcutil.GetTypeURL(new(configpb.KeyPair))
 
-	records, totalCount, err := listRecords[configpb.KeyPair](ctx, srv, recordType,
+	records, totalCount, err := srv.listRecords[configpb.KeyPair](ctx, recordType,
 		req.Msg.Offset, req.Msg.Limit,
 		req.Msg.Filter, req.Msg.OrderBy)
 	if err != nil {
@@ -428,7 +443,7 @@ func (srv *backendConfigServer) ListPolicies(
 
 	recordType := grpcutil.GetTypeURL(new(configpb.Policy))
 
-	records, totalCount, err := listRecords[configpb.Policy](ctx, srv, recordType,
+	records, totalCount, err := srv.listRecords[configpb.Policy](ctx, recordType,
 		req.Msg.Offset, req.Msg.Limit,
 		req.Msg.Filter, req.Msg.OrderBy)
 	if err != nil {
@@ -460,7 +475,7 @@ func (srv *backendConfigServer) ListRoutes(
 
 	recordType := grpcutil.GetTypeURL(new(configpb.Route))
 
-	records, totalCount, err := listRecords[configpb.Route](ctx, srv, recordType,
+	records, totalCount, err := srv.listRecords[configpb.Route](ctx, recordType,
 		req.Msg.Offset, req.Msg.Limit,
 		req.Msg.Filter, req.Msg.OrderBy)
 	if err != nil {
@@ -491,7 +506,7 @@ func (srv *backendConfigServer) ListServiceAccounts(
 	defer span.End()
 
 	recordType := grpcutil.GetTypeURL(new(user.ServiceAccount))
-	records, totalCount, err := listRecords[user.ServiceAccount](ctx, srv, recordType,
+	records, totalCount, err := srv.listRecords[user.ServiceAccount](ctx, recordType,
 		req.Msg.Offset, req.Msg.Limit,
 		req.Msg.Filter, req.Msg.OrderBy)
 	if err != nil {
@@ -523,7 +538,7 @@ func (srv *backendConfigServer) ListSettings(
 
 	recordType := grpcutil.GetTypeURL(new(configpb.Settings))
 
-	records, totalCount, err := listRecords[configpb.Settings](ctx, srv, recordType,
+	records, totalCount, err := srv.listRecords[configpb.Settings](ctx, recordType,
 		req.Msg.Offset, req.Msg.Limit,
 		req.Msg.Filter, req.Msg.OrderBy)
 	if err != nil {
@@ -637,6 +652,9 @@ func (srv *backendConfigServer) UpdateRoute(
 	} else if entity.GetId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route id is required"))
 	}
+	if strings.HasPrefix(entity.GetId(), LocalRecordIDPrefix) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("local routes cannot be updated"))
+	}
 
 	original := proto.CloneOf(entity)
 	_, err := srv.getEntity(ctx, original)
@@ -726,6 +744,9 @@ func (srv *backendConfigServer) UpdateSettings(
 	}
 	if entity.Id == nil {
 		entity.Id = new(GlobalSettingsID)
+	}
+	if strings.HasPrefix(entity.GetId(), LocalRecordIDPrefix) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("local settings cannot be updated"))
 	}
 
 	original := proto.CloneOf(entity)
@@ -859,16 +880,12 @@ func (srv *backendConfigServer) getEntity(
 	recordType := grpcutil.GetTypeURL(entity)
 	recordTypeName := string(entity.ProtoReflect().Descriptor().Name())
 
-	db, err := srv.getBackend(ctx)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error getting storage backend (type=%s id=%s): %w", recordTypeName, entity.GetId(), err))
-	}
-
-	record, err := db.Get(ctx, recordType, entity.GetId())
+	record, err := srv.getRecordFromBackend(ctx, recordType, recordTypeName, entity.GetId())
 	if storage.IsNotFound(err) {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found (id=%s): %w", recordTypeName, entity.GetId(), err))
-	} else if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error getting %s (id=%s): %w", recordTypeName, entity.GetId(), err))
+		record, err = srv.getRecordFromLocal(ctx, recordType, recordTypeName, entity.GetId())
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	err = record.Data.UnmarshalTo(entity)
@@ -877,6 +894,142 @@ func (srv *backendConfigServer) getEntity(
 	}
 
 	return record, nil
+}
+
+func (srv *backendConfigServer) getRecordFromBackend(
+	ctx context.Context,
+	recordType, recordTypeName, recordID string,
+) (*databrokerpb.Record, error) {
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error getting storage backend (type=%s id=%s): %w", recordTypeName, recordID, err))
+	}
+
+	record, err := db.Get(ctx, recordType, recordID)
+	if storage.IsNotFound(err) {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found (id=%s): %w", recordTypeName, recordID, err))
+	} else if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error getting %s (id=%s): %w", recordTypeName, recordID, err))
+	}
+
+	return record, nil
+}
+
+func (srv *backendConfigServer) getRecordFromLocal(
+	_ context.Context,
+	recordType, recordTypeName, recordID string,
+) (*databrokerpb.Record, error) {
+	srv.localMu.Lock()
+	defer srv.localMu.Unlock()
+
+	c, ok := srv.localRecords[recordType]
+	if !ok {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found (id=%s)", recordTypeName, recordID))
+	}
+
+	r, ok := c.Get(recordID)
+	if !ok {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found (id=%s)", recordTypeName, recordID))
+	}
+
+	return r, nil
+}
+
+func (srv *backendConfigServer) listRecords[T any, TMsg interface {
+	*T
+	proto.Message
+}](
+	ctx context.Context,
+	recordType string,
+	offset *uint64,
+	limit *uint64,
+	filter *structpb.Struct,
+	orderBy *string,
+) (entities []*databrokerpb.Record, total uint64, err error) {
+	expr, err := storage.FilterExpressionFromStruct(filter)
+	if err != nil {
+		return nil, 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid filter expression: %w", err))
+	}
+
+	var records []*databrokerpb.Record
+
+	backendRecords, err := srv.listAllRecordsFromBackend(ctx, recordType, expr)
+	if err != nil {
+		return nil, 0, err
+	}
+	records = append(records, backendRecords...)
+
+	configRecords := srv.listAllRecordsFromLocal(recordType, expr)
+	records = append(records, configRecords...)
+
+	total = uint64(len(records))
+
+	err = sortRecords[T, TMsg](records, orderBy)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if offset != nil {
+		if *offset > uint64(len(records)) {
+			records = nil
+		} else {
+			records = records[*offset:]
+		}
+	}
+
+	if limit != nil {
+		if *limit < uint64(len(records)) {
+			records = records[:*limit]
+		}
+	}
+
+	return records, total, nil
+}
+
+func (srv *backendConfigServer) listAllRecordsFromBackend(
+	ctx context.Context,
+	recordType string,
+	expr storage.FilterExpression,
+) ([]*databrokerpb.Record, error) {
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	streamCtx, cancelStream := context.WithCancel(ctx)
+	defer cancelStream()
+
+	_, _, seq, err := db.SyncLatest(streamCtx, recordType, expr)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	var records []*databrokerpb.Record
+	for record, err := range seq {
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		records = append(records, record)
+	}
+
+	return records, nil
+}
+
+func (srv *backendConfigServer) listAllRecordsFromLocal(
+	recordType string,
+	expr storage.FilterExpression,
+) []*databrokerpb.Record {
+	srv.localMu.Lock()
+	defer srv.localMu.Unlock()
+
+	c, ok := srv.localRecords[recordType]
+	if !ok {
+		return nil
+	}
+
+	// just silently ignore errors related to expr filtering
+	records, _ := c.List(expr)
+	return records
 }
 
 func (srv *backendConfigServer) putEntity(
@@ -910,6 +1063,47 @@ func (srv *backendConfigServer) putEntity(
 	}
 
 	return records[0], nil
+}
+
+func (srv *backendConfigServer) updateLocalRecords(cfg *configpb.Config) {
+	srv.localMu.Lock()
+	defer srv.localMu.Unlock()
+
+	srv.localRecords = map[string]storage.RecordCollection{}
+
+	// add settings
+	c := storage.NewRecordCollection()
+	recordType := grpcutil.GetTypeURL(new(configpb.Settings))
+	srv.localRecords[recordType] = c
+	settings := proto.CloneOf(cfg.GetSettings())
+	if settings != nil && !proto.Equal(settings, new(configpb.Settings)) {
+		settings.Id = new(LocalRecordIDPrefix + "settings")
+		settings.OriginatorId = new("local")
+		protoutil.ScrubSensitive(settings)
+		c.Put(&databrokerpb.Record{
+			Id:   settings.GetId(),
+			Type: recordType,
+			Data: protoutil.NewAny(settings),
+		})
+	}
+
+	// add routes
+	c = storage.NewRecordCollection()
+	recordType = grpcutil.GetTypeURL(new(configpb.Route))
+	srv.localRecords[recordType] = c
+	for i, route := range cfg.GetRoutes() {
+		route = proto.CloneOf(route)
+		if route != nil && !proto.Equal(route, new(configpb.Route)) {
+			route.Id = new(fmt.Sprintf(LocalRecordIDPrefix+"route/%d", i))
+			route.OriginatorId = new("local")
+			protoutil.ScrubSensitive(route)
+			c.Put(&databrokerpb.Record{
+				Id:   route.GetId(),
+				Type: recordType,
+				Data: protoutil.NewAny(route),
+			})
+		}
+	}
 }
 
 func (srv *backendConfigServer) validatePolicy(entity *configpb.Policy) error {
@@ -976,67 +1170,6 @@ func applyUpdateMask[T interface {
 	}
 
 	return updated, nil
-}
-
-func listRecords[T any, TMsg interface {
-	*T
-	proto.Message
-}](
-	ctx context.Context,
-	srv *backendConfigServer,
-	recordType string,
-	offset *uint64,
-	limit *uint64,
-	filter *structpb.Struct,
-	orderBy *string,
-) (entities []*databrokerpb.Record, total uint64, err error) {
-	expr, err := storage.FilterExpressionFromStruct(filter)
-	if err != nil {
-		return nil, 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid filter expression: %w", err))
-	}
-
-	db, err := srv.getBackend(ctx)
-	if err != nil {
-		return nil, 0, connect.NewError(connect.CodeInternal, err)
-	}
-
-	streamCtx, cancelStream := context.WithCancel(ctx)
-	defer cancelStream()
-
-	_, _, seq, err := db.SyncLatest(streamCtx, recordType, expr)
-	if err != nil {
-		return nil, 0, connect.NewError(connect.CodeInternal, err)
-	}
-
-	var records []*databrokerpb.Record
-	for record, err := range seq {
-		if err != nil {
-			return nil, 0, connect.NewError(connect.CodeInternal, err)
-		}
-		records = append(records, record)
-	}
-	total = uint64(len(records))
-
-	err = sortRecords[T, TMsg](records, orderBy)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	if offset != nil {
-		if *offset > uint64(len(records)) {
-			records = nil
-		} else {
-			records = records[*offset:]
-		}
-	}
-
-	if limit != nil {
-		if *limit < uint64(len(records)) {
-			records = records[:*limit]
-		}
-	}
-
-	return records, total, nil
 }
 
 func sortRecords[T any, TMsg interface {

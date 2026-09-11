@@ -548,7 +548,7 @@ func TestAuthenticate_OAuthCallback_PKCERequiredMissing(t *testing.T) {
 
 	a := testAuthenticate(t)
 	a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
-		return pkceProvider{MockProvider: identity.MockProvider{AuthenticateResponse: oauth2.Token{}}}, nil
+		return pkceProvider{AuthenticateResponse: oauth2.Token{}}, nil
 	}))
 	a.state.Store(&authenticateState{
 		redirectURL:         authURL,

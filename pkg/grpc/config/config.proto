@@ -897,7 +897,7 @@ message Settings {
   optional string metrics_address = 40;
   // HTTP Basic Auth credentials required to access `metrics_address`, of
   // the form "user:password". Empty disables auth.
-  optional string metrics_basic_auth = 64;
+  optional string metrics_basic_auth = 64 [(sensitive) = true];
   // TLS certificate/key pair Pomerium uses on the metrics listener.
   optional Certificate metrics_certificate = 65;
   // PEM-encoded CA bundle used to authenticate clients connecting to the
@@ -971,7 +971,7 @@ message Settings {
   // Backing-store type for the databroker ("memory", "postgres", …).
   optional string databroker_storage_type = 101;
   // Connection string for the databroker storage backend, when applicable.
-  optional string databroker_storage_connection_string = 102;
+  optional string databroker_storage_connection_string = 102 [(sensitive) = true];
   reserved 106; // was databroker_storage_tls_skip_verify
   // Downstream (end-user) mTLS validation configuration.
   optional DownstreamMtlsSettings downstream_mtls = 116;

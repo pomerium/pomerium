@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // applyUpdatePatch implements sparse-patch semantics for Update* tool calls.
@@ -290,7 +292,7 @@ func mergeInto(merged, incoming protoreflect.Message, keyTree jsonKeyNode, pathP
 	fields := incoming.Descriptor().Fields()
 	for i := 0; i < fields.Len(); i++ {
 		fd := fields.Get(i)
-		if IsSensitive(fd) {
+		if protoutil.IsSensitive(fd) {
 			continue
 		}
 		sub, present := lookupKey(keyTree, fd)
@@ -344,7 +346,7 @@ func messageHasSensitiveDescendant(md protoreflect.MessageDescriptor, visited ma
 	fields := md.Fields()
 	for i := 0; i < fields.Len(); i++ {
 		fd := fields.Get(i)
-		if IsSensitive(fd) {
+		if protoutil.IsSensitive(fd) {
 			return true
 		}
 		if fd.Kind() == protoreflect.MessageKind {

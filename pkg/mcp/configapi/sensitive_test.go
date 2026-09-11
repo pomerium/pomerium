@@ -21,6 +21,7 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	"github.com/pomerium/pomerium/pkg/mcp/configapi"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // TestSchemaOmitsSensitive verifies that sensitive fields do not appear in
@@ -233,7 +234,7 @@ func TestScrubSensitive_NestedOAuthClientSecret(t *testing.T) {
 		},
 	}
 
-	configapi.ScrubSensitive(resp)
+	protoutil.ScrubSensitive(resp)
 
 	got := resp.GetRoute().GetMcp().GetServer().GetUpstreamOauth2().GetClientSecret()
 	assert.Empty(t, got, "ScrubSensitive must clear nested upstreamOauth2.clientSecret; got %q", got)
@@ -632,7 +633,8 @@ func TestApplyUpdatePatch_GetCallFails(t *testing.T) {
 func TestSkippedMethods(t *testing.T) {
 	t.Parallel()
 
-	url := newTestServer(t,
+	url := newTestServer(
+		t,
 		configconnect.UnimplementedConfigServiceHandler{},
 		configapi.WithSkippedMethods("CreateKeyPair", "UpdateKeyPair"),
 	)
@@ -975,7 +977,7 @@ func TestProp_ScrubSensitive_NoLeakage(t *testing.T) {
 				"generator failed to populate sentinel %q", s)
 		}
 
-		configapi.ScrubSensitive(route)
+		protoutil.ScrubSensitive(route)
 
 		postJSON, err := protojson.Marshal(route)
 		require.NoError(ht, err)

@@ -2305,12 +2305,10 @@ func TestStreamHandlerSuite(t *testing.T) {
 
 func TestStreamHandlerSuiteWithRuntimeFlags(t *testing.T) {
 	suite.Run(t, &StreamHandlerSuite{
-		StreamHandlerSuiteOptions: StreamHandlerSuiteOptions{
-			ConfigModifiers: []func(*config.Config){
-				func(c *config.Config) {
-					c.Options.RuntimeFlags[config.RuntimeFlagSSHRoutesPortal] = true
-					c.Options.RuntimeFlags[config.RuntimeFlagSSHAllowDirectTcpip] = true
-				},
+		ConfigModifiers: []func(*config.Config){
+			func(c *config.Config) {
+				c.Options.RuntimeFlags[config.RuntimeFlagSSHRoutesPortal] = true
+				c.Options.RuntimeFlags[config.RuntimeFlagSSHAllowDirectTcpip] = true
 			},
 		},
 	})

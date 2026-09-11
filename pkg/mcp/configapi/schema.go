@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // messageToJSONSchema converts a protobuf MessageDescriptor to a JSON Schema
@@ -83,7 +84,7 @@ func msgToSchema(md protoreflect.MessageDescriptor, visited map[protoreflect.Ful
 	fields := md.Fields()
 	for i := range fields.Len() {
 		fd := fields.Get(i)
-		if IsSensitive(fd) {
+		if protoutil.IsSensitive(fd) {
 			continue
 		}
 		props[fd.JSONName()] = fieldToSchema(fd, visited)

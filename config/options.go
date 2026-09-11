@@ -343,9 +343,7 @@ var defaultOptions = Options{
 	GRPCAddr:               ":443",
 	GRPCClientTimeout:      10 * time.Second, // Try to withstand transient service failures for a single request
 
-	AutocertOptions: AutocertOptions{
-		Folder: filepath.Join(fileutil.DataDir(), "autocert"),
-	},
+	Folder: filepath.Join(fileutil.DataDir(), "autocert"),
 	DataBroker: DataBrokerOptions{
 		StorageType: "memory",
 	},

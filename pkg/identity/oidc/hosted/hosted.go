@@ -230,14 +230,12 @@ func (p *Provider) signClientAssertionJWT(oa *oauth2.Config) (string, error) {
 		jwt.Claims
 		PomeriumVersion string `json:"pomerium_version"`
 	}{
-		Claims: jwt.Claims{
-			Issuer:   oa.ClientID,
-			Subject:  oa.ClientID,
-			Audience: jwt.Audience{oa.Endpoint.TokenURL},
-			ID:       id.String(),
-			IssuedAt: jwt.NewNumericDate(now),
-			Expiry:   jwt.NewNumericDate(now.Add(5 * time.Minute)),
-		},
+		Issuer:          oa.ClientID,
+		Subject:         oa.ClientID,
+		Audience:        jwt.Audience{oa.Endpoint.TokenURL},
+		ID:              id.String(),
+		IssuedAt:        jwt.NewNumericDate(now),
+		Expiry:          jwt.NewNumericDate(now.Add(5 * time.Minute)),
 		PomeriumVersion: p.pomeriumVersion,
 	}
 	return jwt.Signed(p.clientAssertionSigner).Claims(claims).CompactSerialize()

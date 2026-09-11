@@ -247,13 +247,11 @@ func TestConfig(t *testing.T) {
 	ocspUpdatedCh := domainRenewed.Bind()
 
 	mgr, err := newManager(ctx, config.NewStaticSource(config.New(&config.Options{
-		AutocertOptions: config.AutocertOptions{
-			Enable:     true,
-			UseStaging: true,
-			Email:      "pomerium-test@example.com",
-			MustStaple: true,
-			Folder:     tmpdir,
-		},
+		Enable:           true,
+		UseStaging:       true,
+		Email:            "pomerium-test@example.com",
+		MustStaple:       true,
+		Folder:           tmpdir,
 		HTTPRedirectAddr: addr,
 		Policies:         []config.Policy{p1},
 	})), certmagic.ACMEIssuer{

@@ -175,7 +175,7 @@ func TestValidateIdentityProviders(t *testing.T) {
 	jwtFmt := configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
 	provider := IdentityProvider{Issuer: "https://issuer.example.com", Audiences: []string{"pomerium"}}
 	jwtRoute := func() Policy {
-		return Policy{RouteOptions: RouteOptions{BearerTokenFormat: nullable.From(jwtFmt)}}
+		return Policy{BearerTokenFormat: nullable.From(jwtFmt)}
 	}
 
 	t.Run("valid jwt route with provider", func(t *testing.T) {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protodelim"
-	"google.golang.org/protobuf/proto"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -34,11 +33,9 @@ func TestReadRecords(t *testing.T) {
 
 func writeSampleRecords(dst io.Writer) error {
 	marshalOpts := protodelim.MarshalOptions{
-		MarshalOptions: proto.MarshalOptions{
-			AllowPartial:  false,
-			Deterministic: true,
-			UseCachedSize: false,
-		},
+		AllowPartial:  false,
+		Deterministic: true,
+		UseCachedSize: false,
 	}
 
 	cfg := protoutil.NewAny(&configpb.Config{
