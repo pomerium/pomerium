@@ -406,7 +406,7 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 				continue
 			}
 
-			if rec.GetData().GetTypeUrl() == "type.googleapis.com/idpsession.Binding" {
+			if rec.GetData().GetTypeUrl() == bindingTypeURL {
 				got, err := client.Get(t.Context(), &databroker.GetRequest{
 					Type: rec.GetData().GetTypeUrl(),
 					Id:   rec.GetId(),
@@ -414,7 +414,11 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 				assert.NoError(collect, err, "bindings should not be cleaned up immediately")
 				binding := &idpsession.Binding{}
 				assert.NoError(collect, got.GetRecord().GetData().UnmarshalTo(binding))
-				assert.Equal(collect, idpsession.BindingState_BindingState_REVOKED.String(), binding.State.String())
+				want := idpsession.BindingState_BindingState_REVOKED
+				if binding.GetTypeUrl() == userTypeURL {
+					want = idpsession.BindingState_BindingState_ACTIVE
+				}
+				assert.Equal(collect, want.String(), binding.GetState().String(), rec.GetId())
 				continue
 			}
 			_, err := client.Get(t.Context(), &databroker.GetRequest{
@@ -434,13 +438,25 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
 		for _, rec := range bindingsAndRecords {
-			if rec.GetData().GetTypeUrl() == "type.googleapis.com/user.User" {
+			if rec.GetData().GetTypeUrl() == userTypeURL {
 				_, err := client.Get(t.Context(), &databroker.GetRequest{
 					Type: rec.GetData().GetTypeUrl(),
 					Id:   rec.GetId(),
 				})
 				assert.NoError(collect, err, "userinfo should never be deleted")
 				continue
+			}
+			if rec.GetData().GetTypeUrl() == bindingTypeURL {
+				binding := &idpsession.Binding{}
+				assert.NoError(collect, rec.GetData().UnmarshalTo(binding))
+				if binding.GetTypeUrl() == userTypeURL {
+					_, err := client.Get(t.Context(), &databroker.GetRequest{
+						Type: rec.GetData().GetTypeUrl(),
+						Id:   rec.GetId(),
+					})
+					assert.NoError(collect, err, "user bindings should never be deleted")
+					continue
+				}
 			}
 			// all the other records should be cleaned up now
 			_, err := client.Get(t.Context(), &databroker.GetRequest{
