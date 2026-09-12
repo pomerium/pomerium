@@ -216,7 +216,8 @@ func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
 			return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
 		}),
 		manager.WithRefreshSessionAtIDTokenExpiration(manager.RefreshSessionAtIDTokenExpiration(
-			cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])),
+			cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration],
+		)),
 		manager.WithTracerProvider(d.tracerProvider),
 	}, d.cfg.managerOptions...)
 

@@ -62,14 +62,14 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 
 func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
 	allowGRPC := []string{
-		"envoy.service.auth.v3.Authorization",
 		"databroker.CheckpointService",
 		"databroker.DataBrokerService",
-		"registry.Registry",
+		"envoy.service.auth.v3.Authorization",
 		"grpc.health.v1.Health",
-		"health.HealthNotifier",
 		"grpc.reflection.v1.ServerReflection",
 		"grpc.reflection.v1alpha.ServerReflection",
+		"health.HealthNotifier",
+		"registry.Registry",
 	}
 	allowConnect := []string{
 		"grpc.reflection.v1.ServerReflection",

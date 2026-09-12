@@ -112,10 +112,14 @@ func filterExpressionFromStruct(path []string, s *structpb.Struct) (FilterExpres
 		}
 	}
 
-	if len(and) == 1 {
+	switch len(and) {
+	case 0:
+		return nil, nil
+	case 1:
 		return and[0], nil
+	default:
+		return and, nil
 	}
-	return and, nil
 }
 
 // An OrFilterExpression represents a logical-or comparison operator.
