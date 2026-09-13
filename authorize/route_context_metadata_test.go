@@ -130,6 +130,7 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 		innerFields := inner.GetFields()
 
 		assert.Equal(t, "api.upstream.example.com", innerFields[extproc.FieldUpstreamHost].GetStringValue())
+		assert.Equal(t, "https", innerFields[extproc.FieldUpstreamScheme].GetStringValue())
 	})
 
 	t.Run("MCP policy without To omits upstream_host", func(t *testing.T) {

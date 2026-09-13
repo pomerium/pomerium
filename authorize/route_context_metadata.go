@@ -42,6 +42,9 @@ func BuildRouteContextMetadata(request *evaluator.Request) *structpb.Struct {
 	// upstream host from the route config.
 	if len(request.Policy.To) > 0 {
 		fields[extproc.FieldUpstreamHost] = structpb.NewStringValue(request.Policy.To[0].URL.Hostname())
+		if scheme := request.Policy.To[0].URL.Scheme; scheme != "" {
+			fields[extproc.FieldUpstreamScheme] = structpb.NewStringValue(scheme)
+		}
 	}
 
 	return &structpb.Struct{

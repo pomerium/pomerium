@@ -34,7 +34,11 @@ const (
 	FieldRouteID      = "route_id"
 	FieldUserID       = "user_id"
 	FieldIsMCP        = "is_mcp"
-	FieldUpstreamHost = "upstream_host"
+	FieldRouteID        = "route_id"
+	FieldUserID         = "user_id"
+	FieldIsMCP          = "is_mcp"
+	FieldUpstreamHost   = "upstream_host"
+	FieldUpstreamScheme = "upstream_scheme"
 )
 
 // Callback is invoked when the ext_proc server receives a response headers message.
@@ -44,10 +48,11 @@ type Callback func(ctx context.Context, routeCtx *RouteContext, headers *ext_pro
 
 // RouteContext holds context extracted from metadata set by ext_authz.
 type RouteContext struct {
-	RouteID      string
-	UserID       string
-	IsMCP        bool
-	UpstreamHost string // Actual upstream hostname from the route's To config
+	RouteID        string
+	UserID         string
+	IsMCP          bool
+	UpstreamHost   string // Actual upstream hostname from the route's To config
+	UpstreamScheme string // Actual upstream scheme (http/https) from the route's To config
 }
 
 // Server implements the Envoy external processor service for MCP response interception.
@@ -130,7 +135,9 @@ func (s *Server) Process(stream ext_proc_v3.ExternalProcessor_ProcessServer) err
 				upstreamHost = routeCtx.UpstreamHost
 			}
 			scheme := getHeaderValue(v.RequestHeaders.GetHeaders(), ":scheme")
-			if scheme != "http" && scheme != "https" {
+			if routeCtx != nil && routeCtx.UpstreamScheme != "" {
+				scheme = routeCtx.UpstreamScheme
+			} else if scheme != "http" && scheme != "https" {
 				scheme = "https"
 			}
 			reqPath := getHeaderValue(v.RequestHeaders.GetHeaders(), ":path")
