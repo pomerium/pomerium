@@ -84,6 +84,7 @@ func IssueSession(newSessionID string, idpSess *IDPSession, iat time.Time, expir
 		s.AddClaims(identity.Claims(claims.AsMap()).Flatten())
 	}
 	s.IssuedAt = timestamppb.New(iat)
+	s.AccessedAt = timestamppb.New(iat)
 	s.ExpiresAt = timestamppb.New(iat.Add(expiry))
 	return s
 }
@@ -109,19 +110,78 @@ func NewBoundRecords(idpSessionID string, protocol BindingProtocol, details map[
 	}
 }
 
-func RevokeBinding(ctx context.Context, client databroker.DataBrokerServiceClient, bindingID string) error {
-	rec, err := client.Get(ctx, &databroker.GetRequest{
-		Type: "type.googleapis.com/idpsession.Binding",
-		Id:   bindingID,
+// GetIDPSession reads a centralized upstream IdP session record, keyed by user
+// id. The gRPC error is returned unwrapped so callers can test codes.NotFound.
+func GetIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string) (*IDPSession, error) {
+	res, err := client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(new(IDPSession)),
+		Id:   id,
 	})
+	if err != nil {
+		return nil, err
+	}
+	idpSess := new(IDPSession)
+	if err := res.GetRecord().GetData().UnmarshalTo(idpSess); err != nil {
+		return nil, err
+	}
+	return idpSess, nil
+}
+
+// GetBinding reads the Binding whose id is its dependent client record's id.
+// The gRPC error is returned unwrapped so callers can test codes.NotFound.
+func GetBinding(ctx context.Context, client databroker.DataBrokerServiceClient, id string) (*Binding, error) {
+	res, err := client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(new(Binding)),
+		Id:   id,
+	})
+	if err != nil {
+		return nil, err
+	}
+	binding := new(Binding)
+	if err := res.GetRecord().GetData().UnmarshalTo(binding); err != nil {
+		return nil, err
+	}
+	return binding, nil
+}
+
+// GetValidIDPSession reads a centralized upstream IdP session that a new
+// dependent credential may still be issued from. A session that has been
+// invalidated (the user signed out or the provider revoked them) is reported
+// the same way as a missing one, as a codes.NotFound error, so callers keep a
+// single "no usable session" branch. Only the state is checked: an expired
+// copy of the upstream access token does not make the session unusable, since
+// the identity manager refreshes it out of band.
+func GetValidIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string) (*IDPSession, error) {
+	idpSess, err := GetIDPSession(ctx, client, id)
+	if err != nil {
+		return nil, err
+	}
+	if st := idpSess.GetState(); st.GetState() == UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID {
+		return nil, status.Errorf(codes.NotFound, "idpsession %q is no longer valid: %s", id, st.GetDetails())
+	}
+	return idpSess, nil
+}
+
+// GetActiveBinding reads a Binding that still ties its dependent to the IdP
+// session. A revoked binding is reported the same way as a missing one, as a
+// codes.NotFound error: either way the dependent may no longer act.
+func GetActiveBinding(ctx context.Context, client databroker.DataBrokerServiceClient, id string) (*Binding, error) {
+	binding, err := GetBinding(ctx, client, id)
+	if err != nil {
+		return nil, err
+	}
+	if binding.GetState() == BindingState_BindingState_REVOKED {
+		return nil, status.Errorf(codes.NotFound, "binding %q is revoked", id)
+	}
+	return binding, nil
+}
+
+func RevokeBinding(ctx context.Context, client databroker.DataBrokerServiceClient, bindingID string) error {
+	binding, err := GetBinding(ctx, client, bindingID)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return nil
 		}
-		return err
-	}
-	binding := &Binding{}
-	if err := rec.Record.GetData().UnmarshalTo(binding); err != nil {
 		return err
 	}
 
@@ -136,18 +196,11 @@ func RevokeBinding(ctx context.Context, client databroker.DataBrokerServiceClien
 }
 
 func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string, reason string) (*oauth2.Token, error) {
-	rec, err := client.Get(ctx, &databroker.GetRequest{
-		Type: "type.googleapis.com/idpsession.IDPSession",
-		Id:   id,
-	})
+	idpSess, err := GetIDPSession(ctx, client, id)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return nil, nil
 		}
-		return nil, err
-	}
-	idpSess := &IDPSession{}
-	if err := rec.Record.GetData().UnmarshalTo(idpSess); err != nil {
 		return nil, err
 	}
 
