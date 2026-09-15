@@ -227,7 +227,7 @@ func BenchmarkSyncerPropagateN(b *testing.B) {
 	for b.Loop() {
 		at := time.Now()
 		for _, sess := range f.randomSessions(propagateToN) {
-			f.applier.onUpdateIDPSession(sess, at)
+			f.applier.onUpdateIDPSession(b.Context(), sess, at)
 		}
 		if err := f.applier.ReconcileAtLocked(b.Context(), at.Add(time.Hour*24*365)); err != nil {
 			b.Fatal(err)
@@ -252,7 +252,7 @@ func BenchmarkSyncerPropagateAll(b *testing.B) {
 	for b.Loop() {
 		at := time.Now()
 		for _, sess := range f.sessions {
-			f.applier.onUpdateIDPSession(sess, at)
+			f.applier.onUpdateIDPSession(b.Context(), sess, at)
 		}
 		if err := f.applier.ReconcileAtLocked(b.Context(), at.Add(time.Hour*24*365)); err != nil {
 			b.Fatal(err)

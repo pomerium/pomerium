@@ -440,10 +440,9 @@ type Binding struct {
 	Protocol     BindingProtocol        `protobuf:"varint,4,opt,name=protocol,proto3,enum=idpsession.BindingProtocol" json:"protocol,omitempty"`
 	InitiatedAt  *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=initiated_at,json=initiatedAt,proto3" json:"initiated_at,omitempty"`
 	State        BindingState           `protobuf:"varint,6,opt,name=state,proto3,enum=idpsession.BindingState" json:"state,omitempty"`
-	RevokedAt    *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
 	// details holds some user friendly details about
 	// the client of this binding.
-	Details       map[string]string `protobuf:"bytes,8,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Details       map[string]string `protobuf:"bytes,7,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -520,13 +519,6 @@ func (x *Binding) GetState() BindingState {
 	return BindingState_BindingState_ACTIVE
 }
 
-func (x *Binding) GetRevokedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.RevokedAt
-	}
-	return nil
-}
-
 func (x *Binding) GetDetails() map[string]string {
 	if x != nil {
 		return x.Details
@@ -535,11 +527,10 @@ func (x *Binding) GetDetails() map[string]string {
 }
 
 type SessionState struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	State         UpstreamIdPSessionState `protobuf:"varint,1,opt,name=state,proto3,enum=idpsession.UpstreamIdPSessionState" json:"state,omitempty"`
-	InvalidatedAt *timestamppb.Timestamp  `protobuf:"bytes,2,opt,name=invalidated_at,json=invalidatedAt,proto3" json:"invalidated_at,omitempty"`
+	state protoimpl.MessageState  `protogen:"open.v1"`
+	State UpstreamIdPSessionState `protobuf:"varint,1,opt,name=state,proto3,enum=idpsession.UpstreamIdPSessionState" json:"state,omitempty"`
 	// holds readable string about details of a state
-	Details       string `protobuf:"bytes,3,opt,name=details,proto3" json:"details,omitempty"`
+	Details       string `protobuf:"bytes,2,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -579,13 +570,6 @@ func (x *SessionState) GetState() UpstreamIdPSessionState {
 		return x.State
 	}
 	return UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_UKNOWN
-}
-
-func (x *SessionState) GetInvalidatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.InvalidatedAt
-	}
-	return nil
 }
 
 func (x *SessionState) GetDetails() string {
@@ -628,24 +612,21 @@ const file_idpsession_proto_rawDesc = "" +
 	"\x06claims\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06claims\x12\x15\n" +
 	"\x06idp_id\x18\t \x01(\tR\x05idpId\x12\x17\n" +
 	"\auser_id\x18\n" +
-	" \x01(\tR\x06userId\"\xb5\x03\n" +
+	" \x01(\tR\x06userId\"\xfa\x02\n" +
 	"\aBinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\btype_url\x18\x02 \x01(\tR\atypeUrl\x12$\n" +
 	"\x0eidp_session_id\x18\x03 \x01(\tR\fidpSessionId\x127\n" +
 	"\bprotocol\x18\x04 \x01(\x0e2\x1b.idpsession.BindingProtocolR\bprotocol\x12=\n" +
 	"\finitiated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vinitiatedAt\x12.\n" +
-	"\x05state\x18\x06 \x01(\x0e2\x18.idpsession.BindingStateR\x05state\x129\n" +
-	"\n" +
-	"revoked_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\x12:\n" +
-	"\adetails\x18\b \x03(\v2 .idpsession.Binding.DetailsEntryR\adetails\x1a:\n" +
+	"\x05state\x18\x06 \x01(\x0e2\x18.idpsession.BindingStateR\x05state\x12:\n" +
+	"\adetails\x18\a \x03(\v2 .idpsession.Binding.DetailsEntryR\adetails\x1a:\n" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa6\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"c\n" +
 	"\fSessionState\x129\n" +
-	"\x05state\x18\x01 \x01(\x0e2#.idpsession.UpstreamIdPSessionStateR\x05state\x12A\n" +
-	"\x0einvalidated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rinvalidatedAt\x12\x18\n" +
-	"\adetails\x18\x03 \x01(\tR\adetails*g\n" +
+	"\x05state\x18\x01 \x01(\x0e2#.idpsession.UpstreamIdPSessionStateR\x05state\x12\x18\n" +
+	"\adetails\x18\x02 \x01(\tR\adetails*g\n" +
 	"\x0fBindingProtocol\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_UNKNOWN\x10\x00\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_BROWSER\x10\x01\x12\x18\n" +
@@ -696,15 +677,13 @@ var file_idpsession_proto_depIdxs = []int32{
 	0,  // 7: idpsession.Binding.protocol:type_name -> idpsession.BindingProtocol
 	9,  // 8: idpsession.Binding.initiated_at:type_name -> google.protobuf.Timestamp
 	1,  // 9: idpsession.Binding.state:type_name -> idpsession.BindingState
-	9,  // 10: idpsession.Binding.revoked_at:type_name -> google.protobuf.Timestamp
-	8,  // 11: idpsession.Binding.details:type_name -> idpsession.Binding.DetailsEntry
-	2,  // 12: idpsession.SessionState.state:type_name -> idpsession.UpstreamIdPSessionState
-	9,  // 13: idpsession.SessionState.invalidated_at:type_name -> google.protobuf.Timestamp
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	8,  // 10: idpsession.Binding.details:type_name -> idpsession.Binding.DetailsEntry
+	2,  // 11: idpsession.SessionState.state:type_name -> idpsession.UpstreamIdPSessionState
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_idpsession_proto_init() }
