@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -217,7 +218,7 @@ type tokenTestStorage struct {
 	getBindingFunc      func(ctx context.Context, id string) (*idpsession.Binding, error)
 	getSessionFunc      func(ctx context.Context, id string) (*session.Session, uint64, error)
 	putBoundSessionFunc func(ctx context.Context, s *session.Session, details map[string]string) (uint64, error)
-	putSessionFunc      func(ctx context.Context, s *session.Session) (uint64, error)
+	putSessionFunc      func(ctx context.Context, s *session.Session, version uint64) (uint64, error)
 
 	mu                   sync.Mutex
 	putBoundSessionCalls int
@@ -255,14 +256,14 @@ func (s *tokenTestStorage) PutBoundSession(ctx context.Context, sess *session.Se
 	return s.Storage.PutBoundSession(ctx, sess, details)
 }
 
-func (s *tokenTestStorage) PutSession(ctx context.Context, sess *session.Session) (uint64, error) {
+func (s *tokenTestStorage) PutSession(ctx context.Context, sess *session.Session, version uint64) (uint64, error) {
 	s.mu.Lock()
 	s.putSessionCalls++
 	s.mu.Unlock()
 	if s.putSessionFunc != nil {
-		return s.putSessionFunc(ctx, sess)
+		return s.putSessionFunc(ctx, sess, version)
 	}
-	return s.Storage.PutSession(ctx, sess)
+	return s.Storage.PutSession(ctx, sess, version)
 }
 
 func (s *tokenTestStorage) counts() (putBoundSessionCalls, putSessionCalls int) {
@@ -861,87 +862,63 @@ func TestRefreshTokenGrant(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
-	t.Run("concurrent refresh token usage", func(t *testing.T) {
-		// N goroutines present the same refresh token concurrently. refreshMCPSession
-		// reads the session's issued_at, compares it to the presented token's, and only
-		// then writes a re-issued session: nothing serializes the read against another
-		// goroutine's write, so every goroutine can observe the same (pre-rotation)
-		// issued_at and succeed, each rotating the session to its own new issued_at.
-		// Whichever write physically lands last is what's now durably stored, so on a
-		// second pass exactly one of the returned refresh tokens — the one whose
-		// issued_at matches that final generation — should still work.
+	t.Run("concurrent refresh is single use", func(t *testing.T) {
+		// N goroutines present the same refresh token at once. A barrier in GetSession
+		// holds every request until all of them have read the pre-rotation session, so
+		// all of them pass the issued_at check. The conditional write must then let
+		// exactly one of them rotate the session; the others are told the token is gone.
 		storage := setupTestDatabroker(ctx, t)
 		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
 		require.NoError(t, err)
-		srv := newHandlerWithStorage(storage, testCipher, 5*time.Minute)
+		clientID, _, refreshToken := issueViaAuthCode(ctx, t,
+			newHandlerWithStorage(storage, testCipher, 5*time.Minute), storage, "concurrent-refresh-user")
 
-		userID := "concurrent-refresh-user"
-		clientID, _, refreshToken := issueViaAuthCode(ctx, t, srv, storage, userID)
-
-		const n = 10
-		statusCodes := make([]int, n)
-		newRefreshTokens := make([]string, n)
-
-		var wg sync.WaitGroup
-		start := make(chan struct{})
-		for i := range n {
-			wg.Add(1)
-			go func(i int) {
-				defer wg.Done()
-				<-start
-
-				w := doTokenRequest(srv, url.Values{
-					"grant_type":    {"refresh_token"},
-					"refresh_token": {refreshToken},
-					"client_id":     {clientID},
-				})
-				statusCodes[i] = w.Code
-				if w.Code == http.StatusOK {
-					var resp map[string]any
-					if err := json.Unmarshal(w.Body.Bytes(), &resp); err == nil {
-						newRefreshTokens[i], _ = resp["refresh_token"].(string)
-					}
+		const n = 4
+		allRead := make(chan struct{})
+		var reads atomic.Int32
+		spy := &tokenTestStorage{
+			Storage: storage,
+			getSessionFunc: func(ctx context.Context, id string) (*session.Session, uint64, error) {
+				sess, version, err := storage.GetSession(ctx, id)
+				if reads.Add(1) == n {
+					close(allRead)
 				}
-			}(i)
+				<-allRead
+				return sess, version, err
+			},
 		}
-		close(start)
-		wg.Wait()
+		srv := newHandlerWithStorage(spy, testCipher, 5*time.Minute)
 
-		successCount := 0
-		for i, code := range statusCodes {
-			switch code {
-			case http.StatusOK:
-				successCount++
-				assert.NotEmpty(t, newRefreshTokens[i])
-			case http.StatusBadRequest:
-				// expected for a losing concurrent attempt (rare, but possible if the
-				// scheduler serializes some of the goroutines before they all read).
-			default:
-				t.Errorf("unexpected status code: %d", code)
-			}
-		}
-		require.GreaterOrEqual(t, successCount, 1, "at least one concurrent refresh should succeed")
-		t.Logf("concurrent refresh: %d/%d succeeded", successCount, n)
-
-		// Replay every token that came back, one at a time: exactly one — the one whose
-		// issued_at matches whatever generation is now durably stored — must still work.
-		secondSuccesses := 0
-		for i, code := range statusCodes {
-			if code != http.StatusOK {
-				continue
-			}
-			w := doTokenRequest(srv, url.Values{
+		refresh := func(token string) *httptest.ResponseRecorder {
+			return doTokenRequest(srv, url.Values{
 				"grant_type":    {"refresh_token"},
-				"refresh_token": {newRefreshTokens[i]},
+				"refresh_token": {token},
 				"client_id":     {clientID},
 			})
-			if w.Code == http.StatusOK {
-				secondSuccesses++
-			} else {
-				assert.Equal(t, http.StatusBadRequest, w.Code)
+		}
+
+		results := make(chan *httptest.ResponseRecorder, n)
+		for range n {
+			go func() { results <- refresh(refreshToken) }()
+		}
+		var winners []string
+		for range n {
+			w := <-results
+			switch w.Code {
+			case http.StatusOK:
+				var resp map[string]any
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+				winners = append(winners, resp["refresh_token"].(string))
+			case http.StatusBadRequest:
+				assert.Contains(t, w.Body.String(), "invalid_grant")
+			default:
+				t.Errorf("unexpected status code %d: %s", w.Code, w.Body.String())
 			}
 		}
-		assert.Equal(t, 1, secondSuccesses, "exactly one refresh token should still be valid on a second use")
+		require.Len(t, winners, 1, "a refresh token must be consumed exactly once")
+
+		// The winner holds the live generation.
+		assert.Equal(t, http.StatusOK, refresh(winners[0]).Code)
 	})
 }
 

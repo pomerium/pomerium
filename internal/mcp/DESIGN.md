@@ -296,6 +296,11 @@ When the MCP client's access token expires, it presents the refresh token to
    - New `expires_at` = now + 365 days (slides the deadline)
    - Binding left untouched (critical: revoking the binding must stop refresh)
 
+   The write is conditional on the session record version read in step 4
+   (databroker `if_match_version`). If several requests present the same
+   refresh token at once, exactly one rotates the session; the rest fail the
+   conditional write and respond with `invalid_grant`.
+
 6. **Mint new tokens**:
    - Access token with new version
    - Refresh token with new `issued_at`
@@ -312,7 +317,9 @@ When the MCP client's access token expires, it presents the refresh token to
 - **Rotation via generation**: Every refresh increments the session's `issued_at`,
   creating a new generation. Refresh tokens encode the `issued_at` they were
   minted with; reusing an old token fails because its `issued_at` no longer
-  matches the session. No per-token revocation list needed.
+  matches the session. No per-token revocation list needed. The generation
+  check and the rotation are made atomic by the conditional write, so a
+  refresh token is single-use even under concurrent presentation.
 
 - **Encryption**: Refresh token is encrypted (AES-GCM) with key derived from
   Pomerium's shared secret. Client id is AEAD additional data, binding the token

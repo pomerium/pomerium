@@ -236,7 +236,7 @@ func TestStorage(t *testing.T) {
 			IssuedAt: timestamppb.Now(),
 		}
 
-		version, err := storage.PutSession(ctx, sess)
+		version, err := storage.PutSession(ctx, sess, 0)
 		require.NoError(t, err)
 		assert.NotZero(t, version)
 
@@ -248,6 +248,13 @@ func TestStorage(t *testing.T) {
 		// PutSession must never create a Binding record.
 		_, err = storage.GetActiveBinding(ctx, sess.Id)
 		assert.Equal(t, codes.NotFound, status.Code(err))
+
+		// The write is conditional on the version last read.
+		_, err = storage.PutSession(ctx, sess, 0)
+		assert.True(t, databroker_grpc.IsRecordVersionMismatch(err), "stale version: %v", err)
+		newVersion, err := storage.PutSession(ctx, sess, version)
+		require.NoError(t, err)
+		assert.Greater(t, newVersion, version)
 	})
 
 	t.Run("upstream oauth client", func(t *testing.T) {

@@ -19,6 +19,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/internal/opaquetoken"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
@@ -283,7 +284,10 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 // stops refresh at the first check, and the binding is never rewritten here. The
 // session record is then re-issued from the IDPSession with a new issued_at,
 // which is what rotates the refresh token: a token still carrying the previous
-// issued_at is a replayed old generation and is refused.
+// issued_at is a replayed old generation and is refused. The re-issue is
+// conditional on the session version read here, so of several concurrent
+// presentations of one refresh token exactly one rotates the session; the
+// others find it already consumed.
 func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.Payload, now time.Time) (*session.Session, uint64, error) {
 	sessionID := payload.GetId()
 
@@ -299,7 +303,7 @@ func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.
 		return nil, 0, err
 	}
 
-	sess, _, err := srv.storage.GetSession(ctx, sessionID)
+	sess, version, err := srv.storage.GetSession(ctx, sessionID)
 	if status.Code(err) == codes.NotFound {
 		// The identity manager deletes expired sessions and then revokes their
 		// binding; a session that is already gone means the grant expired.
@@ -312,8 +316,10 @@ func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.
 	}
 
 	sess = newMCPSession(sessionID, idpSess, now)
-	version, err := srv.storage.PutSession(ctx, sess)
-	if err != nil {
+	version, err = srv.storage.PutSession(ctx, sess, version)
+	if databroker.IsRecordVersionMismatch(err) {
+		return nil, 0, fmt.Errorf("%w: refresh token for session %q was consumed by a concurrent request", errInvalidGrant, sessionID)
+	} else if err != nil {
 		return nil, 0, fmt.Errorf("store mcp client session: %w", err)
 	}
 	return sess, version, nil

@@ -220,7 +220,7 @@ func (s *testUpstreamAuthStorage) DeleteAuthorizationRequest(context.Context, st
 	panic("unexpected call to DeleteAuthorizationRequest")
 }
 
-func (s *testUpstreamAuthStorage) PutSession(context.Context, *session.Session) (uint64, error) {
+func (s *testUpstreamAuthStorage) PutSession(context.Context, *session.Session, uint64) (uint64, error) {
 	panic("unexpected call to PutSession")
 }
 
@@ -818,7 +818,7 @@ func (s *refreshTokenTestStorage) GetSession(context.Context, string) (*session.
 	panic("unexpected call")
 }
 
-func (s *refreshTokenTestStorage) PutSession(context.Context, *session.Session) (uint64, error) {
+func (s *refreshTokenTestStorage) PutSession(context.Context, *session.Session, uint64) (uint64, error) {
 	panic("unexpected call")
 }
 

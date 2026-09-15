@@ -36,9 +36,12 @@ type HandlerStorage interface {
 	// PutBoundSession creates an MCP client session together with its Binding to
 	// the user's IDPSession. Used once per consent.
 	PutBoundSession(ctx context.Context, s *session.Session, details map[string]string) (uint64, error)
-	// PutSession rewrites an MCP client session alone, never its Binding. Used on
-	// refresh: rewriting the Binding could resurrect a revoked client.
-	PutSession(ctx context.Context, s *session.Session) (uint64, error)
+	// PutSession rewrites an MCP client session alone, never its Binding, and
+	// only if the stored session is still at version (as returned by GetSession).
+	// A concurrent writer that got there first makes it fail with
+	// databroker.ErrRecordVersionMismatch. Used on refresh: rewriting the Binding
+	// could resurrect a revoked client.
+	PutSession(ctx context.Context, s *session.Session, version uint64) (uint64, error)
 	PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
 	GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
 	DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error
@@ -310,13 +313,16 @@ func (storage *Storage) PutBoundSession(ctx context.Context, s *session.Session,
 }
 
 // PutSession stores an MCP client session on its own, leaving its Binding
-// untouched. It returns the session record's version.
-func (storage *Storage) PutSession(ctx context.Context, s *session.Session) (uint64, error) {
-	res, err := session.Put(ctx, storage.client(), s)
+// untouched, provided the stored session is still at version. It returns the
+// session record's new version.
+func (storage *Storage) PutSession(ctx context.Context, s *session.Session, version uint64) (uint64, error) {
+	record := databroker.NewRecord(s)
+	record.Version = version
+	res, err := databroker.PutIfMatchVersion(ctx, storage.client(), record)
 	if err != nil {
 		return 0, err
 	}
-	return res.GetRecord().GetVersion(), nil
+	return res.GetRecords()[0].GetVersion(), nil
 }
 
 // pendingUpstreamAuthID builds the composite key for a PendingUpstreamAuth record.
