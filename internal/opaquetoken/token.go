@@ -26,31 +26,47 @@ const (
 	TypeAccess        = Type_TYPE_ACCESS
 )
 
+// SealOption customizes the payload of a token minted by Seal.
+type SealOption func(*Payload)
+
+// WithRecordVersion embeds the databroker record version of the referenced
+// record, which the reader can replay as a minimum-version hint
+// (read-your-writes). A zero version embeds no hint.
+func WithRecordVersion(version uint64) SealOption {
+	return func(p *Payload) { p.RecordVersion = version }
+}
+
+// WithIssuedAt records when the token was minted. A refresh token is minted
+// together with a (re)issued session and carries that session's issued_at, which
+// the token endpoint later compares against the session's current issued_at to
+// refuse tokens from a rotated-away generation.
+func WithIssuedAt(issuedAt time.Time) SealOption {
+	return func(p *Payload) { p.IssuedAt = timestamppb.New(issuedAt) }
+}
+
 // Seal mints a token of type typ referencing the databroker record id, valid
 // until expires. The token is sealed with cipher, bound to the associated data
 // ad, and base64-encoded. Open must be called with the same type and associated
 // data.
-//
-// recordVersion embeds the databroker record version of the referenced record,
-// which the reader can replay as a minimum-version hint (read-your-writes). A
-// zero version embeds no hint.
 func Seal(
 	typ Type,
 	id string,
 	expires time.Time,
 	ad string,
 	cipher cipher.AEAD,
-	recordVersion uint64,
+	opts ...SealOption,
 ) (string, error) {
 	if expires.IsZero() {
 		return "", fmt.Errorf("validate: zero expiration")
 	}
 
 	v := Payload{
-		Id:            id,
-		ExpiresAt:     timestamppb.New(expires),
-		Type:          typ,
-		RecordVersion: recordVersion,
+		Id:        id,
+		ExpiresAt: timestamppb.New(expires),
+		Type:      typ,
+	}
+	for _, opt := range opts {
+		opt(&v)
 	}
 
 	err := protovalidate.Validate(&v)

@@ -14,6 +14,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -27,11 +28,17 @@ type HandlerStorage interface {
 	CreateAuthorizationRequest(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error)
 	GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
 	DeleteAuthorizationRequest(ctx context.Context, id string) error
+	// GetValidIDPSession and GetActiveBinding report an invalidated IdP session or a
+	// revoked binding as codes.NotFound, like a missing record.
+	GetValidIDPSession(ctx context.Context, id string) (*idpsessionpb.IDPSession, error)
+	GetActiveBinding(ctx context.Context, id string) (*idpsessionpb.Binding, error)
 	GetSession(ctx context.Context, id string) (*session.Session, uint64, error)
+	// PutBoundSession creates an MCP client session together with its Binding to
+	// the user's IDPSession. Used once per consent.
+	PutBoundSession(ctx context.Context, s *session.Session, details map[string]string) (uint64, error)
+	// PutSession rewrites an MCP client session alone, never its Binding. Used on
+	// refresh: rewriting the Binding could resurrect a revoked client.
 	PutSession(ctx context.Context, s *session.Session) (uint64, error)
-	PutMCPRefreshToken(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
-	GetMCPRefreshToken(ctx context.Context, id string) (*oauth21proto.MCPRefreshToken, error)
-	DeleteMCPRefreshToken(ctx context.Context, id string) error
 	PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
 	GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
 	DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error
@@ -174,84 +181,6 @@ func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Ses
 	return v, rec.GetRecord().GetVersion(), nil
 }
 
-// PutMCPRefreshToken stores an MCP refresh token record.
-func (storage *Storage) PutMCPRefreshToken(
-	ctx context.Context,
-	token *oauth21proto.MCPRefreshToken,
-) error {
-	data := protoutil.NewAny(token)
-	_, err := storage.client().Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{{
-			Id:   token.Id,
-			Data: data,
-			Type: data.TypeUrl,
-		}},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to store MCP refresh token: %w", err)
-	}
-	event := log.Ctx(ctx).Info().
-		Str("record-type", data.TypeUrl).
-		Str("record-id", token.Id).
-		Str("client-id", token.ClientId).
-		Str("user-id", token.UserId).
-		Bool("revoked", token.Revoked).
-		Bool("has-upstream-refresh-token", token.UpstreamRefreshToken != "")
-	if token.IssuedAt != nil {
-		event.Time("issued-at", token.IssuedAt.AsTime())
-	}
-	if token.ExpiresAt != nil {
-		event.Time("expires-at", token.ExpiresAt.AsTime())
-	}
-	event.Msg("stored mcp refresh token")
-	return nil
-}
-
-// GetMCPRefreshToken retrieves an MCP refresh token record by ID.
-func (storage *Storage) GetMCPRefreshToken(
-	ctx context.Context,
-	id string,
-) (*oauth21proto.MCPRefreshToken, error) {
-	v := new(oauth21proto.MCPRefreshToken)
-	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
-		Type: protoutil.GetTypeURL(v),
-		Id:   id,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get MCP refresh token by ID: %w", err)
-	}
-
-	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal MCP refresh token: %w", err)
-	}
-
-	return v, nil
-}
-
-// DeleteMCPRefreshToken removes an MCP refresh token record.
-func (storage *Storage) DeleteMCPRefreshToken(
-	ctx context.Context,
-	id string,
-) error {
-	data := protoutil.NewAny(&oauth21proto.MCPRefreshToken{})
-	_, err := storage.client().Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{{
-			Id:        id,
-			Data:      data,
-			Type:      data.TypeUrl,
-			DeletedAt: timestamppb.Now(),
-		}},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to delete MCP refresh token: %w", err)
-	}
-	log.Ctx(ctx).Info().
-		Str("record-id", id).
-		Msg("deleted mcp refresh token")
-	return nil
-}
-
 // upstreamMCPTokenID builds the composite key for an UpstreamMCPToken record.
 // All three fields must be non-empty.
 func upstreamMCPTokenID(userID, routeID, upstreamServer string) (string, error) {
@@ -347,7 +276,41 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 	return nil
 }
 
-// PutSession stores a session in the databroker.
+// GetActiveBinding reads a binding that is not revoked; see idpsessionpb.GetActiveBinding.
+func (storage *Storage) GetActiveBinding(ctx context.Context, id string) (*idpsessionpb.Binding, error) {
+	return idpsessionpb.GetActiveBinding(ctx, storage.client(), id)
+}
+
+// GetValidIDPSession reads a user's centralized IdP session if it is still valid;
+// see idpsessionpb.GetValidIDPSession.
+func (storage *Storage) GetValidIDPSession(ctx context.Context, id string) (*idpsessionpb.IDPSession, error) {
+	return idpsessionpb.GetValidIDPSession(ctx, storage.client(), id)
+}
+
+// PutBoundSession stores an MCP client session and, atomically, its Binding to
+// the user's IDPSession (the session's user id). It returns the session record's
+// version.
+func (storage *Storage) PutBoundSession(ctx context.Context, s *session.Session, details map[string]string) (uint64, error) {
+	res, err := storage.client().Put(ctx, &databroker.PutRequest{
+		Records: idpsessionpb.NewBoundRecords(s.GetUserId(),
+			idpsessionpb.BindingProtocol_BINDING_PROTOCOL_MCP,
+			details,
+			s,
+		),
+	})
+	if err != nil {
+		return 0, err
+	}
+	for _, record := range res.GetRecords() {
+		if record.GetType() == protoutil.GetTypeURL(s) && record.GetId() == s.GetId() {
+			return record.GetVersion(), nil
+		}
+	}
+	return 0, fmt.Errorf("put session response did not contain session record %q", s.GetId())
+}
+
+// PutSession stores an MCP client session on its own, leaving its Binding
+// untouched. It returns the session record's version.
 func (storage *Storage) PutSession(ctx context.Context, s *session.Session) (uint64, error) {
 	res, err := session.Put(ctx, storage.client(), s)
 	if err != nil {

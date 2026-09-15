@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
@@ -495,16 +496,8 @@ func (s *testConnectStorage) PutSession(context.Context, *session.Session) (uint
 	panic("unexpected call to PutSession")
 }
 
-func (s *testConnectStorage) PutMCPRefreshToken(context.Context, *oauth21proto.MCPRefreshToken) error {
-	panic("unexpected call to PutMCPRefreshToken")
-}
-
-func (s *testConnectStorage) GetMCPRefreshToken(context.Context, string) (*oauth21proto.MCPRefreshToken, error) {
-	panic("unexpected call to GetMCPRefreshToken")
-}
-
-func (s *testConnectStorage) DeleteMCPRefreshToken(context.Context, string) error {
-	panic("unexpected call to DeleteMCPRefreshToken")
+func (s *testConnectStorage) PutBoundSession(context.Context, *session.Session, map[string]string) (uint64, error) {
+	panic("unexpected call to PutBoundSession")
 }
 
 func (s *testConnectStorage) PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error {
@@ -534,4 +527,12 @@ func (s *testConnectStorage) DeletePendingUpstreamAuth(context.Context, string, 
 
 func (s *testConnectStorage) GetPendingUpstreamAuthByState(context.Context, string) (*oauth21proto.PendingUpstreamAuth, error) {
 	panic("unexpected call to GetPendingUpstreamAuthByState")
+}
+
+func (s *testConnectStorage) GetActiveBinding(context.Context, string) (*idpsessionpb.Binding, error) {
+	panic("unexpected call to GetBinding")
+}
+
+func (s *testConnectStorage) GetValidIDPSession(context.Context, string) (*idpsessionpb.IDPSession, error) {
+	panic("unexpected call to GetIDPSession")
 }

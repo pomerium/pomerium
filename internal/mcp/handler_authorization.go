@@ -54,14 +54,6 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		Interface("claims", claims).
 		Msg("mcp/authorize: extracted JWT claims")
 
-	sessionID, ok := getSessionIDFromClaims(claims)
-	if !ok {
-		log.Ctx(ctx).Error().
-			Interface("claims", claims).
-			Msg("mcp/authorize: session is not present in claims, this is a misconfigured request")
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
 	userID, ok := getUserIDFromClaims(claims)
 	if !ok {
 		log.Ctx(ctx).Error().
@@ -80,10 +72,8 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v.UserId = userID
-	v.SessionId = sessionID
 
 	log.Ctx(ctx).Debug().
-		Str("session-id", sessionID).
 		Str("user-id", userID).
 		Str("client-id", v.ClientId).
 		Str("redirect-uri", v.GetRedirectUri()).
@@ -262,7 +252,6 @@ func (srv *Handler) AuthorizationResponse(
 		Str("auth-req-id", id).
 		Str("client-id", req.GetClientId()).
 		Str("redirect-uri", req.GetRedirectUri()).
-		Str("session-id", req.GetSessionId()).
 		Str("user-id", req.GetUserId()).
 		Msg("mcp/authorize-response: generating authorization response")
 
@@ -287,7 +276,6 @@ func (srv *Handler) AuthorizationResponse(
 		time.Now().Add(time.Minute*10),
 		req.ClientId,
 		srv.cipher,
-		0,
 	)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize-response: failed to create code")
@@ -337,11 +325,6 @@ func getClaimsFromRequest(r *http.Request) (map[string]any, error) {
 	}
 
 	return m, nil
-}
-
-func getSessionIDFromClaims(claims map[string]any) (string, bool) {
-	sessionID, ok := claims["sid"].(string)
-	return sessionID, ok
 }
 
 func getUserIDFromClaims(claims map[string]any) (string, bool) {

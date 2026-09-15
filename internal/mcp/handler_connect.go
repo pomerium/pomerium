@@ -76,12 +76,6 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 		Interface("claims", claims).
 		Msg("mcp/connect: extracted JWT claims")
 
-	sessionID, ok := getSessionIDFromClaims(claims)
-	if !ok {
-		log.Ctx(ctx).Error().Msg("mcp/connect: session is not present, this is a misconfigured request")
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
 	userID, ok := getUserIDFromClaims(claims)
 	if !ok {
 		log.Ctx(ctx).Error().Msg("mcp/connect: user id is not present, this is a misconfigured request")
@@ -90,7 +84,6 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Ctx(ctx).Debug().
-		Str("session-id", sessionID).
 		Str("user-id", userID).
 		Msg("mcp/connect: extracted user info from claims")
 
@@ -155,7 +148,6 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 		req := &oauth21proto.AuthorizationRequest{
 			ClientId:    InternalConnectClientID,
 			RedirectUri: new(redirectURL),
-			SessionId:   sessionID,
 			UserId:      userID,
 		}
 		authReqID, createErr := srv.storage.CreateAuthorizationRequest(ctx, req)

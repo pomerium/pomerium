@@ -21,6 +21,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
@@ -223,16 +224,8 @@ func (s *testUpstreamAuthStorage) PutSession(context.Context, *session.Session) 
 	panic("unexpected call to PutSession")
 }
 
-func (s *testUpstreamAuthStorage) PutMCPRefreshToken(context.Context, *oauth21proto.MCPRefreshToken) error {
-	panic("unexpected call to PutMCPRefreshToken")
-}
-
-func (s *testUpstreamAuthStorage) GetMCPRefreshToken(context.Context, string) (*oauth21proto.MCPRefreshToken, error) {
-	panic("unexpected call to GetMCPRefreshToken")
-}
-
-func (s *testUpstreamAuthStorage) DeleteMCPRefreshToken(context.Context, string) error {
-	panic("unexpected call to DeleteMCPRefreshToken")
+func (s *testUpstreamAuthStorage) PutBoundSession(context.Context, *session.Session, map[string]string) (uint64, error) {
+	panic("unexpected call to PutBoundSession")
 }
 
 func (s *testUpstreamAuthStorage) PutUpstreamMCPToken(context.Context, *oauth21proto.UpstreamMCPToken) error {
@@ -265,6 +258,14 @@ func (s *testUpstreamAuthStorage) GetUpstreamOAuthClient(_ context.Context, _, _
 
 func (s *testUpstreamAuthStorage) PutUpstreamOAuthClient(_ context.Context, _ *oauth21proto.UpstreamOAuthClient) error {
 	return nil
+}
+
+func (s *testUpstreamAuthStorage) GetActiveBinding(context.Context, string) (*idpsessionpb.Binding, error) {
+	panic("unexpected call to GetBinding")
+}
+
+func (s *testUpstreamAuthStorage) GetValidIDPSession(context.Context, string) (*idpsessionpb.IDPSession, error) {
+	panic("unexpected call to GetIDPSession")
 }
 
 // TestRefreshToken_ResourceParam verifies that refreshToken uses the canonical ResourceParam
@@ -821,15 +822,7 @@ func (s *refreshTokenTestStorage) PutSession(context.Context, *session.Session) 
 	panic("unexpected call")
 }
 
-func (s *refreshTokenTestStorage) PutMCPRefreshToken(context.Context, *oauth21proto.MCPRefreshToken) error {
-	panic("unexpected call")
-}
-
-func (s *refreshTokenTestStorage) GetMCPRefreshToken(context.Context, string) (*oauth21proto.MCPRefreshToken, error) {
-	panic("unexpected call")
-}
-
-func (s *refreshTokenTestStorage) DeleteMCPRefreshToken(context.Context, string) error {
+func (s *refreshTokenTestStorage) PutBoundSession(context.Context, *session.Session, map[string]string) (uint64, error) {
 	panic("unexpected call")
 }
 
@@ -862,6 +855,14 @@ func (s *refreshTokenTestStorage) GetUpstreamOAuthClient(context.Context, string
 }
 
 func (s *refreshTokenTestStorage) PutUpstreamOAuthClient(context.Context, *oauth21proto.UpstreamOAuthClient) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetActiveBinding(context.Context, string) (*idpsessionpb.Binding, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetValidIDPSession(context.Context, string) (*idpsessionpb.IDPSession, error) {
 	panic("unexpected call")
 }
 

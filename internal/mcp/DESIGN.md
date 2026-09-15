@@ -230,50 +230,105 @@ discovery never runs and no issuer is recorded. Issuer validation is disregarded
 
 ## Downstream Token Refresh Lifecycle
 
-When Pomerium issues tokens to the MCP client (Phase 2-3 above), it also
-issues a refresh token. This refresh token is backed by an `MCPRefreshToken`
-record that stores the upstream IdP refresh token, enabling Pomerium to
-recreate sessions long after the original session expires.
+MCP clients are long-lived peers of Pomerium: each client gets a `session.Session`
+bound to the user's centralized `idpsession.IDPSession`, enabling the identity
+manager to keep the client's tokens fresh as long as the user's IdP session
+remains valid. This model is identical to a browser session.
 
 ### Token Issuance
 
 During the authorization code exchange (`POST /.pomerium/mcp/token`), Pomerium:
-1. Creates an `MCPRefreshToken` record containing the upstream IdP refresh token,
-   user ID, client ID, and IdP identifier
-2. Encrypts the record ID into an opaque refresh token string (AES-GCM with
-   the client ID as AAD, key derived via HKDF from the shared secret)
-3. Returns the encrypted string as `refresh_token` in the token response
+
+1. **Resolves the user's IdP session**: Looks up `idpsession.IDPSession` by the
+   user ID extracted from the downstream `AuthorizationRequest`. If missing or
+   invalid, responds with `invalid_grant` (the user signed out or the provider
+   revoked them).
+
+2. **Issues a client session**: Creates a `session.Session` with:
+   - Unique id (UUID)
+   - `user_id` = the user's centralized IdP session id
+   - `issued_at` = now (for refresh-token rotation detection)
+   - `expires_at` = now + 365 days (RefreshTokenTTL)
+   - `refresh_disabled` unset (identity manager propagates tokens on background refresh)
+
+3. **Binds to IdP session**: Atomically stores the session and creates an
+   `idpsession.Binding` with:
+   - id = the session's id (both records share one random id)
+   - `protocol` = MCP
+   - `idp_session_id` = the user's centralized IdP session id
+   - `state` = ACTIVE
+   - Details: `mcp_client_id`, `client-ip`
+
+4. **Mints tokens**:
+   - **Access token**: Opaque (`pom_mat_` prefix), encodes session id + databroker
+     record version. TTL = `accessTokenTTL` (default `cookie_expire`, 14h),
+     independent of the session lifetime. Renewed by the client via the
+     refresh grant, not by the identity manager.
+   - **Refresh token**: Opaque (`pom_mrt_` prefix), encodes session id. AEAD
+     cipher: encrypted with key derived from Pomerium's shared secret (HKDF),
+     client id as AAD. Carries `issued_at` from the session. TTL = 365 days.
 
 ### Token Refresh
 
-When the MCP client's access token expires, it presents the refresh token
-to `POST /.pomerium/mcp/token` with `grant_type=refresh_token`:
+When the MCP client's access token expires, it presents the refresh token to
+`POST /.pomerium/mcp/token` with `grant_type=refresh_token`:
 
-1. Pomerium decrypts the refresh token string to recover the record ID
-   (decryption fails if the client ID doesn't match — the token is bound
-   to the client that received it)
-2. Fetches the `MCPRefreshToken` record and validates it (not revoked, not
-   expired, client ID matches)
-3. Recreates a Pomerium session by refreshing the upstream IdP token using
-   the stored `upstream_refresh_token`
-4. If the upstream IdP rotated the refresh token, updates the record
-5. **Rotates the downstream token**: creates a new `MCPRefreshToken` record,
-   marks the old one as revoked, and returns a new encrypted refresh token
+1. **Decrypt refresh token**: Recovers session id and `issued_at` (decryption
+   fails if client id doesn't match — token is AEAD-bound to the client).
+
+2. **Validate binding**: Fetches the `idpsession.Binding` with the session id.
+   If missing or REVOKED, responds with `invalid_grant` (client was revoked
+   from the bindings page, or grant expired and identity manager swept it).
+
+3. **Validate IdP session**: Fetches the `idpsession.IDPSession` from the
+   binding's `idp_session_id`. If missing or INVALID state, responds with
+   `invalid_grant` (user signed out or provider revoked them).
+
+4. **Detect rotation**: Fetches the current `session.Session`. If `issued_at`
+   differs from the refresh token's `issued_at`, responds with `invalid_grant`
+   (token is from an earlier refresh generation — replay detection).
+
+5. **Re-issue session**: Calls `PutSession` (not `PutBoundSession`) to rewrite
+   the session with:
+   - Same id
+   - Same `user_id`
+   - New `issued_at` = now (advances the generation)
+   - New `expires_at` = now + 365 days (slides the deadline)
+   - Binding left untouched (critical: revoking the binding must stop refresh)
+
+6. **Mint new tokens**:
+   - Access token with new version
+   - Refresh token with new `issued_at`
+   - Old refresh token (carrying old `issued_at`) is implicitly invalidated;
+     reusing it on the next refresh fails at the rotation check (step 4).
 
 ### Key Design Points
 
-- **TTL**: 365 days, decoupled from session lifetime (~14 hours). This allows
-  MCP clients to maintain long-lived connections.
-- **Rotation**: Every successful refresh creates a new record and revokes the
-  old one. New record is stored *before* old one is revoked (if revocation
-  fails, the user still has a valid token).
-- **Encryption**: The refresh token string is encrypted with AES-GCM. The
-  client ID is used as Additional Authenticated Data, binding the token to
-  the specific MCP client. Key is derived from the Pomerium shared secret
-  via HKDF.
-- **Session recreation**: `MCPRefreshToken` stores the upstream IdP refresh
-  token (not the upstream MCP server token). This allows Pomerium to create
-  a fresh session via the IdP even after the original session has expired.
+- **Lifetime**: Session lives 365 days (RefreshTokenTTL) and slides on each
+  refresh. Access tokens are shorter (`cookie_expire`, 14h by default) and are
+  renewed by the client through the refresh grant.
+  Identity manager deletes expired sessions, then revokes their orphaned bindings.
+
+- **Rotation via generation**: Every refresh increments the session's `issued_at`,
+  creating a new generation. Refresh tokens encode the `issued_at` they were
+  minted with; reusing an old token fails because its `issued_at` no longer
+  matches the session. No per-token revocation list needed.
+
+- **Encryption**: Refresh token is encrypted (AES-GCM) with key derived from
+  Pomerium's shared secret. Client id is AEAD additional data, binding the token
+  to the MCP client that received it. Presentation by a different client fails
+  decryption.
+
+- **Binding-based revocation**: User revokes the MCP client on the bindings page
+  → binding state → REVOKED. Next refresh fails immediately. Likewise, revoking
+  the IdP session invalidates all dependent bindings (including MCP). The binding
+  is never rewritten during session refresh, so its revocation state is always
+  consulted.
+
+- **IdP session dependency**: MCP client's tokens are only valid while the user's
+  centralized IdP session exists and is VALID. Identity manager propagates
+  upstream tokens to the MCP session; if IdP session becomes invalid, the MCP
+  session is orphaned and deleted.
 
 ---
 
@@ -663,14 +718,37 @@ The MCP package introduces the following databroker record types:
 
 | Proto Type | Short Name | Key | Purpose |
 |---|---|---|---|
+| `session.Session` | Session | session ID | MCP client session, bound to user's centralized `idpsession.IDPSession`. Expires 365 days from last refresh; identity manager propagates upstream tokens and deletes expired sessions. |
+| `idpsession.Binding` | Binding (MCP) | session ID | Binds MCP client session to `idpsession.IDPSession`. Protocol = MCP. Can be revoked by user on bindings page. State is never rewritten during refresh (revocation must always stop refresh). |
 | `oauth21.AuthorizationRequest` | AuthorizationRequest | request ID | Downstream OAuth authorization code flow state. Links to PendingUpstreamAuth for auto-discovery routes. |
-| `oauth21.MCPRefreshToken` | MCPRefreshToken | token ID (UUID) | Downstream refresh token issued to MCP clients. Stores upstream IdP refresh token for session recreation. TTL: 365 days. Rotated on each use. |
 | `ietf.rfc7591.v1.ClientRegistration` | ClientRegistration | client ID | RFC 7591 downstream client registration. Stores metadata for MCP clients registered with Pomerium's AS. |
 
 ### Record Relationships
 
 ```mermaid
 erDiagram
+    IDPSession {
+        string id PK
+        string user_id
+        string state
+    }
+
+    Binding {
+        string id PK
+        string idp_session_id FK
+        string protocol
+        string state
+        string mcp_client_id "details"
+        string client-ip "details"
+    }
+
+    Session {
+        string id PK
+        string user_id
+        timestamp issued_at
+        timestamp expires_at
+    }
+
     UpstreamMCPToken {
         string user_id PK
         string route_id PK
@@ -718,26 +796,11 @@ erDiagram
         string code_challenge
     }
 
-    MCPRefreshToken {
-        string id PK
-        string user_id
-        string client_id
-        string idp_id
-        string upstream_refresh_token
-        timestamp issued_at
-        timestamp expires_at
-        bool revoked
-    }
-
-    Session {
-        string id PK
-        string user_id
-    }
-
+    IDPSession ||--o{ Binding : "idp_session_id"
+    Binding ||--|| Session : "id (shared)"
     UpstreamMCPToken }o--|| Session : "user_id via session"
     PendingUpstreamAuth }o--|| Session : "user_id via session"
     PendingUpstreamAuth ||--o| AuthorizationRequest : "auth_req_id"
-    MCPRefreshToken }o--|| Session : "user_id"
 ```
 
 **Key design decisions**:

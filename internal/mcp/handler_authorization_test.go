@@ -25,6 +25,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
@@ -85,16 +86,8 @@ func (s *authorizeTestStorage) PutSession(context.Context, *session.Session) (ui
 	panic("unexpected call to PutSession")
 }
 
-func (s *authorizeTestStorage) PutMCPRefreshToken(context.Context, *oauth21proto.MCPRefreshToken) error {
-	panic("unexpected call to PutMCPRefreshToken")
-}
-
-func (s *authorizeTestStorage) GetMCPRefreshToken(context.Context, string) (*oauth21proto.MCPRefreshToken, error) {
-	panic("unexpected call to GetMCPRefreshToken")
-}
-
-func (s *authorizeTestStorage) DeleteMCPRefreshToken(context.Context, string) error {
-	panic("unexpected call to DeleteMCPRefreshToken")
+func (s *authorizeTestStorage) PutBoundSession(context.Context, *session.Session, map[string]string) (uint64, error) {
+	panic("unexpected call to PutBoundSession")
 }
 
 func (s *authorizeTestStorage) PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error {
@@ -136,6 +129,14 @@ func (s *authorizeTestStorage) GetUpstreamOAuthClient(context.Context, string, s
 
 func (s *authorizeTestStorage) PutUpstreamOAuthClient(context.Context, *oauth21proto.UpstreamOAuthClient) error {
 	panic("unexpected call to PutUpstreamOAuthClient")
+}
+
+func (s *authorizeTestStorage) GetActiveBinding(context.Context, string) (*idpsessionpb.Binding, error) {
+	panic("unexpected call to GetBinding")
+}
+
+func (s *authorizeTestStorage) GetValidIDPSession(context.Context, string) (*idpsessionpb.IDPSession, error) {
+	panic("unexpected call to GetIDPSession")
 }
 
 // makeTestJWT creates a minimal JWT with sid and sub claims for testing.

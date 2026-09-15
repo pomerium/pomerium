@@ -22,7 +22,35 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
+
+// findMCPBindings scans every idpsession.Binding record and returns the ones
+// stamped with the given MCP client id, matching what PutBoundSession records
+// under the "mcp_client_id" detail on each consent. There is no direct key
+// from client id to binding id, so this always does a full scan; the test
+// databroker instance only ever holds the handful of bindings created by the
+// current test, so that's cheap here.
+func findMCPBindings(ctx context.Context, t *testing.T, dbClient databroker.DataBrokerServiceClient, clientID string) []*idpsession.Binding {
+	t.Helper()
+	res, err := dbClient.Query(ctx, &databroker.QueryRequest{
+		Type:  protoutil.GetTypeURL(new(idpsession.Binding)),
+		Limit: 1000,
+	})
+	require.NoError(t, err)
+
+	var matches []*idpsession.Binding
+	for _, rec := range res.GetRecords() {
+		b := new(idpsession.Binding)
+		require.NoError(t, rec.GetData().UnmarshalTo(b))
+		if b.GetProtocol() == idpsession.BindingProtocol_BINDING_PROTOCOL_MCP && b.GetDetails()["mcp_client_id"] == clientID {
+			matches = append(matches, b)
+		}
+	}
+	return matches
+}
 
 // TestMCPConformance tests OAuth 2.1 conformance for MCP authorization server.
 // These tests verify security-critical behavior that maps to the MCP conformance suite:
@@ -473,6 +501,86 @@ func runMCPConformance(t *testing.T, mode registrationMode) {
 			resp, result := doTokenRequest(t, params, nil)
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 			assert.Equal(t, "invalid_grant", result["error"])
+		})
+
+		// revoked_binding_refresh_fails: revoking the idpsession.Binding that ties
+		// the MCP client session to the user's centralized IdP session must stop
+		// refresh immediately, independent of whether the refresh token itself was
+		// ever rotated.
+		t.Run("revoked_binding_refresh_fails", func(t *testing.T) {
+			clientID, _ := registerClient(t, "none")
+			verifier := cryptutil.NewRandomStringN(64)
+			code := getAuthCode(t, clientID, verifier)
+			params := url.Values{
+				"grant_type":    {"authorization_code"},
+				"code":          {code},
+				"redirect_uri":  {redirectURI},
+				"client_id":     {clientID},
+				"code_verifier": {verifier},
+			}
+			resp, result := doTokenRequest(t, params, nil)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			refreshToken, _ := result["refresh_token"].(string)
+			require.NotEmpty(t, refreshToken)
+
+			dbClient := env.NewDataBrokerServiceClient()
+			bindings := findMCPBindings(ctx, t, dbClient, clientID)
+			require.Len(t, bindings, 1, "expected exactly one MCP binding for this client's single consent")
+			require.NoError(t, idpsession.RevokeBinding(ctx, dbClient, bindings[0].GetId()))
+
+			refreshParams := url.Values{
+				"grant_type":    {"refresh_token"},
+				"refresh_token": {refreshToken},
+				"client_id":     {clientID},
+			}
+			resp2, result2 := doTokenRequest(t, refreshParams, nil)
+			assert.Equal(t, http.StatusBadRequest, resp2.StatusCode)
+			assert.Equal(t, "invalid_grant", result2["error"])
+		})
+
+		// one_binding_per_consent: each consent (authorization_code grant) creates
+		// its own session+Binding pair, so two consents for the same client id
+		// produce two distinct bindings; refreshing one of them must not create a
+		// third.
+		t.Run("one_binding_per_consent", func(t *testing.T) {
+			clientID, _ := registerClient(t, "none")
+
+			consent := func() string {
+				verifier := cryptutil.NewRandomStringN(64)
+				code := getAuthCode(t, clientID, verifier)
+				params := url.Values{
+					"grant_type":    {"authorization_code"},
+					"code":          {code},
+					"redirect_uri":  {redirectURI},
+					"client_id":     {clientID},
+					"code_verifier": {verifier},
+				}
+				resp, result := doTokenRequest(t, params, nil)
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+				refreshToken, _ := result["refresh_token"].(string)
+				require.NotEmpty(t, refreshToken)
+				return refreshToken
+			}
+
+			firstRefreshToken := consent()
+			consent() // second, independent consent for the same client id
+
+			dbClient := env.NewDataBrokerServiceClient()
+			bindings := findMCPBindings(ctx, t, dbClient, clientID)
+			require.Len(t, bindings, 2, "expected one binding per consent")
+			assert.NotEqual(t, bindings[0].GetId(), bindings[1].GetId())
+
+			refreshParams := url.Values{
+				"grant_type":    {"refresh_token"},
+				"refresh_token": {firstRefreshToken},
+				"client_id":     {clientID},
+			}
+			resp, result := doTokenRequest(t, refreshParams, nil)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.NotEmpty(t, result["refresh_token"])
+
+			bindingsAfterRefresh := findMCPBindings(ctx, t, dbClient, clientID)
+			assert.Len(t, bindingsAfterRefresh, 2, "refresh must not create a new binding")
 		})
 	})
 

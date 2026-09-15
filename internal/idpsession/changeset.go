@@ -14,7 +14,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
-	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -23,11 +22,10 @@ import (
 )
 
 const (
-	idpSessionTypeURL      = "type.googleapis.com/idpsession.IDPSession"
-	bindingTypeURL         = "type.googleapis.com/idpsession.Binding"
-	sessionTypeURL         = "type.googleapis.com/session.Session"
-	userTypeURL            = "type.googleapis.com/user.User"
-	mcpRefreshTokenTypeURL = "type.googleapis.com/oauth21.MCPRefreshToken"
+	idpSessionTypeURL = "type.googleapis.com/idpsession.IDPSession"
+	bindingTypeURL    = "type.googleapis.com/idpsession.Binding"
+	sessionTypeURL    = "type.googleapis.com/session.Session"
+	userTypeURL       = "type.googleapis.com/user.User"
 )
 
 const (
@@ -641,8 +639,6 @@ func patchFieldMask(typeURL string) []string {
 		return []string{"id_token", "oauth_token", "claims"}
 	case userTypeURL:
 		return []string{"claims"}
-	case mcpRefreshTokenTypeURL:
-		return []string{"upstream_refresh_token"}
 	case bindingTypeURL:
 		return []string{"state"}
 	default:
@@ -694,10 +690,6 @@ func constructPatchedBoundRecord(typeURL string, id string, sess *idpsession.IDP
 		u := &user.User{Id: id}
 		applier.ApplyToUser(u)
 		return databroker.NewRecord(u), nil
-	case mcpRefreshTokenTypeURL:
-		token := &oauth21.MCPRefreshToken{Id: id}
-		applier.ApplyToMCP(token)
-		return databroker.NewRecord(token), nil
 	default:
 		return nil, fmt.Errorf("%s not yet supported as a binding dependency", typeURL)
 	}
@@ -709,8 +701,6 @@ func newBoundRecord(typeURL string, id string) (*databroker.Record, error) {
 		return databroker.NewRecord(&session.Session{Id: id}), nil
 	case userTypeURL:
 		return databroker.NewRecord(&user.User{Id: id}), nil
-	case mcpRefreshTokenTypeURL:
-		return databroker.NewRecord(&oauth21.MCPRefreshToken{Id: id}), nil
 	default:
 		return nil, fmt.Errorf("%s not yet supported as a binding dependency", typeURL)
 	}

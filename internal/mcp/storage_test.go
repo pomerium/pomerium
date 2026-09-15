@@ -25,6 +25,8 @@ import (
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/internal/testutil"
 	databroker_grpc "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func TestStorage(t *testing.T) {
@@ -196,50 +198,56 @@ func TestStorage(t *testing.T) {
 		})
 	})
 
-	t.Run("mcp refresh token", func(t *testing.T) {
+	t.Run("put bound session", func(t *testing.T) {
 		t.Parallel()
 
-		want := &oauth21proto.MCPRefreshToken{
-			Id:                   "test-refresh-token-id",
-			UserId:               "test-user-id",
-			ClientId:             "test-client-id",
-			IdpId:                "test-idp-id",
-			UpstreamRefreshToken: "upstream-refresh-token",
-			Scopes:               []string{"openid", "profile"},
+		sess := &session.Session{
+			Id:       "bound-session-1",
+			UserId:   "idp-user-1",
+			IdpId:    "test-idp",
+			IssuedAt: timestamppb.Now(),
+		}
+		details := map[string]string{"mcp_client_id": "client-1", "client-ip": "203.0.113.9"}
+
+		version, err := storage.PutBoundSession(ctx, sess, details)
+		require.NoError(t, err)
+		assert.NotZero(t, version)
+
+		gotSess, gotVersion, err := storage.GetSession(ctx, sess.Id)
+		require.NoError(t, err)
+		assert.Equal(t, version, gotVersion)
+		require.Empty(t, cmp.Diff(sess, gotSess, protocmp.Transform()))
+
+		binding, err := storage.GetActiveBinding(ctx, sess.Id)
+		require.NoError(t, err)
+		assert.Equal(t, sess.Id, binding.GetId())
+		assert.Equal(t, sess.UserId, binding.GetIdpSessionId())
+		assert.Equal(t, idpsession.BindingProtocol_BINDING_PROTOCOL_MCP, binding.GetProtocol())
+		assert.Equal(t, details, binding.GetDetails())
+	})
+
+	t.Run("put session leaves the binding untouched", func(t *testing.T) {
+		t.Parallel()
+
+		sess := &session.Session{
+			Id:       "session-only-1",
+			UserId:   "idp-user-2",
+			IdpId:    "test-idp",
+			IssuedAt: timestamppb.Now(),
 		}
 
-		// Store refresh token
-		err := storage.PutMCPRefreshToken(ctx, want)
+		version, err := storage.PutSession(ctx, sess)
 		require.NoError(t, err)
+		assert.NotZero(t, version)
 
-		// Retrieve refresh token
-		got, err := storage.GetMCPRefreshToken(ctx, want.Id)
+		gotSess, gotVersion, err := storage.GetSession(ctx, sess.Id)
 		require.NoError(t, err)
-		require.Empty(t, cmp.Diff(want, got, protocmp.Transform()))
+		assert.Equal(t, version, gotVersion)
+		require.Empty(t, cmp.Diff(sess, gotSess, protocmp.Transform()))
 
-		// Non-existent refresh token
-		_, err = storage.GetMCPRefreshToken(ctx, "non-existent-id")
+		// PutSession must never create a Binding record.
+		_, err = storage.GetActiveBinding(ctx, sess.Id)
 		assert.Equal(t, codes.NotFound, status.Code(err))
-
-		// Update refresh token (mark as revoked)
-		want.Revoked = true
-		err = storage.PutMCPRefreshToken(ctx, want)
-		require.NoError(t, err)
-
-		got, err = storage.GetMCPRefreshToken(ctx, want.Id)
-		require.NoError(t, err)
-		assert.True(t, got.Revoked)
-
-		// Delete refresh token
-		err = storage.DeleteMCPRefreshToken(ctx, want.Id)
-		require.NoError(t, err)
-
-		_, err = storage.GetMCPRefreshToken(ctx, want.Id)
-		assert.Equal(t, codes.NotFound, status.Code(err))
-
-		// Delete non-existent refresh token should not error
-		err = storage.DeleteMCPRefreshToken(ctx, "non-existent-id")
-		assert.NoError(t, err)
 	})
 
 	t.Run("upstream oauth client", func(t *testing.T) {

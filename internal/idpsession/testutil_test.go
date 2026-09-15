@@ -10,7 +10,6 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/testing/protocmp"
 
-	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -135,6 +134,6 @@ func newUserWithBinding(u *user.User, idpsessionID string) []*databroker.Record 
 	return idpsession.NewBoundRecords(idpsessionID, idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, map[string]string{}, u)
 }
 
-func newMCPWithBinding(m *oauth21.MCPRefreshToken, idpsessionID string) []*databroker.Record {
-	return idpsession.NewBoundRecords(idpsessionID, idpsession.BindingProtocol_BINDING_PROTOCOL_MCP, map[string]string{}, m)
+func newMCPWithBinding(s *session.Session, idpsessionID string) []*databroker.Record {
+	return idpsession.NewBoundRecords(idpsessionID, idpsession.BindingProtocol_BINDING_PROTOCOL_MCP, map[string]string{}, s)
 }
