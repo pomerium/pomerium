@@ -272,6 +272,7 @@ func (a *Authorize) getMatchingPolicy(routeID string) *config.Policy {
 func (a *Authorize) withQuerierForCheckRequest(ctx context.Context) context.Context {
 	state := a.state.Load()
 	q := storage.NewQuerier(state.dataBrokerClient)
+	q = storage.NewCachingQuerier(q, storage.GlobalCache)
 	// if sync queriers are enabled, use those
 	if len(state.syncQueriers) > 0 {
 		m := map[string]storage.Querier{}
@@ -280,7 +281,6 @@ func (a *Authorize) withQuerierForCheckRequest(ctx context.Context) context.Cont
 		}
 		q = storage.NewTypedQuerier(q, m)
 	}
-	q = storage.NewCachingQuerier(q, storage.GlobalCache)
 	return storage.WithQuerier(ctx, q)
 }
 
