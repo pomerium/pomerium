@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -13,11 +14,18 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/testutil"
+	dtestutil "github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -268,4 +276,108 @@ func (m mockDataBrokerServiceClient) Patch(ctx context.Context, in *databroker.P
 		ServerVersion: putResponse.GetServerVersion(),
 		Records:       putResponse.GetRecords(),
 	}, nil
+}
+
+func TestAuthorizeSyncQuerier(t *testing.T) {
+	sessionType := protoutil.GetTypeURL(new(session.Session))
+	serviceAccountType := protoutil.GetTypeURL(new(user.ServiceAccount))
+
+	newAuthorize := func(t *testing.T, syncedTypes ...string) (*Authorize, databroker.DataBrokerServiceClient) {
+		t.Helper()
+		storage.GlobalCache.InvalidateAll()
+		client := dtestutil.NewTestDatabroker(t)
+
+		syncQueriers := map[string]storage.Querier{}
+		for _, recordType := range syncedTypes {
+			q := storage.NewSyncQuerier(client, recordType)
+			t.Cleanup(q.Stop)
+			syncQueriers[recordType] = q
+		}
+
+		a := new(Authorize)
+		a.state.Store(&authorizeState{
+			dataBrokerClient: client,
+			syncQueriers:     syncQueriers,
+		})
+		return a, client
+	}
+
+	t.Run("deleted", func(t *testing.T) {
+		a, client := newAuthorize(t, sessionType)
+
+		record := databroker.NewRecord(&session.Session{Id: "s1", UserId: "u1"})
+		put(t, client, record)
+
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			_, err := fetchFromQuerier(a, sessionType, "s1")
+			assert.NoError(c, err)
+		}, time.Second, 5*time.Millisecond)
+
+		deleted := proto.CloneOf(record)
+		deleted.DeletedAt = timestamppb.Now()
+		put(t, client, deleted)
+
+		assert.EventuallyWithT(t, func(c *assert.CollectT) {
+			_, err := fetchFromQuerier(a, sessionType, "s1")
+			assert.ErrorIs(c, err, storage.ErrNotFound)
+		}, time.Second, 5*time.Millisecond, "delete from sync instead of cache TTL")
+	})
+
+	t.Run("updated", func(t *testing.T) {
+		a, client := newAuthorize(t, sessionType)
+
+		put(t, client, databroker.NewRecord(&session.Session{Id: "s1", UserId: "u1"}))
+
+		require.EventuallyWithT(t, func(collect *assert.CollectT) {
+			record, err := fetchFromQuerier(a, sessionType, "s1")
+			if assert.NoError(collect, err) {
+				assert.Equal(collect, "u1", userIDOf(collect, record))
+			}
+		}, time.Second, 5*time.Millisecond)
+
+		put(t, client, databroker.NewRecord(&session.Session{Id: "s1", UserId: "u2"}))
+
+		assert.EventuallyWithT(t, func(collect *assert.CollectT) {
+			record, err := fetchFromQuerier(a, sessionType, "s1")
+			if assert.NoError(collect, err) {
+				assert.Equal(collect, "u2", userIDOf(collect, record))
+			}
+		}, time.Second, 5*time.Millisecond, "update from sync instead of cache TTL")
+	})
+
+	t.Run("unsynced", func(t *testing.T) {
+		a, client := newAuthorize(t, sessionType)
+
+		record := databroker.NewRecord(&user.ServiceAccount{Id: "sa1"})
+		put(t, client, record)
+
+		_, err := fetchFromQuerier(a, serviceAccountType, "sa1")
+		require.NoError(t, err)
+
+		deleted := proto.CloneOf(record)
+		deleted.DeletedAt = timestamppb.Now()
+		put(t, client, deleted)
+
+		testutil.AssertConsistentlyWithT(t, func(c assert.TestingT) {
+			_, err := fetchFromQuerier(a, serviceAccountType, "sa1")
+			assert.NoError(c, err)
+		}, time.Second, 50*time.Millisecond,
+			"no sync querier serves from cache")
+	})
+}
+
+func put(t *testing.T, client databroker.DataBrokerServiceClient, record *databroker.Record) {
+	t.Helper()
+	_, err := client.Put(t.Context(), &databroker.PutRequest{Records: []*databroker.Record{record}})
+	require.NoError(t, err)
+}
+
+func fetchFromQuerier(a *Authorize, recordType, id string) (*databroker.Record, error) {
+	return storage.GetDataBrokerRecord(a.withQuerierForCheckRequest(context.Background()), recordType, id, 0)
+}
+
+func userIDOf(t *assert.CollectT, record *databroker.Record) string {
+	var s session.Session
+	require.NoError(t, record.GetData().UnmarshalTo(&s))
+	return s.GetUserId()
 }
