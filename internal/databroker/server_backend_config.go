@@ -34,7 +34,7 @@ const (
 	// GlobalSettingsID is the default global settings id if none is provided.
 	GlobalSettingsID = "78408adf-56e4-41d0-af6a-ca1b2d8d2cb6"
 	// LocalRecordIDPrefix is the id prefix for local records.
-	LocalRecordIDPrefix = "local/"
+	LocalRecordIDPrefix = "local-"
 )
 
 type backendConfigServer struct {
@@ -1094,7 +1094,7 @@ func (srv *backendConfigServer) updateLocalRecords(cfg *configpb.Config) {
 	for i, route := range cfg.GetRoutes() {
 		route = proto.CloneOf(route)
 		if route != nil && !proto.Equal(route, new(configpb.Route)) {
-			route.Id = new(fmt.Sprintf(LocalRecordIDPrefix+"route/%d", i))
+			route.Id = new(fmt.Sprintf(LocalRecordIDPrefix+"route-%d", i))
 			route.OriginatorId = new("local")
 			protoutil.ScrubSensitive(route)
 			c.Put(&databrokerpb.Record{

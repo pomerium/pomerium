@@ -133,7 +133,7 @@ func TestConfigServiceLocalRoutes(t *testing.T) {
 	for _, route := range res.Msg.Routes {
 		ids = append(ids, route.GetId())
 	}
-	assert.Contains(t, ids, "local/route/0", "should return local routes")
+	assert.Contains(t, ids, "local-route-0", "should return local routes")
 }
 
 func TestConfigServiceServiceAccounts(t *testing.T) {
@@ -256,10 +256,10 @@ func TestConfigLocalSettings(t *testing.T) {
 	for _, settings := range res.Msg.Settings {
 		ids = append(ids, settings.GetId())
 	}
-	assert.Contains(t, ids, "local/settings", "should return local settings")
+	assert.Contains(t, ids, "local-settings", "should return local settings")
 
 	getRes, err := client.GetSettings(t.Context(), connect.NewRequest(&configpb.GetSettingsRequest{
-		For: &configpb.GetSettingsRequest_Id{Id: "local/settings"},
+		For: &configpb.GetSettingsRequest_Id{Id: "local-settings"},
 	}))
 	assert.NoError(t, err)
 	assert.Empty(t, getRes.Msg.Settings.SharedSecret, "should remove sensitive values")
