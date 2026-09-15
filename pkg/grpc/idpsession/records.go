@@ -124,12 +124,8 @@ func RevokeBinding(ctx context.Context, client databroker.DataBrokerServiceClien
 		return err
 	}
 
-	if binding.GetRevokedAt() != nil {
-		return nil
-	}
 	nB := proto.CloneOf(binding)
 	nB.State = BindingState_BindingState_REVOKED
-	nB.RevokedAt = timestamppb.Now()
 	_, putErr := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{
 			databroker.NewRecord(nB),
@@ -154,14 +150,10 @@ func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceCl
 		return err
 	}
 
-	if idpSess.GetState().GetInvalidatedAt() != nil {
-		return nil
-	}
 	iS := proto.CloneOf(idpSess)
 	iS.State = &SessionState{
-		State:         UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID,
-		InvalidatedAt: timestamppb.Now(),
-		Details:       reason,
+		State:   UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID,
+		Details: reason,
 	}
 	_, putErr := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{
@@ -172,13 +164,10 @@ func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceCl
 }
 
 func (b *Binding) Revoke() *Binding {
-	if b.GetState() == BindingState_BindingState_REVOKED && b.GetRevokedAt() != nil {
+	if b.GetState() == BindingState_BindingState_REVOKED {
 		return b
 	}
 	b = proto.CloneOf(b)
 	b.State = BindingState_BindingState_REVOKED
-	if b.RevokedAt == nil {
-		b.RevokedAt = timestamppb.New(time.Now())
-	}
 	return b
 }
