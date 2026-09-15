@@ -388,11 +388,11 @@ func setupWithObjectLock(t *testing.T) string {
 
 	endpoint, ak, sk := testutil.StartS3CompatContainer(t)
 	profilePath := path.Join(t.TempDir(), "test-profile")
-	require.NoError(t, os.WriteFile(profilePath, []byte(fmt.Sprintf(`[test]
+	require.NoError(t, os.WriteFile(profilePath, fmt.Appendf(nil, `[test]
 aws_access_key_id=%s
 aws_secret_access_key=%s
 region=us-east-1
-`, ak, sk)), 0o644))
+`, ak, sk), 0o644))
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", profilePath)
 
 	ctx := context.Background()
