@@ -85,6 +85,10 @@ func (s *identitySyncer) UpdateRecords(ctx context.Context, _ uint64, records []
 // handles cleaning up expired sessions
 func (s *identitySyncer) handleSession(ctx context.Context, rec *databroker.Record) error {
 	if rec.GetDeletedAt() != nil {
+		if !s.store.bindingRevoked(rec.GetId()) {
+			log.Ctx(ctx).Trace().Str("binding-id", rec.GetId()).Msg("deleted session schedules binding revocation")
+			s.applier.scheduleRevokeBinding(ctx, rec.GetId(), s.now())
+		}
 		return nil
 	}
 	sess := &session.Session{}
@@ -93,6 +97,7 @@ func (s *identitySyncer) handleSession(ctx context.Context, rec *databroker.Reco
 	}
 
 	if err := sess.Validate(); err != nil {
+		log.Ctx(ctx).Trace().Str("session-id", rec.GetId()).Msg("expired session schedules session deletion")
 		newRec := databroker.NewRecord(sess)
 		newRec.DeletedAt = timestamppb.Now()
 		_, err := s.clientB.GetDataBrokerServiceClient().Put(ctx, &databroker.PutRequest{
@@ -105,7 +110,7 @@ func (s *identitySyncer) handleSession(ctx context.Context, rec *databroker.Reco
 	return nil
 }
 
-func (s *identitySyncer) handleBinding(_ context.Context, rec *databroker.Record) error {
+func (s *identitySyncer) handleBinding(ctx context.Context, rec *databroker.Record) error {
 	binding := &idpsession.Binding{}
 	if err := rec.GetData().UnmarshalTo(binding); err != nil {
 		return fmt.Errorf("incompatible idpsession binding : %w", err)
@@ -114,7 +119,7 @@ func (s *identitySyncer) handleBinding(_ context.Context, rec *databroker.Record
 		s.store.deleteBinding(binding)
 		return nil
 	}
-	s.applier.onUpdateBinding(binding, s.now())
+	s.applier.onUpdateBinding(ctx, binding, s.now())
 	return nil
 }
 
@@ -128,7 +133,7 @@ func (s *identitySyncer) handleIDPSession(ctx context.Context, rec *databroker.R
 	if err := rec.GetData().UnmarshalTo(idpSess); err != nil {
 		return fmt.Errorf("incompatible idpsession record: %w", err)
 	}
-	s.applier.onUpdateIDPSession(idpSess, s.now())
+	s.applier.onUpdateIDPSession(ctx, idpSess, s.now())
 	s.refreshManager.onUpdateIDPSession(ctx, idpSess)
 	return nil
 }

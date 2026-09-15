@@ -67,10 +67,9 @@ message Binding {
     BindingProtocol protocol = 4;
     google.protobuf.Timestamp initiated_at = 5;
     BindingState state = 6;
-    google.protobuf.Timestamp revoked_at = 7;
     // details holds some user friendly details about
     // the client of this binding.
-    map<string,string> details = 8;
+    map<string,string> details = 7;
 }
 
 enum BindingState {
@@ -86,7 +85,6 @@ enum UpstreamIdPSessionState {
 
 message SessionState {
 	UpstreamIdPSessionState state = 1;
-  google.protobuf.Timestamp invalidated_at = 2;
 	// holds readable string about details of a state
-	string details = 3;
+	string details = 2;
 }

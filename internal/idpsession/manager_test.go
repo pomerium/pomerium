@@ -223,7 +223,7 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 		if assert.NoError(collect, err2, "authoritative binding should be retained") {
 			binding := new(idpsession.Binding)
 			if assert.NoError(collect, resp.GetRecord().GetData().UnmarshalTo(binding)) {
-				assert.Equal(collect, idpsession.BindingState_BindingState_ACTIVE, binding.GetState())
+				assert.Equal(collect, idpsession.BindingState_BindingState_REVOKED, binding.GetState())
 			}
 		}
 	}, 5*time.Second, 10*time.Millisecond, "deleting a dependent should not delete its authoritative binding")

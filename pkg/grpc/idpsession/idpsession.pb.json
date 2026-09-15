@@ -159,18 +159,6 @@
               "defaultValue": ""
             },
             {
-              "name": "revoked_at",
-              "description": "",
-              "label": "",
-              "type": "Timestamp",
-              "longType": "google.protobuf.Timestamp",
-              "fullType": "google.protobuf.Timestamp",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
               "name": "details",
               "description": "details holds some user friendly details about\nthe client of this binding.",
               "label": "repeated",
@@ -477,18 +465,6 @@
               "type": "UpstreamIdPSessionState",
               "longType": "UpstreamIdPSessionState",
               "fullType": "idpsession.UpstreamIdPSessionState",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
-              "name": "invalidated_at",
-              "description": "",
-              "label": "",
-              "type": "Timestamp",
-              "longType": "google.protobuf.Timestamp",
-              "fullType": "google.protobuf.Timestamp",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",

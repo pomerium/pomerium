@@ -18,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 const (
@@ -38,19 +37,34 @@ const maxPatchRequestSize = 1024 * 1024
 
 type ChangeSetType = uint8
 
+// there's an implict ordering here representing priority of operations (delete > revoke > propagate)
 const (
 	// changePropagate copies idpsession state onto the dependent records bound to it
-	changePropagate ChangeSetType = 1
-	// changeRevoke marks bindings revoked and deletes their dependent records
-	changeRevoke ChangeSetType = 2
+	changePropagate ChangeSetType = iota + 1
+	// changeRevoke marks bindings revoked and deletes the records bound to them
+	changeRevoke
 	// changeDelete removes a record once its revocation grace period has elapsed
-	changeDelete ChangeSetType = 3
+	changeDelete
 )
+
+func ChangeSetTypeStr(cst ChangeSetType) string {
+	switch cst {
+	case changePropagate:
+		return "propagate"
+	case changeRevoke:
+		return "revoke"
+	case changeDelete:
+		return "delete"
+	}
+	return "UNKNOWN"
+}
 
 type boundRef struct {
 	typeURL      string
 	idpSessionID string
-	state        idpsession.BindingState
+	// state must be the state reported from the storage backend, and not
+	// track a pending state.
+	state idpsession.BindingState
 }
 
 // A changeSetStore keeps track of idpsession.IDPSession and the records they are bound to through
@@ -137,6 +151,12 @@ func (s *changeSetStore) deleteBinding(binding *idpsession.Binding) {
 	}
 }
 
+func (s *changeSetStore) bindingRevoked(bindingID string) bool {
+	s.Lock()
+	defer s.Unlock()
+	return s.bindingsRef[bindingID].state == idpsession.BindingState_BindingState_REVOKED
+}
+
 func (s *changeSetStore) idpSessionLocked(id string) (*idpsession.IDPSession, bool) {
 	sess, ok := s.idpSessions[id]
 	return sess, ok
@@ -178,11 +198,35 @@ const (
 	opDelete
 )
 
+func OpTypeStr(ot opType) string {
+	switch ot {
+	case opDelete:
+		return "delete"
+	case opPatch:
+		return "path"
+	}
+	return "UNKNOWN"
+}
+
 type recordKey = [2]string
 
 type recordOp struct {
 	opType opType
 	record *databroker.Record
+}
+
+type recordOps map[recordKey]recordOp
+
+func (ops recordOps) patch(key recordKey, record *databroker.Record) {
+	if cur, ok := ops[key]; ok && cur.opType == opDelete {
+		return
+	}
+	ops[key] = recordOp{opType: opPatch, record: record}
+}
+
+func (ops recordOps) delete(key recordKey, record *databroker.Record, at time.Time) {
+	record.DeletedAt = timestamppb.New(at)
+	ops[key] = recordOp{opType: opDelete, record: record}
 }
 
 type changeSetApplier struct {
@@ -201,7 +245,7 @@ func newChangeSetApplier(clientB databroker.ClientGetter, store *changeSetStore)
 	}
 }
 
-func (a *changeSetApplier) onUpdateIDPSession(sess *idpsession.IDPSession, at time.Time) {
+func (a *changeSetApplier) onUpdateIDPSession(ctx context.Context, sess *idpsession.IDPSession, at time.Time) {
 	cs := ChangeSet{
 		At:            at,
 		RecordID:      sess.GetId(),
@@ -212,10 +256,11 @@ func (a *changeSetApplier) onUpdateIDPSession(sess *idpsession.IDPSession, at ti
 		cs.changeType = changeRevoke
 	}
 	a.store.putIDPSession(sess)
-	a.schedule(cs)
+	a.schedule(ctx, cs)
 }
 
-func (a *changeSetApplier) onUpdateBinding(binding *idpsession.Binding, at time.Time) {
+// onUpdateBinding is the hook called from databroker state, i.e. from the Syncer.
+func (a *changeSetApplier) onUpdateBinding(ctx context.Context, binding *idpsession.Binding, at time.Time) {
 	cs := ChangeSet{
 		At:            at,
 		RecordID:      binding.GetId(),
@@ -226,12 +271,29 @@ func (a *changeSetApplier) onUpdateBinding(binding *idpsession.Binding, at time.
 		cs.changeType = changeRevoke
 	}
 	a.store.putBinding(binding)
-	a.schedule(cs)
+	a.schedule(ctx, cs)
 }
 
-func (a *changeSetApplier) schedule(cs ChangeSet) {
+// as opposed to onUpdateXXX helpers, this is a direct scheduling operation.
+func (a *changeSetApplier) scheduleRevokeBinding(ctx context.Context, bindingID string, at time.Time) {
+	cs := ChangeSet{
+		At:            at,
+		RecordID:      bindingID,
+		RecordTypeURL: bindingTypeURL,
+		changeType:    changeRevoke,
+	}
+	a.schedule(ctx, cs)
+}
+
+func (a *changeSetApplier) schedule(ctx context.Context, cs ChangeSet) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	log.Ctx(ctx).Trace().
+		Str("id", cs.RecordID).
+		Str("type-url", cs.RecordTypeURL).
+		Str("change-type ", ChangeSetTypeStr(cs.changeType)).
+		Time("scheduled-for", cs.At).
+		Msg("scheduling identity manager reconciler update")
 	a.changeSets.ReplaceOrInsert(cs)
 }
 
@@ -248,7 +310,7 @@ func (a *changeSetApplier) ReconcileAtLocked(ctx context.Context, at time.Time) 
 		return nil
 	}
 
-	changeOps := map[recordKey]recordOp{}
+	changeOps := recordOps{}
 	for _, cs := range fastForward(due) {
 		a.computeChangeSet(ctx, changeOps, cs, at)
 	}
@@ -273,20 +335,20 @@ func (a *changeSetApplier) pendingAt(at time.Time) []ChangeSet {
 	return pending
 }
 
-type changeSetKey struct {
-	recordTypeURL string
-	recordID      string
-	changeType    ChangeSetType
-}
-
 func fastForward(change []ChangeSet) []ChangeSet {
-	return slices.UniqueBy(change, func(cs ChangeSet) changeSetKey {
-		return changeSetKey{
-			recordTypeURL: cs.RecordTypeURL,
-			recordID:      cs.RecordID,
-			changeType:    cs.changeType,
+	byRecord := make(map[recordKey]ChangeSet, len(change))
+	for _, cs := range change {
+		key := recordKey{cs.RecordTypeURL, cs.RecordID}
+		if cur, ok := byRecord[key]; ok && cur.changeType >= cs.changeType {
+			continue
 		}
-	})
+		byRecord[key] = cs
+	}
+	forwarded := make([]ChangeSet, 0, len(byRecord))
+	for _, cs := range byRecord {
+		forwarded = append(forwarded, cs)
+	}
+	return forwarded
 }
 
 func (a *changeSetApplier) forget(applied []ChangeSet) {
@@ -297,7 +359,7 @@ func (a *changeSetApplier) forget(applied []ChangeSet) {
 	}
 }
 
-func (a *changeSetApplier) computeChangeSet(ctx context.Context, changeOps map[recordKey]recordOp, cs ChangeSet, at time.Time) {
+func (a *changeSetApplier) computeChangeSet(ctx context.Context, changeOps recordOps, cs ChangeSet, at time.Time) {
 	switch cs.RecordTypeURL {
 	case idpSessionTypeURL:
 		// a subsequent syncer update / reconcile should pick this case up.
@@ -309,7 +371,7 @@ func (a *changeSetApplier) computeChangeSet(ctx context.Context, changeOps map[r
 			a.deleteIDPSessionLocked(changeOps, sess, at)
 			return
 		}
-		a.propagateIDPSessionLocked(ctx, changeOps, sess, at)
+		a.propagateIDPSessionLocked(ctx, changeOps, sess, cs.At, at)
 	case bindingTypeURL:
 		ref, ok := a.store.bindingLocked(cs.RecordID)
 		if !ok {
@@ -319,9 +381,9 @@ func (a *changeSetApplier) computeChangeSet(ctx context.Context, changeOps map[r
 		case changeDelete:
 			a.deleteBindingLocked(changeOps, cs.RecordID, ref, at)
 		case changeRevoke:
-			a.revokeBindingLocked(changeOps, cs.RecordID, ref, at)
+			a.revokeBindingLocked(ctx, changeOps, cs.RecordID, ref, cs.At, at)
 		default:
-			a.propagateBindingLocked(ctx, changeOps, cs.RecordID, ref, at)
+			a.propagateBindingLocked(ctx, changeOps, cs.RecordID, ref, cs.At, at)
 		}
 	default:
 		log.Ctx(ctx).Error().
@@ -333,14 +395,15 @@ func (a *changeSetApplier) computeChangeSet(ctx context.Context, changeOps map[r
 
 func (a *changeSetApplier) propagateIDPSessionLocked(
 	ctx context.Context,
-	ops map[recordKey]recordOp,
+	ops recordOps,
 	sess *idpsession.IDPSession,
+	intentAt time.Time,
 	at time.Time,
 ) {
 	invalid := sess.GetState().GetState() == idpsession.UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID
 	if invalid {
-		a.schedule(ChangeSet{
-			At:            at.Add(idpSessionGracePeriod),
+		a.schedule(ctx, ChangeSet{
+			At:            intentAt.Add(idpSessionGracePeriod),
 			RecordID:      sess.GetId(),
 			RecordTypeURL: idpSessionTypeURL,
 			changeType:    changeDelete,
@@ -353,18 +416,19 @@ func (a *changeSetApplier) propagateIDPSessionLocked(
 			continue
 		}
 		if invalid {
-			a.revokeBindingLocked(ops, bindingID, ref, at)
+			a.revokeBindingLocked(ctx, ops, bindingID, ref, intentAt, at)
 			continue
 		}
-		a.propagateBindingLocked(ctx, ops, bindingID, ref, at)
+		a.propagateBindingLocked(ctx, ops, bindingID, ref, intentAt, at)
 	}
 }
 
 func (a *changeSetApplier) propagateBindingLocked(
 	ctx context.Context,
-	ops map[recordKey]recordOp,
+	ops recordOps,
 	bindingID string,
 	ref boundRef,
+	intentAt time.Time,
 	at time.Time,
 ) {
 	// we can't treat an absent idpsession as proof that the session no longer
@@ -375,7 +439,7 @@ func (a *changeSetApplier) propagateBindingLocked(
 	}
 	if ref.state == idpsession.BindingState_BindingState_REVOKED ||
 		sess.GetState().GetState() == idpsession.UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID {
-		a.revokeBindingLocked(ops, bindingID, ref, at)
+		a.revokeBindingLocked(ctx, ops, bindingID, ref, intentAt, at)
 		return
 	}
 
@@ -387,16 +451,15 @@ func (a *changeSetApplier) propagateBindingLocked(
 			Msg("idpsession/changeset: cannot propagate idpsession to dependent record")
 		return
 	}
-	ops[recordKey{ref.typeURL, bindingID}] = recordOp{
-		opType: opPatch,
-		record: record,
-	}
+	ops.patch(recordKey{ref.typeURL, bindingID}, record)
 }
 
 func (a *changeSetApplier) revokeBindingLocked(
-	ops map[recordKey]recordOp,
+	ctx context.Context,
+	ops recordOps,
 	bindingID string,
 	ref boundRef,
+	intentAt time.Time,
 	at time.Time,
 ) {
 	// don't revoke a user binding.
@@ -405,21 +468,18 @@ func (a *changeSetApplier) revokeBindingLocked(
 	}
 
 	if ref.state != idpsession.BindingState_BindingState_REVOKED {
-		ops[recordKey{bindingTypeURL, bindingID}] = recordOp{
-			opType: opPatch,
-			record: databroker.NewRecord(&idpsession.Binding{
-				Id:    bindingID,
-				State: idpsession.BindingState_BindingState_REVOKED,
-			}),
-		}
+		ops.patch(recordKey{bindingTypeURL, bindingID}, databroker.NewRecord(&idpsession.Binding{
+			Id:    bindingID,
+			State: idpsession.BindingState_BindingState_REVOKED,
+		}))
 	}
 
 	if record, err := newBoundRecord(ref.typeURL, bindingID); err == nil {
-		ops[recordKey{ref.typeURL, bindingID}] = deleteOp(record, at)
+		ops.delete(recordKey{ref.typeURL, bindingID}, record, at)
 	}
 
-	a.schedule(ChangeSet{
-		At:            at.Add(bindingGracePeriod),
+	a.schedule(ctx, ChangeSet{
+		At:            intentAt.Add(bindingGracePeriod),
 		RecordID:      bindingID,
 		RecordTypeURL: bindingTypeURL,
 		changeType:    changeDelete,
@@ -427,7 +487,7 @@ func (a *changeSetApplier) revokeBindingLocked(
 }
 
 func (a *changeSetApplier) deleteBindingLocked(
-	ops map[recordKey]recordOp,
+	ops recordOps,
 	bindingID string,
 	ref boundRef,
 	at time.Time,
@@ -440,7 +500,7 @@ func (a *changeSetApplier) deleteBindingLocked(
 		return
 	}
 	// keep the reference it is bound to when deleting, just in case
-	ops[recordKey{bindingTypeURL, bindingID}] = deleteOp(databroker.NewRecord(&idpsession.Binding{
+	ops.delete(recordKey{bindingTypeURL, bindingID}, databroker.NewRecord(&idpsession.Binding{
 		Id:           bindingID,
 		TypeUrl:      ref.typeURL,
 		IdpSessionId: ref.idpSessionID,
@@ -448,15 +508,24 @@ func (a *changeSetApplier) deleteBindingLocked(
 	}), at)
 }
 
-func (a *changeSetApplier) deleteIDPSessionLocked(ops map[recordKey]recordOp, sess *idpsession.IDPSession, at time.Time) {
+func (a *changeSetApplier) deleteIDPSessionLocked(ops recordOps, sess *idpsession.IDPSession, at time.Time) {
 	if sess.GetState().GetState() != idpsession.UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID {
 		return
 	}
-	ops[recordKey{idpSessionTypeURL, sess.GetId()}] = deleteOp(databroker.NewRecord(sess), at)
+	ops.delete(recordKey{idpSessionTypeURL, sess.GetId()}, databroker.NewRecord(sess), at)
 }
 
-func (a *changeSetApplier) applyChangeSet(ctx context.Context, changeOps map[recordKey]recordOp, at time.Time) error {
+func (a *changeSetApplier) applyChangeSet(ctx context.Context, changeOps recordOps, at time.Time) error {
 	puts := []*databroker.Record{}
+
+	for _, diff := range changeOps {
+		log.Ctx(ctx).Trace().
+			Str("record-id", diff.record.Id).
+			Str("type-url", diff.record.GetData().GetTypeUrl()).
+			Str("reconcile-type", OpTypeStr(diff.opType)).
+			Msg("submitting record operations for reconcile")
+	}
+
 	patches := map[string][]*databroker.Record{}
 	for _, op := range changeOps {
 		switch op.opType {
@@ -473,40 +542,54 @@ func (a *changeSetApplier) applyChangeSet(ctx context.Context, changeOps map[rec
 	})
 	for typeURL, records := range patches {
 		eg.Go(func() error {
-			// patch returns only the records changed - a missing record indicates it was already deleted
 			patched, err := a.patchMulti(eCtx, records, patchFieldMask(typeURL))
 			if err != nil {
 				return err
 			}
-			a.scheduleMissingRecordRevocation(typeURL, records, patched, at)
+			// patch returns only the records changed - a missing record indicates it was already deleted
+			toRevoke := a.bindingsToRevokeFromPatched(typeURL, records, patched, at)
+
+			if _, err := a.patchMulti(eCtx, toRevoke, patchFieldMask(bindingTypeURL)); err != nil {
+				// on failure, reschedule the revocations.
+				for _, rec := range toRevoke {
+					a.schedule(ctx, ChangeSet{
+						At:            at,
+						RecordID:      rec.GetId(),
+						RecordTypeURL: bindingTypeURL,
+						changeType:    changeRevoke,
+					})
+				}
+			}
 			return nil
 		})
 	}
 	return eg.Wait()
 }
 
-func (a *changeSetApplier) scheduleMissingRecordRevocation(
+func (a *changeSetApplier) bindingsToRevokeFromPatched(
 	typeURL string,
 	requested []*databroker.Record,
 	patched map[string]struct{},
 	at time.Time,
-) {
+) []*databroker.Record {
 	// user records outlive their idpsession and their bindings are never revoked.
 	if typeURL == userTypeURL {
-		return
+		return []*databroker.Record{}
 	}
+	toRevoke := []*databroker.Record{}
 	for _, record := range requested {
 		if _, ok := patched[record.GetId()]; ok {
 			continue
 		}
 
-		a.schedule(ChangeSet{
-			At:            at,
-			RecordID:      record.GetId(),
-			RecordTypeURL: bindingTypeURL,
-			changeType:    changeRevoke,
-		})
+		b := &idpsession.Binding{
+			Id:    record.GetId(),
+			State: idpsession.BindingState_BindingState_REVOKED,
+		}
+		toRevoke = append(toRevoke, databroker.NewRecord(b))
 	}
+	return toRevoke
+
 }
 
 func patchFieldMask(typeURL string) []string {
@@ -555,14 +638,6 @@ func optimumPatchRequests(records []*databroker.Record, fieldMask *fieldmaskpb.F
 		optimumPatchRequests(records[:len(records)/2], fieldMask),
 		optimumPatchRequests(records[len(records)/2:], fieldMask)...,
 	)
-}
-
-func deleteOp(record *databroker.Record, at time.Time) recordOp {
-	record.DeletedAt = timestamppb.New(at)
-	return recordOp{
-		opType: opDelete,
-		record: record,
-	}
 }
 
 func constructPatchedBoundRecord(typeURL string, id string, sess *idpsession.IDPSession) (*databroker.Record, error) {
