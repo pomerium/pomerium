@@ -33,6 +33,46 @@ func emptyCheckSum() [16]byte {
 	return [16]byte{}
 }
 
+// internal check that the s3 compat container reports object versioning properly,
+// otherwise the checks for wroteOnceSemantics will always be trivially true.
+func TestS3CompatObjectVersioning(t *testing.T) {
+	bucketURI := setupWithObjectLock(t)
+	b, err := providers.OpenBucket(t.Context(), bucketURI)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	var s3b *s3.Client
+	require.True(t, b.As(&s3b))
+	require.NoError(t, b.WriteAll(t.Context(), "foo", []byte("objectv1"), &gblob.WriterOptions{}))
+
+	resp, err := s3b.ListObjectVersions(t.Context(), &s3.ListObjectVersionsInput{
+		Bucket: aws.String("test-bucket"),
+		Prefix: aws.String(""),
+	})
+	require.NoError(t, err)
+	count := 0
+	for _, md := range resp.Versions {
+		if *md.Key == "foo" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count)
+	require.NoError(t, b.WriteAll(t.Context(), "foo", []byte("objectv2"), &gblob.WriterOptions{}))
+
+	resp2, err := s3b.ListObjectVersions(t.Context(), &s3.ListObjectVersionsInput{
+		Bucket: aws.String("test-bucket"),
+		Prefix: aws.String(""),
+	})
+	require.NoError(t, err)
+	count = 0
+
+	for _, md := range resp2.Versions {
+		if *md.Key == "foo" {
+			count++
+		}
+	}
+	assert.Equal(t, 2, count, "expect s3 compat container to report version changes")
+}
+
 func TestChunkReaderWriter(t *testing.T) {
 	t.Run("in-mem", func(t *testing.T) {
 		b, err := gblob.OpenBucket(t.Context(), "mem://?prefix=a/subfolder/")
@@ -49,7 +89,7 @@ func TestChunkReaderWriter(t *testing.T) {
 		)
 	})
 
-	t.Run("minio-locked", func(t *testing.T) {
+	t.Run("s3-locked", func(t *testing.T) {
 		bucketURI := setupWithObjectLock(t)
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
 		require.NoError(t, err)
@@ -68,7 +108,7 @@ func TestChunkReaderWriter(t *testing.T) {
 
 // Meta testing that the test code we write for WORM conformance is correct
 func TestConformanceChecks(t *testing.T) {
-	t.Run("minio-locked", func(t *testing.T) {
+	t.Run("s3-locked", func(t *testing.T) {
 		bucketURI := setupWithObjectLock(t)
 
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
@@ -346,9 +386,9 @@ func setupWithObjectLock(t *testing.T) string {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	endpoint, ak, sk := testutil.StartMinio(t)
-	profilePath := path.Join(t.TempDir(), "test-minio-profile")
-	require.NoError(t, os.WriteFile(profilePath, fmt.Appendf(nil, `[testminio]
+	endpoint, ak, sk := testutil.StartS3CompatContainer(t)
+	profilePath := path.Join(t.TempDir(), "test-profile")
+	require.NoError(t, os.WriteFile(profilePath, fmt.Appendf(nil, `[test]
 aws_access_key_id=%s
 aws_secret_access_key=%s
 region=us-east-1
@@ -358,8 +398,9 @@ region=us-east-1
 	ctx := context.Background()
 
 	client, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(ak, sk, ""),
-		Secure: false,
+		Creds:        credentials.NewStaticV4(ak, sk, ""),
+		Secure:       false,
+		BucketLookup: minio.BucketLookupPath,
 	})
 	require.NoError(t, err)
 
@@ -384,7 +425,7 @@ region=us-east-1
 	q := bucketURI.Query()
 	q.Add("endpoint", "http://"+endpoint)
 	q.Add("disable_https", "true")
-	q.Add("profile", "testminio")
+	q.Add("profile", "test")
 	q.Add("s3ForcePathStyle", "true")
 	bucketURI.RawQuery = q.Encode()
 
