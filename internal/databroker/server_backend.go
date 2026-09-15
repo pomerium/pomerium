@@ -286,7 +286,11 @@ func (srv *backendServer) Put(ctx context.Context, req *databrokerpb.PutRequest)
 		return nil, err
 	}
 
-	serverVersion, err := db.Put(ctx, records)
+	var opts []storage.PutOption
+	if req.GetIfMatchVersion() {
+		opts = append(opts, storage.WithIfMatchVersion())
+	}
+	serverVersion, err := db.Put(ctx, records, opts...)
 	if err != nil {
 		return nil, err
 	}

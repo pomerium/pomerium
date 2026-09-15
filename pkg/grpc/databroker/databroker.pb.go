@@ -643,10 +643,14 @@ func (x *QueryResponse) GetRecordVersion() uint64 {
 }
 
 type PutRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Records       []*Record              `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Records []*Record              `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	// if_match_version makes the put conditional. Each record's version must
+	// equal the version currently stored (0 for a record that does not exist
+	// yet). If any record differs, nothing is written and ABORTED is returned.
+	IfMatchVersion *bool `protobuf:"varint,2,opt,name=if_match_version,json=ifMatchVersion,proto3,oneof" json:"if_match_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PutRequest) Reset() {
@@ -684,6 +688,13 @@ func (x *PutRequest) GetRecords() []*Record {
 		return x.Records
 	}
 	return nil
+}
+
+func (x *PutRequest) GetIfMatchVersion() bool {
+	if x != nil && x.IfMatchVersion != nil {
+		return *x.IfMatchVersion
+	}
+	return false
 }
 
 type PutResponse struct {
@@ -1865,10 +1876,12 @@ const file_databroker_proto_rawDesc = "" +
 	"\vtotal_count\x18\x02 \x01(\x03R\n" +
 	"totalCount\x12%\n" +
 	"\x0eserver_version\x18\x03 \x01(\x04R\rserverVersion\x12%\n" +
-	"\x0erecord_version\x18\x04 \x01(\x04R\rrecordVersion\":\n" +
+	"\x0erecord_version\x18\x04 \x01(\x04R\rrecordVersion\"~\n" +
 	"\n" +
 	"PutRequest\x12,\n" +
-	"\arecords\x18\x01 \x03(\v2\x12.databroker.RecordR\arecords\"b\n" +
+	"\arecords\x18\x01 \x03(\v2\x12.databroker.RecordR\arecords\x12-\n" +
+	"\x10if_match_version\x18\x02 \x01(\bH\x00R\x0eifMatchVersion\x88\x01\x01B\x13\n" +
+	"\x11_if_match_version\"b\n" +
 	"\vPutResponse\x12%\n" +
 	"\x0eserver_version\x18\x01 \x01(\x04R\rserverVersion\x12,\n" +
 	"\arecords\x18\x02 \x03(\v2\x12.databroker.RecordR\arecords\"w\n" +
@@ -2087,6 +2100,7 @@ func file_databroker_proto_init() {
 	}
 	file_databroker_proto_msgTypes[2].OneofWrappers = []any{}
 	file_databroker_proto_msgTypes[8].OneofWrappers = []any{}
+	file_databroker_proto_msgTypes[10].OneofWrappers = []any{}
 	file_databroker_proto_msgTypes[19].OneofWrappers = []any{}
 	file_databroker_proto_msgTypes[20].OneofWrappers = []any{
 		(*SyncResponse_Record)(nil),

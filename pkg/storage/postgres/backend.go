@@ -255,6 +255,7 @@ func (backend *Backend) ListTypes(ctx context.Context) ([]string, error) {
 func (backend *Backend) Put(
 	ctx context.Context,
 	records []*databroker.Record,
+	opts ...storage.PutOption,
 ) (serverVersion uint64, err error) {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel(nil)
@@ -273,11 +274,20 @@ func (backend *Backend) Put(
 
 		record = proto.CloneOf(record)
 		record.ModifiedAt = now
-		err := putRecordAndChange(ctx, pool, record)
-		if err != nil {
-			return serverVersion, fmt.Errorf("storage/postgres: error saving record: %w", err)
-		}
 		records[i] = record
+	}
+	if storage.GetPutOptions(opts...).IfMatchVersion {
+		err = putRecordsIfMatchVersion(ctx, pool, records)
+	} else {
+		for _, record := range records {
+			err = putRecordAndChange(ctx, pool, record, false)
+			if err != nil {
+				break
+			}
+		}
+	}
+	if err != nil {
+		return serverVersion, fmt.Errorf("storage/postgres: error saving record: %w", err)
 	}
 
 	// enforce options for each record type

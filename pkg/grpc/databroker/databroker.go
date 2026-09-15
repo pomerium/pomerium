@@ -57,6 +57,14 @@ func Put(ctx context.Context, client DataBrokerServiceClient, objects ...recordO
 	return client.Put(ctx, &PutRequest{Records: records})
 }
 
+// PutIfMatchVersion writes records only if each record's Version is the version
+// currently stored (0 for a record that must not exist yet). If any record was
+// modified since it was read, nothing is written and the returned error
+// satisfies IsRecordVersionMismatch.
+func PutIfMatchVersion(ctx context.Context, client DataBrokerServiceClient, records ...*Record) (*PutResponse, error) {
+	return client.Put(ctx, &PutRequest{Records: records, IfMatchVersion: new(true)})
+}
+
 // ApplyOffsetAndLimit applies the offset and limit to the list of records.
 func ApplyOffsetAndLimit(all []*Record, offset, limit int) (records []*Record, totalCount int) {
 	records = all

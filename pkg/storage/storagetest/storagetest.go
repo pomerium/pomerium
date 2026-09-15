@@ -9,6 +9,7 @@ import (
 	"iter"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -235,6 +236,10 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		assert.NotEmpty(t, records)
 	})
 
+	t.Run("put if match version", func(t *testing.T) {
+		testPutIfMatchVersion(ctx, t, backend)
+	})
+
 	t.Run("capacity", func(t *testing.T) {
 		err := backend.SetOptions(ctx, "capacity-test", &databroker.Options{
 			Capacity: proto.Uint64(3),
@@ -344,7 +349,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	t.Run("list types", func(t *testing.T) {
 		types, err := backend.ListTypes(ctx)
 		assert.NoError(t, err)
-		assert.Equal(t, []string{"capacity-test", "latest-test", "sync-test", "test-1"}, types)
+		assert.Equal(t, []string{"capacity-test", "if-match-version-test", "latest-test", "sync-test", "test-1"}, types)
 	})
 
 	t.Run("patch", func(t *testing.T) {
@@ -1401,4 +1406,148 @@ func truncateTimestamps(ts ...*timestamppb.Timestamp) {
 	for _, t := range ts {
 		t.Nanos = (t.Nanos / 1000) * 1000
 	}
+}
+
+// testPutIfMatchVersion verifies the optimistic-locking behavior of
+// Put(..., storage.WithIfMatchVersion()).
+func testPutIfMatchVersion(ctx context.Context, t *testing.T, backend storage.Backend) {
+	t.Helper()
+
+	const recordType = "if-match-version-test"
+	newRecord := func(id, value string, version uint64) *databroker.Record {
+		return &databroker.Record{
+			Type:    recordType,
+			Id:      id,
+			Version: version,
+			Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{
+				"value": protoutil.NewStructString(value),
+			})),
+		}
+	}
+	// putUnconditionally stores a record and returns its stored version.
+	putUnconditionally := func(t *testing.T, id, value string) uint64 {
+		records := []*databroker.Record{newRecord(id, value, 0)}
+		_, err := backend.Put(ctx, records)
+		require.NoError(t, err)
+		return records[0].GetVersion()
+	}
+	getValue := func(t *testing.T, id string) string {
+		record, err := backend.Get(ctx, recordType, id)
+		require.NoError(t, err)
+		var v structpb.Value
+		require.NoError(t, record.GetData().UnmarshalTo(&v))
+		return v.GetStructValue().GetFields()["value"].GetStringValue()
+	}
+
+	t.Run("creates a record that does not exist yet", func(t *testing.T) {
+		records := []*databroker.Record{newRecord("create", "v1", 0)}
+		_, err := backend.Put(ctx, records, storage.WithIfMatchVersion())
+		require.NoError(t, err)
+		assert.NotZero(t, records[0].GetVersion(), "the stored version is returned")
+		assert.Equal(t, "v1", getValue(t, "create"))
+	})
+
+	t.Run("refuses to create a record that already exists", func(t *testing.T) {
+		putUnconditionally(t, "exists", "v1")
+
+		_, err := backend.Put(ctx, []*databroker.Record{newRecord("exists", "v2", 0)}, storage.WithIfMatchVersion())
+		assert.ErrorIs(t, err, databroker.ErrRecordVersionMismatch)
+		assert.Equal(t, "v1", getValue(t, "exists"))
+	})
+
+	t.Run("updates a record at the version last read", func(t *testing.T) {
+		current := putUnconditionally(t, "update", "v1")
+
+		records := []*databroker.Record{newRecord("update", "v2", current)}
+		_, err := backend.Put(ctx, records, storage.WithIfMatchVersion())
+		require.NoError(t, err)
+		assert.Greater(t, records[0].GetVersion(), current)
+		assert.Equal(t, "v2", getValue(t, "update"))
+	})
+
+	t.Run("refuses a stale version and writes nothing", func(t *testing.T) {
+		stale := putUnconditionally(t, "stale", "v1")
+		putUnconditionally(t, "stale", "v2")
+
+		_, err := backend.Put(ctx, []*databroker.Record{newRecord("stale", "v3", stale)}, storage.WithIfMatchVersion())
+		assert.ErrorIs(t, err, databroker.ErrRecordVersionMismatch)
+		assert.Equal(t, "v2", getValue(t, "stale"))
+	})
+
+	t.Run("rejects the whole batch when one record is stale", func(t *testing.T) {
+		currentA := putUnconditionally(t, "batch-a", "a1")
+		staleB := putUnconditionally(t, "batch-b", "b1")
+		putUnconditionally(t, "batch-b", "b2")
+
+		_, err := backend.Put(ctx, []*databroker.Record{
+			newRecord("batch-a", "a2", currentA),
+			newRecord("batch-b", "b3", staleB),
+		}, storage.WithIfMatchVersion())
+		assert.ErrorIs(t, err, databroker.ErrRecordVersionMismatch)
+		assert.Equal(t, "a1", getValue(t, "batch-a"), "the fresh record is not written either")
+		assert.Equal(t, "b2", getValue(t, "batch-b"))
+	})
+
+	t.Run("deletes a record at the version last read", func(t *testing.T) {
+		stale := putUnconditionally(t, "delete", "v1")
+		current := putUnconditionally(t, "delete", "v2")
+
+		deletion := func(version uint64) *databroker.Record {
+			return &databroker.Record{Type: recordType, Id: "delete", Version: version, DeletedAt: timestamppb.Now()}
+		}
+		_, err := backend.Put(ctx, []*databroker.Record{deletion(stale)}, storage.WithIfMatchVersion())
+		assert.ErrorIs(t, err, databroker.ErrRecordVersionMismatch)
+		assert.Equal(t, "v2", getValue(t, "delete"), "a stale delete leaves the record in place")
+
+		_, err = backend.Put(ctx, []*databroker.Record{deletion(current)}, storage.WithIfMatchVersion())
+		require.NoError(t, err)
+		_, err = backend.Get(ctx, recordType, "delete")
+		assert.Equal(t, codes.NotFound, status.Code(err))
+	})
+
+	t.Run("rejects a batch that names the same record twice", func(t *testing.T) {
+		current := putUnconditionally(t, "duplicate", "v1")
+
+		_, err := backend.Put(ctx, []*databroker.Record{
+			newRecord("duplicate", "v2", current),
+			newRecord("duplicate", "v3", current),
+		}, storage.WithIfMatchVersion())
+		assert.ErrorIs(t, err, databroker.ErrDuplicateRecord)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "v1", getValue(t, "duplicate"), "nothing is written")
+	})
+
+	t.Run("ignores the version without the option", func(t *testing.T) {
+		putUnconditionally(t, "unconditional", "v1")
+
+		_, err := backend.Put(ctx, []*databroker.Record{newRecord("unconditional", "v2", 12345)})
+		require.NoError(t, err)
+		assert.Equal(t, "v2", getValue(t, "unconditional"))
+	})
+
+	t.Run("exactly one concurrent writer wins", func(t *testing.T) {
+		current := putUnconditionally(t, "race", "v1")
+
+		const writers = 8
+		var wins, losses atomic.Int32
+		var wg sync.WaitGroup
+		for i := range writers {
+			wg.Go(func() {
+				_, err := backend.Put(ctx, []*databroker.Record{
+					newRecord("race", fmt.Sprintf("writer-%d", i), current),
+				}, storage.WithIfMatchVersion())
+				switch {
+				case err == nil:
+					wins.Add(1)
+				case databroker.IsRecordVersionMismatch(err):
+					losses.Add(1)
+				default:
+					assert.NoError(t, err)
+				}
+			})
+		}
+		wg.Wait()
+		assert.Equal(t, int32(1), wins.Load())
+		assert.Equal(t, int32(writers-1), losses.Load())
+	})
 }

@@ -169,7 +169,7 @@ func (backend *Backend) iterateRecordsForIDLocked(
 		seqs = append(seqs, backend.iterateRecordsForIDLocked(r, recordType, recordID))
 	}
 
-	return iterutil.SortedUnionWithError(compareRecords, seqs...)
+	return iterutil.SortedUnionWithError(storage.CompareRecords, seqs...)
 }
 
 func (backend *Backend) iterateRecordsForIndexLocked(
@@ -259,7 +259,7 @@ func (backend *Backend) iterateRecordsForFilterLocked(
 		for i, f := range expr {
 			seqs[i] = backend.iterateRecordsForFilterLocked(r, recordType, f)
 		}
-		return iterutil.SortedIntersectionWithError(compareRecords, seqs...)
+		return iterutil.SortedIntersectionWithError(storage.CompareRecords, seqs...)
 	case storage.NotFilterExpression:
 		return func(yield func(*databrokerpb.Record, error) bool) {
 			yield(nil, fmt.Errorf("%w: not", storage.ErrLogicalOperatorNotSupported))
@@ -269,7 +269,7 @@ func (backend *Backend) iterateRecordsForFilterLocked(
 		for i, f := range expr {
 			seqs[i] = backend.iterateRecordsForFilterLocked(r, recordType, f)
 		}
-		return iterutil.SortedUnionWithError(compareRecords, seqs...)
+		return iterutil.SortedUnionWithError(storage.CompareRecords, seqs...)
 	case storage.SimpleFilterExpression:
 		if expr.Operator != storage.FilterExpressionOperatorEquals {
 			return func(yield func(*databrokerpb.Record, error) bool) {

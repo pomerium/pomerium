@@ -1,7 +1,6 @@
 package file
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -242,13 +241,6 @@ func (backend *Backend) withReadWriteTransaction(fn func(tx *readWriteTransactio
 	}
 
 	return err
-}
-
-func compareRecords(a, b *databrokerpb.Record) int {
-	return cmp.Or(
-		cmp.Compare(a.GetType(), b.GetType()),
-		cmp.Compare(a.GetId(), b.GetId()),
-	)
 }
 
 func listChangedRecordsAfter(
