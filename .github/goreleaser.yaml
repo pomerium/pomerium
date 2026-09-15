@@ -2,6 +2,10 @@ version: 2
 
 project_name: pomerium
 
+git:
+  ignore_tags:
+    - "pkg/grpc/*"
+
 release:
   prerelease: auto
   github:
