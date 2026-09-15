@@ -536,8 +536,6 @@ func (s *Stateful) sessionToBindingData(
 		}
 		switch binding.GetProtocol() {
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_MCP:
-			// TODO : we can look up the idpsession here and get the access_token expiry which becomes
-			// the real expire here
 			expiresAt = "Until revoked or IDP expires"
 			resource = binding.GetDetails()["mcp_client_id"]
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
@@ -652,6 +650,7 @@ func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, 
 	}
 	bindingID := r.Form.Get("sessionBindingID")
 	protocol := r.Form.Get("protocol")
+	log.Ctx(ctx).Debug().Str("binding-id", bindingID).Str("protocol", protocol).Msg("revoking binding")
 
 	if protocol == "ssh" {
 		if err := s.codeRevoker.RevokeSessionBinding(ctx, code.BindingID(bindingID)); err != nil {
@@ -681,13 +680,6 @@ func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, 
 		// do not leak details if someone has a uuid or is trying to guess a uuid.
 		return httputil.NewError(http.StatusNotFound, fmt.Errorf("not found"))
 	}
-	binding.Revoke()
-
-	s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{
-			databroker.NewRecord(binding),
-		},
-	})
 
 	if err := idpsession.RevokeBinding(ctx, s.dataBrokerClient, binding.GetId()); err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
