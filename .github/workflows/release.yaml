@@ -144,30 +144,6 @@ jobs:
           docker manifest create -a pomerium/pomerium:debug-nonroot pomerium/pomerium:debug-nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:debug-nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
           docker manifest push pomerium/pomerium:debug-nonroot
 
-  deploy:
-    runs-on: ubuntu-22.04
-    needs: goreleaser
-    if: github.event_name == 'release'
-    steps:
-      - name: Checkout Gitops Repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: pomerium/gitops-argocd
-          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
-
-      - name: Bump test environment
-        uses: mikefarah/yq@c14f446382944492701b16c1ddb48bb9dbe683e3
-        with:
-          cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
-
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d
-        with:
-          commit_message: |
-            Bump test environment pomerium/pomerium
-            Image tag: ${{ needs.goreleaser.outputs.tag }}
-            Source Repo: ${{ github.repository }}@${{ github.sha }}
-
   tag-sub-packages:
     runs-on: ubuntu-22.04
     needs: goreleaser
