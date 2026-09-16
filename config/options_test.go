@@ -559,7 +559,6 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		envs     map[string]string
 		expected AutocertOptions
 		wantErr  bool
-		cleanup  func()
 	}
 
 	tests := map[string]func(t *testing.T) test{
@@ -614,18 +613,14 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		"ok/custom-ca-file": func(t *testing.T) test {
 			certPEM, err := newCACertPEM()
 			require.NoError(t, err)
-			f, err := os.CreateTemp(t.TempDir(), "pomerium-test-ca")
-			require.NoError(t, err)
-			n, err := f.Write(certPEM)
-			require.NoError(t, err)
-			require.Equal(t, len(certPEM), n)
+			value := testutil.WriteTempCAFile(t, certPEM)
 			envs := map[string]string{
 				"AUTOCERT":                 "true",
 				"AUTOCERT_CA":              "test-ca.example.com/directory",
 				"AUTOCERT_EMAIL":           "test@example.com",
 				"AUTOCERT_EAB_KEY_ID":      "keyID",
 				"AUTOCERT_EAB_MAC_KEY":     "fake-key",
-				"AUTOCERT_TRUSTED_CA_FILE": f.Name(),
+				"AUTOCERT_TRUSTED_CA_FILE": value,
 				"AUTOCERT_DIR":             "/test",
 				"AUTOCERT_MUST_STAPLE":     "true",
 
@@ -640,11 +635,10 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 					Email:         "test@example.com",
 					EABKeyID:      "keyID",
 					EABMACKey:     "fake-key",
-					TrustedCAFile: f.Name(),
+					TrustedCAFile: value,
 					Folder:        "/test",
 					MustStaple:    true,
 				},
-				cleanup: func() { os.Remove(f.Name()) },
 			}
 		},
 	}
@@ -661,9 +655,6 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 			}
 			if !cmp.Equal(tc.expected, o.AutocertOptions) {
 				t.Errorf("AutoCertOptionsFromEnvVar() diff = %s", cmp.Diff(tc.expected, o.AutocertOptions))
-			}
-			if tc.cleanup != nil {
-				tc.cleanup()
 			}
 		})
 	}

@@ -8,11 +8,22 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+// WriteTempCAFile writes certPEM to a file.
+func WriteTempCAFile(t testing.TB, certPEM []byte) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "pomerium-test-ca")
+	require.NoError(t, os.WriteFile(path, certPEM, 0o600))
+	return path
+}
 
 // A Certificate is the public and private certificate details.
 type Certificate struct {
