@@ -51,4 +51,12 @@ func TestFilterExpressionFromStruct(t *testing.T) {
 			},
 		},
 		expr)
+
+	t.Run("empty", func(t *testing.T) {
+		s, err := structpb.NewStruct(M{})
+		require.NoError(t, err)
+		expr, err := FilterExpressionFromStruct(s)
+		assert.NoError(t, err)
+		assert.Nil(t, expr)
+	})
 }

@@ -71,7 +71,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		}
 	}
 
-	controlConnect, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-connect", connectURLs, upstreamProtocolAuto, Keepalive(false))
+	controlConnect, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-connect", connectURLs, upstreamProtocolHTTP2, Keepalive(false))
 	if err != nil {
 		return nil, err
 	}
