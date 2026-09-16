@@ -185,10 +185,12 @@ func TestValidateIdentityProviders(t *testing.T) {
 		assert.NoError(t, o.validateIdentityProviders())
 	})
 
+	// Route<->provider consistency is enforced at request time, not here; see
+	// the validateIdentityProviders doc comment.
 	t.Run("jwt route with zero providers", func(t *testing.T) {
 		o := NewDefaultOptions()
 		o.Policies = []Policy{jwtRoute()}
-		assert.Error(t, o.validateIdentityProviders())
+		assert.NoError(t, o.validateIdentityProviders())
 	})
 
 	t.Run("duplicate issuer across entries", func(t *testing.T) {
@@ -206,7 +208,7 @@ func TestValidateIdentityProviders(t *testing.T) {
 		r := jwtRoute()
 		r.IdentityProviders = []string{"nope"}
 		o.Policies = []Policy{r}
-		assert.Error(t, o.validateIdentityProviders())
+		assert.NoError(t, o.validateIdentityProviders())
 	})
 
 	t.Run("route references known provider ok", func(t *testing.T) {
@@ -218,13 +220,13 @@ func TestValidateIdentityProviders(t *testing.T) {
 		assert.NoError(t, o.validateIdentityProviders())
 	})
 
-	t.Run("non-jwt route setting identity_providers errors", func(t *testing.T) {
+	t.Run("non-jwt route setting identity_providers accepted", func(t *testing.T) {
 		o := NewDefaultOptions()
 		o.IdentityProviders = map[string]IdentityProvider{"k8s": provider}
 		r := Policy{} // default (non-jwt) format
 		r.IdentityProviders = []string{"k8s"}
 		o.Policies = []Policy{r}
-		assert.Error(t, o.validateIdentityProviders())
+		assert.NoError(t, o.validateIdentityProviders())
 	})
 
 	t.Run("global jwt format fallback respected", func(t *testing.T) {
@@ -235,11 +237,11 @@ func TestValidateIdentityProviders(t *testing.T) {
 		assert.NoError(t, o.validateIdentityProviders())
 	})
 
-	t.Run("global jwt format with zero providers errors", func(t *testing.T) {
+	t.Run("global jwt format with zero providers accepted", func(t *testing.T) {
 		o := NewDefaultOptions()
 		o.BearerTokenFormat = nullable.From(jwtFmt)
 		o.Policies = []Policy{{}}
-		assert.Error(t, o.validateIdentityProviders())
+		assert.NoError(t, o.validateIdentityProviders())
 	})
 
 	t.Run("invalid provider empty audiences", func(t *testing.T) {
@@ -264,16 +266,6 @@ func TestValidateIdentityProviders(t *testing.T) {
 		o.IdentityProviders = map[string]IdentityProvider{"K8s-Prod": provider}
 		err := o.validateIdentityProviders()
 		assert.ErrorContains(t, err, "must be lowercase")
-	})
-
-	t.Run("mixed-case route reference gets a hint", func(t *testing.T) {
-		o := NewDefaultOptions()
-		o.IdentityProviders = map[string]IdentityProvider{"k8s": provider}
-		r := jwtRoute()
-		r.IdentityProviders = []string{"K8s"}
-		o.Policies = []Policy{r}
-		err := o.validateIdentityProviders()
-		assert.ErrorContains(t, err, `did you mean "k8s"?`)
 	})
 
 	t.Run("duplicate issuer error is deterministic", func(t *testing.T) {

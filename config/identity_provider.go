@@ -183,11 +183,21 @@ func validateProviderName(name string) error {
 	return nil
 }
 
-// validateIdentityProviders checks the identity_providers configuration:
-// every provider is well-formed, issuers are unique across providers, and
-// every route that resolves to BEARER_TOKEN_FORMAT_JWT has at least one usable
-// provider and references only providers that exist. A non-JWT route must not
-// set identity_providers.
+// validateIdentityProviders checks the identity_providers settings themselves:
+// every provider name is well-formed (lowercase, no '/'), every provider
+// definition is valid, and issuers are unique across providers. All of that is
+// local to the settings record being validated.
+//
+// Route-level cross-checks (a jwt route having providers, a route referencing a
+// provider that exists) are deliberately NOT done here and must not be added:
+// configuration arrives as independent chunks — routes and settings are
+// separate databroker records, and more can arrive out of band over the Connect
+// API, in no particular order — so a route and the providers it references are
+// frequently absent from the same Options, and any such check fires
+// spuriously. Those rules are enforced fail-closed at request time in
+// createSessionForJWT (config/session.go): a nil resolver rejects with "no
+// identity_providers configured", and a token whose provider is not on the
+// route's allowlist is rejected before verification.
 func (o *Options) validateIdentityProviders() error {
 	seenIssuer := make(map[string]string, len(o.IdentityProviders)) // issuer -> provider name
 	// Iterate in sorted-name order so validation errors (e.g. which two
@@ -205,41 +215,6 @@ func (o *Options) validateIdentityProviders() error {
 				ip.Issuer, other, name)
 		}
 		seenIssuer[ip.Issuer] = name
-	}
-
-	globalFormat := configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
-	if o.BearerTokenFormat.IsSet {
-		globalFormat = o.BearerTokenFormat.Value
-	}
-	isJWT := func(p *Policy) bool {
-		if p.BearerTokenFormat.IsSet {
-			return p.BearerTokenFormat.Value == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
-		}
-		return globalFormat == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
-	}
-
-	for p := range o.GetAllPolicies() {
-		if !isJWT(p) {
-			if len(p.IdentityProviders) > 0 {
-				return fmt.Errorf("config: identity_providers is only valid on routes with "+
-					"bearer_token_format=jwt (route %q)", p.String())
-			}
-			continue
-		}
-		if len(o.IdentityProviders) == 0 {
-			return fmt.Errorf("config: bearer_token_format=jwt requires at least one "+
-				"identity_providers entry (route %q)", p.String())
-		}
-		for _, name := range p.IdentityProviders {
-			if _, ok := o.IdentityProviders[name]; !ok {
-				if _, ok := o.IdentityProviders[strings.ToLower(name)]; ok {
-					return fmt.Errorf("config: route %q references unknown identity provider %q (provider names are lowercase: did you mean %q?)",
-						p.String(), name, strings.ToLower(name))
-				}
-				return fmt.Errorf("config: route %q references unknown identity provider %q",
-					p.String(), name)
-			}
-		}
 	}
 	return nil
 }

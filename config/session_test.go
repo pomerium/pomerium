@@ -829,6 +829,7 @@ func TestCreateSessionForJWT_RouteProviderScoping(t *testing.T) {
 	t.Run("route allowing only idp-a rejects idp-b token", func(t *testing.T) {
 		_, err := newCreator().CreateSession(ctx, cfg, jwtRoute("idp-a"), mkReq())
 		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+		assert.ErrorContains(t, err, "is not allowed on this route")
 	})
 
 	t.Run("route with empty allowlist accepts idp-b token", func(t *testing.T) {
@@ -855,6 +856,7 @@ func TestCreateSessionForJWT_RouteProviderScoping(t *testing.T) {
 		c := newCreator(WithIdentityProviderResolver(nil))
 		_, err := c.CreateSession(ctx, cfg, jwtRoute(), mkReq())
 		assert.ErrorIs(t, err, sessions.ErrInvalidSession)
+		assert.ErrorContains(t, err, "no identity_providers configured")
 	})
 
 	// A provider that failed to build rejects the tokens of its own issuer and
