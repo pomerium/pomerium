@@ -183,21 +183,13 @@ func validateProviderName(name string) error {
 	return nil
 }
 
-// validateIdentityProviders checks the identity_providers settings themselves:
-// every provider name is well-formed (lowercase, no '/'), every provider
-// definition is valid, and issuers are unique across providers. All of that is
-// local to the settings record being validated.
+// validateIdentityProviders checks the identity_providers settings on their
+// own: well-formed lowercase names, valid provider definitions, unique issuers.
 //
-// Route-level cross-checks (a jwt route having providers, a route referencing a
-// provider that exists) are deliberately NOT done here and must not be added:
-// configuration arrives as independent chunks — routes and settings are
-// separate databroker records, and more can arrive out of band over the Connect
-// API, in no particular order — so a route and the providers it references are
-// frequently absent from the same Options, and any such check fires
-// spuriously. Those rules are enforced fail-closed at request time in
-// createSessionForJWT (config/session.go): a nil resolver rejects with "no
-// identity_providers configured", and a token whose provider is not on the
-// route's allowlist is rejected before verification.
+// It deliberately does not cross-check routes against providers. Routes and
+// settings arrive as separate databroker records in no fixed order, so such a
+// check fires spuriously. createSessionForJWT enforces those rules
+// fail-closed at request time.
 func (o *Options) validateIdentityProviders() error {
 	seenIssuer := make(map[string]string, len(o.IdentityProviders)) // issuer -> provider name
 	// Iterate in sorted-name order so validation errors (e.g. which two

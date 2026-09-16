@@ -185,8 +185,7 @@ func TestValidateIdentityProviders(t *testing.T) {
 		assert.NoError(t, o.validateIdentityProviders())
 	})
 
-	// Route<->provider consistency is enforced at request time, not here; see
-	// the validateIdentityProviders doc comment.
+	// Route<->provider consistency is enforced at request time, not here.
 	t.Run("jwt route with zero providers", func(t *testing.T) {
 		o := NewDefaultOptions()
 		o.Policies = []Policy{jwtRoute()}
