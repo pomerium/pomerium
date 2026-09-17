@@ -18,5 +18,5 @@ func newTransactionBackend(t *testing.T) storage.Backend {
 }
 
 func TestTransactions(t *testing.T) {
-	storagetest.TestTransaction(t, newTransactionBackend)
+	storagetest.TestTransaction(t, newTransactionBackend, storagetest.TransactionTestOptions{Synctest: true})
 }
