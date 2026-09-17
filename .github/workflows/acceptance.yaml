@@ -272,9 +272,67 @@ jobs:
           path: internal/acceptance/suites/upstream-tls/playwright-report/
           retention-days: 30
 
+  observability:
+    name: E2E — observability
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .tool-versions
+          cache: 'npm'
+          cache-dependency-path: internal/acceptance/suites/package-lock.json
+
+      - name: Install mkcert
+        # Pinned + checksum-verified (upstream is frozen at v1.4.4, 2022). We do
+        # NOT run `mkcert -install`: generating the leaf auto-creates the local
+        # CA, and the suite trusts it via ignoreHTTPSErrors (see
+        # internal/acceptance/suites/observability/setup/certs.ts).
+        run: |
+          MKCERT_VERSION=v1.4.4
+          MKCERT_SHA256=6d31c65b03972c6dc4a14ab429f2928300518b26503f58723e532d1b0a3bbb52
+          curl -fsSL -o mkcert \
+            "https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64"
+          echo "${MKCERT_SHA256}  mkcert" | sha256sum -c -
+          chmod +x mkcert
+          sudo mv mkcert /usr/local/bin/mkcert
+
+      - name: Install Playwright dependencies
+        working-directory: internal/acceptance/suites
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Run observability e2e suite
+        working-directory: internal/acceptance/suites/observability
+        run: make test
+        env:
+          CI: true
+
+      - name: Upload results (for summary)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: e2e-results-observability
+          path: internal/acceptance/suites/observability/results.json
+          if-no-files-found: error
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-report-observability
+          path: internal/acceptance/suites/observability/playwright-report/
+          retention-days: 30
+
   summary:
     name: E2E — summary
-    needs: [browser, mcp, downstream-mtls, upstream-tls]
+    needs: [browser, mcp, downstream-mtls, upstream-tls, observability]
     if: always()
     runs-on: ubuntu-latest
 

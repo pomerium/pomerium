@@ -1,0 +1,26 @@
+{
+  "_comment": "Feature map fragment for the container-based observability e2e harness (logging / metrics / tracing). Merged with the other harnesses' fragments by internal/acceptance/scripts/generate-summary.mjs into one Feature Coverage table. File keys are relative to this harness's Playwright testDir (./tests).",
+  "categories": {
+    "Logging": {
+      "description": "Access and authorize log field configuration driven through a real browser sign-in on an allow_any_authenticated_user route: built-in defaults, custom field lists, headers.<Name> fields, and the authenticate/authorize decision trail",
+      "files": {
+        "logging-access.spec.ts": ["Default Access Fields", "Single Access Field", "Access headers.<Name> Field", "Envelope-Only (Empty Field List)"],
+        "logging-authorize.spec.ts": ["Default Authorize Fields", "Authorize headers.Cookie", "Single Authorize Field", "Sign-in Decision Trail"]
+      }
+    },
+    "Metrics": {
+      "description": "metrics_address listener with the aggregated /metrics path, the raw (and basic-auth-exempt) /metrics/envoy path, and metrics_basic_auth including load-time rejection of malformed values",
+      "files": {
+        "metrics.spec.ts": ["Metrics Disabled", "Aggregated /metrics", "Raw /metrics/envoy", "Basic Auth", "Malformed Basic Auth Rejected at Load"]
+      }
+    },
+    "Tracing": {
+      "description": "OTEL tracing enablement matrix (exporter + endpoint, OTEL_SDK_DISABLED), Envoy+Pomerium trace correlation against a real Jaeger collector, otel_traces_sampler_arg sampling, and browser-driven user journeys through the Jaeger UI itself",
+      "files": {
+        "tracing-enablement.spec.ts": ["Exporter+Endpoint Spans", "Traces-Specific Endpoint", "Exporter Only", "Endpoint Only", "Exporter none", "OTEL_SDK_DISABLED"],
+        "tracing-spans.spec.ts": ["Single Trace Both Services", "Sampler 0.0"],
+        "tracing-journeys.spec.ts": ["Sign-in Journey in the Jaeger UI", "Sign-in Flow Stitched Trace", "Upstream traceparent Opens the Trace", "Policy-Denied Request Traced"]
+      }
+    }
+  }
+}
