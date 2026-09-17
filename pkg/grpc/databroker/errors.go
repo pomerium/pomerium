@@ -18,7 +18,7 @@ var (
 	ErrNoClusterNodes             = newError(codes.FailedPrecondition, "NO_CLUSTER_NODES", "databroker_cluster_nodes is required but not set")
 	ErrNodeIsNotLeader            = newError(codes.FailedPrecondition, "NODE_IS_NOT_LEADER", "request cannot be handled because the node is not the leader")
 	ErrNotInitialized             = newError(codes.Unavailable, "NOT_INITIALIZED", "not initialized")
-	ErrRecordVersionMismatch      = newError(codes.Aborted, reasonRecordVersionMismatch, "record version does not match the stored version")
+	ErrRecordVersionMismatch      = newError(codes.FailedPrecondition, reasonRecordVersionMismatch, "record version does not match the stored version")
 	ErrSetCheckpointNotSupported  = newError(codes.Unimplemented, "SET_CHECKPOINT_NOT_SUPPORTED", "SetCheckpoint is not supported")
 	ErrUnknownClusterRequestMode  = newError(codes.InvalidArgument, "UNKNOWN_CLUSTER_REQUEST_MODE", "unknown cluster request mode")
 )

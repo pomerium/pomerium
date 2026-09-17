@@ -478,7 +478,7 @@ func TestServer_PutIfMatchVersion(t *testing.T) {
 	t.Run("stale version is refused across the wire", func(t *testing.T) {
 		_, err := databrokerpb.PutIfMatchVersion(ctx, client, proto.CloneOf(firstWrite))
 		require.Error(t, err)
-		assert.Equal(t, codes.Aborted, status.Code(err))
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
 		assert.True(t, databrokerpb.IsRecordVersionMismatch(err), "error: %v", err)
 	})
 
