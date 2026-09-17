@@ -454,3 +454,44 @@ func TestServerPostgres(t *testing.T) {
 	})
 	assert.NoError(t, eg.Wait())
 }
+
+func TestServer_PutIfMatchVersion(t *testing.T) {
+	t.Parallel()
+
+	srv := newServer(t)
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+	})
+	client := databrokerpb.NewDataBrokerServiceClient(cc)
+	ctx := t.Context()
+
+	s := &sessionpb.Session{Id: "1", UserId: "u1"}
+	res, err := databrokerpb.Put(ctx, client, s)
+	require.NoError(t, err)
+	firstWrite := res.GetRecords()[0]
+	require.NotZero(t, firstWrite.GetVersion())
+
+	// Someone else writes the record after we read it.
+	_, err = databrokerpb.Put(ctx, client, s)
+	require.NoError(t, err)
+
+	t.Run("stale version is refused across the wire", func(t *testing.T) {
+		_, err := databrokerpb.PutIfMatchVersion(ctx, client, proto.CloneOf(firstWrite))
+		require.Error(t, err)
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+		assert.True(t, databrokerpb.IsRecordVersionMismatch(err), "error: %v", err)
+	})
+
+	t.Run("current version is accepted", func(t *testing.T) {
+		got, err := client.Get(ctx, &databrokerpb.GetRequest{Type: firstWrite.GetType(), Id: firstWrite.GetId()})
+		require.NoError(t, err)
+		res, err := databrokerpb.PutIfMatchVersion(ctx, client, got.GetRecord())
+		require.NoError(t, err)
+		assert.Greater(t, res.GetRecords()[0].GetVersion(), got.GetRecord().GetVersion())
+	})
+
+	t.Run("version is ignored without the flag", func(t *testing.T) {
+		_, err := client.Put(ctx, &databrokerpb.PutRequest{Records: []*databrokerpb.Record{proto.CloneOf(firstWrite)}})
+		require.NoError(t, err)
+	})
+}

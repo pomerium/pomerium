@@ -21,7 +21,7 @@ func (m *mockBackend) Close() error {
 	return nil
 }
 
-func (m *mockBackend) Put(ctx context.Context, records []*databroker.Record) (uint64, error) {
+func (m *mockBackend) Put(ctx context.Context, records []*databroker.Record, _ ...PutOption) (uint64, error) {
 	return m.put(ctx, records)
 }
 

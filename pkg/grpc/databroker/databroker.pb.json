@@ -449,7 +449,7 @@
           "description": "",
           "hasExtensions": false,
           "hasFields": true,
-          "hasOneofs": false,
+          "hasOneofs": true,
           "extensions": [],
           "fields": [
             {
@@ -462,6 +462,18 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "if_match_version",
+              "description": "if_match_version makes the put conditional. Each record's version must\nequal the version currently stored (0 for a record that does not exist\nyet). If any record differs, nothing is written and ABORTED is returned.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_if_match_version",
               "defaultValue": ""
             }
           ]

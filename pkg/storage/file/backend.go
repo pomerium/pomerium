@@ -269,6 +269,7 @@ func (backend *Backend) ListTypes(
 func (backend *Backend) Put(
 	ctx context.Context,
 	records []*databrokerpb.Record,
+	opts ...storage.PutOption,
 ) (serverVersion uint64, err error) {
 	ctx, op := backend.telemetry.Start(ctx, "Put")
 	defer op.Complete()
@@ -277,7 +278,7 @@ func (backend *Backend) Put(
 		tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
 		var err error
 		serverVersion = backend.serverVersion
-		err = backend.putRecordsLocked(tx, records)
+		err = backend.putRecordsLocked(tx, records, storage.GetPutOptions(opts...))
 		return err
 	})
 	if err != nil {
@@ -701,7 +702,19 @@ func (backend *Backend) patchRecordsLocked(
 func (backend *Backend) putRecordsLocked(
 	rw readerWriter,
 	records []*databrokerpb.Record,
+	options storage.PutOptions,
 ) (err error) {
+	// The version check runs over the whole batch before any record is touched:
+	// the pebble batch is discarded on error, but the in-memory indexes are not.
+	if options.IfMatchVersion {
+		if err := storage.CheckDistinctRecords(records); err != nil {
+			return fmt.Errorf("pebble: %w", err)
+		}
+		if err := backend.checkRecordVersionsLocked(rw, records); err != nil {
+			return err
+		}
+	}
+
 	// update records
 	// keep track of each record type in the list so we can enforce options
 	recordTypes := set.New[string](len(records))
@@ -725,6 +738,29 @@ func (backend *Backend) putRecordsLocked(
 	}
 
 	return err
+}
+
+// checkRecordVersionsLocked returns databrokerpb.ErrRecordVersionMismatch unless
+// every record's Version equals the version currently stored (0 when absent).
+func (backend *Backend) checkRecordVersionsLocked(
+	rw readerWriter,
+	records []*databrokerpb.Record,
+) error {
+	for _, record := range records {
+		var current uint64
+		existing, err := recordKeySpace.get(rw, record.GetType(), record.GetId())
+		if isNotFound(err) {
+			current = 0
+		} else if err != nil {
+			return fmt.Errorf("pebble: error getting existing record: %w", err)
+		} else {
+			current = existing.GetVersion()
+		}
+		if err := storage.CheckRecordVersion(record, current); err != nil {
+			return fmt.Errorf("pebble: %w", err)
+		}
+	}
+	return nil
 }
 
 func (backend *Backend) setCheckpointLocked(

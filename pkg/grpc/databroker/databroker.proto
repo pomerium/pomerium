@@ -97,6 +97,10 @@ message QueryResponse {
 
 message PutRequest {
   repeated Record records = 1;
+  // if_match_version makes the put conditional. Each record's version must
+  // equal the version currently stored (0 for a record that does not exist
+  // yet). If any record differs, nothing is written and ABORTED is returned.
+  optional bool if_match_version = 2;
 }
 
 message PutResponse {

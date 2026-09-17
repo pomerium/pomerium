@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -382,7 +383,13 @@ func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string
 	return leaseHolderID, err
 }
 
-func putRecordAndChange(ctx context.Context, q querier, record *databroker.Record) error {
+// putRecordAndChange writes a record and its change entry. With
+// ifMatchVersion set, the write is a compare-and-swap: it only happens when
+// the stored version equals record.Version (0 for a record that does not
+// exist yet). Postgres evaluates the version predicate against the latest
+// committed row, after waiting for any concurrent writer to that row, so
+// this stays correct against ordinary writers that take no locks at all.
+func putRecordAndChange(ctx context.Context, q querier, record *databroker.Record, ifMatchVersion bool) error {
 	data, err := jsonbFromAny(record.GetData())
 	if err != nil {
 		return fmt.Errorf("postgres: failed to convert any to json: %w", err)
@@ -396,6 +403,7 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 		indexCIDR.Valid = true
 	}
 
+	tbl := schemaName + "." + recordsTableName
 	query := `
 		WITH t1 AS (
 			INSERT INTO ` + schemaName + `.` + recordChangesTableName + ` (type, id, data, modified_at, deleted_at)
@@ -406,28 +414,101 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 	args := []any{
 		record.GetType(), record.GetId(), data, modifiedAt, deletedAt,
 	}
+	// versionMatches is appended to the write's WHERE clause when the write
+	// is conditional, so a row whose version changed is left untouched and
+	// the statement returns no rows
+	versionMatches := ""
+	if ifMatchVersion {
+		args = append(args, record.GetVersion())
+		versionMatches = ` ` + tbl + `.version=$` + strconv.Itoa(len(args))
+	}
 	if record.GetDeletedAt() == nil {
-		query += `
-			INSERT INTO ` + schemaName + `.` + recordsTableName + ` (type, id, version, data, modified_at, index_cidr)
-			VALUES ($1, $2, (SELECT version FROM t1), $3, $4, $6)
-			ON CONFLICT (type, id) DO UPDATE
-			SET version=(SELECT version FROM t1), data=$3, modified_at=$4, index_cidr=$6
-			RETURNING ` + schemaName + `.` + recordsTableName + `.version
-		`
 		args = append(args, indexCIDR)
+		cidrArg := `$` + strconv.Itoa(len(args))
+		query += `
+			INSERT INTO ` + tbl + ` (type, id, version, data, modified_at, index_cidr)
+			VALUES ($1, $2, (SELECT version FROM t1), $3, $4, ` + cidrArg + `)
+			ON CONFLICT (type, id) DO UPDATE
+			SET version=(SELECT version FROM t1), data=$3, modified_at=$4, index_cidr=` + cidrArg
+		if ifMatchVersion {
+			query += ` WHERE` + versionMatches
+		}
 	} else {
 		query += `
-			DELETE FROM ` + schemaName + `.` + recordsTableName + `
-			WHERE type=$1 AND id=$2
-			RETURNING ` + schemaName + `.` + recordsTableName + `.version
-		`
+			DELETE FROM ` + tbl + `
+			WHERE type=$1 AND id=$2`
+		if ifMatchVersion {
+			query += ` AND` + versionMatches
+		}
 	}
+	query += `
+		RETURNING ` + tbl + `.version
+	`
 	err = q.QueryRow(ctx, query, args...).Scan(&record.Version)
-	if err != nil && !isNotFound(err) {
+	if err == nil {
+		return nil
+	}
+	if !isNotFound(err) {
 		return fmt.Errorf("postgres: failed to execute query: %w", err)
 	}
+	if !ifMatchVersion {
+		// deleting a record that does not exist is a no-op
+		return nil
+	}
 
-	return nil
+	// the conditional write matched nothing. Read the stored version for the
+	// error message only: a concurrent delete may already have taken it back
+	// to 0, but the write did not happen, so an upsert is a mismatch
+	// regardless. A delete of an absent record at version 0 is a no-op,
+	// which is the one case CheckRecordVersion accepts.
+	current, err := getRecordVersion(ctx, q, record.GetType(), record.GetId())
+	if err != nil {
+		return err
+	}
+	if record.GetDeletedAt() != nil {
+		return storage.CheckRecordVersion(record, current)
+	}
+	return storage.NewRecordVersionMismatchError(record, current)
+}
+
+// getRecordVersion returns the stored version of a record, or 0 when there is
+// none, without fetching its data.
+func getRecordVersion(ctx context.Context, q querier, recordType, recordID string) (uint64, error) {
+	var version uint64
+	err := q.QueryRow(ctx, `
+		SELECT version
+		  FROM `+schemaName+`.`+recordsTableName+`
+		 WHERE type=$1 AND id=$2`,
+		recordType, recordID).Scan(&version)
+	if isNotFound(err) {
+		return 0, nil
+	}
+	return version, err
+}
+
+// putRecordsIfMatchVersion writes the records in one transaction, and only if
+// every record's Version equals the version currently stored (0 when absent).
+// Otherwise nothing is written and databroker.ErrRecordVersionMismatch is
+// returned. Rows are written in a stable order so concurrent batches cannot
+// deadlock.
+func putRecordsIfMatchVersion(ctx context.Context, p *pgxpool.Pool, records []*databroker.Record) error {
+	if err := storage.CheckDistinctRecords(records); err != nil {
+		return err
+	}
+
+	tx, err := p.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	for _, record := range slices.SortedFunc(slices.Values(records), storage.CompareRecords) {
+		if err := putRecordAndChange(ctx, tx, record, true); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 // patchRecord updates specific fields of an existing record.
@@ -451,7 +532,7 @@ func patchRecord(
 		return err
 	}
 
-	if err := putRecordAndChange(ctx, tx, record); err != nil {
+	if err := putRecordAndChange(ctx, tx, record, false); err != nil {
 		return err
 	}
 

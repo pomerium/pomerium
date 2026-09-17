@@ -2,12 +2,15 @@
 package storage
 
 import (
+	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	set "github.com/hashicorp/go-set/v3"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -45,7 +48,7 @@ type Backend interface {
 	// ListTypes lists all the known record types.
 	ListTypes(ctx context.Context) ([]string, error)
 	// Put is used to insert or update records.
-	Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error)
+	Put(ctx context.Context, records []*databroker.Record, opts ...PutOption) (serverVersion uint64, err error)
 	// Patch is used to update specific fields of existing records.
 	Patch(ctx context.Context, records []*databroker.Record, fields *fieldmaskpb.FieldMask) (serverVersion uint64, patchedRecords []*databroker.Record, err error)
 	// SetCheckpoint sets the latest checkpoint.
@@ -63,6 +66,72 @@ type Backend interface {
 	SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, seq RecordIterator, err error)
 	// Versions returns versions from the storage backend.
 	Versions(ctx context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error)
+}
+
+// PutOptions are the options used for putting records.
+type PutOptions struct {
+	// IfMatchVersion makes the put conditional: each record's Version must equal
+	// the version currently stored, or 0 for a record that does not exist yet.
+	// If any record differs, nothing is written and Put fails with
+	// databroker.ErrRecordVersionMismatch.
+	IfMatchVersion bool
+}
+
+// A PutOption customizes Put.
+type PutOption func(*PutOptions)
+
+// WithIfMatchVersion makes a put conditional on each record's Version matching
+// the version currently stored. See PutOptions.IfMatchVersion.
+func WithIfMatchVersion() PutOption {
+	return func(o *PutOptions) { o.IfMatchVersion = true }
+}
+
+// GetPutOptions applies opts to a default PutOptions.
+func GetPutOptions(opts ...PutOption) PutOptions {
+	var o PutOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return o
+}
+
+// CheckDistinctRecords returns databroker.ErrDuplicateRecord (wrapped) when
+// records names the same (type, id) more than once. A conditional put is a set
+// of independent version assertions, and two assertions on one record cannot
+// both hold once either is written, so backends reject the batch up front.
+func CheckDistinctRecords(records []*databroker.Record) error {
+	seen := set.New[[2]string](len(records))
+	for _, record := range records {
+		if !seen.Insert([2]string{record.GetType(), record.GetId()}) {
+			return fmt.Errorf("record (type=%s id=%s): %w", record.GetType(), record.GetId(), databroker.ErrDuplicateRecord)
+		}
+	}
+	return nil
+}
+
+// CheckRecordVersion implements PutOptions.IfMatchVersion for one record:
+// it returns databroker.ErrRecordVersionMismatch (wrapped) unless the record's
+// Version equals current, the version stored by the backend (0 when absent).
+func CheckRecordVersion(record *databroker.Record, current uint64) error {
+	if record.GetVersion() == current {
+		return nil
+	}
+	return NewRecordVersionMismatchError(record, current)
+}
+
+// NewRecordVersionMismatchError returns a databroker.ErrRecordVersionMismatch
+// describing the version the record carried and the version that is stored.
+func NewRecordVersionMismatchError(record *databroker.Record, current uint64) error {
+	return fmt.Errorf("record (type=%s id=%s) version %d does not match stored version %d: %w",
+		record.GetType(), record.GetId(), record.GetVersion(), current, databroker.ErrRecordVersionMismatch)
+}
+
+// CompareRecords orders records by type, then id.
+func CompareRecords(a, b *databroker.Record) int {
+	return cmp.Or(
+		cmp.Compare(a.GetType(), b.GetType()),
+		cmp.Compare(a.GetId(), b.GetId()),
+	)
 }
 
 // CleanOptions are the options used for cleaning the storage backend.
