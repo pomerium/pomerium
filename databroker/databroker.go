@@ -235,6 +235,7 @@ func (d *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 			})
 	} else {
 		// TODO : update
+		d.identityMgrV2.UpdateRefreshConfig(ctx, idpsession.DefaultRefreshConfig)
 	}
 
 	// if d.identityMgr == nil {
