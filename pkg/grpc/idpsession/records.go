@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -134,20 +135,20 @@ func RevokeBinding(ctx context.Context, client databroker.DataBrokerServiceClien
 	return putErr
 }
 
-func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string, reason string) error {
+func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string, reason string) (*oauth2.Token, error) {
 	rec, err := client.Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/idpsession.IDPSession",
 		Id:   id,
 	})
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return nil
+			return nil, nil
 		}
-		return err
+		return nil, err
 	}
 	idpSess := &IDPSession{}
 	if err := rec.Record.GetData().UnmarshalTo(idpSess); err != nil {
-		return err
+		return nil, err
 	}
 
 	iS := proto.CloneOf(idpSess)
@@ -160,7 +161,8 @@ func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceCl
 			databroker.NewRecord(iS),
 		},
 	})
-	return putErr
+
+	return FromOAuthToken(idpSess), putErr
 }
 
 func (b *Binding) Revoke() *Binding {

@@ -229,7 +229,8 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond, "deleting a dependent should not delete its authoritative binding")
 
 	// invalidating the IDP session should clean up remaining dependencies.
-	require.NoError(t, idpsession.RevokeIDPSession(t.Context(), client, "foo", "revoked by user"))
+	_, revokeErr := idpsession.RevokeIDPSession(t.Context(), client, "foo", "revoked by user")
+	require.NoError(t, revokeErr)
 
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
 		// _, err :=
@@ -380,8 +381,8 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 	timeMu.Lock()
 	ts = time.Now()
 	timeMu.Unlock()
-
-	require.NoError(t, idpsession.RevokeIDPSession(t.Context(), client, "foo", "user revoked"))
+	_, revokeErr := idpsession.RevokeIDPSession(t.Context(), client, "foo", "user revoked")
+	require.NoError(t, revokeErr)
 
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
 		for _, rec := range bindingsAndRecords {

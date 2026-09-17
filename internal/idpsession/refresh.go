@@ -2,6 +2,7 @@ package idpsession
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -116,7 +117,7 @@ func (mgr *refreshManager) revokeIDPSession(ctx context.Context, id string, reas
 		Str("idpsession-id", id).
 		Msg("deleting idpsession")
 
-	if err := idpsession.RevokeIDPSession(ctx, mgr.clientB.GetDataBrokerServiceClient(), id, reason); err != nil {
+	if _, err := idpsession.RevokeIDPSession(ctx, mgr.clientB.GetDataBrokerServiceClient(), id, reason); err != nil {
 		log.Ctx(ctx).Err(err).Str("idpsession-id", id).Msg("failed to delete session, a future reconcile will pick this up")
 	}
 	mgr.cleanUpSchedulers(id)
@@ -174,7 +175,7 @@ func (mgr *refreshManager) updateUserInfo(ctx context.Context, id string) {
 		return
 	}
 
-	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(u), u)
+	err = authenticator.UpdateUserInfo(ctx, idpsession.FromOAuthToken(u), u)
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
@@ -247,7 +248,7 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 		Time("id-token-expires-at", s.GetIdToken().GetExpiresAt().AsTime()).
 		Msg("HACK idpsession/refresh: refreshing with token")
 
-	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s), s)
+	newToken, err := authenticator.Refresh(ctx, idpsession.FromOAuthToken(s), s)
 	if newToken != nil {
 		// FIXME: hack
 		l.Warn().
@@ -266,8 +267,8 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 		mgr.revokeIDPSession(ctx, id, fmt.Sprintf("failed to refresh oauth2 token : %s", err))
 		return
 	}
-	UpdateOAuthToken(newToken, s)
-	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s), s)
+	idpsession.UpdateOAuthToken(newToken, s)
+	err = authenticator.UpdateUserInfo(ctx, idpsession.FromOAuthToken(s), s)
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
@@ -296,4 +297,18 @@ func (mgr *refreshManager) recordLastError(id string, err error) {
 		Message: err.Error(),
 		Id:      id,
 	})
+}
+
+func isTemporaryError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	var hasTemporary interface{ Temporary() bool }
+	if errors.As(err, &hasTemporary) && hasTemporary.Temporary() {
+		return true
+	}
+	return false
 }
