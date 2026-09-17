@@ -336,6 +336,13 @@ func (srv *securedServer) UpdateSettings(ctx context.Context, req *connect.Reque
 	return srv.underlying.UpdateSettings(ctx, req)
 }
 
+func (srv *securedServer) Transaction(stream grpc.BidiStreamingServer[databrokerpb.TransactionStreamRequest, databrokerpb.TransactionStreamResponse]) error {
+	if err := srv.authorize(stream.Context()); err != nil {
+		return err
+	}
+	return srv.underlying.Transaction(stream)
+}
+
 func (srv *securedServer) Stop() {
 	srv.underlying.Stop()
 }

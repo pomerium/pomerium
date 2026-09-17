@@ -72,6 +72,54 @@
           ]
         },
         {
+          "name": "BeginTransaction",
+          "longName": "BeginTransaction",
+          "fullName": "databroker.BeginTransaction",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "BeginTransactionResponse",
+          "longName": "BeginTransactionResponse",
+          "fullName": "databroker.BeginTransactionResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "Checkpoint",
           "longName": "Checkpoint",
           "fullName": "databroker.Checkpoint",
@@ -136,6 +184,78 @@
               "type": "uint64",
               "longType": "uint64",
               "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "CommitTransaction",
+          "longName": "CommitTransaction",
+          "fullName": "databroker.CommitTransaction",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "CommitTransactionResponse",
+          "longName": "CommitTransactionResponse",
+          "fullName": "databroker.CommitTransactionResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "shared",
+              "description": "shared is true when these results come from a concurrent transaction for the\nsame key that shares results, like singleflight transactions.\nThe transactions that were shared never ran operations themselves.",
+              "label": "",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "records",
+              "description": "records that were changed during this transaction.",
+              "label": "repeated",
+              "type": "Record",
+              "longType": "Record",
+              "fullType": "databroker.Record",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
@@ -639,6 +759,42 @@
               "type": "uint64",
               "longType": "uint64",
               "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "RPCStatus",
+          "longName": "RPCStatus",
+          "fullName": "databroker.RPCStatus",
+          "description": "mirrors \"google/rpc/status.proto\"'s relevant fields",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "code",
+              "description": "",
+              "label": "",
+              "type": "int32",
+              "longType": "int32",
+              "fullType": "int32",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "message",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
@@ -1270,6 +1426,162 @@
           ]
         },
         {
+          "name": "TransactionResponseWithError",
+          "longName": "TransactionResponseWithError",
+          "fullName": "databroker.TransactionResponseWithError",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "response",
+              "description": "",
+              "label": "",
+              "type": "TransactionResponse",
+              "longType": "TransactionResponse",
+              "fullType": "databroker.TransactionResponse",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "err",
+              "description": "",
+              "label": "",
+              "type": "RPCStatus",
+              "longType": "RPCStatus",
+              "fullType": "databroker.RPCStatus",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "TransactionStreamRequest",
+          "longName": "TransactionStreamRequest",
+          "fullName": "databroker.TransactionStreamRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "sequence",
+              "description": "sequence is echoed on the matching response.",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "begin",
+              "description": "",
+              "label": "",
+              "type": "BeginTransaction",
+              "longType": "BeginTransaction",
+              "fullType": "databroker.BeginTransaction",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "message",
+              "defaultValue": ""
+            },
+            {
+              "name": "operation",
+              "description": "",
+              "label": "",
+              "type": "TransactionRequest",
+              "longType": "TransactionRequest",
+              "fullType": "databroker.TransactionRequest",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "message",
+              "defaultValue": ""
+            },
+            {
+              "name": "commit",
+              "description": "",
+              "label": "",
+              "type": "CommitTransaction",
+              "longType": "CommitTransaction",
+              "fullType": "databroker.CommitTransaction",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "message",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "TransactionStreamResponse",
+          "longName": "TransactionStreamResponse",
+          "fullName": "databroker.TransactionStreamResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "sequence",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "operation",
+              "description": "",
+              "label": "",
+              "type": "TransactionResponseWithError",
+              "longType": "TransactionResponseWithError",
+              "fullType": "databroker.TransactionResponseWithError",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "message",
+              "defaultValue": ""
+            },
+            {
+              "name": "commit",
+              "description": "",
+              "label": "",
+              "type": "CommitTransactionResponse",
+              "longType": "CommitTransactionResponse",
+              "fullType": "databroker.CommitTransactionResponse",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "message",
+              "defaultValue": ""
+            },
+            {
+              "name": "begin",
+              "description": "",
+              "label": "",
+              "type": "BeginTransactionResponse",
+              "longType": "BeginTransactionResponse",
+              "fullType": "databroker.BeginTransactionResponse",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "message",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "TypedOptions",
           "longName": "TypedOptions",
           "fullName": "databroker.TypedOptions",
@@ -1547,6 +1859,18 @@
               "responseType": "SyncLatestResponse",
               "responseLongType": "SyncLatestResponse",
               "responseFullType": "databroker.SyncLatestResponse",
+              "responseStreaming": true
+            },
+            {
+              "name": "Transaction",
+              "description": "Transaction opens a transaction.\nTransaction is used for synchronizing one-time read and update Operations\nthat require atomic updates.\nThe stream's lifetime is the transaction's lifetime.\nThe first message must be `begin`, the last must be `commit`, and a\nstream that ends any other way rolls back. Operations are atomic but not\nisolated, and there is no conflict handling for concurrent updates not wrapped\nwith the same transaction key.\nConcurrent transactions are singleflight; sharing a key waits for the first transaction\nto finish with its result, and get the same result.",
+              "requestType": "TransactionStreamRequest",
+              "requestLongType": "TransactionStreamRequest",
+              "requestFullType": "databroker.TransactionStreamRequest",
+              "requestStreaming": true,
+              "responseType": "TransactionStreamResponse",
+              "responseLongType": "TransactionStreamResponse",
+              "responseFullType": "databroker.TransactionStreamResponse",
               "responseStreaming": true
             }
           ]
