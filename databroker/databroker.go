@@ -193,7 +193,7 @@ func (d *DataBroker) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
+func (d *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	if err := validate(cfg.Options); err != nil {
 		return fmt.Errorf("databroker: bad option: %w", err)
 	}

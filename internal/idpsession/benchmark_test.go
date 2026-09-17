@@ -124,10 +124,9 @@ func newBenchmarker(b *testing.B, numSessions int, numBindings int) *benchmarker
 		Now:                           time.Now,
 		EventMgr:                      events.New(),
 		TracerProvider:                noop.TracerProvider{},
-		GetAuthenticator: func(context.Context, string) (identity.Authenticator, error) {
-			return &mockAuthenticator{}, nil
-		},
-	}, f.store, clientB)
+	}, f.store, clientB, func(context.Context, string) (identity.Authenticator, error) {
+		return &mockAuthenticator{}, nil
+	})
 	b.Cleanup(refreshMgr.Close)
 
 	f.order = make([]int, len(f.sessions))

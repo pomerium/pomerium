@@ -63,27 +63,29 @@ func WithLeaseTTL(ttl time.Duration) Option {
 	}
 }
 
+var DefaultRefreshConfig = &RefreshConfig{
+	SessionRefreshGracePeriod:         1 * time.Minute,
+	SessionRefreshCoolOffDuration:     10 * time.Second,
+	UpdateUserInfoInterval:            10 * time.Minute,
+	RefreshSessionAtIDTokenExpiration: true,
+	TracerProvider:                    noop.TracerProvider{},
+	EventMgr:                          events.New(),
+	Now:                               time.Now,
+}
+
 func NewIdentityManagerV2(
 	clientB databroker.ClientGetter,
 	authenticateGetter func(ctx context.Context, idpID string) (identity.Authenticator, error),
 	o ...Option,
 ) *IdentityManager {
+
 	opts := options{
 		reconcileInterval: time.Second * 30,
 		now: func() time.Time {
 			return time.Now()
 		},
-		leaseTTL: 30 * time.Second,
-		refreshConfig: &RefreshConfig{
-			SessionRefreshGracePeriod:         1 * time.Minute,
-			SessionRefreshCoolOffDuration:     10 * time.Second,
-			UpdateUserInfoInterval:            10 * time.Minute,
-			RefreshSessionAtIDTokenExpiration: true,
-			TracerProvider:                    noop.TracerProvider{},
-			EventMgr:                          events.New(),
-			Now:                               time.Now,
-			GetAuthenticator:                  authenticateGetter,
-		},
+		leaseTTL:      30 * time.Second,
+		refreshConfig: DefaultRefreshConfig,
 	}
 	opts.Apply(o...)
 
@@ -95,7 +97,7 @@ func NewIdentityManagerV2(
 		store,
 		opts.now,
 	)
-	refreshMgr := newRefreshManager(*opts.refreshConfig, store, clientB)
+	refreshMgr := newRefreshManager(*opts.refreshConfig, store, clientB, authenticateGetter)
 
 	return &IdentityManager{
 		identReconciler: synchronizedReconciler,

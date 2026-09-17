@@ -29,7 +29,6 @@ type RefreshConfig struct {
 	UpdateUserInfoInterval            time.Duration
 	Now                               func() time.Time
 	EventMgr                          *events.Manager
-	GetAuthenticator                  func(ctx context.Context, idpID string) (identity.Authenticator, error)
 	TracerProvider                    oteltrace.TracerProvider
 }
 
@@ -44,12 +43,14 @@ type refreshManager struct {
 	cfg                      atomic.Pointer[RefreshConfig]
 	store                    idpSessionGetter
 	clientB                  databroker.ClientGetter
+	getAuthenticator         func(ctx context.Context, idpID string) (identity.Authenticator, error)
 }
 
 func newRefreshManager(
 	cfg RefreshConfig,
 	store idpSessionGetter,
 	clientB databroker.ClientGetter,
+	getAuthenticator func(ctx context.Context, idpID string) (identity.Authenticator, error),
 ) *refreshManager {
 	mgr := &refreshManager{
 		refreshSessionSchedulers: map[string]*refreshIDPSessionScheduler{},
@@ -57,6 +58,7 @@ func newRefreshManager(
 		cfg:                      atomic.Pointer[RefreshConfig]{},
 		store:                    store,
 		clientB:                  clientB,
+		getAuthenticator:         getAuthenticator,
 	}
 	mgr.cfg.Store(&cfg)
 	return mgr
@@ -168,7 +170,7 @@ func (mgr *refreshManager) updateUserInfo(ctx context.Context, id string) {
 	}
 
 	l := log.Ctx(ctx).With().Str("idpsession-id", id).Str("user-id", u.UserId).Logger()
-	authenticator, err := mgr.cfg.Load().GetAuthenticator(ctx, u.GetIdpId())
+	authenticator, err := mgr.getAuthenticator(ctx, u.GetIdpId())
 	if err != nil {
 		l.Err(err).Msg("no authenticator configured")
 		mgr.revokeIDPSession(ctx, id, "no authenticator")
@@ -227,7 +229,7 @@ func (mgr *refreshManager) refresh(ctx context.Context, id string) {
 	}
 	l := log.Ctx(ctx).With().Str("idpsession-id", id).Str("user-id", s.GetUserId()).Logger()
 
-	authenticator, err := mgr.cfg.Load().GetAuthenticator(ctx, s.GetIdpId())
+	authenticator, err := mgr.getAuthenticator(ctx, s.GetIdpId())
 	if err != nil {
 		l.Info().Err(err).Msg("no authenticator defined deleting session")
 		mgr.revokeIDPSession(ctx, id, "no authenticator")
