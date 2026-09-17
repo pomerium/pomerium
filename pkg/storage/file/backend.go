@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -59,6 +60,9 @@ type Backend struct {
 	closeErr  error
 	closeCtx  context.Context
 	close     context.CancelFunc
+
+	// primitives used for tracking transactions
+	txGroup singleflight.Group
 }
 
 // Option configures the backend instance.
@@ -101,13 +105,11 @@ func (backend *Backend) Close() error {
 	if err != nil {
 		return fmt.Errorf("pebble: error initializing: %w", err)
 	}
-
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 
 	backend.closeOnce.Do(func() {
 		backend.close()
-
 		if backend.metricRegistration != nil {
 			err := backend.metricRegistration.Unregister()
 			if err != nil {
@@ -391,6 +393,38 @@ func (backend *Backend) Versions(
 	}
 
 	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+}
+
+func (backend *Backend) DoTransaction(
+	ctx context.Context,
+	key string,
+	fn func(tx storage.Transaction) error,
+) (changed []*databrokerpb.Record, shared bool, err error) {
+	if err := backend.init(); err != nil {
+		return nil, false, fmt.Errorf("pebble : error initializing : %w", err)
+	}
+
+	// singleflight reports shared to the owner of a flight too
+	var ran bool
+	res, err, _ := backend.txGroup.Do(key, func() (any, error) {
+		ran = true
+
+		tx := &transaction{
+			backend: backend,
+			ctx:     ctx,
+			batch:   backend.db.NewIndexedBatch(),
+		}
+		if err := fn(tx); err != nil {
+			tx.rollback()
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return tx.changed, nil
+	})
+	changed, _ = res.([]*databrokerpb.Record)
+	return changed, !ran, err
 }
 
 func (backend *Backend) cleanLocked(

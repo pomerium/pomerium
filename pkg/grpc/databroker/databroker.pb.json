@@ -1126,6 +1126,150 @@
           ]
         },
         {
+          "name": "TransactionRequest",
+          "longName": "TransactionRequest",
+          "fullName": "databroker.TransactionRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "get",
+              "description": "",
+              "label": "",
+              "type": "GetRequest",
+              "longType": "GetRequest",
+              "fullType": "databroker.GetRequest",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "operation",
+              "defaultValue": ""
+            },
+            {
+              "name": "put",
+              "description": "",
+              "label": "",
+              "type": "PutRequest",
+              "longType": "PutRequest",
+              "fullType": "databroker.PutRequest",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "operation",
+              "defaultValue": ""
+            },
+            {
+              "name": "patch",
+              "description": "",
+              "label": "",
+              "type": "PatchRequest",
+              "longType": "PatchRequest",
+              "fullType": "databroker.PatchRequest",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "operation",
+              "defaultValue": ""
+            },
+            {
+              "name": "query",
+              "description": "",
+              "label": "",
+              "type": "QueryRequest",
+              "longType": "QueryRequest",
+              "fullType": "databroker.QueryRequest",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "operation",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "TransactionResponse",
+          "longName": "TransactionResponse",
+          "fullName": "databroker.TransactionResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "get",
+              "description": "",
+              "label": "",
+              "type": "GetResponse",
+              "longType": "GetResponse",
+              "fullType": "databroker.GetResponse",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "operation",
+              "defaultValue": ""
+            },
+            {
+              "name": "put",
+              "description": "",
+              "label": "",
+              "type": "PutResponse",
+              "longType": "PutResponse",
+              "fullType": "databroker.PutResponse",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "operation",
+              "defaultValue": ""
+            },
+            {
+              "name": "patch",
+              "description": "",
+              "label": "",
+              "type": "PatchResponse",
+              "longType": "PatchResponse",
+              "fullType": "databroker.PatchResponse",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "operation",
+              "defaultValue": ""
+            },
+            {
+              "name": "query",
+              "description": "",
+              "label": "",
+              "type": "QueryResponse",
+              "longType": "QueryResponse",
+              "fullType": "databroker.QueryResponse",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "operation",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "TypedOptions",
           "longName": "TypedOptions",
           "fullName": "databroker.TypedOptions",
