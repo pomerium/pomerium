@@ -37,7 +37,7 @@ const maxPatchRequestSize = 1024 * 1024
 
 type ChangeSetType = uint8
 
-// there's an implict ordering here representing priority of operations (delete > revoke > propagate)
+// there's an implicit ordering here representing priority of operations (delete > revoke > propagate)
 const (
 	// changePropagate copies idpsession state onto the dependent records bound to it
 	changePropagate ChangeSetType = iota + 1
@@ -547,7 +547,7 @@ func (a *changeSetApplier) applyChangeSet(ctx context.Context, changeOps recordO
 				return err
 			}
 			// patch returns only the records changed - a missing record indicates it was already deleted
-			toRevoke := a.bindingsToRevokeFromPatched(typeURL, records, patched, at)
+			toRevoke := a.bindingsToRevokeFromPatched(typeURL, records, patched)
 
 			if _, err := a.patchMulti(eCtx, toRevoke, patchFieldMask(bindingTypeURL)); err != nil {
 				// on failure, reschedule the revocations.
@@ -570,7 +570,6 @@ func (a *changeSetApplier) bindingsToRevokeFromPatched(
 	typeURL string,
 	requested []*databroker.Record,
 	patched map[string]struct{},
-	at time.Time,
 ) []*databroker.Record {
 	// user records outlive their idpsession and their bindings are never revoked.
 	if typeURL == userTypeURL {
@@ -589,7 +588,6 @@ func (a *changeSetApplier) bindingsToRevokeFromPatched(
 		toRevoke = append(toRevoke, databroker.NewRecord(b))
 	}
 	return toRevoke
-
 }
 
 func patchFieldMask(typeURL string) []string {

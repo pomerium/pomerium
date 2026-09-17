@@ -38,7 +38,6 @@ func (r *synchronizedReconciler) Updated() {
 	r.mu.Lock()
 	r.ready = true
 	r.mu.Unlock()
-	// TODO : add some sort of debounce/batching.
 	select {
 	case r.wake <- struct{}{}:
 	default:

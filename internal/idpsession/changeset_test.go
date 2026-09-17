@@ -5,15 +5,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 type fakeClock struct {
@@ -142,9 +143,9 @@ func TestChangeSetApplier(t *testing.T) {
 	// propagate idpsession fields to bindings
 	require.NoError(t, applier.ReconcileAtLocked(ctx, fakeClock.now()))
 
-	bindingIds1 := []string{"binding1", "binding2"}
-	bindingIds2 := []string{"binding3", "binding4"}
-	for _, id := range bindingIds1 {
+	bindingIDs1 := []string{"binding1", "binding2"}
+	bindingIDs2 := []string{"binding3", "binding4"}
+	for _, id := range bindingIDs1 {
 		got, err := client.Get(ctx, &databroker.GetRequest{
 			Type: sessionTypeURL,
 			Id:   id,
@@ -159,7 +160,7 @@ func TestChangeSetApplier(t *testing.T) {
 		assert.Equal(t, sess.OauthToken.RefreshToken, "refresh1")
 	}
 
-	for _, id := range bindingIds2 {
+	for _, id := range bindingIDs2 {
 		got, err := client.Get(ctx, &databroker.GetRequest{
 			Type: sessionTypeURL,
 			Id:   id,
@@ -239,7 +240,7 @@ func TestChangeSetApplier(t *testing.T) {
 
 	require.NoError(t, applier.ReconcileAtLocked(ctx, fakeClock.now()))
 
-	for _, id := range append(bindingIds1, bindingIds2...) {
+	for _, id := range append(bindingIDs1, bindingIDs2...) {
 		_, err := client.Get(ctx, &databroker.GetRequest{
 			Type: sessionTypeURL,
 			Id:   id,
@@ -256,7 +257,6 @@ func TestChangeSetApplier(t *testing.T) {
 		require.NoError(t, got.GetRecord().GetData().UnmarshalTo(b))
 		assert.Equal(t, idpsession.BindingState_BindingState_REVOKED, b.State, b.Id)
 	}
-
 }
 
 type input struct {

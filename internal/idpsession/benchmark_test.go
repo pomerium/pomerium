@@ -286,5 +286,3 @@ func BenchmarkSyncerPropagateIdle(b *testing.B) {
 		}
 	}
 }
-
-// TODO : revocation benchmarks
