@@ -130,7 +130,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			trustedCAFile := tc.fields.TrustedCAFile
 			if tc.useTrustedCAFile {
-				trustedCAFile = testutil.WriteTempCAFile(t, certPEM)
+				trustedCAFile = testutil.WriteFile(t, "pomerium-test-ca", certPEM)
 			}
 			o := &AutocertOptions{
 				Enable:        tc.fields.Enable,

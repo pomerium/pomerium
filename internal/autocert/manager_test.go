@@ -594,7 +594,7 @@ func Test_configureTrustedRoots(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			opts := tc.args.opts
 			if tc.useTrustedCAFile {
-				opts.TrustedCAFile = testutil.WriteTempCAFile(t, ca.certPEM)
+				opts.TrustedCAFile = testutil.WriteFile(t, "pomerium-test-ca", ca.certPEM)
 			}
 
 			roots, err := x509.SystemCertPool()

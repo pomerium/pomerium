@@ -613,7 +613,7 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		"ok/custom-ca-file": func(t *testing.T) test {
 			certPEM, err := newCACertPEM()
 			require.NoError(t, err)
-			value := testutil.WriteTempCAFile(t, certPEM)
+			value := testutil.WriteFile(t, "pomerium-test-ca", certPEM)
 			envs := map[string]string{
 				"AUTOCERT":                 "true",
 				"AUTOCERT_CA":              "test-ca.example.com/directory",
