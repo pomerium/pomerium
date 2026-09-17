@@ -914,11 +914,7 @@ func (f *stubFlow) AuthenticatePendingSession(_ http.ResponseWriter, _ *http.Req
 	return nil
 }
 
-func (f *stubFlow) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
-	return nil
-}
-
-func (f *stubFlow) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
+func (f *stubFlow) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *session.Handle, _ identity.ReAuthenticationCapability) error {
 	return nil
 }
 
@@ -955,3 +951,11 @@ func (*stubFlow) GetUserInfoData(*http.Request, *session.Handle) handlers.UserIn
 }
 
 func (*stubFlow) LogAuthenticateEvent(*http.Request) {}
+
+func (*stubFlow) RevokeSessionBinding(_ context.Context, _ *session.Handle, _ string, _ string, _ identity.ReAuthenticationCapability) error {
+	return nil
+}
+
+func (*stubFlow) RevokeUserSession(ctx context.Context, h *session.Handle, authenticator identity.Authenticator) error {
+	return nil
+}

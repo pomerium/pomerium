@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -435,25 +437,36 @@ func (s *Stateful) associateSessionBinding(
 	}, *expiry, nil
 }
 
-func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, h *session.Handle) error {
+func (s *Stateful) GetSessionBindingInfo(
+	w http.ResponseWriter,
+	r *http.Request,
+	h *session.Handle,
+	reauthCap identity.ReAuthenticationCapability,
+) error {
 	sshData, err := s.getLegacySSHSessionBindingInfo(r.Context(), h.UserId, *r.URL)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
-	otherBindings, err := s.getIDPSessionBindings(r.Context(), h.UserId, *r.URL)
+	otherBindings, err := s.getIDPSessionBindings(r.Context(), h.UserId, *r.URL, h)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
 
 	all := append(sshData, otherBindings...)
 	handlers.ServeSessionBindingInfo(handlers.SessionInfoData{
-		UserInfoData: s.GetUserInfoData(r, h),
-		SessionData:  all,
+		UserInfoData:  s.GetUserInfoData(r, h),
+		SessionData:   all,
+		ReAuthEnabled: reauthCap == identity.ReAuthenticationEnabled,
 	}).ServeHTTP(w, r)
 	return nil
 }
 
-func (s *Stateful) getIDPSessionBindings(ctx context.Context, userID string, redirectBase url.URL) ([]handlers.SessionBindingData, error) {
+func (s *Stateful) getIDPSessionBindings(
+	ctx context.Context,
+	userID string,
+	redirectBase url.URL,
+	h *session.Handle,
+) ([]handlers.SessionBindingData, error) {
 	idpSession := &idpsession.IDPSession{Id: userID}
 	if err := databroker.Get(ctx, s.dataBrokerClient, idpSession); err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -504,6 +517,9 @@ func (s *Stateful) getIDPSessionBindings(ctx context.Context, userID string, red
 			log.Ctx(ctx).Err(err).Msg("failed to fetch session binding information")
 			continue
 		}
+		datum.IsCurrentBrowser = binding.GetId() == h.GetId() &&
+			binding.GetProtocol() == idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER
+
 		renderData = append(renderData, datum)
 	}
 
@@ -550,6 +566,7 @@ func (s *Stateful) sessionToBindingData(
 	}
 	redirectRevoke := redirectBase
 	redirectRevoke.Path = "/.pomerium/session_binding/revoke"
+
 	datum := handlers.SessionBindingData{
 		SessionBindingID:        binding.GetId(),
 		Protocol:                formatProtocol(binding.GetProtocol()),
@@ -570,7 +587,7 @@ func formatProtocol(protocol idpsession.BindingProtocol) string {
 	case idpsession.BindingProtocol_BINDING_PROTOCOL_MCP:
 		return "MCP"
 	case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
-		return "Browser session"
+		return "Browser"
 	}
 	return "Unknown"
 }
@@ -638,26 +655,23 @@ func (s *Stateful) redirectToSessionBindingInfo(w http.ResponseWriter, r *http.R
 
 var errRevoke = httputil.NewError(http.StatusInternalServerError, fmt.Errorf("failed to revoke session binding"))
 
-func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error {
-	ctx := r.Context()
-	if s.dataBrokerQuerier != nil {
-		if q := s.dataBrokerQuerier(); q != nil {
-			ctx = storage.WithQuerier(ctx, q)
-		}
-	}
-	if err := r.ParseForm(); err != nil {
-		return err
-	}
-	bindingID := r.Form.Get("sessionBindingID")
-	protocol := r.Form.Get("protocol")
+func (s *Stateful) RevokeSessionBinding(
+	ctx context.Context,
+	h *session.Handle,
+	protocol string,
+	bindingID string,
+	reauthCap identity.ReAuthenticationCapability,
+) error {
 	log.Ctx(ctx).Debug().Str("binding-id", bindingID).Str("protocol", protocol).Msg("revoking binding")
 
 	if protocol == "ssh" {
 		if err := s.codeRevoker.RevokeSessionBinding(ctx, code.BindingID(bindingID)); err != nil {
 			return errRevoke
 		}
-		s.redirectToSessionBindingInfo(w, r)
 		return nil
+	}
+	if protocol == "Browser" && reauthCap != identity.ReAuthenticationEnabled {
+		return httputil.NewError(http.StatusBadRequest, fmt.Errorf("bad request"))
 	}
 	binding := &idpsession.Binding{}
 	rec, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
@@ -675,21 +689,31 @@ func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, 
 		return errRevoke
 	}
 
-	// FIXME: assumes idpsession id is userID. this is brittle. Perhaps a separate user_id field is good.
+	// FIXME: assumes idpsession id is userID. this is brittle. Perhaps a separate user_id field is good housekeeping.
 	if binding.GetIdpSessionId() != h.UserId {
-		// do not leak details if someone has a uuid or is trying to guess a uuid.
 		return httputil.NewError(http.StatusNotFound, fmt.Errorf("not found"))
 	}
 
 	if err := idpsession.RevokeBinding(ctx, s.dataBrokerClient, binding.GetId()); err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
 	}
-
-	s.redirectToSessionBindingInfo(w, r)
 	return nil
 }
 
-// FIXME: hack
+func (s *Stateful) RevokeUserSession(ctx context.Context, h *session.Handle, authenticator identity.Authenticator) error {
+	tok, err := idpsession.RevokeIDPSession(ctx, s.dataBrokerClient, h.GetUserId(), "logout")
+	if err != nil {
+		return fmt.Errorf("error setting idpsession revoked : %w", err)
+	}
+	if tok == nil {
+		return nil
+	}
+	if err := authenticator.Revoke(ctx, tok); err != nil {
+		return fmt.Errorf("error revoking token : %w", err)
+	}
+	return nil
+}
+
 func formatBrowserUserAgent(userAgent string) string {
 	if strings.TrimSpace(userAgent) == "" {
 		return ""
@@ -799,6 +823,13 @@ func (s *Stateful) PersistSession(
 		return fmt.Errorf("authenticate: error creating IDP session claims: %w", err)
 	}
 	idpSess := idpsession.NewFromSession(sess, idpClaims)
+	idpSessData, err := protojson.Marshal(idpSess)
+	if err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile("idpsess-"+time.Now().Format(time.RFC3339)+".json", idpSessData, 0777); err != nil {
+		panic(err)
+	}
 	bindingDetails := browserBindingDetails(r)
 
 	// FIXME: hack
@@ -926,9 +957,6 @@ func (s *Stateful) RevokeSession(
 	var rawIDToken string
 	if sess.OauthToken != nil {
 		rawIDToken = sess.GetIdToken().GetRaw()
-		if err := authenticator.Revoke(ctx, manager.FromOAuthToken(sess.OauthToken)); err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
-		}
 	}
 	return rawIDToken
 }

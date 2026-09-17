@@ -1,5 +1,8 @@
 import {
+  Box,
   Button,
+  Checkbox,
+  FormControlLabel,
   Container,
   Dialog,
   DialogActions,
@@ -25,24 +28,38 @@ const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
     }
   }
 
-  function handleClickLogout(evt: React.MouseEvent) {
-    evt.preventDefault();
-    location.href = data.url;
-  }
-
   return (
     <Container>
       <Dialog open={true}>
-        <DialogTitle>Logout?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to logout?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClickCancel}>Cancel</Button>
-          <Button onClick={handleClickLogout}>Logout</Button>
-        </DialogActions>
+        <Box component="form" action={data.url} method="POST">
+          <DialogTitle>Logout?</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to logout?
+            </DialogContentText>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  name={data.reauth_enabled ? "allDevices" : undefined}
+                  value="all"
+                  defaultChecked={!data.reauth_enabled}
+                  disabled={!data.reauth_enabled}
+                />
+              }
+              label="Logout out everywhere"
+              labelPlacement="end"
+            />
+            {!data.reauth_enabled && (
+              <input type="hidden" name="allDevices" value="all" />
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button type="button" onClick={handleClickCancel}>
+              Cancel
+            </Button>
+            <Button type="submit">Logout</Button>
+          </DialogActions>
+        </Box>
       </Dialog>
     </Container>
   );
