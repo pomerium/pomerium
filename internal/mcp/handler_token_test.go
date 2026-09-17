@@ -705,6 +705,7 @@ func TestRefreshTokenGrant(t *testing.T) {
 
 // mockAuthenticator implements identity.Authenticator for testing
 type mockAuthenticator struct {
+	identity.Authenticator
 	refreshFunc func(ctx context.Context, t *oauth2.Token, v identitystate.State) (*oauth2.Token, error)
 }
 

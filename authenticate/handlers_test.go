@@ -956,6 +956,6 @@ func (*stubFlow) RevokeSessionBinding(_ context.Context, _ *session.Handle, _ st
 	return nil
 }
 
-func (*stubFlow) RevokeUserSession(ctx context.Context, h *session.Handle, authenticator identity.Authenticator) error {
+func (*stubFlow) RevokeUserSession(_ context.Context, _ *session.Handle, _ identity.Authenticator) error {
 	return nil
 }

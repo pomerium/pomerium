@@ -827,7 +827,7 @@ func (s *Stateful) PersistSession(
 	if err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile("idpsess-"+time.Now().Format(time.RFC3339)+".json", idpSessData, 0777); err != nil {
+	if err := os.WriteFile("idpsess-"+time.Now().Format(time.RFC3339)+".json", idpSessData, 0o600); err != nil {
 		panic(err)
 	}
 	bindingDetails := browserBindingDetails(r)

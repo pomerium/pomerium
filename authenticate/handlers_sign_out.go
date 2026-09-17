@@ -126,7 +126,8 @@ func (a *Authenticate) fullLogout(
 	authenticator identity.Authenticator,
 	authenticateSignedOutURL, signOutURL string,
 ) error {
-	os.WriteFile("signout-"+time.Now().Format(time.RFC3339)+".json", []byte("{\"raw_id_token\":\""+rawIDToken+"\"}"), 0777)
+	// FIXME: debug
+	_ = os.WriteFile("signout-"+time.Now().Format(time.RFC3339)+".json", []byte("{\"raw_id_token\":\""+rawIDToken+"\"}"), 0o600)
 	if err := authenticator.SignOut(w, r, rawIDToken, authenticateSignedOutURL, signOutURL); err == nil {
 		return nil
 	} else if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
