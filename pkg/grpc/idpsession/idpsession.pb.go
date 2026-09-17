@@ -72,101 +72,6 @@ func (BindingProtocol) EnumDescriptor() ([]byte, []int) {
 	return file_idpsession_proto_rawDescGZIP(), []int{0}
 }
 
-type BindingState int32
-
-const (
-	BindingState_BindingState_ACTIVE  BindingState = 0
-	BindingState_BindingState_REVOKED BindingState = 1
-)
-
-// Enum value maps for BindingState.
-var (
-	BindingState_name = map[int32]string{
-		0: "BindingState_ACTIVE",
-		1: "BindingState_REVOKED",
-	}
-	BindingState_value = map[string]int32{
-		"BindingState_ACTIVE":  0,
-		"BindingState_REVOKED": 1,
-	}
-)
-
-func (x BindingState) Enum() *BindingState {
-	p := new(BindingState)
-	*p = x
-	return p
-}
-
-func (x BindingState) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (BindingState) Descriptor() protoreflect.EnumDescriptor {
-	return file_idpsession_proto_enumTypes[1].Descriptor()
-}
-
-func (BindingState) Type() protoreflect.EnumType {
-	return &file_idpsession_proto_enumTypes[1]
-}
-
-func (x BindingState) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use BindingState.Descriptor instead.
-func (BindingState) EnumDescriptor() ([]byte, []int) {
-	return file_idpsession_proto_rawDescGZIP(), []int{1}
-}
-
-type UpstreamIdPSessionState int32
-
-const (
-	UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_UKNOWN  UpstreamIdPSessionState = 0
-	UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_VALID   UpstreamIdPSessionState = 1
-	UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID UpstreamIdPSessionState = 2
-)
-
-// Enum value maps for UpstreamIdPSessionState.
-var (
-	UpstreamIdPSessionState_name = map[int32]string{
-		0: "UPSTREAM_IDP_SESSION_STATE_UKNOWN",
-		1: "UPSTREAM_IDP_SESSION_STATE_VALID",
-		2: "UPSTREAM_IDP_SESSION_STATE_INVALID",
-	}
-	UpstreamIdPSessionState_value = map[string]int32{
-		"UPSTREAM_IDP_SESSION_STATE_UKNOWN":  0,
-		"UPSTREAM_IDP_SESSION_STATE_VALID":   1,
-		"UPSTREAM_IDP_SESSION_STATE_INVALID": 2,
-	}
-)
-
-func (x UpstreamIdPSessionState) Enum() *UpstreamIdPSessionState {
-	p := new(UpstreamIdPSessionState)
-	*p = x
-	return p
-}
-
-func (x UpstreamIdPSessionState) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (UpstreamIdPSessionState) Descriptor() protoreflect.EnumDescriptor {
-	return file_idpsession_proto_enumTypes[2].Descriptor()
-}
-
-func (UpstreamIdPSessionState) Type() protoreflect.EnumType {
-	return &file_idpsession_proto_enumTypes[2]
-}
-
-func (x UpstreamIdPSessionState) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use UpstreamIdPSessionState.Descriptor instead.
-func (UpstreamIdPSessionState) EnumDescriptor() ([]byte, []int) {
-	return file_idpsession_proto_rawDescGZIP(), []int{2}
-}
-
 type IDToken struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Issuer        string                 `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
@@ -311,22 +216,29 @@ func (x *OAuthToken) GetRefreshToken() string {
 	return ""
 }
 
-// IDPSession represents a long lived user session with an upstream IDP.
-// The ID of this record is always the user_id from the upstream IDP.
+// IDPSession represents a single sign-on against an upstream IDP, holding the
+// one set of tokens that sign-on was issued. Its ID is the ID of the client
+// session handle that created it, so a user with several sign-ons has several
+// IDPSession records, each refreshed independently.
 type IDPSession struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	RawIdToken string                 `protobuf:"bytes,2,opt,name=raw_id_token,json=rawIdToken,proto3" json:"raw_id_token,omitempty"`
 	IdToken    *IDToken               `protobuf:"bytes,3,opt,name=id_token,json=idToken,proto3" json:"id_token,omitempty"`
 	OauthToken *OAuthToken            `protobuf:"bytes,4,opt,name=oauth_token,json=oauthToken,proto3" json:"oauth_token,omitempty"`
-	State      *SessionState          `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
-	// google.protobuf.Struct is used to implement identity.State
-	// with json Marshal/Unmarshal semantics.
-	Claims        *structpb.Struct `protobuf:"bytes,6,opt,name=claims,proto3" json:"claims,omitempty"`
-	IdpId         string           `protobuf:"bytes,9,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
-	UserId        string           `protobuf:"bytes,10,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Claims     *structpb.Struct       `protobuf:"bytes,5,opt,name=claims,proto3" json:"claims,omitempty"`
+	// sid is the "sid" claim of the ID token, identifying the upstream IDP
+	// session this sign-on belongs to. IDPs may not identify sessions using sid.
+	Sid *string `protobuf:"bytes,6,opt,name=sid,proto3,oneof" json:"sid,omitempty"`
+	// user_claims holds the user level claims from the user record, kept here so
+	// they can be propagated to the records bound to this session.
+	IdpId           string                 `protobuf:"bytes,7,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
+	UserId          string                 `protobuf:"bytes,8,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	InitiatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=initiated_at,json=initiatedAt,proto3" json:"initiated_at,omitempty"`
+	InitatedBy      *string                `protobuf:"bytes,10,opt,name=initated_by,json=initatedBy,proto3,oneof" json:"initated_by,omitempty"`
+	InitiatedByAddr *string                `protobuf:"bytes,11,opt,name=initiated_by_addr,json=initiatedByAddr,proto3,oneof" json:"initiated_by_addr,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *IDPSession) Reset() {
@@ -387,18 +299,18 @@ func (x *IDPSession) GetOauthToken() *OAuthToken {
 	return nil
 }
 
-func (x *IDPSession) GetState() *SessionState {
-	if x != nil {
-		return x.State
-	}
-	return nil
-}
-
 func (x *IDPSession) GetClaims() *structpb.Struct {
 	if x != nil {
 		return x.Claims
 	}
 	return nil
+}
+
+func (x *IDPSession) GetSid() string {
+	if x != nil && x.Sid != nil {
+		return *x.Sid
+	}
+	return ""
 }
 
 func (x *IDPSession) GetIdpId() string {
@@ -411,6 +323,27 @@ func (x *IDPSession) GetIdpId() string {
 func (x *IDPSession) GetUserId() string {
 	if x != nil {
 		return x.UserId
+	}
+	return ""
+}
+
+func (x *IDPSession) GetInitiatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.InitiatedAt
+	}
+	return nil
+}
+
+func (x *IDPSession) GetInitatedBy() string {
+	if x != nil && x.InitatedBy != nil {
+		return *x.InitatedBy
+	}
+	return ""
+}
+
+func (x *IDPSession) GetInitiatedByAddr() string {
+	if x != nil && x.InitiatedByAddr != nil {
+		return *x.InitiatedByAddr
 	}
 	return ""
 }
@@ -439,10 +372,11 @@ type Binding struct {
 	IdpSessionId string                 `protobuf:"bytes,3,opt,name=idp_session_id,json=idpSessionId,proto3" json:"idp_session_id,omitempty"`
 	Protocol     BindingProtocol        `protobuf:"varint,4,opt,name=protocol,proto3,enum=idpsession.BindingProtocol" json:"protocol,omitempty"`
 	InitiatedAt  *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=initiated_at,json=initiatedAt,proto3" json:"initiated_at,omitempty"`
-	State        BindingState           `protobuf:"varint,6,opt,name=state,proto3,enum=idpsession.BindingState" json:"state,omitempty"`
 	// details holds some user friendly details about
 	// the client of this binding.
-	Details       map[string]string `protobuf:"bytes,7,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Details map[string]string `protobuf:"bytes,6,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// user_id is the user the parent IDPSession belongs to.
+	UserId        string `protobuf:"bytes,7,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -512,13 +446,6 @@ func (x *Binding) GetInitiatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Binding) GetState() BindingState {
-	if x != nil {
-		return x.State
-	}
-	return BindingState_BindingState_ACTIVE
-}
-
 func (x *Binding) GetDetails() map[string]string {
 	if x != nil {
 		return x.Details
@@ -526,55 +453,9 @@ func (x *Binding) GetDetails() map[string]string {
 	return nil
 }
 
-type SessionState struct {
-	state protoimpl.MessageState  `protogen:"open.v1"`
-	State UpstreamIdPSessionState `protobuf:"varint,1,opt,name=state,proto3,enum=idpsession.UpstreamIdPSessionState" json:"state,omitempty"`
-	// holds readable string about details of a state
-	Details       string `protobuf:"bytes,2,opt,name=details,proto3" json:"details,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SessionState) Reset() {
-	*x = SessionState{}
-	mi := &file_idpsession_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SessionState) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SessionState) ProtoMessage() {}
-
-func (x *SessionState) ProtoReflect() protoreflect.Message {
-	mi := &file_idpsession_proto_msgTypes[4]
+func (x *Binding) GetUserId() string {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SessionState.ProtoReflect.Descriptor instead.
-func (*SessionState) Descriptor() ([]byte, []int) {
-	return file_idpsession_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *SessionState) GetState() UpstreamIdPSessionState {
-	if x != nil {
-		return x.State
-	}
-	return UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_UKNOWN
-}
-
-func (x *SessionState) GetDetails() string {
-	if x != nil {
-		return x.Details
+		return x.UserId
 	}
 	return ""
 }
@@ -599,7 +480,7 @@ const file_idpsession_proto_rawDesc = "" +
 	"token_type\x18\x02 \x01(\tR\ttokenType\x129\n" +
 	"\n" +
 	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12#\n" +
-	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\"\xb8\x02\n" +
+	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\"\xe3\x03\n" +
 	"\n" +
 	"IDPSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
@@ -607,37 +488,34 @@ const file_idpsession_proto_rawDesc = "" +
 	"rawIdToken\x12.\n" +
 	"\bid_token\x18\x03 \x01(\v2\x13.idpsession.IDTokenR\aidToken\x127\n" +
 	"\voauth_token\x18\x04 \x01(\v2\x16.idpsession.OAuthTokenR\n" +
-	"oauthToken\x12.\n" +
-	"\x05state\x18\x05 \x01(\v2\x18.idpsession.SessionStateR\x05state\x12/\n" +
-	"\x06claims\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06claims\x12\x15\n" +
-	"\x06idp_id\x18\t \x01(\tR\x05idpId\x12\x17\n" +
-	"\auser_id\x18\n" +
-	" \x01(\tR\x06userId\"\xfa\x02\n" +
+	"oauthToken\x12/\n" +
+	"\x06claims\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x06claims\x12\x15\n" +
+	"\x03sid\x18\x06 \x01(\tH\x00R\x03sid\x88\x01\x01\x12\x15\n" +
+	"\x06idp_id\x18\a \x01(\tR\x05idpId\x12\x17\n" +
+	"\auser_id\x18\b \x01(\tR\x06userId\x12=\n" +
+	"\finitiated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vinitiatedAt\x12$\n" +
+	"\vinitated_by\x18\n" +
+	" \x01(\tH\x01R\n" +
+	"initatedBy\x88\x01\x01\x12/\n" +
+	"\x11initiated_by_addr\x18\v \x01(\tH\x02R\x0finitiatedByAddr\x88\x01\x01B\x06\n" +
+	"\x04_sidB\x0e\n" +
+	"\f_initated_byB\x14\n" +
+	"\x12_initiated_by_addr\"\xe3\x02\n" +
 	"\aBinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\btype_url\x18\x02 \x01(\tR\atypeUrl\x12$\n" +
 	"\x0eidp_session_id\x18\x03 \x01(\tR\fidpSessionId\x127\n" +
 	"\bprotocol\x18\x04 \x01(\x0e2\x1b.idpsession.BindingProtocolR\bprotocol\x12=\n" +
-	"\finitiated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vinitiatedAt\x12.\n" +
-	"\x05state\x18\x06 \x01(\x0e2\x18.idpsession.BindingStateR\x05state\x12:\n" +
-	"\adetails\x18\a \x03(\v2 .idpsession.Binding.DetailsEntryR\adetails\x1a:\n" +
+	"\finitiated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vinitiatedAt\x12:\n" +
+	"\adetails\x18\x06 \x03(\v2 .idpsession.Binding.DetailsEntryR\adetails\x12\x17\n" +
+	"\auser_id\x18\a \x01(\tR\x06userId\x1a:\n" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"c\n" +
-	"\fSessionState\x129\n" +
-	"\x05state\x18\x01 \x01(\x0e2#.idpsession.UpstreamIdPSessionStateR\x05state\x12\x18\n" +
-	"\adetails\x18\x02 \x01(\tR\adetails*g\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*g\n" +
 	"\x0fBindingProtocol\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_UNKNOWN\x10\x00\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_BROWSER\x10\x01\x12\x18\n" +
-	"\x14BINDING_PROTOCOL_MCP\x10\x02*A\n" +
-	"\fBindingState\x12\x17\n" +
-	"\x13BindingState_ACTIVE\x10\x00\x12\x18\n" +
-	"\x14BindingState_REVOKED\x10\x01*\x8e\x01\n" +
-	"\x17UpstreamIdPSessionState\x12%\n" +
-	"!UPSTREAM_IDP_SESSION_STATE_UKNOWN\x10\x00\x12$\n" +
-	" UPSTREAM_IDP_SESSION_STATE_VALID\x10\x01\x12&\n" +
-	"\"UPSTREAM_IDP_SESSION_STATE_INVALID\x10\x02B2Z0github.com/pomerium/pomerium/pkg/grpc/idpsessionb\x06proto3"
+	"\x14BINDING_PROTOCOL_MCP\x10\x02B2Z0github.com/pomerium/pomerium/pkg/grpc/idpsessionb\x06proto3"
 
 var (
 	file_idpsession_proto_rawDescOnce sync.Once
@@ -651,39 +529,34 @@ func file_idpsession_proto_rawDescGZIP() []byte {
 	return file_idpsession_proto_rawDescData
 }
 
-var file_idpsession_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_idpsession_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_idpsession_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_idpsession_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_idpsession_proto_goTypes = []any{
 	(BindingProtocol)(0),          // 0: idpsession.BindingProtocol
-	(BindingState)(0),             // 1: idpsession.BindingState
-	(UpstreamIdPSessionState)(0),  // 2: idpsession.UpstreamIdPSessionState
-	(*IDToken)(nil),               // 3: idpsession.IDToken
-	(*OAuthToken)(nil),            // 4: idpsession.OAuthToken
-	(*IDPSession)(nil),            // 5: idpsession.IDPSession
-	(*Binding)(nil),               // 6: idpsession.Binding
-	(*SessionState)(nil),          // 7: idpsession.SessionState
-	nil,                           // 8: idpsession.Binding.DetailsEntry
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),       // 10: google.protobuf.Struct
+	(*IDToken)(nil),               // 1: idpsession.IDToken
+	(*OAuthToken)(nil),            // 2: idpsession.OAuthToken
+	(*IDPSession)(nil),            // 3: idpsession.IDPSession
+	(*Binding)(nil),               // 4: idpsession.Binding
+	nil,                           // 5: idpsession.Binding.DetailsEntry
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),       // 7: google.protobuf.Struct
 }
 var file_idpsession_proto_depIdxs = []int32{
-	9,  // 0: idpsession.IDToken.expires_at:type_name -> google.protobuf.Timestamp
-	9,  // 1: idpsession.IDToken.issued_at:type_name -> google.protobuf.Timestamp
-	9,  // 2: idpsession.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 3: idpsession.IDPSession.id_token:type_name -> idpsession.IDToken
-	4,  // 4: idpsession.IDPSession.oauth_token:type_name -> idpsession.OAuthToken
-	7,  // 5: idpsession.IDPSession.state:type_name -> idpsession.SessionState
-	10, // 6: idpsession.IDPSession.claims:type_name -> google.protobuf.Struct
+	6,  // 0: idpsession.IDToken.expires_at:type_name -> google.protobuf.Timestamp
+	6,  // 1: idpsession.IDToken.issued_at:type_name -> google.protobuf.Timestamp
+	6,  // 2: idpsession.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 3: idpsession.IDPSession.id_token:type_name -> idpsession.IDToken
+	2,  // 4: idpsession.IDPSession.oauth_token:type_name -> idpsession.OAuthToken
+	7,  // 5: idpsession.IDPSession.claims:type_name -> google.protobuf.Struct
+	6,  // 6: idpsession.IDPSession.initiated_at:type_name -> google.protobuf.Timestamp
 	0,  // 7: idpsession.Binding.protocol:type_name -> idpsession.BindingProtocol
-	9,  // 8: idpsession.Binding.initiated_at:type_name -> google.protobuf.Timestamp
-	1,  // 9: idpsession.Binding.state:type_name -> idpsession.BindingState
-	8,  // 10: idpsession.Binding.details:type_name -> idpsession.Binding.DetailsEntry
-	2,  // 11: idpsession.SessionState.state:type_name -> idpsession.UpstreamIdPSessionState
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	6,  // 8: idpsession.Binding.initiated_at:type_name -> google.protobuf.Timestamp
+	5,  // 9: idpsession.Binding.details:type_name -> idpsession.Binding.DetailsEntry
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_idpsession_proto_init() }
@@ -691,13 +564,14 @@ func file_idpsession_proto_init() {
 	if File_idpsession_proto != nil {
 		return
 	}
+	file_idpsession_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_idpsession_proto_rawDesc), len(file_idpsession_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   6,
+			NumEnums:      1,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -15,8 +15,11 @@ import (
 
 type IdentityManager struct {
 	clientB        databroker.ClientGetter
-	store          *changeSetStore
 	refreshManager *refreshManager
+
+	idx  IdentityIndex
+	q    ChangeQueue
+	idle IdleTracker
 
 	leaseTTL time.Duration
 	// The syncer and reconciler run under the same lease.
@@ -87,24 +90,29 @@ func NewIdentityManagerV2(
 		refreshConfig: DefaultRefreshConfig,
 	}
 	opts.Apply(o...)
+	q := NewChangeQueue()
+	idle := NewIdleTracker()
+	idx := NewIdentityIndex(q, idle)
 
-	store := newChangeSetStore()
-	applier := newChangeSetApplier(clientB, store)
 	synchronizedReconciler := newSynchronizedReconciler(
+		clientB,
+		idx,
+		q,
+		idle,
 		opts.reconcileInterval,
-		applier,
-		store,
 		opts.now,
 	)
-	refreshMgr := newRefreshManager(*opts.refreshConfig, store, clientB, authenticateGetter)
+	refreshMgr := newRefreshManager(*opts.refreshConfig, idx, clientB, authenticateGetter)
 
 	return &IdentityManager{
 		identReconciler: synchronizedReconciler,
 		clientB:         clientB,
-		store:           store,
 		refreshManager:  refreshMgr,
-		identitySyncer:  newIdentitySyncer(clientB, store, applier, refreshMgr, synchronizedReconciler, opts.now),
+		identitySyncer:  newIdentitySyncer(clientB, idx, refreshMgr, synchronizedReconciler, opts.now),
 		leaseTTL:        opts.leaseTTL,
+		idx:             idx,
+		idle:            idle,
+		q:               q,
 	}
 }
 

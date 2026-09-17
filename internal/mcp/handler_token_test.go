@@ -744,7 +744,7 @@ func (m *mockAuthenticator) SignIn(_ http.ResponseWriter, _ *http.Request, _ str
 	return errors.New("not implemented")
 }
 
-func (m *mockAuthenticator) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+func (m *mockAuthenticator) SignOut(_ http.ResponseWriter, _ *http.Request, _ identity.SignOutOptions) error {
 	return errors.New("not implemented")
 }
 

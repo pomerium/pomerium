@@ -22,6 +22,7 @@ import (
 func TestNewBoundRecords(t *testing.T) {
 	records := NewBoundRecords(
 		"upstream-session",
+		"user-1",
 		BindingProtocol_BINDING_PROTOCOL_BROWSER,
 		map[string]string{"user-agent": "test-browser/1.0"},
 		&session.Session{Id: "session-id"},
@@ -36,6 +37,7 @@ func TestNewBoundRecords(t *testing.T) {
 	assert.Equal(t, "session-id", binding.GetId())
 	assert.Equal(t, "type.googleapis.com/session.Session", binding.GetTypeUrl())
 	assert.Equal(t, "upstream-session", binding.GetIdpSessionId())
+	assert.Equal(t, "user-1", binding.GetUserId())
 	assert.Equal(t, BindingProtocol_BINDING_PROTOCOL_BROWSER, binding.GetProtocol())
 	assert.Equal(t, "test-browser/1.0", binding.GetDetails()["user-agent"])
 }
@@ -157,34 +159,18 @@ func TestGetValidIDPSession(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		t.Parallel()
 		got, err := GetValidIDPSession(ctx, getReturning(t, &IDPSession{
-			Id:    "user-1",
-			State: &SessionState{State: UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_VALID},
-		}), "user-1")
+			Id: "session-1",
+		}), "session-1")
 		assert.NoError(t, err)
-		assert.Equal(t, "user-1", got.GetId())
-	})
-
-	t.Run("invalidated reads as not found", func(t *testing.T) {
-		t.Parallel()
-		got, err := GetValidIDPSession(ctx, getReturning(t, &IDPSession{
-			Id: "user-1",
-			State: &SessionState{
-				State:   UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID,
-				Details: "signed out",
-			},
-		}), "user-1")
-		assert.Nil(t, got)
-		assert.Equal(t, codes.NotFound, status.Code(err))
-		assert.Contains(t, err.Error(), "signed out")
+		assert.Equal(t, "session-1", got.GetId())
 	})
 
 	t.Run("expired copied access token is still valid", func(t *testing.T) {
 		t.Parallel()
 		got, err := GetValidIDPSession(ctx, getReturning(t, &IDPSession{
-			Id:         "user-1",
-			State:      &SessionState{State: UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_VALID},
+			Id:         "session-1",
 			OauthToken: &OAuthToken{ExpiresAt: timestamppb.New(time.Now().Add(-time.Hour))},
-		}), "user-1")
+		}), "session-1")
 		assert.NoError(t, err)
 		assert.NotNil(t, got)
 	})
@@ -207,15 +193,5 @@ func TestGetActiveBinding(t *testing.T) {
 		got, err := GetActiveBinding(ctx, getReturning(t, &Binding{Id: "b1"}), "b1")
 		assert.NoError(t, err)
 		assert.Equal(t, "b1", got.GetId())
-	})
-
-	t.Run("revoked reads as not found", func(t *testing.T) {
-		t.Parallel()
-		got, err := GetActiveBinding(ctx, getReturning(t, &Binding{
-			Id:    "b1",
-			State: BindingState_BindingState_REVOKED,
-		}), "b1")
-		assert.Nil(t, got)
-		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 }

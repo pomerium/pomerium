@@ -4,7 +4,6 @@ import (
 	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/mapsutil"
 )
@@ -37,27 +36,13 @@ func (i *idpSessionApplier) ApplyToSession(s *session.Session) *session.Session 
 			RefreshToken: i.OauthToken.RefreshToken,
 		}
 	}
-	if i.Claims != nil {
-		claims := i.Claims.AsMap()
-		// same as pkg/identity/manager/data.go#104
-		// To preserve existing behavior: filter out claims not related to user info.
-		delete(claims, "iss")
-		delete(claims, "sub")
-		delete(claims, "exp")
-		delete(claims, "iat")
-		s.AddClaims(identity.FlattenedClaims(mapsutil.Flatten(claims)))
+	claims := i.Claims
+	if claims == nil {
+		return s
 	}
+	m := claims.AsMap()
+	s.AddClaims(identity.FlattenedClaims(mapsutil.Flatten(m)))
 	return s
-}
-
-func (i *idpSessionApplier) ApplyToUser(u *user.User) {
-	if u == nil {
-		return
-	}
-	if i == nil || i.Claims == nil {
-		return
-	}
-	u.AddClaims(identity.Claims(i.Claims.AsMap()).Flatten())
 }
 
 func (i *idpSessionApplier) ApplyToMCP(token *oauth21.MCPRefreshToken) *oauth21.MCPRefreshToken {
@@ -68,4 +53,15 @@ func (i *idpSessionApplier) ApplyToMCP(token *oauth21.MCPRefreshToken) *oauth21.
 		token.UpstreamRefreshToken = i.OauthToken.GetRefreshToken()
 	}
 	return token
+}
+
+func patchFieldMask(typeURL string) []string {
+	switch typeURL {
+	case sessionTypeURL:
+		return []string{"id_token", "oauth_token", "claims"}
+	case mcpRefreshTokenTypeURL:
+		return []string{"upstream_refresh_token"}
+	default:
+		return nil
+	}
 }

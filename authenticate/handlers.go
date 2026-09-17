@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"uuid"
 
 	csrf "filippo.io/csrf/gorilla"
 	"github.com/gorilla/mux"
@@ -241,6 +242,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	token := state.csrf.EnsureCookieSet(w, r)
+
 	now := time.Now().Unix()
 	b := fmt.Appendf(nil, "%s|%d|%s|", token, now, traceID)
 	enc := cryptutil.Encrypt(state.cookieCipher, []byte(redirectURL.String()), b)
@@ -388,8 +390,19 @@ Or contact your administrator.
 		h.Aud = append(h.Aud, nextRedirectURL.Hostname())
 	}
 
+	browserID, err := identity.EnsureBrowserIDCookie(r, w, identity.BrowserIDOptions{
+		CookieName: a.options.Load().CookieName,
+		AuthKey:    []byte(a.options.Load().CookieSecret),
+		BrowserID:  uuid.New().String(),
+		SameSite:   a.options.Load().GetCookieSameSite(),
+	})
+	if err != nil {
+		browserID = uuid.New().String()
+		log.Ctx(ctx).Info().Err(err).Msg("issuing a new browser ID for OAuth callback")
+	}
+
 	// save the session and access token to the databroker/cookie store
-	if err := state.flow.PersistSession(ctx, w, r, h, claims, accessToken); err != nil {
+	if err := state.flow.PersistSession(ctx, w, r, h, claims, accessToken, browserID); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 
@@ -442,14 +455,7 @@ func (a *Authenticate) sessionBindingInfo(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		h = session.NewHandle("")
 	}
-	options := a.options.Load()
-	idpID := a.getIdentityProviderIDForRequest(r)
-
-	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
-	if err != nil {
-		return err
-	}
-	if err := state.flow.GetSessionBindingInfo(w, r, h, authenticator.ReAuthSupport()); err != nil {
+	if err := state.flow.GetSessionBindingInfo(w, r, h); err != nil {
 		return err
 	}
 	return nil
@@ -468,14 +474,6 @@ func (a *Authenticate) revokeSessionBinding(w http.ResponseWriter, r *http.Reque
 		return err
 	}
 
-	options := a.options.Load()
-	idpID := a.getIdentityProviderIDForRequest(r)
-
-	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
-	if err != nil {
-		return err
-	}
-
 	bindingID := r.Form.Get("sessionBindingID")
 	protocol := r.Form.Get("protocol")
 
@@ -487,7 +485,7 @@ func (a *Authenticate) revokeSessionBinding(w http.ResponseWriter, r *http.Reque
 		return nil
 	}
 
-	if err := state.flow.RevokeSessionBinding(ctx, h, protocol, bindingID, authenticator.ReAuthSupport()); err != nil {
+	if err := state.flow.RevokeSessionBinding(ctx, h, protocol, bindingID); err != nil {
 		return err
 	}
 	a.redirectToBindingInfo(w, r)

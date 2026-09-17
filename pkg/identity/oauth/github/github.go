@@ -272,7 +272,7 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 }
 
 // SignOut is not implemented.
-func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _ identity.SignOutOptions) error {
 	return oidc.ErrSignoutNotImplemented
 }
 
@@ -310,10 +310,6 @@ func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string)
 // VerifyIdentityToken verifies an identity token.
 func (p *Provider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
 	return nil, identity.ErrVerifyIdentityTokenNotSupported
-}
-
-func (p *Provider) ReAuthSupport() identity.ReAuthenticationCapability {
-	return identity.ReAuthenticationNone
 }
 
 func firstNonZero[T comparable](values ...T) T {

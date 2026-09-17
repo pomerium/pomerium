@@ -31,47 +31,6 @@
               "description": ""
             }
           ]
-        },
-        {
-          "name": "BindingState",
-          "longName": "BindingState",
-          "fullName": "idpsession.BindingState",
-          "description": "",
-          "values": [
-            {
-              "name": "BindingState_ACTIVE",
-              "number": "0",
-              "description": ""
-            },
-            {
-              "name": "BindingState_REVOKED",
-              "number": "1",
-              "description": ""
-            }
-          ]
-        },
-        {
-          "name": "UpstreamIdPSessionState",
-          "longName": "UpstreamIdPSessionState",
-          "fullName": "idpsession.UpstreamIdPSessionState",
-          "description": "",
-          "values": [
-            {
-              "name": "UPSTREAM_IDP_SESSION_STATE_UKNOWN",
-              "number": "0",
-              "description": ""
-            },
-            {
-              "name": "UPSTREAM_IDP_SESSION_STATE_VALID",
-              "number": "1",
-              "description": ""
-            },
-            {
-              "name": "UPSTREAM_IDP_SESSION_STATE_INVALID",
-              "number": "2",
-              "description": ""
-            }
-          ]
         }
       ],
       "extensions": [],
@@ -147,18 +106,6 @@
               "defaultValue": ""
             },
             {
-              "name": "state",
-              "description": "",
-              "label": "",
-              "type": "BindingState",
-              "longType": "BindingState",
-              "fullType": "idpsession.BindingState",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
               "name": "details",
               "description": "details holds some user friendly details about\nthe client of this binding.",
               "label": "repeated",
@@ -166,6 +113,18 @@
               "longType": "Binding.DetailsEntry",
               "fullType": "idpsession.Binding.DetailsEntry",
               "ismap": true,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "user_id",
+              "description": "user_id is the user the parent IDPSession belongs to.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
               "defaultValue": ""
@@ -212,10 +171,10 @@
           "name": "IDPSession",
           "longName": "IDPSession",
           "fullName": "idpsession.IDPSession",
-          "description": "IDPSession represents a long lived user session with an upstream IDP.\nThe ID of this record is always the user_id from the upstream IDP.",
+          "description": "IDPSession represents a single sign-on against an upstream IDP, holding the\none set of tokens that sign-on was issued. Its ID is the ID of the client\nsession handle that created it, so a user with several sign-ons has several\nIDPSession records, each refreshed independently.",
           "hasExtensions": false,
           "hasFields": true,
-          "hasOneofs": false,
+          "hasOneofs": true,
           "extensions": [],
           "fields": [
             {
@@ -267,20 +226,8 @@
               "defaultValue": ""
             },
             {
-              "name": "state",
-              "description": "",
-              "label": "",
-              "type": "SessionState",
-              "longType": "SessionState",
-              "fullType": "idpsession.SessionState",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
               "name": "claims",
-              "description": "google.protobuf.Struct is used to implement identity.State\nwith json Marshal/Unmarshal semantics.",
+              "description": "",
               "label": "",
               "type": "Struct",
               "longType": "google.protobuf.Struct",
@@ -291,8 +238,20 @@
               "defaultValue": ""
             },
             {
+              "name": "sid",
+              "description": "sid is the \"sid\" claim of the ID token, identifying the upstream IDP\nsession this sign-on belongs to. IDPs may not identify sessions using sid.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_sid",
+              "defaultValue": ""
+            },
+            {
               "name": "idp_id",
-              "description": "",
+              "description": "user_claims holds the user level claims from the user record, kept here so\nthey can be propagated to the records bound to this session.",
               "label": "",
               "type": "string",
               "longType": "string",
@@ -312,6 +271,42 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "initiated_at",
+              "description": "",
+              "label": "",
+              "type": "Timestamp",
+              "longType": "google.protobuf.Timestamp",
+              "fullType": "google.protobuf.Timestamp",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "initated_by",
+              "description": "",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_initated_by",
+              "defaultValue": ""
+            },
+            {
+              "name": "initiated_by_addr",
+              "description": "",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_initiated_by_addr",
               "defaultValue": ""
             }
           ]
@@ -437,42 +432,6 @@
             {
               "name": "refresh_token",
               "description": "",
-              "label": "",
-              "type": "string",
-              "longType": "string",
-              "fullType": "string",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            }
-          ]
-        },
-        {
-          "name": "SessionState",
-          "longName": "SessionState",
-          "fullName": "idpsession.SessionState",
-          "description": "",
-          "hasExtensions": false,
-          "hasFields": true,
-          "hasOneofs": false,
-          "extensions": [],
-          "fields": [
-            {
-              "name": "state",
-              "description": "",
-              "label": "",
-              "type": "UpstreamIdPSessionState",
-              "longType": "UpstreamIdPSessionState",
-              "fullType": "idpsession.UpstreamIdPSessionState",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
-              "name": "details",
-              "description": "holds readable string about details of a state",
               "label": "",
               "type": "string",
               "longType": "string",

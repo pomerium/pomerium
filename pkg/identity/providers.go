@@ -32,14 +32,7 @@ import (
 // State is the identity state.
 type State = identity.State
 
-// ReAuthenticationCapability indicates whether or not reauthentication is supported
-type ReAuthenticationCapability = identity.ReAuthenticationCapability
-
-const (
-	ReAuthenticationNone     = identity.ReAuthenticationNone
-	ReAuthenticationDisabled = identity.ReAuthenticationDisabled
-	ReAuthenticationEnabled  = identity.ReAuthenticationEnabled
-)
+//go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock_identity/mock_authenticator.go . Authenticator
 
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
@@ -52,7 +45,7 @@ type Authenticator interface {
 	VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error)
 
 	SignIn(w http.ResponseWriter, r *http.Request, state string) error
-	SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error
+	SignOut(w http.ResponseWriter, r *http.Request, options SignOutOptions) error
 
 	DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, error)
 	DeviceAccessToken(ctx context.Context, r *oauth2.DeviceAuthResponse, state State) (*oauth2.Token, error)
@@ -62,8 +55,9 @@ type Authenticator interface {
 	// When `max_age` is sent to the IDP and if we must validate the returned auth_time claims based on the
 	// time of the auth code request from the client and not the iat.
 	// Ref : https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-	ReAuthSupport() ReAuthenticationCapability
 }
+
+type SignOutOptions = identity.SignOutOptions
 
 // AuthenticatorConstructor makes an Authenticator from the given options.
 type AuthenticatorConstructor func(context.Context, *oauth.Options) (Authenticator, error)

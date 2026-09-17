@@ -7,24 +7,34 @@ import (
 	"github.com/pomerium/pomerium/ui"
 )
 
-type SessionInfoData struct {
+type BindingInfoData struct {
 	UserInfoData
-	SessionData   []SessionBindingData
-	ReAuthEnabled bool
+	RevokeSessionBindingURL  string
+	RevokeIdentityBindingURL string
+	CurrentIDPSessionID      string
+	IDPSessionData           []IDPSessionData
+	BindingData              []SessionBindingData
+}
+
+type IDPSessionData struct {
+	IDPSessionID  string
+	SID           string
+	ClientAddress string
+	Resource      string
+	InitiatedAt   string
 }
 
 type SessionBindingData struct {
-	SessionBindingID         string
-	Protocol                 string
-	Resource                 string
-	ClientAddress            string
-	InitiatedAt              string
-	ExpiresAt                string
-	RevokeSessionBindingURL  string
-	RevokeIdentityBindingURL string
-	IsCurrentBrowser         bool
-	HasIdentityBinding       bool
-	DetailsSSH               *ProtocolDetailsSSH
+	IDPSessionID     string
+	SessionBindingID string
+	Protocol         string
+	Resource         string
+	ClientAddress    string
+	InitiatedAt      string
+	ExpiresAt        string
+	// IsCurrentBrowser   bool
+	HasIdentityBinding bool
+	DetailsSSH         *ProtocolDetailsSSH
 }
 
 type ProtocolDetailsSSH struct {
@@ -32,14 +42,17 @@ type ProtocolDetailsSSH struct {
 	SourceAddress string
 }
 
-func (data SessionInfoData) ToJSON() map[string]any {
+func (data BindingInfoData) ToJSON() map[string]any {
 	m := data.UserInfoData.ToJSON()
-	m["sessionBindings"] = data.SessionData
-	m["reauth_enabled"] = data.ReAuthEnabled
+	m["idpSessions"] = data.IDPSessionData
+	m["sessionBindings"] = data.BindingData
+	m["currentIdpSessionId"] = data.CurrentIDPSessionID
+	m["revokeSessionBindingUrl"] = data.RevokeSessionBindingURL
+	m["revokeIdentityBindingUrl"] = data.RevokeIdentityBindingURL
 	return m
 }
 
-func ServeSessionBindingInfo(data SessionInfoData) http.Handler {
+func ServeSessionBindingInfo(data BindingInfoData) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		return ui.ServePage(w, r, "SessionBindingInfo", "Session Bindings", data.ToJSON())
 	})

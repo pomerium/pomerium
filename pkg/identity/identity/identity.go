@@ -6,10 +6,9 @@ type State interface {
 	SetRawIDToken(rawIDToken string)
 }
 
-type ReAuthenticationCapability = int
-
-const (
-	ReAuthenticationNone ReAuthenticationCapability = iota
-	ReAuthenticationDisabled
-	ReAuthenticationEnabled
-)
+type SignOutOptions struct {
+	IDTokenHint              string
+	LogoutHint               string
+	AuthenticateSignedOutURL string
+	RedirectToURL            string
+}

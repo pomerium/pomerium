@@ -188,7 +188,7 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 }
 
 // SignOut is not implemented.
-func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _ identity.SignOutOptions) error {
 	return oidc.ErrSignoutNotImplemented
 }
 
@@ -225,8 +225,4 @@ func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken str
 	}
 
 	return claims, nil
-}
-
-func (p *Provider) ReAuthSupport() identity.ReAuthenticationCapability {
-	return identity.ReAuthenticationNone
 }

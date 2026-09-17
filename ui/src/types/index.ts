@@ -141,7 +141,6 @@ export type SignOutConfirmPageData = BasePageData &
   RuntimeFlags & {
     page: "SignOutConfirm";
     url: string;
-    reauth_enabled: boolean;
   };
 
 export type SignedOutPageData = BasePageData &
@@ -184,10 +183,21 @@ export type SignInSuccessPageData = BasePageData &
 export type SessionBindingInfoPageData = BasePageData &
   UserInfoData & {
     page: "SessionBindingInfo";
+    idpSessions: IDPSessionData[];
     sessionBindings: SessionBindingData[];
-    reauth_enabled: boolean;
+    currentIdpSessionId: string;
+    revokeSessionBindingUrl: string;
+    revokeIdentityBindingUrl: string;
   };
+export type IDPSessionData = {
+  IDPSessionID: string;
+  SID: string;
+  ClientAddress: string;
+  Resource: string;
+  InitiatedAt: string;
+};
 export type SessionBindingData = {
+  IDPSessionID: string;
   SessionBindingID: string;
   Protocol: string;
   Resource: string;

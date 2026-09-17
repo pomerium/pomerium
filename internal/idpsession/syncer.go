@@ -12,31 +12,30 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 type identitySyncer struct {
 	clientB databroker.ClientGetter
-	store   *changeSetStore
-	applier *changeSetApplier
 	now     func() time.Time
 
 	notifier SyncNotifier
+
+	idx IdentityIndex
 
 	refreshManager *refreshManager
 }
 
 func newIdentitySyncer(
 	clientB databroker.ClientGetter,
-	store *changeSetStore,
-	applier *changeSetApplier,
+	idx IdentityIndex,
 	refreshManager *refreshManager,
 	notifier SyncNotifier,
 	now func() time.Time,
 ) *identitySyncer {
 	return &identitySyncer{
 		clientB:        clientB,
-		store:          store,
-		applier:        applier,
+		idx:            idx,
 		now:            now,
 		notifier:       notifier,
 		refreshManager: refreshManager,
@@ -59,7 +58,7 @@ func (s *identitySyncer) ClearRecords(ctx context.Context) {
 	log.Ctx(ctx).Info().Msg("clearing records")
 	s.notifier.Reset()
 	s.refreshManager.Close()
-	s.applier.reset()
+	s.idx.Reset()
 }
 
 func (s *identitySyncer) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
@@ -77,18 +76,34 @@ func (s *identitySyncer) UpdateRecords(ctx context.Context, _ uint64, records []
 			if err := s.handleSession(ctx, rec); err != nil {
 				log.Ctx(ctx).Err(err).Msg("failed to handle session update")
 			}
+		case "type.googleapis.com/user.User":
+			if err := s.handleUser(ctx, rec); err != nil {
+				log.Ctx(ctx).Err(err).Msg("failed to handle user update")
+			}
 		}
 	}
 	s.notifier.Updated()
 }
 
+func (s *identitySyncer) handleUser(ctx context.Context, rec *databroker.Record) error {
+	if rec.GetDeletedAt() != nil {
+		log.Ctx(ctx).Trace()
+		s.idx.DeleteUser(rec.GetId())
+		return nil
+	}
+	u := &user.User{}
+	if err := rec.GetData().UnmarshalTo(u); err != nil {
+		return err
+	}
+	s.idx.PutUser(u)
+	return nil
+}
+
 // handles cleaning up expired sessions
 func (s *identitySyncer) handleSession(ctx context.Context, rec *databroker.Record) error {
 	if rec.GetDeletedAt() != nil {
-		if !s.store.bindingRevoked(rec.GetId()) {
-			log.Ctx(ctx).Trace().Str("binding-id", rec.GetId()).Msg("deleted session schedules binding revocation")
-			s.applier.scheduleRevokeBinding(ctx, rec.GetId(), s.now())
-		}
+		log.Ctx(ctx).Trace().Str("binding-id", rec.GetId()).Msg("deleted session schedules binding revocation")
+		s.idx.DeleteBinding(rec.GetId(), s.now())
 		return nil
 	}
 	sess := &session.Session{}
@@ -116,16 +131,26 @@ func (s *identitySyncer) handleBinding(ctx context.Context, rec *databroker.Reco
 		return fmt.Errorf("incompatible idpsession binding : %w", err)
 	}
 	if rec.GetDeletedAt() != nil {
-		s.store.deleteBinding(binding)
+		log.Ctx(ctx).Trace().Str("binding-id", binding.GetId()).Msg("deleted binding schedules revocation")
+		s.idx.DeleteBinding(rec.GetId(), s.now())
 		return nil
 	}
-	s.applier.onUpdateBinding(ctx, binding, s.now())
+
+	if binding.GetIdpSessionId() == "" || binding.GetId() == "" {
+		log.Ctx(ctx).Info().Str("record-id", rec.GetId()).Str("type-url", rec.GetData().GetTypeUrl()).
+			Msg("invalid binding observed, cleaning up")
+		rec.DeletedAt = timestamppb.New(s.now())
+		_, err := s.clientB.GetDataBrokerServiceClient().Put(ctx, &databroker.PutRequest{Records: []*databroker.Record{rec}})
+		return err
+	}
+	s.idx.PutBinding(binding, s.now())
 	return nil
 }
 
 func (s *identitySyncer) handleIDPSession(ctx context.Context, rec *databroker.Record) error {
 	if rec.GetDeletedAt() != nil {
-		s.store.deleteIDPSession(rec.GetId())
+		log.Ctx(ctx).Trace().Str("idpsession-id", rec.GetId()).Msg("deleted idpsession schedules binding revocations")
+		s.idx.DeleteIDPSession(rec.GetId(), s.now())
 		s.refreshManager.cleanUpSchedulers(rec.GetId())
 		return nil
 	}
@@ -133,7 +158,13 @@ func (s *identitySyncer) handleIDPSession(ctx context.Context, rec *databroker.R
 	if err := rec.GetData().UnmarshalTo(idpSess); err != nil {
 		return fmt.Errorf("incompatible idpsession record: %w", err)
 	}
-	s.applier.onUpdateIDPSession(ctx, idpSess, s.now())
+	if idpSess.GetUserId() == "" || idpSess.GetId() == "" {
+		log.Ctx(ctx).Info().Str("record-id", rec.GetId()).Str("type-url", rec.GetData().GetTypeUrl()).Msg("invalid idpsession observed, cleaning up")
+		rec.DeletedAt = timestamppb.New(s.now())
+		_, err := s.clientB.GetDataBrokerServiceClient().Put(ctx, &databroker.PutRequest{Records: []*databroker.Record{rec}})
+		return err
+	}
+	s.idx.PutIDPSession(idpSess, s.now())
 	s.refreshManager.onUpdateIDPSession(ctx, idpSess)
 	return nil
 }
