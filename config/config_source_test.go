@@ -108,6 +108,35 @@ func TestFileWatcherSource(t *testing.T) {
 	t.Run("Hot Reload Disabled", newTest(false))
 }
 
+func TestFileWatcherSourceWatchesRouteAndAdditionalPolicyFiles(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	routeFile := filepath.Join(dir, "route-ca.pem")
+	additionalFile := filepath.Join(dir, "additional-client-cert.pem")
+	require.NoError(t, os.WriteFile(routeFile, []byte("route-a"), 0o600))
+	require.NoError(t, os.WriteFile(additionalFile, []byte("additional-a"), 0o600))
+
+	options := NewDefaultOptions()
+	options.RuntimeFlags[RuntimeFlagConfigHotReload] = true
+	options.Routes = []Policy{{TLSCustomCAFile: routeFile}}
+	options.AdditionalPolicies = []Policy{{TLSClientCertFile: additionalFile}}
+	src := NewFileWatcherSource(t.Context(), NewStaticSource(New(options)))
+	changed := make(chan struct{}, 2)
+	src.OnConfigChange(t.Context(), func(context.Context, *Config) { changed <- struct{}{} })
+
+	for path, contents := range map[string][]byte{
+		routeFile:      []byte("route-b"),
+		additionalFile: []byte("additional-b"),
+	} {
+		require.NoError(t, os.WriteFile(path, contents, 0o600))
+		select {
+		case <-changed:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("no config event after changing policy material %q", path)
+		}
+	}
+}
+
 func TestFileOrEnvironmentSource(t *testing.T) {
 	t.Parallel()
 
