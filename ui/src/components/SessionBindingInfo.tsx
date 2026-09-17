@@ -56,7 +56,15 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
               >
                 <TableCell>{s.Protocol}</TableCell>
                 <TableCell component="th" scope="row">
-                  <Typography variant="body2">{s.Resource}</Typography>
+                  <Typography variant="body2">
+                    {s.Resource}
+                    {s.IsCurrentBrowser && (
+                      <Box component="span" sx={{ fontWeight: "bold" }}>
+                        {" "}
+                        (This browser)
+                      </Box>
+                    )}
+                  </Typography>
                   {s.DetailsSSH && (
                     <Box
                       sx={{
@@ -103,13 +111,16 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                         name="sessionBindingID"
                         value={s.SessionBindingID}
                       />
-                      <input
-                        type="hidden"
-                        name="protocol"
-                        value={s.Protocol}
-                      />
-                      <Button size="small" type="submit" variant="contained">
-                        Revoke
+                      <input type="hidden" name="protocol" value={s.Protocol} />
+                      <Button
+                        size="small"
+                        type="submit"
+                        variant="contained"
+                        disabled={
+                          s.Protocol === "Browser" && !data.reauth_enabled
+                        }
+                      >
+                        Logout
                       </Button>
                     </Box>
                   ) : (

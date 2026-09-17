@@ -369,8 +369,8 @@ func TestStatefulRevokeSession(t *testing.T) {
 	flow.dataBrokerClient = client
 
 	// Exercise the happy path (no errors): calling RevokeSession() should
-	// fetch and delete a session record from the databroker and make a request
-	// to the identity provider to revoke the corresponding OAuth2 token.
+	// fetch and delete a session record from the databroker. The OAuth2 token
+	// is not revoked at the identity provider.
 
 	ctx := t.Context()
 	authenticator := &mockAuthenticator{}
@@ -423,12 +423,7 @@ func TestStatefulRevokeSession(t *testing.T) {
 	idToken := flow.RevokeSession(ctx, nil, authenticator, h)
 
 	assert.Equal(t, "[raw-id-token]", idToken)
-	assert.Equal(t, &oauth2.Token{
-		AccessToken:  "[oauth-access-token]",
-		TokenType:    "Bearer",
-		RefreshToken: "[oauth-refresh-token]",
-		Expiry:       tokenExpiry,
-	}, authenticator.revokedToken)
+	assert.Nil(t, authenticator.revokedToken)
 }
 
 func TestPersistSession(t *testing.T) {

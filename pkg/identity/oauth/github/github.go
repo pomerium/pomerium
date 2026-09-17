@@ -262,7 +262,7 @@ func (p *Provider) Name() string {
 // SignIn redirects to the OAuth 2.0 provider's consent page
 // that asks for permissions for the required scopes explicitly.
 func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) error {
-	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
+	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account")}
 	if pkceParams, ok := pkce.FromContext(r.Context()); ok {
 		opts = append(opts, pkce.AuthCodeOptions(pkceParams)...)
 	}
@@ -310,6 +310,10 @@ func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string)
 // VerifyIdentityToken verifies an identity token.
 func (p *Provider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
 	return nil, identity.ErrVerifyIdentityTokenNotSupported
+}
+
+func (p *Provider) ReAuthSupport() identity.ReAuthenticationCapability {
+	return identity.ReAuthenticationNone
 }
 
 func firstNonZero[T comparable](values ...T) T {

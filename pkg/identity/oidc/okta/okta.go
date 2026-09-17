@@ -16,6 +16,10 @@ const (
 	Name = "okta"
 )
 
+var defaultAuthCodeOptions = map[string]string{
+	"prompt": "login",
+}
+
 // Provider is an Okta implementation of the Authenticator interface.
 type Provider struct {
 	*pom_oidc.Provider
@@ -30,6 +34,10 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		return nil, fmt.Errorf("%s: failed creating oidc provider: %w", Name, err)
 	}
 	p.Provider = genericOidc
+	p.AuthCodeOptions = defaultAuthCodeOptions
+	if o.AuthCodeOptions != nil {
+		p.AuthCodeOptions = o.AuthCodeOptions
+	}
 
 	return &p, nil
 }

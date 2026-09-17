@@ -258,31 +258,10 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 		r = r.WithContext(ctx)
 	}
 
-	err = authenticator.SignIn(forceLoginResponseWriter{ResponseWriter: w}, r, encodedState)
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError,
-			fmt.Errorf("failed to sign in: %w", err))
+	if err := authenticator.SignIn(w, r, encodedState); err != nil {
+		return fmt.Errorf("failed to sign in: %w", err)
 	}
 	return nil
-}
-
-type forceLoginResponseWriter struct {
-	http.ResponseWriter
-}
-
-// FIXME:
-// !!! HACK
-func (w forceLoginResponseWriter) WriteHeader(statusCode int) {
-	if location := w.Header().Get("Location"); location != "" {
-		if u, err := url.Parse(location); err == nil {
-			query := u.Query()
-			query.Set("prompt", "login")
-			query.Set("max_age", "0")
-			u.RawQuery = query.Encode()
-			w.Header().Set("Location", u.String())
-		}
-	}
-	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 // OAuthCallback handles the callback from the identity provider.
@@ -463,7 +442,14 @@ func (a *Authenticate) sessionBindingInfo(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		h = session.NewHandle("")
 	}
-	if err := state.flow.GetSessionBindingInfo(w, r, h); err != nil {
+	options := a.options.Load()
+	idpID := a.getIdentityProviderIDForRequest(r)
+
+	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
+	if err != nil {
+		return err
+	}
+	if err := state.flow.GetSessionBindingInfo(w, r, h, authenticator.ReAuthSupport()); err != nil {
 		return err
 	}
 	return nil
@@ -478,10 +464,44 @@ func (a *Authenticate) revokeSessionBinding(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		h = session.NewHandle("")
 	}
-	if err := state.flow.RevokeSessionBinding(w, r, h); err != nil {
+	if err := r.ParseForm(); err != nil {
 		return err
 	}
+
+	options := a.options.Load()
+	idpID := a.getIdentityProviderIDForRequest(r)
+
+	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
+	if err != nil {
+		return err
+	}
+
+	bindingID := r.Form.Get("sessionBindingID")
+	protocol := r.Form.Get("protocol")
+
+	if protocol == "Browser" && bindingID == h.Id {
+		// the requested binding to revoke is actually the browser session this page is being viewed
+		signOutConfirmation := *r.URL
+		signOutConfirmation.Path = "/.pomerium/sign_out"
+		httputil.Redirect(w, r, signOutConfirmation.String(), http.StatusFound)
+		return nil
+	}
+
+	if err := state.flow.RevokeSessionBinding(ctx, h, protocol, bindingID, authenticator.ReAuthSupport()); err != nil {
+		return err
+	}
+	a.redirectToBindingInfo(w, r)
 	return nil
+}
+
+func (a *Authenticate) redirectToBindingInfo(w http.ResponseWriter, r *http.Request) {
+	redirectTo := r.Referer()
+	if redirectTo == "" {
+		redirectURL := *r.URL
+		redirectURL.Path = "/.pomerium/session_binding_info"
+		redirectTo = redirectURL.String()
+	}
+	httputil.Redirect(w, r, redirectTo, http.StatusFound)
 }
 
 func (a *Authenticate) revokeIdentityBinding(w http.ResponseWriter, r *http.Request) error {

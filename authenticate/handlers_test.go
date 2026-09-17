@@ -151,7 +151,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"",
 			"sig",
 			"ts",
-			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented},
+			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, ReAuthCap: identity.ReAuthenticationEnabled},
 			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
@@ -165,7 +165,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"https://signout-redirect-url.example.com",
 			"sig",
 			"ts",
-			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented},
+			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, ReAuthCap: identity.ReAuthenticationEnabled},
 			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
@@ -179,7 +179,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"",
 			"sig",
 			"ts",
-			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented},
+			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, ReAuthCap: identity.ReAuthenticationEnabled},
 			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
@@ -193,7 +193,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"",
 			"sig",
 			"ts",
-			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, RevokeError: errors.New("OH NO")},
+			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, RevokeError: errors.New("OH NO"), ReAuthCap: identity.ReAuthenticationEnabled},
 			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
@@ -207,7 +207,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"",
 			"sig",
 			"ts",
-			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, RevokeError: errors.New("OH NO")},
+			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, RevokeError: errors.New("OH NO"), ReAuthCap: identity.ReAuthenticationEnabled},
 			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
@@ -221,7 +221,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"",
 			"sig",
 			"ts",
-			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented},
+			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, ReAuthCap: identity.ReAuthenticationEnabled},
 			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
@@ -320,6 +320,7 @@ func TestAuthenticate_SignOutNoConfirmationForHosted(t *testing.T) {
 	tracer := tracerProvider.Tracer("test")
 	mockIDP := identity.MockProvider{
 		SignOutError: errors.New("returning an error here to trigger a signed_out redirect"),
+		ReAuthCap:    identity.ReAuthenticationEnabled,
 	}
 	a := &Authenticate{
 		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
@@ -349,35 +350,6 @@ func TestAuthenticate_SignOutNoConfirmationForHosted(t *testing.T) {
 		t.Fatalf("wrong status code: got %q want %q", result.Status, expectedStatus)
 	}
 	assert.Equal(t, "https://authenticate.pomerium.app/.pomerium/signed_out", result.Header.Get("Location"))
-}
-
-func TestForceLoginResponseWriter(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name     string
-		location string
-		want     string
-	}{
-		{
-			name:     "adds prompt",
-			location: "https://idp.example.com/authorize?client_id=pomerium",
-			want:     "https://idp.example.com/authorize?client_id=pomerium&prompt=login",
-		},
-		{
-			name:     "overrides provider prompt",
-			location: "https://idp.example.com/authorize?prompt=select_account",
-			want:     "https://idp.example.com/authorize?prompt=login",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			recorder := httptest.NewRecorder()
-			w := forceLoginResponseWriter{ResponseWriter: recorder}
-			w.Header().Set("Location", tc.location)
-			w.WriteHeader(http.StatusFound)
-			assert.Equal(t, tc.want, recorder.Header().Get("Location"))
-		})
-	}
 }
 
 func TestAuthenticate_OAuthCallback(t *testing.T) {
@@ -846,6 +818,9 @@ func TestSignOutBranding(t *testing.T) {
 
 	auth := testAuthenticate(t)
 	auth.state.Load().flow.(*stubFlow).verifySignatureErr = errors.New("unsigned URL")
+	auth.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+		return identity.MockProvider{ReAuthCap: identity.ReAuthenticationEnabled}, nil
+	}))
 	auth.options.Store(&config.Options{
 		BrandingOptions: &configproto.Settings{
 			PrimaryColor:   new("red"),
@@ -865,7 +840,8 @@ func TestSignOutBranding(t *testing.T) {
 		b, err := io.ReadAll(w.Body)
 		require.NoError(t, err)
 
-		assert.Contains(t, string(b), `"primaryColor":"red","secondaryColor":"orange"`)
+		assert.Contains(t, string(b), `"primaryColor":"red"`)
+		assert.Contains(t, string(b), `"secondaryColor":"orange"`)
 	})
 
 	t.Run("signed_out", func(t *testing.T) {
@@ -914,11 +890,7 @@ func (f *stubFlow) AuthenticatePendingSession(_ http.ResponseWriter, _ *http.Req
 	return nil
 }
 
-func (f *stubFlow) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
-	return nil
-}
-
-func (f *stubFlow) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
+func (f *stubFlow) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *session.Handle, _ identity.ReAuthenticationCapability) error {
 	return nil
 }
 
@@ -955,3 +927,11 @@ func (*stubFlow) GetUserInfoData(*http.Request, *session.Handle) handlers.UserIn
 }
 
 func (*stubFlow) LogAuthenticateEvent(*http.Request) {}
+
+func (*stubFlow) RevokeSessionBinding(_ context.Context, _ *session.Handle, _ string, _ string, _ identity.ReAuthenticationCapability) error {
+	return nil
+}
+
+func (*stubFlow) RevokeUserSession(_ context.Context, _ *session.Handle, _ identity.Authenticator) error {
+	return nil
+}
