@@ -22,7 +22,7 @@ const (
 	defaultUpdateUserInfoInterval        = 10 * time.Minute
 )
 
-func TestRefreshIDPSessionScheduler_CoolOff(t *testing.T) {
+func TestRefreshIDPSessionScheduler_OverallExpiration(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {

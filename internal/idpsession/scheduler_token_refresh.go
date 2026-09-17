@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 )
 
@@ -31,18 +30,6 @@ func (rss *refreshIDPSessionScheduler) Update(s *idpsession.IDPSession) {
 		rss.sessionRefreshCoolOffDuration,
 		rss.refreshAtIDTokenExpiration,
 	)
-	// FIXME: hack
-	log.Ctx(rss.baseCtx).Warn().
-		Str("idpsession-id", rss.sessionID).
-		Time("due", due).
-		Dur("due-in", time.Until(due)).
-		Time("last-refresh", *rss.lastRefresh.Load()).
-		Time("oauth-token-expires-at", s.GetOauthToken().GetExpiresAt().AsTime()).
-		Time("id-token-expires-at", s.GetIdToken().GetExpiresAt().AsTime()).
-		Dur("grace-period", rss.sessionRefreshGracePeriod).
-		Dur("cool-off", rss.sessionRefreshCoolOffDuration).
-		Bool("refresh-at-id-token-expiration", bool(rss.refreshAtIDTokenExpiration)).
-		Msg("HACK idpsession/scheduler: computed next refresh")
 	for {
 		select {
 		case <-rss.next:

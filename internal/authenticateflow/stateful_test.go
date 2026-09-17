@@ -34,6 +34,7 @@ import (
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
@@ -360,70 +361,73 @@ func TestStatefulCallback_AdditionalHosts(t *testing.T) {
 }
 
 func TestStatefulRevokeSession(t *testing.T) {
-	opts := config.NewDefaultOptions()
-	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), config.New(opts), nil, &pom_grpc.CachedOutboundGRPClientConn{})
-	require.NoError(t, err)
-
-	ctrl := gomock.NewController(t)
-	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
-	flow.dataBrokerClient = client
-
-	// Exercise the happy path (no errors): calling RevokeSession() should
-	// fetch and delete a session record from the databroker. The OAuth2 token
-	// is not revoked at the identity provider.
-
-	ctx := t.Context()
-	authenticator := &mockAuthenticator{}
-	h := &session.Handle{Id: "session-id"}
-	tokenExpiry := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
-
-	client.EXPECT().Get(ctx, matchers.ProtoEq(&databroker.GetRequest{
-		Type: "type.googleapis.com/session.Session",
-		Id:   "session-id",
-	})).Return(&databroker.GetResponse{
-		Record: &databroker.Record{
-			Version: 123456,
-			Type:    "type.googleapis.com/session.Session",
-			Id:      "session-id",
-			Data: protoutil.NewAny(&session.Session{
-				Id:     "session-id",
-				UserId: "user-id",
-				IdToken: &session.IDToken{
-					Raw: "[raw-id-token]",
-				},
-				OauthToken: &session.OAuthToken{
-					AccessToken:  "[oauth-access-token]",
-					TokenType:    "Bearer",
-					RefreshToken: "[oauth-refresh-token]",
-					ExpiresAt:    timestamppb.New(tokenExpiry),
-				},
-			}),
+	for _, tc := range []struct {
+		name      string
+		sid       *string
+		wantHints SignOutHints
+	}{
+		{
+			name:      "no SID",
+			wantHints: SignOutHints{IDTokenHint: "new"},
 		},
-	}, nil)
+		{
+			name:      "has SID",
+			sid:       new("sid"),
+			wantHints: SignOutHints{LogoutHint: "sid", IDTokenHint: "new"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sessions := []*idpsession.IDPSession{
+				{
+					Id: "one", Sid: tc.sid,
+					IdToken:    &idpsession.IDToken{Raw: "old", IssuedAt: timestamppb.New(time.Unix(1, 0))},
+					OauthToken: &idpsession.OAuthToken{AccessToken: "access", RefreshToken: "refresh"},
+				},
+				{
+					Id: "two", Sid: tc.sid,
+					IdToken:    &idpsession.IDToken{Raw: "new", IssuedAt: timestamppb.New(time.Unix(2, 0))},
+					OauthToken: &idpsession.OAuthToken{AccessToken: "access-2", RefreshToken: "refresh-2"},
+				},
+			}
+			bindingMgr := &mockBindingManager{
+				revocation: IDPSessionRevocation{Source: sessions[0], Sessions: sessions},
+			}
+			authenticator := &mockAuthenticator{}
+			client := mock_databroker.NewMockDataBrokerServiceClient(gomock.NewController(t))
+			flow := &Stateful{dataBrokerClient: client, bindingMgr: bindingMgr}
+			h := &session.Handle{Id: "session-id", UserId: "user-id"}
 
-	client.EXPECT().Put(ctx, gomock.Any()).DoAndReturn(
-		func(_ context.Context, r *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
-			require.Len(t, r.Records, 1)
-			record := r.GetRecord()
-			assert.Equal(t, "type.googleapis.com/session.Session", record.Type)
-			assert.Equal(t, "session-id", record.Id)
-			assert.Equal(t, uint64(123456), record.Version)
+			// check the flow still revokes the session associated with the handle.
+			client.EXPECT().Get(t.Context(), matchers.ProtoEq(&databroker.GetRequest{
+				Type: "type.googleapis.com/session.Session",
+				Id:   h.Id,
+			})).Return(&databroker.GetResponse{Record: databroker.NewRecord(&session.Session{
+				Id: h.Id, UserId: h.UserId,
+			})}, nil)
+			client.EXPECT().Put(t.Context(), gomock.Any()).DoAndReturn(
+				func(_ context.Context, req *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
+					require.Len(t, req.GetRecords(), 1)
+					record := req.GetRecord()
+					assert.Equal(t, "type.googleapis.com/session.Session", record.GetType())
+					assert.Equal(t, h.Id, record.GetId())
+					assert.NotNil(t, record.GetDeletedAt())
+					var deletedSession session.Session
+					require.NoError(t, record.GetData().UnmarshalTo(&deletedSession))
+					assert.Equal(t, h.UserId, deletedSession.GetUserId())
+					return &databroker.PutResponse{}, nil
+				},
+			)
 
-			// The session record received in this PutRequest should have a
-			// DeletedAt timestamp, as well as the same session ID and user ID
-			// as was returned in the previous GetResponse.
-			assert.NotNil(t, record.DeletedAt)
-			var s session.Session
-			record.GetData().UnmarshalTo(&s)
-			assert.Equal(t, "session-id", s.Id)
-			assert.Equal(t, "user-id", s.UserId)
-			return nil, nil
+			hints := flow.RevokeSession(t.Context(), nil, authenticator, h)
+
+			assert.Equal(t, tc.wantHints, hints)
+			assert.Same(t, h, bindingMgr.handle)
+			assert.ElementsMatch(t, []*oauth2.Token{
+				idpsession.FromOAuthToken(sessions[0]),
+				idpsession.FromOAuthToken(sessions[1]),
+			}, authenticator.revokedTokens)
 		})
-
-	idToken := flow.RevokeSession(ctx, nil, authenticator, h)
-
-	assert.Equal(t, "[raw-id-token]", idToken)
-	assert.Nil(t, authenticator.revokedToken)
+	}
 }
 
 func TestPersistSession(t *testing.T) {
@@ -479,7 +483,7 @@ func TestPersistSession(t *testing.T) {
 
 	client.EXPECT().Put(ctx, gomock.Any()).DoAndReturn(
 		func(_ context.Context, r *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
-			require.Len(t, r.Records, 5)
+			require.Len(t, r.Records, 4)
 			byTypeAndID := make(map[string]*databroker.Record)
 			for _, record := range r.GetRecords() {
 				byTypeAndID[record.GetType()+"/"+record.GetId()] = record
@@ -494,9 +498,14 @@ func TestPersistSession(t *testing.T) {
 
 			record := byTypeAndID["type.googleapis.com/session.Session/session-id"]
 			require.NotNil(t, record)
-			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSession/idp_id=idp-id&user_id=user-id"])
-			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSessionBinding/session-id"])
-			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSessionBinding/user-id"])
+			idpSessID := idpSessionID("browser-id", "user-id")
+			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSession/"+idpSessID])
+			bindingRecord := byTypeAndID["type.googleapis.com/idpsession.Binding/session-id"]
+			require.NotNil(t, bindingRecord)
+			var binding idpsession.Binding
+			require.NoError(t, bindingRecord.GetData().UnmarshalTo(&binding))
+			assert.Equal(t, idpSessID, binding.GetIdpSessionId())
+			assert.Equal(t, "user-id", binding.GetUserId())
 
 			var s session.Session
 			record.GetData().UnmarshalTo(&s)
@@ -536,7 +545,7 @@ func TestPersistSession(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "https://authenticate.example.com/callback", nil)
 	req.Header.Set("User-Agent", "test-browser/1.0")
-	err = flow.PersistSession(ctx, nil, req, h, claims, accessToken)
+	err = flow.PersistSession(ctx, nil, req, h, claims, accessToken, "browser-id")
 	assert.NoError(t, err)
 	assert.Equal(t, proto.Uint64(1111), h.DatabrokerRecordVersion)
 	assert.Equal(t, proto.Uint64(2222), h.DatabrokerServerVersion)
@@ -545,11 +554,22 @@ func TestPersistSession(t *testing.T) {
 type mockAuthenticator struct {
 	identity.Authenticator
 
-	revokedToken *oauth2.Token
-	revokeError  error
+	revokedTokens []*oauth2.Token
+	revokeError   error
+}
+
+type mockBindingManager struct {
+	BindingManager
+	revocation IDPSessionRevocation
+	handle     *session.Handle
+}
+
+func (m *mockBindingManager) DeleteUpstreamIDPSessions(_ context.Context, h *session.Handle) (IDPSessionRevocation, error) {
+	m.handle = h
+	return m.revocation, nil
 }
 
 func (a *mockAuthenticator) Revoke(_ context.Context, token *oauth2.Token) error {
-	a.revokedToken = token
+	a.revokedTokens = append(a.revokedTokens, token)
 	return a.revokeError
 }

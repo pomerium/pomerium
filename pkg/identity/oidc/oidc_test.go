@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/oauth21"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/pkce"
@@ -190,7 +191,11 @@ func TestSignOut(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	err = p.SignOut(rec, r, "ID_TOKEN", "", "https://localhost/redirect")
+	err = p.SignOut(rec, r, identity.SignOutOptions{
+		IDTokenHint:   "ID_TOKEN",
+		LogoutHint:    "SID",
+		RedirectToURL: "https://localhost/redirect",
+	})
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusFound, rec.Result().StatusCode)
 	location, _ := url.Parse(rec.Result().Header.Get("Location"))
@@ -199,6 +204,7 @@ func TestSignOut(t *testing.T) {
 	assert.Equal(t, url.Values{
 		"client_id":                {"CLIENT_ID"},
 		"id_token_hint":            {"ID_TOKEN"},
+		"logout_hint":              {"SID"},
 		"post_logout_redirect_uri": {"https://localhost/redirect"},
 	}, location.Query())
 }
@@ -689,7 +695,7 @@ func TestUnsupportedFeatures(t *testing.T) {
 	require.NotNil(t, p)
 
 	rec := httptest.NewRecorder()
-	err = p.SignOut(rec, httptest.NewRequest(http.MethodGet, "/", nil), "ID_TOKEN", "", "")
+	err = p.SignOut(rec, httptest.NewRequest(http.MethodGet, "/", nil), identity.SignOutOptions{IDTokenHint: "ID_TOKEN"})
 	assert.Equal(t, oidc.ErrSignoutNotImplemented, err)
 
 	err = p.Revoke(ctx, &oauth2.Token{

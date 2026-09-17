@@ -1,14 +1,12 @@
 import {
   Box,
   Button,
-  Checkbox,
   Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormControlLabel,
 } from "@mui/material";
 import type { FC } from "react";
 import React from "react";
@@ -37,21 +35,6 @@ const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
             <DialogContentText>
               Are you sure you want to logout?
             </DialogContentText>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  name={data.reauth_enabled ? "allDevices" : undefined}
-                  value="all"
-                  defaultChecked={!data.reauth_enabled}
-                  disabled={!data.reauth_enabled}
-                />
-              }
-              label="Logout out everywhere"
-              labelPlacement="end"
-            />
-            {!data.reauth_enabled && (
-              <input type="hidden" name="allDevices" value="all" />
-            )}
           </DialogContent>
           <DialogActions>
             <Button type="button" onClick={handleClickCancel}>

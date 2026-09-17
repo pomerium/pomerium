@@ -25,12 +25,13 @@ import (
 )
 
 type benchmarker struct {
-	client   databroker.DataBrokerServiceClient
-	store    *changeSetStore
-	applier  *changeSetApplier
-	syncer   *identitySyncer
-	sessions []*idpsession.IDPSession
-	records  []*databroker.Record
+	client databroker.DataBrokerServiceClient
+
+	syncer     *identitySyncer
+	sessions   []*idpsession.IDPSession
+	records    []*databroker.Record
+	reconciler *synchronizedReconciler
+	q          ChangeQueue
 
 	rng   *rand.Rand
 	order []int
@@ -55,8 +56,8 @@ func newBenchmarker(b *testing.B, numSessions int, numBindings int) *benchmarker
 
 	f := &benchmarker{
 		client: dtestutil.NewTestDatabroker(b),
-		store:  newChangeSetStore(),
-		rng:    rand.New(rand.NewPCG(1, 2)),
+		// store:  newChangeSetStore(),
+		rng: rand.New(rand.NewPCG(1, 2)),
 	}
 
 	bound := []*databroker.Record{}
@@ -77,9 +78,6 @@ func newBenchmarker(b *testing.B, numSessions int, numBindings int) *benchmarker
 				ExpiresAt:    timestamppb.New(now.Add(time.Hour)),
 				RefreshToken: "refresh",
 			},
-			State: &idpsession.SessionState{
-				State: idpsession.UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_VALID,
-			},
 			Claims: claims,
 			UserId: idpSessionID,
 			IdpId:  "idp",
@@ -87,13 +85,9 @@ func newBenchmarker(b *testing.B, numSessions int, numBindings int) *benchmarker
 		f.sessions = append(f.sessions, sess)
 		f.records = append(f.records, databroker.NewRecord(sess))
 
-		u := &user.User{Id: idpSessionID}
-		bound = append(bound, databroker.NewRecord(u))
-		f.records = append(f.records, databroker.NewRecord(
-			idpsession.NewBinding(idpSessionID, idpsession.BindingProtocol_BINDING_PROTOCOL_UNKNOWN, u, map[string]string{}),
-		))
+		bound = append(bound, databroker.NewRecord(&user.User{Id: idpSessionID}))
 
-		for n := range numBindings - 1 {
+		for n := range numBindings {
 			s := &session.Session{
 				Id:        fmt.Sprintf("%s-session-%d", idpSessionID, n),
 				UserId:    idpSessionID,
@@ -101,7 +95,7 @@ func newBenchmarker(b *testing.B, numSessions int, numBindings int) *benchmarker
 			}
 			bound = append(bound, databroker.NewRecord(s))
 			f.records = append(f.records, databroker.NewRecord(
-				idpsession.NewBinding(idpSessionID, idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, s, map[string]string{}),
+				idpsession.NewBinding(idpSessionID, idpSessionID, idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, s, map[string]string{}),
 			))
 		}
 	}
@@ -114,7 +108,10 @@ func newBenchmarker(b *testing.B, numSessions int, numBindings int) *benchmarker
 	}
 
 	clientB := databroker.NewStaticClientGetter(f.client)
-	f.applier = newChangeSetApplier(clientB, f.store)
+	q := NewChangeQueue()
+	idle := NewIdleTracker()
+	idx := NewIdentityIndex(q, idle)
+
 	// tokens expire an hour out and user info refreshes hourly, so no scheduler
 	// fires during a run.
 	refreshMgr := newRefreshManager(RefreshConfig{
@@ -124,7 +121,7 @@ func newBenchmarker(b *testing.B, numSessions int, numBindings int) *benchmarker
 		Now:                           time.Now,
 		EventMgr:                      events.New(),
 		TracerProvider:                noop.TracerProvider{},
-	}, f.store, clientB, func(context.Context, string) (identity.Authenticator, error) {
+	}, idx, clientB, func(context.Context, string) (identity.Authenticator, error) {
 		return &mockAuthenticator{}, nil
 	})
 	b.Cleanup(refreshMgr.Close)
@@ -134,15 +131,18 @@ func newBenchmarker(b *testing.B, numSessions int, numBindings int) *benchmarker
 		f.order[i] = i
 	}
 
-	f.syncer = newIdentitySyncer(clientB, f.store, f.applier, refreshMgr, nopNotifier{}, time.Now)
+	f.syncer = newIdentitySyncer(clientB, idx, refreshMgr, nopNotifier{}, time.Now)
+	f.reconciler = newSynchronizedReconciler(clientB, idx, q, idle, time.Hour, time.Now)
+	f.q = q
 	return f
 }
 
-// randomSessions returns n distinct sessions, or every session if n exceeds how
-// many there are. It is a partial Fisher-Yates over a retained index slice, so
-// it costs O(n) and allocates only the result.
+// naive fisher yates random subset selection
 func (f *benchmarker) randomSessions(n int) []*idpsession.IDPSession {
 	n = min(n, len(f.sessions))
+	if n == len(f.sessions) {
+		return f.sessions
+	}
 	picked := make([]*idpsession.IDPSession, n)
 	for i := range n {
 		j := i + f.rng.IntN(len(f.order)-i)
@@ -175,7 +175,8 @@ func BenchmarkSyncerUpdateRecordsIncremental(b *testing.B) {
 	for i := 0; i+numPerLoop < len(f.records); i += numPerLoop {
 		f.syncer.UpdateRecords(b.Context(), 1, f.records[i:i+numPerLoop])
 		// absurd cap in the future to make sure all changes are synced.
-		f.applier.ReconcileAtLocked(b.Context(), time.Now().Add(time.Hour*24*365))
+
+		f.reconciler.ReconcileAtLocked(b.Context(), time.Now().Add(time.Hour*24*365))
 	}
 }
 
@@ -201,7 +202,7 @@ func BenchmarkSyncerUpdateRecordsBatch(b *testing.B) {
 
 	f.syncer.UpdateRecords(b.Context(), 1, f.records)
 	// absurd cap in the future to make sure all changes are synced.
-	f.applier.ReconcileAtLocked(b.Context(), time.Now().Add(time.Hour*24*365))
+	f.reconciler.ReconcileAtLocked(b.Context(), time.Now().Add(time.Hour*24*365))
 }
 
 func BenchmarkSyncerPropagateN(b *testing.B) {
@@ -225,12 +226,12 @@ func BenchmarkSyncerPropagateN(b *testing.B) {
 
 	for b.Loop() {
 		at := time.Now()
+		// f.syncer.UpdateRecords(b.Context(), 0, f.randomSessions(propagateToN))
 		for _, sess := range f.randomSessions(propagateToN) {
-			f.applier.onUpdateIDPSession(b.Context(), sess, at)
+			f.q.Schedule(b.Context(), ChangeSet{changeType: changePropagate, At: at, RecordID: sess.GetId(), RecordTypeURL: idpSessionTypeURL})
+			// f.syncer.handleIDPSession(b.Context(), sess, at)
 		}
-		if err := f.applier.ReconcileAtLocked(b.Context(), at.Add(time.Hour*24*365)); err != nil {
-			b.Fatal(err)
-		}
+		f.reconciler.ReconcileAtLocked(b.Context(), at.Add(time.Hour*24*365))
 	}
 }
 
@@ -251,11 +252,10 @@ func BenchmarkSyncerPropagateAll(b *testing.B) {
 	for b.Loop() {
 		at := time.Now()
 		for _, sess := range f.sessions {
-			f.applier.onUpdateIDPSession(b.Context(), sess, at)
+			// f.applier.onUpdateIDPSession(b.Context(), sess, at)
+			f.q.Schedule(b.Context(), ChangeSet{changeType: changePropagate, At: at, RecordID: sess.GetId(), RecordTypeURL: idpSessionTypeURL})
 		}
-		if err := f.applier.ReconcileAtLocked(b.Context(), at.Add(time.Hour*24*365)); err != nil {
-			b.Fatal(err)
-		}
+		f.reconciler.ReconcileAtLocked(b.Context(), at.Add(time.Hour*24*365))
 	}
 }
 
@@ -265,9 +265,7 @@ func BenchmarkSyncerPropagateIdle(b *testing.B) {
 	at := time.Now()
 	f.syncer.UpdateRecords(b.Context(), 1, f.records)
 
-	if err := f.applier.ReconcileAtLocked(b.Context(), at); err != nil {
-		b.Fatal(err)
-	}
+	f.reconciler.ReconcileAtLocked(b.Context(), at)
 
 	cpuFile, err := os.Create("cpu_propagate_idle.pprof")
 	if err != nil {
@@ -280,8 +278,6 @@ func BenchmarkSyncerPropagateIdle(b *testing.B) {
 	defer pprof.StopCPUProfile()
 
 	for b.Loop() {
-		if err := f.applier.ReconcileAtLocked(b.Context(), at); err != nil {
-			b.Fatal(err)
-		}
+		f.reconciler.ReconcileAtLocked(b.Context(), at)
 	}
 }

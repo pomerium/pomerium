@@ -4,9 +4,6 @@ import (
 	"context"
 	"time"
 
-	"golang.org/x/oauth2"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -24,9 +21,14 @@ type BindableRecord interface {
 }
 
 // NewFromSession creates an IDPSession from a browser-iniated session.
-func NewFromSession(s *session.Session, claims *structpb.Struct) *IDPSession {
-	return &IDPSession{
-		Id:         s.GetUserId(),
+func NewFromSession(
+	id string,
+	s *session.Session,
+	claims *structpb.Struct,
+	sid string,
+) *IDPSession {
+	idpSess := &IDPSession{
+		Id:         id,
 		RawIdToken: s.GetIdToken().GetRaw(),
 		IdToken: &IDToken{
 			Issuer:    s.GetIdToken().GetIssuer(),
@@ -41,13 +43,15 @@ func NewFromSession(s *session.Session, claims *structpb.Struct) *IDPSession {
 			ExpiresAt:    s.GetOauthToken().GetExpiresAt(),
 			RefreshToken: s.GetOauthToken().GetRefreshToken(),
 		},
-		State: &SessionState{
-			State: UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_VALID,
-		},
-		Claims: claims,
-		IdpId:  s.GetIdpId(),
-		UserId: s.GetUserId(),
+		Claims:      claims,
+		IdpId:       s.GetIdpId(),
+		UserId:      s.GetUserId(),
+		InitiatedAt: timestamppb.Now(),
 	}
+	if sid != "" {
+		idpSess.Sid = new(sid)
+	}
+	return idpSess
 }
 
 // IssueSession creates a session.Session from an IDPSession. It is the
@@ -90,11 +94,12 @@ func IssueSession(newSessionID string, idpSess *IDPSession, iat time.Time, expir
 }
 
 // NewBinding binds a dependent record to an upstream IdP session.
-func NewBinding(idpSessionID string, protocol BindingProtocol, dependent BindableRecord, details map[string]string) *Binding {
+func NewBinding(idpSessionID string, userID string, protocol BindingProtocol, dependent BindableRecord, details map[string]string) *Binding {
 	return &Binding{
 		Id:           dependent.GetId(),
 		TypeUrl:      protoutil.GetTypeURL(dependent),
 		IdpSessionId: idpSessionID,
+		UserId:       userID,
 		Protocol:     protocol,
 		Details:      details,
 		InitiatedAt:  timestamppb.Now(),
@@ -102,8 +107,8 @@ func NewBinding(idpSessionID string, protocol BindingProtocol, dependent Bindabl
 }
 
 // NewBoundRecords returns a dependent record and its matching binding.
-func NewBoundRecords(idpSessionID string, protocol BindingProtocol, details map[string]string, dependent BindableRecord) []*databroker.Record {
-	binding := NewBinding(idpSessionID, protocol, dependent, details)
+func NewBoundRecords(idpSessionID string, userID string, protocol BindingProtocol, details map[string]string, dependent BindableRecord) []*databroker.Record {
+	binding := NewBinding(idpSessionID, userID, protocol, dependent, details)
 	return []*databroker.Record{
 		databroker.NewRecord(dependent),
 		databroker.NewRecord(binding),
@@ -156,9 +161,6 @@ func GetValidIDPSession(ctx context.Context, client databroker.DataBrokerService
 	if err != nil {
 		return nil, err
 	}
-	if st := idpSess.GetState(); st.GetState() == UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID {
-		return nil, status.Errorf(codes.NotFound, "idpsession %q is no longer valid: %s", id, st.GetDetails())
-	}
 	return idpSess, nil
 }
 
@@ -170,59 +172,5 @@ func GetActiveBinding(ctx context.Context, client databroker.DataBrokerServiceCl
 	if err != nil {
 		return nil, err
 	}
-	if binding.GetState() == BindingState_BindingState_REVOKED {
-		return nil, status.Errorf(codes.NotFound, "binding %q is revoked", id)
-	}
 	return binding, nil
-}
-
-func RevokeBinding(ctx context.Context, client databroker.DataBrokerServiceClient, bindingID string) error {
-	binding, err := GetBinding(ctx, client, bindingID)
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return nil
-		}
-		return err
-	}
-
-	nB := proto.CloneOf(binding)
-	nB.State = BindingState_BindingState_REVOKED
-	_, putErr := client.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{
-			databroker.NewRecord(nB),
-		},
-	})
-	return putErr
-}
-
-func RevokeIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string, reason string) (*oauth2.Token, error) {
-	idpSess, err := GetIDPSession(ctx, client, id)
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	iS := proto.CloneOf(idpSess)
-	iS.State = &SessionState{
-		State:   UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID,
-		Details: reason,
-	}
-	_, putErr := client.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{
-			databroker.NewRecord(iS),
-		},
-	})
-
-	return FromOAuthToken(idpSess), putErr
-}
-
-func (b *Binding) Revoke() *Binding {
-	if b.GetState() == BindingState_BindingState_REVOKED {
-		return b
-	}
-	b = proto.CloneOf(b)
-	b.State = BindingState_BindingState_REVOKED
-	return b
 }

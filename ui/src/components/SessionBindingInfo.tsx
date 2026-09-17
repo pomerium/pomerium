@@ -1,20 +1,30 @@
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import LanguageIcon from "@mui/icons-material/Language";
 import {
   Box,
   Button,
+  Divider,
   IconButton,
-  Paper,
+  List,
+  ListItem,
+  ListItemIcon,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from "@mui/material";
-import type { FC } from "react";
+import { type FC, Fragment, useState } from "react";
 
-import type { SessionBindingInfoPageData } from "../types";
+import type {
+  IDPSessionData,
+  SessionBindingData,
+  SessionBindingInfoPageData,
+} from "../types";
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
 import { SmallTooltip } from "./Tooltips";
@@ -23,117 +33,486 @@ type SessionBindingInfoProps = {
   data: SessionBindingInfoPageData;
 };
 
-const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({ data }) => {
-  return (
-    <SidebarPage data={data}>
-      <Section title="Client bindings">
-        <SessionBindingInfoContent data={data}></SessionBindingInfoContent>
-      </Section>
-    </SidebarPage>
-  );
+type SessionGroup = {
+  sid: string | null;
+  idpSessions: IDPSessionData[];
+  bindings: SessionBindingData[];
 };
 
-const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
-  // TODO: SSH uses a weird identity binding we won't need when we migrate to idpsession.IDPSession.
+function groupSessions(
+  data: SessionBindingInfoPageData,
+): Map<string, SessionGroup> {
+  const groups = new Map<string, SessionGroup>();
+
+  const idsToSid = new Map<string, string>();
+  for (const session of data.idpSessions) {
+    const group = groups.get(session.SID) ?? {
+      sid: session.SID,
+      idpSessions: [],
+      bindings: [],
+    };
+    group.idpSessions.push(session);
+    groups.set(session.SID, group);
+
+    idsToSid.set(session.IDPSessionID, session.SID);
+  }
+
+  for (const binding of data.sessionBindings) {
+    const sid: string = idsToSid.get(binding.IDPSessionID) ?? "";
+    const group = groups.get(sid) ?? { sid: "", idpSessions: [], bindings: [] };
+    group.bindings.push(binding);
+    groups.set(sid, group);
+  }
+
+  return groups;
+}
+
+const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({ data }) => (
+  <SidebarPage data={data}>
+    <Section title="Sessions">
+      <SessionBindingInfoContent data={data} />
+    </Section>
+  </SidebarPage>
+);
+
+function SessionBindingInfoContent(props: SessionBindingInfoProps) {
+  const { data } = props;
+  const sessionsBySID = groupSessions(data);
+
+  const sessionGroups = [...sessionsBySID.values()]
+    .map((group) => {
+      group.idpSessions.sort((a, b) => {
+        const aIsCurrent = a.IDPSessionID === data.currentIdpSessionId;
+        const bIsCurrent = b.IDPSessionID === data.currentIdpSessionId;
+        if (aIsCurrent !== bIsCurrent) return aIsCurrent ? -1 : 1;
+        return compareSessionsByMostRecent(a, b);
+      });
+      return {
+        ...group,
+        mostRecentSession: [...group.idpSessions].sort(
+          compareSessionsByMostRecent,
+        )[0],
+        isCurrentBrowserSession: group.idpSessions.some(
+          (session) => session.IDPSessionID === data.currentIdpSessionId,
+        ),
+      };
+    })
+    .sort((a, b) => {
+      if (a.isCurrentBrowserSession !== b.isCurrentBrowserSession) {
+        return a.isCurrentBrowserSession ? -1 : 1;
+      }
+      return compareSessionsByMostRecent(
+        a.mostRecentSession,
+        b.mostRecentSession,
+      );
+    });
+
+  return (
+    <List
+      disablePadding
+      sx={{
+        maxHeight: "calc(100dvh - 312px)",
+        overflowY: "auto",
+        pr: 1.5,
+        scrollbarGutter: "stable",
+      }}
+    >
+      {sessionGroups.map((group, index) => (
+        <Fragment key={group.sid}>
+          {index > 0 && <Divider />}
+          <IDPSessionListItem
+            idpSessions={group.idpSessions}
+            currentIDPSessionID={data.currentIdpSessionId}
+            bindings={group.bindings}
+            revokeURL={data.revokeSessionBindingUrl}
+            showIDPSessionHeaders={group.sid !== ""}
+          />
+        </Fragment>
+      ))}
+    </List>
+  );
+}
+
+function compareSessionsByMostRecent(a: IDPSessionData, b: IDPSessionData) {
+  const initiatedAtDifference =
+    sessionTimestamp(b.InitiatedAt) - sessionTimestamp(a.InitiatedAt);
+  if (initiatedAtDifference !== 0) return initiatedAtDifference;
+  return a.IDPSessionID.localeCompare(b.IDPSessionID);
+}
+
+type IDPSessionListItemProps = {
+  idpSessions: IDPSessionData[];
+  currentIDPSessionID: string;
+  bindings: SessionBindingData[];
+  revokeURL: string;
+  showIDPSessionHeaders: boolean;
+};
+
+function IDPSessionListItem(props: IDPSessionListItemProps) {
+  const {
+    idpSessions: idpSessions,
+    currentIDPSessionID,
+    bindings,
+    revokeURL,
+    showIDPSessionHeaders: showIDPSessionHeaders,
+  } = props;
+  const isCurrentBrowserSession = idpSessions.some(
+    (session) => session.IDPSessionID === currentIDPSessionID,
+  );
+
+  return (
+    <ListItem
+      sx={{
+        alignItems: "start",
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "40px minmax(0, 1fr) auto",
+          sm: "48px minmax(0, 1fr) auto",
+        },
+        px: 0,
+        py: { xs: 2, sm: 2.5 },
+      }}
+    >
+      {showIDPSessionHeaders && (
+        <ListItemIcon
+          sx={{ color: "primary.main", gridColumn: 1, minWidth: 0, pt: 0.25 }}
+        >
+          <LanguageIcon fontSize="small" />
+        </ListItemIcon>
+      )}
+      {showIDPSessionHeaders && (
+        <Box sx={{ gridColumn: 2, minWidth: 0 }}>
+          <Stack
+            direction="row"
+            sx={{ columnGap: 4, flexWrap: "wrap", rowGap: 1.25 }}
+          >
+            {idpSessions.map((idpSess) => (
+              <Box
+                key={idpSess.IDPSessionID}
+                sx={{ alignItems: "baseline", display: "flex", gap: 1 }}
+              >
+                <Typography
+                  sx={{ flexShrink: 0, fontWeight: 500 }}
+                  variant="subtitle1"
+                >
+                  <IDPSessionTitle
+                    session={idpSess}
+                    isCurrentBrowserSession={
+                      idpSess.IDPSessionID === currentIDPSessionID
+                    }
+                  />
+                </Typography>
+                <Typography color="text.secondary" variant="body2">
+                  {idpSess.ClientAddress || "Not recorded"}
+                </Typography>
+                <Typography color="text.secondary" variant="body2">
+                  · Started <RelativeDate timestamp={idpSess.InitiatedAt} />
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      )}
+      {showIDPSessionHeaders && isCurrentBrowserSession && (
+        <Button
+          href="/.pomerium/sign_out"
+          size="small"
+          color="inherit"
+          variant="outlined"
+          sx={{ ...sessionActionButtonSx, alignSelf: "center", mr: 2 }}
+        >
+          LOGOUT
+        </Button>
+      )}
+      {bindings.length > 0 && (
+        <Box
+          sx={{
+            gridColumn: showIDPSessionHeaders ? "2 / -1" : "1 / -1",
+            mt: showIDPSessionHeaders ? 2 : 0,
+          }}
+        >
+          <Stack direction="row" sx={{ alignItems: "center" }}>
+            <Typography
+              color="text.secondary"
+              sx={{ fontWeight: 600, letterSpacing: 0.4 }}
+              variant="caption"
+            >
+              BOUND CLIENTS
+            </Typography>
+          </Stack>
+          <SessionBindingsTable bindings={bindings} revokeURL={revokeURL} />
+        </Box>
+      )}
+    </ListItem>
+  );
+}
+
+type RelativeDateProps = {
+  timestamp: string;
+};
+
+function sessionTimestamp(value: string) {
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+}
+
+function RelativeDate({ timestamp }: RelativeDateProps) {
+  const [renderedAt] = useState(Date.now);
+
+  if (!timestamp) return <>Not recorded</>;
+
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return <>{timestamp}</>;
+
+  const elapsedSeconds = (date.getTime() - renderedAt) / 1000;
+  const units = [
+    ["y", 365 * 24 * 60 * 60],
+    ["mo", 30 * 24 * 60 * 60],
+    ["d", 24 * 60 * 60],
+    ["h", 60 * 60],
+    ["m", 60],
+    ["s", 1],
+  ] as const;
+  const seconds = Math.abs(elapsedSeconds);
+  const [unit, secondsPerUnit] =
+    units.find(([, s]) => seconds >= s) ?? units[units.length - 1];
+  const n = Math.round(seconds / secondsPerUnit);
+  const relative = elapsedSeconds < 0 ? `${n}${unit} ago` : `in ${n}${unit}`;
+
+  return (
+    <Tooltip title={date.toISOString()}>
+      <Box component="span">{relative}</Box>
+    </Tooltip>
+  );
+}
+
+type IDPSessionTitleProps = {
+  session: IDPSessionData;
+  isCurrentBrowserSession: boolean;
+};
+
+function IDPSessionTitle(props: IDPSessionTitleProps) {
+  const { session, isCurrentBrowserSession } = props;
+
   return (
     <>
-      <TableContainer component={Paper} sx={{ maxWidth: 1200, mb: 2 }}>
-        <Table size="small" aria-label="metadata table">
-          <TableHead>
-            <TableRow>
-              <TableCell variant="head">Protocol</TableCell>
-              <TableCell variant="head">Resource</TableCell>
-              <TableCell variant="head">Client</TableCell>
-              <TableCell variant="head">Initiated at</TableCell>
-              <TableCell variant="head">Expires at</TableCell>
-              <TableCell variant="head">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data.sessionBindings?.map((s) => (
-              <TableRow
-                key={`${s.Protocol}:${s.Resource}:${s.SessionBindingID}`}
-              >
-                <TableCell>{s.Protocol}</TableCell>
-                <TableCell component="th" scope="row">
-                  <Typography variant="body2">
-                    {s.Resource}
-                    {s.IsCurrentBrowser && (
-                      <Box component="span" sx={{ fontWeight: "bold" }}>
-                        {" "}
-                        (This browser)
-                      </Box>
-                    )}
-                  </Typography>
-                  {s.DetailsSSH && (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      <Typography variant="caption">
-                        {s.DetailsSSH.FingerprintID}
-                      </Typography>
-                      <SmallTooltip description="Run `ssh-keygen -l -f <client-pub-key>` to check against this fingerprint" />
-                      <IconButton
-                        aria-label="Copy fingerprint"
-                        size="small"
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            s.DetailsSSH?.FingerprintID ?? "",
-                          );
-                        }}
-                      >
-                        <ContentCopyIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2">
-                    {s.ClientAddress || "Not recorded"}
-                  </Typography>
-                </TableCell>
-                <TableCell>{s.InitiatedAt || "Not recorded"}</TableCell>
-                <TableCell>{s.ExpiresAt}</TableCell>
-                <TableCell>
-                  {s.RevokeSessionBindingURL ? (
-                    <Box
-                      component="form"
-                      action={s.RevokeSessionBindingURL}
-                      method="POST"
-                      sx={{ display: "inline-flex", gap: 1 }}
-                    >
-                      <input
-                        type="hidden"
-                        name="sessionBindingID"
-                        value={s.SessionBindingID}
-                      />
-                      <input type="hidden" name="protocol" value={s.Protocol} />
-                      <Button
-                        size="small"
-                        type="submit"
-                        variant="contained"
-                        disabled={
-                          s.Protocol === "Browser" && !data.reauth_enabled
-                        }
-                      >
-                        Logout
-                      </Button>
-                    </Box>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      {session.Resource}
+      {isCurrentBrowserSession && (
+        <Box component="span" sx={{ fontWeight: "bold" }}>
+          {" "}
+          (This browser)
+        </Box>
+      )}
     </>
   );
+}
+
+type SessionBindingsTableProps = {
+  bindings: SessionBindingData[];
+  revokeURL: string;
 };
+
+function SessionBindingsTable(props: SessionBindingsTableProps) {
+  const { bindings, revokeURL } = props;
+
+  return (
+    <TableContainer
+      sx={{
+        mt: 0.5,
+        overflowX: "auto",
+      }}
+    >
+      <Table
+        aria-label="Bound clients"
+        size="small"
+        sx={{ minWidth: 720, tableLayout: "fixed" }}
+      >
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ width: "auto" }}>CLIENT</TableCell>
+            <TableCell align="center" sx={{ width: 160 }}>
+              INITIATED AT
+            </TableCell>
+            <TableCell align="center" sx={{ width: 160 }}>
+              EXPIRES AT
+            </TableCell>
+            <TableCell align="center" sx={{ width: 112 }}>
+              ACTION
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {bindings.map((binding) => (
+            <TableRow
+              key={`${binding.Protocol}:${binding.SessionBindingID}`}
+              sx={{
+                "&:nth-of-type(odd)": { bgcolor: "action.selected" },
+                "&:last-child td": { borderBottom: 0 },
+              }}
+            >
+              <TableCell sx={{ width: "auto" }}>
+                <Typography sx={{ fontWeight: 500 }} variant="body2">
+                  {binding.Resource}
+                </Typography>
+                <SessionBindingDetails binding={binding} />
+              </TableCell>
+              <TableCell align="center" sx={{ width: 160 }}>
+                <RelativeDate timestamp={binding.InitiatedAt} />
+              </TableCell>
+              <TableCell align="center" sx={{ width: 160 }}>
+                <RelativeDate timestamp={binding.ExpiresAt} />
+              </TableCell>
+              <TableCell align="center" sx={{ width: 112 }}>
+                <RevokeBindingForm
+                  action={revokeURL}
+                  bindingID={binding.SessionBindingID}
+                  protocol={binding.Protocol}
+                  label="REVOKE"
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+type SessionBindingDetailsProps = {
+  binding: SessionBindingData;
+};
+
+function SessionBindingDetails({ binding }: SessionBindingDetailsProps) {
+  switch (binding.Protocol.toLowerCase()) {
+    case "ssh":
+      return <SSHSessionDetails binding={binding} />;
+    case "mcp":
+      return <MCPSessionDetails binding={binding} />;
+    default:
+      return <DefaultSessionDetails binding={binding} />;
+  }
+}
+
+function MCPSessionDetails({ binding }: SessionBindingDetailsProps) {
+  return <BindingSummary binding={binding} />;
+}
+
+function SSHSessionDetails({ binding }: SessionBindingDetailsProps) {
+  return (
+    <Stack
+      component="span"
+      direction="row"
+      sx={{ alignItems: "center", columnGap: 0.75, flexWrap: "wrap" }}
+    >
+      <BindingSummary binding={binding} />
+      {binding.DetailsSSH && (
+        <>
+          <Typography color="text.secondary" component="span" variant="body2">
+            ·
+          </Typography>
+          <SSHFingerprint fingerprint={binding.DetailsSSH.FingerprintID} />
+        </>
+      )}
+    </Stack>
+  );
+}
+
+function DefaultSessionDetails({ binding }: SessionBindingDetailsProps) {
+  return <BindingSummary binding={binding} />;
+}
+
+function BindingSummary({ binding }: SessionBindingDetailsProps) {
+  const details = [binding.Protocol];
+  if (binding.ClientAddress) details.push(binding.ClientAddress);
+
+  return (
+    <Typography color="text.secondary" component="span" variant="body2">
+      {details.join(" · ")}
+    </Typography>
+  );
+}
+
+type RevokeBindingFormProps = {
+  action: string;
+  bindingID: string;
+  protocol: string;
+  label: string;
+  disabled?: boolean;
+};
+
+const sessionActionButtonSx = {
+  bgcolor: "primary.main",
+  borderColor: "primary.main",
+  borderRadius: "6px",
+  color: "primary.contrastText",
+  fontSize: "0.8125rem",
+  fontWeight: 600,
+  lineHeight: 1.5,
+  minWidth: 80,
+  width: 80,
+  px: 1.75,
+  py: 0.75,
+  textTransform: "none",
+  "&:hover": {
+    bgcolor: "primary.dark",
+    borderColor: "primary.dark",
+  },
+};
+
+function RevokeBindingForm(props: RevokeBindingFormProps) {
+  const { action, bindingID, protocol, label, disabled = false } = props;
+
+  return (
+    <Box component="form" action={action} method="POST">
+      <input type="hidden" name="sessionBindingID" value={bindingID} />
+      <input type="hidden" name="protocol" value={protocol} />
+      <Button
+        type="submit"
+        disabled={disabled}
+        size="small"
+        color="inherit"
+        variant="outlined"
+        sx={sessionActionButtonSx}
+      >
+        {label}
+      </Button>
+    </Box>
+  );
+}
+
+type SSHFingerprintProps = {
+  fingerprint: string;
+};
+
+function SSHFingerprint(props: SSHFingerprintProps) {
+  const { fingerprint } = props;
+
+  return (
+    <Box
+      component="span"
+      sx={{ display: "inline-flex", alignItems: "center", minWidth: 0 }}
+    >
+      <Typography
+        color="text.secondary"
+        component="span"
+        sx={{
+          fontFamily: "monospace",
+          overflowWrap: "anywhere",
+        }}
+        variant="caption"
+      >
+        Fingerprint {fingerprint}
+      </Typography>
+      <SmallTooltip description="Run `ssh-keygen -l -f <client-pub-key>` to check against this fingerprint" />
+      <IconButton
+        aria-label="Copy fingerprint"
+        size="small"
+        onClick={() => navigator.clipboard.writeText(fingerprint)}
+      >
+        <ContentCopyIcon fontSize="small" />
+      </IconButton>
+    </Box>
+  );
+}
 
 export default SessionBindingInfoPage;

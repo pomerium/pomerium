@@ -5,11 +5,8 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
-	"maps"
 	"net/http"
 	"net/url"
-	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -18,8 +15,6 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 	googlegrpc "google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -72,14 +67,13 @@ type Stateful struct {
 
 	codeReader  code.Reader
 	codeRevoker code.Revoker
+	bindingMgr  BindingManager
 
-	signInHandler     SSHSignInHandler
-	dataBrokerQuerier func() storage.Querier
+	signInHandler SSHSignInHandler
 }
 
 type StatefulFlowOptions struct {
-	signInHandler     SSHSignInHandler
-	dataBrokerQuerier func() storage.Querier
+	signInHandler SSHSignInHandler
 }
 
 func (s *StatefulFlowOptions) Apply(opts ...StatefulFlowOption) {
@@ -93,14 +87,6 @@ type StatefulFlowOption func(*StatefulFlowOptions)
 func WithSSHSignInHandler(handler SSHSignInHandler) StatefulFlowOption {
 	return func(sfo *StatefulFlowOptions) {
 		sfo.signInHandler = handler
-	}
-}
-
-// WithDataBrokerQuerier supplies a same-process querier whose synchronized
-// view should be invalidated by stateful flow writes.
-func WithDataBrokerQuerier(get func() storage.Querier) StatefulFlowOption {
-	return func(sfo *StatefulFlowOptions) {
-		sfo.dataBrokerQuerier = get
 	}
 }
 
@@ -121,10 +107,9 @@ func NewStateful(
 	options.Apply(opts...)
 
 	s := &Stateful{
-		sessionDuration:   cfg.Options.CookieExpire,
-		sessionStore:      sessionStore,
-		signInHandler:     options.signInHandler,
-		dataBrokerQuerier: options.dataBrokerQuerier,
+		sessionDuration: cfg.Options.CookieExpire,
+		sessionStore:    sessionStore,
+		signInHandler:   options.signInHandler,
 	}
 
 	var err error
@@ -168,6 +153,7 @@ func NewStateful(
 	}
 
 	s.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
+	s.bindingMgr = NewBindingManager(s.dataBrokerClient)
 	s.codeReader = code.NewReader(databroker.NewStaticClientGetter(s.dataBrokerClient))
 	s.codeRevoker = code.NewRevoker(databroker.NewStaticClientGetter(s.dataBrokerClient))
 	return s, nil
@@ -439,206 +425,26 @@ func (s *Stateful) GetSessionBindingInfo(
 	w http.ResponseWriter,
 	r *http.Request,
 	h *session.Handle,
-	reauthCap identity.ReAuthenticationCapability,
 ) error {
-	sshData, err := s.getLegacySSHSessionBindingInfo(r.Context(), h.UserId, *r.URL)
+	idpSessions, currentIDPSessionID, err := s.bindingMgr.GetIDPSessions(r.Context(), h)
 	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, err)
+		return err
 	}
-	otherBindings, err := s.getIDPSessionBindings(r.Context(), h.UserId, *r.URL, h)
+	bindings, err := s.bindingMgr.GetBindings(r.Context(), h)
 	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, err)
+		return err
 	}
 
-	all := append(sshData, otherBindings...)
-	handlers.ServeSessionBindingInfo(handlers.SessionInfoData{
-		UserInfoData:  s.GetUserInfoData(r, h),
-		SessionData:   all,
-		ReAuthEnabled: reauthCap == identity.ReAuthenticationEnabled,
+	revokeSessBase := *r.URL
+	revokeSessBase.Path = "/.pomerium/session_binding/revoke"
+	handlers.ServeSessionBindingInfo(handlers.BindingInfoData{
+		UserInfoData:            s.GetUserInfoData(r, h),
+		RevokeSessionBindingURL: revokeSessBase.String(),
+		CurrentIDPSessionID:     currentIDPSessionID,
+		IDPSessionData:          idpSessions,
+		BindingData:             bindings,
 	}).ServeHTTP(w, r)
 	return nil
-}
-
-func (s *Stateful) getIDPSessionBindings(
-	ctx context.Context,
-	userID string,
-	redirectBase url.URL,
-	h *session.Handle,
-) ([]handlers.SessionBindingData, error) {
-	idpSession := &idpsession.IDPSession{Id: userID}
-	if err := databroker.Get(ctx, s.dataBrokerClient, idpSession); err != nil {
-		if status.Code(err) == codes.NotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("could not fetch IDP session: %w", err)
-	}
-
-	filter, err := structpb.NewStruct(map[string]any{
-		"idp_session_id": idpSession.GetId(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("could not build IDP session binding filter: %w", err)
-	}
-	response, err := s.dataBrokerClient.Query(ctx, &databroker.QueryRequest{
-		Type:   protoutil.GetTypeURL(&idpsession.Binding{}),
-		Filter: filter,
-		Limit:  100,
-	})
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("could not fetch IDP session bindings: %w", err)
-	}
-
-	renderData := make([]handlers.SessionBindingData, 0, len(response.GetRecords()))
-	for _, record := range response.GetRecords() {
-		if record.GetDeletedAt() != nil {
-			continue
-		}
-
-		binding := new(idpsession.Binding)
-		if err := record.GetData().UnmarshalTo(binding); err != nil {
-			return nil, fmt.Errorf("could not decode IDP session binding %q: %w", record.GetId(), err)
-		}
-		bindingType := binding.GetTypeUrl()
-		if binding.GetState() == idpsession.BindingState_BindingState_REVOKED {
-			continue
-		}
-		// not user visible session
-		if bindingType != "type.googleapis.com/session.Session" {
-			continue
-		}
-
-		datum, err := s.sessionToBindingData(ctx, binding, redirectBase)
-		if err != nil {
-			log.Ctx(ctx).Err(err).Msg("failed to fetch session binding information")
-			continue
-		}
-		datum.IsCurrentBrowser = binding.GetId() == h.GetId() &&
-			binding.GetProtocol() == idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER
-
-		renderData = append(renderData, datum)
-	}
-
-	sort.Slice(renderData, func(i, j int) bool {
-		if renderData[i].Protocol != renderData[j].Protocol {
-			return renderData[i].Protocol < renderData[j].Protocol
-		}
-		return renderData[i].SessionBindingID < renderData[j].SessionBindingID
-	})
-	return renderData, nil
-}
-
-func (s *Stateful) sessionToBindingData(
-	ctx context.Context,
-	binding *idpsession.Binding,
-	redirectBase url.URL,
-) (handlers.SessionBindingData, error) {
-	var expiresAt string
-	var clientAddr string
-	var resource string
-
-	switch binding.GetTypeUrl() {
-	case protoutil.GetTypeURL(&session.Session{}):
-		rec, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
-			Type: protoutil.GetTypeURL(&session.Session{}),
-			Id:   binding.GetId(),
-		})
-		if err != nil {
-			return handlers.SessionBindingData{}, nil
-		}
-		switch binding.GetProtocol() {
-		case idpsession.BindingProtocol_BINDING_PROTOCOL_MCP:
-			expiresAt = "Until revoked or IDP expires"
-			resource = binding.GetDetails()["mcp_client_id"]
-		case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
-			sess := &session.Session{}
-			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
-				return handlers.SessionBindingData{}, nil
-			}
-			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
-			resource = formatBrowserUserAgent(binding.GetDetails()["user-agent"])
-		}
-		clientAddr = binding.GetDetails()["client-ip"]
-	}
-	redirectRevoke := redirectBase
-	redirectRevoke.Path = "/.pomerium/session_binding/revoke"
-
-	datum := handlers.SessionBindingData{
-		SessionBindingID:        binding.GetId(),
-		Protocol:                formatProtocol(binding.GetProtocol()),
-		ClientAddress:           clientAddr,
-		ExpiresAt:               expiresAt,
-		RevokeSessionBindingURL: redirectRevoke.String(),
-		Resource:                resource,
-	}
-
-	if binding.GetInitiatedAt() != nil {
-		datum.InitiatedAt = binding.GetInitiatedAt().AsTime().Format(time.RFC1123)
-	}
-	return datum, nil
-}
-
-func formatProtocol(protocol idpsession.BindingProtocol) string {
-	switch protocol {
-	case idpsession.BindingProtocol_BINDING_PROTOCOL_MCP:
-		return "MCP"
-	case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
-		return "Browser"
-	}
-	return "Unknown"
-}
-
-func (s *Stateful) getLegacySSHSessionBindingInfo(ctx context.Context, userID string, redirectBase url.URL) ([]handlers.SessionBindingData, error) {
-	pairs, err := s.codeReader.GetSessionBindingsByUserID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("could not fetch ssh bindings")
-	}
-
-	renderData := []handlers.SessionBindingData{}
-
-	stableKeys := slices.Collect(maps.Keys(pairs))
-	sort.Strings(stableKeys)
-
-	for _, sessionBindingID := range stableKeys {
-		p := pairs[sessionBindingID]
-		redirectToSessB := redirectBase
-		redirectToIdenB := redirectBase
-		redirectToSessB.Path = "/.pomerium/session_binding/revoke"
-		redirectToIdenB.Path = "/.pomerium/identity_binding/revoke"
-
-		datum := handlers.SessionBindingData{
-			SessionBindingID:         sessionBindingID,
-			Protocol:                 p.SB.Protocol,
-			Resource:                 "SSH key",
-			InitiatedAt:              p.SB.IssuedAt.AsTime().Format(time.RFC1123),
-			RevokeSessionBindingURL:  redirectToSessB.String(),
-			HasIdentityBinding:       p.IB != nil,
-			RevokeIdentityBindingURL: redirectToIdenB.String(),
-		}
-		if p.SB.Protocol == session.ProtocolSSH {
-			sshDetails := &handlers.ProtocolDetailsSSH{
-				FingerprintID: strings.TrimPrefix(sessionBindingID, "sshkey-SHA256:"),
-			}
-			if p.SB.Details != nil && p.SB.Details[session.DetailSourceAddr] != "" {
-				sshDetails.SourceAddress = p.SB.Details[session.DetailSourceAddr]
-			} else {
-				sshDetails.SourceAddress = "Not recorded"
-			}
-			datum.DetailsSSH = sshDetails
-			datum.ClientAddress = sshDetails.SourceAddress
-		}
-
-		if p.IB != nil {
-			datum.ExpiresAt = "Until revoked"
-		} else {
-			datum.ExpiresAt = p.SB.ExpiresAt.AsTime().Format(time.RFC1123)
-		}
-
-		renderData = append(renderData, datum)
-	}
-	return renderData, nil
 }
 
 func (s *Stateful) redirectToSessionBindingInfo(w http.ResponseWriter, r *http.Request) {
@@ -651,65 +457,17 @@ func (s *Stateful) redirectToSessionBindingInfo(w http.ResponseWriter, r *http.R
 	httputil.Redirect(w, r, redirectTo, http.StatusFound)
 }
 
-var errRevoke = httputil.NewError(http.StatusInternalServerError, fmt.Errorf("failed to revoke session binding"))
-
 func (s *Stateful) RevokeSessionBinding(
 	ctx context.Context,
 	h *session.Handle,
 	protocol string,
 	bindingID string,
-	reauthCap identity.ReAuthenticationCapability,
 ) error {
-	log.Ctx(ctx).Debug().Str("binding-id", bindingID).Str("protocol", protocol).Msg("revoking binding")
-
-	if protocol == "ssh" {
-		if err := s.codeRevoker.RevokeSessionBinding(ctx, code.BindingID(bindingID)); err != nil {
-			return errRevoke
-		}
-		return nil
-	}
-	if protocol == "Browser" && reauthCap != identity.ReAuthenticationEnabled {
-		return httputil.NewError(http.StatusBadRequest, fmt.Errorf("bad request"))
-	}
-	binding := &idpsession.Binding{}
-	rec, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
-		Type: protoutil.GetTypeURL(binding),
-		Id:   bindingID,
+	return s.bindingMgr.RevokeBinding(ctx, BindingID{
+		Protocol:  protocol,
+		UserID:    h.UserId,
+		BindingID: bindingID,
 	})
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return httputil.NewError(http.StatusNotFound, fmt.Errorf("not found"))
-		}
-		return errRevoke
-	}
-
-	if err := rec.GetRecord().GetData().UnmarshalTo(binding); err != nil {
-		return errRevoke
-	}
-
-	// FIXME: assumes idpsession id is userID. this is brittle. Perhaps a separate user_id field is good housekeeping.
-	if binding.GetIdpSessionId() != h.UserId {
-		return httputil.NewError(http.StatusNotFound, fmt.Errorf("not found"))
-	}
-
-	if err := idpsession.RevokeBinding(ctx, s.dataBrokerClient, binding.GetId()); err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
-	}
-	return nil
-}
-
-func (s *Stateful) RevokeUserSession(ctx context.Context, h *session.Handle, authenticator identity.Authenticator) error {
-	tok, err := idpsession.RevokeIDPSession(ctx, s.dataBrokerClient, h.GetUserId(), "logout")
-	if err != nil {
-		return fmt.Errorf("error setting idpsession revoked : %w", err)
-	}
-	if tok == nil {
-		return nil
-	}
-	if err := authenticator.Revoke(ctx, tok); err != nil {
-		return fmt.Errorf("error revoking token : %w", err)
-	}
-	return nil
 }
 
 func formatBrowserUserAgent(userAgent string) string {
@@ -794,6 +552,7 @@ func (s *Stateful) PersistSession(
 	h *session.Handle,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
+	browserID string,
 ) error {
 	now := timeNow()
 	sessionExpiry := timestamppb.New(now.Add(s.sessionDuration))
@@ -820,39 +579,37 @@ func (s *Stateful) PersistSession(
 	if err != nil {
 		return fmt.Errorf("authenticate: error creating IDP session claims: %w", err)
 	}
-	idpSess := idpsession.NewFromSession(sess, idpClaims)
-	bindingDetails := browserBindingDetails(r)
+	idpSessID := idpSessionID(browserID, u.GetId())
+	idpSess := idpsession.NewFromSession(idpSessID, sess, idpClaims, idpsession.SIDClaim(claims.Claims))
+	idpSess.InitatedBy = new(formatBrowserUserAgent(r.UserAgent()))
+	idpSess.InitiatedByAddr = new(httputil.GetClientIP(r))
 
-	// FIXME: hack
-	log.Ctx(ctx).Warn().
-		Str("idpsession-id", idpSess.GetId()).
-		Str("session-id", sess.GetId()).
-		Str("idp-id", idpSess.GetIdpId()).
-		Str("hack-refresh-token", idpSess.GetOauthToken().GetRefreshToken()).
-		Str("hack-access-token", idpSess.GetOauthToken().GetAccessToken()).
-		Time("oauth-token-expires-at", idpSess.GetOauthToken().GetExpiresAt().AsTime()).
-		Time("id-token-expires-at", idpSess.GetIdToken().GetExpiresAt().AsTime()).
-		Msg("HACK authenticateflow/stateful: persisting idpsession tokens")
+	records := []*databroker.Record{
+		databroker.NewRecord(idpSess),
+		databroker.NewRecord(u),
+	}
+	records = append(records, idpsession.NewBoundRecords(
+		idpSess.GetId(),
+		idpSess.GetUserId(),
+		idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER,
+		browserBindingDetails(r),
+		sess,
+	)...)
 
-	records := []*databroker.Record{databroker.NewRecord(idpSess)}
-	records = append(records,
-		idpsession.NewBoundRecords(idpSess.GetId(), idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, bindingDetails, sess)...,
-	)
-	records = append(records,
-		idpsession.NewBoundRecords(idpSess.GetId(), idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, bindingDetails, u)...,
-	)
 	res, err := s.dataBrokerClient.Put(ctx, &databroker.PutRequest{Records: records})
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving browser identity records: %w", err)
 	}
-	h.DatabrokerServerVersion = new(res.GetServerVersion())
+
+	v := res.GetServerVersion()
 	for _, record := range res.GetRecords() {
 		if record.GetType() == protoutil.GetTypeURL(sess) && record.GetId() == sess.GetId() {
-			h.DatabrokerRecordVersion = new(record.GetVersion())
+			v = record.GetVersion()
 			break
 		}
 	}
-
+	h.DatabrokerServerVersion = new(res.GetServerVersion())
+	h.DatabrokerRecordVersion = new(v)
 	return nil
 }
 
@@ -915,41 +672,77 @@ func (s *Stateful) GetSessionAndUser(
 func (s *Stateful) RevokeSession(
 	ctx context.Context,
 	_ *http.Request,
-	_ identity.Authenticator,
+	authenticator identity.Authenticator,
 	h *session.Handle,
-) string {
+) SignOutHints {
 	if h == nil {
-		return ""
+		return SignOutHints{}
 	}
 
-	// Note: session.Delete() cannot be used safely, because the identity
-	// manager expects to be able to read both session ID and user ID from
-	// deleted session records. Instead, we match the behavior used in the
-	// identity manager itself: fetch the existing databroker session record,
-	// explicitly set the DeletedAt timestamp, and Put() that record back.
+	defer func() {
+		// best effort deletion of the session.Session is kept for immediate reauth.
 
-	record, err := storage.DeleteDataBrokerRecord(ctx, s.dataBrokerClient, grpcutil.GetTypeURL(new(session.Session)), h.Id)
+		// Note: session.Delete() cannot be used safely, because the identity
+		// manager expects to be able to read both session ID and user ID from
+		// deleted session records. Instead, we match the behavior used in the
+		// identity manager itself: fetch the existing databroker session record,
+		// explicitly set the DeletedAt timestamp, and Put() that record back.
+		if _, err := storage.DeleteDataBrokerRecord(ctx, s.dataBrokerClient, grpcutil.GetTypeURL(new(session.Session)), h.Id); err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("authenticate: couldn't get session to be revoked")
+		}
+	}()
+
+	revocation, err := s.bindingMgr.DeleteUpstreamIDPSessions(ctx, h)
 	if err != nil {
-		err = fmt.Errorf("couldn't get session to be revoked: %w", err)
-		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
-		return ""
-	} else if record == nil {
-		// session doesn't exist
-		return ""
+		log.Ctx(ctx).Error().Err(err).Str("session-id", h.GetId()).Msg("authenticate: failed to revoke idpsession")
+		return SignOutHints{}
 	}
+	signOutHints := signOutHints(revocation)
+	revokeOAuthTokens(ctx, authenticator, uniqueOAuthTokens(revocation.Sessions))
 
-	var sess session.Session
-	if err := record.GetData().UnmarshalTo(&sess); err != nil {
-		err = fmt.Errorf("couldn't unmarshal data of session to be revoked: %w", err)
-		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
-		return ""
-	}
+	return signOutHints
+}
 
-	var rawIDToken string
-	if sess.OauthToken != nil {
-		rawIDToken = sess.GetIdToken().GetRaw()
+func signOutHints(revocation IDPSessionRevocation) SignOutHints {
+	hints := SignOutHints{}
+	if sid := revocation.Source.GetSid(); sid != "" {
+		hints.LogoutHint = sid
 	}
-	return rawIDToken
+	var latestIssuedAt time.Time
+	for _, idpSess := range revocation.Sessions {
+		idToken := idpSess.GetIdToken()
+		if idToken.GetRaw() != "" && idToken.GetIssuedAt().AsTime().After(latestIssuedAt) {
+			latestIssuedAt = idToken.GetIssuedAt().AsTime()
+			hints.IDTokenHint = idToken.GetRaw()
+		}
+	}
+	return hints
+}
+
+func uniqueOAuthTokens(sessions []*idpsession.IDPSession) []*oauth2.Token {
+	seen := make(map[string]struct{})
+	tokens := make([]*oauth2.Token, 0, len(sessions))
+	for _, session := range sessions {
+		if session.GetOauthToken() == nil {
+			continue
+		}
+		token := idpsession.FromOAuthToken(session)
+		k := token.AccessToken
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		tokens = append(tokens, token)
+	}
+	return tokens
+}
+
+func revokeOAuthTokens(ctx context.Context, authenticator identity.Authenticator, tokens []*oauth2.Token) {
+	for _, token := range tokens {
+		if err := authenticator.Revoke(ctx, token); err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke upstream token")
+		}
+	}
 }
 
 // VerifySession checks that an existing session is still valid.

@@ -40,8 +40,8 @@ import (
 
 // DataBroker represents the databroker service.
 type DataBroker struct {
-	cfg *databrokerConfig
-	srv databroker.Server
+	databrokerCfg *databrokerConfig
+	srv           databroker.Server
 	// identityMgr   *manager.Manager
 	identityMgrV2 *idpsession.IdentityManager
 	eventsMgr     *events.Manager
@@ -50,6 +50,7 @@ type DataBroker struct {
 	localGRPCServer     *grpc.Server
 	localGRPCConnection *grpc.ClientConn
 	sharedKey           atomic.Pointer[[]byte]
+	cfg                 atomic.Pointer[config.Config]
 	tracerProvider      oteltrace.TracerProvider
 	tracer              oteltrace.Tracer
 }
@@ -94,7 +95,7 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 	srv := NewServer(tracerProvider, cfg)
 
 	d := &DataBroker{
-		cfg:             getConfig(options...),
+		databrokerCfg:   getConfig(options...),
 		srv:             srv,
 		localListener:   localListener,
 		localGRPCServer: localGRPCServer,
@@ -204,44 +205,31 @@ func (d *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("databroker: invalid shared key: %w", err)
 	}
 	d.sharedKey.Store(&sharedKey)
+	d.cfg.Store(cfg)
 
-	// dataBrokerClient := databrokerpb.NewDataBrokerServiceClient(d.localGRPCConnection)
-
-	// options := append([]manager.Option{
-	// 	manager.WithDataBrokerClient(dataBrokerClient),
-	// 	manager.WithEventManager(d.eventsMgr),
-	// 	manager.WithCachedGetAuthenticator(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
-	// 		if !cfg.Options.SupportsUserRefresh() {
-	// 			return nil, fmt.Errorf("disabling refresh of user sessions")
-	// 		}
-	// 		return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
-	// 	}),
-	// 	manager.WithRefreshSessionAtIDTokenExpiration(manager.RefreshSessionAtIDTokenExpiration(
-	// 		cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])),
-	// 	manager.WithTracerProvider(d.tracerProvider),
-	// }, d.cfg.managerOptions...)
+	refreshConfig := *idpsession.DefaultRefreshConfig
+	refreshConfig.RefreshSessionAtIDTokenExpiration = idpsession.RefreshSessionAtIDTokenExpiration(
+		cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])
+	refreshConfig.EventMgr = d.eventsMgr
+	refreshConfig.TracerProvider = d.tracerProvider
 
 	if d.identityMgrV2 == nil {
-		clientGetter := databrokerpb.ClientGetterFunc(func() databrokerpb.DataBrokerServiceClient {
+		clientB := databrokerpb.ClientGetterFunc(func() databrokerpb.DataBrokerServiceClient {
 			return d.GetLocalDatabrokerServiceClient()
 		})
 		d.identityMgrV2 = idpsession.NewIdentityManagerV2(
-			clientGetter, func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+			clientB, func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+				cfg := d.cfg.Load()
 				if !cfg.Options.SupportsUserRefresh() {
 					return nil, fmt.Errorf("disabling refresh of user sessions")
 				}
 				return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
-			})
+			},
+			idpsession.WithRefreshConfig(&refreshConfig),
+		)
 	} else {
-		// TODO : update
-		d.identityMgrV2.UpdateRefreshConfig(ctx, idpsession.DefaultRefreshConfig)
+		d.identityMgrV2.UpdateRefreshConfig(ctx, &refreshConfig)
 	}
-
-	// if d.identityMgr == nil {
-	// 	d.identityMgr = manager.New(options...)
-	// } else {
-	// 	d.identityMgr.UpdateConfig(options...)
-	// }
 
 	return nil
 }

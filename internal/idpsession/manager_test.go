@@ -18,12 +18,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
-	"github.com/pomerium/pomerium/internal/testutil"
 	dtestutil "github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -60,6 +58,7 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 
 	idpSess := &idpsession.IDPSession{
 		Id:         "foo",
+		UserId:     "bob",
 		RawIdToken: "foo",
 		IdToken: &idpsession.IDToken{
 			Issuer:    "foo",
@@ -79,33 +78,41 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 	bindingsAndRecords := []*databroker.Record{
 		databroker.NewRecord(idpSess),
 	}
-	bindingsAndRecords = append(bindingsAndRecords, newSessionWithBinding(&session.Session{
-		Id:        "sessionA",
-		UserId:    "bob",
-		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-	}, idpSess.Id)...)
+	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
+		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, nil,
+		&session.Session{
+			Id:        "sessionA",
+			UserId:    "bob",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+		},
+	)...)
 
-	bindingsAndRecords = append(bindingsAndRecords, newSessionWithBinding(&session.Session{
-		Id:        "sessionB",
-		UserId:    "bob",
-		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-	}, idpSess.Id)...)
+	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
+		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, nil,
+		&session.Session{
+			Id:        "sessionB",
+			UserId:    "bob",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+		},
+	)...)
 
-	bindingsAndRecords = append(bindingsAndRecords, newSessionWithBinding(&session.Session{
-		Id:        "sessionC",
-		UserId:    "bob",
-		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-	}, idpSess.Id)...)
+	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
+		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, nil,
+		&session.Session{
+			Id:        "sessionC",
+			UserId:    "bob",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+		},
+	)...)
 
-	bindingsAndRecords = append(bindingsAndRecords, newUserWithBinding(&user.User{
-		Id: "bob",
-	}, idpSess.Id)...)
-
-	bindingsAndRecords = append(bindingsAndRecords, newMCPWithBinding(&oauth21.MCPRefreshToken{
-		Id:        "token",
-		UserId:    "bob",
-		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-	}, idpSess.Id)...)
+	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
+		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_MCP, nil,
+		&oauth21.MCPRefreshToken{
+			Id:        "token",
+			UserId:    "bob",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+		},
+	)...)
 
 	_, err = client.Put(t.Context(), &databroker.PutRequest{
 		Records: bindingsAndRecords,
@@ -140,9 +147,9 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 
 		sessB := &session.Session{Id: "sessionB"}
 		if get(sessB) {
-			assert.Equal(collect, idpSess.GetIdToken().GetIssuer(), sessA.GetIdToken().GetIssuer())
-			assert.Equal(collect, idpSess.GetOauthToken().GetAccessToken(), sessA.GetOauthToken().GetAccessToken())
-			email := sessA.GetClaims()["email"].GetValues()
+			assert.Equal(collect, idpSess.GetIdToken().GetIssuer(), sessB.GetIdToken().GetIssuer())
+			assert.Equal(collect, idpSess.GetOauthToken().GetAccessToken(), sessB.GetOauthToken().GetAccessToken())
+			email := sessB.GetClaims()["email"].GetValues()
 			if assert.NotEmpty(collect, email) {
 				assert.Equal(collect, "bob@example.com", email[0].GetStringValue())
 			}
@@ -150,21 +157,12 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 
 		sessC := &session.Session{Id: "sessionC"}
 		if get(sessC) {
-			assert.Equal(collect, idpSess.GetIdToken().GetIssuer(), sessA.GetIdToken().GetIssuer())
-			assert.Equal(collect, idpSess.GetOauthToken().GetAccessToken(), sessA.GetOauthToken().GetAccessToken())
-			email := sessA.GetClaims()["email"].GetValues()
+			assert.Equal(collect, idpSess.GetIdToken().GetIssuer(), sessC.GetIdToken().GetIssuer())
+			assert.Equal(collect, idpSess.GetOauthToken().GetAccessToken(), sessC.GetOauthToken().GetAccessToken())
+			email := sessC.GetClaims()["email"].GetValues()
 			if assert.NotEmpty(collect, email) {
 				assert.Equal(collect, "bob@example.com", email[0].GetStringValue())
 			}
-		}
-
-		u := &user.User{Id: "bob"}
-		if get(u) {
-			email := u.GetClaims()["email"].GetValues()
-			if assert.NotEmpty(collect, email) {
-				assert.Equal(collect, "bob@example.com", email[0].GetStringValue())
-			}
-			assert.Len(collect, u.GetClaims()["groups"].GetValues(), 2)
 		}
 
 		mcp := &oauth21.MCPRefreshToken{Id: "token"}
@@ -173,7 +171,8 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 		}
 	}, 5*time.Second, 10*time.Millisecond)
 
-	require.NoError(t, idpsession.RevokeBinding(t.Context(), client, "sessionB"))
+	_, revokeBerr := storage.DeleteDataBrokerRecord(t.Context(), client, "type.googleapis.com/idpsession.Binding", "sessionB")
+	require.NoError(t, revokeBerr)
 
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
 		_, err := client.Get(t.Context(), &databroker.GetRequest{
@@ -181,31 +180,12 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 			Id:   "sessionB",
 		})
 		assert.Equal(collect, codes.NotFound, status.Code(err), "expect session to be deleted")
-		resp, err2 := client.Get(t.Context(), &databroker.GetRequest{
+		_, err2 := client.Get(t.Context(), &databroker.GetRequest{
 			Type: "type.googleapis.com/idpsession.Binding",
 			Id:   "sessionB",
 		})
-		if assert.NoError(collect, err2) {
-			binding := new(idpsession.Binding)
-			if assert.NoError(collect, resp.GetRecord().GetData().UnmarshalTo(binding)) {
-				assert.Equal(collect, idpsession.BindingState_BindingState_REVOKED, binding.GetState())
-			}
-		}
+		assert.Equal(collect, codes.NotFound, status.Code(err2), "expect binding to be deleted")
 	}, 5*time.Second, 10*time.Millisecond, "revoking binding should delete dependent records")
-
-	// should NEVER delete user record
-
-	require.NoError(t, idpsession.RevokeBinding(t.Context(), client, "bob"))
-
-	testutil.AssertConsistentlyWithT(t, func(c assert.TestingT) {
-		_, err := client.Get(t.Context(), &databroker.GetRequest{
-			Type: "type.googleapis.com/user.User",
-			Id:   "bob",
-		})
-		assert.NoError(c, err)
-	}, 5*time.Second, 5*time.Millisecond)
-
-	// we may not want to keep this behaviour.
 
 	_, delErr3 := storage.DeleteDataBrokerRecord(t.Context(), client, "type.googleapis.com/session.Session", "sessionC")
 	require.NoError(t, delErr3)
@@ -216,24 +196,18 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 			Id:   "sessionC",
 		})
 		assert.Equal(collect, codes.NotFound, status.Code(err), "expect session to be deleted")
-		resp, err2 := client.Get(t.Context(), &databroker.GetRequest{
+		_, err2 := client.Get(t.Context(), &databroker.GetRequest{
 			Type: "type.googleapis.com/idpsession.Binding",
 			Id:   "sessionC",
 		})
-		if assert.NoError(collect, err2, "authoritative binding should be retained") {
-			binding := new(idpsession.Binding)
-			if assert.NoError(collect, resp.GetRecord().GetData().UnmarshalTo(binding)) {
-				assert.Equal(collect, idpsession.BindingState_BindingState_REVOKED, binding.GetState())
-			}
-		}
-	}, 5*time.Second, 10*time.Millisecond, "deleting a dependent should not delete its authoritative binding")
+		assert.Equal(collect, codes.NotFound, status.Code(err2), "expect binding to be deleted")
+	}, 5*time.Second, 10*time.Millisecond, "deleting a dependent should revoke its binding")
 
 	// invalidating the IDP session should clean up remaining dependencies.
-	_, revokeErr := idpsession.RevokeIDPSession(t.Context(), client, "foo", "revoked by user")
+	_, revokeErr := storage.DeleteDataBrokerRecord(t.Context(), client, idpSessionTypeURL, "foo")
 	require.NoError(t, revokeErr)
 
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
-		// _, err :=
 		_, errSess := client.Get(t.Context(), &databroker.GetRequest{
 			Type: "type.googleapis.com/session.Session",
 			Id:   "sessionA",
@@ -242,20 +216,10 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 
 		_, errTok := client.Get(t.Context(), &databroker.GetRequest{
 			Type: "type.googleapis.com/oauth21.MCPRefreshToken",
-			Id:   "tok",
+			Id:   "token",
 		})
 		assert.Equal(collect, codes.NotFound, status.Code(errTok), "mcp token should be deleted after idpsession is deleted")
 	}, 5*time.Second, 10*time.Millisecond)
-
-	// verify again that user should NEVER be deleted
-
-	testutil.AssertConsistentlyWithT(t, func(c assert.TestingT) {
-		_, err := client.Get(t.Context(), &databroker.GetRequest{
-			Type: "type.googleapis.com/user.User",
-			Id:   "bob",
-		})
-		assert.NoError(c, err)
-	}, 5*time.Second, 5*time.Millisecond)
 }
 
 func TestIdentityManagerRevokedCleanUp(t *testing.T) {
@@ -293,6 +257,7 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 
 	idpSess := &idpsession.IDPSession{
 		Id:         "foo",
+		UserId:     "bob",
 		RawIdToken: "foo",
 		IdToken: &idpsession.IDToken{
 			Issuer:    "foo",
@@ -312,161 +277,76 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 	bindingsAndRecords := []*databroker.Record{
 		databroker.NewRecord(idpSess),
 	}
-	bindingsAndRecords = append(bindingsAndRecords, newSessionWithBinding(&session.Session{
-		Id:        "sessionA",
-		UserId:    "bob",
-		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-	}, idpSess.Id)...)
+	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
+		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, nil,
+		&session.Session{
+			Id:        "sessionA",
+			UserId:    "bob",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+		},
+	)...)
 
-	bindingsAndRecords = append(bindingsAndRecords, newSessionWithBinding(&session.Session{
-		Id:        "sessionB",
-		UserId:    "bob",
-		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-	}, idpSess.Id)...)
+	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
+		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, nil,
+		&session.Session{
+			Id:        "sessionB",
+			UserId:    "bob",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+		},
+	)...)
 
-	bindingsAndRecords = append(bindingsAndRecords, newSessionWithBinding(&session.Session{
-		Id:        "sessionC",
-		UserId:    "bob",
-		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-	}, idpSess.Id)...)
+	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
+		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, nil,
+		&session.Session{
+			Id:        "sessionC",
+			UserId:    "bob",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+		},
+	)...)
 
-	bindingsAndRecords = append(bindingsAndRecords, newUserWithBinding(&user.User{
-		Id: "bob",
-	}, idpSess.Id)...)
-
-	bindingsAndRecords = append(bindingsAndRecords, newMCPWithBinding(&oauth21.MCPRefreshToken{
-		Id:        "token",
-		UserId:    "bob",
-		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-	}, idpSess.Id)...)
+	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
+		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_MCP, nil,
+		&oauth21.MCPRefreshToken{
+			Id:        "token",
+			UserId:    "bob",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+		},
+	)...)
 
 	_, putErr := client.Put(t.Context(), &databroker.PutRequest{
 		Records: bindingsAndRecords,
 	})
 	require.NoError(t, putErr)
 
-	require.NoError(t, idpsession.RevokeBinding(t.Context(), client, "sessionB"))
+	_, revokeBerr := storage.DeleteDataBrokerRecord(t.Context(), client, "type.googleapis.com/idpsession.Binding", "sessionB")
+	require.NoError(t, revokeBerr)
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
 		_, err := client.Get(t.Context(), &databroker.GetRequest{
 			Type: "type.googleapis.com/session.Session",
 			Id:   "sessionB",
 		})
 		assert.Equal(collect, codes.NotFound, status.Code(err), "expect session to be deleted")
-		resp, err2 := client.Get(t.Context(), &databroker.GetRequest{
+		_, err2 := client.Get(t.Context(), &databroker.GetRequest{
 			Type: "type.googleapis.com/idpsession.Binding",
 			Id:   "sessionB",
 		})
-		if assert.NoError(collect, err2) {
-			binding := new(idpsession.Binding)
-			if assert.NoError(collect, resp.GetRecord().GetData().UnmarshalTo(binding)) {
-				assert.Equal(collect, idpsession.BindingState_BindingState_REVOKED, binding.GetState())
-			}
-		}
+		assert.Equal(collect, codes.NotFound, status.Code(err2), "expect binding to be deleted")
 	}, 5*time.Second, 10*time.Millisecond, "revoking binding should delete dependent records")
 
-	// advance time, make sure binding gets revoked.
-	timeMu.Lock()
-	ts = now.Add(time.Hour * 2)
-	timeMu.Unlock()
+	// deleting the idpsession revokes everything bound to it, and leaves the
+	// user record alone.
 
-	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
-		_, err := client.Get(t.Context(), &databroker.GetRequest{
-			Type: "type.googleapis.com/idpsession.Binding",
-			Id:   "sessionB",
-		})
-		assert.Equal(collect, codes.NotFound, status.Code(err), "expect binding to be deleted")
-	}, 5*time.Second, 10*time.Millisecond, "revoked binding should be eventually cleaned up")
-
-	// go back in time
-	timeMu.Lock()
-	ts = time.Now()
-	timeMu.Unlock()
-	_, revokeErr := idpsession.RevokeIDPSession(t.Context(), client, "foo", "user revoked")
+	_, revokeErr := storage.DeleteDataBrokerRecord(t.Context(), client, idpSessionTypeURL, "foo")
 	require.NoError(t, revokeErr)
 
 	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
 		for _, rec := range bindingsAndRecords {
-			if rec.GetId() == "sessionB" {
-				// already cleaned up by the binding revocation above.
-				continue
-			}
-			if rec.GetData().GetTypeUrl() == "type.googleapis.com/idpsession.IDPSession" {
-				_, err := client.Get(t.Context(), &databroker.GetRequest{
-					Type: rec.GetData().GetTypeUrl(),
-					Id:   rec.GetId(),
-				})
-				assert.NoError(collect, err, "idpsession should not be cleaned up immediately")
-				continue
-			}
-			if rec.GetData().GetTypeUrl() == "type.googleapis.com/user.User" {
-				_, err := client.Get(t.Context(), &databroker.GetRequest{
-					Type: rec.GetData().GetTypeUrl(),
-					Id:   rec.GetId(),
-				})
-				assert.NoError(collect, err, "user records should never be deleted")
-				continue
-			}
-
-			if rec.GetData().GetTypeUrl() == bindingTypeURL {
-				got, err := client.Get(t.Context(), &databroker.GetRequest{
-					Type: rec.GetData().GetTypeUrl(),
-					Id:   rec.GetId(),
-				})
-				assert.NoError(collect, err, "bindings should not be cleaned up immediately")
-				binding := &idpsession.Binding{}
-				assert.NoError(collect, got.GetRecord().GetData().UnmarshalTo(binding))
-				want := idpsession.BindingState_BindingState_REVOKED
-				if binding.GetTypeUrl() == userTypeURL {
-					want = idpsession.BindingState_BindingState_ACTIVE
-				}
-				assert.Equal(collect, want.String(), binding.GetState().String(), rec.GetId())
-				continue
-			}
 			_, err := client.Get(t.Context(), &databroker.GetRequest{
 				Type: rec.GetData().GetTypeUrl(),
 				Id:   rec.GetId(),
 			})
-			assert.Error(collect, err)
-			assert.Equal(collect, codes.NotFound, status.Code(err), fmt.Sprintf("expected %s-%s to be deleted", rec.GetData().GetTypeUrl(), rec.GetId()))
-		}
-	}, 5*time.Second, 10*time.Millisecond)
-
-	// advance time
-
-	timeMu.Lock()
-	ts = time.Now().Add(time.Hour * 2)
-	timeMu.Unlock()
-
-	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
-		for _, rec := range bindingsAndRecords {
-			if rec.GetData().GetTypeUrl() == userTypeURL {
-				_, err := client.Get(t.Context(), &databroker.GetRequest{
-					Type: rec.GetData().GetTypeUrl(),
-					Id:   rec.GetId(),
-				})
-				assert.NoError(collect, err, "userinfo should never be deleted")
-				continue
-			}
-			if rec.GetData().GetTypeUrl() == bindingTypeURL {
-				binding := &idpsession.Binding{}
-				assert.NoError(collect, rec.GetData().UnmarshalTo(binding))
-				if binding.GetTypeUrl() == userTypeURL {
-					_, err := client.Get(t.Context(), &databroker.GetRequest{
-						Type: rec.GetData().GetTypeUrl(),
-						Id:   rec.GetId(),
-					})
-					assert.NoError(collect, err, "user bindings should never be deleted")
-					continue
-				}
-			}
-			// all the other records should be cleaned up now
-			_, err := client.Get(t.Context(), &databroker.GetRequest{
-				Type: rec.GetData().GetTypeUrl(),
-				Id:   rec.GetId(),
-			})
-
-			assert.Error(collect, err)
-			assert.Equal(collect, codes.NotFound, status.Code(err))
+			assert.Equal(collect, codes.NotFound, status.Code(err),
+				fmt.Sprintf("expected %s-%s to be deleted", rec.GetData().GetTypeUrl(), rec.GetId()))
 		}
 	}, 5*time.Second, 10*time.Millisecond)
 }

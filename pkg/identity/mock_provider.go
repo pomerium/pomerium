@@ -24,7 +24,6 @@ type MockProvider struct {
 	DeviceAuthError           error
 	DeviceAccessTokenResponse oauth2.Token
 	DeviceAccessTokenError    error
-	ReAuthCap                 identity.ReAuthenticationCapability
 }
 
 // Authenticate is a mocked providers function.
@@ -53,7 +52,7 @@ func (mp MockProvider) Name() string {
 }
 
 // SignOut is a mocked providers function.
-func (mp MockProvider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+func (mp MockProvider) SignOut(_ http.ResponseWriter, _ *http.Request, _ SignOutOptions) error {
 	return mp.SignOutError
 }
 
@@ -80,8 +79,4 @@ func (mp MockProvider) VerifyAccessToken(_ context.Context, _ string) (claims ma
 // VerifyIdentityToken verifies an identity token.
 func (mp MockProvider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
 	return nil, fmt.Errorf("VerifyIdentityToken not implemented")
-}
-
-func (mp MockProvider) ReAuthSupport() ReAuthenticationCapability {
-	return mp.ReAuthCap
 }

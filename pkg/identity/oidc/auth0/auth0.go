@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
 )
@@ -20,10 +21,6 @@ const (
 	// Name identifies the Auth0 identity provider
 	Name = "auth0"
 )
-
-var defaultAuthCodeOptions = map[string]string{
-	"prompt": "login",
-}
 
 // Provider is an Auth0 implementation of the Authenticator interface.
 type Provider struct {
@@ -47,7 +44,6 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		return nil, fmt.Errorf("%s: failed creating oidc provider: %w", Name, err)
 	}
 	p.Provider = genericOidc
-	p.AuthCodeOptions = defaultAuthCodeOptions
 	if o.AuthCodeOptions != nil {
 		p.AuthCodeOptions = o.AuthCodeOptions
 	}
@@ -60,7 +56,10 @@ func (p *Provider) Name() string {
 }
 
 // SignOut implements logout as described in https://auth0.com/docs/api/authentication#logout.
-func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, _, authenticateSignedOutURL, redirectToURL string) error {
+
+func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, options identity.SignOutOptions) error {
+	authenticateSignedOutURL := options.AuthenticateSignedOutURL
+	redirectToURL := options.RedirectToURL
 	oa, err := p.GetOauthConfig()
 	if err != nil {
 		return fmt.Errorf("error getting auth0 oauth config: %w", err)

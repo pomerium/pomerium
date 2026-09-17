@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
-	"golang.org/x/oauth2"
 	structpb "google.golang.org/protobuf/types/known/structpb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/mapsutil"
 )
@@ -39,6 +36,12 @@ func (x *IDPSession) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
+	// same as pkg/identity/manager/data.go#104
+	// To preserve existing behavior: filter out claims not related to user info.
+	delete(raw, "iss")
+	delete(raw, "sub")
+	delete(raw, "exp")
+	delete(raw, "iat")
 	if len(raw) == 0 {
 		return nil
 	}
@@ -66,12 +69,6 @@ var ErrSessionExpired = fmt.Errorf("session has expired")
 // Validate returns an error if the idpsession is not valid.
 func (x *IDPSession) Validate() error {
 	now := time.Now()
-	if st := x.GetState(); st.GetState() == UpstreamIdPSessionState_UPSTREAM_IDP_SESSION_STATE_INVALID {
-		if st.GetDetails() != "" {
-			return fmt.Errorf("idpsession no longer valid : %s", st.GetDetails())
-		}
-		return fmt.Errorf("idpsession no longer valid")
-	}
 
 	if token := x.GetOauthToken(); token != nil {
 		if expiresAt := token.GetExpiresAt(); expiresAt.AsTime().Year() > 1970 && now.After(expiresAt.AsTime()) {
@@ -80,53 +77,4 @@ func (x *IDPSession) Validate() error {
 	}
 
 	return nil
-}
-
-// ParseIDToken converts a raw ID token into an IDToken proto message.
-// Does not perform any verification of the ID token.
-func ParseIDToken(idToken string) (*IDToken, error) {
-	if idToken == "" {
-		return nil, nil
-	}
-
-	token, err := jwt.ParseSigned(idToken)
-	if err != nil {
-		return nil, err
-	}
-	var claims jwt.Claims
-	if err := token.UnsafeClaimsWithoutVerification(&claims); err != nil {
-		return nil, err
-	}
-	return &IDToken{
-		Raw:       idToken,
-		Issuer:    claims.Issuer,
-		Subject:   claims.Subject,
-		ExpiresAt: timestamppb.New(claims.Expiry.Time()),
-		IssuedAt:  timestamppb.New(claims.IssuedAt.Time()),
-	}, nil
-}
-
-// FromOAuthToken converts an idpsession token to oauth2.Token.
-func FromOAuthToken(idpSess *IDPSession) *oauth2.Token {
-	token := idpSess.GetOauthToken()
-	return &oauth2.Token{
-		AccessToken:  token.GetAccessToken(),
-		TokenType:    token.GetTokenType(),
-		RefreshToken: token.GetRefreshToken(),
-		Expiry:       token.GetExpiresAt().AsTime(),
-	}
-}
-
-// UpdateOAuthToken applies an oauth2.Token to an idpsession.
-func UpdateOAuthToken(token *oauth2.Token, idpSess *IDPSession) {
-	if idpSess.OauthToken == nil {
-		idpSess.OauthToken = new(OAuthToken)
-	}
-
-	idpSess.OauthToken.AccessToken = token.AccessToken
-	idpSess.OauthToken.TokenType = token.TokenType
-	idpSess.OauthToken.ExpiresAt = timestamppb.New(token.Expiry)
-	if token.RefreshToken != "" {
-		idpSess.OauthToken.RefreshToken = token.RefreshToken
-	}
 }

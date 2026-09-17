@@ -33,8 +33,8 @@ func TestApplySessionClaims(t *testing.T) {
 	assert.Contains(t, s.GetClaims(), "preserved")
 	assert.Equal(t, "new@example.com", s.GetClaims()["email"].GetValues()[0].GetStringValue())
 	assert.Len(t, s.GetClaims()["groups"].GetValues(), 2)
-	assert.NotContains(t, s.GetClaims(), "iss")
-	assert.NotContains(t, s.GetClaims(), "sub")
-	assert.NotContains(t, s.GetClaims(), "exp")
-	assert.NotContains(t, s.GetClaims(), "iat")
+	assert.Contains(t, s.GetClaims(), "iss")
+	assert.Contains(t, s.GetClaims(), "sub")
+	assert.Contains(t, s.GetClaims(), "exp")
+	assert.Contains(t, s.GetClaims(), "iat")
 }
