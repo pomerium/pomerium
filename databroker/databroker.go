@@ -35,15 +35,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity"
-	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // DataBroker represents the databroker service.
 type DataBroker struct {
-	cfg           *databrokerConfig
-	srv           databroker.Server
-	identityMgr   *manager.Manager
+	cfg *databrokerConfig
+	srv databroker.Server
+	// identityMgr   *manager.Manager
 	identityMgrV2 *idpsession.IdentityManager
 	eventsMgr     *events.Manager
 
@@ -195,7 +194,7 @@ func (d *DataBroker) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
+func (d *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	if err := validate(cfg.Options); err != nil {
 		return fmt.Errorf("databroker: bad option: %w", err)
 	}
@@ -235,6 +234,7 @@ func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
 			})
 	} else {
 		// TODO : update
+		d.identityMgrV2.UpdateRefreshConfig(ctx, idpsession.DefaultRefreshConfig)
 	}
 
 	// if d.identityMgr == nil {

@@ -35,8 +35,10 @@ type flow interface {
 	GetIdentityProviderIDForURLValues(url.Values) string
 
 	AuthenticatePendingSession(w http.ResponseWriter, r *http.Request, h *session.Handle) error
-	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, h *session.Handle) error
-	RevokeSessionBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
+	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, h *session.Handle, reauthCap identity.ReAuthenticationCapability) error
+
+	RevokeSessionBinding(ctx context.Context, h *session.Handle, protocol string, bindingID string, reauthCap identity.ReAuthenticationCapability) error
+	RevokeUserSession(ctx context.Context, h *session.Handle, authenticator identity.Authenticator) error
 	RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 }
 

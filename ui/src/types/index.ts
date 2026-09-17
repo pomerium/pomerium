@@ -141,6 +141,7 @@ export type SignOutConfirmPageData = BasePageData &
   RuntimeFlags & {
     page: "SignOutConfirm";
     url: string;
+    reauth_enabled: boolean;
   };
 
 export type SignedOutPageData = BasePageData &
@@ -184,6 +185,7 @@ export type SessionBindingInfoPageData = BasePageData &
   UserInfoData & {
     page: "SessionBindingInfo";
     sessionBindings: SessionBindingData[];
+    reauth_enabled: boolean;
   };
 export type SessionBindingData = {
   SessionBindingID: string;
@@ -196,6 +198,7 @@ export type SessionBindingData = {
   HasIdentityBinding: boolean;
   RevokeIdentityBindingURL: string;
   DetailsSSH?: DetailsSSH;
+  IsCurrentBrowser: boolean;
 };
 
 export type DetailsSSH = {

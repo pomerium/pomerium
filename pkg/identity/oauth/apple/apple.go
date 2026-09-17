@@ -226,3 +226,7 @@ func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken str
 
 	return claims, nil
 }
+
+func (p *Provider) ReAuthSupport() identity.ReAuthenticationCapability {
+	return identity.ReAuthenticationNone
+}

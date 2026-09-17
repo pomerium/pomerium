@@ -283,11 +283,15 @@ func (s *Stateless) AuthenticatePendingSession(_ http.ResponseWriter, _ *http.Re
 	return fmt.Errorf("not implemented")
 }
 
-func (s *Stateless) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
+func (s *Stateless) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *session.Handle, _ identity.ReAuthenticationCapability) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (s *Stateless) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
+func (s *Stateless) RevokeSessionBinding(_ context.Context, _ *session.Handle, _ string, _ string, _ identity.ReAuthenticationCapability) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *Stateless) RevokeUserSession(_ context.Context, _ *session.Handle, _ identity.Authenticator) error {
 	return fmt.Errorf("not implemented")
 }
 

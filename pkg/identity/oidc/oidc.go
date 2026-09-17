@@ -473,6 +473,15 @@ func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken str
 	return claims, nil
 }
 
+func (p *Provider) ReAuthSupport() identity.ReAuthenticationCapability {
+	for k := range p.AuthCodeOptions {
+		if k == "max_age" {
+			return identity.ReAuthenticationEnabled
+		}
+	}
+	return identity.ReAuthenticationDisabled
+}
+
 // GetRawIDToken returns the raw jwt payload for `id_token` from the oauth2 token
 // returned following OIDC code flow.
 //
