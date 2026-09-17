@@ -5,3 +5,11 @@ package identity
 type State interface {
 	SetRawIDToken(rawIDToken string)
 }
+
+type ReAuthenticationCapability = int
+
+const (
+	ReAuthenticationNone ReAuthenticationCapability = iota
+	ReAuthenticationDisabled
+	ReAuthenticationEnabled
+)

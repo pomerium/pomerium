@@ -11,12 +11,14 @@ import (
 type SignOutConfirmData struct {
 	URL             string
 	BrandingOptions httputil.BrandingOptions
+	ReAuthEnabled   bool
 }
 
 // ToJSON converts the data into a JSON map.
 func (data SignOutConfirmData) ToJSON() map[string]any {
 	m := map[string]any{
-		"url": data.URL,
+		"url":            data.URL,
+		"reauth_enabled": data.ReAuthEnabled,
 	}
 	httputil.AddBrandingOptionsToMap(m, data.BrandingOptions)
 	return m
