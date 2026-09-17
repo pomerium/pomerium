@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -823,7 +824,6 @@ func (s *Stateful) PersistSession(
 	idpSess := idpsession.NewFromSession(sess, idpClaims)
 	bindingDetails := browserBindingDetails(r)
 
-	// FIXME: hack
 	log.Ctx(ctx).Warn().
 		Str("idpsession-id", idpSess.GetId()).
 		Str("session-id", sess.GetId()).
@@ -833,6 +833,7 @@ func (s *Stateful) PersistSession(
 		Time("oauth-token-expires-at", idpSess.GetOauthToken().GetExpiresAt().AsTime()).
 		Time("id-token-expires-at", idpSess.GetIdToken().GetExpiresAt().AsTime()).
 		Msg("HACK authenticateflow/stateful: persisting idpsession tokens")
+	// ...
 
 	records := []*databroker.Record{databroker.NewRecord(idpSess)}
 	records = append(records,
@@ -852,8 +853,127 @@ func (s *Stateful) PersistSession(
 			break
 		}
 	}
-
 	return nil
+}
+
+type sessionBuilder struct {
+	u          *user.User
+	s          *session.Session
+	idpClaims  *structpb.Struct
+	details    map[string]string
+	rawIDToken string
+}
+
+func (s *Stateful) idpSessionFromNewSignOn(
+	ctx context.Context, b *sessionBuilder,
+) (uint64, error) {
+	idpSess := &idpsession.IDPSession{}
+	policy := backoff.WithContext(
+		backoff.NewExponentialBackOff(
+			backoff.WithInitialInterval(time.Millisecond*250),
+			backoff.WithMaxElapsedTime(time.Second*5),
+		),
+		ctx,
+	)
+
+	return backoff.RetryWithData(func() (uint64, error) {
+		rec, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+			Id:   b.u.GetId(),
+			Type: protoutil.GetTypeURL(idpSess),
+		})
+		if err != nil {
+			if status.Code(err) == codes.NotFound {
+				// create fresh
+				version, err := s.constructNewIDPSession(ctx, b)
+				if err != nil {
+					if status.Code(err) == codes.FailedPrecondition {
+						// FIXME:debug
+						log.Ctx(ctx).Warn().Msg("CONFLICTING IDPSESSION")
+					}
+					return 0, err
+				}
+				return version, nil
+			}
+			return 0, err
+		}
+
+		if err := rec.GetRecord().GetData().UnmarshalTo(idpSess); err != nil {
+			return 0, err
+		}
+
+		if idpSess.HasRawIDToken(b.rawIDToken) {
+			panic("bug : conflicting raw id token allowed by Oauth/OIDC flow?")
+		}
+		curVersion := rec.GetRecord().GetVersion()
+		idToken, err := idpsession.ParseIDToken(b.rawIDToken)
+		if err != nil {
+			return 0, backoff.Permanent(err)
+		}
+
+		idpSess.UserTokens[b.s.GetId()] = &idpsession.SIDSession{
+			Id:         "",
+			BindingId:  b.s.GetId(),
+			RawIdToken: b.rawIDToken,
+			IdToken:    idToken,
+			OauthToken: &idpsession.OAuthToken{
+				AccessToken:  b.s.GetOauthToken().GetAccessToken(),
+				TokenType:    b.s.GetOauthToken().GetTokenType(),
+				ExpiresAt:    b.s.GetOauthToken().GetExpiresAt(),
+				RefreshToken: b.s.GetOauthToken().GetRefreshToken(),
+			},
+		}
+		toUpdate := databroker.NewRecord(idpSess)
+		toUpdate.Version = curVersion
+		// user binding already exists
+		res, err := s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+			IfMatchVersion: new(true),
+			Records: append([]*databroker.Record{
+				toUpdate,
+			}, idpsession.NewBoundRecords(idpSess.Id, idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, b.details, b.s)...),
+		})
+		if err != nil {
+			if status.Code(err) == codes.FailedPrecondition {
+				// FIXME: debug
+				log.Ctx(ctx).Warn().Msg("CONFLCTING UPDATE")
+			}
+			return 0, err
+		}
+		v := res.ServerVersion
+		for _, rec := range res.GetRecords() {
+			if rec.GetType() == protoutil.GetTypeURL(b.s) && rec.GetId() == b.s.GetId() {
+				v = rec.GetVersion()
+				break
+			}
+		}
+		return v, nil
+	}, policy)
+}
+
+func (s *Stateful) constructNewIDPSession(
+	ctx context.Context,
+	b *sessionBuilder,
+) (uint64, error) {
+
+	idpSess := idpsession.NewFromSession(b.s, b.idpClaims)
+	records := []*databroker.Record{databroker.NewRecord(idpSess)}
+	records = append(records,
+		idpsession.NewBoundRecords(idpSess.GetId(), idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, b.details, b.s)...,
+	)
+	records = append(records,
+		idpsession.NewBoundRecords(idpSess.GetId(), idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, b.details, b.u)...,
+	)
+	res, err := s.dataBrokerClient.Put(ctx, &databroker.PutRequest{Records: records, IfMatchVersion: new(true)})
+	if err != nil {
+		return 0, fmt.Errorf("authenticate: error saving browser identity records: %w", err)
+	}
+	v := res.GetServerVersion()
+	for _, record := range res.GetRecords() {
+		if record.GetType() == protoutil.GetTypeURL(b.s) && record.GetId() == b.s.GetId() {
+			v = record.GetVersion()
+			break
+		}
+	}
+	return v, nil
 }
 
 // GetUserInfoData returns user info data associated with the given request (if

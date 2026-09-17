@@ -35,6 +35,7 @@ message IDPSession {
   google.protobuf.Struct claims = 6;
   string idp_id = 9;
   string user_id = 10;
+  map<string, SIDSession> user_tokens = 11;
 }
 
 enum BindingProtocol {
@@ -88,3 +89,15 @@ message SessionState {
 	// holds readable string about details of a state
 	string details = 2;
 }
+
+
+message SIDSession {
+  // correponds to "sid" claim from id token
+  string id = 1;
+  // the browser binding this is associated with. This should be equal to id, but in case it's not.
+  string binding_id = 2;
+  string raw_id_token = 3;
+  IDToken id_token = 4;
+  OAuthToken oauth_token = 5;
+}
+

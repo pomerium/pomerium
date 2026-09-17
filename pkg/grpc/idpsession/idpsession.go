@@ -130,3 +130,19 @@ func UpdateOAuthToken(token *oauth2.Token, idpSess *IDPSession) {
 		idpSess.OauthToken.RefreshToken = token.RefreshToken
 	}
 }
+
+func (x *IDPSession) HasRawIDToken(rawIDToken string) bool {
+	if rawIDToken == "" {
+		panic("bug: raw id token should not be empty")
+	}
+
+	if x.GetRawIdToken() == rawIDToken {
+		return true
+	}
+	for _, toks := range x.GetUserTokens() {
+		if toks.GetRawIdToken() == rawIDToken {
+			return true
+		}
+	}
+	return false
+}

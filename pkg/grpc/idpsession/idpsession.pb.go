@@ -322,9 +322,10 @@ type IDPSession struct {
 	State      *SessionState          `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
 	// google.protobuf.Struct is used to implement identity.State
 	// with json Marshal/Unmarshal semantics.
-	Claims        *structpb.Struct `protobuf:"bytes,6,opt,name=claims,proto3" json:"claims,omitempty"`
-	IdpId         string           `protobuf:"bytes,9,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
-	UserId        string           `protobuf:"bytes,10,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Claims        *structpb.Struct       `protobuf:"bytes,6,opt,name=claims,proto3" json:"claims,omitempty"`
+	IdpId         string                 `protobuf:"bytes,9,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,10,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserTokens    map[string]*SIDSession `protobuf:"bytes,11,rep,name=user_tokens,json=userTokens,proto3" json:"user_tokens,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -413,6 +414,13 @@ func (x *IDPSession) GetUserId() string {
 		return x.UserId
 	}
 	return ""
+}
+
+func (x *IDPSession) GetUserTokens() map[string]*SIDSession {
+	if x != nil {
+		return x.UserTokens
+	}
+	return nil
 }
 
 // Binding binds a particular client session to a user's centralized IDP session. It
@@ -579,6 +587,84 @@ func (x *SessionState) GetDetails() string {
 	return ""
 }
 
+type SIDSession struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// correponds to "sid" claim from id token
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// the browser binding this is associated with. This should be equal to id, but in case it's not.
+	BindingId     string      `protobuf:"bytes,2,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
+	RawIdToken    string      `protobuf:"bytes,3,opt,name=raw_id_token,json=rawIdToken,proto3" json:"raw_id_token,omitempty"`
+	IdToken       *IDToken    `protobuf:"bytes,4,opt,name=id_token,json=idToken,proto3" json:"id_token,omitempty"`
+	OauthToken    *OAuthToken `protobuf:"bytes,5,opt,name=oauth_token,json=oauthToken,proto3" json:"oauth_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SIDSession) Reset() {
+	*x = SIDSession{}
+	mi := &file_idpsession_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SIDSession) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SIDSession) ProtoMessage() {}
+
+func (x *SIDSession) ProtoReflect() protoreflect.Message {
+	mi := &file_idpsession_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SIDSession.ProtoReflect.Descriptor instead.
+func (*SIDSession) Descriptor() ([]byte, []int) {
+	return file_idpsession_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SIDSession) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SIDSession) GetBindingId() string {
+	if x != nil {
+		return x.BindingId
+	}
+	return ""
+}
+
+func (x *SIDSession) GetRawIdToken() string {
+	if x != nil {
+		return x.RawIdToken
+	}
+	return ""
+}
+
+func (x *SIDSession) GetIdToken() *IDToken {
+	if x != nil {
+		return x.IdToken
+	}
+	return nil
+}
+
+func (x *SIDSession) GetOauthToken() *OAuthToken {
+	if x != nil {
+		return x.OauthToken
+	}
+	return nil
+}
+
 var File_idpsession_proto protoreflect.FileDescriptor
 
 const file_idpsession_proto_rawDesc = "" +
@@ -599,7 +685,7 @@ const file_idpsession_proto_rawDesc = "" +
 	"token_type\x18\x02 \x01(\tR\ttokenType\x129\n" +
 	"\n" +
 	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12#\n" +
-	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\"\xb8\x02\n" +
+	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\"\xd8\x03\n" +
 	"\n" +
 	"IDPSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
@@ -612,7 +698,12 @@ const file_idpsession_proto_rawDesc = "" +
 	"\x06claims\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06claims\x12\x15\n" +
 	"\x06idp_id\x18\t \x01(\tR\x05idpId\x12\x17\n" +
 	"\auser_id\x18\n" +
-	" \x01(\tR\x06userId\"\xfa\x02\n" +
+	" \x01(\tR\x06userId\x12G\n" +
+	"\vuser_tokens\x18\v \x03(\v2&.idpsession.IDPSession.UserTokensEntryR\n" +
+	"userTokens\x1aU\n" +
+	"\x0fUserTokensEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.idpsession.SIDSessionR\x05value:\x028\x01\"\xfa\x02\n" +
 	"\aBinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\btype_url\x18\x02 \x01(\tR\atypeUrl\x12$\n" +
@@ -626,7 +717,17 @@ const file_idpsession_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"c\n" +
 	"\fSessionState\x129\n" +
 	"\x05state\x18\x01 \x01(\x0e2#.idpsession.UpstreamIdPSessionStateR\x05state\x12\x18\n" +
-	"\adetails\x18\x02 \x01(\tR\adetails*g\n" +
+	"\adetails\x18\x02 \x01(\tR\adetails\"\xc6\x01\n" +
+	"\n" +
+	"SIDSession\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"binding_id\x18\x02 \x01(\tR\tbindingId\x12 \n" +
+	"\fraw_id_token\x18\x03 \x01(\tR\n" +
+	"rawIdToken\x12.\n" +
+	"\bid_token\x18\x04 \x01(\v2\x13.idpsession.IDTokenR\aidToken\x127\n" +
+	"\voauth_token\x18\x05 \x01(\v2\x16.idpsession.OAuthTokenR\n" +
+	"oauthToken*g\n" +
 	"\x0fBindingProtocol\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_UNKNOWN\x10\x00\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_BROWSER\x10\x01\x12\x18\n" +
@@ -652,7 +753,7 @@ func file_idpsession_proto_rawDescGZIP() []byte {
 }
 
 var file_idpsession_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_idpsession_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_idpsession_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_idpsession_proto_goTypes = []any{
 	(BindingProtocol)(0),          // 0: idpsession.BindingProtocol
 	(BindingState)(0),             // 1: idpsession.BindingState
@@ -662,28 +763,34 @@ var file_idpsession_proto_goTypes = []any{
 	(*IDPSession)(nil),            // 5: idpsession.IDPSession
 	(*Binding)(nil),               // 6: idpsession.Binding
 	(*SessionState)(nil),          // 7: idpsession.SessionState
-	nil,                           // 8: idpsession.Binding.DetailsEntry
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),       // 10: google.protobuf.Struct
+	(*SIDSession)(nil),            // 8: idpsession.SIDSession
+	nil,                           // 9: idpsession.IDPSession.UserTokensEntry
+	nil,                           // 10: idpsession.Binding.DetailsEntry
+	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),       // 12: google.protobuf.Struct
 }
 var file_idpsession_proto_depIdxs = []int32{
-	9,  // 0: idpsession.IDToken.expires_at:type_name -> google.protobuf.Timestamp
-	9,  // 1: idpsession.IDToken.issued_at:type_name -> google.protobuf.Timestamp
-	9,  // 2: idpsession.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	11, // 0: idpsession.IDToken.expires_at:type_name -> google.protobuf.Timestamp
+	11, // 1: idpsession.IDToken.issued_at:type_name -> google.protobuf.Timestamp
+	11, // 2: idpsession.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
 	3,  // 3: idpsession.IDPSession.id_token:type_name -> idpsession.IDToken
 	4,  // 4: idpsession.IDPSession.oauth_token:type_name -> idpsession.OAuthToken
 	7,  // 5: idpsession.IDPSession.state:type_name -> idpsession.SessionState
-	10, // 6: idpsession.IDPSession.claims:type_name -> google.protobuf.Struct
-	0,  // 7: idpsession.Binding.protocol:type_name -> idpsession.BindingProtocol
-	9,  // 8: idpsession.Binding.initiated_at:type_name -> google.protobuf.Timestamp
-	1,  // 9: idpsession.Binding.state:type_name -> idpsession.BindingState
-	8,  // 10: idpsession.Binding.details:type_name -> idpsession.Binding.DetailsEntry
-	2,  // 11: idpsession.SessionState.state:type_name -> idpsession.UpstreamIdPSessionState
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	12, // 6: idpsession.IDPSession.claims:type_name -> google.protobuf.Struct
+	9,  // 7: idpsession.IDPSession.user_tokens:type_name -> idpsession.IDPSession.UserTokensEntry
+	0,  // 8: idpsession.Binding.protocol:type_name -> idpsession.BindingProtocol
+	11, // 9: idpsession.Binding.initiated_at:type_name -> google.protobuf.Timestamp
+	1,  // 10: idpsession.Binding.state:type_name -> idpsession.BindingState
+	10, // 11: idpsession.Binding.details:type_name -> idpsession.Binding.DetailsEntry
+	2,  // 12: idpsession.SessionState.state:type_name -> idpsession.UpstreamIdPSessionState
+	3,  // 13: idpsession.SIDSession.id_token:type_name -> idpsession.IDToken
+	4,  // 14: idpsession.SIDSession.oauth_token:type_name -> idpsession.OAuthToken
+	8,  // 15: idpsession.IDPSession.UserTokensEntry.value:type_name -> idpsession.SIDSession
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_idpsession_proto_init() }
@@ -697,7 +804,7 @@ func file_idpsession_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_idpsession_proto_rawDesc), len(file_idpsession_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

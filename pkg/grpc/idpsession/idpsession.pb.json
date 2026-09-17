@@ -313,6 +313,54 @@
               "isoneof": false,
               "oneofdecl": "",
               "defaultValue": ""
+            },
+            {
+              "name": "user_tokens",
+              "description": "",
+              "label": "repeated",
+              "type": "UserTokensEntry",
+              "longType": "IDPSession.UserTokensEntry",
+              "fullType": "idpsession.IDPSession.UserTokensEntry",
+              "ismap": true,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "UserTokensEntry",
+          "longName": "IDPSession.UserTokensEntry",
+          "fullName": "idpsession.IDPSession.UserTokensEntry",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "value",
+              "description": "",
+              "label": "",
+              "type": "SIDSession",
+              "longType": "SIDSession",
+              "fullType": "idpsession.SIDSession",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
             }
           ]
         },
@@ -441,6 +489,78 @@
               "type": "string",
               "longType": "string",
               "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SIDSession",
+          "longName": "SIDSession",
+          "fullName": "idpsession.SIDSession",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "id",
+              "description": "correponds to \"sid\" claim from id token",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "binding_id",
+              "description": "the browser binding this is associated with. This should be equal to id, but in case it's not.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "raw_id_token",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "id_token",
+              "description": "",
+              "label": "",
+              "type": "IDToken",
+              "longType": "IDToken",
+              "fullType": "idpsession.IDToken",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "oauth_token",
+              "description": "",
+              "label": "",
+              "type": "OAuthToken",
+              "longType": "OAuthToken",
+              "fullType": "idpsession.OAuthToken",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
