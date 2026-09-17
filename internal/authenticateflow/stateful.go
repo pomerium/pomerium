@@ -924,7 +924,7 @@ func (s *Stateful) GetSessionAndUser(
 func (s *Stateful) RevokeSession(
 	ctx context.Context,
 	_ *http.Request,
-	authenticator identity.Authenticator,
+	_ identity.Authenticator,
 	h *session.Handle,
 ) string {
 	if h == nil {

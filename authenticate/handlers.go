@@ -264,25 +264,6 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
-type forceLoginResponseWriter struct {
-	http.ResponseWriter
-}
-
-// FIXME:
-// !!! HACK
-func (w forceLoginResponseWriter) WriteHeader(statusCode int) {
-	if location := w.Header().Get("Location"); location != "" {
-		if u, err := url.Parse(location); err == nil {
-			query := u.Query()
-			query.Set("prompt", "login")
-			query.Set("max_age", "0")
-			u.RawQuery = query.Encode()
-			w.Header().Set("Location", u.String())
-		}
-	}
-	w.ResponseWriter.WriteHeader(statusCode)
-}
-
 // OAuthCallback handles the callback from the identity provider.
 //
 // https://openid.net/specs/openid-connect-core-1_0.html#CodeFlowSteps

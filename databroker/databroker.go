@@ -35,15 +35,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity"
-	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // DataBroker represents the databroker service.
 type DataBroker struct {
-	cfg           *databrokerConfig
-	srv           databroker.Server
-	identityMgr   *manager.Manager
+	cfg *databrokerConfig
+	srv databroker.Server
+	// identityMgr   *manager.Manager
 	identityMgrV2 *idpsession.IdentityManager
 	eventsMgr     *events.Manager
 

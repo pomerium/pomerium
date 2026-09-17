@@ -78,7 +78,6 @@ func NewIdentityManagerV2(
 	authenticateGetter func(ctx context.Context, idpID string) (identity.Authenticator, error),
 	o ...Option,
 ) *IdentityManager {
-
 	opts := options{
 		reconcileInterval: time.Second * 30,
 		now: func() time.Time {
