@@ -35,9 +35,16 @@ func (e Error) Error() string {
 
 // ErrorResponse writes an error response according to https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-3.2.4
 func ErrorResponse(w http.ResponseWriter, hc int, ec ErrorCode) {
+	ErrorResponseWithDescription(w, hc, ec, "")
+}
+
+// ErrorResponseWithDescription writes an error response carrying the optional
+// error_description, which is what makes a failure legible to a client that
+// only surfaces the OAuth error to its user.
+func ErrorResponseWithDescription(w http.ResponseWriter, hc int, ec ErrorCode, description string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(hc)
-	if err := json.NewEncoder(w).Encode(Error{Code: ec}); err != nil {
+	if err := json.NewEncoder(w).Encode(Error{Code: ec, Description: description}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
