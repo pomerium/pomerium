@@ -2,6 +2,13 @@ package endpoints
 
 // well known paths
 const (
+	// PathAgentic is where the agentic authorization server mounts its own
+	// endpoints. Unlike everything else here it is NOT under /.pomerium/: those
+	// paths are internal to the ext_authz context, i.e. unauthorized by
+	// construction, and the AS is reached through ordinary routes that point at
+	// its listener. The individual endpoint paths are derived from the mount
+	// point in internal/agentic, so a non-default prefix cannot desync them.
+	PathAgentic                     = "/agentic"
 	PathAuthenticateCallback        = "/oauth2/callback"
 	PathDebugPProf                  = "/debug/pprof"
 	PathDebugPProfCmdline           = "/debug/pprof/cmdline"
