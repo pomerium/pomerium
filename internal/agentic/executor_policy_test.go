@@ -2,6 +2,8 @@ package agentic
 
 import (
 	"encoding/json"
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -93,4 +95,42 @@ func TestSealMatch(t *testing.T) {
 
 	mismatch := canonicalClaims(projectClaims(k8sClaims(t, "pod-uid-2", 1000, 1600), boundClaims))
 	assert.NotEqual(t, seal, mismatch, "a different pod instance must not reproduce the seal")
+}
+
+func TestSealIndexKeyRequiresACompleteSeal(t *testing.T) {
+	t.Parallel()
+
+	complete := identity.FlattenedClaims{
+		"kubernetes.io.namespace":           []any{"default"},
+		"kubernetes.io.serviceaccount.name": []any{"executor"},
+		"kubernetes.io.pod.name":            []any{"run-pod"},
+		"kubernetes.io.pod.uid":             []any{"pod-uid-1"},
+	}
+
+	// A workload token carries all four claims, so a run sealed to all four is
+	// found under the same key the token derives.
+	full := sealIndexKey(complete)
+	require.NotEmpty(t, full)
+	assert.Equal(t, full, sealIndexKey(complete), "the key must be deterministic")
+
+	// A token carrying extra claims still derives the same key: the projection
+	// is over the fixed key set.
+	withExtras := maps.Clone(complete)
+	withExtras["sub"] = []any{"system:serviceaccount:default:executor"}
+	withExtras["iat"] = []any{1234}
+	assert.Equal(t, full, sealIndexKey(withExtras),
+		"claims outside the fixed key set must not change the index")
+
+	// A partial seal is NOT indexable. Indexing the sealed subset would store the
+	// run under a key no presenting token can ever derive, and the run would be
+	// permanently unresolvable in the run_id-less flow.
+	for _, omit := range slices.Sorted(maps.Keys(complete)) {
+		partial := maps.Clone(complete)
+		delete(partial, omit)
+		assert.Empty(t, sealIndexKey(partial),
+			"a seal missing %s must not be indexable", omit)
+	}
+
+	// A non-k8s executor carries none of the keys and is likewise not indexable.
+	assert.Empty(t, sealIndexKey(identity.FlattenedClaims{"sub": []any{"spiffe://x"}}))
 }

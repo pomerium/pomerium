@@ -100,18 +100,24 @@ var k8sExecutorSealKeys = []string{
 // projecting it onto the fixed executor key set (k8sExecutorSealKeys) and
 // canonicalizing. At create the run's sealed claims yield the key; at bind the
 // presenting token's claims yield the SAME key iff the token carries the sealed
-// identity — so a run_id-less workload can locate its own run. It returns "" for
-// a claim set that carries none of the executor keys (a non-k8s executor), which
-// callers treat as "not indexable".
+// identity — so a run_id-less workload can locate its own run.
+//
+// It returns "" — "not indexable", which callers treat as "this run can only be
+// resolved by an explicit run_id" — unless EVERY key is present. All of them,
+// not merely one, because the two sides project different claim sets: a run
+// seals a caller-chosen subset, while a presenting workload token carries all
+// four. Indexing whatever subset happened to be sealed would canonicalize two
+// different key sets on the two sides, and the run could never be found by the
+// index it was stored under. A non-k8s executor carries none of these keys and
+// is likewise not indexable.
 func sealIndexKey(claims identity.FlattenedClaims) string {
 	projected := make(identity.FlattenedClaims, len(k8sExecutorSealKeys))
 	for _, k := range k8sExecutorSealKeys {
-		if vs, ok := claims[k]; ok {
-			projected[k] = vs
+		vs, ok := claims[k]
+		if !ok {
+			return ""
 		}
-	}
-	if len(projected) == 0 {
-		return ""
+		projected[k] = vs
 	}
 	return canonicalClaims(projected)
 }
