@@ -3,8 +3,12 @@ package ssh_test
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,4 +93,54 @@ func VerifyWorkingShell(t *testing.T, client *gossh.Client) {
 	require.NoError(t, sess.Wait())
 
 	assert.Equal(t, "> hello world\r\nhello world\r\n> ", b.String())
+}
+
+func RawFingerprintSHA256(pk gossh.PublicKey) []byte {
+	// equivalent to sshkey_fingerprint_raw(), which only uses the plain key
+	switch pk := pk.(type) {
+	case *gossh.Certificate:
+		return RawFingerprintSHA256(pk.Key)
+	default:
+		return (*new(sha256.Sum256(pk.Marshal())))[:]
+	}
+}
+
+func TestRawFingerprintSHA256(t *testing.T) {
+	clientCAKey := newSSHKey(t)
+	sshKey := newSignerFromKey(t, newSSHKey(t))
+
+	caSigner, err := gossh.NewSignerFromKey(clientCAKey)
+	require.NoError(t, err)
+	cert := &gossh.Certificate{
+		CertType:    gossh.UserCert,
+		Key:         sshKey.PublicKey(),
+		ValidAfter:  uint64(time.Now().Add(-1 * time.Minute).Unix()),
+		ValidBefore: uint64(time.Now().Add(1 * time.Hour).Unix()),
+	}
+	cert.SignCert(rand.Reader, caSigner)
+
+	certKey, err := gossh.NewCertSigner(cert, sshKey)
+	require.NoError(t, err)
+
+	// The public key fingerprints sent by envoy use the plain key. If the key
+	// is a certificate key, its fingerprint is always identical to the non-cert
+	// version of that key. [gossh.FingerprintSHA256] does not do this however,
+	// and certificate key fingerprints will be different.
+	// Use these functions instead in tests to generate fingerprints that will
+	// match the ones from envoy. This isn't needed outside of tests because
+	// envoy sends the fingerprint along with the public key so that we don't
+	// have to re-compute it (with an implementation that may not be identical).
+
+	// sanity check
+	require.NotEqual(t, gossh.FingerprintSHA256(sshKey.PublicKey()), gossh.FingerprintSHA256(certKey.PublicKey()))
+
+	assert.Equal(t, RawFingerprintSHA256(sshKey.PublicKey()), RawFingerprintSHA256(certKey.PublicKey()))
+}
+
+func FormatRawFingerprint(rawFp []byte) string {
+	return "SHA256:" + base64.RawStdEncoding.EncodeToString(rawFp)
+}
+
+func SessionBindingIDFromPublicKey(pk gossh.PublicKey) string {
+	return "sshkey-" + FormatRawFingerprint(RawFingerprintSHA256(pk))
 }
