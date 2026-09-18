@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package agentic;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/agentic/gen";
+
+// RunState is the approval state of a run. Only APPROVED permits token
+// issuance. UNSPECIFIED is proto3's mandatory zero value and means "no state was
+// ever written" — a record that predates the interactive flow. It is NOT
+// approved: every run is created PENDING and reaches APPROVED only through a
+// human's consent, so a record carrying no state cannot have been approved by
+// anyone.
+enum RunState {
+  RUN_STATE_UNSPECIFIED = 0; // no state written: never approved
+  RUN_STATE_PENDING     = 1;
+  RUN_STATE_APPROVED    = 2;
+}
+
+// Run is one agent run: who approved it, which executor instance it is
+// sealed to, and which MCP servers the approval was asked to cover. It is not a
+// grant — what the run token may reach is decided per route, by that route's
+// bearer_token_format and policy.
+message Run {
+  string id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+  // sub is the approving user's record id. It is empty until a human approves —
+  // there is no shape in which a run acts as the workload that created it.
+  string sub = 2;
+  reserved 3; // was AgenticActClaims bound (replaced by bound_claims)
+  reserved 4; // was authorization_details, an origin grant (replaced by mcp_servers)
+  reserved "authorization_details";
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  bool revoked = 7;
+  RunState state = 8;
+  // prompt is the human-readable request shown verbatim on the consent page
+  // (interactive mode only).
+  string prompt = 9;
+  // bound_claims is the expected-executor identity subset the run is sealed to
+  // (flattened to dotted paths, mirroring the session claims shape). Set at
+  // create and never mutated; at bind the presenting token's claims, projected
+  // onto these keys, must reproduce them (deterministic seal-match, §12.8). No
+  // sandbox technology is assumed: whatever the caller seals is stored and
+  // exposed to route PPL at use time as act.<path>.
+  map<string, google.protobuf.ListValue> bound_claims = 10;
+  reserved 11; // was bind_key, a denormalized fingerprint of bound_claims
+  reserved "bind_key";
+  // was attesting_provider, a per-run, caller-chosen pin on which
+  // identity_provider could attest a binding executor. The exchange route's own
+  // identity_providers allowlist answers the same question, admin-declared and
+  // enforced before the AS is reached.
+  reserved 12;
+  reserved "attesting_provider";
+  // Field 13 (approver_idp_id) was the ad hoc UpstreamIdPSession lookup key. The
+  // run session is now a bound dependent of the approver's centralized
+  // idpsession.IDPSession (records.go NewBoundRecords), so no per-run idp id is
+  // stored: the binding's lifecycle is the run's liveness.
+  reserved 13;
+  reserved "approver_idp_id";
+  // bound_claims_index is the databroker index derived from bound_claims: the
+  // deterministic url.Values encoding of the executor's fixed Kubernetes seal
+  // claims (sealIndexKey / k8sExecutorSealKeys). The token bind resolves a run by
+  // it — the presenting workload token reproduces the same value from its own
+  // claims, so a pod finds its run from its identity alone, no run_id ever an
+  // input. Empty for a non-k8s executor, which is then unresolvable by claims.
+  string bound_claims_index = 14;
+  // expected_subject pins WHO may approve this run. Set at create by a caller
+  // that already knows the intended human; at approval the approver's own
+  // subject must equal it, or the approval is refused. Empty ⇒ unpinned, which
+  // is the historical behaviour: whoever opens the approval URL and has access
+  // becomes the approver.
+  //
+  // It closes a leaked-link hole. Interactive runs leave sub empty until
+  // approval and fill it with whoever clicks, so an approval URL forwarded to a
+  // colleague could be approved by them — and the run would then carry THEIR
+  // delegated authority. Pinning matters most when the run's workspace outlives
+  // the session (a suspended sandbox holding a conversation), because there the
+  // approval is what keeps one person's data away from another.
+  //
+  // The value is the raw upstream IdP subject — the same string the approval
+  // handler reads from the assertion's `sub` claim, which Pomerium populates
+  // verbatim from the IdP's `sub` (or `oid` for Azure, or `user`). It is NOT an
+  // email: a caller passing an email pins a constraint that can never be
+  // satisfied, and every approval of that run will be refused.
+  //
+  string expected_subject = 15;
+  // mcp_servers lists the MCP server URLs this run was created to use. It is NOT
+  // an authorization scope: what a run token may reach is decided per route by
+  // that route's bearer_token_format and policy. Its only consumer is the consent
+  // page, which renders one row per server so the approver can see — and connect
+  // — the upstream accounts the agent will act with on their behalf. A URL that
+  // is not a configured MCP server route is rendered plainly and skipped.
+  repeated string mcp_servers = 16;
+  // created_by is the identity of the workload that created this run, as
+  // "<provider-name>/<jwt sub>". A projected token's sub is service-account
+  // scoped, so this identifies the summoning service account rather than one of
+  // its pods — a restarted manager still reads its predecessor's runs. Compared
+  // at GET /runs/{run_id} so a run's status is disclosed only to its creator.
+  string created_by = 17;
+  // labels are caller-supplied descriptive attributes for one run — the workflow
+  // definition it instantiates, the channel it was summoned from. They are
+  // DISPLAY ONLY and authorize nothing: what a run token may reach is decided per
+  // route by that route's bearer_token_format and policy, exactly as for
+  // mcp_servers. Pomerium privileges no key and validates only size.
+  //
+  // Copied verbatim onto the session binding at approval, because the binding
+  // outlives the run record's databroker TTL and the user's client-bindings page
+  // still has to be able to name what they approved.
+  map<string, string> labels = 18;
+}

@@ -97,6 +97,11 @@ const (
 	// enforced per-provider. Authorization on the verified claims is left to PPL
 	// (claim/...).
 	BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT BearerTokenFormat = 4
+	// The bearer token will be interpreted as an opaque Pomerium-minted agentic
+	// run token (pom_art_...), resolved server-side against a revocable run
+	// record and bound to the approver's session. This is the explicit per-route
+	// opt-in for non-MCP routes; the `agentic` runtime flag gates the feature.
+	BearerTokenFormat_BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN BearerTokenFormat = 5
 )
 
 // Enum value maps for BearerTokenFormat.
@@ -107,6 +112,7 @@ var (
 		2: "BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN",
 		3: "BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN",
 		4: "BEARER_TOKEN_FORMAT_JWT",
+		5: "BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN",
 	}
 	BearerTokenFormat_value = map[string]int32{
 		"BEARER_TOKEN_FORMAT_UNKNOWN":            0,
@@ -114,6 +120,7 @@ var (
 		"BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN":   2,
 		"BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN": 3,
 		"BEARER_TOKEN_FORMAT_JWT":                4,
+		"BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN":  5,
 	}
 )
 
@@ -10488,13 +10495,14 @@ const file_config_proto_rawDesc = "" +
 	"\x15always_eject_one_host\x18\x19 \x01(\v2\x1a.google.protobuf.BoolValueR\x12alwaysEjectOneHostJ\x04\b\x18\x10\x19*1\n" +
 	"\fIssuerFormat\x12\x12\n" +
 	"\x0eIssuerHostOnly\x10\x00\x12\r\n" +
-	"\tIssuerURI\x10\x01*\xc8\x01\n" +
+	"\tIssuerURI\x10\x01*\xf3\x01\n" +
 	"\x11BearerTokenFormat\x12\x1f\n" +
 	"\x1bBEARER_TOKEN_FORMAT_UNKNOWN\x10\x00\x12\x1f\n" +
 	"\x1bBEARER_TOKEN_FORMAT_DEFAULT\x10\x01\x12(\n" +
 	"$BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN\x10\x02\x12*\n" +
 	"&BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN\x10\x03\x12\x1b\n" +
-	"\x17BEARER_TOKEN_FORMAT_JWT\x10\x04*\xdb\x01\n" +
+	"\x17BEARER_TOKEN_FORMAT_JWT\x10\x04\x12)\n" +
+	"%BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN\x10\x05*\xdb\x01\n" +
 	"\x1cHeadersWithUnderscoresAction\x12+\n" +
 	"'HEADERS_WITH_UNDERSCORES_ACTION_UNKNOWN\x10\x00\x12)\n" +
 	"%HEADERS_WITH_UNDERSCORES_ACTION_ALLOW\x10\x01\x122\n" +

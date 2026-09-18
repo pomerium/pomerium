@@ -6,6 +6,9 @@ var (
 	// RuntimeFlagAddExtraMetricsLabels enables adding extra labels to metrics (host and installation id)
 	RuntimeFlagAddExtraMetricsLabels = runtimeFlag("add_extra_metrics_labels", true)
 
+	// RuntimeFlagAgentic enables the agentic run-identity endpoints and run-token authentication.
+	RuntimeFlagAgentic = runtimeFlag("agentic", false)
+
 	// RuntimeFlagAllowAnySignOutRedirectURI allows arbitrary sign-out redirects.
 	RuntimeFlagAllowAnySignOutRedirectURI = runtimeFlag("allow_any_sign_out_redirect_uri", false)
 
