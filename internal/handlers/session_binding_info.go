@@ -25,11 +25,31 @@ type SessionBindingData struct {
 	IsCurrentBrowser         bool
 	HasIdentityBinding       bool
 	DetailsSSH               *ProtocolDetailsSSH
+	DetailsAgentic           *ProtocolDetailsAgentic
 }
 
 type ProtocolDetailsSSH struct {
 	FingerprintID string
 	SourceAddress string
+}
+
+// ProtocolDetailsAgentic is what an approved agentic run shows the person whose
+// IdP session it borrows: what the agent is, what it is running on, and what
+// they said yes to. Without it the row is a bare uuid, which is not enough to
+// decide whether to revoke.
+type ProtocolDetailsAgentic struct {
+	// RunID is the run's stable handle, quotable in a bug report.
+	RunID string
+	// Labels are the caller's descriptive attributes (template name, and
+	// whatever else the caller set), frozen at approval.
+	Labels map[string]string
+	// Prompt is the approved request verbatim, bounded at creation. The page
+	// truncates it to one line and shows the whole thing on hover.
+	Prompt string
+	// WorkloadClaims is the executor identity the run is sealed to — the
+	// session's act.* claims with that prefix stripped, e.g.
+	// "kubernetes.io.pod.name".
+	WorkloadClaims map[string]string
 }
 
 func (data SessionInfoData) ToJSON() map[string]any {
