@@ -103,14 +103,19 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
-	ConnectListener     net.Listener
-	ConnectMux          *http.ServeMux
-	GRPCListener        net.Listener
-	GRPCServer          *grpc.Server
-	HTTPListener        net.Listener
-	MetricsListener     net.Listener
-	MetricsRouter       *mux.Router
-	DebugListener       net.Listener
+	ConnectListener net.Listener
+	ConnectMux      *http.ServeMux
+	GRPCListener    net.Listener
+	GRPCServer      *grpc.Server
+	HTTPListener    net.Listener
+	MetricsListener net.Listener
+	MetricsRouter   *mux.Router
+	DebugListener   net.Listener
+	// AgenticListener serves the agentic authorization server on its own
+	// loopback port (agentic_address). It is nil unless that option is set. The
+	// AS is reached only through ordinary routes pointing here, and those routes
+	// are what authorize it, so nothing else may be able to reach this listener.
+	AgenticListener     net.Listener
 	HealthCheckRouter   *mux.Router
 	HealthCheckListener net.Listener
 	healthMetrics       *health.Metrics
@@ -133,6 +138,7 @@ type Server struct {
 	httpRouter      atomic.Pointer[mux.Router]
 	authenticateSvc Service
 	proxySvc        Service
+	agenticHandler  atomic.Pointer[http.Handler]
 	debug           *debugServer
 
 	haveSetCapacity map[string]bool
@@ -287,6 +293,25 @@ func NewServer(
 	if err != nil {
 		return nil, err
 	}
+
+	// The agentic authorization server's listener. Bound here, once, from a fixed
+	// address rather than an OS-chosen port, because routes have to point at it —
+	// which is also why changing agentic_address requires a restart: Envoy's route
+	// config follows a reload, this bind does not.
+	//
+	// reuseport means a second process can co-bind the same port and take half the
+	// connections, silently, with no error on either side. That is inherited from
+	// how every other control-plane listener is bound; the startup log below at
+	// least records what this process believes it owns.
+	if cfg.Options.AgenticAddress != "" {
+		srv.AgenticListener, err = reuseport.Listen("tcp4", cfg.Options.AgenticAddress)
+		if err != nil {
+			return nil, fmt.Errorf("error binding agentic_address %s: %w", cfg.Options.AgenticAddress, err)
+		}
+		log.Ctx(ctx).Info().
+			Str("addr", srv.AgenticListener.Addr().String()).
+			Msg("controlplane: bound the agentic authorization server listener")
+	}
 	srv.updateHealthProviders(ctx, cfg)
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
@@ -396,7 +421,12 @@ func (srv *Server) Run(ctx context.Context) error {
 		{"debug", srv.DebugListener, srv.debug},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
 		{"health", srv.HealthCheckListener, srv.HealthCheckRouter},
+		// nil unless agentic_address is set.
+		{"agentic", srv.AgenticListener, http.HandlerFunc(srv.serveAgentic)},
 	} {
+		if entry.Listener == nil {
+			continue
+		}
 		// start the HTTP server
 		eg.Go(func() error {
 			lg := log.Ctx(ctx).With().Str("addr", entry.Listener.Addr().String()).Logger()
@@ -448,6 +478,28 @@ func (srv *Server) EnableAuthenticate(ctx context.Context, svc Service) error {
 func (srv *Server) EnableProxy(ctx context.Context, svc Service) error {
 	srv.proxySvc = svc
 	return srv.updateRouter(ctx, srv.currentConfig.Load())
+}
+
+// SetAgenticHandler installs the handler served on the agentic listener. It is
+// late-bound because the listener is created in NewServer while the handler
+// lives on the proxy service, which is built afterwards.
+//
+// The handler it is given resolves the AS per request and answers 503 itself
+// when the agentic flag is off, so this holds it for the lifetime of the process
+// and never needs clearing.
+func (srv *Server) SetAgenticHandler(h http.Handler) {
+	srv.agenticHandler.Store(&h)
+}
+
+// serveAgentic dispatches to the registered agentic handler, answering 503 in
+// the window before the proxy service has registered one.
+func (srv *Server) serveAgentic(w http.ResponseWriter, r *http.Request) {
+	h := srv.agenticHandler.Load()
+	if h == nil {
+		http.Error(w, "agentic authorization server not registered", http.StatusServiceUnavailable)
+		return
+	}
+	(*h).ServeHTTP(w, r)
 }
 
 // EnableDataBrokerDebug enables the databroker browser.
@@ -573,6 +625,13 @@ func (srv *Server) updateHealthStreamProvider(ctx context.Context, mgr health.Pr
 
 func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Check) {
 	services := cfg.Options.Services
+	if config.IsProxy(services) && cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagAgentic) {
+		// The proxy is what rebuilds the AS and reports this, so only expect it
+		// where it can be reported — and only while the flag is on, so turning
+		// agentic off clears a previously-failed rebuild rather than leaving
+		// readiness stuck on it.
+		ret = append(ret, health.AgenticAuthorizationServer)
+	}
 	if config.IsAuthenticate(services) {
 		ret = append(ret, health.AuthenticateService)
 	}
