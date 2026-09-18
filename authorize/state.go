@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"crypto/cipher"
 	"fmt"
 	"net/url"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/agentic"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
@@ -39,6 +41,7 @@ type authorizeState struct {
 	authenticateFlow           authenticateFlow
 	syncQueriers               map[string]storage.Querier
 	mcp                        *mcp.Handler
+	agenticCipher              cipher.AEAD
 }
 
 func newAuthorizeStateFromConfig(
@@ -100,6 +103,13 @@ func newAuthorizeStateFromConfig(
 		}
 		state.mcp = mcp
 		evaluatorOptions = append(evaluatorOptions, evaluator.WithMCPAccessTokenProvider(mcp))
+	}
+
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagAgentic) {
+		state.agenticCipher, err = agentic.NewCipher(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: agentic cipher: %w", err)
+		}
 	}
 
 	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluatorOptions...)
