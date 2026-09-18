@@ -407,11 +407,12 @@ func (srv *Handler) getTokenRequest(
 		return nil, fmt.Errorf("more than one client authentication mechanism was used")
 	}
 
-	verifySecret := func() error {
-		if tokenReq.ClientSecret == nil {
-			return authFailure(clientAuthFailedDescription, "client_secret was not provided")
-		}
-		if subtle.ConstantTimeCompare([]byte(tokenReq.GetClientSecret()), []byte(secret.Value)) != 1 {
+	// The secret is taken from the transport the client registered for, never
+	// from tokenReq: ParseTokenRequest fills that through the query-aware
+	// FormValue, so a query parameter could otherwise stand in for the Basic
+	// password the client is supposed to prove.
+	verifySecret := func(presented string) error {
+		if subtle.ConstantTimeCompare([]byte(presented), []byte(secret.Value)) != 1 {
 			return authFailure(clientAuthFailedDescription, "client secret mismatch")
 		}
 		log.Ctx(ctx).Debug().Msg("mcp/token: client secret verified")
@@ -426,11 +427,18 @@ func (srv *Handler) getTokenRequest(
 
 	switch m {
 	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic:
-		if !sentBasicCredentials {
+		basicID, basicSecret, ok := r.BasicAuth()
+		if !ok {
 			return nil, authFailure(clientAuthFailedDescription,
 				"client is registered for client_secret_basic but sent no Basic credentials")
 		}
-		if err := verifySecret(); err != nil {
+		// The header names the client it authenticates, so it cannot vouch for a
+		// request made in another client's name.
+		if basicID != tokenReq.GetClientId() {
+			return nil, authFailure(clientAuthFailedDescription,
+				"Basic credentials are for a different client than the request")
+		}
+		if err := verifySecret(basicSecret); err != nil {
 			return nil, err
 		}
 	case rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
@@ -438,7 +446,7 @@ func (srv *Handler) getTokenRequest(
 			return nil, authFailure(clientAuthFailedDescription,
 				"client is registered for client_secret_post but sent no client_secret parameter")
 		}
-		if err := verifySecret(); err != nil {
+		if err := verifySecret(r.PostForm.Get("client_secret")); err != nil {
 			return nil, err
 		}
 	default:

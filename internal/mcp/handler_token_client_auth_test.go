@@ -143,10 +143,15 @@ func TestTokenClientAuthenticationErrors(t *testing.T) {
 		// client's id is substituted for the "client_id" placeholder below.
 		form url.Values
 		// basicSecret, when non-nil, is sent with the client id as HTTP Basic
-		// credentials.
+		// credentials. basicUser overrides the username, which defaults to the
+		// registered client id.
 		basicSecret *string
+		basicUser   *string
 		// rawAuthHeader, when set, is sent verbatim as the Authorization header.
 		rawAuthHeader string
+		// query is appended to the request URL. Credentials in the query string
+		// are not a valid transport and must never authenticate a client.
+		query url.Values
 		// omitClientID drops client_id from the form, e.g. when it travels in
 		// the Authorization header instead.
 		omitClientID bool
@@ -236,6 +241,40 @@ func TestTokenClientAuthenticationErrors(t *testing.T) {
 			wantChallenge: `Basic realm="pomerium"`,
 		},
 		{
+			// ParseTokenRequest reads client_secret with the query-aware
+			// FormValue, so a query parameter must not stand in for the Basic
+			// password the client is registered to prove.
+			name:          "client_secret_basic rejects a query secret",
+			authMethod:    rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
+			secret:        &rfc7591v1.ClientSecret{Value: "correct-secret"},
+			basicSecret:   new("wrong-secret"),
+			omitClientID:  true,
+			query:         url.Values{"client_secret": {"correct-secret"}},
+			wantStatus:    http.StatusUnauthorized,
+			wantError:     "invalid_client",
+			wantChallenge: `Basic realm="pomerium"`,
+		},
+		{
+			name:       "client_secret_post rejects a query secret",
+			authMethod: rfc7591v1.TokenEndpointAuthMethodClientSecretPost,
+			secret:     &rfc7591v1.ClientSecret{Value: "correct-secret"},
+			query:      url.Values{"client_secret": {"correct-secret"}},
+			wantStatus: http.StatusBadRequest,
+			wantError:  "invalid_client",
+		},
+		{
+			// The Basic header names the client it authenticates, so a header
+			// for one client must not authenticate a request naming another.
+			name:          "basic credentials for a different client",
+			authMethod:    rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
+			secret:        &rfc7591v1.ClientSecret{Value: "correct-secret"},
+			basicUser:     new("11111111-2222-4333-8444-555555555555"),
+			basicSecret:   new("correct-secret"),
+			wantStatus:    http.StatusUnauthorized,
+			wantError:     "invalid_client",
+			wantChallenge: `Basic realm="pomerium"`,
+		},
+		{
 			// OAuth 2.1 2.4: a client must not use more than one authentication
 			// mechanism, which is a malformed request rather than a bad client.
 			name:        "both authentication mechanisms at once",
@@ -297,12 +336,19 @@ func TestTokenClientAuthenticationErrors(t *testing.T) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(form.Encode()))
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if tc.query != nil {
+				req.URL.RawQuery = tc.query.Encode()
+			}
 			switch {
 			case tc.rawAuthHeader != "":
 				req.Header.Set("Authorization", tc.rawAuthHeader)
 			case tc.basicSecret != nil:
+				user := clientID
+				if tc.basicUser != nil {
+					user = *tc.basicUser
+				}
 				req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString(
-					[]byte(clientID+":"+*tc.basicSecret)))
+					[]byte(user+":"+*tc.basicSecret)))
 			}
 
 			w := httptest.NewRecorder()
