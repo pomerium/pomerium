@@ -29,6 +29,7 @@ const (
 	BindingProtocol_BINDING_PROTOCOL_UNKNOWN BindingProtocol = 0
 	BindingProtocol_BINDING_PROTOCOL_BROWSER BindingProtocol = 1
 	BindingProtocol_BINDING_PROTOCOL_MCP     BindingProtocol = 2
+	BindingProtocol_BINDING_PROTOCOL_AGENTIC BindingProtocol = 3
 )
 
 // Enum value maps for BindingProtocol.
@@ -37,11 +38,13 @@ var (
 		0: "BINDING_PROTOCOL_UNKNOWN",
 		1: "BINDING_PROTOCOL_BROWSER",
 		2: "BINDING_PROTOCOL_MCP",
+		3: "BINDING_PROTOCOL_AGENTIC",
 	}
 	BindingProtocol_value = map[string]int32{
 		"BINDING_PROTOCOL_UNKNOWN": 0,
 		"BINDING_PROTOCOL_BROWSER": 1,
 		"BINDING_PROTOCOL_MCP":     2,
+		"BINDING_PROTOCOL_AGENTIC": 3,
 	}
 )
 
@@ -626,11 +629,12 @@ const file_idpsession_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"c\n" +
 	"\fSessionState\x129\n" +
 	"\x05state\x18\x01 \x01(\x0e2#.idpsession.UpstreamIdPSessionStateR\x05state\x12\x18\n" +
-	"\adetails\x18\x02 \x01(\tR\adetails*g\n" +
+	"\adetails\x18\x02 \x01(\tR\adetails*\x85\x01\n" +
 	"\x0fBindingProtocol\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_UNKNOWN\x10\x00\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_BROWSER\x10\x01\x12\x18\n" +
-	"\x14BINDING_PROTOCOL_MCP\x10\x02*A\n" +
+	"\x14BINDING_PROTOCOL_MCP\x10\x02\x12\x1c\n" +
+	"\x18BINDING_PROTOCOL_AGENTIC\x10\x03*A\n" +
 	"\fBindingState\x12\x17\n" +
 	"\x13BindingState_ACTIVE\x10\x00\x12\x18\n" +
 	"\x14BindingState_REVOKED\x10\x01*\x8e\x01\n" +
