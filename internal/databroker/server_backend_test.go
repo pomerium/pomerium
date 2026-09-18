@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -493,5 +494,54 @@ func TestServer_PutIfMatchVersion(t *testing.T) {
 	t.Run("version is ignored without the flag", func(t *testing.T) {
 		_, err := client.Put(ctx, &databrokerpb.PutRequest{Records: []*databrokerpb.Record{proto.CloneOf(firstWrite)}})
 		require.NoError(t, err)
+	})
+}
+
+// TestServer_RetiredTypeCleanup covers the cleanup of records belonging to a
+// record type Pomerium no longer defines. MCPRefreshToken was replaced by a
+// stateless refresh token bound to the MCP client session, so its proto is
+// gone: nothing reads these records, nothing writes them, and on postgres they
+// are not even resolvable any more. They still hold an encrypted upstream IdP
+// refresh token, so an upgraded deployment must sweep whatever an older version
+// left behind. A TTL on the type is what drives the periodic cleaner.
+func TestServer_RetiredTypeCleanup(t *testing.T) {
+	t.Parallel()
+
+	const mcpRefreshTokenTypeURL = "type.googleapis.com/oauth21.MCPRefreshToken"
+
+	t.Run("the retired type carries a ttl", func(t *testing.T) {
+		srv := newServer(t)
+
+		res, err := srv.GetOptions(t.Context(), &databrokerpb.GetOptionsRequest{
+			Type: mcpRefreshTokenTypeURL,
+		})
+		require.NoError(t, err)
+		assert.Positive(t, res.GetOptions().GetTtl().AsDuration(),
+			"the retired type needs a ttl or the periodic cleaner never sweeps it")
+	})
+
+	t.Run("the cleaner picks the ttl up", func(t *testing.T) {
+		srv := newServer(t)
+
+		// a record an older version left behind: its type no longer resolves,
+		// so it is stored as a raw Any rather than through protoutil.NewAny.
+		_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{{
+				Type: mcpRefreshTokenTypeURL,
+				Id:   "legacy-token",
+				Data: &anypb.Any{
+					TypeUrl: mcpRefreshTokenTypeURL,
+					Value:   []byte{0x0a, 0x0c, 'l', 'e', 'g', 'a', 'c', 'y', '-', 't', 'o', 'k', 'e', 'n'},
+				},
+			}},
+		})
+		require.NoError(t, err)
+
+		backend, err := srv.(*backendServer).getBackend(t.Context())
+		require.NoError(t, err)
+
+		ttls := srv.(*backendServer).buildRecordTTLs(backend)
+		assert.Contains(t, ttls, mcpRefreshTokenTypeURL,
+			"the periodic cleaner must be told to expire the retired type")
 	})
 }
