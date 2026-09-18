@@ -494,9 +494,9 @@ func TestPersistSession(t *testing.T) {
 
 			record := byTypeAndID["type.googleapis.com/session.Session/session-id"]
 			require.NotNil(t, record)
-			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSession/idp_id=idp-id&user_id=user-id"])
-			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSessionBinding/session-id"])
-			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSessionBinding/user-id"])
+			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.IDPSession/user-id"])
+			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.Binding/session-id"])
+			require.NotNil(t, byTypeAndID["type.googleapis.com/idpsession.Binding/user-id"])
 
 			var s session.Session
 			record.GetData().UnmarshalTo(&s)

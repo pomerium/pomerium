@@ -24,6 +24,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/agentic"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/handlers"
@@ -538,6 +539,7 @@ func (s *Stateful) sessionToBindingData(
 	var expiresAt string
 	var clientAddr string
 	var resource string
+	var detailsAgentic *handlers.ProtocolDetailsAgentic
 
 	switch binding.GetTypeUrl() {
 	case protoutil.GetTypeURL(&session.Session{}):
@@ -561,6 +563,16 @@ func (s *Stateful) sessionToBindingData(
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
 			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
 			resource = formatBrowserUserAgent(binding.GetDetails()["user-agent"])
+		case idpsession.BindingProtocol_BINDING_PROTOCOL_AGENTIC:
+			// An approved agentic run. It stays active until the user revokes it
+			// here or their IdP session ends.
+			expiresAt = "Until revoked or IDP expires"
+			sess := &session.Session{}
+			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
+				return handlers.SessionBindingData{}, nil
+			}
+			detailsAgentic = agenticDetails(binding.GetDetails(), sess)
+			resource = agenticResource(detailsAgentic)
 		}
 		clientAddr = binding.GetDetails()["client-ip"]
 	}
@@ -574,6 +586,7 @@ func (s *Stateful) sessionToBindingData(
 		ExpiresAt:               expiresAt,
 		RevokeSessionBindingURL: redirectRevoke.String(),
 		Resource:                resource,
+		DetailsAgentic:          detailsAgentic,
 	}
 
 	if binding.GetInitiatedAt() != nil {
@@ -582,12 +595,67 @@ func (s *Stateful) sessionToBindingData(
 	return datum, nil
 }
 
+// agenticDetails assembles what an agentic run shows its approver, from the two
+// records already in hand: the binding's details map (written at consent by
+// agentic.bindingDisplayDetails, and the only copy that survives the run
+// record's TTL) and the run's session, whose act.* claims are the executor
+// identity the run was sealed to.
+func agenticDetails(details map[string]string, sess *session.Session) *handlers.ProtocolDetailsAgentic {
+	d := &handlers.ProtocolDetailsAgentic{
+		RunID:  details[agentic.DetailRunID],
+		Prompt: details[agentic.DetailPrompt],
+	}
+	for k, v := range details {
+		if name, ok := strings.CutPrefix(k, agentic.DetailLabelPrefix); ok {
+			if d.Labels == nil {
+				d.Labels = make(map[string]string)
+			}
+			d.Labels[name] = v
+		}
+	}
+	for k, vs := range identity.NewFlattenedClaimsFromPB(sess.GetClaims()) {
+		path, ok := strings.CutPrefix(k, agentic.ActClaimPrefix)
+		if !ok {
+			continue
+		}
+		parts := make([]string, len(vs))
+		for i, v := range vs {
+			parts[i] = fmt.Sprint(v)
+		}
+		if d.WorkloadClaims == nil {
+			d.WorkloadClaims = make(map[string]string)
+		}
+		d.WorkloadClaims[path] = strings.Join(parts, ", ")
+	}
+	return d
+}
+
+// agenticResource picks the headline for a run's Resource cell: the caller's
+// template label if it set one, else the concrete workload it is sealed to, else
+// the run id. The fallbacks matter — a run created before labels existed, or by
+// a caller that sets none, still has to name itself as something a user can act
+// on.
+func agenticResource(d *handlers.ProtocolDetailsAgentic) string {
+	if t := d.Labels["template"]; t != "" {
+		return t
+	}
+	if pod := d.WorkloadClaims["kubernetes.io.pod.name"]; pod != "" {
+		if ns := d.WorkloadClaims["kubernetes.io.namespace"]; ns != "" {
+			return ns + "/" + pod
+		}
+		return pod
+	}
+	return d.RunID
+}
+
 func formatProtocol(protocol idpsession.BindingProtocol) string {
 	switch protocol {
 	case idpsession.BindingProtocol_BINDING_PROTOCOL_MCP:
 		return "MCP"
 	case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
 		return "Browser"
+	case idpsession.BindingProtocol_BINDING_PROTOCOL_AGENTIC:
+		return "Agentic"
 	}
 	return "Unknown"
 }

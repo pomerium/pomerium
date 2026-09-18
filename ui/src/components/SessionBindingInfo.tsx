@@ -10,11 +10,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import type { FC } from "react";
 
-import type { SessionBindingInfoPageData } from "../types";
+import type { DetailsAgentic, SessionBindingInfoPageData } from "../types";
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
 import { SmallTooltip } from "./Tooltips";
@@ -90,6 +91,9 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                       </IconButton>
                     </Box>
                   )}
+                  {s.DetailsAgentic && (
+                    <AgenticDetails details={s.DetailsAgentic} />
+                  )}
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2">
@@ -133,6 +137,65 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
         </Table>
       </TableContainer>
     </>
+  );
+};
+
+// AgenticDetails is the sub-line block under an agentic run's headline: what the
+// user approved, which workload is acting as them, and the run id they can quote.
+// The headline itself is the template name, so it is not repeated here.
+const AgenticDetails: FC<{ details: DetailsAgentic }> = ({ details }) => {
+  const labels = Object.entries(details.Labels ?? {})
+    .filter(([k]) => k !== "template")
+    .sort(([a], [b]) => a.localeCompare(b));
+  const claims = Object.entries(details.WorkloadClaims ?? {}).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+
+  return (
+    <Box sx={{ mt: 0.5 }}>
+      {details.Prompt && (
+        <Tooltip title={details.Prompt}>
+          <Typography
+            variant="caption"
+            component="div"
+            sx={{
+              fontStyle: "italic",
+              maxWidth: 420,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            “{details.Prompt}”
+          </Typography>
+        </Tooltip>
+      )}
+      {claims.map(([path, value]) => (
+        <Typography key={path} variant="caption" component="div">
+          {path}: {value}
+        </Typography>
+      ))}
+      {labels.map(([key, value]) => (
+        <Typography key={key} variant="caption" component="div">
+          {key}: {value}
+        </Typography>
+      ))}
+      {details.RunID && (
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Typography variant="caption">{details.RunID}</Typography>
+          <SmallTooltip description="The run id. Quote it when reporting a problem with this agent run." />
+          <IconButton
+            aria-label="Copy run id"
+            size="small"
+            onClick={() => {
+              navigator.clipboard.writeText(details.RunID);
+            }}
+          >
+            <ContentCopyIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
+    </Box>
   );
 };
 
