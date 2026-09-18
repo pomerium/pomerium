@@ -394,22 +394,53 @@ func (srv *Handler) getTokenRequest(
 		return nil, authFailure(clientAuthFailedDescription, "client registration client secret has expired")
 	}
 
-	// ParseTokenRequest folds HTTP Basic credentials into ClientSecret, so both
-	// methods verify the same field; they differ only in where it came from.
-	switch m {
-	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
-		rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
-		log.Ctx(ctx).Debug().
-			Str("auth-method", m).
-			Bool("has-client-secret-in-request", tokenReq.ClientSecret != nil).
-			Msg("mcp/token: verifying client authentication")
+	// ParseTokenRequest folds credentials from either transport into ClientSecret,
+	// so the request itself is what says which mechanism the client actually
+	// used. A client is bound to the method it registered for: holding the right
+	// secret is not enough if it arrives the wrong way.
+	_, _, sentBasicCredentials := r.BasicAuth()
+	sentPostCredentials := r.PostForm.Get("client_secret") != ""
+
+	// OAuth 2.1 2.4: a client must not use more than one authentication
+	// mechanism. That is a malformed request rather than a bad client.
+	if sentBasicCredentials && sentPostCredentials {
+		return nil, fmt.Errorf("more than one client authentication mechanism was used")
+	}
+
+	verifySecret := func() error {
 		if tokenReq.ClientSecret == nil {
-			return nil, authFailure(clientAuthFailedDescription, "client_secret was not provided")
+			return authFailure(clientAuthFailedDescription, "client_secret was not provided")
 		}
 		if subtle.ConstantTimeCompare([]byte(tokenReq.GetClientSecret()), []byte(secret.Value)) != 1 {
-			return nil, authFailure(clientAuthFailedDescription, "client secret mismatch")
+			return authFailure(clientAuthFailedDescription, "client secret mismatch")
 		}
 		log.Ctx(ctx).Debug().Msg("mcp/token: client secret verified")
+		return nil
+	}
+
+	log.Ctx(ctx).Debug().
+		Str("auth-method", m).
+		Bool("sent-basic-credentials", sentBasicCredentials).
+		Bool("sent-post-credentials", sentPostCredentials).
+		Msg("mcp/token: verifying client authentication")
+
+	switch m {
+	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic:
+		if !sentBasicCredentials {
+			return nil, authFailure(clientAuthFailedDescription,
+				"client is registered for client_secret_basic but sent no Basic credentials")
+		}
+		if err := verifySecret(); err != nil {
+			return nil, err
+		}
+	case rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
+		if !sentPostCredentials {
+			return nil, authFailure(clientAuthFailedDescription,
+				"client is registered for client_secret_post but sent no client_secret parameter")
+		}
+		if err := verifySecret(); err != nil {
+			return nil, err
+		}
 	default:
 		return nil, authFailure(clientAuthFailedDescription, "unsupported token endpoint authentication method: %s", m)
 	}

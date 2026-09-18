@@ -217,6 +217,36 @@ func TestTokenClientAuthenticationErrors(t *testing.T) {
 			wantError:  "invalid_client",
 		},
 		{
+			// OAuth 2.1 2.3 ties a client to the method it registered for. The
+			// secret alone is not enough: it has to arrive the registered way.
+			name:       "client_secret_basic rejects a body secret",
+			authMethod: rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
+			secret:     &rfc7591v1.ClientSecret{Value: "correct-secret"},
+			form:       url.Values{"client_secret": {"correct-secret"}},
+			wantStatus: http.StatusBadRequest,
+			wantError:  "invalid_client",
+		},
+		{
+			name:          "client_secret_post rejects a basic header",
+			authMethod:    rfc7591v1.TokenEndpointAuthMethodClientSecretPost,
+			secret:        &rfc7591v1.ClientSecret{Value: "correct-secret"},
+			basicSecret:   new("correct-secret"),
+			wantStatus:    http.StatusUnauthorized,
+			wantError:     "invalid_client",
+			wantChallenge: `Basic realm="pomerium"`,
+		},
+		{
+			// OAuth 2.1 2.4: a client must not use more than one authentication
+			// mechanism, which is a malformed request rather than a bad client.
+			name:        "both authentication mechanisms at once",
+			authMethod:  rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
+			secret:      &rfc7591v1.ClientSecret{Value: "correct-secret"},
+			form:        url.Values{"client_secret": {"correct-secret"}},
+			basicSecret: new("correct-secret"),
+			wantStatus:  http.StatusBadRequest,
+			wantError:   "invalid_request",
+		},
+		{
 			// A Basic header Go cannot parse is still an attempt to authenticate
 			// through the Authorization header, so it gets a challenge too.
 			name:          "unknown client id with malformed basic header",
