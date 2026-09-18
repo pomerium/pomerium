@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -28,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/pkg/zero/importutil"
 )
 
 const (
@@ -1065,7 +1067,16 @@ func (srv *backendConfigServer) putEntity(
 	return records[0], nil
 }
 
-func (srv *backendConfigServer) updateLocalRecords(cfg *configpb.Config) {
+func (srv *backendConfigServer) updateLocalRecords(cfg *config.Config) {
+	// store all the known route IDs, so we can clean up names
+	routeIDs := set.New[string](0)
+	for r := range cfg.Options.GetAllPolicies() {
+		routeID, _ := r.RouteID()
+		routeIDs.Insert(routeID)
+	}
+
+	pbcfg := cfg.Options.ToProto()
+
 	srv.localMu.Lock()
 	defer srv.localMu.Unlock()
 
@@ -1075,10 +1086,12 @@ func (srv *backendConfigServer) updateLocalRecords(cfg *configpb.Config) {
 	c := storage.NewRecordCollection()
 	recordType := grpcutil.GetTypeURL(new(configpb.Settings))
 	srv.localRecords[recordType] = c
-	settings := proto.CloneOf(cfg.GetSettings())
+	settings := proto.CloneOf(pbcfg.GetSettings())
 	if settings != nil && !proto.Equal(settings, new(configpb.Settings)) {
 		settings.Id = new(LocalRecordIDPrefix + "settings")
-		settings.OriginatorId = new("local")
+		if settings.OriginatorId == nil {
+			settings.OriginatorId = new("local")
+		}
 		protoutil.ScrubSensitive(settings)
 		c.Put(&databrokerpb.Record{
 			Id:   settings.GetId(),
@@ -1091,18 +1104,29 @@ func (srv *backendConfigServer) updateLocalRecords(cfg *configpb.Config) {
 	c = storage.NewRecordCollection()
 	recordType = grpcutil.GetTypeURL(new(configpb.Route))
 	srv.localRecords[recordType] = c
-	for i, route := range cfg.GetRoutes() {
+	var routes []*configpb.Route
+	for _, route := range pbcfg.GetRoutes() {
 		route = proto.CloneOf(route)
 		if route != nil && !proto.Equal(route, new(configpb.Route)) {
-			route.Id = new(fmt.Sprintf(LocalRecordIDPrefix+"route-%d", i))
-			route.OriginatorId = new("local")
-			protoutil.ScrubSensitive(route)
-			c.Put(&databrokerpb.Record{
-				Id:   route.GetId(),
-				Type: recordType,
-				Data: protoutil.NewAny(route),
-			})
+			routes = append(routes, route)
 		}
+	}
+	// for generated names, replace them with names from the import util
+	names := importutil.GenerateRouteNames(routes)
+	for i, route := range routes {
+		route.Id = new(fmt.Sprintf(LocalRecordIDPrefix+"route-%d", i))
+		if route.OriginatorId == nil {
+			route.OriginatorId = new("local")
+		}
+		if routeIDs.Contains(route.GetName()) {
+			route.Name = new(names[i])
+		}
+		protoutil.ScrubSensitive(route)
+		c.Put(&databrokerpb.Record{
+			Id:   route.GetId(),
+			Type: recordType,
+			Data: protoutil.NewAny(route),
+		})
 	}
 }
 
