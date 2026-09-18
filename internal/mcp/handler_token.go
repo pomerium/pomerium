@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -393,17 +394,19 @@ func (srv *Handler) getTokenRequest(
 		return nil, authFailure(clientAuthFailedDescription, "client registration client secret has expired")
 	}
 
+	// ParseTokenRequest folds HTTP Basic credentials into ClientSecret, so both
+	// methods verify the same field; they differ only in where it came from.
 	switch m {
-	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic:
-		log.Ctx(ctx).Debug().Msg("mcp/token: client_secret_basic authentication (handled by HTTP layer)")
-	case rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
+	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
+		rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
 		log.Ctx(ctx).Debug().
+			Str("auth-method", m).
 			Bool("has-client-secret-in-request", tokenReq.ClientSecret != nil).
-			Msg("mcp/token: verifying client_secret_post authentication")
+			Msg("mcp/token: verifying client authentication")
 		if tokenReq.ClientSecret == nil {
 			return nil, authFailure(clientAuthFailedDescription, "client_secret was not provided")
 		}
-		if tokenReq.GetClientSecret() != secret.Value {
+		if subtle.ConstantTimeCompare([]byte(tokenReq.GetClientSecret()), []byte(secret.Value)) != 1 {
 			return nil, authFailure(clientAuthFailedDescription, "client secret mismatch")
 		}
 		log.Ctx(ctx).Debug().Msg("mcp/token: client secret verified")
