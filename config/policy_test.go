@@ -62,6 +62,12 @@ func Test_PolicyValidate(t *testing.T) {
 		{"unix To URLs", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "unix:///var/run/docker.sock")}, false},
 		{"https+unix To URLs", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "https+unix:///var/run/docker.sock")}, false},
 		{"mix of unix and non-unix To URLs", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "unix:///var/run/docker.sock", "https://example.com")}, true},
+		{"internal agentic upstream", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "pomerium://agentic")}, false},
+		{"unknown internal upstream", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "pomerium://databroker")}, true},
+		{"internal upstream with a port", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "pomerium://agentic:9300")}, true},
+		{"internal upstream with a path", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "pomerium://agentic/runs")}, true},
+		{"internal upstream mixed with another", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "pomerium://agentic", "https://example.com")}, true},
+		{"internal upstream twice", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "pomerium://agentic", "pomerium://agentic")}, true},
 		{"too many depends_on hosts", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.notatld"), DependsOn: []string{"a", "b", "c", "d", "e", "f"}}, true},
 	}
 

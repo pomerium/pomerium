@@ -381,6 +381,10 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 	if err != nil {
 		return fmt.Errorf("error adding proxy service to control plane: %w", err)
 	}
+	// The agentic authorization server answers on its own listener, bound before
+	// the proxy exists, so its handler is registered here. The routes that point
+	// at that listener are what authorize the AS's endpoints.
+	controlPlane.SetAgenticHandler(svc.AgenticHandler())
 
 	log.Ctx(ctx).Info().Msg("enabled proxy service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)

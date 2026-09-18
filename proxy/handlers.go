@@ -39,6 +39,12 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 		})
 	}
 
+	// The agentic authorization server is deliberately NOT mounted here. Every
+	// /.pomerium/* path is internal to the ext_authz context, which means no
+	// route, no policy and no admin statement about who may summon, exchange or
+	// approve. It has its own listener (pomerium://agentic) reached through ordinary
+	// routes instead, and those routes are the authorization.
+
 	// special pomerium endpoints for users to view their session
 	h.Path("/").Handler(httputil.HandlerFunc(p.userInfo)).Methods(http.MethodGet)
 	h.Path("/" + endpoints.SubPathDeviceEnrolled).Handler(httputil.HandlerFunc(p.deviceEnrolled))

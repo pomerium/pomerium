@@ -1377,6 +1377,21 @@ func Test_buildPolicyCluster(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "stat-name", cluster.AltStatName)
 	})
+	t.Run("internal agentic upstream", func(t *testing.T) {
+		t.Parallel()
+		cfg := config.New(config.NewDefaultOptions())
+		cfg.AgenticPort = "9300"
+		cluster, err := b.buildPolicyCluster(t.Context(), cfg, &config.Policy{
+			From: "https://from.example.com",
+			To:   mustParseWeightedURLs(t, "pomerium://agentic"),
+		})
+		require.NoError(t, err)
+		sa := cluster.GetLoadAssignment().GetEndpoints()[0].GetLbEndpoints()[0].GetEndpoint().GetAddress().GetSocketAddress()
+		assert.Equal(t, "127.0.0.1", sa.GetAddress())
+		assert.Equal(t, uint32(9300), sa.GetPortValue())
+		assert.Nil(t, cluster.GetTransportSocket(), "the loopback listener speaks plain HTTP")
+		assert.Empty(t, cluster.GetTransportSocketMatches(), "the loopback listener speaks plain HTTP")
+	})
 }
 
 func TestSshConnectionBufferLimits(t *testing.T) {

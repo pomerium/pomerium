@@ -721,6 +721,16 @@ func (p *Policy) Validate() error {
 		return fmt.Errorf("config: cannot mix unix and non-unix To URLs")
 	}
 
+	// An internal upstream is one loopback service: nothing to balance across.
+	if _, hasInternal := toSchemes[InternalUpstreamScheme]; hasInternal {
+		if len(p.To) > 1 {
+			return fmt.Errorf("config: a %s:// To URL must be the route's only one", InternalUpstreamScheme)
+		}
+		if err := validateInternalUpstream(&p.To[0].URL); err != nil {
+			return fmt.Errorf("config: %w", err)
+		}
+	}
+
 	if err := p.Redirect.validate(); err != nil {
 		return fmt.Errorf("config: %w", err)
 	}

@@ -288,6 +288,14 @@ func (b *Builder) buildPolicyEndpoints(
 ) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.To {
+		if config.IsInternalUpstream(&dst.URL) {
+			u, err := resolveInternalUpstream(cfg, &dst.URL)
+			if err != nil {
+				return nil, err
+			}
+			endpoints = append(endpoints, NewEndpoint(u, nil, dst.LbWeight))
+			continue
+		}
 		ts, err := b.buildPolicyTransportSocket(ctx, cfg, policy, dst.URL)
 		if err != nil {
 			return nil, err
@@ -706,4 +714,14 @@ func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) (*envoy_extensions_
 		}
 	}
 	return cfg, nil
+}
+
+// resolveInternalUpstream turns a pomerium://<name> upstream into the loopback
+// address of the listener serving it.
+func resolveInternalUpstream(cfg *config.Config, u *url.URL) (*url.URL, error) {
+	switch u.Hostname() {
+	case config.InternalUpstreamAgentic:
+		return &url.URL{Scheme: "http", Host: net.JoinHostPort("127.0.0.1", cfg.AgenticPort)}, nil
+	}
+	return nil, fmt.Errorf("unknown %s:// upstream %q", config.InternalUpstreamScheme, u.Hostname())
 }
