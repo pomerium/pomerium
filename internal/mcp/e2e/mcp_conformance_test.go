@@ -223,8 +223,6 @@ func runMCPConformance(t *testing.T, mode registrationMode) {
 			})
 
 			t.Run("missing_basic_auth_fails", func(t *testing.T) {
-				t.Skip("TODO: client_secret_basic validation not yet implemented in handler_token.go")
-
 				// Need a new auth code since the previous one was consumed
 				newCodeVerifier := cryptutil.NewRandomStringN(64)
 				newAuthCode := getAuthCode(t, clientID, newCodeVerifier)
@@ -242,8 +240,6 @@ func runMCPConformance(t *testing.T, mode registrationMode) {
 			})
 
 			t.Run("wrong_secret_fails", func(t *testing.T) {
-				t.Skip("TODO: client_secret_basic validation not yet implemented in handler_token.go")
-
 				newCodeVerifier := cryptutil.NewRandomStringN(64)
 				newAuthCode := getAuthCode(t, clientID, newCodeVerifier)
 

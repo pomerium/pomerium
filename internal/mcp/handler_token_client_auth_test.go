@@ -200,6 +200,23 @@ func TestTokenClientAuthenticationErrors(t *testing.T) {
 			wantChallenge: `Basic realm="pomerium"`,
 		},
 		{
+			name:          "client_secret_basic with wrong secret",
+			authMethod:    rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
+			secret:        &rfc7591v1.ClientSecret{Value: "correct-secret"},
+			basicSecret:   new("wrong-secret"),
+			omitClientID:  true,
+			wantStatus:    http.StatusUnauthorized,
+			wantError:     "invalid_client",
+			wantChallenge: `Basic realm="pomerium"`,
+		},
+		{
+			name:       "client_secret_basic with no credentials",
+			authMethod: rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
+			secret:     &rfc7591v1.ClientSecret{Value: "correct-secret"},
+			wantStatus: http.StatusBadRequest,
+			wantError:  "invalid_client",
+		},
+		{
 			// A Basic header Go cannot parse is still an attempt to authenticate
 			// through the Authorization header, so it gets a challenge too.
 			name:          "unknown client id with malformed basic header",
