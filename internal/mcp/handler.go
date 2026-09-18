@@ -50,10 +50,12 @@ type Handler struct {
 	hosts   *HostInfo
 	// singleFlight deduplicates concurrent auxiliary operations keyed by a namespace
 	// prefix: "dcr:" for dynamic client registrations, "mcp:" for upstream token refreshes.
-	singleFlight            singleflight.Group
-	clientMetadataFetcher   *ClientMetadataFetcher
-	getAuthenticator        AuthenticatorGetter
-	sessionExpiry           time.Duration
+	singleFlight          singleflight.Group
+	clientMetadataFetcher *ClientMetadataFetcher
+	getAuthenticator      AuthenticatorGetter
+	// accessTokenTTL is the lifetime of the access tokens minted to MCP clients.
+	// It is independent of the MCP client session's own expiry (RefreshTokenTTL).
+	accessTokenTTL          time.Duration
 	httpClient              *http.Client // for upstream discovery fetches
 	asMetadataDomainMatcher *DomainMatcher
 	dcrEnabled              bool
@@ -78,11 +80,12 @@ func WithAuthenticatorGetter(getter AuthenticatorGetter) HandlerOption {
 	}
 }
 
-// WithSessionExpiry sets the session expiry duration.
-// This overrides the default from config.Options.CookieExpire.
-func WithSessionExpiry(d time.Duration) HandlerOption {
+// WithAccessTokenTTL sets the lifetime of the access tokens minted to MCP
+// clients, overriding the default of config.Options.CookieExpire. It does not
+// affect the MCP client session, which lives as long as its refresh token.
+func WithAccessTokenTTL(d time.Duration) HandlerOption {
 	return func(h *Handler) {
-		h.sessionExpiry = d
+		h.accessTokenTTL = d
 	}
 }
 
@@ -134,7 +137,7 @@ func New(
 		cipher:                  cipher,
 		hosts:                   NewHostInfo(cfg, http.DefaultClient),
 		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
-		sessionExpiry:           cfg.Options.CookieExpire,
+		accessTokenTTL:          cfg.Options.CookieExpire,
 		httpClient:              http.DefaultClient,
 		asMetadataDomainMatcher: asDomainMatcher,
 		dcrEnabled: cfg.Options.IsRuntimeFlagSet(

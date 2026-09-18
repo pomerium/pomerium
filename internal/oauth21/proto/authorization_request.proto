@@ -44,9 +44,10 @@ message AuthorizationRequest {
   // transformation method is S256 or plain.
   optional string code_challenge_method = 7 [(buf.validate.field).string = {in: ["S256", "plain"]}];
 
-  // session this authorization request is associated with.
-  // This is a Pomerium implementation specific field.
-  string session_id = 8 [(buf.validate.field).required = true];
+  // Field 8 (session_id) was the initiating browser session. The token exchange
+  // resolves the user's centralized IdP session from user_id instead.
+  reserved 8;
+  reserved "session_id";
   // user id this authorization request is associated with.
   // This is a Pomerium implementation specific field.
   string user_id = 9 [(buf.validate.field).required = true];

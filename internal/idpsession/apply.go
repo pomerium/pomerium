@@ -1,7 +1,6 @@
 package idpsession
 
 import (
-	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -58,14 +57,4 @@ func (i *idpSessionApplier) ApplyToUser(u *user.User) {
 		return
 	}
 	u.AddClaims(identity.Claims(i.Claims.AsMap()).Flatten())
-}
-
-func (i *idpSessionApplier) ApplyToMCP(token *oauth21.MCPRefreshToken) *oauth21.MCPRefreshToken {
-	if token == nil {
-		return nil
-	}
-	if i != nil {
-		token.UpstreamRefreshToken = i.OauthToken.GetRefreshToken()
-	}
-	return token
 }

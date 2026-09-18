@@ -349,7 +349,6 @@ func TestClientOAuthCallback(t *testing.T) {
 			ResponseType:        "code",
 			RedirectUri:         new("https://mcp-client.example.com/callback"),
 			State:               new("downstream-state"),
-			SessionId:           "test-session-id",
 			UserId:              "test-user-id",
 			CodeChallenge:       new(codeChallenge),
 			CodeChallengeMethod: new("S256"),
