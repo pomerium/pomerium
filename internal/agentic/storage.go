@@ -54,7 +54,15 @@ func PutRun(ctx context.Context, client databroker.DataBrokerServiceClient, run 
 // executor. It must never be zero: ApplyOffsetAndLimit reads a zero limit as
 // "take zero", not "no limit", which would turn every exchange into a permanent
 // authorization_pending with nothing logged anywhere.
-const sealLookupLimit = 10
+//
+// The databroker applies the limit BEFORE the selection below runs, so the
+// window is not a performance knob — a live approved run falling outside it is
+// silently shadowed by a pending one and a human's approval becomes
+// unreachable. The bound is therefore set far above what one executor can
+// plausibly accumulate rather than at a tidy page size: the seal index includes
+// kubernetes.io.pod.uid (see sealIndexKey), so these are the runs summoned by a
+// single pod, and a pod reaching this many is pathological rather than busy.
+const sealLookupLimit = 200
 
 // QueryRunByBoundClaimsIndex resolves the run sealed to the executor whose
 // canonical bound-claims index is boundClaimsIndex, using the databroker's native
@@ -87,8 +95,11 @@ func QueryRunByBoundClaimsIndex(ctx context.Context, client databroker.DataBroke
 	if total := res.GetTotalCount(); total > sealLookupLimit {
 		// TotalCount is the pre-limit count, so this says the window did not cover
 		// every candidate and the selection below may not have seen the right one.
-		log.Ctx(ctx).Warn().Int64("total", total).Int("considered", sealLookupLimit).
-			Msg("agentic: more runs are sealed to one executor than the seal lookup considers")
+		// An approved run may now be unreachable, which is a fault rather than a
+		// slow path: log it as one.
+		log.Ctx(ctx).Error().Int64("total", total).Int("considered", sealLookupLimit).
+			Str("bound_claims_index", boundClaimsIndex).
+			Msg("agentic: more runs are sealed to one executor than the seal lookup considers; an approved run may be unreachable")
 	}
 
 	var best *agenticpb.Run
