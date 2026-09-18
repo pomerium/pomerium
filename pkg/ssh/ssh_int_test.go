@@ -54,7 +54,7 @@ import (
 // handle however, such as rejecting a public key via policy, then accepting a different one after
 // a retry. If the current version would reject the request but the future version accepts it, the
 // test case is skipped.
-const future = false
+const future = true
 
 type PublicKeyType int
 
@@ -1744,7 +1744,7 @@ allow:
 
 	cc := s.newClientConfig("username", "route1", "route1-user1@example.com")
 	client1, err := s.upstream.Dial(cc)
-	s.NoError(err)
+	s.Require().NoError(err)
 	defer client1.Close()
 
 	VerifyWorkingShell(s.T(), client1)
@@ -1761,7 +1761,8 @@ func createIdpUsers(publicKeyType PublicKeyType) []IdpUserOptions {
 	// Use these when testing access to a specific route
 	for r := range idpUserMaxRoutes {
 		for u := range idpUserMaxUsers {
-			idpUsers = append(idpUsers,
+			idpUsers = append(
+				idpUsers,
 				IdpUserOptions{
 					Email: fmt.Sprintf("route%d-user%d@example.com", r, u),
 					Claims: map[string]any{
@@ -1783,7 +1784,8 @@ func createIdpUsers(publicKeyType PublicKeyType) []IdpUserOptions {
 	// `certuser[A-Z]@example.com`
 	// Use these when testing access across multiple routes, or to the internal CLI
 	for i := 'A'; i <= 'Z'; i++ {
-		idpUsers = append(idpUsers,
+		idpUsers = append(
+			idpUsers,
 			IdpUserOptions{
 				Email: fmt.Sprintf("user%c@example.com", i),
 				Claims: map[string]any{
