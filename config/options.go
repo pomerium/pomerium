@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"iter"
 	"maps"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -59,6 +60,12 @@ const DisableHeaderKey = "disable"
 // somebody comes back to the next morning must still be revivable, and the
 // security property lives on the token's own (much shorter) expiry, not here.
 const defaultAgenticRunIdleTimeout = 48 * time.Hour
+
+// agenticRunRecordTTLSlack is how much longer than the idle timeout an
+// agentic.Run record is kept: slack for clock skew and for the gap between the
+// last mint and the sweep. It also bounds the configurable idle timeout, since
+// the two are added together (see GetAgenticRunRecordTTL and Validate).
+const agenticRunRecordTTLSlack = 24 * time.Hour
 
 // The randomSharedKey is used if no shared key is supplied in all-in-one mode.
 var randomSharedKey = cryptutil.NewBase64Key()
@@ -395,10 +402,13 @@ func (o *Options) GetAgenticRunIdleTimeout() time.Duration {
 // GetAgenticRunRecordTTL returns the storage TTL registered for agentic.Run
 // records. It is derived from the idle timeout rather than configured, because
 // the two are not independent: a TTL shorter than the idle window would delete
-// runs that are still being renewed. The extra day is slack for clock skew and
-// for the gap between the last mint and the sweep.
+// runs that are still being renewed. The extra day is agenticRunRecordTTLSlack.
+//
+// Validate bounds the configurable idle timeout so this addition cannot
+// overflow: a negative TTL would make the databroker treat every run as already
+// expired.
 func (o *Options) GetAgenticRunRecordTTL() time.Duration {
-	return o.GetAgenticRunIdleTimeout() + 24*time.Hour
+	return o.GetAgenticRunIdleTimeout() + agenticRunRecordTTLSlack
 }
 
 var defaultSetResponseHeaders = map[string]string{
@@ -753,6 +763,13 @@ func (o *Options) Validate() error {
 
 	if o.AgenticRunIdleTimeout < 0 {
 		return fmt.Errorf("config: agentic_run_idle_timeout must not be negative")
+	}
+	// GetAgenticRunRecordTTL adds agenticRunRecordTTLSlack to this value. Without
+	// an upper bound that addition overflows into a negative TTL, which would be
+	// accepted here and then expire every run record immediately.
+	if o.AgenticRunIdleTimeout > math.MaxInt64-agenticRunRecordTTLSlack {
+		return fmt.Errorf("config: agentic_run_idle_timeout must not exceed %s",
+			time.Duration(math.MaxInt64-agenticRunRecordTTLSlack))
 	}
 
 	// validate metrics basic auth
