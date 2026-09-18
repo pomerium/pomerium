@@ -1494,6 +1494,7 @@ components:
         - BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN
         - BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN
         - BEARER_TOKEN_FORMAT_JWT
+        - BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN
       description: Controls how HTTP bearer token authentication is handled.
     pomerium.config.BlobStorageSettings:
       type: object

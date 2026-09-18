@@ -21,6 +21,10 @@ const (
 	UnsupportedGrantType ErrorCode = "unsupported_grant_type"
 	// InvalidScope The requested scope is invalid, unknown, malformed, or exceeds the scope granted by the resource owner.
 	InvalidScope ErrorCode = "invalid_scope"
+	// AuthorizationPending The authorization request is still pending as the end-user has not yet been authenticated or has not yet approved the request (CIBA / device flow, RFC 8628 §3.5).
+	AuthorizationPending ErrorCode = "authorization_pending"
+	// AccessDenied The authorization request was denied (CIBA / device flow, RFC 8628 §3.5).
+	AccessDenied ErrorCode = "access_denied"
 )
 
 type Error struct {

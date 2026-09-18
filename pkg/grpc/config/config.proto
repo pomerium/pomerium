@@ -149,6 +149,11 @@ enum BearerTokenFormat {
   // enforced per-provider. Authorization on the verified claims is left to PPL
   // (claim/...).
   BEARER_TOKEN_FORMAT_JWT = 4;
+  // The bearer token will be interpreted as an opaque Pomerium-minted agentic
+  // run token (pom_art_...), resolved server-side against a revocable run
+  // record and bound to the approver's session. This is the explicit per-route
+  // opt-in for non-MCP routes; the `agentic` runtime flag gates the feature.
+  BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN = 5;
 }
 
 // Action to take when Envoy receives client request with header names containing underscore characters.
