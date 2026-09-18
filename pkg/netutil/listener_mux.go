@@ -120,6 +120,74 @@ func (lm *ListenerMux) Listen(network string, addr string, listenerID string) (n
 	}, nil
 }
 
+// does not implement the entire net.Listener interface, only what is required
+// by proxyListener
+type virtualListenerStub struct {
+	addr  net.Addr
+	close func() error
+}
+
+func (vl *virtualListenerStub) Addr() net.Addr {
+	return vl.addr
+}
+
+func (vl *virtualListenerStub) Close() error {
+	return vl.close()
+}
+
+// AddVirtualListener creates a listener that doesn't have a real corresponding
+// network listener, and can only accept connections from other listeners via
+// initial metadata header. The address argument is the value that should be
+// returned from the virtual listener's Addr() method (most likely this should
+// be the address of a different real listener)
+//
+// Other than not being able to dial directly to it, the virtual listener
+// functions the same as a regular Listener. Closing the virtual listener will
+// prevent new connections from being routed to it, but existing connections
+// will remain intact as usual.
+func (lm *ListenerMux) AddVirtualListener(addr net.Addr, listenerID string) net.Listener {
+	accept := make(chan acceptTuple)
+
+	closed := make(chan struct{})
+	done := make(chan struct{})
+
+	lm.listenersMu.Lock()
+	if _, ok := lm.listeners[listenerID]; ok {
+		lm.listenersMu.Unlock()
+		panic(fmt.Sprintf("listener with id '%s' already exists and is not yet closed", listenerID))
+	}
+	lm.listeners[listenerID] = &proxyListenerChannels{
+		accept: accept,
+		closed: closed,
+	}
+	lm.listenersMu.Unlock()
+
+	return &proxyListener{
+		real: &virtualListenerStub{
+			addr: addr,
+			close: func() error {
+				lm.listenersMu.Lock()
+				// close this under lock so that receivers unblocked on Close will need to
+				// wait to acquire the writer lock if they decide to immediately call Listen
+				// again, and at that time the listener with this ID will be removed from
+				// lm.listeners
+				close(done)
+				delete(lm.listeners, listenerID)
+				lm.listenersMu.Unlock()
+				return nil
+			},
+		},
+		accept: accept,
+		close: func() {
+			// this is otherwise used to cancel the internal accept loop but there
+			// isn't one, so just close the closed channel right away
+			close(closed)
+		},
+		closed: closed,
+		done:   done,
+	}
+}
+
 func (lm *ListenerMux) acceptLoop(listenerCtx context.Context, realListener net.Listener, listenerID string) {
 	lm.logger.Debug().
 		Str("source", listenerID).

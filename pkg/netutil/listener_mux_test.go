@@ -3,6 +3,7 @@ package netutil_test
 import (
 	"errors"
 	"net"
+	"net/netip"
 	"path"
 	"runtime"
 	"strings"
@@ -18,531 +19,550 @@ import (
 	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
+func testNormalAndVirtualListeners(t *testing.T, fn func(t *testing.T, httpListener net.Listener, grpcListener net.Listener, grpcListenerIsVirtual bool) (shouldCleanup bool)) {
+	t.Run("normal listeners", func(t *testing.T) {
+		mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
+		httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
+		require.NoError(t, err)
+		grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
+		require.NoError(t, err)
+
+		if fn(t, httpListener, grpcListener, false) {
+			assert.NoError(t, httpListener.Close())
+			assert.NoError(t, grpcListener.Close())
+		}
+	})
+	t.Run("virtual grpc listener", func(t *testing.T) {
+		mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
+		httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
+		require.NoError(t, err)
+		grpcListener := mux.AddVirtualListener(httpListener.Addr(), "grpc")
+		assert.Equal(t, httpListener.Addr(), grpcListener.Addr())
+
+		if fn(t, httpListener, grpcListener, true) {
+			assert.NoError(t, httpListener.Close())
+			assert.NoError(t, grpcListener.Close())
+		}
+	})
+}
+
 func TestListenerMux(t *testing.T) {
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, grpcListenerIsVirtual bool) (shouldCleanup bool) {
+		acceptHTTPConnAndVerify := func(expectedData string) {
+			t.Helper()
+			timer := time.AfterFunc(1*time.Second, func() {
+				t.Error("timed out waiting to accept http connection")
+				httpListener.Close()
+			})
+			sc, err := httpListener.Accept()
+			timer.Stop()
+			require.NoError(t, err)
+			data := make([]byte, len(expectedData))
+			n, err := sc.Read(data[:])
+			require.NoError(t, err)
+			require.Equal(t, len(expectedData), n)
+			require.Equal(t, expectedData, string(data[:]))
+			require.NoError(t, sc.Close())
+		}
 
-	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	require.NoError(t, err)
-	grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-	require.NoError(t, err)
+		acceptGrpcConnAndVerify := func(expectedData string) {
+			t.Helper()
+			timer := time.AfterFunc(1*time.Second, func() {
+				t.Error("timed out waiting to accept grpc connection")
+				grpcListener.Close()
+			})
+			sc, err := grpcListener.Accept()
+			timer.Stop()
+			require.NoError(t, err)
+			data := make([]byte, len(expectedData))
+			n, err := sc.Read(data[:])
+			require.NoError(t, err)
+			require.Equal(t, len(expectedData), n)
+			require.Equal(t, expectedData, string(data[:]))
+			require.NoError(t, sc.Close())
+		}
 
-	t.Cleanup(func() { assert.NoError(t, httpListener.Close()) })
-	t.Cleanup(func() { assert.NoError(t, grpcListener.Close()) })
+		dialHTTPNormal := func(data string) {
+			cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+			require.NoError(t, err)
+			cc.Write([]byte(data))
+		}
 
-	acceptHTTPConnAndVerify := func(expectedData string) {
-		t.Helper()
-		timer := time.AfterFunc(1*time.Second, func() {
-			t.Error("timed out waiting to accept http connection")
-			httpListener.Close()
-		})
-		sc, err := httpListener.Accept()
-		timer.Stop()
-		require.NoError(t, err)
-		data := make([]byte, len(expectedData))
-		n, err := sc.Read(data[:])
-		require.NoError(t, err)
-		require.Equal(t, len(expectedData), n)
-		require.Equal(t, expectedData, string(data[:]))
-		require.NoError(t, sc.Close())
-	}
+		dialGRPCNormal := func(data string) {
+			cc, err := net.Dial(grpcListener.Addr().Network(), grpcListener.Addr().String())
+			require.NoError(t, err)
+			cc.Write([]byte(data))
+		}
 
-	acceptGrpcConnAndVerify := func(expectedData string) {
-		t.Helper()
-		timer := time.AfterFunc(1*time.Second, func() {
-			t.Error("timed out waiting to accept grpc connection")
-			grpcListener.Close()
-		})
-		sc, err := grpcListener.Accept()
-		timer.Stop()
-		require.NoError(t, err)
-		data := make([]byte, len(expectedData))
-		n, err := sc.Read(data[:])
-		require.NoError(t, err)
-		require.Equal(t, len(expectedData), n)
-		require.Equal(t, expectedData, string(data[:]))
-		require.NoError(t, sc.Close())
-	}
+		dialHTTPWithInitialMetadata := func(metadata string, data string) {
+			require.LessOrEqual(t, len(metadata), 255)
+			cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+			require.NoError(t, err)
+			cc.Write(append(append(
+				[]byte{0x37, 0x32, 0x36, 0x31, byte(len(metadata))},
+				metadata...),
+				data...))
+		}
 
-	dialHTTPNormal := func(data string) {
-		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-		require.NoError(t, err)
-		cc.Write([]byte(data))
-	}
+		dialGRPCWithInitialMetadata := func(metadata string, data string) {
+			require.LessOrEqual(t, len(metadata), 255)
+			cc, err := net.Dial(grpcListener.Addr().Network(), grpcListener.Addr().String())
+			require.NoError(t, err)
+			cc.Write(append(append(
+				[]byte{0x37, 0x32, 0x36, 0x31, byte(len(metadata))},
+				metadata...),
+				data...))
+		}
 
-	dialGRPCNormal := func(data string) {
-		cc, err := net.Dial(grpcListener.Addr().Network(), grpcListener.Addr().String())
-		require.NoError(t, err)
-		cc.Write([]byte(data))
-	}
+		go dialHTTPNormal("http traffic")
+		acceptHTTPConnAndVerify("http traffic")
 
-	dialHTTPWithInitialMetadata := func(metadata string, data string) {
-		require.LessOrEqual(t, len(metadata), 255)
-		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-		require.NoError(t, err)
-		cc.Write(append(append(
-			[]byte{0x37, 0x32, 0x36, 0x31, byte(len(metadata))},
-			metadata...),
-			data...))
-	}
+		go dialHTTPWithInitialMetadata("grpc", "http to grpc")
+		acceptGrpcConnAndVerify("http to grpc")
 
-	dialGRPCWithInitialMetadata := func(metadata string, data string) {
-		require.LessOrEqual(t, len(metadata), 255)
-		cc, err := net.Dial(grpcListener.Addr().Network(), grpcListener.Addr().String())
-		require.NoError(t, err)
-		cc.Write(append(append(
-			[]byte{0x37, 0x32, 0x36, 0x31, byte(len(metadata))},
-			metadata...),
-			data...))
-	}
+		if !grpcListenerIsVirtual {
+			go dialGRPCNormal("grpc traffic")
+			acceptGrpcConnAndVerify("grpc traffic")
 
-	go dialHTTPNormal("http traffic")
-	acceptHTTPConnAndVerify("http traffic")
+			go dialGRPCWithInitialMetadata("http", "grpc to http")
+			acceptHTTPConnAndVerify("grpc to http")
+		}
 
-	go dialGRPCNormal("grpc traffic")
-	acceptGrpcConnAndVerify("grpc traffic")
-
-	go dialHTTPWithInitialMetadata("grpc", "http to grpc")
-	acceptGrpcConnAndVerify("http to grpc")
-
-	go dialGRPCWithInitialMetadata("http", "grpc to http")
-	acceptHTTPConnAndVerify("grpc to http")
+		return true
+	})
 }
 
 func TestListenerMux_CloseOnRealAcceptErr(t *testing.T) {
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+		httpErr := make(chan error)
+		go func() {
+			_, err := httpListener.Accept()
+			httpErr <- err
+		}()
 
-	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	require.NoError(t, err)
-	grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-	require.NoError(t, err)
+		grpcErr := make(chan error)
+		go func() {
+			_, err := grpcListener.Accept()
+			grpcErr <- err
+		}()
 
-	httpErr := make(chan error)
-	go func() {
-		_, err := httpListener.Accept()
-		httpErr <- err
-	}()
+		runtime.Gosched()
 
-	grpcErr := make(chan error)
-	go func() {
-		_, err := grpcListener.Accept()
-		grpcErr <- err
-	}()
+		select {
+		case <-httpErr:
+			t.Fail()
+		default:
+		}
 
-	runtime.Gosched()
+		select {
+		case <-grpcErr:
+			t.Fail()
+		default:
+		}
 
-	select {
-	case <-httpErr:
-		t.Fail()
-	default:
-	}
+		require.NoError(t, httpListener.Close())
+		err := <-httpErr
+		require.ErrorIs(t, err, net.ErrClosed)
 
-	select {
-	case <-grpcErr:
-		t.Fail()
-	default:
-	}
+		require.NoError(t, grpcListener.Close())
+		err = <-grpcErr
+		require.ErrorIs(t, err, net.ErrClosed)
 
-	require.NoError(t, httpListener.Close())
-	err = <-httpErr
-	require.ErrorIs(t, err, net.ErrClosed)
-
-	require.NoError(t, grpcListener.Close())
-	err = <-grpcErr
-	require.ErrorIs(t, err, net.ErrClosed)
+		return false
+	})
 }
 
 func TestListenerMux_CloseWhileWaitingForProxyListenerAccept(t *testing.T) {
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
-
-	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	require.NoError(t, err)
-	grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-	require.NoError(t, err)
-
-	{
-		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-		require.NoError(t, err)
-
-		n, err := cc.Write(append(append(
-			[]byte{0x37, 0x32, 0x36, 0x31, byte(len("grpc"))},
-			"grpc"...),
-			"hello world"...))
-		assert.Equal(t, 20, n)
-		assert.NoError(t, err)
-		// now the listener mux will be waiting for the proxy grpc listener to accept
-		// a connection
-		require.NoError(t, grpcListener.Close())
-		// acceptLoop is guaranteed to exit before Close() returns, so the client
-		// connection is in the process of being closed. It may take a short
-		// amount of time for the socket to be closed on the client end.
-		assertConnectionClosed(t, cc)
-	}
-
-	{
-		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-		require.NoError(t, err)
-		n, err := cc.Write([]byte("hello world"))
-		assert.Equal(t, 11, n)
-		assert.NoError(t, err)
-		// same thing as above but routing to the normal listener
-		require.NoError(t, httpListener.Close())
-		assertConnectionClosed(t, cc)
-	}
-}
-
-func TestListenerMux_ReadUnknownListenerID(t *testing.T) {
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
-
-	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	require.NoError(t, err)
-	grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-	require.NoError(t, err)
-
-	t.Cleanup(func() { assert.NoError(t, httpListener.Close()) })
-	t.Cleanup(func() { assert.NoError(t, grpcListener.Close()) })
-
-	for _, invalidID := range []string{
-		"unknown",
-		"",
-		strings.Repeat("a", 255),
-		"http\x00",
-	} {
-		t.Run("", func(t *testing.T) {
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+		{
 			cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
 			require.NoError(t, err)
 
-			cc.Write(append(append(
-				[]byte{0x37, 0x32, 0x36, 0x31, byte(len(invalidID))},
-				invalidID...),
+			n, err := cc.Write(append(append(
+				[]byte{0x37, 0x32, 0x36, 0x31, byte(len("grpc"))},
+				"grpc"...),
 				"hello world"...))
-			cc.SetReadDeadline(time.Now().Add(100 * time.Millisecond)) // this shouldn't be hit
-			var b [1]byte
-			n, err := cc.Read(b[:])
-			assert.Equal(t, 0, n)
-			require.ErrorContains(t, err, "connection reset by peer")
-		})
-	}
+			assert.Equal(t, 20, n)
+			assert.NoError(t, err)
+			// now the listener mux will be waiting for the proxy grpc listener to accept
+			// a connection
+			require.NoError(t, grpcListener.Close())
+			// acceptLoop is guaranteed to exit before Close() returns, so the client
+			// connection is in the process of being closed. It may take a short
+			// amount of time for the socket to be closed on the client end.
+			assertConnectionClosed(t, cc)
+		}
+
+		{
+			cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+			require.NoError(t, err)
+			n, err := cc.Write([]byte("hello world"))
+			assert.Equal(t, 11, n)
+			assert.NoError(t, err)
+			// same thing as above but routing to the normal listener
+			require.NoError(t, httpListener.Close())
+			assertConnectionClosed(t, cc)
+		}
+
+		return false
+	})
+}
+
+func TestListenerMux_ReadUnknownListenerID(t *testing.T) {
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, _ net.Listener, _ bool) (shouldCleanup bool) {
+		for _, invalidID := range []string{
+			"unknown",
+			"",
+			strings.Repeat("a", 255),
+			"http\x00",
+		} {
+			t.Run("", func(t *testing.T) {
+				cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+				require.NoError(t, err)
+
+				cc.Write(append(append(
+					[]byte{0x37, 0x32, 0x36, 0x31, byte(len(invalidID))},
+					invalidID...),
+					"hello world"...))
+				cc.SetReadDeadline(time.Now().Add(100 * time.Millisecond)) // this shouldn't be hit
+				var b [1]byte
+				n, err := cc.Read(b[:])
+				assert.Equal(t, 0, n)
+				require.ErrorContains(t, err, "connection reset by peer")
+			})
+		}
+
+		return true
+	})
 }
 
 func TestListenerMux_ReadIncompleteHeader(t *testing.T) {
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
-	var httpListener net.Listener
-
 	defaultRecvTimeout := netutil.InitialRecvTimeout
 	netutil.InitialRecvTimeout = 250 * time.Millisecond
 	t.Cleanup(func() {
 		netutil.InitialRecvTimeout = defaultRecvTimeout
 	})
 
-	setup := func(t *testing.T) {
-		var err error
-		httpListener, err = mux.Listen("tcp", "127.0.0.1:0", "http")
-		require.NoError(t, err)
-		grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-		require.NoError(t, err)
-
-		t.Cleanup(func() { httpListener.Close() })
-		t.Cleanup(func() { grpcListener.Close() })
-	}
-
 	for _, mode := range []string{"timeout", "close"} {
 		t.Run(mode, func(t *testing.T) {
-			var check func(cc net.Conn)
-			switch mode {
-			case "timeout":
-				check = func(cc net.Conn) {
+			check := func(cc net.Conn, httpListener net.Listener, grpcListener net.Listener) bool {
+				switch mode {
+				case "timeout":
 					assertConnectionClosed(t, cc)
-				}
-			case "close":
-				check = func(cc net.Conn) {
+
+					// cleanup
+					return true
+				case "close":
 					assert.NoError(t, httpListener.Close())
 					assertConnectionClosed(t, cc)
+
+					// cleanup
+					assert.NoError(t, grpcListener.Close())
+					return false
+				default:
+					panic("unreachable")
 				}
 			}
 
 			t.Run("incomplete magic", func(t *testing.T) {
-				setup(t)
+				testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+					cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+					require.NoError(t, err)
 
-				cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-				require.NoError(t, err)
+					n, err := cc.Write([]byte{0x37})
+					assert.Equal(t, 1, n)
+					require.NoError(t, err)
 
-				n, err := cc.Write([]byte{0x37})
-				assert.Equal(t, 1, n)
-				require.NoError(t, err)
+					n, err = cc.Write([]byte{0x32})
+					assert.Equal(t, 1, n)
+					require.NoError(t, err)
 
-				n, err = cc.Write([]byte{0x32})
-				assert.Equal(t, 1, n)
-				require.NoError(t, err)
+					n, err = cc.Write([]byte{0x36})
+					assert.Equal(t, 1, n)
+					require.NoError(t, err)
 
-				n, err = cc.Write([]byte{0x36})
-				assert.Equal(t, 1, n)
-				require.NoError(t, err)
-
-				check(cc)
+					return check(cc, httpListener, grpcListener)
+				})
 			})
 
 			t.Run("incomplete size", func(t *testing.T) {
-				setup(t)
+				testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+					cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+					require.NoError(t, err)
 
-				cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-				require.NoError(t, err)
+					n, err := cc.Write([]byte{0x37, 0x32})
+					assert.Equal(t, 2, n)
+					require.NoError(t, err)
 
-				n, err := cc.Write([]byte{0x37, 0x32})
-				assert.Equal(t, 2, n)
-				require.NoError(t, err)
+					n, err = cc.Write([]byte{0x36, 0x31})
+					assert.Equal(t, 2, n)
+					require.NoError(t, err)
 
-				n, err = cc.Write([]byte{0x36, 0x31})
-				assert.Equal(t, 2, n)
-				require.NoError(t, err)
-
-				check(cc)
+					return check(cc, httpListener, grpcListener)
+				})
 			})
 
 			t.Run("no payload", func(t *testing.T) {
-				setup(t)
+				testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+					cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+					require.NoError(t, err)
 
-				cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-				require.NoError(t, err)
+					n, err := cc.Write([]byte{0x37, 0x32, 0x36})
+					assert.Equal(t, 3, n)
+					require.NoError(t, err)
 
-				n, err := cc.Write([]byte{0x37, 0x32, 0x36})
-				assert.Equal(t, 3, n)
-				require.NoError(t, err)
+					n, err = cc.Write([]byte{0x31, 0x02})
+					assert.Equal(t, 2, n)
+					require.NoError(t, err)
 
-				n, err = cc.Write([]byte{0x31, 0x02})
-				assert.Equal(t, 2, n)
-				require.NoError(t, err)
-
-				check(cc)
+					return check(cc, httpListener, grpcListener)
+				})
 			})
 
 			t.Run("incomplete payload", func(t *testing.T) {
-				setup(t)
+				testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+					cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+					require.NoError(t, err)
 
-				cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-				require.NoError(t, err)
+					n, err := cc.Write([]byte{0x37, 0x32, 0x36})
+					assert.Equal(t, 3, n)
+					require.NoError(t, err)
 
-				n, err := cc.Write([]byte{0x37, 0x32, 0x36})
-				assert.Equal(t, 3, n)
-				require.NoError(t, err)
+					n, err = cc.Write([]byte{0x31, 0x02, 'h'})
+					assert.Equal(t, 3, n)
+					require.NoError(t, err)
 
-				n, err = cc.Write([]byte{0x31, 0x02, 'h'})
-				assert.Equal(t, 3, n)
-				require.NoError(t, err)
-
-				check(cc)
+					return check(cc, httpListener, grpcListener)
+				})
 			})
 		})
 	}
 }
 
 func TestListenerMux_ReadNonMatchingHeader(t *testing.T) {
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, _ net.Listener, _ bool) (shouldCleanup bool) {
+		{
+			cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+			require.NoError(t, err)
 
-	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	require.NoError(t, err)
-	grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-	require.NoError(t, err)
+			cc.Write([]byte{'H'})
 
-	t.Cleanup(func() { assert.NoError(t, httpListener.Close()) })
-	t.Cleanup(func() { assert.NoError(t, grpcListener.Close()) })
+			sc, err := httpListener.Accept()
+			require.NoError(t, err)
+			var data [10]byte
+			n, err := sc.Read(data[:])
+			require.Equal(t, 1, n)
+			require.NoError(t, err)
+			assert.Equal(t, []byte{'H'}, data[:n])
+			assert.NoError(t, sc.Close())
+			assert.NoError(t, cc.Close())
 
-	{
-		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-		require.NoError(t, err)
+		}
 
-		cc.Write([]byte{'H'})
+		{
+			cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+			require.NoError(t, err)
 
-		sc, err := httpListener.Accept()
-		require.NoError(t, err)
-		var data [10]byte
-		n, err := sc.Read(data[:])
-		require.Equal(t, 1, n)
-		require.NoError(t, err)
-		assert.Equal(t, []byte{'H'}, data[:n])
-		assert.NoError(t, sc.Close())
-		assert.NoError(t, cc.Close())
+			cc.Write([]byte{0x37, 0x32, 0x36})
+			time.Sleep(10 * time.Millisecond)
+			cc.Write([]byte{0x1})
 
-	}
-
-	{
-		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-		require.NoError(t, err)
-
-		cc.Write([]byte{0x37, 0x32, 0x36})
-		time.Sleep(10 * time.Millisecond)
-		cc.Write([]byte{0x1})
-
-		sc, err := httpListener.Accept()
-		require.NoError(t, err)
-		var data [10]byte
-		n, err := sc.Read(data[:])
-		require.Equal(t, 4, n)
-		require.NoError(t, err)
-		assert.Equal(t, []byte{0x37, 0x32, 0x36, 0x1}, data[:n])
-		assert.NoError(t, sc.Close())
-		assert.NoError(t, cc.Close())
-	}
+			sc, err := httpListener.Accept()
+			require.NoError(t, err)
+			var data [10]byte
+			n, err := sc.Read(data[:])
+			require.Equal(t, 4, n)
+			require.NoError(t, err)
+			assert.Equal(t, []byte{0x37, 0x32, 0x36, 0x1}, data[:n])
+			assert.NoError(t, sc.Close())
+			assert.NoError(t, cc.Close())
+		}
+		return true
+	})
 }
 
 func TestListenerMux_NonBlocking(t *testing.T) {
 	// test that if a client sends an incomplete header and we are waiting
 	// for the remainder of it, new connections are not blocked.
 
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
-
-	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	require.NoError(t, err)
-	grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-	require.NoError(t, err)
-
-	t.Cleanup(func() { assert.NoError(t, httpListener.Close()) })
-	t.Cleanup(func() { assert.NoError(t, grpcListener.Close()) })
-
-	_ = grpcListener
-	go func() {
-		for {
-			cc, err := httpListener.Accept()
-			if err != nil {
-				return
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+		_ = grpcListener
+		go func() {
+			for {
+				cc, err := httpListener.Accept()
+				if err != nil {
+					return
+				}
+				var buf [4]byte
+				_, err = cc.Read(buf[:])
+				assert.NoError(t, err)
+				_, err = cc.Write([]byte("pong"))
+				assert.NoError(t, err)
 			}
-			var buf [4]byte
-			_, err = cc.Read(buf[:])
-			assert.NoError(t, err)
-			_, err = cc.Write([]byte("pong"))
-			assert.NoError(t, err)
+		}()
+
+		{
+			cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+			require.NoError(t, err)
+
+			n, err := cc.Write([]byte{0x37, 0x32})
+			assert.Equal(t, 2, n)
+			require.NoError(t, err)
+
 		}
-	}()
 
-	{
-		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-		require.NoError(t, err)
+		{
+			// dials will still go through and be placed in the backlog
+			cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+			require.NoError(t, err)
 
-		n, err := cc.Write([]byte{0x37, 0x32})
-		assert.Equal(t, 2, n)
-		require.NoError(t, err)
+			_, err = cc.Write([]byte("ping")) // intentionally send a message smaller than the header
+			require.NoError(t, err)
+			var buf [4]byte
+			cc.SetReadDeadline(time.Now().Add(1 * time.Second))
+			_, err = cc.Read(buf[:])
+			require.NoError(t, err)
+			assert.Equal(t, "pong", string(buf[:]))
+			cc.Close()
+		}
 
-	}
-
-	{
-		// dials will still go through and be placed in the backlog
-		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-		require.NoError(t, err)
-
-		_, err = cc.Write([]byte("ping")) // intentionally send a message smaller than the header
-		require.NoError(t, err)
-		var buf [4]byte
-		cc.SetReadDeadline(time.Now().Add(1 * time.Second))
-		_, err = cc.Read(buf[:])
-		require.NoError(t, err)
-		assert.Equal(t, "pong", string(buf[:]))
-		cc.Close()
-	}
+		return true
+	})
 }
 
 func TestListenerMux_AcceptedConnectionsStayOpenAfterListenerClose(t *testing.T) {
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+		t.Cleanup(func() { assert.NoError(t, grpcListener.Close()) })
 
-	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	require.NoError(t, err)
-	grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-	require.NoError(t, err)
+		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+		require.NoError(t, err)
 
-	t.Cleanup(func() { assert.NoError(t, grpcListener.Close()) })
+		cc.Write([]byte("foo"))
 
-	cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-	require.NoError(t, err)
+		sc, err := httpListener.Accept()
+		require.NoError(t, err)
+		var buf [3]byte
+		_, err = sc.Read(buf[:])
+		require.NoError(t, err)
+		assert.Equal(t, "foo", string(buf[:]))
 
-	cc.Write([]byte("foo"))
+		httpListener.Close()
 
-	sc, err := httpListener.Accept()
-	require.NoError(t, err)
-	var buf [3]byte
-	_, err = sc.Read(buf[:])
-	require.NoError(t, err)
-	assert.Equal(t, "foo", string(buf[:]))
+		{
+			_, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+			require.ErrorContains(t, err, "connection refused")
+		}
 
-	httpListener.Close()
+		cc.Write([]byte("bar"))
+		require.NoError(t, err)
+		_, err = sc.Read(buf[:])
+		require.NoError(t, err)
+		assert.Equal(t, "bar", string(buf[:]))
 
-	{
-		_, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-		require.ErrorContains(t, err, "connection refused")
-	}
+		require.NoError(t, sc.Close())
+		require.NoError(t, cc.Close())
 
-	cc.Write([]byte("bar"))
-	require.NoError(t, err)
-	_, err = sc.Read(buf[:])
-	require.NoError(t, err)
-	assert.Equal(t, "bar", string(buf[:]))
-
-	require.NoError(t, sc.Close())
-	require.NoError(t, cc.Close())
+		return false
+	})
 }
 
 func TestListenerMux_ClientClosesImmediatelyAfterDial(t *testing.T) {
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
-
-	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	require.NoError(t, err)
-	grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-	require.NoError(t, err)
-
-	t.Cleanup(func() { assert.NoError(t, httpListener.Close()) })
-	t.Cleanup(func() { assert.NoError(t, grpcListener.Close()) })
-
-	cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
-	require.NoError(t, err)
-	require.NoError(t, cc.Close())
-}
-
-func TestListenerMux_ClosingListenerClosesPendingConns(t *testing.T) {
-	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
-
-	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	require.NoError(t, err)
-	grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
-	require.NoError(t, err)
-
-	for range 3 {
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, _ net.Listener, _ bool) (shouldCleanup bool) {
 		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
 		require.NoError(t, err)
 		require.NoError(t, cc.Close())
-	}
-	done := make(chan struct{}, 10)
-	for range cap(done) {
-		go func() {
-			defer func() {
-				done <- struct{}{}
-			}()
+
+		return true
+	})
+}
+
+func TestListenerMux_ClosingListenerClosesPendingConns(t *testing.T) {
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+		for range 3 {
 			cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
 			require.NoError(t, err)
-			var data [1]byte
-			n, err := cc.Read(data[:])
-			assert.Equal(t, 0, n)
-			assert.Error(t, err)
-		}()
-	}
-
-	time.Sleep(netutil.InitialRecvTimeout / 2)
-
-	assert.NoError(t, httpListener.Close())
-	timeout := time.After(1 * time.Second)
-LOOP:
-	for i := range cap(done) {
-		select {
-		case <-done:
-		case <-timeout:
-			t.Errorf("timed out waiting for %d connections to close", cap(done)-i)
-			break LOOP
+			require.NoError(t, cc.Close())
 		}
+		done := make(chan struct{}, 10)
+		for range cap(done) {
+			go func() {
+				defer func() {
+					done <- struct{}{}
+				}()
+				cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+				require.NoError(t, err)
+				var data [1]byte
+				n, err := cc.Read(data[:])
+				assert.Equal(t, 0, n)
+				assert.Error(t, err)
+			}()
+		}
+
+		time.Sleep(netutil.InitialRecvTimeout / 2)
+
+		assert.NoError(t, httpListener.Close())
+		timeout := time.After(1 * time.Second)
+	LOOP:
+		for i := range cap(done) {
+			select {
+			case <-done:
+			case <-timeout:
+				t.Errorf("timed out waiting for %d connections to close", cap(done)-i)
+				break LOOP
+			}
+		}
+
+		assert.NoError(t, grpcListener.Close())
+
+		return false
+	})
+}
+
+func TestListenerMux_ReAddAfterClose(t *testing.T) {
+	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
+	for range 5 {
+		httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
+		require.NoError(t, err)
+
+		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+		require.NoError(t, err)
+
+		httpListener.Close()
+		assertConnectionClosed(t, cc)
 	}
 
+	httpListener, err := mux.Listen("tcp", "127.0.0.1:0", "http")
+	require.NoError(t, err)
 	for range 5 {
-		// re-adding another listener with the same ID should work after Close returns
-		httpListener2, err := mux.Listen("tcp", "127.0.0.1:0", "http")
+		grpcListener, err := mux.Listen("tcp", "127.0.0.1:0", "grpc")
 		require.NoError(t, err)
-		require.NoError(t, httpListener2.Close())
+
+		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+		require.NoError(t, err)
+
+		_, err = cc.Write(append(
+			[]byte{0x37, 0x32, 0x36, 0x31, byte(len("grpc"))},
+			"grpc"...))
+		require.NoError(t, err)
+
+		grpcListener.Close() // close before the connection can be accepted
+		assertConnectionClosed(t, cc)
 	}
-	assert.NoError(t, grpcListener.Close())
+	for range 5 {
+		virtualGrpcListener := mux.AddVirtualListener(httpListener.Addr(), "grpc")
+
+		cc, err := net.Dial(httpListener.Addr().Network(), httpListener.Addr().String())
+		require.NoError(t, err)
+
+		_, err = cc.Write(append(
+			[]byte{0x37, 0x32, 0x36, 0x31, byte(len("grpc"))},
+			"grpc"...))
+		require.NoError(t, err)
+
+		virtualGrpcListener.Close() // close before the connection can be accepted
+		assertConnectionClosed(t, cc)
+	}
+	require.NoError(t, httpListener.Close())
 }
 
 func TestListenerMux_OtherProtocols(t *testing.T) {
@@ -578,9 +598,18 @@ func TestListenerMux_OtherProtocols(t *testing.T) {
 
 func TestListenerMux_CloseBeforeAnyConnectionsAccepted(t *testing.T) {
 	mux := netutil.NewListenerMux(zerolog.New(zerolog.NewTestWriter(t)))
-	l, err := mux.Listen("tcp", "127.0.0.1:0", "http")
-	assert.NoError(t, err)
-	assert.NoError(t, l.Close())
+	{
+		l, err := mux.Listen("tcp", "127.0.0.1:0", "http")
+		assert.NoError(t, err)
+		assert.NoError(t, l.Close())
+	}
+	{
+		// mux with only virtual listeners is useless, but this at least shouldn't
+		// try to bind to the address or anything
+		l := mux.AddVirtualListener(
+			net.TCPAddrFromAddrPort(netip.MustParseAddrPort("255.255.255.255:1")), "http")
+		assert.NoError(t, l.Close())
+	}
 }
 
 func TestListenerMux_ListenError(t *testing.T) {
@@ -595,6 +624,19 @@ func TestListenerMux_ListenError(t *testing.T) {
 	})
 	assert.Panics(t, func() {
 		mux.Listen("tcp", "127.0.0.1:0", "http")
+	})
+	assert.Panics(t, func() {
+		mux.AddVirtualListener(l.Addr(), "http")
+	})
+}
+
+func TestListenerMux_CloseTwice(t *testing.T) {
+	testNormalAndVirtualListeners(t, func(t *testing.T, httpListener, grpcListener net.Listener, _ bool) (shouldCleanup bool) {
+		assert.NoError(t, httpListener.Close())
+		assert.ErrorIs(t, httpListener.Close(), net.ErrClosed)
+		assert.NoError(t, grpcListener.Close())
+		assert.ErrorIs(t, grpcListener.Close(), net.ErrClosed)
+		return false
 	})
 }
 
