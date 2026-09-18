@@ -1763,20 +1763,16 @@ func createIdpUsers(publicKeyType PublicKeyType) []IdpUserOptions {
 		for u := range idpUserMaxUsers {
 			idpUsers = append(idpUsers,
 				IdpUserOptions{
-					User: mockidp.User{
-						Email: fmt.Sprintf("route%d-user%d@example.com", r, u),
-						Claims: map[string]any{
-							"user": fmt.Sprintf("route%d-user%d", r, u),
-						},
+					Email: fmt.Sprintf("route%d-user%d@example.com", r, u),
+					Claims: map[string]any{
+						"user": fmt.Sprintf("route%d-user%d", r, u),
 					},
 					PublicKeyType: publicKeyType,
 				},
 				IdpUserOptions{
-					User: mockidp.User{
-						Email: fmt.Sprintf("route%d-certuser%d@example.com", r, u),
-						Claims: map[string]any{
-							"user": fmt.Sprintf("route%d-certuser%d", r, u),
-						},
+					Email: fmt.Sprintf("route%d-certuser%d@example.com", r, u),
+					Claims: map[string]any{
+						"user": fmt.Sprintf("route%d-certuser%d", r, u),
 					},
 					PublicKeyType: publicKeyType,
 				},
@@ -1789,20 +1785,16 @@ func createIdpUsers(publicKeyType PublicKeyType) []IdpUserOptions {
 	for i := 'A'; i <= 'Z'; i++ {
 		idpUsers = append(idpUsers,
 			IdpUserOptions{
-				User: mockidp.User{
-					Email: fmt.Sprintf("user%c@example.com", i),
-					Claims: map[string]any{
-						"user": fmt.Sprintf("user%c", i),
-					},
+				Email: fmt.Sprintf("user%c@example.com", i),
+				Claims: map[string]any{
+					"user": fmt.Sprintf("user%c", i),
 				},
 				PublicKeyType: publicKeyType,
 			},
 			IdpUserOptions{
-				User: mockidp.User{
-					Email: fmt.Sprintf("certuser%c@example.com", i),
-					Claims: map[string]any{
-						"user": fmt.Sprintf("certuser%c", i),
-					},
+				Email: fmt.Sprintf("certuser%c@example.com", i),
+				Claims: map[string]any{
+					"user": fmt.Sprintf("certuser%c", i),
 				},
 				PublicKeyType: publicKeyType,
 			},
