@@ -484,6 +484,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			ALPN:         values.Deferred[int](),
 			Health:       values.Deferred[int](),
 			Connect:      values.Deferred[int](),
+			Agentic:      values.Deferred[int](),
 		},
 		workspaceFolder:      workspaceFolder,
 		silent:               silent,
@@ -556,6 +557,10 @@ type Ports struct {
 	ALPN         values.MutableValue[int]
 	Health       values.MutableValue[int]
 	Connect      values.MutableValue[int]
+	// Agentic is the loopback port the agentic authorization server binds to.
+	// Tests that exercise it point routes at 127.0.0.1:<this>, which is the only
+	// way the AS is reachable.
+	Agentic values.MutableValue[int]
 }
 
 func (e *environment) TempDir() string {
@@ -651,7 +656,7 @@ func (e *environment) Start() {
 	e.debugf("temp dir: %s", e.TempDir())
 
 	cfg := config.New(config.NewDefaultOptions())
-	ports, err := AllocatePorts(13)
+	ports, err := AllocatePorts(14)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -673,6 +678,7 @@ func (e *environment) Start() {
 	e.ports.Debug.Resolve(atoi(ports[10]))
 	e.ports.ALPN.Resolve(atoi(ports[11]))
 	e.ports.Connect.Resolve(atoi(ports[12]))
+	e.ports.Agentic.Resolve(atoi(ports[13]))
 	cfg.AllocatePorts(*(*[7]string)(ports[6:]))
 
 	cfg.Options.SSHRLSEnabled = true
@@ -710,6 +716,7 @@ func (e *environment) Start() {
 		logfields.AccessLogFieldClientCertificate,
 	}
 	cfg.Options.HealthCheckAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(e.ports.Health.Value()))
+	cfg.Options.AgenticAddress = net.JoinHostPort("127.0.0.1", strconv.Itoa(e.ports.Agentic.Value()))
 	if e.traceConfig != nil {
 		cfg.Options.Tracing = *e.traceConfig
 	}

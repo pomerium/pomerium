@@ -14,6 +14,12 @@ const (
 	// ProxyService checks if the proxy server is up and running
 	ProxyService = Check("proxy.service")
 
+	// AgenticAuthorizationServer checks that the agentic authorization server was
+	// rebuilt from the current configuration. A failed rebuild leaves the AS
+	// serving a stale snapshot — old JWKS, old identity providers, old routes —
+	// which is exactly the kind of failure that should not be one log line.
+	AgenticAuthorizationServer = Check("agentic.authorization-server")
+
 	// BlobStorage checks if the blob store is valid and healthy
 	BlobStorage = Check("storage.blob")
 
