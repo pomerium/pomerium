@@ -579,7 +579,18 @@ func (s *Stateful) sessionToBindingData(
 			// row even when the session is already gone. Dropping it left the user
 			// an anonymous binding they could neither identify nor revoke, on
 			// exactly the oldest runs.
+			// A run does not only end when the approver signs out: it also expires
+			// after its renewable idle timeout once token polling stops, and the run
+			// session carries that concrete instant. Showing the session's expiry —
+			// as the browser and MCP branches do — tells the user when an idle run
+			// will lapse instead of implying it lasts as long as their sign-in.
+			//
+			// The literal remains the honest answer when the session is already
+			// gone, since there is then no expiry left to report.
 			expiresAt = "Until revoked or IDP expires"
+			if at := sess.GetExpiresAt(); at != nil {
+				expiresAt = at.AsTime().Format(time.RFC1123)
+			}
 			detailsAgentic = agenticDetails(binding.GetDetails(), sess)
 			resource = agenticResource(detailsAgentic)
 		}
