@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -107,6 +109,7 @@ func (h *Handler) ApproveGet(w http.ResponseWriter, r *http.Request) {
 		UserEmail:    str(claims["email"]),
 		UserID:       str(claims["sub"]),
 		Prompt:       run.GetPrompt(),
+		Labels:       runLabels(run),
 		MCPServers:   servers,
 		ApprovePath:  ApprovePath(h.prefix),
 		NeedsConnect: needsConnect,
@@ -497,6 +500,7 @@ type consentPageData struct {
 	UserEmail    string
 	UserID       string
 	Prompt       string
+	Labels       []runLabel
 	MCPServers   []mcpServerConsent
 	ApprovePath  string
 	NeedsConnect bool
@@ -528,6 +532,26 @@ type executorClaim struct {
 	Value string
 }
 
+// runLabel is one caller-supplied label, as rendered on the consent page. Labels
+// are the run's context — which workflow, which channel, which ticket — and are
+// the only thing that distinguishes two otherwise identical prompts, so a human
+// cannot meaningfully approve without seeing them.
+type runLabel struct {
+	Key   string
+	Value string
+}
+
+// runLabels renders a run's labels as sorted key/value pairs, so the order a
+// caller happened to send them in does not change the page.
+func runLabels(run *agenticpb.Run) []runLabel {
+	labels := run.GetLabels()
+	out := make([]runLabel, 0, len(labels))
+	for _, k := range slices.Sorted(maps.Keys(labels)) {
+		out = append(out, runLabel{Key: k, Value: labels[k]})
+	}
+	return out
+}
+
 const pageStyle = `<style>
 body{font-family:system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem;line-height:1.5;color:#1a1a1a}
 h1{font-size:1.4rem}
@@ -551,6 +575,7 @@ var consentPageHTML = `<!DOCTYPE html>
 <p class="who">Signed in as {{if .UserEmail}}{{.UserEmail}}{{else}}{{.UserID}}{{end}}.</p>
 <p>An agent is requesting to act on your behalf:</p>
 <blockquote>{{.Prompt}}</blockquote>
+{{if .Labels}}<dl>{{range .Labels}}<dt>{{.Key}}</dt><dd>{{.Value}}</dd>{{end}}</dl>{{end}}
 {{if .MCPServers}}<p>You are allowing the agent to access these MCP servers on your behalf:</p>
 <ul>{{range .MCPServers}}<li>{{.URL}}{{if .NeedsOAuth}}{{if .Connected}} <span class="ok">&#10003; connected</span>{{else}} <a class="connect" href="{{.ConnectURL}}">Connect</a>{{end}}{{end}}</li>{{end}}</ul>
 {{if .NeedsConnect}}<p class="hint">Some of these need you to connect an upstream account first. Until you do, the agent won&#39;t be able to use them on your behalf.</p>{{end}}{{end}}
