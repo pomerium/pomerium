@@ -203,7 +203,22 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 	// what is stored cannot disagree.
 	sid, _ := claims["sid"].(string)
 	approverSession, err := session.Get(ctx, client, sid)
-	if err != nil {
+	switch {
+	case sid == "" || status.Code(err) == codes.NotFound:
+		// A session that ended, was revoked, or was swept is an ordinary
+		// authentication condition, not a server fault: the assertion can name a
+		// sid that no longer resolves. Answer it the way the missing-IdP-session
+		// branch below does — sign in again — rather than with a 500 that reads as
+		// a Pomerium failure and logs routine expiry as an error.
+		log.Ctx(ctx).Info().Err(err).Str("run-id", runID).
+			Msg("agentic: approve: approver has no current session")
+		renderPage(ctx, w, http.StatusForbidden, noIDPSessionPage, nil)
+		return
+	case status.Code(err) == codes.Unavailable:
+		log.Ctx(ctx).Error().Err(err).Str("run-id", runID).Msg("agentic: approve: databroker unavailable")
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		return
+	case err != nil:
 		log.Ctx(ctx).Error().Err(err).Str("run-id", runID).Msg("agentic: approve: failed to load approver session")
 		http.Error(w, "could not load your session", http.StatusInternalServerError)
 		return
