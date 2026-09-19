@@ -29,6 +29,11 @@
               "name": "BINDING_PROTOCOL_MCP",
               "number": "2",
               "description": ""
+            },
+            {
+              "name": "BINDING_PROTOCOL_AGENTIC",
+              "number": "3",
+              "description": ""
             }
           ]
         },
