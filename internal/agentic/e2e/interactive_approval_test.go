@@ -156,13 +156,18 @@ func TestRunIdentityInteractiveApproval(t *testing.T) {
 	assert.Contains(t, approvalURL, as.approve.URL().Value(),
 		"the approval link must name the public agentic host — a policy route rewrites Host to the upstream unless preserve_host_header is set, which would mail the approver a loopback URL")
 
-	// --- 1b. Run status: pending, already pinned to its executor at create
-	// (§12.8 — a run is sealed to one instance from the start), not revoked. ---
+	// --- 1b. Run status: pending, not yet bound, not revoked.
+	//
+	// The run is already sealed to one executor instance (§12.8), but "bound"
+	// reports the run's binding to its APPROVER's IdP session — which does not
+	// exist until a human approves — so it is false here. The two are different
+	// things: the seal says which workload may act, the binding says whether the
+	// run can mint at all. ---
 	statusResp, st := getRunStatus(t, up, as.summon, harnessJWT, runID)
 	require.Equal(t, http.StatusOK, statusResp.StatusCode, "run status: %v", st)
 	assert.Equal(t, runID, st["run_id"])
 	assert.Equal(t, "pending_approval", st["state"])
-	assert.Equal(t, true, st["bound"], "run is pinned to its executor at create, so it reports bound")
+	assert.Equal(t, false, st["bound"], "nobody has approved yet, so there is no binding")
 	assert.Equal(t, false, st["revoked"])
 	if exp, ok := st["expires_at"].(string); assert.True(t, ok, "expires_at must be a string") {
 		_, perr := time.Parse(time.RFC3339, exp)
@@ -182,11 +187,11 @@ func TestRunIdentityInteractiveApproval(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "pending run must not issue a token: %v", body)
 	assert.Equal(t, "authorization_pending", body["error"])
 
-	// --- 2b. Polling does not change the pinned state: the run stays bound (to its
-	// sealed executor) and pending. ---
+	// --- 2b. Polling does not create a binding: an unapproved run stays unbound
+	// and pending however many times its executor asks. ---
 	statusResp, st = getRunStatus(t, up, as.summon, harnessJWT, runID)
 	require.Equal(t, http.StatusOK, statusResp.StatusCode)
-	assert.Equal(t, true, st["bound"], "run stays pinned to its sealed executor")
+	assert.Equal(t, false, st["bound"], "polling must not bind a run nobody approved")
 	assert.Equal(t, "pending_approval", st["state"], "polling must not change the pending state")
 
 	// --- 3. Instance-pinning by resolution: a different pod (pod-uid-2) has no run
