@@ -15,6 +15,7 @@ import (
 	"github.com/go-jose/go-jose/v3/jwt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -257,6 +258,10 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 	// cost is a window where a run is APPROVED with no session yet: /token refuses
 	// to mint for it, and GET /runs/{run_id} reports bound:false, so it is visible
 	// rather than silent.
+	//
+	// A claim that cannot be completed is released again below, so the window is
+	// bounded by this request rather than lasting until the run expires.
+	pending := proto.Clone(run).(*oauth21proto.AgenticRun)
 	run.Sub = userID
 	run.State = oauth21proto.AgenticRunState_AGENTIC_RUN_STATE_APPROVED
 	if err := PutRunIfUnchanged(ctx, client, run, runVersion); err != nil {
@@ -280,12 +285,46 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 		),
 	}); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("run-id", runID).Msg("agentic: approve: failed to bind run session")
+		// Give the claim back. An approved run with nothing bound to it is unusable
+		// and unrecoverable: /token refuses to mint for it and a retry is rejected
+		// as "run already approved", so the approval would be spent on a failure
+		// the approver could otherwise simply retry.
+		h.releaseApproval(ctx, client, pending, userID)
 		http.Error(w, "failed to store approval", http.StatusInternalServerError)
 		return
 	}
 
 	log.Ctx(ctx).Info().Str("run-id", run.GetId()).Str("approved-by", userID).Msg("agentic: run approved")
 	renderPage(ctx, w, http.StatusOK, approvedPage, nil)
+}
+
+// releaseApproval restores a run this request claimed but could not finish
+// binding, so the approver can retry.
+//
+// Conditional on the version the run is at now, and only while it is still
+// claimed by this approver: anything else having touched it means the claim is
+// no longer ours to release. Restoring the exact record read before the claim
+// avoids having to know which of its fields the claim overwrote.
+func (h *Handler) releaseApproval(
+	ctx context.Context,
+	client databroker.DataBrokerServiceClient,
+	pending *oauth21proto.AgenticRun,
+	userID string,
+) {
+	runID := pending.GetId()
+	current, version, err := GetRunRecordVersion(ctx, client, runID)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("run-id", runID).
+			Msg("agentic: approve: could not re-read the run to release the approval")
+		return
+	}
+	if !IsApproved(current) || current.GetSub() != userID {
+		return
+	}
+	if err := PutRunIfUnchanged(ctx, client, pending, version); err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("run-id", runID).
+			Msg("agentic: approve: could not release the approval; the run must be re-created")
+	}
 }
 
 // getRunForApproval reads a run and maps read failures to HTTP responses,
