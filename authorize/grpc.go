@@ -266,12 +266,15 @@ func (a *Authorize) getAgenticRunSession(
 	// from another client would not invalidate it promptly; the direct Get here
 	// is what makes revocation immediate.
 	run, err := agentic.GetRun(ctx, state.dataBrokerClient, runID)
-	if status.Code(err) == codes.Unavailable {
-		// Transient databroker outage: surface a retryable error rather than
-		// wrapping ErrInvalidSession, which would permanently 403 a valid token.
-		return nil, err
-	} else if err != nil {
+	if status.Code(err) == codes.NotFound {
 		return nil, fmt.Errorf("agentic: run not found: %w: %w", err, sessions.ErrInvalidSession)
+	} else if err != nil {
+		// Anything else is an infrastructure failure, not a verdict on the
+		// credential. These reads inherit the ext_authz request context, so
+		// DeadlineExceeded and Canceled arrive here in normal operation; wrapping
+		// them as ErrInvalidSession would answer a transient failure with a 403 and
+		// deny a perfectly valid run token.
+		return nil, err
 	}
 	switch {
 	case run.GetRevoked():
@@ -288,10 +291,12 @@ func (a *Authorize) getAgenticRunSession(
 	// getMCPSession), which also warms the cache entry the rego claim/ lookup uses.
 	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)),
 		agentic.SessionID(runID), sessionRecordVersion)
-	if status.Code(err) == codes.Unavailable {
-		return nil, err
-	} else if err != nil {
+	if status.Code(err) == codes.NotFound {
 		return nil, fmt.Errorf("agentic: session not found: %w: %w", err, sessions.ErrInvalidSession)
+	} else if err != nil {
+		// Same reasoning as the run read above: only a missing record is a statement
+		// about the credential.
+		return nil, err
 	}
 	msg, err := record.GetData().UnmarshalNew()
 	if err != nil {
