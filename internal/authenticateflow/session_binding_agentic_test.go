@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/agentic"
 	"github.com/pomerium/pomerium/internal/handlers"
@@ -131,4 +132,30 @@ func TestAgenticResource(t *testing.T) {
 			assert.Equal(t, tc.want, agenticResource(tc.details))
 		})
 	}
+}
+
+// TestAgenticDetails_NilSessionKeepsBindingDetails pins that a run's identifying
+// details survive the loss of its session record.
+//
+// An expired run's session is deleted before its binding is revoked, because the
+// two are reconciled asynchronously. During that window the session lookup
+// returns NotFound — and the details a user needs to recognise and revoke the
+// binding live on the binding, not the session, precisely so they outlast it.
+func TestAgenticDetails_NilSessionKeepsBindingDetails(t *testing.T) {
+	t.Parallel()
+
+	details := map[string]string{
+		agentic.DetailRunID:                   "run-42",
+		agentic.DetailPrompt:                  "triage the backlog",
+		agentic.DetailLabelPrefix + "channel": "C0123456789",
+	}
+
+	got := agenticDetails(details, nil)
+	require.NotNil(t, got, "a missing session must not erase the run")
+	assert.Equal(t, "run-42", got.RunID, "the run id is what identifies the binding")
+	assert.Equal(t, "triage the backlog", got.Prompt)
+	assert.Equal(t, map[string]string{"channel": "C0123456789"}, got.Labels)
+	assert.Nil(t, got.WorkloadClaims, "the executor claims live on the session, so they are simply absent")
+
+	assert.NotEmpty(t, agenticResource(got), "the row must still name something")
 }
