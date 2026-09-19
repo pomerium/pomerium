@@ -699,9 +699,17 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	// config itself changes — setupRequiredIndex is idempotent, and going through
 	// it keeps one definition of every record type's options.
 	if agenticRunTTL := cfg.Options.GetAgenticRunRecordTTL(); srv.agenticRunTTL != agenticRunTTL {
+		previous := srv.agenticRunTTL
+		// setupRequiredIndex reads the cached value, so it has to be in place
+		// before the call.
 		srv.agenticRunTTL = agenticRunTTL
 		if srv.backend != nil {
 			if err := srv.setupRequiredIndex(ctx, srv.backend); err != nil {
+				// Put the old value back. Caching a TTL the backend refused would
+				// record a failure as success: the next reload of this same
+				// configuration would compare equal and skip the update, leaving
+				// cleanup on the stale TTL until the backend happened to be rebuilt.
+				srv.agenticRunTTL = previous
 				log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error updating agentic run record ttl")
 			}
 		}
