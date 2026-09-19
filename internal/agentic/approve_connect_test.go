@@ -133,6 +133,25 @@ func TestMCPConsents_Connect(t *testing.T) {
 		assert.Empty(t, plainRow.ConnectURL)
 	})
 
+	t.Run("the Connect link uses the configured route origin, not the caller's", func(t *testing.T) {
+		// MCP routes are matched by hostname alone, so this declaration matches the
+		// configured https://mcp-tool.example.com route. Copying the declared scheme
+		// and port into the Connect link would send the approver to an origin nobody
+		// configured — unreachable at best, a different service on that host at worst.
+		spoofed := runWithMCPServers("run-spoof", "http://mcp-tool.example.com:8443")
+
+		rows := h.mcpConsents(ctx, spoofed, "bob", approveHost)
+		require.Len(t, rows, 1)
+		require.True(t, rows[0].NeedsOAuth, "hostname matching still resolves the route")
+		require.NotEmpty(t, rows[0].ConnectURL)
+
+		cu, err := url.Parse(rows[0].ConnectURL)
+		require.NoError(t, err)
+		assert.Equal(t, "https", cu.Scheme, "the configured route's scheme wins")
+		assert.Equal(t, "mcp-tool.example.com", cu.Host,
+			"the configured route's host and port win, not the caller-declared :8443")
+	})
+
 	t.Run("connected approver sees no Connect link", func(t *testing.T) {
 		storage := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(client))
 		require.NoError(t, storage.PutUpstreamMCPToken(ctx, &oauth21proto.UpstreamMCPToken{
