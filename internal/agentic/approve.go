@@ -373,12 +373,25 @@ func (c *consentResolver) fill(ctx context.Context, row *mcpServerConsent) {
 			Msg("agentic: approve: upstream token lookup failed; offering connect")
 	}
 
-	// The Connect endpoint lives on the MCP route's own host (u.Host keeps any
-	// port); the return lands back on the approve host, which is where this page
-	// is actually served now that the AS sits behind its own routes.
+	// The Connect endpoint lives on the MCP route's own origin, taken from the
+	// CONFIGURED route rather than from what the caller declared. The two are
+	// matched by hostname alone, so a run declaring http://srv.example.com:8443
+	// matches the configured https://srv.example.com — and building the link from
+	// the declaration would then send the approver to a scheme and port nobody
+	// configured, where the OAuth flow is unreachable at best and a different
+	// service on that host at worst.
+	//
+	// The return lands back on the approve host, which is where this page is
+	// actually served now that the AS sits behind its own routes.
+	configured, err := url.Parse(info.URL)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("run-id", c.runID).Str("route", info.URL).
+			Msg("agentic: approve: configured MCP route URL is unparseable; not offering connect")
+		return
+	}
 	connect := url.URL{
-		Scheme:   u.Scheme,
-		Host:     u.Host,
+		Scheme:   configured.Scheme,
+		Host:     configured.Host,
 		Path:     endpoints.PathPomeriumMCPConnect,
 		RawQuery: url.Values{"redirect_url": {c.handler.approveURL(c.approveHost, c.runID)}}.Encode(),
 	}
