@@ -547,18 +547,36 @@ func (s *Stateful) sessionToBindingData(
 		// is deleted before its binding is revoked, because the two are reconciled
 		// asynchronously. Whether that is fatal depends on the protocol, so resolve
 		// it to a possibly-nil session and let each branch decide.
+		isAgentic := binding.GetProtocol() == idpsession.BindingProtocol_BINDING_PROTOCOL_AGENTIC
 		var sess *session.Session
 		rec, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
 			Type: protoutil.GetTypeURL(&session.Session{}),
 			Id:   binding.GetId(),
 		})
-		if err == nil {
+		switch {
+		case err == nil:
 			sess = &session.Session{}
 			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
+				if isAgentic {
+					// A record that will not decode is a corrupt one, not an absent
+					// one; the fallback would present it as a run that simply aged out.
+					return handlers.SessionBindingData{}, err
+				}
 				sess = nil
 			}
+		case status.Code(err) == codes.NotFound:
+			// Genuinely gone, which is the state the agentic fallback below exists
+			// for. The other protocols have nothing left to show.
+		default:
+			if isAgentic {
+				// Anything else says the databroker failed, not that the run ended.
+				// Rendering the fallback here would replace the run's real idle
+				// expiry with "Until revoked or IDP expires" and silently drop its
+				// executor claims, so report the failure instead.
+				return handlers.SessionBindingData{}, err
+			}
 		}
-		if sess == nil && binding.GetProtocol() != idpsession.BindingProtocol_BINDING_PROTOCOL_AGENTIC {
+		if sess == nil && !isAgentic {
 			// The other protocols take their identity and expiry from the session
 			// itself, so without it there is nothing to show.
 			return handlers.SessionBindingData{}, nil
