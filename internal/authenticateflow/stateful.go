@@ -24,6 +24,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/agentic"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/handlers"
@@ -538,18 +539,46 @@ func (s *Stateful) sessionToBindingData(
 	var expiresAt string
 	var clientAddr string
 	var resource string
+	var detailsAgentic *handlers.ProtocolDetailsAgentic
 
 	switch binding.GetTypeUrl() {
 	case protoutil.GetTypeURL(&session.Session{}):
+		// The dependent session may legitimately be gone: an expired run's session
+		// is deleted before its binding is revoked, because the two are reconciled
+		// asynchronously. Whether that is fatal depends on the protocol, so resolve
+		// it to a possibly-nil session and let each branch decide.
+		isAgentic := binding.GetProtocol() == idpsession.BindingProtocol_BINDING_PROTOCOL_AGENTIC
+		var sess *session.Session
 		rec, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
 			Type: protoutil.GetTypeURL(&session.Session{}),
 			Id:   binding.GetId(),
 		})
-		if err != nil {
-			return handlers.SessionBindingData{}, nil
+		switch {
+		case err == nil:
+			sess = &session.Session{}
+			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
+				if isAgentic {
+					// A record that will not decode is a corrupt one, not an absent
+					// one; the fallback would present it as a run that simply aged out.
+					return handlers.SessionBindingData{}, err
+				}
+				sess = nil
+			}
+		case status.Code(err) == codes.NotFound:
+			// Genuinely gone, which is the state the agentic fallback below exists
+			// for. The other protocols have nothing left to show.
+		default:
+			if isAgentic {
+				// Anything else says the databroker failed, not that the run ended.
+				// Rendering the fallback here would replace the run's real idle
+				// expiry with "Until revoked or IDP expires" and silently drop its
+				// executor claims, so report the failure instead.
+				return handlers.SessionBindingData{}, err
+			}
 		}
-		sess := &session.Session{}
-		if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
+		if sess == nil && !isAgentic {
+			// The other protocols take their identity and expiry from the session
+			// itself, so without it there is nothing to show.
 			return handlers.SessionBindingData{}, nil
 		}
 		switch binding.GetProtocol() {
@@ -561,6 +590,27 @@ func (s *Stateful) sessionToBindingData(
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
 			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
 			resource = formatBrowserUserAgent(binding.GetDetails()["user-agent"])
+		case idpsession.BindingProtocol_BINDING_PROTOCOL_AGENTIC:
+			// An approved agentic run. Everything a user needs in order to
+			// recognise it — run id, prompt, labels — was frozen onto the binding at
+			// consent precisely so it outlives the run's own records, so build the
+			// row even when the session is already gone. Dropping it left the user
+			// an anonymous binding they could neither identify nor revoke, on
+			// exactly the oldest runs.
+			// A run does not only end when the approver signs out: it also expires
+			// after its renewable idle timeout once token polling stops, and the run
+			// session carries that concrete instant. Showing the session's expiry —
+			// as the browser and MCP branches do — tells the user when an idle run
+			// will lapse instead of implying it lasts as long as their sign-in.
+			//
+			// The literal remains the honest answer when the session is already
+			// gone, since there is then no expiry left to report.
+			expiresAt = "Until revoked or IDP expires"
+			if at := sess.GetExpiresAt(); at != nil {
+				expiresAt = at.AsTime().Format(time.RFC1123)
+			}
+			detailsAgentic = agenticDetails(binding.GetDetails(), sess)
+			resource = agenticResource(detailsAgentic)
 		}
 		clientAddr = binding.GetDetails()["client-ip"]
 	}
@@ -574,6 +624,7 @@ func (s *Stateful) sessionToBindingData(
 		ExpiresAt:               expiresAt,
 		RevokeSessionBindingURL: redirectRevoke.String(),
 		Resource:                resource,
+		DetailsAgentic:          detailsAgentic,
 	}
 
 	if binding.GetInitiatedAt() != nil {
@@ -582,12 +633,67 @@ func (s *Stateful) sessionToBindingData(
 	return datum, nil
 }
 
+// agenticDetails assembles what an agentic run shows its approver, from the two
+// records already in hand: the binding's details map (written at consent by
+// agentic.bindingDisplayDetails, and the only copy that survives the run
+// record's TTL) and the run's session, whose act.* claims are the executor
+// identity the run was sealed to.
+func agenticDetails(details map[string]string, sess *session.Session) *handlers.ProtocolDetailsAgentic {
+	d := &handlers.ProtocolDetailsAgentic{
+		RunID:  details[agentic.DetailRunID],
+		Prompt: details[agentic.DetailPrompt],
+	}
+	for k, v := range details {
+		if name, ok := strings.CutPrefix(k, agentic.DetailLabelPrefix); ok {
+			if d.Labels == nil {
+				d.Labels = make(map[string]string)
+			}
+			d.Labels[name] = v
+		}
+	}
+	for k, vs := range identity.NewFlattenedClaimsFromPB(sess.GetClaims()) {
+		path, ok := strings.CutPrefix(k, agentic.ActClaimPrefix)
+		if !ok {
+			continue
+		}
+		parts := make([]string, len(vs))
+		for i, v := range vs {
+			parts[i] = fmt.Sprint(v)
+		}
+		if d.WorkloadClaims == nil {
+			d.WorkloadClaims = make(map[string]string)
+		}
+		d.WorkloadClaims[path] = strings.Join(parts, ", ")
+	}
+	return d
+}
+
+// agenticResource picks the headline for a run's Resource cell: the caller's
+// template label if it set one, else the concrete workload it is sealed to, else
+// the run id. The fallbacks matter — a run created before labels existed, or by
+// a caller that sets none, still has to name itself as something a user can act
+// on.
+func agenticResource(d *handlers.ProtocolDetailsAgentic) string {
+	if t := d.Labels["template"]; t != "" {
+		return t
+	}
+	if pod := d.WorkloadClaims["kubernetes.io.pod.name"]; pod != "" {
+		if ns := d.WorkloadClaims["kubernetes.io.namespace"]; ns != "" {
+			return ns + "/" + pod
+		}
+		return pod
+	}
+	return d.RunID
+}
+
 func formatProtocol(protocol idpsession.BindingProtocol) string {
 	switch protocol {
 	case idpsession.BindingProtocol_BINDING_PROTOCOL_MCP:
 		return "MCP"
 	case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
 		return "Browser"
+	case idpsession.BindingProtocol_BINDING_PROTOCOL_AGENTIC:
+		return "Agentic"
 	}
 	return "Unknown"
 }

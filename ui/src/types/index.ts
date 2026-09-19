@@ -197,11 +197,19 @@ export type SessionBindingData = {
   RevokeIdentityBindingURL: string;
   DetailsSSH?: DetailsSSH;
   IsCurrentBrowser: boolean;
+  DetailsAgentic?: DetailsAgentic;
 };
 
 export type DetailsSSH = {
   FingerprintID: string;
   SourceAddress: string;
+};
+
+export type DetailsAgentic = {
+  RunID: string;
+  Labels?: Record<string, string>;
+  Prompt: string;
+  WorkloadClaims?: Record<string, string>;
 };
 
 export type PageData =
