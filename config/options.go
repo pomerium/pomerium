@@ -769,7 +769,7 @@ func (o *Options) Validate() error {
 	// accepted here and then expire every run record immediately.
 	if o.AgenticRunIdleTimeout > math.MaxInt64-agenticRunRecordTTLSlack {
 		return fmt.Errorf("config: agentic_run_idle_timeout must not exceed %s",
-			time.Duration(math.MaxInt64-agenticRunRecordTTLSlack))
+			math.MaxInt64-agenticRunRecordTTLSlack)
 	}
 
 	// validate metrics basic auth
