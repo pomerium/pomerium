@@ -289,8 +289,7 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 
 	var req createRunRequest
 	if err := decodeJSONBody(w, r, &req); err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			http.Error(w, fmt.Sprintf("request body must be at most %d bytes", maxRequestBytes),
 				http.StatusRequestEntityTooLarge)
 			return
