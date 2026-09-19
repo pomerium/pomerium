@@ -95,3 +95,63 @@ func TestGetAgenticRunSession_TransientErrorNotInvalidSession(t *testing.T) {
 	require.Equal(t, codes.Unavailable, status.Code(err),
 		"the retryable gRPC status must be preserved so the request is not permanently denied")
 }
+
+// failingDataBroker fails every Get with a chosen status code.
+type failingDataBroker struct {
+	databroker.DataBrokerServiceClient
+	code codes.Code
+}
+
+func (f failingDataBroker) Get(
+	context.Context, *databroker.GetRequest, ...grpc.CallOption,
+) (*databroker.GetResponse, error) {
+	return nil, status.Error(f.code, "induced")
+}
+
+// TestGetAgenticRunSession_OnlyMissingRecordsAreInvalid extends the Unavailable
+// case above to every other way the databroker read can fail.
+//
+// These reads inherit the ext_authz request context, so DeadlineExceeded and
+// Canceled arrive here in normal operation — under load, or when the downstream
+// client simply goes away. Treating anything other than "the record is not
+// there" as an invalid credential answers an infrastructure failure with a
+// definitive 403 and denies a valid run token.
+func TestGetAgenticRunSession_OnlyMissingRecordsAreInvalid(t *testing.T) {
+	c, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+	require.NoError(t, err)
+	tok, err := agentic.MintRunToken(c, "run-abc", time.Now().Add(time.Hour), 1)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		code    codes.Code
+		invalid bool
+	}{
+		{codes.NotFound, true},
+		{codes.Unavailable, false},
+		{codes.DeadlineExceeded, false},
+		{codes.Canceled, false},
+		{codes.ResourceExhausted, false},
+		{codes.Internal, false},
+	} {
+		t.Run(tc.code.String(), func(t *testing.T) {
+			a := &Authorize{}
+			a.state.Store(&authorizeState{
+				agenticCipher:    c,
+				dataBrokerClient: failingDataBroker{code: tc.code},
+			})
+
+			_, err := a.getAgenticRunSession(context.Background(), tok)
+			require.Error(t, err)
+
+			if tc.invalid {
+				require.True(t, errors.Is(err, sessions.ErrInvalidSession),
+					"a missing run record is a statement about the credential")
+				return
+			}
+			require.False(t, errors.Is(err, sessions.ErrInvalidSession),
+				"%s is an infrastructure failure; reporting it as an invalid session denies a valid run token", tc.code)
+			require.Equal(t, tc.code, status.Code(err),
+				"the original status must survive so the failure stays retryable")
+		})
+	}
+}
