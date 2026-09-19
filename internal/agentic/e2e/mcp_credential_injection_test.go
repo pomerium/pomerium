@@ -273,8 +273,23 @@ func TestRunTokenMCPCredentialInjection(t *testing.T) {
 	run.Revoked = true
 	require.NoError(t, agentic.PutRun(ctx, dbClient, run))
 
-	require.Eventually(t, func() bool {
+	// Require the REVOCATION error specifically, not merely any error. A bare
+	// err != nil is also satisfied by a transient databroker, transport or MCP
+	// session failure — and the authorize path deliberately propagates
+	// codes.Unavailable as retryable, so that is a real path to a green test that
+	// proves nothing. "access denied" is the structured JSON-RPC deny, as asserted
+	// for the mcp_tool PPL case above.
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		_, err := session.CallTool(ctx, &mcpsdk.CallToolParams{Name: "hello"})
-		return err != nil
+		if !assert.Error(c, err) {
+			return
+		}
+		// "Forbidden" is the 403 the authorize path returns for a revoked run: the
+		// credential itself is rejected, so the call fails at the transport rather
+		// than coming back as a structured JSON-RPC error. That is the opposite of
+		// the mcp_tool deny asserted above, where the run is still valid and only
+		// one tool is refused.
+		assert.Contains(c, err.Error(), "Forbidden",
+			"the call must fail because the run was revoked, not for an unrelated reason")
 	}, 10*time.Second, 200*time.Millisecond, "revocation must take effect on the next MCP request")
 }
