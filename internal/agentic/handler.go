@@ -246,8 +246,16 @@ type tokenResponse struct {
 }
 
 type runStatusResponse struct {
-	RunID     string `json:"run_id"`
-	State     string `json:"state"`
+	RunID string `json:"run_id"`
+	State string `json:"state"`
+	// Bound reports whether this run currently has a live binding to its
+	// approver's IdP session — that is, whether it can still mint a token.
+	//
+	// It is NOT derived from the run's bound_claims: those are the executor seal
+	// written at creation, so they are set on every properly sealed run including
+	// one nobody has approved, and they stay set after the binding is revoked.
+	// Reporting them as "bound" told an orchestrator that a pending or revoked run
+	// was live.
 	Bound     bool   `json:"bound"`
 	Revoked   bool   `json:"revoked"`
 	ExpiresAt string `json:"expires_at"`
@@ -418,10 +426,18 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	bound, err := h.runIsBound(ctx, run)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("run-id", run.GetId()).
+			Msg("agentic: get run: failed to read the run's binding")
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
 	writeJSON(w, http.StatusOK, runStatusResponse{
 		RunID:     run.GetId(),
 		State:     stateString(run),
-		Bound:     len(run.GetBoundClaims()) > 0,
+		Bound:     bound,
 		Revoked:   run.GetRevoked(),
 		ExpiresAt: run.GetExpiresAt().AsTime().Format(time.RFC3339),
 		// Set only once a human has approved, so a half-written record never
@@ -700,4 +716,24 @@ func (h *Handler) getRunForApproval(w http.ResponseWriter, r *http.Request, runI
 func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
 	return json.NewDecoder(r.Body).Decode(dst)
+}
+
+// runIsBound reports whether run still has an active binding to its approver's
+// IdP session, which is what decides whether it can mint. A run that was never
+// approved has no binding; a revoked one has a binding in the REVOKED state,
+// which GetActiveBinding reports as absent. Only a transient databroker failure
+// is an error — "no binding" is an ordinary answer.
+func (h *Handler) runIsBound(ctx context.Context, run *agenticpb.Run) (bool, error) {
+	if !IsApproved(run) {
+		return false, nil
+	}
+	_, err := idpsessionpb.GetActiveBinding(ctx, h.db(), SessionID(run.GetId()))
+	switch status.Code(err) {
+	case codes.OK:
+		return true, nil
+	case codes.NotFound:
+		return false, nil
+	default:
+		return false, err
+	}
 }
