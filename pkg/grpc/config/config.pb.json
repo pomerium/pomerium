@@ -39,6 +39,11 @@
               "name": "BEARER_TOKEN_FORMAT_JWT",
               "number": "4",
               "description": "The bearer token will be verified as a JWT issued by one of the configured\nidentity_providers (selected by the token's `iss`), with audience binding\nenforced per-provider. Authorization on the verified claims is left to PPL\n(claim/...)."
+            },
+            {
+              "name": "BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN",
+              "number": "5",
+              "description": "The bearer token will be interpreted as an opaque Pomerium-minted agentic\nrun token (pom_art_...), resolved server-side against a revocable run\nrecord and bound to the approver's session. This is the explicit per-route\nopt-in for non-MCP routes; the `agentic` runtime flag gates the feature."
             }
           ]
         },
