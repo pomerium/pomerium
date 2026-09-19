@@ -149,8 +149,15 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 	}
 	runID := decoded.GetId()
 
-	run, ok := h.getRunForApproval(w, r, runID)
-	if !ok {
+	// The version the run is read at gates the commit below: the pending check
+	// here is not enough on its own, because two approvers can both pass it.
+	run, runVersion, err := GetRunRecordVersion(ctx, h.db(), runID)
+	if status.Code(err) == codes.Unavailable {
+		log.Ctx(ctx).Error().Err(err).Msg("agentic: approve: databroker unavailable")
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		return
+	} else if err != nil {
+		http.Error(w, "run not found", http.StatusNotFound)
 		return
 	}
 	if run.GetRevoked() || run.GetExpiresAt().AsTime().Before(time.Now()) {
@@ -219,12 +226,32 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Seal to the approving user, then create the run's session as a bound
-	// dependent, then commit the run. Bound records are written BEFORE the run: a
-	// failure between the two leaves an unreachable session (the run stays PENDING
-	// and /token refuses) rather than an approved run with no session.
+	// Seal to the approving user and CLAIM the run before writing anything else,
+	// conditionally on the version it was read at. Whoever commits first owns the
+	// approval; a second approver's write is refused and it never touches the
+	// winner's records.
+	//
+	// This is the reverse of the obvious order, and deliberately so. Writing the
+	// bound records first would mean a losing approver had already overwritten the
+	// winner's session and binding by the time its own run commit was refused,
+	// leaving run.Sub from one approver paired with the other's IdP session — the
+	// run's lifetime and revocation would follow the wrong person's session. The
+	// cost is a window where a run is APPROVED with no session yet: /token refuses
+	// to mint for it, and GET /runs/{run_id} reports bound:false, so it is visible
+	// rather than silent.
 	run.Sub = userID
 	run.State = agenticpb.RunState_RUN_STATE_APPROVED
+	if err := PutRunIfUnchanged(ctx, client, run, runVersion); err != nil {
+		if databroker.IsRecordVersionMismatch(err) {
+			log.Ctx(ctx).Info().Str("run-id", runID).Str("actor", userID).
+				Msg("agentic: approve: lost the race, the run was already approved")
+			renderPage(ctx, w, http.StatusOK, alreadyApprovedPage, nil)
+			return
+		}
+		log.Ctx(ctx).Error().Err(err).Msg("agentic: approve: failed to store run")
+		http.Error(w, "failed to store approval", http.StatusInternalServerError)
+		return
+	}
 	runSession := buildRunSession(idpSess, run, time.Now())
 	if _, err := client.Put(ctx, &databroker.PutRequest{
 		Records: idpsessionpb.NewBoundRecords(
@@ -235,11 +262,6 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 		),
 	}); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("run-id", runID).Msg("agentic: approve: failed to bind run session")
-		http.Error(w, "failed to store approval", http.StatusInternalServerError)
-		return
-	}
-	if err := PutRun(ctx, client, run); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("agentic: approve: failed to store run")
 		http.Error(w, "failed to store approval", http.StatusInternalServerError)
 		return
 	}
