@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/cipher"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -48,6 +49,13 @@ const (
 	// credential, because every credential expires within this window unless the
 	// approver's IdP session is still live at the next poll.
 	defaultAccessTokenTTL = time.Hour
+	// maxRequestBytes bounds a caller-supplied JSON body before it is decoded.
+	// Every other bound in this block is checked on the DECODED value, which is
+	// too late to matter: an authenticated workload could otherwise make the AS
+	// read and allocate a multi-megabyte string before it was rejected. The
+	// figure is far above any legitimate request — a 4KiB prompt, 32 server URLs,
+	// 32 sealed claims and 16 labels together do not approach it.
+	maxRequestBytes = 64 << 10
 	// maxPromptBytes bounds the human-readable prompt stored on a run and rendered
 	// on the consent page, keeping records and pages bounded.
 	maxPromptBytes = 4096
@@ -272,7 +280,13 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req createRunRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			http.Error(w, fmt.Sprintf("request body must be at most %d bytes", maxRequestBytes),
+				http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -677,4 +691,13 @@ func (h *Handler) getRunForApproval(w http.ResponseWriter, r *http.Request, runI
 		return nil, false
 	}
 	return run, true
+}
+
+// decodeJSONBody decodes a caller-supplied JSON body, refusing to read more than
+// maxRequestBytes of it. MaxBytesReader also closes the connection's read side
+// once the limit is hit, so an oversized body is not drained on the way to the
+// error.
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
+	return json.NewDecoder(r.Body).Decode(dst)
 }
