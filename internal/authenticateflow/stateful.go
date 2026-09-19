@@ -543,15 +543,24 @@ func (s *Stateful) sessionToBindingData(
 
 	switch binding.GetTypeUrl() {
 	case protoutil.GetTypeURL(&session.Session{}):
+		// The dependent session may legitimately be gone: an expired run's session
+		// is deleted before its binding is revoked, because the two are reconciled
+		// asynchronously. Whether that is fatal depends on the protocol, so resolve
+		// it to a possibly-nil session and let each branch decide.
+		var sess *session.Session
 		rec, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
 			Type: protoutil.GetTypeURL(&session.Session{}),
 			Id:   binding.GetId(),
 		})
-		if err != nil {
-			return handlers.SessionBindingData{}, nil
+		if err == nil {
+			sess = &session.Session{}
+			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
+				sess = nil
+			}
 		}
-		sess := &session.Session{}
-		if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
+		if sess == nil && binding.GetProtocol() != idpsession.BindingProtocol_BINDING_PROTOCOL_AGENTIC {
+			// The other protocols take their identity and expiry from the session
+			// itself, so without it there is nothing to show.
 			return handlers.SessionBindingData{}, nil
 		}
 		switch binding.GetProtocol() {
@@ -564,13 +573,13 @@ func (s *Stateful) sessionToBindingData(
 			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
 			resource = formatBrowserUserAgent(binding.GetDetails()["user-agent"])
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_AGENTIC:
-			// An approved agentic run. It stays active until the user revokes it
-			// here or their IdP session ends.
+			// An approved agentic run. Everything a user needs in order to
+			// recognise it — run id, prompt, labels — was frozen onto the binding at
+			// consent precisely so it outlives the run's own records, so build the
+			// row even when the session is already gone. Dropping it left the user
+			// an anonymous binding they could neither identify nor revoke, on
+			// exactly the oldest runs.
 			expiresAt = "Until revoked or IDP expires"
-			sess := &session.Session{}
-			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
-				return handlers.SessionBindingData{}, nil
-			}
 			detailsAgentic = agenticDetails(binding.GetDetails(), sess)
 			resource = agenticResource(detailsAgentic)
 		}
