@@ -157,3 +157,72 @@ func TestCheckHostsConnectedForUser(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
+	t.Parallel()
+
+	accessExpiry := time.Now().Add(42 * time.Minute).UTC().Truncate(time.Second)
+	refreshExpiry := time.Now().Add(72 * time.Hour).UTC().Truncate(time.Second)
+
+	server := func() serverInfo {
+		return serverInfo{host: "a.example.com", NeedsOauth: true, routeID: "r1", upstreamURL: "https://upstream.example.com"}
+	}
+	const tokenKey = "user1|r1|https://upstream.example.com"
+
+	tests := []struct {
+		name                      string
+		token                     *oauth21proto.UpstreamMCPToken
+		wantTokenExpiresAt        string
+		wantRefreshAvailable      bool
+		wantRefreshTokenExpiresAt string
+	}{
+		{
+			name:  "no token",
+			token: nil,
+		},
+		{
+			name: "access token expiry and refresh token",
+			token: &oauth21proto.UpstreamMCPToken{
+				ExpiresAt:        timestamppb.New(accessExpiry),
+				RefreshToken:     "rt",
+				RefreshExpiresAt: timestamppb.New(refreshExpiry),
+			},
+			wantTokenExpiresAt:        accessExpiry.Format(time.RFC3339),
+			wantRefreshAvailable:      true,
+			wantRefreshTokenExpiresAt: refreshExpiry.Format(time.RFC3339),
+		},
+		{
+			name: "no expiry, refresh token without expiry",
+			token: &oauth21proto.UpstreamMCPToken{
+				RefreshToken: "rt",
+			},
+			wantRefreshAvailable: true,
+		},
+		{
+			name: "expiry without refresh token",
+			token: &oauth21proto.UpstreamMCPToken{
+				ExpiresAt: timestamppb.New(accessExpiry),
+			},
+			wantTokenExpiresAt: accessExpiry.Format(time.RFC3339),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			storage := &listRoutesTestStorage{mcpTokens: map[string]*oauth21proto.UpstreamMCPToken{}}
+			if tc.token != nil {
+				storage.mcpTokens[tokenKey] = tc.token
+			}
+			srv := &Handler{storage: storage}
+			result, err := srv.checkHostsConnectedForUser(context.Background(), "user1", []serverInfo{server()})
+			require.NoError(t, err)
+			require.Len(t, result, 1)
+			assert.Equal(t, tc.token != nil, result[0].Connected)
+			assert.Equal(t, tc.wantTokenExpiresAt, result[0].TokenExpiresAt)
+			assert.Equal(t, tc.wantRefreshAvailable, result[0].RefreshTokenAvailable)
+			assert.Equal(t, tc.wantRefreshTokenExpiresAt, result[0].RefreshTokenExpiresAt)
+		})
+	}
+}

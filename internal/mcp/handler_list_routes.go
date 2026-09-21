@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
+	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
@@ -130,6 +132,18 @@ func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWr
 	})
 }
 
+// applyTokenInfo copies the user-visible expiry and refresh token availability
+// from a stored upstream token onto the server info.
+func (s *serverInfo) applyTokenInfo(token *oauth21proto.UpstreamMCPToken) {
+	if t := token.GetExpiresAt(); t != nil {
+		s.TokenExpiresAt = t.AsTime().Format(time.RFC3339)
+	}
+	s.RefreshTokenAvailable = token.GetRefreshToken() != ""
+	if t := token.GetRefreshExpiresAt(); t != nil {
+		s.RefreshTokenExpiresAt = t.AsTime().Format(time.RFC3339)
+	}
+}
+
 func (srv *Handler) checkHostsConnectedForUser(
 	ctx context.Context,
 	userID string,
@@ -148,6 +162,9 @@ func (srv *Handler) checkHostsConnectedForUser(
 					return fmt.Errorf("failed to get upstream MCP token for user %s: %w", userID, err)
 				}
 				servers[i].Connected = err == nil && token != nil
+				if servers[i].Connected {
+					servers[i].applyTokenInfo(token)
+				}
 			}
 			return nil
 		})
@@ -167,7 +184,15 @@ type serverInfo struct {
 	URL         string `json:"url"`
 	Connected   bool   `json:"connected"`
 	NeedsOauth  bool   `json:"needs_oauth"`
-	host        string `json:"-"`
-	routeID     string `json:"-"`
-	upstreamURL string `json:"-"`
+	// TokenExpiresAt is the stored upstream access token expiry in RFC 3339 format,
+	// empty if there is no token or the token has no known expiry.
+	TokenExpiresAt string `json:"token_expires_at,omitempty"`
+	// RefreshTokenAvailable indicates whether the stored token carries a refresh token.
+	RefreshTokenAvailable bool `json:"refresh_token_available"`
+	// RefreshTokenExpiresAt is the stored refresh token expiry in RFC 3339 format,
+	// empty if unknown.
+	RefreshTokenExpiresAt string `json:"refresh_token_expires_at,omitempty"`
+	host                  string `json:"-"`
+	routeID               string `json:"-"`
+	upstreamURL           string `json:"-"`
 }
