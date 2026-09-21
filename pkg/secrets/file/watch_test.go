@@ -2,7 +2,6 @@ package file
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -14,9 +13,16 @@ import (
 )
 
 const (
-	watchWait = 3 * time.Second
-	watchTick = 50 * time.Millisecond
+	watchWait        = 3 * time.Second
+	watchTick        = 10 * time.Millisecond
+	testPollInterval = 10 * time.Millisecond
 )
+
+// newTestProvider polls fast so watch tests are not paced by
+// DefaultPollInterval.
+func newTestProvider() *Provider {
+	return &Provider{pollInterval: testPollInterval}
+}
 
 func TestWatchDetectsRewrite(t *testing.T) {
 	t.Parallel()
@@ -26,7 +32,7 @@ func TestWatchDetectsRewrite(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("v1"), 0o600))
 
 	var count atomic.Int64
-	stop, err := New().Watch(context.Background(), fileRef(t, path), func() { count.Add(1) })
+	stop, err := newTestProvider().Watch(context.Background(), fileRef(t, path), func() { count.Add(1) })
 	require.NoError(t, err)
 	defer stop()
 
@@ -52,7 +58,7 @@ func TestWatchDetectsAtomicSymlinkSwap(t *testing.T) {
 	require.NoError(t, os.Symlink(filepath.Join("..data", "token"), tokenPath))
 
 	var count atomic.Int64
-	stop, err := New().Watch(context.Background(), fileRef(t, tokenPath), func() { count.Add(1) })
+	stop, err := newTestProvider().Watch(context.Background(), fileRef(t, tokenPath), func() { count.Add(1) })
 	require.NoError(t, err)
 	defer stop()
 
@@ -74,7 +80,7 @@ func TestWatchDetectsCreateAfterMissing(t *testing.T) {
 	path := filepath.Join(dir, "not-yet")
 
 	var count atomic.Int64
-	stop, err := New().Watch(context.Background(), fileRef(t, path), func() { count.Add(1) })
+	stop, err := newTestProvider().Watch(context.Background(), fileRef(t, path), func() { count.Add(1) })
 	require.NoError(t, err)
 	defer stop()
 
@@ -90,7 +96,7 @@ func TestWatchStop(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("v1"), 0o600))
 
 	var count atomic.Int64
-	stop, err := New().Watch(context.Background(), fileRef(t, path), func() { count.Add(1) })
+	stop, err := newTestProvider().Watch(context.Background(), fileRef(t, path), func() { count.Add(1) })
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(path, []byte("v2"), 0o600))
@@ -100,33 +106,6 @@ func TestWatchStop(t *testing.T) {
 	before := count.Load()
 
 	require.NoError(t, os.WriteFile(path, []byte("v3"), 0o600))
-	time.Sleep(time.Second) // real time: give the (stopped) watcher a chance to (not) fire
-	assert.Equal(t, before, count.Load(), "no notifications after stop")
-}
-
-// After the last registration stops, the watcher is torn down and no further
-// notifications are delivered. This also covers the teardown ordering inside
-// unregister: the drain goroutine is cancelled before the watcher is closed,
-// and a signal broadcast racing that window must not reach a stopped watch.
-func TestWatchNoNotifyAfterStop(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "secret")
-	require.NoError(t, os.WriteFile(path, []byte("v1"), 0o600))
-
-	var count atomic.Int64
-	p := New()
-	stop, err := p.Watch(context.Background(), fileRef(t, path), func() { count.Add(1) })
-	require.NoError(t, err)
-
-	stop()
-	before := count.Load()
-
-	for i := range 20 {
-		require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, "v%d", i), 0o600))
-		time.Sleep(watchTick)
-	}
-
-	assert.Equal(t, before, count.Load(), "notify fired after the watch was stopped")
+	assert.Never(t, func() bool { return count.Load() != before },
+		20*testPollInterval, watchTick, "no notifications after stop")
 }

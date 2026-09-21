@@ -40,5 +40,7 @@ type Provider interface {
 type Watcher interface {
 	// Watch calls notify (coalescing allowed) whenever the referenced secret
 	// may have changed, until ctx is done or the returned stop func is called.
+	// No new delivery begins after stop returns; a delivery already in
+	// progress completes.
 	Watch(ctx context.Context, r ref.Ref, notify func()) (stop func(), err error)
 }
