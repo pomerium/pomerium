@@ -51,11 +51,14 @@ type Handler struct {
 	hosts   *HostInfo
 	// singleFlight deduplicates concurrent auxiliary operations keyed by a namespace
 	// prefix: "dcr:" for dynamic client registrations, "mcp:" for upstream token refreshes.
-	singleFlight            singleflight.Group
-	clientMetadataFetcher   *ClientMetadataFetcher
-	getAuthenticator        AuthenticatorGetter
-	sessionExpiry           time.Duration
-	httpClient              *http.Client // for upstream discovery fetches
+	singleFlight          singleflight.Group
+	clientMetadataFetcher *ClientMetadataFetcher
+	getAuthenticator      AuthenticatorGetter
+	sessionExpiry         time.Duration
+	// httpClient is used for upstream discovery fetches and for the portal-triggered
+	// upstream token refresh. It trusts the CAs configured in the options, the same
+	// way UpstreamAuthHandler's client does.
+	httpClient              *http.Client
 	asMetadataDomainMatcher *DomainMatcher
 	dcrEnabled              bool
 }
@@ -128,15 +131,17 @@ func New(
 
 	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
 
+	upstreamHTTPClient := newUpstreamHTTPClient(ctx, cfg)
+
 	h := &Handler{
 		prefix:                  prefix,
 		trace:                   tracerProvider,
 		storage:                 NewStorage(client),
 		cipher:                  cipher,
-		hosts:                   NewHostInfo(cfg, http.DefaultClient),
+		hosts:                   NewHostInfo(cfg, upstreamHTTPClient),
 		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
 		sessionExpiry:           cfg.Options.CookieExpire,
-		httpClient:              http.DefaultClient,
+		httpClient:              upstreamHTTPClient,
 		asMetadataDomainMatcher: asDomainMatcher,
 		dcrEnabled: cfg.Options.IsRuntimeFlagSet(
 			config.RuntimeFlagMCPDynamicClientRegistration,

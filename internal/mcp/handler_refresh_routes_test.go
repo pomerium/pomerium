@@ -2,7 +2,10 @@ package mcp
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,6 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 )
@@ -336,4 +340,35 @@ func TestRefreshRoutesMuxWiring(t *testing.T) {
 	require.NotNil(t, stored)
 	assert.Equal(t, "new-at", stored.GetAccessToken())
 	assert.Equal(t, "old-rt", stored.GetRefreshToken(), "refresh token is preserved when not rotated")
+}
+
+// TestNewRefreshHandlerTrustsConfiguredCA asserts that the Handler's upstream HTTP
+// client honors the CA configured in the options, the same way the ext_proc
+// UpstreamAuthHandler does. Otherwise a portal-triggered refresh against a token
+// endpoint signed by a private CA fails TLS while the ext_proc refresh succeeds.
+func TestNewRefreshHandlerTrustsConfiguredCA(t *testing.T) {
+	t.Parallel()
+
+	tokenServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"access_token":"new","token_type":"Bearer"}`)
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	certPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: tokenServer.Certificate().Raw,
+	})
+
+	cfg := config.New(config.NewDefaultOptions())
+	cfg.Options.CA = base64.StdEncoding.EncodeToString(certPEM)
+
+	h, err := New(t.Context(), DefaultPrefix, cfg, nil)
+	require.NoError(t, err)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, tokenServer.URL, nil)
+	require.NoError(t, err)
+	res, err := h.httpClient.Do(req)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = res.Body.Close() })
 }
