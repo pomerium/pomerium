@@ -162,7 +162,6 @@ func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 	t.Parallel()
 
 	accessExpiry := time.Now().Add(42 * time.Minute).UTC().Truncate(time.Second)
-	refreshExpiry := time.Now().Add(72 * time.Hour).UTC().Truncate(time.Second)
 
 	server := func() serverInfo {
 		return serverInfo{host: "a.example.com", NeedsOauth: true, routeID: "r1", upstreamURL: "https://upstream.example.com"}
@@ -170,11 +169,10 @@ func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 	const tokenKey = "user1|r1|https://upstream.example.com"
 
 	tests := []struct {
-		name                      string
-		token                     *oauth21proto.UpstreamMCPToken
-		wantTokenExpiresAt        string
-		wantRefreshAvailable      bool
-		wantRefreshTokenExpiresAt string
+		name                 string
+		token                *oauth21proto.UpstreamMCPToken
+		wantTokenExpiresAt   string
+		wantRefreshAvailable bool
 	}{
 		{
 			name:  "no token",
@@ -183,13 +181,11 @@ func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 		{
 			name: "access token expiry and refresh token",
 			token: &oauth21proto.UpstreamMCPToken{
-				ExpiresAt:        timestamppb.New(accessExpiry),
-				RefreshToken:     "rt",
-				RefreshExpiresAt: timestamppb.New(refreshExpiry),
+				ExpiresAt:    timestamppb.New(accessExpiry),
+				RefreshToken: "rt",
 			},
-			wantTokenExpiresAt:        accessExpiry.Format(time.RFC3339),
-			wantRefreshAvailable:      true,
-			wantRefreshTokenExpiresAt: refreshExpiry.Format(time.RFC3339),
+			wantTokenExpiresAt:   accessExpiry.Format(time.RFC3339),
+			wantRefreshAvailable: true,
 		},
 		{
 			name: "no expiry, refresh token without expiry",
@@ -222,7 +218,6 @@ func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 			assert.Equal(t, tc.token != nil, result[0].Connected)
 			assert.Equal(t, tc.wantTokenExpiresAt, result[0].TokenExpiresAt)
 			assert.Equal(t, tc.wantRefreshAvailable, result[0].RefreshTokenAvailable)
-			assert.Equal(t, tc.wantRefreshTokenExpiresAt, result[0].RefreshTokenExpiresAt)
 		})
 	}
 }
@@ -231,15 +226,13 @@ func TestGetPortalInfoForUser(t *testing.T) {
 	t.Parallel()
 
 	accessExpiry := time.Now().Add(15 * time.Minute).UTC().Truncate(time.Second)
-	refreshExpiry := time.Now().Add(24 * time.Hour).UTC().Truncate(time.Second)
 
 	srv := &Handler{
 		storage: &listRoutesTestStorage{
 			mcpTokens: map[string]*oauth21proto.UpstreamMCPToken{
 				"user1|r1|https://upstream.example.com": {
-					ExpiresAt:        timestamppb.New(accessExpiry),
-					RefreshToken:     "rt",
-					RefreshExpiresAt: timestamppb.New(refreshExpiry),
+					ExpiresAt:    timestamppb.New(accessExpiry),
+					RefreshToken: "rt",
 				},
 			},
 		},
@@ -260,5 +253,4 @@ func TestGetPortalInfoForUser(t *testing.T) {
 	assert.True(t, infos[0].Connected)
 	assert.Equal(t, accessExpiry.Format(time.RFC3339), infos[0].TokenExpiresAt)
 	assert.True(t, infos[0].RefreshTokenAvailable)
-	assert.Equal(t, refreshExpiry.Format(time.RFC3339), infos[0].RefreshTokenExpiresAt)
 }

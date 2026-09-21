@@ -157,7 +157,6 @@ func applyMCPPortalInfo(ctx context.Context, portalRoutes []portal.Route, infos 
 		portalRoutes[i].MCPConnected = info.Connected
 		portalRoutes[i].MCPTokenExpiresAt = info.TokenExpiresAt
 		portalRoutes[i].MCPRefreshTokenAvailable = info.RefreshTokenAvailable
-		portalRoutes[i].MCPRefreshTokenExpiresAt = info.RefreshTokenExpiresAt
 		redirectURL := (&url.URL{Scheme: fromURL.Scheme, Host: fromURL.Host, Path: endpoints.PathPomeriumRoutes}).String()
 		connectURL := url.URL{
 			Scheme:   fromURL.Scheme,

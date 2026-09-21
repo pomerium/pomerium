@@ -37,7 +37,6 @@ type MCPServerStatus = {
   connected?: boolean;
   token_expires_at?: string;
   refresh_token_available?: boolean;
-  refresh_token_expires_at?: string;
 };
 
 type MCPRoutesResponse = {
@@ -95,7 +94,6 @@ const stateFromRoute = (route: Route): MCPServerStatus => ({
   connected: route.mcp_connected,
   token_expires_at: route.mcp_token_expires_at,
   refresh_token_available: route.mcp_refresh_token_available,
-  refresh_token_expires_at: route.mcp_refresh_token_expires_at,
 });
 
 type MCPRouteCardProps = {
@@ -155,11 +153,9 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
       ? { label: "Expired", color: "warning" as const, live: false }
       : { label: "Connected", color: "success" as const, live: true };
 
-  const refreshTokenLabel = !tokenState.refresh_token_available
-    ? "not available"
-    : tokenState.refresh_token_expires_at
-      ? `available (${describeExpiry(tokenState.refresh_token_expires_at)})`
-      : "available";
+  const refreshTokenLabel = tokenState.refresh_token_available
+    ? "available"
+    : "not available";
 
   return (
     <Card

@@ -68,7 +68,6 @@ type refreshRoutesResponse struct {
 		Connected             bool   `json:"connected"`
 		TokenExpiresAt        string `json:"token_expires_at"`
 		RefreshTokenAvailable bool   `json:"refresh_token_available"`
-		RefreshTokenExpiresAt string `json:"refresh_token_expires_at"`
 	} `json:"servers"`
 	Errors map[string]string `json:"errors"`
 }

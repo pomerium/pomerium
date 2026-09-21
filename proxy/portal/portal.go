@@ -33,8 +33,6 @@ type Route struct {
 	MCPTokenExpiresAt string `json:"mcp_token_expires_at,omitempty"`
 	// MCPRefreshTokenAvailable indicates an upstream refresh token is stored for the user.
 	MCPRefreshTokenAvailable bool `json:"mcp_refresh_token_available,omitempty"`
-	// MCPRefreshTokenExpiresAt is the upstream refresh token expiry, RFC 3339, if known.
-	MCPRefreshTokenExpiresAt string `json:"mcp_refresh_token_expires_at,omitempty"`
 }
 
 // RoutesFromConfigRoutes converts config routes into portal routes.

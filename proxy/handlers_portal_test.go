@@ -68,7 +68,6 @@ func TestApplyMCPPortalInfo(t *testing.T) {
 			Connected:             true,
 			TokenExpiresAt:        "2026-09-21T10:00:00Z",
 			RefreshTokenAvailable: true,
-			RefreshTokenExpiresAt: "2026-09-28T10:00:00Z",
 		},
 	}
 
@@ -77,7 +76,6 @@ func TestApplyMCPPortalInfo(t *testing.T) {
 	assert.True(t, portalRoutes[0].MCPConnected)
 	assert.Equal(t, "2026-09-21T10:00:00Z", portalRoutes[0].MCPTokenExpiresAt)
 	assert.True(t, portalRoutes[0].MCPRefreshTokenAvailable)
-	assert.Equal(t, "2026-09-28T10:00:00Z", portalRoutes[0].MCPRefreshTokenExpiresAt)
 	assert.Equal(t,
 		"https://mcp.example.com/.pomerium/mcp/connect?redirect_url=https%3A%2F%2Fmcp.example.com%2F.pomerium%2Froutes",
 		portalRoutes[0].MCPConnectURL)

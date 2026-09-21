@@ -149,9 +149,6 @@ type UpstreamTokenStatus struct {
 	TokenExpiresAt string `json:"token_expires_at,omitempty"`
 	// RefreshTokenAvailable indicates whether the stored token carries a refresh token.
 	RefreshTokenAvailable bool `json:"refresh_token_available"`
-	// RefreshTokenExpiresAt is the stored refresh token expiry in RFC 3339 format,
-	// empty if unknown.
-	RefreshTokenExpiresAt string `json:"refresh_token_expires_at,omitempty"`
 }
 
 // newUpstreamTokenStatus derives the user-visible status from a stored upstream token.
@@ -162,9 +159,6 @@ func newUpstreamTokenStatus(token *oauth21proto.UpstreamMCPToken) UpstreamTokenS
 		s.TokenExpiresAt = t.AsTime().Format(time.RFC3339)
 	}
 	s.RefreshTokenAvailable = token.GetRefreshToken() != ""
-	if t := token.GetRefreshExpiresAt(); t != nil {
-		s.RefreshTokenExpiresAt = t.AsTime().Format(time.RFC3339)
-	}
 	return s
 }
 
