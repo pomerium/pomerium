@@ -5,7 +5,11 @@ package providertest
 
 import (
 	"context"
+	"strconv"
 	"sync"
+	"sync/atomic"
+
+	"github.com/zeebo/xxh3"
 
 	"github.com/pomerium/pomerium/pkg/secrets/provider"
 	"github.com/pomerium/pomerium/pkg/secrets/ref"
@@ -15,17 +19,17 @@ import (
 // counts, and watch notifications are all keyed by ref.FetchKey() so that
 // bindings sharing a backend URL share fake state, mirroring the real dedupe.
 //
-// A Fake is safe for concurrent use.
+// A Fake is safe for concurrent use, and the zero value is usable: it handles
+// the empty scheme and every fetchKey is unscripted.
 type Fake struct {
 	scheme string
 
 	mu          sync.Mutex
 	responses   map[string]response // sticky per-fetchKey response
-	def         response            // fallback when a fetchKey has no response
 	started     map[string]int      // fetches entered (before any block)
 	completed   map[string]int      // fetches returned
 	blocks      map[string]chan struct{}
-	watchers    map[string]map[int]func() // fetchKey -> id -> notify
+	watchers    map[string]map[int]*watchReg // fetchKey -> id -> registration
 	nextWatchID int
 	validateErr error
 }
@@ -35,18 +39,15 @@ type response struct {
 	err    error
 }
 
+type watchReg struct {
+	notify  func()
+	stopped atomic.Bool // set by teardown before the registration is dropped
+}
+
 // New returns a Fake handling the given scheme. With no scripted response a
 // fetch returns provider.ErrNotFound, so tests must opt in to success.
 func New(scheme string) *Fake {
-	return &Fake{
-		scheme:    scheme,
-		responses: make(map[string]response),
-		def:       response{err: provider.ErrNotFound},
-		started:   make(map[string]int),
-		completed: make(map[string]int),
-		blocks:    make(map[string]chan struct{}),
-		watchers:  make(map[string]map[int]func()),
-	}
+	return &Fake{scheme: scheme}
 }
 
 var (
@@ -71,16 +72,22 @@ func (f *Fake) Validate(ref.Ref) error {
 	return f.validateErr
 }
 
-// SetValue scripts a successful fetch for fetchKey. Version is set to value so
-// the resolver's change detection sees a new version whenever the value changes.
+// SetValue scripts a successful fetch for fetchKey. Version is a content hash
+// of value, so the resolver's change detection sees a new version whenever the
+// value changes, without provider.Result.Version (which is meant for logs and
+// metrics) ever carrying secret material.
 func (f *Fake) SetValue(fetchKey, value string) {
-	f.SetResult(fetchKey, provider.Result{Value: []byte(value), Version: value}, nil)
+	version := strconv.FormatUint(xxh3.HashString(value), 16)
+	f.SetResult(fetchKey, provider.Result{Value: []byte(value), Version: version}, nil)
 }
 
 // SetResult scripts an arbitrary (Result, error) for fetchKey.
 func (f *Fake) SetResult(fetchKey string, r provider.Result, err error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.responses == nil {
+		f.responses = make(map[string]response)
+	}
 	f.responses[fetchKey] = response{result: r, err: err}
 }
 
@@ -89,16 +96,26 @@ func (f *Fake) SetError(fetchKey string, err error) {
 	f.SetResult(fetchKey, provider.Result{}, err)
 }
 
-// Fetch implements provider.Provider.
+// Fetch implements provider.Provider. Like the real file provider it refuses
+// an already-done context without consulting the backend, so a fetch cancelled
+// before it starts counts as neither started nor completed.
 func (f *Fake) Fetch(ctx context.Context, r ref.Ref) (provider.Result, error) {
 	key := r.FetchKey()
 
+	if err := ctx.Err(); err != nil {
+		return provider.Result{}, err
+	}
+
 	f.mu.Lock()
+	if f.started == nil {
+		f.started = make(map[string]int)
+	}
 	f.started[key]++
 	block := f.blocks[key]
 	resp, ok := f.responses[key]
 	if !ok {
-		resp = f.def
+		// Unscripted keys are not-found, so tests must opt in to success.
+		resp = response{err: provider.ErrNotFound}
 	}
 	f.mu.Unlock()
 
@@ -111,6 +128,9 @@ func (f *Fake) Fetch(ctx context.Context, r ref.Ref) (provider.Result, error) {
 	}
 
 	f.mu.Lock()
+	if f.completed == nil {
+		f.completed = make(map[string]int)
+	}
 	f.completed[key]++
 	f.mu.Unlock()
 
@@ -136,6 +156,9 @@ func (f *Fake) StartedCount(fetchKey string) int {
 func (f *Fake) Block(fetchKey string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.blocks == nil {
+		f.blocks = make(map[string]chan struct{})
+	}
 	if f.blocks[fetchKey] == nil {
 		f.blocks[fetchKey] = make(chan struct{})
 	}
@@ -163,15 +186,20 @@ func (f *Fake) Watch(ctx context.Context, r ref.Ref, notify func()) (func(), err
 	f.mu.Lock()
 	id := f.nextWatchID
 	f.nextWatchID++
-	if f.watchers[key] == nil {
-		f.watchers[key] = make(map[int]func())
+	if f.watchers == nil {
+		f.watchers = make(map[string]map[int]*watchReg)
 	}
-	f.watchers[key][id] = notify
+	if f.watchers[key] == nil {
+		f.watchers[key] = make(map[int]*watchReg)
+	}
+	reg := &watchReg{notify: notify}
+	f.watchers[key][id] = reg
 	f.mu.Unlock()
 
 	teardown := func() {
 		f.mu.Lock()
 		defer f.mu.Unlock()
+		reg.stopped.Store(true)
 		delete(f.watchers[key], id)
 	}
 	cancelAfter := context.AfterFunc(ctx, teardown)
@@ -182,15 +210,20 @@ func (f *Fake) Watch(ctx context.Context, r ref.Ref, notify func()) (func(), err
 }
 
 // TriggerWatch fires all watch notifications registered for fetchKey.
+// Callbacks run outside the lock so they may call Watch or a stop func; as
+// provider.Watcher requires, a registration stopped by an earlier callback in
+// the same round is skipped.
 func (f *Fake) TriggerWatch(fetchKey string) {
 	f.mu.Lock()
-	notifies := make([]func(), 0, len(f.watchers[fetchKey]))
-	for _, n := range f.watchers[fetchKey] {
-		notifies = append(notifies, n)
+	regs := make([]*watchReg, 0, len(f.watchers[fetchKey]))
+	for _, reg := range f.watchers[fetchKey] {
+		regs = append(regs, reg)
 	}
 	f.mu.Unlock()
 
-	for _, n := range notifies {
-		n()
+	for _, reg := range regs {
+		if !reg.stopped.Load() {
+			reg.notify()
+		}
 	}
 }
