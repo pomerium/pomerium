@@ -126,6 +126,9 @@ export type Route = {
   logo_url: string;
   mcp_connect_url?: string;
   mcp_connected?: boolean;
+  mcp_token_expires_at?: string;
+  mcp_refresh_token_available?: boolean;
+  mcp_refresh_token_expires_at?: string;
 };
 
 export type RoutesPageData = BasePageData &
