@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -65,7 +63,7 @@ func (srv *Handler) listMCPServers(w http.ResponseWriter, r *http.Request) error
 		Str("user-id", userID).
 		Msg("mcp/list-routes: listing servers for user")
 
-	return srv.listMCPServersForUser(ctx, w, userID)
+	return srv.listMCPServersForUser(ctx, w, userID, nil)
 }
 
 // allServerInfos returns a serverInfo slice for every configured MCP server host.
@@ -86,13 +84,9 @@ func (srv *Handler) allServerInfos() []serverInfo {
 	return servers
 }
 
-func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWriter, userID string) error {
-	return srv.listMCPServersForUserWithErrors(ctx, w, userID, nil)
-}
-
-// listMCPServersForUserWithErrors writes the routes listing response for a user,
-// optionally including a per-route error map keyed by the route URL as the client sent it.
-func (srv *Handler) listMCPServersForUserWithErrors(
+// listMCPServersForUser writes the routes listing response for a user, optionally
+// including a per-route error map keyed by the route URL as the client sent it.
+func (srv *Handler) listMCPServersForUser(
 	ctx context.Context,
 	w http.ResponseWriter,
 	userID string,
@@ -146,9 +140,24 @@ func (srv *Handler) listMCPServersForUserWithErrors(
 	})
 }
 
-// applyTokenInfo copies the user-visible expiry and refresh token availability
-// from a stored upstream token onto the server info.
-func (s *serverInfo) applyTokenInfo(token *oauth21proto.UpstreamMCPToken) {
+// UpstreamTokenStatus is the user-visible state of a stored upstream MCP token.
+// It is embedded in both the routes listing JSON and PortalRouteInfo so the fields
+// are declared and mapped once.
+type UpstreamTokenStatus struct {
+	// TokenExpiresAt is the stored upstream access token expiry in RFC 3339 format,
+	// empty if there is no token or the token has no known expiry.
+	TokenExpiresAt string `json:"token_expires_at,omitempty"`
+	// RefreshTokenAvailable indicates whether the stored token carries a refresh token.
+	RefreshTokenAvailable bool `json:"refresh_token_available"`
+	// RefreshTokenExpiresAt is the stored refresh token expiry in RFC 3339 format,
+	// empty if unknown.
+	RefreshTokenExpiresAt string `json:"refresh_token_expires_at,omitempty"`
+}
+
+// newUpstreamTokenStatus derives the user-visible status from a stored upstream token.
+// A nil token yields the zero status.
+func newUpstreamTokenStatus(token *oauth21proto.UpstreamMCPToken) UpstreamTokenStatus {
+	var s UpstreamTokenStatus
 	if t := token.GetExpiresAt(); t != nil {
 		s.TokenExpiresAt = t.AsTime().Format(time.RFC3339)
 	}
@@ -156,6 +165,7 @@ func (s *serverInfo) applyTokenInfo(token *oauth21proto.UpstreamMCPToken) {
 	if t := token.GetRefreshExpiresAt(); t != nil {
 		s.RefreshTokenExpiresAt = t.AsTime().Format(time.RFC3339)
 	}
+	return s
 }
 
 func (srv *Handler) checkHostsConnectedForUser(
@@ -172,13 +182,11 @@ func (srv *Handler) checkHostsConnectedForUser(
 		eg.Go(func() error {
 			if servers[i].routeID != "" && servers[i].upstreamURL != "" {
 				token, err := srv.storage.GetUpstreamMCPToken(ctx, userID, servers[i].routeID, servers[i].upstreamURL)
-				if err != nil && status.Code(err) != codes.NotFound {
+				if err != nil && !isNotFound(err) {
 					return fmt.Errorf("failed to get upstream MCP token for user %s: %w", userID, err)
 				}
 				servers[i].Connected = err == nil && token != nil
-				if servers[i].Connected {
-					servers[i].applyTokenInfo(token)
-				}
+				servers[i].UpstreamTokenStatus = newUpstreamTokenStatus(token)
 			}
 			return nil
 		})
@@ -192,21 +200,14 @@ func (srv *Handler) checkHostsConnectedForUser(
 }
 
 type serverInfo struct {
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	LogoURL     string `json:"logo_url,omitempty"`
-	URL         string `json:"url"`
-	Connected   bool   `json:"connected"`
-	NeedsOauth  bool   `json:"needs_oauth"`
-	// TokenExpiresAt is the stored upstream access token expiry in RFC 3339 format,
-	// empty if there is no token or the token has no known expiry.
-	TokenExpiresAt string `json:"token_expires_at,omitempty"`
-	// RefreshTokenAvailable indicates whether the stored token carries a refresh token.
-	RefreshTokenAvailable bool `json:"refresh_token_available"`
-	// RefreshTokenExpiresAt is the stored refresh token expiry in RFC 3339 format,
-	// empty if unknown.
-	RefreshTokenExpiresAt string `json:"refresh_token_expires_at,omitempty"`
-	host                  string `json:"-"`
-	routeID               string `json:"-"`
-	upstreamURL           string `json:"-"`
+	Name                string `json:"name,omitempty"`
+	Description         string `json:"description,omitempty"`
+	LogoURL             string `json:"logo_url,omitempty"`
+	URL                 string `json:"url"`
+	Connected           bool   `json:"connected"`
+	NeedsOauth          bool   `json:"needs_oauth"`
+	UpstreamTokenStatus        // embedded: encoding/json flattens its fields into this object
+	host                string `json:"-"`
+	routeID             string `json:"-"`
+	upstreamURL         string `json:"-"`
 }

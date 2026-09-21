@@ -45,13 +45,6 @@ type MCPRoutesResponse = {
   errors?: Record<string, string>;
 };
 
-type MCPTokenState = {
-  connected: boolean;
-  tokenExpiresAt?: string;
-  refreshTokenAvailable: boolean;
-  refreshTokenExpiresAt?: string;
-};
-
 // formatDuration renders a duration in seconds as a compact human string,
 // e.g. "42m" or "3h". Intl.RelativeTimeFormat is not available at the
 // TypeScript target used here, so this is done locally.
@@ -66,7 +59,7 @@ const formatDuration = (seconds: number): string => {
       return `${Math.floor(seconds / unitSeconds)}${suffix}`;
     }
   }
-  return `${Math.max(Math.floor(seconds), 0)}s`;
+  return `${Math.floor(seconds)}s`;
 };
 
 // describeExpiry renders an expiry timestamp as "expires in …", "expired … ago"
@@ -85,6 +78,8 @@ const describeExpiry = (timestamp?: string): string => {
     : `expired ${formatDuration(-deltaSeconds)} ago`;
 };
 
+// isExpired reports whether an expiry timestamp is in the past. Absent or
+// unparseable timestamps are treated as "not expired".
 const isExpired = (timestamp?: string): boolean => {
   if (!timestamp) {
     return false;
@@ -93,25 +88,21 @@ const isExpired = (timestamp?: string): boolean => {
   return !Number.isNaN(parsed) && parsed < Date.now();
 };
 
-const stateFromRoute = (route: Route): MCPTokenState => ({
-  connected: route.mcp_connected ?? false,
-  tokenExpiresAt: route.mcp_token_expires_at,
-  refreshTokenAvailable: route.mcp_refresh_token_available ?? false,
-  refreshTokenExpiresAt: route.mcp_refresh_token_expires_at,
-});
-
-const stateFromServer = (server: MCPServerStatus): MCPTokenState => ({
-  connected: server.connected ?? false,
-  tokenExpiresAt: server.token_expires_at,
-  refreshTokenAvailable: server.refresh_token_available ?? false,
-  refreshTokenExpiresAt: server.refresh_token_expires_at,
+// stateFromRoute maps the portal's `mcp_`-prefixed route fields onto the shape the
+// /.pomerium/mcp/routes* endpoints return, so the card has a single state shape.
+const stateFromRoute = (route: Route): MCPServerStatus => ({
+  url: route.from,
+  connected: route.mcp_connected,
+  token_expires_at: route.mcp_token_expires_at,
+  refresh_token_available: route.mcp_refresh_token_available,
+  refresh_token_expires_at: route.mcp_refresh_token_expires_at,
 });
 
 type MCPRouteCardProps = {
   route: Route;
 };
 const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
-  const [tokenState, setTokenState] = useState<MCPTokenState>(() =>
+  const [tokenState, setTokenState] = useState<MCPServerStatus>(() =>
     stateFromRoute(route),
   );
   const [pending, setPending] = useState(false);
@@ -137,7 +128,7 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
       const body = (await resp.json()) as MCPRoutesResponse;
       const server = body.servers?.find((s) => s.url === route.from);
       if (server) {
-        setTokenState(stateFromServer(server));
+        setTokenState(server);
       }
       const routeError = body.errors?.[route.from];
       setErrorMessage(routeError ? `Failed to ${action}: ${routeError}` : null);
@@ -156,12 +147,19 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
     post("/.pomerium/mcp/routes/disconnect", "disconnect");
   const handleRefresh = () => post("/.pomerium/mcp/routes/refresh", "refresh");
 
-  const expired = tokenState.connected && isExpired(tokenState.tokenExpiresAt);
-  const statusLabel = tokenState.connected
-    ? expired
-      ? "Expired"
-      : "Connected"
-    : "Not Connected";
+  // One source of truth for the three presentation states, so the chip's icon,
+  // label and color don't each re-derive it.
+  const status = !tokenState.connected
+    ? { label: "Not Connected", color: "default" as const, live: false }
+    : isExpired(tokenState.token_expires_at)
+      ? { label: "Expired", color: "warning" as const, live: false }
+      : { label: "Connected", color: "success" as const, live: true };
+
+  const refreshTokenLabel = !tokenState.refresh_token_available
+    ? "not available"
+    : tokenState.refresh_token_expires_at
+      ? `available (${describeExpiry(tokenState.refresh_token_expires_at)})`
+      : "available";
 
   return (
     <Card
@@ -203,22 +201,10 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
         }
         subheader={
           <Chip
-            icon={
-              tokenState.connected && !expired ? (
-                <Wifi size={14} />
-              ) : (
-                <WifiOff size={14} />
-              )
-            }
-            label={statusLabel}
+            icon={status.live ? <Wifi size={14} /> : <WifiOff size={14} />}
+            label={status.label}
             size="small"
-            color={
-              tokenState.connected
-                ? expired
-                  ? "warning"
-                  : "success"
-                : "default"
-            }
+            color={status.color}
             variant="outlined"
             sx={{ mt: 0.5 }}
           />
@@ -236,21 +222,14 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
                 component="div"
                 color="textSecondary"
               >
-                Access token: {describeExpiry(tokenState.tokenExpiresAt)}
+                Access token: {describeExpiry(tokenState.token_expires_at)}
               </Typography>
               <Typography
                 variant="caption"
                 component="div"
                 color="textSecondary"
               >
-                Refresh token:{" "}
-                {tokenState.refreshTokenAvailable
-                  ? tokenState.refreshTokenExpiresAt
-                    ? `available (${describeExpiry(
-                        tokenState.refreshTokenExpiresAt,
-                      )})`
-                    : "available"
-                  : "not available"}
+                Refresh token: {refreshTokenLabel}
               </Typography>
             </>
           )}

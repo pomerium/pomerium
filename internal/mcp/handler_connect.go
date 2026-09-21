@@ -323,31 +323,14 @@ func (srv *Handler) DisconnectRoutes(w http.ResponseWriter, r *http.Request) {
 		Str("user-id", userID).
 		Msg("mcp/disconnect: extracted user info from claims")
 
-	type disconnectRequest struct {
-		Routes []string `json:"routes"`
-	}
-
-	var req disconnectRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/disconnect: failed to decode disconnect request")
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	log.Ctx(ctx).Debug().
-		Strs("routes", req.Routes).
-		Int("route-count", len(req.Routes)).
-		Msg("mcp/disconnect: parsed disconnect request")
-
-	if len(req.Routes) == 0 {
-		log.Ctx(ctx).Error().Msg("mcp/disconnect: no routes provided in disconnect request")
-		http.Error(w, "no routes provided", http.StatusBadRequest)
+	routes, ok := decodeRoutesRequest(w, r, "mcp/disconnect")
+	if !ok {
 		return
 	}
 
 	disconnectedCount := 0
 	skippedCount := 0
-	for _, routeURL := range req.Routes {
+	for _, routeURL := range routes {
 		parsedURL, err := url.Parse(routeURL)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Str("url", routeURL).Msg("mcp/disconnect: failed to parse route URL")
@@ -394,7 +377,7 @@ func (srv *Handler) DisconnectRoutes(w http.ResponseWriter, r *http.Request) {
 		Int("skipped", skippedCount).
 		Msg("mcp/disconnect: disconnect operation completed")
 
-	err = srv.listMCPServersForUser(ctx, w, userID)
+	err = srv.listMCPServersForUser(ctx, w, userID, nil)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/disconnect: failed to list MCP servers after disconnect")
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -422,13 +405,9 @@ func (srv *Handler) tryRefreshExpiredUpstreamToken(
 	token *oauth21proto.UpstreamMCPToken,
 	info ServerHostInfo,
 ) (*oauth21proto.UpstreamMCPToken, error) {
-	var configClientSecret string
-	if info.UpstreamOAuth2 != nil {
-		configClientSecret = info.UpstreamOAuth2.ClientSecret
-	}
 	return refreshExpiredUpstreamMCPToken(
 		ctx, srv.storage, srv.httpClient, &srv.singleFlight,
-		token, configClientSecret,
+		token, info.ConfigClientSecret(),
 	)
 }
 
@@ -706,4 +685,32 @@ func (srv *Handler) registerWithUpstreamAS(
 		Msg("mcp/auto-discovery: dynamic client registration succeeded")
 
 	return registeredClient, nil
+}
+
+// decodeRoutesRequest decodes the `{"routes": [...]}` body shared by the
+// routes/disconnect and routes/refresh endpoints. On a malformed or empty body it
+// writes a 400 response and reports false; logPrefix identifies the caller in logs.
+func decodeRoutesRequest(w http.ResponseWriter, r *http.Request, logPrefix string) ([]string, bool) {
+	ctx := r.Context()
+
+	var req struct {
+		Routes []string `json:"routes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg(logPrefix + ": failed to decode request")
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return nil, false
+	}
+	if len(req.Routes) == 0 {
+		log.Ctx(ctx).Error().Msg(logPrefix + ": no routes provided in request")
+		http.Error(w, "no routes provided", http.StatusBadRequest)
+		return nil, false
+	}
+
+	log.Ctx(ctx).Debug().
+		Strs("routes", req.Routes).
+		Int("route-count", len(req.Routes)).
+		Msg(logPrefix + ": parsed request")
+
+	return req.Routes, true
 }

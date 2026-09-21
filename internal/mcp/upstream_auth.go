@@ -257,13 +257,7 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 			Bool("has_token_endpoint", token.TokenEndpoint != "").
 			Time("expires_at", token.ExpiresAt.AsTime()).
 			Msg("mcp_upstream_auth: cached upstream token expired, attempting refresh or clear")
-		// Read client_secret from config (single source of truth) rather than from
-		// the stored token, to avoid replicating the shared credential per-user.
-		var configClientSecret string
-		if info.UpstreamOAuth2 != nil {
-			configClientSecret = info.UpstreamOAuth2.ClientSecret
-		}
-		return h.refreshOrClearToken(ctx, token, configClientSecret)
+		return h.refreshOrClearToken(ctx, token, info.ConfigClientSecret())
 	}
 
 	log.Ctx(ctx).Debug().
@@ -325,7 +319,7 @@ func refreshExpiredUpstreamMCPToken(
 	routeID := token.RouteId
 	upstreamServer := token.UpstreamServer
 
-	if token.RefreshToken == "" || token.TokenEndpoint == "" {
+	if !canRefresh(token) {
 		log.Ctx(ctx).Debug().
 			Str("user_id", userID).
 			Str("route_id", routeID).
@@ -346,6 +340,11 @@ func refreshExpiredUpstreamMCPToken(
 // token or no token endpoint, so a refresh_token grant is impossible.
 var errTokenNotRefreshable = errors.New("token cannot be refreshed: no refresh token or token endpoint")
 
+// canRefresh reports whether a stored upstream token can be used for a refresh_token grant.
+func canRefresh(token *oauth21proto.UpstreamMCPToken) bool {
+	return token.GetRefreshToken() != "" && token.GetTokenEndpoint() != ""
+}
+
 // forceRefreshUpstreamMCPToken performs a refresh_token grant for a stored upstream token
 // regardless of its current expiry. Unlike refreshExpiredUpstreamMCPToken, a token without
 // refresh capability is left in place and reported as errTokenNotRefreshable rather than
@@ -364,7 +363,7 @@ func forceRefreshUpstreamMCPToken(
 	token *oauth21proto.UpstreamMCPToken,
 	configClientSecret string,
 ) (*oauth21proto.UpstreamMCPToken, error) {
-	if token.GetRefreshToken() == "" || token.GetTokenEndpoint() == "" {
+	if !canRefresh(token) {
 		return nil, errTokenNotRefreshable
 	}
 	return refreshUpstreamMCPToken(ctx, storage, httpClient, sf, token, configClientSecret)

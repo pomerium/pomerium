@@ -32,6 +32,16 @@ type ServerHostInfo struct {
 	UpstreamOAuth2         *config.UpstreamOAuth2
 }
 
+// ConfigClientSecret returns the upstream OAuth2 client secret from configuration,
+// which is the single source of truth for it: the shared credential is deliberately
+// not replicated onto per-user stored tokens.
+func (i ServerHostInfo) ConfigClientSecret() string {
+	if i.UpstreamOAuth2 == nil {
+		return ""
+	}
+	return i.UpstreamOAuth2.ClientSecret
+}
+
 func NewServerHostInfoFromPolicy(p *config.Policy) (ServerHostInfo, error) {
 	u, err := url.Parse(p.GetFrom())
 	if err != nil {
