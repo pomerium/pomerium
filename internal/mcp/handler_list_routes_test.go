@@ -226,3 +226,39 @@ func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPortalInfoForUser(t *testing.T) {
+	t.Parallel()
+
+	accessExpiry := time.Now().Add(15 * time.Minute).UTC().Truncate(time.Second)
+	refreshExpiry := time.Now().Add(24 * time.Hour).UTC().Truncate(time.Second)
+
+	srv := &Handler{
+		storage: &listRoutesTestStorage{
+			mcpTokens: map[string]*oauth21proto.UpstreamMCPToken{
+				"user1|r1|https://upstream.example.com": {
+					ExpiresAt:        timestamppb.New(accessExpiry),
+					RefreshToken:     "rt",
+					RefreshExpiresAt: timestamppb.New(refreshExpiry),
+				},
+			},
+		},
+		hosts: newHostInfoForTest(map[string]ServerHostInfo{
+			"a.example.com": {
+				Host:        "a.example.com",
+				URL:         "https://a.example.com",
+				RouteID:     "r1",
+				UpstreamURL: "https://upstream.example.com",
+			},
+		}, nil),
+	}
+
+	infos, err := srv.GetPortalInfoForUser(context.Background(), "user1")
+	require.NoError(t, err)
+	require.Len(t, infos, 1)
+	assert.Equal(t, "a.example.com", infos[0].Host)
+	assert.True(t, infos[0].Connected)
+	assert.Equal(t, accessExpiry.Format(time.RFC3339), infos[0].TokenExpiresAt)
+	assert.True(t, infos[0].RefreshTokenAvailable)
+	assert.Equal(t, refreshExpiry.Format(time.RFC3339), infos[0].RefreshTokenExpiresAt)
+}

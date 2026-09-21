@@ -10,6 +10,8 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/mcp"
+	"github.com/pomerium/pomerium/proxy/portal"
 )
 
 func TestProxy_routesPortalJSON(t *testing.T) {
@@ -49,4 +51,40 @@ func TestProxy_routesPortalJSON(t *testing.T) {
 			"logo_url": "https://logo.example.com"
 		}
 	]}`, w.Body.String())
+}
+
+func TestApplyMCPPortalInfo(t *testing.T) {
+	t.Parallel()
+
+	portalRoutes := []portal.Route{
+		{Type: portal.RouteTypeMCP, From: "https://mcp.example.com"},
+		{Type: portal.RouteTypeMCP, From: "https://unknown.example.com"},
+		{Type: portal.RouteTypeHTTP, From: "https://http.example.com"},
+	}
+	infos := []mcp.PortalRouteInfo{
+		{
+			Host:                  "mcp.example.com",
+			ServerURL:             "https://mcp.example.com",
+			Connected:             true,
+			TokenExpiresAt:        "2026-09-21T10:00:00Z",
+			RefreshTokenAvailable: true,
+			RefreshTokenExpiresAt: "2026-09-28T10:00:00Z",
+		},
+	}
+
+	applyMCPPortalInfo(t.Context(), portalRoutes, infos)
+
+	assert.True(t, portalRoutes[0].MCPConnected)
+	assert.Equal(t, "2026-09-21T10:00:00Z", portalRoutes[0].MCPTokenExpiresAt)
+	assert.True(t, portalRoutes[0].MCPRefreshTokenAvailable)
+	assert.Equal(t, "2026-09-28T10:00:00Z", portalRoutes[0].MCPRefreshTokenExpiresAt)
+	assert.Equal(t,
+		"https://mcp.example.com/.pomerium/mcp/connect?redirect_url=https%3A%2F%2Fmcp.example.com%2F.pomerium%2Froutes",
+		portalRoutes[0].MCPConnectURL)
+
+	// routes with no matching MCP info, and non-MCP routes, are left untouched.
+	assert.False(t, portalRoutes[1].MCPConnected)
+	assert.Empty(t, portalRoutes[1].MCPConnectURL)
+	assert.False(t, portalRoutes[2].MCPConnected)
+	assert.Empty(t, portalRoutes[2].MCPTokenExpiresAt)
 }
