@@ -225,3 +225,12 @@ func mustRunContainer(tb testing.TB, img string, opts ...testcontainers.Containe
 	})
 	return container
 }
+
+// WriteFile writes data to a file.
+func WriteFile(t testing.TB, filename string, data []byte) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), filename)
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+	return path
+}

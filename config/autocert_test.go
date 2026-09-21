@@ -9,11 +9,12 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"math/big"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 func newCACertPEM() ([]byte, error) {
@@ -59,109 +60,78 @@ func TestAutocertOptions_Validate(t *testing.T) {
 		TrustedCAFile string
 	}
 	type test struct {
-		fields  fields
-		wantErr bool
-		cleanup func()
+		fields           fields
+		wantErr          bool
+		useTrustedCAFile bool
 	}
-	tests := map[string]func(t *testing.T) test{
-		"ok/custom-ca": func(_ *testing.T) test {
-			return test{
-				fields: fields{
-					CA: "test-ca.example.com/directory",
-				},
-				wantErr: false,
-			}
+	tests := map[string]test{
+		"ok/custom-ca": {
+			fields: fields{
+				CA: "test-ca.example.com/directory",
+			},
+			wantErr: false,
 		},
-		"ok/eab": func(_ *testing.T) test {
-			return test{
-				fields: fields{
-					EABKeyID:  "keyID",
-					EABMACKey: "29D7t6-mOuEV5vvBRX0UYF5T7x6fomidhM1kMJco-yw",
-				},
-				wantErr: false,
-			}
+		"ok/eab": {
+			fields: fields{
+				EABKeyID:  "keyID",
+				EABMACKey: "29D7t6-mOuEV5vvBRX0UYF5T7x6fomidhM1kMJco-yw",
+			},
+			wantErr: false,
 		},
-		"ok/trusted-ca": func(_ *testing.T) test {
-			return test{
-				fields: fields{
-					TrustedCA: base64.StdEncoding.EncodeToString(certPEM),
-				},
-				wantErr: false,
-			}
+		"ok/trusted-ca": {
+			fields: fields{
+				TrustedCA: base64.StdEncoding.EncodeToString(certPEM),
+			},
+			wantErr: false,
 		},
-		"ok/trusted-ca-file": func(t *testing.T) test {
-			f, err := os.CreateTemp(t.TempDir(), "pomerium-test-ca")
-			require.NoError(t, err)
-			n, err := f.Write(certPEM)
-			require.NoError(t, err)
-			require.Equal(t, len(certPEM), n)
-			return test{
-				fields: fields{
-					TrustedCAFile: f.Name(),
-				},
-				wantErr: false,
-				cleanup: func() { os.Remove(f.Name()) },
-			}
+		"ok/trusted-ca-file": {
+			wantErr:          false,
+			useTrustedCAFile: true,
 		},
-		"fail/missing-eab-key": func(_ *testing.T) test {
-			return test{
-				fields: fields{
-					EABKeyID: "keyID",
-				},
-				wantErr: true,
-			}
+		"fail/missing-eab-key": {
+			fields: fields{
+				EABKeyID: "keyID",
+			},
+			wantErr: true,
 		},
-		"fail/missing-eab-key-id": func(_ *testing.T) test {
-			return test{
-				fields: fields{
-					EABMACKey: "29D7t6-mOuEV5vvBRX0UYF5T7x6fomidhM1kMJco-yw",
-				},
-				wantErr: true,
-			}
+		"fail/missing-eab-key-id": {
+			fields: fields{
+				EABMACKey: "29D7t6-mOuEV5vvBRX0UYF5T7x6fomidhM1kMJco-yw",
+			},
+			wantErr: true,
 		},
-		"fail/invalid-mac-key": func(_ *testing.T) test {
-			return test{
-				fields: fields{
-					EABMACKey: ">invalid-base64-url-encoded-mac-key<",
-				},
-				wantErr: true,
-			}
+		"fail/invalid-mac-key": {
+			fields: fields{
+				EABMACKey: ">invalid-base64-url-encoded-mac-key<",
+			},
+			wantErr: true,
 		},
-		"fail/trusted-ca-combined": func(t *testing.T) test {
-			f, err := os.CreateTemp(t.TempDir(), "pomerium-test-ca")
-			require.NoError(t, err)
-			n, err := f.Write(certPEM)
-			require.NoError(t, err)
-			require.Equal(t, len(certPEM), n)
-			return test{
-				fields: fields{
-					TrustedCA:     base64.StdEncoding.EncodeToString(certPEM),
-					TrustedCAFile: f.Name(),
-				},
-				wantErr: true,
-				cleanup: func() { os.Remove(f.Name()) },
-			}
+		"fail/trusted-ca-combined": {
+			fields: fields{
+				TrustedCA: base64.StdEncoding.EncodeToString(certPEM),
+			},
+			wantErr:          true,
+			useTrustedCAFile: true,
 		},
-		"fail/trusted-ca-invalid-base64-pem": func(_ *testing.T) test {
-			return test{
-				fields: fields{
-					TrustedCA: ">invalid-base-64-data<",
-				},
-				wantErr: true,
-			}
+		"fail/trusted-ca-invalid-base64-pem": {
+			fields: fields{
+				TrustedCA: ">invalid-base-64-data<",
+			},
+			wantErr: true,
 		},
-		"fail/trusted-ca-missing-file": func(_ *testing.T) test {
-			return test{
-				fields: fields{
-					TrustedCAFile: "some-non-existing-file",
-				},
-				wantErr: true,
-			}
+		"fail/trusted-ca-missing-file": {
+			fields: fields{
+				TrustedCAFile: "some-non-existing-file",
+			},
+			wantErr: true,
 		},
 	}
-	for name, run := range tests {
-		tc := run(t)
+	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			trustedCAFile := tc.fields.TrustedCAFile
+			if tc.useTrustedCAFile {
+				trustedCAFile = testutil.WriteFile(t, "pomerium-test-ca", certPEM)
+			}
 			o := &AutocertOptions{
 				Enable:        tc.fields.Enable,
 				CA:            tc.fields.CA,
@@ -172,13 +142,10 @@ func TestAutocertOptions_Validate(t *testing.T) {
 				MustStaple:    tc.fields.MustStaple,
 				Folder:        tc.fields.Folder,
 				TrustedCA:     tc.fields.TrustedCA,
-				TrustedCAFile: tc.fields.TrustedCAFile,
+				TrustedCAFile: trustedCAFile,
 			}
 			if err := o.Validate(); (err != nil) != tc.wantErr {
 				t.Errorf("AutocertOptions.Validate() error = %v, wantErr %v", err, tc.wantErr)
-			}
-			if tc.cleanup != nil {
-				tc.cleanup()
 			}
 		})
 	}
