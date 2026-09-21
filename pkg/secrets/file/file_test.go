@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -321,41 +322,60 @@ func TestFetchRespectsContext(t *testing.T) {
 		assert.ErrorIs(t, err, context.Canceled)
 	})
 
-	t.Run("already cancelled does not read", func(t *testing.T) {
+	t.Run("already cancelled does not touch the filesystem", func(t *testing.T) {
 		t.Parallel()
 
-		// A cancelled fetch must not start the read at all: on a hung mount an
-		// abandoned reader stays blocked in open(2) for the life of the process.
-		// open(O_WRONLY|O_NONBLOCK) on a FIFO reports ENXIO only while nobody
-		// holds it open for reading, which is the observation that pins this.
-		fifo := newFIFO(t)
+		// A missing path separates the two outcomes: had the fetch reached the
+		// filesystem it would report not-found, so ctx.Canceled proves it
+		// never looked. On a hung mount that difference is a reader parked in
+		// open(2) for the life of the process.
+		missing := filepath.Join(t.TempDir(), "never-created")
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := New().Fetch(ctx, fileRef(t, fifo))
-		require.ErrorIs(t, err, context.Canceled)
-
-		time.Sleep(100 * time.Millisecond) // let any stray reader reach open(2)
-
-		fd, err := syscall.Open(fifo, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
-		if err == nil {
-			_ = syscall.Close(fd)
-		}
-		assert.ErrorIs(t, err, syscall.ENXIO, "cancelled Fetch opened the file anyway")
+		_, err := New().Fetch(ctx, fileRef(t, missing))
+		assert.ErrorIs(t, err, context.Canceled)
+		assert.False(t, provider.IsNotFound(err), "cancelled Fetch read the filesystem anyway")
 	})
+}
 
-	t.Run("blocking read", func(t *testing.T) {
+// A regular file on a wedged NFS or FUSE mount is the one hang the provider
+// cannot rule out in process (unlike a FIFO or device, which the non-blocking
+// open refuses outright), so detach must return on ctx and leave the read to
+// finish on its own. There is no portable way to wedge a real mount in a unit
+// test, so the mechanism is exercised directly.
+func TestDetach(t *testing.T) {
+	t.Parallel()
+
+	t.Run("already done ctx never runs fn", func(t *testing.T) {
 		t.Parallel()
 
-		fifo := newFIFO(t)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
 
+		var ran atomic.Bool
+		_, err := detach(ctx, func() int { ran.Store(true); return 1 })
+		require.ErrorIs(t, err, context.Canceled)
+		assert.Never(t, ran.Load, 100*time.Millisecond, watchTick,
+			"fn ran despite an already-cancelled ctx")
+	})
+
+	t.Run("blocked fn returns on ctx and is left running", func(t *testing.T) {
+		t.Parallel()
+
+		release := make(chan struct{})
+		finished := make(chan struct{})
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 
 		done := make(chan error, 1)
 		go func() {
-			_, err := New().Fetch(ctx, fileRef(t, fifo))
+			_, err := detach(ctx, func() int {
+				<-release
+				close(finished)
+				return 1
+			})
 			done <- err
 		}()
 
@@ -363,7 +383,16 @@ func TestFetchRespectsContext(t *testing.T) {
 		case err := <-done:
 			assert.ErrorIs(t, err, context.DeadlineExceeded)
 		case <-time.After(5 * time.Second):
-			t.Error("Fetch ignored the context deadline on a blocking read")
+			t.Fatal("detach ignored the context deadline")
+		}
+
+		// The abandoned fn is still running; releasing it must not panic on a
+		// send to a caller that has long since gone.
+		close(release)
+		select {
+		case <-finished:
+		case <-time.After(5 * time.Second):
+			t.Fatal("abandoned fn never finished")
 		}
 	})
 }

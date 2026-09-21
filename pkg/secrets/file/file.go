@@ -5,7 +5,6 @@
 package file
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -21,7 +20,6 @@ import (
 	"time"
 
 	"github.com/zeebo/xxh3"
-	"golang.org/x/sync/singleflight"
 
 	"github.com/pomerium/pomerium/pkg/secrets/provider"
 	"github.com/pomerium/pomerium/pkg/secrets/ref"
@@ -52,13 +50,6 @@ const DefaultPollInterval = 500 * time.Millisecond
 // spawns goroutines.
 type Provider struct {
 	pollInterval time.Duration // zero means DefaultPollInterval
-
-	// reads dedupes in-flight reads by path. On a hung mount a cancelled Fetch
-	// abandons its reader goroutine (and its fd) with no way to interrupt it,
-	// so without dedupe a resolver retry loop would park one more on every
-	// attempt for the life of the process. Joining the in-flight read caps
-	// that at one per path.
-	reads singleflight.Group
 
 	mu      sync.Mutex
 	pollers map[string]*poller // watched path -> its poller and registrations
@@ -106,52 +97,42 @@ func (*Provider) Validate(r ref.Ref) error {
 // would reject must not be served off the disk), reads the file (at most
 // MaxFileSize bytes), strips exactly one trailing newline (D1), and derives an
 // opaque content-hash Version. A missing file, a path through a non-directory
-// and a ref naming a directory are all not-found (negative-cacheable), an
-// oversized file is provider.ErrTooLarge; any other read error is transient.
+// and a ref that does not name a regular file are all not-found
+// (negative-cacheable), an oversized file is provider.ErrTooLarge; any other
+// read error is transient.
 //
-// Secrets are commonly mounted from a network or FUSE filesystem (CSI drivers,
-// NFS), where open/read can block indefinitely and file I/O offers no
-// cancellation, so the read runs detached from ctx.
+// Every read is independent. Reads are deliberately NOT deduped by path: a
+// read abandoned on a hung mount cannot be interrupted, so sharing it would
+// let one stuck read answer for every later fetch of that path, leaving the
+// secret unavailable even after the mount recovered or the file was replaced.
+// That is the failure Go's net resolver added singleflight.ForgetUnshared to
+// avoid (golang/go#22724) and that wedged csi-driver-nfs (#1271). An
+// uninterruptible read leaks its goroutine; a shared one loses the secret.
 func (p *Provider) Fetch(ctx context.Context, r ref.Ref) (provider.Result, error) {
 	if err := p.Validate(r); err != nil {
 		return provider.Result{}, err
 	}
 	path := r.URL().Path
 
-	data, err := p.read(ctx, path)
+	rr, err := detach(ctx, func() readResult {
+		data, err := readCapped(path)
+		return readResult{data: data, err: err}
+	})
+	if err == nil {
+		err = rr.err
+	}
 	if err != nil {
 		return provider.Result{}, fmt.Errorf("file secret %q: %w", path, err)
 	}
 
-	data = trimOneTrailingNewline(data)
+	data := trimOneTrailingNewline(rr.data)
 	version := strconv.FormatUint(xxh3.Hash(data), 16)
 	return provider.Result{Value: data, Version: version}, nil
 }
 
-// read returns path's contents, joining any read of the same path already in
-// flight. Like detach it abandons the read rather than waiting when ctx is
-// done, and refuses an already-done ctx without touching the filesystem.
-func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	ch := p.reads.DoChan(path, func() (any, error) { return readCapped(path) })
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case res := <-ch:
-		if res.Err != nil {
-			return nil, res.Err
-		}
-		data, _ := res.Val.([]byte)
-		if res.Shared {
-			// Several Fetches share one read: hand each its own buffer so a
-			// caller that writes through Result.Value cannot corrupt another's
-			// secret.
-			data = bytes.Clone(data)
-		}
-		return data, nil
-	}
+type readResult struct {
+	data []byte
+	err  error
 }
 
 // readCapped reads up to MaxFileSize+1 bytes; a full extra byte means the file
@@ -159,8 +140,18 @@ func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 // silently truncated. The cap applies to the on-disk size, before
 // trailing-newline trimming. Errors come back already classified for the
 // resolver.
+//
+// The open is non-blocking and the file type is checked before any read, so a
+// ref pointing at a FIFO, device or socket fails fast instead of parking a
+// goroutine in open(2) forever: opening a FIFO with no writer blocks
+// indefinitely without O_NONBLOCK. This is the only hang class we can rule
+// out in process — a regular file on a wedged NFS or FUSE mount still blocks,
+// which is why Fetch detaches the read.
 func readCapped(path string) ([]byte, error) {
-	f, err := os.Open(path)
+	// O_NONBLOCK affects the open of a special file only; for a regular file
+	// it is a no-op, and symlinks (a Kubernetes projected volume reaches its
+	// payload through two of them) are still followed.
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		// ENOENT and ENOTDIR (a path component that is not a directory) both
 		// say the ref cannot resolve until the config or the mount changes, so
@@ -172,15 +163,18 @@ func readCapped(path string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	// A directory opens successfully and only fails on read, with an error that
-	// varies by platform. Reject it here: a ref naming a directory is the same
-	// permanent misconfiguration as a missing file.
+	// Stat the descriptor, never the path: os.Lstat would see the symlink a
+	// projected volume mounts and reject every Kubernetes secret. A directory
+	// opens successfully and only fails on read, with a platform-dependent
+	// error, and a device or FIFO would read without ever ending. A secret is
+	// a regular file; anything else is a permanent misconfiguration, so it is
+	// classified alongside a missing file.
 	fi, err := f.Stat()
 	if err != nil {
 		return nil, err
 	}
-	if fi.IsDir() {
-		return nil, fmt.Errorf("is a directory: %w", provider.ErrNotFound)
+	if !fi.Mode().IsRegular() {
+		return nil, fmt.Errorf("not a regular file (%s): %w", fi.Mode().Type(), provider.ErrNotFound)
 	}
 
 	data, err := io.ReadAll(io.LimitReader(f, MaxFileSize+1))
