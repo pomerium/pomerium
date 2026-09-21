@@ -33,6 +33,7 @@ const (
 	listRoutesEndpoint    = "/routes"
 	connectEndpoint       = "/connect"
 	disconnectEndpoint    = "/routes/disconnect"
+	refreshRoutesEndpoint = "/routes/refresh"
 
 	// clientOAuthCallbackEndpoint is used when Pomerium acts as an OAuth 2.1 client
 	// to remote MCP servers' authorization servers (upstream OAuth proxy mode).
@@ -171,6 +172,7 @@ func (h *Handler) HandlerFunc() http.HandlerFunc {
 	r.Path(path.Join(h.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ListRoutes)
 	r.Path(path.Join(h.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ConnectGet)
 	r.Path(path.Join(h.prefix, disconnectEndpoint)).Methods(http.MethodPost).HandlerFunc(h.DisconnectRoutes)
+	r.Path(path.Join(h.prefix, refreshRoutesEndpoint)).Methods(http.MethodPost).HandlerFunc(h.RefreshRoutes)
 
 	return r.ServeHTTP
 }

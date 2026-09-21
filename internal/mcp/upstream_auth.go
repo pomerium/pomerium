@@ -339,6 +339,52 @@ func refreshExpiredUpstreamMCPToken(
 		return nil, nil
 	}
 
+	return refreshUpstreamMCPToken(ctx, storage, httpClient, sf, token, configClientSecret)
+}
+
+// errTokenNotRefreshable indicates that a stored upstream token carries no refresh
+// token or no token endpoint, so a refresh_token grant is impossible.
+var errTokenNotRefreshable = errors.New("token cannot be refreshed: no refresh token or token endpoint")
+
+// forceRefreshUpstreamMCPToken performs a refresh_token grant for a stored upstream token
+// regardless of its current expiry. Unlike refreshExpiredUpstreamMCPToken, a token without
+// refresh capability is left in place and reported as errTokenNotRefreshable rather than
+// being deleted.
+//
+// Return values otherwise match refreshExpiredUpstreamMCPToken:
+//   - (refreshed, nil): refresh succeeded; the new token was persisted.
+//   - (nil, nil):       permanent failure; the stale token has been deleted.
+//   - (nil, error):     the token is not refreshable, or a transient failure occurred and
+//     the stored token was preserved.
+func forceRefreshUpstreamMCPToken(
+	ctx context.Context,
+	storage HandlerStorage,
+	httpClient *http.Client,
+	sf *singleflight.Group,
+	token *oauth21proto.UpstreamMCPToken,
+	configClientSecret string,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	if token.GetRefreshToken() == "" || token.GetTokenEndpoint() == "" {
+		return nil, errTokenNotRefreshable
+	}
+	return refreshUpstreamMCPToken(ctx, storage, httpClient, sf, token, configClientSecret)
+}
+
+// refreshUpstreamMCPToken runs the refresh_token grant under the supplied singleflight group
+// and applies the permanent-vs-transient failure policy. Callers must have already verified
+// that the token has refresh capability.
+func refreshUpstreamMCPToken(
+	ctx context.Context,
+	storage HandlerStorage,
+	httpClient *http.Client,
+	sf *singleflight.Group,
+	token *oauth21proto.UpstreamMCPToken,
+	configClientSecret string,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	userID := token.UserId
+	routeID := token.RouteId
+	upstreamServer := token.UpstreamServer
+
 	sfKey := "mcp:" + url.Values{
 		"user":     {userID},
 		"route":    {routeID},

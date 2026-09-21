@@ -87,6 +87,17 @@ func (srv *Handler) allServerInfos() []serverInfo {
 }
 
 func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWriter, userID string) error {
+	return srv.listMCPServersForUserWithErrors(ctx, w, userID, nil)
+}
+
+// listMCPServersForUserWithErrors writes the routes listing response for a user,
+// optionally including a per-route error map keyed by the route URL as the client sent it.
+func (srv *Handler) listMCPServersForUserWithErrors(
+	ctx context.Context,
+	w http.ResponseWriter,
+	userID string,
+	routeErrors map[string]string,
+) error {
 	servers := srv.allServerInfos()
 
 	log.Ctx(ctx).Debug().
@@ -119,16 +130,19 @@ func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWr
 	w.WriteHeader(http.StatusOK)
 
 	type response struct {
-		Servers []serverInfo `json:"servers"`
+		Servers []serverInfo      `json:"servers"`
+		Errors  map[string]string `json:"errors,omitempty"`
 	}
 
 	log.Ctx(ctx).Debug().
 		Str("user-id", userID).
 		Int("server-count", len(servers)).
+		Int("error-count", len(routeErrors)).
 		Msg("mcp/list-routes: sending response")
 
 	return json.NewEncoder(w).Encode(response{
 		Servers: servers,
+		Errors:  routeErrors,
 	})
 }
 
