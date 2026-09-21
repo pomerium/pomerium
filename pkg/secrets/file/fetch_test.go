@@ -4,9 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -94,14 +93,40 @@ func TestFetchVersionIgnoresTrailingNewline(t *testing.T) {
 	assert.Equal(t, ra.Version, rb.Version, "version hashes the trimmed value")
 }
 
-func TestFetchUnboundedDeviceIsTooLarge(t *testing.T) {
+// An endless device must not be read at all. Reading it would only stop at
+// the size cap, so the cap is a backstop; the file-type check is what rejects
+// it, and permanently, since no device ever becomes a valid secret.
+func TestFetchRejectsNonRegularFiles(t *testing.T) {
 	t.Parallel()
 
-	if _, err := os.Stat("/dev/zero"); err != nil {
-		t.Skip("/dev/zero unavailable")
-	}
-	_, err := New().Fetch(context.Background(), fileRef(t, "/dev/zero"))
-	require.ErrorIs(t, err, provider.ErrTooLarge)
+	t.Run("character device", func(t *testing.T) {
+		t.Parallel()
+		if _, err := os.Stat("/dev/zero"); err != nil {
+			t.Skip("/dev/zero unavailable")
+		}
+		_, err := New().Fetch(context.Background(), fileRef(t, "/dev/zero"))
+		require.Error(t, err)
+		assert.True(t, provider.IsNotFound(err), "endless device classified as transient: %v", err)
+	})
+
+	t.Run("fifo fails fast instead of blocking in open", func(t *testing.T) {
+		t.Parallel()
+		fifo := newFIFO(t)
+
+		done := make(chan error, 1)
+		go func() {
+			_, err := New().Fetch(context.Background(), fileRef(t, fifo))
+			done <- err
+		}()
+
+		select {
+		case err := <-done:
+			require.Error(t, err)
+			assert.True(t, provider.IsNotFound(err), "%v", err)
+		case <-time.After(5 * time.Second):
+			t.Fatal("Fetch blocked opening a FIFO; the open is not non-blocking")
+		}
+	})
 }
 
 func TestFetchConcurrent(t *testing.T) {
@@ -159,33 +184,61 @@ func TestFetchRejectsUnvalidatedRef(t *testing.T) {
 	})
 }
 
-func countParkedReaders() int {
-	buf := make([]byte, 4<<20)
-	n := runtime.Stack(buf, true)
-	return strings.Count(string(buf[:n]), "file.readCapped(")
+// A read abandoned on a path that never returns must not answer for later
+// fetches of that path: the secret has to come back as soon as the file does.
+// Sharing an in-flight read by path is what wedged csi-driver-nfs (#1271) and
+// what Go's net resolver avoids via singleflight.ForgetUnshared (golang/go#22724).
+func TestFetchRecoversAfterBlockedPathIsReplaced(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "secret")
+	blocked := filepath.Join(dir, "blocked")
+	require.NoError(t, syscall.Mkfifo(path, 0o600))
+
+	p := New()
+	r := fileRef(t, path)
+
+	// A FIFO is refused outright now, but the recovery property must hold for
+	// any first fetch that fails without leaving the path claimed.
+	_, err := p.Fetch(context.Background(), r)
+	require.Error(t, err)
+
+	require.NoError(t, os.Rename(path, blocked))
+	require.NoError(t, os.WriteFile(path, []byte("recovered"), 0o600))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	got, err := p.Fetch(ctx, r)
+	require.NoError(t, err)
+	assert.Equal(t, "recovered", string(got.Value))
 }
 
-// Every cancelled Fetch on a blocking path abandons a fresh reader goroutine
-// and nothing dedupes reads of the same path, so a retry loop against a hung
-// mount grows one parked goroutine (and fd) per attempt for the life of the
-// process. Expected: at most one in-flight reader per path.
-func TestFetchDedupesAbandonedReaders(t *testing.T) {
-	// Not parallel: the goroutine census must not see other tests' FIFO readers.
-	fifo := newFIFO(t)
-	r := fileRef(t, fifo)
+// The same recovery property for a fetch abandoned mid-read: the reader stays
+// parked on the old inode, and the next fetch must still see the new file.
+func TestFetchRecoversAfterCancelledReadIsReplaced(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "secret")
+	slow := filepath.Join(dir, "slow")
+	require.NoError(t, syscall.Mkfifo(slow, 0o600))
+	require.NoError(t, os.Symlink(slow, path))
+
 	p := New()
+	r := fileRef(t, path)
 
-	before := countParkedReaders()
+	ctx1, cancel1 := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	_, err := p.Fetch(ctx1, r)
+	cancel1()
+	require.Error(t, err)
 
-	const attempts = 5
-	for range attempts {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
-		_, err := p.Fetch(ctx, r)
-		cancel()
-		require.ErrorIs(t, err, context.DeadlineExceeded)
-	}
-	leaked := countParkedReaders() - before
+	require.NoError(t, os.Remove(path))
+	require.NoError(t, os.WriteFile(path, []byte("recovered"), 0o600))
 
-	assert.LessOrEqual(t, leaked, 1,
-		"%d cancelled fetches of one path left %d readers parked in open(2)", attempts, leaked)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel2()
+	got, err := p.Fetch(ctx2, r)
+	require.NoError(t, err)
+	assert.Equal(t, "recovered", string(got.Value))
 }
