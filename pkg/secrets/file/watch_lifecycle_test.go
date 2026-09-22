@@ -247,9 +247,7 @@ func TestWatchConcurrentRegisterAndStop(t *testing.T) {
 	for i := range 16 {
 		path := filepath.Join(dir, fmt.Sprintf("s%d", i))
 		require.NoError(t, os.WriteFile(path, []byte("v"), 0o600))
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			ctx, cancel := context.WithCancel(context.Background())
 			stop, err := p.Watch(ctx, fileRef(t, path), func() {})
 			assert.NoError(t, err)
@@ -260,7 +258,7 @@ func TestWatchConcurrentRegisterAndStop(t *testing.T) {
 				cancel()
 			}
 			stop()
-		}()
+		})
 	}
 	wg.Wait()
 	assert.Eventually(t, func() bool {
