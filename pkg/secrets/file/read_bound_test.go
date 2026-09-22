@@ -354,6 +354,28 @@ func TestFetchDoesNotWaitOnAnotherFetchsProbe(t *testing.T) {
 	assert.Less(t, time.Since(start), time.Second, "fetch waited on another fetch's stuck probe")
 }
 
+// A fetch cancelled while waiting on its probe reports its own cancellation,
+// as it would while waiting on a read, and still says the reads are blocked.
+func TestFetchProbeWaitReturnsContextError(t *testing.T) {
+	t.Parallel()
+
+	m := newMount()
+	defer close(m.release)
+	p := m.provider()
+	r := fileRef(t, filepath.Join(t.TempDir(), "secret"))
+
+	_, err := p.Fetch(context.Background(), r)
+	require.NoError(t, err)
+	fillParkedCap(t, p, m, r)
+
+	m.statWedged.Store(true)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	_, err = p.Fetch(ctx, r)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, ErrReadBlocked)
+}
+
 // Stuck probes are bounded too: they hold no descriptor, but each pins a
 // goroutine and thread.
 func TestFetchBoundsParkedProbes(t *testing.T) {
