@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -161,7 +162,7 @@ func TestCheckHostsConnectedForUser(t *testing.T) {
 func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 	t.Parallel()
 
-	accessExpiry := time.Now().Add(42 * time.Minute).UTC().Truncate(time.Second)
+	accessExpiry := time.Date(2026, 9, 21, 10, 0, 0, 123456789, time.UTC)
 
 	server := func() serverInfo {
 		return serverInfo{host: "a.example.com", NeedsOauth: true, routeID: "r1", upstreamURL: "https://upstream.example.com"}
@@ -171,7 +172,7 @@ func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 	tests := []struct {
 		name                 string
 		token                *oauth21proto.UpstreamMCPToken
-		wantTokenExpiresAt   string
+		wantTokenExpiresAt   time.Time
 		wantRefreshAvailable bool
 	}{
 		{
@@ -184,7 +185,7 @@ func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 				ExpiresAt:    timestamppb.New(accessExpiry),
 				RefreshToken: "rt",
 			},
-			wantTokenExpiresAt:   accessExpiry.Format(time.RFC3339),
+			wantTokenExpiresAt:   accessExpiry.Truncate(time.Second),
 			wantRefreshAvailable: true,
 		},
 		{
@@ -199,7 +200,7 @@ func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 			token: &oauth21proto.UpstreamMCPToken{
 				ExpiresAt: timestamppb.New(accessExpiry),
 			},
-			wantTokenExpiresAt: accessExpiry.Format(time.RFC3339),
+			wantTokenExpiresAt: accessExpiry.Truncate(time.Second),
 		},
 	}
 
@@ -217,6 +218,13 @@ func TestCheckHostsConnectedForUserTokenDetails(t *testing.T) {
 			require.Len(t, result, 1)
 			assert.Equal(t, tc.token != nil, result[0].Connected)
 			assert.Equal(t, tc.wantTokenExpiresAt, result[0].TokenExpiresAt)
+			raw, err := json.Marshal(result[0])
+			require.NoError(t, err)
+			if tc.wantTokenExpiresAt.IsZero() {
+				assert.NotContains(t, string(raw), "token_expires_at")
+			} else {
+				assert.Contains(t, string(raw), `"token_expires_at":"2026-09-21T10:00:00Z"`)
+			}
 			assert.Equal(t, tc.wantRefreshAvailable, result[0].RefreshTokenAvailable)
 		})
 	}
@@ -251,6 +259,6 @@ func TestGetPortalInfoForUser(t *testing.T) {
 	require.Len(t, infos, 1)
 	assert.Equal(t, "a.example.com", infos[0].Host)
 	assert.True(t, infos[0].Connected)
-	assert.Equal(t, accessExpiry.Format(time.RFC3339), infos[0].TokenExpiresAt)
+	assert.Equal(t, accessExpiry, infos[0].TokenExpiresAt)
 	assert.True(t, infos[0].RefreshTokenAvailable)
 }

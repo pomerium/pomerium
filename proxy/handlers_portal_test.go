@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,12 +62,13 @@ func TestApplyMCPPortalInfo(t *testing.T) {
 		{Type: portal.RouteTypeMCP, From: "https://unknown.example.com"},
 		{Type: portal.RouteTypeHTTP, From: "https://http.example.com"},
 	}
+	expiry := time.Date(2026, 9, 21, 10, 0, 0, 0, time.UTC)
 	infos := []mcp.PortalRouteInfo{
 		{
 			Host:                  "mcp.example.com",
 			ServerURL:             "https://mcp.example.com",
 			Connected:             true,
-			TokenExpiresAt:        "2026-09-21T10:00:00Z",
+			TokenExpiresAt:        expiry,
 			RefreshTokenAvailable: true,
 		},
 	}
@@ -74,7 +76,7 @@ func TestApplyMCPPortalInfo(t *testing.T) {
 	applyMCPPortalInfo(t.Context(), portalRoutes, infos)
 
 	assert.True(t, portalRoutes[0].MCPConnected)
-	assert.Equal(t, "2026-09-21T10:00:00Z", portalRoutes[0].MCPTokenExpiresAt)
+	assert.Equal(t, expiry, portalRoutes[0].MCPTokenExpiresAt)
 	assert.True(t, portalRoutes[0].MCPRefreshTokenAvailable)
 	assert.Equal(t,
 		"https://mcp.example.com/.pomerium/mcp/connect?redirect_url=https%3A%2F%2Fmcp.example.com%2F.pomerium%2Froutes",

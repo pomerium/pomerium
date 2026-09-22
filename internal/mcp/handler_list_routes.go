@@ -144,9 +144,9 @@ func (srv *Handler) listMCPServersForUser(
 // It is embedded in both the routes listing JSON and PortalRouteInfo so the fields
 // are declared and mapped once.
 type UpstreamTokenStatus struct {
-	// TokenExpiresAt is the stored upstream access token expiry in RFC 3339 format,
-	// empty if there is no token or the token has no known expiry.
-	TokenExpiresAt string `json:"token_expires_at,omitempty"`
+	// TokenExpiresAt is the stored upstream access token expiry, truncated to seconds;
+	// zero (and omitted from JSON) if there is no token or the token has no known expiry.
+	TokenExpiresAt time.Time `json:"token_expires_at,omitzero"`
 	// RefreshTokenAvailable indicates whether the stored token carries a refresh token.
 	RefreshTokenAvailable bool `json:"refresh_token_available"`
 }
@@ -156,7 +156,7 @@ type UpstreamTokenStatus struct {
 func newUpstreamTokenStatus(token *oauth21proto.UpstreamMCPToken) UpstreamTokenStatus {
 	var s UpstreamTokenStatus
 	if t := token.GetExpiresAt(); t != nil {
-		s.TokenExpiresAt = t.AsTime().Format(time.RFC3339)
+		s.TokenExpiresAt = t.AsTime().Truncate(time.Second)
 	}
 	s.RefreshTokenAvailable = token.GetRefreshToken() != ""
 	return s
