@@ -40,14 +40,24 @@ const MaxFileSize = 1 << 20
 // MaxParkedReads is how many abandoned reads of one path may stay parked in an
 // uninterruptible syscall before further fetches of that path are refused
 // with ErrReadBlocked. It bounds the goroutines and descriptors a wedged mount
-// can pin per path while still letting a later read reach a path that has
-// been remounted underneath the stuck ones.
+// can pin per path. Past the cap, a fresh read is admitted only once a stat
+// probe shows the path now resolves to a different device than every parked
+// read, which is what a remount looks like; see Provider.read.
 const MaxParkedReads = 3
+
+// MaxParkedProbes is how many remount probes of one path may stay parked. A
+// probe is a stat: it holds a goroutine but no descriptor. One stuck on the old
+// mount is replaced after a backoff, so a probe started before a remount does
+// not keep a later one from reaching the new mount.
+const MaxParkedProbes = 16
 
 // DefaultParkedRetryInterval is the minimum time between starting reads of a
 // path while an earlier read of it is parked, so retries against a wedged
-// mount reach MaxParkedReads slowly rather than in one burst.
+// mount reach MaxParkedReads slowly rather than in one burst. It is also the
+// first remount-probe backoff, which doubles up to maxProbeBackoff.
 const DefaultParkedRetryInterval = 5 * time.Second
+
+const maxProbeBackoff = time.Hour
 
 // DefaultPollInterval is how often each watched path is stat'ed for changes.
 // It bounds rotation latency; a coarser interval costs nothing but promptness.
@@ -69,9 +79,11 @@ type Provider struct {
 	// parked; zero means DefaultParkedRetryInterval.
 	parkedRetryInterval time.Duration
 
-	// readFile is the read strategy, swappable so tests can stand in for a
-	// wedged mount; nil means readCapped.
-	readFile func(path string) ([]byte, error)
+	// readFile and statPath are the read and remount-probe strategies,
+	// swappable so tests can stand in for a wedged or remounted mount; nil
+	// means readCapped and statFile.
+	readFile func(path string, opened func(dev uint64)) ([]byte, error)
+	statPath func(path string) fileState
 
 	mu      sync.Mutex
 	pollers map[string]*poller    // watched path -> its poller and registrations
@@ -80,25 +92,65 @@ type Provider struct {
 }
 
 // pathReads tracks the reads of one path: at most one live read that current
-// callers share, plus the reads abandoned by callers that gave up and now
-// parked in an uninterruptible syscall.
+// callers share, the reads abandoned by callers that gave up and now parked in
+// an uninterruptible syscall, and the remount probe that lets a fresh read past
+// the parked cap.
 type pathReads struct {
 	live      *readCall
-	parked    int
+	parked    map[*readCall]struct{}
 	lastStart time.Time
+
+	probe         *probeCall // the probe in flight, if any
+	probesParked  int        // abandoned probes still stuck in stat
+	probeBackoff  time.Duration
+	lastProbeDone time.Time
+	// admitDev is a device a probe found the path on that no parked read is
+	// on; the next fetch at the cap may start one read against it.
+	admitDev   uint64
+	admitReady bool
+}
+
+// idle reports whether pr holds nothing worth keeping.
+func (pr *pathReads) idle() bool {
+	return pr.live == nil && len(pr.parked) == 0 && pr.probe == nil && pr.probesParked == 0 && !pr.admitReady
+}
+
+// onParkedDevice reports whether dev is a device some parked read is on. A
+// read learns its device once it has opened the file, which on a hung NFS
+// mount it usually has: it parks in read(2), not open(2). One parked in open
+// matches nothing, but the read a probe then admits is attributed to the
+// probe's device up front, so the next probe finding the same device is
+// refused and the growth stays bounded.
+func (pr *pathReads) onParkedDevice(dev uint64) bool {
+	for c := range pr.parked {
+		if c.devKnown && c.dev == dev {
+			return true
+		}
+	}
+	return false
 }
 
 // readCall is one read of a path. waiters counts the live callers still
 // interested; when it drops to zero before the read finishes, the read is
-// abandoned and moves from live to parked.
+// abandoned and moves from live to parked. dev is the device it is reading
+// from, once known.
 type readCall struct {
 	done     chan struct{}
 	started  time.Time
 	waiters  int
 	finished bool // set under Provider.mu once the read has returned
 	parked   bool // set under Provider.mu when the last waiter abandons it
+	dev      uint64
+	devKnown bool
 	data     []byte
 	err      error
+}
+
+// probeCall is one remount probe: a stat of the path, detached like a read.
+type probeCall struct {
+	done      chan struct{}
+	started   time.Time
+	abandoned bool // set under Provider.mu when a newer probe replaces it
 }
 
 type poller struct {
@@ -140,7 +192,8 @@ func (*Provider) Validate(r ref.Ref) error {
 // ErrReadBlocked reports that earlier reads of this path are still parked in
 // an uninterruptible syscall, so the fetch was refused rather than piling
 // another blocked reader on top of them. It is transient: a later fetch
-// proceeds once a parked read returns or the retry interval has passed.
+// proceeds once a parked read returns, the retry interval has passed, or the
+// path has been remounted.
 var ErrReadBlocked = errors.New("an earlier read of this file is still blocked")
 
 // Fetch implements provider.Provider. It re-validates the ref (nothing in the
@@ -187,42 +240,78 @@ func (p *Provider) Fetch(ctx context.Context, r ref.Ref) (provider.Result, error
 //     per path rather than one per attempt, the unbounded growth that
 //     exhausted csi-driver-nfs (#1271).
 //
-// Allowing a fresh read at all matters because a parked read is stuck on the
-// mount it started on, not on the path: the standard recovery for a stale NFS
-// mount is a lazy unmount and remount, after which the path is healthy while
-// the old read may never return.
+// A parked read is stuck on the mount it started on, not on the path: the
+// standard recovery for a stale NFS mount is a lazy unmount and remount, after
+// which the path is healthy while the old reads may never return. So at the
+// cap, fetches probe the path with a stat, and once a probe finds it on a
+// device no parked read is on, one fresh read is admitted there. Each read
+// past the cap thus costs a remount, not a retry.
 func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	p.mu.Lock()
-	if p.reads == nil {
-		p.reads = make(map[string]*pathReads)
-	}
-	pr := p.reads[path]
-	if pr == nil {
-		pr = &pathReads{}
-		p.reads[path] = pr
-	}
-	c := pr.live
-	if c != nil {
-		c.waiters++
-	} else {
+	var pr *pathReads
+	var c *readCall
+	for probed := false; c == nil; {
+		p.mu.Lock()
+		if p.reads == nil {
+			p.reads = make(map[string]*pathReads)
+		}
+		pr = p.reads[path]
+		if pr == nil {
+			pr = &pathReads{parked: make(map[*readCall]struct{})}
+			p.reads[path] = pr
+		}
+		if c = pr.live; c != nil {
+			c.waiters++
+			p.mu.Unlock()
+			break
+		}
+
 		now := time.Now()
-		if pr.parked > 0 {
-			if pr.parked >= MaxParkedReads || now.Sub(pr.lastStart) < p.retryInterval() {
+		var dev uint64
+		var devKnown bool
+		if n := len(pr.parked); n > 0 {
+			switch {
+			case n >= MaxParkedReads && pr.admitReady:
+				dev, devKnown = pr.admitDev, true
+				pr.admitReady = false
+				log.Ctx(ctx).Warn().Str("path", path).Int("parked", n).Uint64("dev", dev).
+					Msg("file secret: path now resolves to a different device than its blocked reads (remounted?); retrying with a fresh read")
+			case n >= MaxParkedReads:
+				// A fetch that starts a probe waits for it, within ctx, so
+				// the first fetch after a remount can already succeed. Others
+				// fail fast rather than wait on a probe that may be as stuck
+				// as the reads, and no fetch asks for a second verdict.
+				var pc *probeCall
+				if !probed {
+					pc = p.probeLocked(ctx, path, pr, now)
+				}
+				p.mu.Unlock()
+				if pc == nil {
+					return nil, ErrReadBlocked
+				}
+				select {
+				case <-ctx.Done():
+					return nil, ErrReadBlocked
+				case <-pc.done:
+				}
+				probed = true
+				continue
+			case now.Sub(pr.lastStart) < p.retryInterval():
 				p.mu.Unlock()
 				return nil, ErrReadBlocked
+			default:
+				log.Ctx(ctx).Warn().Str("path", path).Int("parked", n).
+					Msg("file secret: earlier reads are still blocked; retrying with a fresh read")
 			}
-			log.Ctx(ctx).Warn().Str("path", path).Int("parked", pr.parked).
-				Msg("file secret: earlier reads are still blocked; retrying with a fresh read")
 		}
-		c = &readCall{done: make(chan struct{}), started: now, waiters: 1}
+		c = &readCall{done: make(chan struct{}), started: now, waiters: 1, dev: dev, devKnown: devKnown}
 		pr.live, pr.lastStart = c, now
 		go p.runRead(context.WithoutCancel(ctx), path, pr, c)
+		p.mu.Unlock()
 	}
-	p.mu.Unlock()
 
 	select {
 	case <-ctx.Done():
@@ -259,14 +348,15 @@ func (p *Provider) drop(ctx context.Context, path string, pr *pathReads, c *read
 	}
 	c.parked = true
 	pr.live = nil
-	pr.parked++
+	pr.parked[c] = struct{}{}
+	n := len(pr.parked)
 	ev := log.Ctx(ctx).Warn()
-	if pr.parked >= MaxParkedReads {
+	if n >= MaxParkedReads {
 		ev = log.Ctx(ctx).Error()
 	}
 	ev.Str("path", path).
 		Dur("elapsed", time.Since(c.started)).
-		Int("parked", pr.parked).
+		Int("parked", n).
 		Int("max-parked", MaxParkedReads).
 		Msg("file secret: read abandoned while blocked in the filesystem (wedged mount?); it stays parked until the kernel returns it")
 }
@@ -279,7 +369,11 @@ func (p *Provider) runRead(ctx context.Context, path string, pr *pathReads, c *r
 	if read == nil {
 		read = readCapped
 	}
-	data, err := read(path)
+	data, err := read(path, func(dev uint64) {
+		p.mu.Lock()
+		c.dev, c.devKnown = dev, true
+		p.mu.Unlock()
+	})
 
 	p.mu.Lock()
 	c.data, c.err, c.finished = data, err, true
@@ -287,18 +381,95 @@ func (p *Provider) runRead(ctx context.Context, path string, pr *pathReads, c *r
 		pr.live = nil
 	}
 	if c.parked {
-		pr.parked--
+		delete(pr.parked, c)
 		log.Ctx(ctx).Info().Str("path", path).
 			Dur("elapsed", time.Since(c.started)).
-			Int("parked", pr.parked).
+			Int("parked", len(pr.parked)).
 			Msg("file secret: parked read returned")
 	}
-	if pr.live == nil && pr.parked == 0 && p.reads[path] == pr {
-		delete(p.reads, path)
-	}
+	p.retireLocked(path, pr)
 	p.mu.Unlock()
 
 	close(c.done)
+}
+
+// probeLocked starts a remount probe of a path at the parked cap and returns
+// it, or returns nil when none is started: one is already in flight, or the
+// last finished less than a retry interval ago. A probe in flight longer than
+// the current backoff is presumed stuck on the old mount and replaced, with
+// the backoff doubling, so one that started before a remount cannot keep a
+// later one from reaching the new mount. At most MaxParkedProbes may be stuck
+// at once.
+func (p *Provider) probeLocked(ctx context.Context, path string, pr *pathReads, now time.Time) *probeCall {
+	if pr.probeBackoff == 0 {
+		pr.probeBackoff = p.retryInterval()
+	}
+	if pc := pr.probe; pc != nil {
+		if now.Sub(pc.started) < pr.probeBackoff || pr.probesParked+1 >= MaxParkedProbes {
+			return nil
+		}
+		pc.abandoned = true
+		pr.probe = nil
+		pr.probesParked++
+		pr.probeBackoff = min(2*pr.probeBackoff, maxProbeBackoff)
+		ev := log.Ctx(ctx).Warn()
+		if pr.probesParked+1 >= MaxParkedProbes {
+			ev = log.Ctx(ctx).Error()
+		}
+		ev.Str("path", path).
+			Int("parked-probes", pr.probesParked).
+			Int("max-parked-probes", MaxParkedProbes).
+			Dur("next-probe-after", pr.probeBackoff).
+			Msg("file secret: remount probe blocked in the filesystem; starting another")
+	} else if now.Sub(pr.lastProbeDone) < p.retryInterval() {
+		return nil
+	}
+	pc := &probeCall{done: make(chan struct{}), started: now}
+	pr.probe = pc
+	go p.runProbe(context.WithoutCancel(ctx), path, pr, pc)
+	return pc
+}
+
+// runProbe stats path and, when it resolves to a device no parked read is on,
+// admits one fresh read there.
+func (p *Provider) runProbe(ctx context.Context, path string, pr *pathReads, pc *probeCall) {
+	stat := p.statPath
+	if stat == nil {
+		stat = statFile
+	}
+	st := stat(path)
+
+	p.mu.Lock()
+	if pc.abandoned {
+		pr.probesParked--
+		log.Ctx(ctx).Info().Str("path", path).
+			Dur("elapsed", time.Since(pc.started)).
+			Int("parked-probes", pr.probesParked).
+			Msg("file secret: parked remount probe returned")
+	}
+	if pr.probe == pc {
+		pr.probe = nil
+		pr.probeBackoff = 0
+	}
+	pr.lastProbeDone = time.Now()
+	if st.exists && !pr.onParkedDevice(st.dev) {
+		pr.admitDev, pr.admitReady = st.dev, true
+	}
+	p.retireLocked(path, pr)
+	p.mu.Unlock()
+
+	close(pc.done)
+}
+
+// retireLocked drops pr from the provider once nothing for the path remains.
+// An admission only matters while reads are parked, so it lapses with them.
+func (p *Provider) retireLocked(path string, pr *pathReads) {
+	if len(pr.parked) == 0 {
+		pr.admitReady = false
+	}
+	if pr.idle() && p.reads[path] == pr {
+		delete(p.reads, path)
+	}
 }
 
 // readCapped reads up to MaxFileSize+1 bytes; a full extra byte means the file
@@ -313,7 +484,7 @@ func (p *Provider) runRead(ctx context.Context, path string, pr *pathReads, c *r
 // indefinitely without O_NONBLOCK. This is the only hang class we can rule
 // out in process — a regular file on a wedged NFS or FUSE mount still blocks,
 // which is why Fetch detaches the read.
-func readCapped(path string) ([]byte, error) {
+func readCapped(path string, opened func(dev uint64)) ([]byte, error) {
 	// O_NONBLOCK affects the open of a special file only; for a regular file
 	// it is a no-op, and symlinks (a Kubernetes projected volume reaches its
 	// payload through two of them) are still followed.
@@ -339,6 +510,7 @@ func readCapped(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	opened(deviceOf(fi))
 	if !fi.Mode().IsRegular() {
 		return nil, fmt.Errorf("not a regular file (%s): %w", fi.Mode().Type(), provider.ErrNotFound)
 	}
@@ -512,6 +684,7 @@ type fileState struct {
 	modTime int64
 	mode    fs.FileMode
 	ino     uint64
+	dev     uint64
 }
 
 // statFile never opens the file. A path that cannot be stat'ed (missing, or a
@@ -525,5 +698,22 @@ func statFile(path string) fileState {
 	if sys, ok := fi.Sys().(*syscall.Stat_t); ok {
 		st.ino = sys.Ino
 	}
+	st.dev = deviceOf(fi)
 	return st
+}
+
+// deviceOf returns the ID of the device holding fi. A remount gets a new one,
+// which is how a fetch tells a recovered path from the mount its parked reads
+// are stuck on.
+func deviceOf(fi fs.FileInfo) uint64 {
+	if sys, ok := fi.Sys().(*syscall.Stat_t); ok {
+		return devID(sys.Dev)
+	}
+	return 0
+}
+
+// devID widens a platform's dev_t (uint64 on Linux, int32 on Darwin) to a
+// comparable ID; it is a bit pattern, not a quantity.
+func devID[T ~int32 | ~uint32 | ~int64 | ~uint64](v T) uint64 {
+	return uint64(v)
 }
