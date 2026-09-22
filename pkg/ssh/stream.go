@@ -327,8 +327,13 @@ func (sh *StreamHandler) Reauth() {
 func (sh *StreamHandler) periodicReauth() (cancel func()) {
 	t := time.NewTicker(1 * time.Minute)
 	go func() {
-		for range t.C {
-			sh.Reauth()
+		for {
+			select {
+			case <-t.C:
+				sh.Reauth()
+			case <-sh.reauthStoppedC:
+				return
+			}
 		}
 	}()
 	return func() {
