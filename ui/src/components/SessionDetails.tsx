@@ -20,10 +20,7 @@ export type SessionDetailsProps = {
   session?: Session;
   profile?: Profile;
 };
-export const SessionDetails: FC<SessionDetailsProps> = ({
-  session,
-  profile,
-}) => {
+export const SessionDetails: FC<SessionDetailsProps> = ({ session, profile }) => {
   return (
     <>
       {session?.id || profile?.claims ? (
@@ -45,11 +42,7 @@ export const SessionDetails: FC<SessionDetailsProps> = ({
                   <TableRow>
                     <TableCell variant="head">User ID</TableCell>
                     <TableCell align="left">
-                      <IDField
-                        value={
-                          session?.userId || `${profile?.claims?.sub || ""}`
-                        }
-                      />
+                      <IDField value={session?.userId || `${profile?.claims?.sub || ""}`} />
                     </TableCell>
                   </TableRow>
                   {session?.expiresAt && (
@@ -58,21 +51,11 @@ export const SessionDetails: FC<SessionDetailsProps> = ({
                       <TableCell align="left">{session?.expiresAt}</TableCell>
                     </TableRow>
                   )}
-                  {Object.entries(session?.claims || {}).map(
-                    ([key, values]) => (
-                      <ClaimRow
-                        key={`session/${key}`}
-                        claimKey={key}
-                        claimValue={values}
-                      />
-                    ),
-                  )}
+                  {Object.entries(session?.claims || {}).map(([key, values]) => (
+                    <ClaimRow key={`session/${key}`} claimKey={key} claimValue={values} />
+                  ))}
                   {Object.entries(profile?.claims || {}).map(([key, value]) => (
-                    <ClaimRow
-                      key={`profile/${key}`}
-                      claimKey={key}
-                      claimValue={value}
-                    />
+                    <ClaimRow key={`profile/${key}`} claimKey={key} claimValue={value} />
                   ))}
                 </TableBody>
               </Table>

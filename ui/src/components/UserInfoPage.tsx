@@ -23,9 +23,7 @@ type UserInfoPageProps = {
 const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
   const { subpage } = use(SubpageContext);
 
-  const [showDeviceEnrolled, setShowDeviceEnrolled] = useState(
-    data.page === "DeviceEnrolled",
-  );
+  const [showDeviceEnrolled, setShowDeviceEnrolled] = useState(data.page === "DeviceEnrolled");
 
   function handleCloseDeviceEnrolled() {
     setShowDeviceEnrolled(false);
@@ -43,15 +41,10 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
         </DialogActions>
       </Dialog>
       <Stack spacing={3}>
-        {subpage === "User" && (
-          <SessionDetails session={data?.session} profile={data?.profile} />
-        )}
+        {subpage === "User" && <SessionDetails session={data?.session} profile={data?.profile} />}
 
         {subpage === "Groups Info" && (
-          <GroupDetails
-            isEnterprise={data?.isEnterprise}
-            groups={data?.directoryGroups}
-          />
+          <GroupDetails isEnterprise={data?.isEnterprise} groups={data?.directoryGroups} />
         )}
 
         {subpage === "Devices Info" &&

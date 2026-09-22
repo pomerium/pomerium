@@ -24,15 +24,11 @@ async function createCredential(
       attestation: creationOptions?.attestation || undefined,
       authenticatorSelection: {
         authenticatorAttachment:
-          creationOptions?.authenticatorSelection?.authenticatorAttachment ||
-          undefined,
+          creationOptions?.authenticatorSelection?.authenticatorAttachment || undefined,
         requireResidentKey:
-          creationOptions?.authenticatorSelection?.requireResidentKey ||
-          undefined,
+          creationOptions?.authenticatorSelection?.requireResidentKey || undefined,
         residentKey: creationOptions?.authenticatorSelection?.residentKey,
-        userVerification:
-          creationOptions?.authenticatorSelection?.userVerification ||
-          undefined,
+        userVerification: creationOptions?.authenticatorSelection?.userVerification || undefined,
       },
       challenge: decode(creationOptions?.challenge),
       pubKeyCredParams: creationOptions?.pubKeyCredParams?.map((p) => ({

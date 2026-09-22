@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "react", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "no-var": "error",
+    "prefer-const": "error",
+    "react/no-array-index-key": "warn",
+    "react/rules-of-hooks": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-namespace": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-unsafe-function-type": "error",
+    "typescript/no-unused-expressions": "error",
+    "typescript/no-wrapper-object-types": "error",
+    "react/immutability": "off",
+    "react/purity": "off"
+  },
+  "env": {
+    "browser": true,
+    "es2024": true
+  },
+  "ignorePatterns": ["dist/**"],
+  "overrides": [
+    {
+      "files": ["*.{js,mjs,cjs,ts,mts,cts}"],
+      "env": {
+        "node": true
+      }
+    }
+  ]
+}

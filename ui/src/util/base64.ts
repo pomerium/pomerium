@@ -24,10 +24,8 @@
 /**
  * Original source: https://github.com/niklasvh/base64-arraybuffer.
  */
-const base64Chars =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-const base64UrlChars =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const base64UrlChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 const base64Lookup = new Uint8Array(256);
 for (let i = 0; i < base64Chars.length; i++) {
   base64Lookup[base64Chars.charCodeAt(i)] = i;
@@ -38,11 +36,7 @@ base64Lookup[95 /* _ */] = 63;
 /**
  * Encode an `ArrayBuffer` to base64.
  */
-export function encode(
-  buffer: ArrayBuffer,
-  chars = base64Chars,
-  padding = "=",
-): string {
+export function encode(buffer: ArrayBuffer, chars = base64Chars, padding = "="): string {
   const bytes = new Uint8Array(buffer);
   const length = bytes.length;
   let base64 = "";

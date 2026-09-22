@@ -48,10 +48,10 @@ repos:
       - id: ui-format
         name: ui-format
         language: system
-        entry: scripts/ui-precommit format
+        entry: ui/node_modules/.bin/oxfmt
         files: "^ui/.*\\.(ts|tsx|js|mjs|json)$"
       - id: ui-lint
         name: ui-lint
         language: system
-        entry: scripts/ui-precommit lint
+        entry: ui/node_modules/.bin/oxlint -c ui/.oxlintrc.json
         files: "^ui/.*\\.(ts|tsx|js|mjs)$"

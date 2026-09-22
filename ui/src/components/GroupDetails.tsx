@@ -18,10 +18,7 @@ export type GroupDetailsProps = {
   isEnterprise?: boolean;
   groups?: Group[];
 };
-export const GroupDetails: FC<GroupDetailsProps> = ({
-  isEnterprise,
-  groups,
-}) => {
+export const GroupDetails: FC<GroupDetailsProps> = ({ isEnterprise, groups }) => {
   return (
     <Section title="Groups">
       {isEnterprise ? (
@@ -48,10 +45,7 @@ export const GroupDetails: FC<GroupDetailsProps> = ({
       ) : (
         <Alert severity="info">
           Groups via directory sync are available in{" "}
-          <a href="https://www.pomerium.com/enterprise-sales/">
-            Pomerium Enterprise
-          </a>
-          .
+          <a href="https://www.pomerium.com/enterprise-sales/">Pomerium Enterprise</a>.
         </Alert>
       )}
     </Section>

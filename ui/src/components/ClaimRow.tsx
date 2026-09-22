@@ -14,11 +14,7 @@ export const ClaimRow: FC<ClaimRowProps> = ({ claimKey, claimValue }) => {
     return (
       <>
         {Object.entries(claimValue as Record<string, unknown>).map(([k, v]) => (
-          <ClaimRow
-            key={`${claimKey}/${k}`}
-            claimKey={`${claimKey} ${k}`}
-            claimValue={v}
-          />
+          <ClaimRow key={`${claimKey}/${k}`} claimKey={`${claimKey} ${k}`} claimValue={v} />
         ))}
       </>
     );

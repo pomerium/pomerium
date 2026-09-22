@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "sortImports": {
+    "ignoreCase": false
+  },
+  "ignorePatterns": ["dist/**"]
+}
