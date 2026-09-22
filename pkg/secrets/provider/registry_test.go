@@ -142,11 +142,9 @@ func TestRegistryConcurrentAccess(t *testing.T) {
 	// tests running at the same time.
 	reg := provider.NewRegistry()
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		_ = reg.Register(providertest.New("file"))
-	}()
+	})
 	_, _ = reg.Get("file")
 	_ = reg.Schemes()
 	wg.Wait()

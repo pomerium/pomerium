@@ -139,13 +139,11 @@ func TestFetchConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range 16 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			res, err := p.Fetch(context.Background(), r)
 			assert.NoError(t, err)
 			assert.Equal(t, "v", string(res.Value))
-		}()
+		})
 	}
 	wg.Wait()
 }

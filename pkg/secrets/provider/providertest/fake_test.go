@@ -137,12 +137,10 @@ func TestFakeReleaseUnblocksAll(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range 4 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_, err := f.Fetch(context.Background(), r)
 			assert.NoError(t, err)
-		}()
+		})
 	}
 	assert.Eventually(t, func() bool { return f.StartedCount(r.FetchKey()) == 4 }, wait, tick)
 	f.Release(r.FetchKey())

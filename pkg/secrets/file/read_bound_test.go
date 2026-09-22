@@ -231,13 +231,11 @@ func TestFetchSharesOneReadAcrossConcurrentCallers(t *testing.T) {
 	const callers = 8
 	var wg sync.WaitGroup
 	for range callers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			res, err := p.Fetch(context.Background(), r)
 			assert.NoError(t, err)
 			assert.Equal(t, "v", string(res.Value))
-		}()
+		})
 	}
 	// Release the read only once every caller has joined it; a caller that
 	// arrives after it finished rightly starts a fresh one.
