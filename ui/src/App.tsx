@@ -2,6 +2,8 @@ import { Box, CssBaseline, ThemeProvider } from "@mui/material";
 import type { FC } from "react";
 import React, { useLayoutEffect } from "react";
 
+import AgenticApprovePage from "./components/AgenticApprovePage";
+import AgenticApproveResultPage from "./components/AgenticApproveResultPage";
 import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
@@ -37,6 +39,12 @@ const App: FC = () => {
       break;
     case "Error":
       body = <ErrorPage data={data} />;
+      break;
+    case "AgenticApprove":
+      body = <AgenticApprovePage data={data} />;
+      break;
+    case "AgenticApproveResult":
+      body = <AgenticApproveResultPage data={data} />;
       break;
     case "Routes":
       body = <RoutesPage data={data} />;

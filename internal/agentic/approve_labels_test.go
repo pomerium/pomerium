@@ -1,7 +1,6 @@
 package agentic
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,24 +32,24 @@ func TestConsentPageRendersLabels(t *testing.T) {
 		assert.Equal(t, "workflow", got[1].Key)
 	})
 
-	t.Run("the rendered page shows every label", func(t *testing.T) {
-		var sb strings.Builder
-		require.NoError(t, consentPage.Execute(&sb, consentPageData{
+	t.Run("the page data carries every label", func(t *testing.T) {
+		data := consentPageData{
 			Prompt: run.GetPrompt(),
 			Labels: runLabels(run),
-		}))
-		page := sb.String()
+		}.toJSON()
 
-		assert.Contains(t, page, run.GetPrompt(), "the prompt is still shown")
-		for k, v := range run.GetLabels() {
-			assert.Contains(t, page, k, "label key %q must be disclosed", k)
-			assert.Contains(t, page, v, "label value %q must be disclosed", v)
+		assert.Equal(t, run.GetPrompt(), data["prompt"], "the prompt is still shown")
+		labels, _ := data["labels"].([]runLabel)
+		require.Len(t, labels, len(run.GetLabels()))
+		got := map[string]string{}
+		for _, l := range labels {
+			got[l.Key] = l.Value
 		}
+		assert.Equal(t, run.GetLabels(), got, "every label must be disclosed")
 	})
 
-	t.Run("a run with no labels renders nothing extra", func(t *testing.T) {
-		var sb strings.Builder
-		require.NoError(t, consentPage.Execute(&sb, consentPageData{Prompt: "x"}))
-		assert.NotContains(t, sb.String(), "<dl>")
+	t.Run("a run with no labels carries an empty list", func(t *testing.T) {
+		data := consentPageData{Prompt: "x"}.toJSON()
+		assert.Empty(t, data["labels"])
 	})
 }

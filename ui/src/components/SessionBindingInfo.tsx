@@ -14,8 +14,13 @@ import {
   Typography,
 } from "@mui/material";
 import type { FC } from "react";
+import { useEffect, useRef } from "react";
 
-import type { DetailsAgentic, SessionBindingInfoPageData } from "../types";
+import type {
+  DetailsAgentic,
+  SessionBindingData,
+  SessionBindingInfoPageData,
+} from "../types";
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
 import { SmallTooltip } from "./Tooltips";
@@ -52,91 +57,121 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
           </TableHead>
           <TableBody>
             {data.sessionBindings?.map((s) => (
-              <TableRow
+              <SessionBindingRow
                 key={`${s.Protocol}:${s.Resource}:${s.SessionBindingID}`}
-              >
-                <TableCell>{s.Protocol}</TableCell>
-                <TableCell component="th" scope="row">
-                  <Typography variant="body2">
-                    {s.Resource}
-                    {s.IsCurrentBrowser && (
-                      <Box component="span" sx={{ fontWeight: "bold" }}>
-                        {" "}
-                        (This browser)
-                      </Box>
-                    )}
-                  </Typography>
-                  {s.DetailsSSH && (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      <Typography variant="caption">
-                        {s.DetailsSSH.FingerprintID}
-                      </Typography>
-                      <SmallTooltip description="Run `ssh-keygen -l -f <client-pub-key>` to check against this fingerprint" />
-                      <IconButton
-                        aria-label="Copy fingerprint"
-                        size="small"
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            s.DetailsSSH?.FingerprintID ?? "",
-                          );
-                        }}
-                      >
-                        <ContentCopyIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  )}
-                  {s.DetailsAgentic && (
-                    <AgenticDetails details={s.DetailsAgentic} />
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2">
-                    {s.ClientAddress || "Not recorded"}
-                  </Typography>
-                </TableCell>
-                <TableCell>{s.InitiatedAt || "Not recorded"}</TableCell>
-                <TableCell>{s.ExpiresAt}</TableCell>
-                <TableCell>
-                  {s.RevokeSessionBindingURL ? (
-                    <Box
-                      component="form"
-                      action={s.RevokeSessionBindingURL}
-                      method="POST"
-                      sx={{ display: "inline-flex", gap: 1 }}
-                    >
-                      <input
-                        type="hidden"
-                        name="sessionBindingID"
-                        value={s.SessionBindingID}
-                      />
-                      <input type="hidden" name="protocol" value={s.Protocol} />
-                      <Button
-                        size="small"
-                        type="submit"
-                        variant="contained"
-                        disabled={
-                          s.Protocol === "Browser" && !data.reauth_enabled
-                        }
-                      >
-                        Logout
-                      </Button>
-                    </Box>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-              </TableRow>
+                binding={s}
+                reauthEnabled={data.reauth_enabled}
+                highlighted={
+                  !!data.highlight && s.SessionBindingID === data.highlight
+                }
+              />
             ))}
           </TableBody>
         </Table>
       </TableContainer>
     </>
+  );
+};
+
+// SessionBindingRow is one binding. A row may be highlighted — the agentic
+// approval flow sends the approver here pointing at the run they just approved
+// — in which case it is marked selected and scrolled into view, since the run
+// they came to see may be well down a long list.
+const SessionBindingRow: FC<{
+  binding: SessionBindingData;
+  reauthEnabled: boolean;
+  highlighted: boolean;
+}> = ({ binding: s, reauthEnabled, highlighted }) => {
+  const ref = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (highlighted) {
+      ref.current?.scrollIntoView({ block: "center" });
+    }
+  }, [highlighted]);
+
+  return (
+    <TableRow
+      ref={ref}
+      selected={highlighted}
+      sx={
+        highlighted
+          ? { outline: 2, outlineOffset: -2, outlineColor: "primary.main" }
+          : undefined
+      }
+    >
+      <TableCell>{s.Protocol}</TableCell>
+      <TableCell component="th" scope="row">
+        <Typography variant="body2">
+          {s.Resource}
+          {s.IsCurrentBrowser && (
+            <Box component="span" sx={{ fontWeight: "bold" }}>
+              {" "}
+              (This browser)
+            </Box>
+          )}
+        </Typography>
+        {s.DetailsSSH && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <Typography variant="caption">
+              {s.DetailsSSH.FingerprintID}
+            </Typography>
+            <SmallTooltip description="Run `ssh-keygen -l -f <client-pub-key>` to check against this fingerprint" />
+            <IconButton
+              aria-label="Copy fingerprint"
+              size="small"
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  s.DetailsSSH?.FingerprintID ?? "",
+                );
+              }}
+            >
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        )}
+        {s.DetailsAgentic && <AgenticDetails details={s.DetailsAgentic} />}
+      </TableCell>
+      <TableCell>
+        <Typography variant="body2">
+          {s.ClientAddress || "Not recorded"}
+        </Typography>
+      </TableCell>
+      <TableCell>{s.InitiatedAt || "Not recorded"}</TableCell>
+      <TableCell>{s.ExpiresAt}</TableCell>
+      <TableCell>
+        {s.RevokeSessionBindingURL ? (
+          <Box
+            component="form"
+            action={s.RevokeSessionBindingURL}
+            method="POST"
+            sx={{ display: "inline-flex", gap: 1 }}
+          >
+            <input
+              type="hidden"
+              name="sessionBindingID"
+              value={s.SessionBindingID}
+            />
+            <input type="hidden" name="protocol" value={s.Protocol} />
+            <Button
+              size="small"
+              type="submit"
+              variant="contained"
+              disabled={s.Protocol === "Browser" && !reauthEnabled}
+            >
+              Logout
+            </Button>
+          </Box>
+        ) : (
+          "—"
+        )}
+      </TableCell>
+    </TableRow>
   );
 };
 

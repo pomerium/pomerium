@@ -126,6 +126,10 @@ export type Route = {
   logo_url: string;
   mcp_connect_url?: string;
   mcp_connected?: boolean;
+  // mcp_needs_oauth is false for a listed MCP server that has no upstream to
+  // connect to, so the card shows no connection state at all. Undefined means
+  // "yes" (the routes portal only ever lists connectable MCP routes).
+  mcp_needs_oauth?: boolean;
 };
 
 export type RoutesPageData = BasePageData &
@@ -133,6 +137,45 @@ export type RoutesPageData = BasePageData &
     page: "Routes";
     routes: Route[];
     mcp_status_error?: string;
+  };
+
+export type AgenticLabel = {
+  key: string;
+  value: string;
+};
+
+export type AgenticExecutorClaim = {
+  path: string;
+  value: string;
+};
+
+export type AgenticApprovePageData = BasePageData &
+  RuntimeFlags & {
+    page: "AgenticApprove";
+
+    userEmail: string;
+    userId: string;
+    prompt: string;
+    labels: AgenticLabel[];
+    mcpServers: Route[];
+    approvePath: string;
+    needsConnect: boolean;
+    connectError: string;
+    executor: AgenticExecutorClaim[];
+    code: string;
+    // sessionsUrl is the approver's client-bindings page, where this run lands
+    // after approval and can be revoked. Empty if the deployment has no usable
+    // authenticate URL.
+    sessionsUrl: string;
+  };
+
+export type AgenticApproveResultPageData = BasePageData &
+  RuntimeFlags & {
+    page: "AgenticApproveResult";
+
+    severity: "success" | "info" | "warning";
+    title: string;
+    message: string;
   };
 
 export type SignOutConfirmPageData = BasePageData &
@@ -184,6 +227,9 @@ export type SessionBindingInfoPageData = BasePageData &
     page: "SessionBindingInfo";
     sessionBindings: SessionBindingData[];
     reauth_enabled: boolean;
+    // highlight is the SessionBindingID of one row to call out, e.g. the run
+    // the user has just approved. An id matching no row highlights nothing.
+    highlight?: string;
   };
 export type SessionBindingData = {
   SessionBindingID: string;
@@ -213,6 +259,8 @@ export type DetailsAgentic = {
 };
 
 export type PageData =
+  | AgenticApprovePageData
+  | AgenticApproveResultPageData
   | ErrorPageData
   | DeviceEnrolledPageData
   | RoutesPageData

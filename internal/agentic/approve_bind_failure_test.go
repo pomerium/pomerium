@@ -143,7 +143,10 @@ func TestApprovePost_BindingFailureLeavesRunRetryable(t *testing.T) {
 	client.fail.Store(false)
 	retry := httptest.NewRecorder()
 	h.ApprovePost(retry, newRequest())
-	require.Equal(t, http.StatusOK, retry.Code)
+	require.Equal(t, http.StatusSeeOther, retry.Code,
+		"a completed approval hands the approver their client-bindings page")
+	assert.Contains(t, retry.Header().Get("Location"), "highlight="+SessionID("run-1"),
+		"the redirect points at the binding the approval created")
 
 	_, err = idpsessionpb.GetActiveBinding(ctx, base, SessionID("run-1"))
 	assert.NoError(t, err, "the retry must leave the run bound")

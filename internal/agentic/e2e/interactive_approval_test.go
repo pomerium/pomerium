@@ -144,7 +144,7 @@ func TestRunIdentityInteractiveApproval(t *testing.T) {
 	consentGet := func(email, runID string) (int, string) {
 		return browser.consentGet(t, up, as.approve, email, runID)
 	}
-	approvePost := func(email, code string) (int, string) {
+	approvePost := func(email, code string) (int, string, string) {
 		return browser.approvePost(t, up, as.approve, email, code)
 	}
 
@@ -217,26 +217,43 @@ func TestRunIdentityInteractiveApproval(t *testing.T) {
 	// --- 5. Authenticated consent GET → 200 with an escaped prompt and a form. ---
 	status, page := consentGet("alice@example.com", runID)
 	require.Equal(t, http.StatusOK, status, "authenticated consent GET must render the page")
-	assert.NotContains(t, page, "<script>", "the prompt must be HTML-escaped, not rendered as markup")
-	assert.Contains(t, page, "&lt;script&gt;", "the escaped prompt must appear verbatim")
-	assert.Contains(t, page, routeA.URL().Value(), "the consent page must list the granted route")
-	assert.Contains(t, page, `name="code"`, "the consent page must carry a hidden approval code")
-	assert.Contains(t, page, "alice@example.com", "the consent page must identify the approver")
-	assert.Contains(t, page, "kubernetes.io.pod.uid", "the consent page must show the sealed executor (§12.8)")
-	assert.Contains(t, page, "pod-uid-1", "the consent page must show the sealed pod uid")
+	consent := pageData(t, page)
+	assert.Equal(t, "AgenticApprove", consent["page"], "the consent page is served as an ordinary React page")
+	assert.NotContains(t, page, "<script>alert(1)</script>",
+		"the prompt must never reach the document as markup")
+	assert.Equal(t, prompt, consent["prompt"], "the prompt must reach the page verbatim, as data")
+	assert.Contains(t, fmt.Sprint(consent["mcpServers"]), routeA.URL().Value(),
+		"the consent page must list the granted route")
+	assert.NotEmpty(t, consent["code"], "the consent page must carry an approval code")
+	assert.Equal(t, "alice@example.com", consent["userEmail"], "the consent page must identify the approver")
+	executor := fmt.Sprint(consent["executor"])
+	assert.Contains(t, executor, "kubernetes.io.pod.uid", "the consent page must show the sealed executor (§12.8)")
+	assert.Contains(t, executor, "pod-uid-1", "the consent page must show the sealed pod uid")
 
 	code := extractApprovalCode(t, page)
 
 	// --- 6. A tampered code is rejected; the run stays pending. ---
-	status, _ = approvePost("alice@example.com", "garbage")
+	status, _, _ = approvePost("alice@example.com", "garbage")
 	assert.Equal(t, http.StatusBadRequest, status, "a tampered approval code must be rejected")
 	resp, body = pollToken("pod-uid-1")
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "run must still be pending after a rejected approval")
 	assert.Equal(t, "authorization_pending", body["error"])
 
-	// --- 7. Approve as alice → 200. ---
-	status, _ = approvePost("alice@example.com", code)
-	require.Equal(t, http.StatusOK, status, "approval must succeed")
+	// --- 7. Approve as alice → 303 to her client-bindings page, pointing at the
+	// run she just approved. The approval's own outcome is the run's state below;
+	// what is asserted here is that she is handed the page she can revoke it on
+	// rather than a dead end. ---
+	status, _, location := approvePost("alice@example.com", code)
+	require.Equal(t, http.StatusSeeOther, status, "approval must redirect to the approver's sessions page")
+	redirectTo, err := url.Parse(location)
+	require.NoError(t, err, "the redirect must be a URL")
+	authenticateURL, err := url.Parse(env.AuthenticateURL().Value())
+	require.NoError(t, err)
+	assert.Equal(t, authenticateURL.Host, redirectTo.Host,
+		"the sessions page lives on the authenticate service")
+	assert.Equal(t, "/.pomerium/session_binding_info", redirectTo.Path)
+	assert.Equal(t, agentic.SessionID(runID), redirectTo.Query().Get("highlight"),
+		"the redirect must point at the binding this approval created")
 
 	// --- 7b. Run status after approval reports approved. ---
 	statusResp, st = getRunStatus(t, up, as.summon, harnessJWT, runID)
@@ -305,8 +322,8 @@ func TestRunIdentityInteractiveApproval(t *testing.T) {
 	run2ID, _ := createPendingRun("Second run", "pod-uid-2")
 	status, page = consentGet("mallory@example.com", run2ID)
 	require.Equal(t, http.StatusOK, status, "mallory must be able to view the consent page")
-	status, _ = approvePost("mallory@example.com", extractApprovalCode(t, page))
-	require.Equal(t, http.StatusOK, status, "mallory's approval must succeed")
+	status, _, _ = approvePost("mallory@example.com", extractApprovalCode(t, page))
+	require.Equal(t, http.StatusSeeOther, status, "mallory's approval must succeed")
 
 	resp, body = pollToken("pod-uid-2")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "token issuance for the mallory-approved run: %v", body)
@@ -331,14 +348,14 @@ func TestRunIdentityInteractiveApproval(t *testing.T) {
 	// Approve button — and no approval code is minted for her at all.
 	status, page = consentGet("mallory@example.com", run3ID)
 	assert.Equal(t, http.StatusForbidden, status, "a run pinned to alice must not show mallory a consent page")
-	assert.NotContains(t, page, "name=\"code\"", "a refused consent page must not carry a submittable approval code")
+	assert.NotContains(t, page, `"code"`, "a refused consent page must not carry a submittable approval code")
 
 	// And the POST is gated independently of the page, so a forwarded code does not
 	// help either: alice's own code, submitted by mallory, is refused.
 	status, alicePage := consentGet("alice@example.com", run3ID)
 	require.Equal(t, http.StatusOK, status, "the pinned approver must still be able to view the consent page")
 	aliceCode := extractApprovalCode(t, alicePage)
-	status, _ = approvePost("mallory@example.com", aliceCode)
+	status, _, _ = approvePost("mallory@example.com", aliceCode)
 	assert.Equal(t, http.StatusForbidden, status, "mallory must not be able to approve a run pinned to alice, even with a valid code")
 
 	// The run is therefore still unapproved: nothing was activated, so a mis-routed
@@ -350,15 +367,15 @@ func TestRunIdentityInteractiveApproval(t *testing.T) {
 
 	// The pinned approver is unaffected: pinning refuses the wrong person, it does
 	// not make the run harder to approve for the right one.
-	status, _ = approvePost("alice@example.com", aliceCode)
-	require.Equal(t, http.StatusOK, status, "the pinned approver's own approval must succeed")
+	status, _, _ = approvePost("alice@example.com", aliceCode)
+	require.Equal(t, http.StatusSeeOther, status, "the pinned approver's own approval must succeed")
 	resp, body = pollToken("pod-uid-3")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "token issuance after the pinned approval: %v", body)
 
 	// --- 11. Double approval: re-submitting run-1's (already-consumed) code → 409.
 	// A fresh GET would show the already-approved page with no form, so reuse the
 	// original code, which is still cryptographically valid but the run is sealed. ---
-	status, _ = approvePost("alice@example.com", code)
+	status, _, _ = approvePost("alice@example.com", code)
 	assert.Equal(t, http.StatusConflict, status, "a second approval of an already-approved run must conflict")
 
 	// --- 12. Approval binds the run to the approver's centralized IdP session.

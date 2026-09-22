@@ -2,14 +2,15 @@ package agentic
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"html/template"
 	"maps"
 	"net/http"
 	"net/url"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
@@ -28,6 +29,7 @@ import (
 	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/ui"
 )
 
 // approvalCodeTTL bounds how long a rendered consent form stays submittable.
@@ -65,11 +67,11 @@ func (h *Handler) ApproveGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if run.GetRevoked() || run.GetExpiresAt().AsTime().Before(time.Now()) {
-		renderPage(ctx, w, http.StatusOK, unapprovablePage, nil)
+		h.serveResult(w, r, "warning", "Cannot approve", "This run can no longer be approved.")
 		return
 	}
 	if run.GetState() != agenticpb.RunState_RUN_STATE_PENDING {
-		renderPage(ctx, w, http.StatusOK, alreadyApprovedPage, nil)
+		h.serveAlreadyApproved(w, r)
 		return
 	}
 	// Refuse here as well as on POST. The POST check is the control; this one is so
@@ -81,7 +83,7 @@ func (h *Handler) ApproveGet(w http.ResponseWriter, r *http.Request) {
 			Str("run-id", runID).
 			Str("actor", str(claims["sub"])).
 			Msg("agentic: approve: consent page requested by someone this run is not pinned to")
-		renderPage(ctx, w, http.StatusForbidden, notYourApprovalPage, nil)
+		h.serveNotYourApproval(w, r)
 		return
 	}
 
@@ -106,7 +108,7 @@ func (h *Handler) ApproveGet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	renderPage(ctx, w, http.StatusOK, consentPage, consentPageData{
+	h.servePage(w, r, http.StatusOK, pageApprove, "Approve Agentic Run", consentPageData{
 		UserEmail:    str(claims["email"]),
 		UserID:       str(claims["sub"]),
 		Prompt:       run.GetPrompt(),
@@ -116,11 +118,16 @@ func (h *Handler) ApproveGet(w http.ResponseWriter, r *http.Request) {
 		NeedsConnect: needsConnect,
 		// A failed Connect redirects back here with connect_error set (see the MCP
 		// connect handler); surface it so the approver isn't left on a silently
-		// reloaded page. html/template escapes it.
+		// reloaded page. It is carried as JSON page data and rendered as React text,
+		// so it cannot become markup.
 		ConnectError: r.URL.Query().Get("connect_error"),
 		Executor:     executorClaims(run),
 		Code:         code,
-	})
+		// Where the approver lands after approving, and where they can revoke the
+		// run afterwards. Told up front, because "you can stop this later" is part
+		// of what they are consenting to.
+		SessionsURL: h.sessionsURL(ctx, ""),
+	}.toJSON())
 }
 
 // ApprovePost handles POST /.pomerium/agentic/approve. It seals a pending run to
@@ -188,7 +195,7 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 			Str("actor", userID).
 			Str("expected-subject", expected).
 			Msg("agentic: approve: refused, this run is pinned to a different approver")
-		renderPage(ctx, w, http.StatusForbidden, notYourApprovalPage, nil)
+		h.serveNotYourApproval(w, r)
 		return
 	}
 
@@ -213,7 +220,7 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 		// a Pomerium failure and logs routine expiry as an error.
 		log.Ctx(ctx).Info().Err(err).Str("run-id", runID).
 			Msg("agentic: approve: approver has no current session")
-		renderPage(ctx, w, http.StatusForbidden, noIDPSessionPage, nil)
+		h.serveNoIDPSession(w, r)
 		return
 	case status.Code(err) == codes.Unavailable:
 		log.Ctx(ctx).Error().Err(err).Str("run-id", runID).Msg("agentic: approve: databroker unavailable")
@@ -237,7 +244,7 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 		// login and invalidated at sign-out; either way the approver must sign in
 		// again.
 		log.Ctx(ctx).Info().Err(err).Str("run-id", runID).Msg("agentic: approve: approver has no valid centralized idp session")
-		renderPage(ctx, w, http.StatusForbidden, noIDPSessionPage, nil)
+		h.serveNoIDPSession(w, r)
 		return
 	} else if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("run-id", runID).Msg("agentic: approve: failed to load idp session")
@@ -268,7 +275,7 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 		if databroker.IsRecordVersionMismatch(err) {
 			log.Ctx(ctx).Info().Str("run-id", runID).Str("actor", userID).
 				Msg("agentic: approve: lost the race, the run was already approved")
-			renderPage(ctx, w, http.StatusOK, alreadyApprovedPage, nil)
+			h.serveAlreadyApproved(w, r)
 			return
 		}
 		log.Ctx(ctx).Error().Err(err).Msg("agentic: approve: failed to store run")
@@ -295,7 +302,17 @@ func (h *Handler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Ctx(ctx).Info().Str("run-id", run.GetId()).Str("approved-by", userID).Msg("agentic: run approved")
-	renderPage(ctx, w, http.StatusOK, approvedPage, nil)
+	// Land the approver on their client-bindings page with the run they just
+	// approved highlighted, rather than on a dead-end "you can close this window".
+	// The run is now something they own and can revoke, so the useful next screen
+	// is the one that lets them do it.
+	if u := h.sessionsURL(ctx, SessionID(run.GetId())); u != "" {
+		http.Redirect(w, r, u, http.StatusSeeOther)
+		return
+	}
+	// No authenticate URL to send them to (a misconfiguration): say the approval
+	// worked rather than answering a successful approval with an error.
+	h.serveResult(w, r, "success", "Run approved", "You can close this window.")
 }
 
 // releaseApproval restores a run this request claimed but could not finish
@@ -371,12 +388,19 @@ func (h *Handler) mcpConsents(ctx context.Context, run *agenticpb.Run, userID, a
 	}
 
 	for _, s := range urls {
-		row := mcpServerConsent{URL: s}
-		if c != nil {
-			c.fill(ctx, &row)
-		}
-		rows = append(rows, row)
+		rows = append(rows, mcpServerConsent{URL: s})
 	}
+	if c == nil {
+		return rows
+	}
+	// Each row costs a databroker lookup and they are independent, so resolve them
+	// concurrently — the same thing the routes portal does for its Connected chips
+	// (mcp.checkHostsConnectedForUser). Every fill writes only its own row.
+	var wg sync.WaitGroup
+	for i := range rows {
+		wg.Go(func() { c.fill(ctx, &rows[i]) })
+	}
+	wg.Wait()
 	return rows
 }
 
@@ -412,19 +436,19 @@ func (c *consentResolver) fill(ctx context.Context, row *mcpServerConsent) {
 	}
 	row.NeedsOAuth = true
 
-	// Connected iff the approver already holds a valid (unexpired) upstream token
-	// — the same "valid token exists" check the connect handler short-circuits on
-	// (internal/mcp/handler_connect.go).
-	token, err := c.storage.GetUpstreamMCPToken(ctx, c.userID, info.RouteID, info.UpstreamURL)
-	switch {
-	case err == nil && token != nil && (token.GetExpiresAt() == nil || token.GetExpiresAt().AsTime().After(time.Now())):
-		row.Connected = true
-		return
-	case err != nil && status.Code(err) != codes.NotFound:
+	// Connected is mcp.IsUpstreamConnected — the same check, and the same
+	// semantics, the routes portal renders its Connected chip from. This page used
+	// to add an expiry test of its own, which showed a user with a perfectly good
+	// connection as disconnected on one page and connected on the other.
+	connected, err := mcp.IsUpstreamConnected(ctx, c.storage, c.userID, info.RouteID, info.UpstreamURL)
+	if err != nil {
 		// A transient lookup failure: offer Connect anyway (it re-checks
 		// authoritatively), but record why the shown status may be stale.
 		log.Ctx(ctx).Warn().Err(err).Str("run-id", c.runID).Str("route", row.URL).
 			Msg("agentic: approve: upstream token lookup failed; offering connect")
+	} else if connected {
+		row.Connected = true
+		return
 	}
 
 	// The Connect endpoint lives on the MCP route's own origin, taken from the
@@ -513,13 +537,101 @@ func executorClaims(run *agenticpb.Run) []executorClaim {
 	return out
 }
 
-func renderPage(ctx context.Context, w http.ResponseWriter, statusCode int, tmpl *template.Template, data any) {
+// The React pages this handler serves. pageApprove is the consent form;
+// pageApproveResult is the terminal outcome of an approval (approved, already
+// approved, no longer approvable). Refusals reuse the shared "Error" page, so
+// they look like every other refusal in Pomerium.
+const (
+	pageApprove       = "AgenticApprove"
+	pageApproveResult = "AgenticApproveResult"
+)
+
+// sessionsURL is the approver's client-bindings page on the authenticate
+// service — where an approved run appears alongside their other sessions and
+// can be revoked. The authenticate service owns those records, so the page only
+// exists there; the proxy's own /.pomerium/session_binding_info is a redirect to
+// it.
+//
+// highlight names the session binding the page should point at (see
+// agentic.SessionID); pass "" for none. An empty return means the deployment has
+// no usable authenticate URL, which callers treat as "no link to offer".
+func (h *Handler) sessionsURL(ctx context.Context, highlight string) string {
+	u, err := h.cfg.Options.GetAuthenticateURL()
+	if err != nil || u == nil {
+		log.Ctx(ctx).Error().Err(err).Msg("agentic: approve: no authenticate url to link the approver's sessions page to")
+		return ""
+	}
+	out := *u
+	out.Path = endpoints.PathPomeriumDashboard + "/" + endpoints.SubPathSessionBindingInfo
+	if highlight != "" {
+		out.RawQuery = url.Values{"highlight": {highlight}}.Encode()
+	}
+	return out.String()
+}
+
+// servePage renders one of the React pages from the shared UI bundle, with the
+// deployment's branding applied the same way every other Pomerium page applies
+// it. The status code is written first, as httputil's error page does, because
+// ui.ServePage serves the rendered bytes as content.
+func (h *Handler) servePage(
+	w http.ResponseWriter,
+	r *http.Request,
+	statusCode int,
+	page, title string,
+	data map[string]any,
+) {
+	if data == nil {
+		data = map[string]any{}
+	}
+	httputil.AddBrandingOptionsToMap(data, h.cfg.Options.BrandingOptions)
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(statusCode)
-	if err := tmpl.Execute(w, data); err != nil {
+	if err := ui.ServePage(w, r, page, title, data); err != nil {
 		// Header is already committed; just record it.
-		log.Ctx(ctx).Error().Err(err).Msg("agentic: approve: failed to render page")
+		log.Ctx(r.Context()).Error().Err(err).Msg("agentic: approve: failed to render page")
 	}
+}
+
+// serveResult renders a terminal approval outcome. severity is the MUI alert
+// severity the page renders it at ("success", "info" or "warning"); title is
+// both the browser title and the alert's heading.
+func (h *Handler) serveResult(w http.ResponseWriter, r *http.Request, severity, title, message string) {
+	h.servePage(w, r, http.StatusOK, pageApproveResult, title, map[string]any{
+		"severity": severity,
+		"title":    title,
+		"message":  message,
+	})
+}
+
+// serveRefusal renders a refusal through the shared error responder, so an
+// approver who cannot proceed sees exactly what every other Pomerium refusal
+// renders — request id, branding and the JSON variant included.
+func (h *Handler) serveRefusal(w http.ResponseWriter, r *http.Request, statusCode int, description string) {
+	e := httputil.NewError(statusCode, errors.New(description)).WithDescription(description)
+	e.BrandingOptions = h.cfg.Options.BrandingOptions
+	e.ErrorResponse(r.Context(), w, r)
+}
+
+func (h *Handler) serveAlreadyApproved(w http.ResponseWriter, r *http.Request) {
+	h.serveResult(w, r, "info", "Already approved", "This run has already been approved.")
+}
+
+// serveNotYourApproval answers someone who holds an approval link for a run
+// pinned to somebody else. It says the request is not theirs to approve without
+// naming who it belongs to: the holder of a forwarded link should not learn the
+// intended approver's identity from the refusal, and the caller who set the pin
+// has the log line.
+func (h *Handler) serveNotYourApproval(w http.ResponseWriter, r *http.Request) {
+	h.serveRefusal(w, r, http.StatusForbidden,
+		"This request is waiting on someone else to approve it, so there is nothing for you to do here. "+
+			"If you were expecting to approve it, ask whoever sent you this link to start a request of your own.")
+}
+
+func (h *Handler) serveNoIDPSession(w http.ResponseWriter, r *http.Request) {
+	h.serveRefusal(w, r, http.StatusForbidden,
+		"Your sign-in session is no longer active, so it cannot back a long-running agent. "+
+			"Sign in again and retry the approval.")
 }
 
 // --- identity assertion helpers ---
@@ -552,16 +664,7 @@ func getUserIDFromClaims(claims map[string]any) (string, bool) {
 	return userID, ok
 }
 
-// --- consent pages ---
-
-var (
-	consentPage         = template.Must(template.New("consent").Parse(consentPageHTML))
-	approvedPage        = template.Must(template.New("approved").Parse(approvedPageHTML))
-	alreadyApprovedPage = template.Must(template.New("already").Parse(alreadyApprovedPageHTML))
-	unapprovablePage    = template.Must(template.New("unapprovable").Parse(unapprovablePageHTML))
-	noIDPSessionPage    = template.Must(template.New("noidpsession").Parse(noIDPSessionPageHTML))
-	notYourApprovalPage = template.Must(template.New("notyours").Parse(notYourApprovalPageHTML))
-)
+// --- consent page data ---
 
 type consentPageData struct {
 	UserEmail    string
@@ -574,6 +677,61 @@ type consentPageData struct {
 	ConnectError string
 	Executor     []executorClaim
 	Code         string
+	// SessionsURL links to the approver's client-bindings page, where this run
+	// will appear once approved and can be revoked.
+	SessionsURL string
+}
+
+// toJSON renders the consent page's data as the JSON map handed to the React
+// bundle (window.POMERIUM_DATA). The keys are the page's contract with
+// ui/src/components/AgenticApprovePage.tsx.
+func (d consentPageData) toJSON() map[string]any {
+	return map[string]any{
+		"userEmail":    d.UserEmail,
+		"userId":       d.UserID,
+		"prompt":       d.Prompt,
+		"labels":       d.Labels,
+		"mcpServers":   mcpServerCards(d.MCPServers),
+		"approvePath":  d.ApprovePath,
+		"needsConnect": d.NeedsConnect,
+		"connectError": d.ConnectError,
+		"executor":     d.Executor,
+		"code":         d.Code,
+		"sessionsUrl":  d.SessionsURL,
+	}
+}
+
+// mcpServerCard is one consent row shaped as the routes portal's Route object,
+// so the page can render it with the same MCPRouteCard the routes portal uses
+// (ui/src/components/MCPRouteCard.tsx) instead of a second, divergent card.
+//
+// A run declares MCP servers by URL and nothing else, so the URL is also the
+// card's id and title: there is no configured route name to show for a URL that
+// names no MCP route at all.
+type mcpServerCard struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Type          string `json:"type"`
+	From          string `json:"from"`
+	MCPNeedsOAuth bool   `json:"mcp_needs_oauth"`
+	MCPConnected  bool   `json:"mcp_connected"`
+	MCPConnectURL string `json:"mcp_connect_url,omitempty"`
+}
+
+func mcpServerCards(rows []mcpServerConsent) []mcpServerCard {
+	out := make([]mcpServerCard, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, mcpServerCard{
+			ID:            row.URL,
+			Name:          row.URL,
+			Type:          "mcp",
+			From:          row.URL,
+			MCPNeedsOAuth: row.NeedsOAuth,
+			MCPConnected:  row.Connected,
+			MCPConnectURL: row.ConnectURL,
+		})
+	}
+	return out
 }
 
 // mcpServerConsent is one MCP server the run was created to use, as rendered on
@@ -584,8 +742,8 @@ type mcpServerConsent struct {
 	// NeedsOAuth is set when the URL names an MCP server route with an upstream
 	// that requires the approver to connect (grant an upstream OAuth token).
 	NeedsOAuth bool
-	// Connected is set when the approver already holds a valid upstream token for
-	// the server (only meaningful when NeedsOAuth).
+	// Connected is set when the approver already holds an upstream token for the
+	// server (only meaningful when NeedsOAuth).
 	Connected bool
 	// ConnectURL links to the MCP route's own /.pomerium/mcp/connect endpoint and
 	// returns to this consent page; set when NeedsOAuth && !Connected.
@@ -595,8 +753,8 @@ type mcpServerConsent struct {
 // executorClaim is one sealed executor identity attribute rendered on the
 // consent page (§12.8), e.g. {Path: "kubernetes.io.pod.uid", Value: "<uid>"}.
 type executorClaim struct {
-	Path  string
-	Value string
+	Path  string `json:"path"`
+	Value string `json:"value"`
 }
 
 // runLabel is one caller-supplied label, as rendered on the consent page. Labels
@@ -604,8 +762,8 @@ type executorClaim struct {
 // the only thing that distinguishes two otherwise identical prompts, so a human
 // cannot meaningfully approve without seeing them.
 type runLabel struct {
-	Key   string
-	Value string
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // runLabels renders a run's labels as sorted key/value pairs, so the order a
@@ -618,64 +776,3 @@ func runLabels(run *agenticpb.Run) []runLabel {
 	}
 	return out
 }
-
-const pageStyle = `<style>
-body{font-family:system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem;line-height:1.5;color:#1a1a1a}
-h1{font-size:1.4rem}
-blockquote{border-left:3px solid #ccc;margin:1rem 0;padding:.5rem 1rem;background:#f6f6f6;white-space:pre-wrap}
-.who{color:#555;font-size:.9rem}
-button{font-size:1rem;padding:.6rem 1.4rem;background:#2563eb;color:#fff;border:0;border-radius:.4rem;cursor:pointer}
-ul{padding-left:1.2rem}
-a.connect{display:inline-block;font-size:.8rem;padding:.1rem .55rem;margin-left:.4rem;background:#2563eb;color:#fff;border-radius:.3rem;text-decoration:none}
-.ok{color:#15803d;font-size:.85rem;margin-left:.4rem}
-.hint{color:#b45309;font-size:.9rem}
-.error{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:.6rem 1rem;border-radius:.4rem;margin:1rem 0}
-</style>`
-
-// consentPageHTML uses html/template auto-escaping: the prompt is
-// attacker-influenced content, so escaping it is security-relevant.
-var consentPageHTML = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Approve agentic run</title>` + pageStyle + `</head>
-<body>
-<h1>Approve agentic run</h1>
-{{if .ConnectError}}<p class="error">{{.ConnectError}}</p>{{end}}
-<p class="who">Signed in as {{if .UserEmail}}{{.UserEmail}}{{else}}{{.UserID}}{{end}}.</p>
-<p>An agent is requesting to act on your behalf:</p>
-<blockquote>{{.Prompt}}</blockquote>
-{{if .Labels}}<dl>{{range .Labels}}<dt>{{.Key}}</dt><dd>{{.Value}}</dd>{{end}}</dl>{{end}}
-{{if .MCPServers}}<p>You are allowing the agent to access these MCP servers on your behalf:</p>
-<ul>{{range .MCPServers}}<li>{{.URL}}{{if .NeedsOAuth}}{{if .Connected}} <span class="ok">&#10003; connected</span>{{else}} <a class="connect" href="{{.ConnectURL}}">Connect</a>{{end}}{{end}}</li>{{end}}</ul>
-{{if .NeedsConnect}}<p class="hint">Some of these need you to connect an upstream account first. Until you do, the agent won&#39;t be able to use them on your behalf.</p>{{end}}{{end}}
-{{if .Executor}}<p>Only this specific agent instance may act — no other workload can use this approval:</p>
-<ul>{{range .Executor}}<li>{{.Path}}: {{.Value}}</li>{{end}}</ul>{{end}}
-<p>This run stays active for as long as you remain signed in. The agent keeps renewing its access on your behalf while your session is alive, and it stops automatically once you sign out or your session ends. It appears alongside your other sessions, where you can revoke it at any time.</p>
-<form method="POST" action="{{.ApprovePath}}">
-<input type="hidden" name="code" value="{{.Code}}">
-<button type="submit">Approve</button>
-</form>
-</body></html>`
-
-var approvedPageHTML = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Run approved</title>` + pageStyle + `</head>
-<body><h1>Run approved</h1><p>You can close this window.</p></body></html>`
-
-var alreadyApprovedPageHTML = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Already approved</title>` + pageStyle + `</head>
-<body><h1>Already approved</h1><p>This run has already been approved.</p></body></html>`
-
-var unapprovablePageHTML = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Cannot approve</title>` + pageStyle + `</head>
-<body><h1>Cannot approve</h1><p>This run can no longer be approved.</p></body></html>`
-
-// notYourApprovalPageHTML answers someone who holds an approval link for a run
-// pinned to somebody else. It says the request is not theirs to approve without
-// naming who it belongs to: the holder of a forwarded link should not learn the
-// intended approver's identity from the refusal, and the caller who set the pin
-// has the log line.
-var notYourApprovalPageHTML = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Not your approval</title>` + pageStyle + `</head>
-<body><h1>Not your approval</h1><p>This request is waiting on someone else to approve it, so there is nothing for you to do here. If you were expecting to approve it, ask whoever sent you this link to start a request of your own.</p></body></html>`
-
-var noIDPSessionPageHTML = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Cannot approve</title>` + pageStyle + `</head>
-<body><h1>Cannot approve</h1><p>Your sign-in session is no longer active, so it cannot back a long-running agent. Sign in again and retry the approval.</p></body></html>`

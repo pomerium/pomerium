@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -51,6 +53,38 @@ type HandlerStorage interface {
 	GetPendingUpstreamAuthByState(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error)
 	GetUpstreamOAuthClient(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error)
 	PutUpstreamOAuthClient(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
+}
+
+// UpstreamTokenGetter is the slice of storage IsUpstreamConnected needs. It is
+// an interface so callers outside this package (the agentic consent page) can
+// share the check without sharing a concrete Storage.
+type UpstreamTokenGetter interface {
+	GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
+}
+
+// IsUpstreamConnected reports whether userID has connected their upstream
+// account for an MCP server route.
+//
+// Presence of the stored token is the whole test, deliberately: the record
+// carries the refresh token too, so an access token past its expiry is still a
+// live connection that the upstream auth handler re-hydrates on the next call.
+// Treating it as disconnected would tell a user to re-run an OAuth dance they
+// have already completed. Every caller — the routes portal and the agentic
+// consent page — goes through here so they cannot disagree about what
+// "connected" means.
+//
+// A route with no id or no upstream has nothing to connect to, and is reported
+// as not connected. Only a transient lookup failure is an error; "no token" is
+// an ordinary answer.
+func IsUpstreamConnected(ctx context.Context, storage UpstreamTokenGetter, userID, routeID, upstreamServer string) (bool, error) {
+	if routeID == "" || upstreamServer == "" {
+		return false, nil
+	}
+	token, err := storage.GetUpstreamMCPToken(ctx, userID, routeID, upstreamServer)
+	if err != nil && status.Code(err) != codes.NotFound {
+		return false, fmt.Errorf("failed to get upstream MCP token for user %s: %w", userID, err)
+	}
+	return err == nil && token != nil, nil
 }
 
 // Storage implements HandlerStorage using a databroker client.

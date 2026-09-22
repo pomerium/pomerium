@@ -1,7 +1,6 @@
 package agentic
 
 import (
-	"bytes"
 	"context"
 	"net"
 	"net/url"
@@ -14,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	agenticpb "github.com/pomerium/pomerium/internal/agentic/gen"
@@ -171,26 +171,65 @@ func TestMCPConsents_Connect(t *testing.T) {
 	})
 }
 
-// TestConsentPage_RendersConnectError verifies a failed Connect (which redirects
-// back here with connect_error set) is surfaced on the page rather than reloading
-// silently, and that the reflected value is HTML-escaped.
-func TestConsentPage_RendersConnectError(t *testing.T) {
-	var buf bytes.Buffer
-	require.NoError(t, consentPage.Execute(&buf, consentPageData{
+// TestConsentPageData_CarriesConnectError verifies a failed Connect (which
+// redirects back here with connect_error set) reaches the page as data rather
+// than reloading silently. It travels as JSON page data and is rendered as React
+// text, so it can never become markup.
+func TestConsentPageData_CarriesConnectError(t *testing.T) {
+	t.Parallel()
+
+	data := consentPageData{
 		UserEmail:    "dmishin@pomerium.com",
 		ConnectError: `MCP connection failed <script>alert(1)</script>`,
 		ApprovePath:  ApprovePath(DefaultPrefix),
 		MCPServers:   []mcpServerConsent{{URL: "https://gke.example", NeedsOAuth: true, ConnectURL: "https://gke.example/.pomerium/mcp/connect"}},
-	}))
-	out := buf.String()
-	assert.Contains(t, out, `class="error"`, "the connect error must render in the error banner")
-	assert.Contains(t, out, "MCP connection failed", "the error text must be shown")
-	assert.NotContains(t, out, "<script>alert(1)</script>", "the reflected error must be HTML-escaped")
+	}.toJSON()
 
-	// With no error the banner is absent.
-	buf.Reset()
-	require.NoError(t, consentPage.Execute(&buf, consentPageData{UserEmail: "x@e.com"}))
-	assert.NotContains(t, buf.String(), `class="error"`)
+	assert.Equal(t, `MCP connection failed <script>alert(1)</script>`, data["connectError"],
+		"the connect error must reach the page verbatim")
+
+	servers, _ := data["mcpServers"].([]mcpServerCard)
+	require.Len(t, servers, 1)
+	assert.Equal(t, mcpServerCard{
+		ID:            "https://gke.example",
+		Name:          "https://gke.example",
+		Type:          "mcp",
+		From:          "https://gke.example",
+		MCPNeedsOAuth: true,
+		MCPConnectURL: "https://gke.example/.pomerium/mcp/connect",
+	}, servers[0], "the row must be shaped as a portal Route so MCPRouteCard can render it")
+
+	// With no error the field is empty and the page shows no banner.
+	data = consentPageData{UserEmail: "x@e.com"}.toJSON()
+	assert.Empty(t, data["connectError"])
+}
+
+// TestMCPConsents_ExpiredTokenIsConnected pins that the consent page reports the
+// same thing the routes portal does: a stored upstream token means connected,
+// expiry or not. The record carries the refresh token, so an access token past
+// its expiry is a live connection — and a page that called it "not connected"
+// told the approver to redo an OAuth dance they had already completed, while the
+// routes portal showed them connected.
+func TestMCPConsents_ExpiredTokenIsConnected(t *testing.T) {
+	ctx := testutil.GetContext(t, time.Minute)
+	client := newTestDataBrokerClient(ctx, t)
+	cfg, info := mcpConsentConfig(t, true)
+	h := &Handler{prefix: DefaultPrefix, cfg: cfg, client: databroker_grpc.NewStaticClientGetter(client)}
+
+	storage := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(client))
+	require.NoError(t, storage.PutUpstreamMCPToken(ctx, &oauth21proto.UpstreamMCPToken{
+		UserId:         "carol",
+		RouteId:        info.RouteID,
+		UpstreamServer: info.UpstreamURL,
+		AccessToken:    "stale",
+		TokenType:      "Bearer",
+		ExpiresAt:      timestamppb.New(time.Now().Add(-time.Hour)),
+	}))
+
+	rows := h.mcpConsents(ctx, runWithMCPServers("run-expired", "https://mcp-tool.example.com"), "carol", approveHost)
+	require.Len(t, rows, 1)
+	assert.True(t, rows[0].Connected, "an expired-but-present token is still connected, as on the routes page")
+	assert.Empty(t, rows[0].ConnectURL, "a connected server offers no Connect link")
 }
 
 // TestMCPConsents_MCPFlagOff verifies that when the MCP runtime flag is off the

@@ -7,8 +7,6 @@ import (
 	"net/http"
 
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -142,13 +140,11 @@ func (srv *Handler) checkHostsConnectedForUser(
 			continue
 		}
 		eg.Go(func() error {
-			if servers[i].routeID != "" && servers[i].upstreamURL != "" {
-				token, err := srv.storage.GetUpstreamMCPToken(ctx, userID, servers[i].routeID, servers[i].upstreamURL)
-				if err != nil && status.Code(err) != codes.NotFound {
-					return fmt.Errorf("failed to get upstream MCP token for user %s: %w", userID, err)
-				}
-				servers[i].Connected = err == nil && token != nil
+			connected, err := IsUpstreamConnected(ctx, srv.storage, userID, servers[i].routeID, servers[i].upstreamURL)
+			if err != nil {
+				return err
 			}
+			servers[i].Connected = connected
 			return nil
 		})
 	}

@@ -456,6 +456,10 @@ func (s *Stateful) GetSessionBindingInfo(
 		UserInfoData:  s.GetUserInfoData(r, h),
 		SessionData:   all,
 		ReAuthEnabled: reauthCap == identity.ReAuthenticationEnabled,
+		// Whoever sent the user here may name one binding to call out — the
+		// agentic approval flow does, so the run just approved is not lost in the
+		// list. An unknown id simply highlights nothing.
+		Highlight: r.URL.Query().Get("highlight"),
 	}).ServeHTTP(w, r)
 	return nil
 }

@@ -11,6 +11,10 @@ type SessionInfoData struct {
 	UserInfoData
 	SessionData   []SessionBindingData
 	ReAuthEnabled bool
+	// Highlight is the SessionBindingID of a single row the page should call
+	// out, e.g. the run a user has just approved. An id that matches no row
+	// highlights nothing.
+	Highlight string
 }
 
 type SessionBindingData struct {
@@ -56,6 +60,7 @@ func (data SessionInfoData) ToJSON() map[string]any {
 	m := data.UserInfoData.ToJSON()
 	m["sessionBindings"] = data.SessionData
 	m["reauth_enabled"] = data.ReAuthEnabled
+	m["highlight"] = data.Highlight
 	return m
 }
 

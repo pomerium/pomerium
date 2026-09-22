@@ -32,11 +32,21 @@ const mcpLogoDataURI =
 
 type MCPRouteCardProps = {
   route: Route;
+  // allowDisconnect offers the Disconnect action for a connected route. The
+  // agentic approval page turns it off: an approver is there to connect what
+  // the run needs, and disconnecting belongs on the routes portal.
+  allowDisconnect?: boolean;
 };
-const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
+const MCPRouteCard: FC<MCPRouteCardProps> = ({
+  route,
+  allowDisconnect = true,
+}) => {
   const [connected, setConnected] = useState(route.mcp_connected ?? false);
   const [pending, setPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // A listed server with no upstream to connect to has no connection state to
+  // show, so the chip and the actions are both omitted for it.
+  const showConnection = route.mcp_needs_oauth !== false;
 
   const handleDisconnect = async () => {
     setPending(true);
@@ -64,6 +74,33 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
       setPending(false);
     }
   };
+
+  // At most one action is offered: Disconnect for a connection this page is
+  // allowed to drop, Connect for one that can be made, and nothing otherwise.
+  let action: React.ReactNode = null;
+  if (showConnection && connected && allowDisconnect) {
+    action = (
+      <Button
+        size="small"
+        color="error"
+        disabled={pending}
+        onClick={handleDisconnect}
+      >
+        Disconnect
+      </Button>
+    );
+  } else if (showConnection && !connected && route.mcp_connect_url) {
+    action = (
+      <Button
+        size="small"
+        color="primary"
+        href={route.mcp_connect_url}
+        component="a"
+      >
+        Connect
+      </Button>
+    );
+  }
 
   return (
     <Card
@@ -104,14 +141,16 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
           </Box>
         }
         subheader={
-          <Chip
-            icon={connected ? <Wifi size={14} /> : <WifiOff size={14} />}
-            label={connected ? "Connected" : "Not Connected"}
-            size="small"
-            color={connected ? "success" : "default"}
-            variant="outlined"
-            sx={{ mt: 0.5 }}
-          />
+          showConnection ? (
+            <Chip
+              icon={connected ? <Wifi size={14} /> : <WifiOff size={14} />}
+              label={connected ? "Connected" : "Not Connected"}
+              size="small"
+              color={connected ? "success" : "default"}
+              variant="outlined"
+              sx={{ mt: 0.5 }}
+            />
+          ) : undefined
         }
       />
       {route.description && (
@@ -129,25 +168,7 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
         </Alert>
       )}
       <CardActions sx={{ justifyContent: "flex-end", pt: 0 }}>
-        {connected ? (
-          <Button
-            size="small"
-            color="error"
-            disabled={pending}
-            onClick={handleDisconnect}
-          >
-            Disconnect
-          </Button>
-        ) : route.mcp_connect_url ? (
-          <Button
-            size="small"
-            color="primary"
-            href={route.mcp_connect_url}
-            component="a"
-          >
-            Connect
-          </Button>
-        ) : null}
+        {action}
       </CardActions>
     </Card>
   );

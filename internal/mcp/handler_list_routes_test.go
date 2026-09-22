@@ -157,3 +157,57 @@ func TestCheckHostsConnectedForUser(t *testing.T) {
 		})
 	}
 }
+
+// errUpstreamTokenStorage fails every lookup with a non-NotFound status, which
+// is the one case IsUpstreamConnected must surface rather than answer.
+type errUpstreamTokenStorage struct{ HandlerStorage }
+
+func (*errUpstreamTokenStorage) GetUpstreamMCPToken(context.Context, string, string, string) (*oauth21proto.UpstreamMCPToken, error) {
+	return nil, status.Error(codes.Unavailable, "databroker is down")
+}
+
+// TestIsUpstreamConnected covers the shared check directly, since both the
+// routes portal and the agentic consent page now render their connection state
+// from it and must not disagree.
+func TestIsUpstreamConnected(t *testing.T) {
+	t.Parallel()
+
+	const (
+		routeID  = "r1"
+		upstream = "https://upstream.example.com"
+	)
+	storage := &listRoutesTestStorage{mcpTokens: map[string]*oauth21proto.UpstreamMCPToken{
+		"user1|" + routeID + "|" + upstream: {ExpiresAt: timestamppb.New(time.Now().Add(-time.Hour))},
+	}}
+
+	t.Run("a stored token is connected even past its expiry", func(t *testing.T) {
+		t.Parallel()
+		connected, err := IsUpstreamConnected(context.Background(), storage, "user1", routeID, upstream)
+		require.NoError(t, err)
+		assert.True(t, connected, "the record carries a refresh token, so an expired access token is still a connection")
+	})
+
+	t.Run("no token is not connected, and not an error", func(t *testing.T) {
+		t.Parallel()
+		connected, err := IsUpstreamConnected(context.Background(), storage, "user2", routeID, upstream)
+		require.NoError(t, err)
+		assert.False(t, connected)
+	})
+
+	t.Run("nothing to connect to is not connected", func(t *testing.T) {
+		t.Parallel()
+		connected, err := IsUpstreamConnected(context.Background(), storage, "user1", "", upstream)
+		require.NoError(t, err)
+		assert.False(t, connected)
+
+		connected, err = IsUpstreamConnected(context.Background(), storage, "user1", routeID, "")
+		require.NoError(t, err)
+		assert.False(t, connected)
+	})
+
+	t.Run("a transient lookup failure is an error, not a false", func(t *testing.T) {
+		t.Parallel()
+		_, err := IsUpstreamConnected(context.Background(), &errUpstreamTokenStorage{}, "user1", routeID, upstream)
+		require.Error(t, err)
+	})
+}

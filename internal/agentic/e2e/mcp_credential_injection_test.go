@@ -191,8 +191,8 @@ func TestRunTokenMCPCredentialInjection(t *testing.T) {
 	assert.Contains(t, page, endpoints.PathPomeriumMCPConnect,
 		"consent page must offer a Connect link for the unconnected MCP route")
 
-	status, _ = browser.approvePost(t, up, as.approve, "alice@example.com", extractApprovalCode(t, page))
-	require.Equal(t, http.StatusOK, status, "approval must succeed")
+	status, _, _ = browser.approvePost(t, up, as.approve, "alice@example.com", extractApprovalCode(t, page))
+	require.Equal(t, http.StatusSeeOther, status, "approval must succeed and redirect to the sessions page")
 
 	// --- 4. Poll again: run token issued. ---
 	resp, body = postJSON(t, up, as.token, tokenPath, bearer(sidecarJWT), map[string]any{})

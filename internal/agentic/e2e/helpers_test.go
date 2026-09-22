@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"encoding/json"
-	"html"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -227,15 +226,20 @@ func newBrowsers() *browsers { return &browsers{jars: map[string]http.CookieJar{
 
 func (b *browsers) as(email string) upstreams.RequestOption {
 	return upstreams.ClientHook(func(c *http.Client) *http.Client {
-		jar, ok := b.jars[email]
-		if !ok {
-			jar, _ = cookiejar.New(nil)
-			b.jars[email] = jar
-		}
-		c2 := *c
-		c2.Jar = jar
-		return &c2
+		return b.jarClient(email, c)
 	})
+}
+
+// jarClient copies c with this email's cookie jar attached.
+func (b *browsers) jarClient(email string, c *http.Client) *http.Client {
+	jar, ok := b.jars[email]
+	if !ok {
+		jar, _ = cookiejar.New(nil)
+		b.jars[email] = jar
+	}
+	c2 := *c
+	c2.Jar = jar
+	return &c2
 }
 
 // consentGet performs the authenticated browser GET of the consent page
@@ -255,33 +259,54 @@ func (b *browsers) consentGet(t *testing.T, up upstreams.HTTPUpstream, route tes
 }
 
 // approvePost submits the consent form as the signed-in browser user, with a
-// url-encoded body, mirroring a real form submission.
-func (b *browsers) approvePost(t *testing.T, up upstreams.HTTPUpstream, route testenv.Route, email, code string) (int, string) {
+// url-encoded body, mirroring a real form submission. It returns the response's
+// status, body and Location header without following redirects: a successful
+// approval answers 303 to the approver's client-bindings page, and following it
+// would replace the one thing the test is asserting on.
+func (b *browsers) approvePost(
+	t *testing.T, up upstreams.HTTPUpstream, route testenv.Route, email, code string,
+) (status int, body, location string) {
 	t.Helper()
 	resp, err := up.Post(route,
 		upstreams.Path(approvePath),
 		upstreams.AuthenticateAs(email),
-		b.as(email),
+		// One ClientHook wins, so the jar and the redirect policy are applied
+		// together rather than as two options that would overwrite each other.
+		upstreams.ClientHook(func(c *http.Client) *http.Client {
+			return noRedirect(b.jarClient(email, c))
+		}),
 		upstreams.Body("code="+url.QueryEscape(code)),
 		upstreams.Headers(map[string]string{"Content-Type": "application/x-www-form-urlencoded"}),
 	)
 	require.NoError(t, err)
-	body, _ := io.ReadAll(resp.Body)
+	raw, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	return resp.StatusCode, string(body)
+	return resp.StatusCode, string(raw), resp.Header.Get("Location")
 }
 
-// codeFieldRE extracts the CSRF/approval code from a rendered consent page.
-var codeFieldRE = regexp.MustCompile(`name="code" value="([^"]+)"`)
+// pomeriumDataRE extracts the JSON the React bundle renders from. Every
+// Pomerium page — the consent page included, since it is now an ordinary React
+// page — carries its data in this one script line.
+var pomeriumDataRE = regexp.MustCompile(`window\.POMERIUM_DATA = (.*);`)
 
-// extractApprovalCode pulls the hidden approval code out of a consent page. A
-// browser decodes HTML entities when reading an attribute value (html/template
-// escapes base64's '+' as &#43;), so mirror that before submitting the form.
+// pageData decodes a rendered page's window.POMERIUM_DATA. Asserting on it
+// rather than on markup is what a page whose markup is built in the browser
+// allows: the handler's contract is the data, not the HTML.
+func pageData(t *testing.T, page string) map[string]any {
+	t.Helper()
+	m := pomeriumDataRE.FindStringSubmatch(page)
+	require.Len(t, m, 2, "must be able to extract window.POMERIUM_DATA from the page")
+	var data map[string]any
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &data), "window.POMERIUM_DATA must be JSON")
+	return data
+}
+
+// extractApprovalCode pulls the approval code out of a rendered consent page.
 func extractApprovalCode(t *testing.T, page string) string {
 	t.Helper()
-	m := codeFieldRE.FindStringSubmatch(page)
-	require.Len(t, m, 2, "must be able to extract the approval code from the page")
-	return html.UnescapeString(m[1])
+	code, _ := pageData(t, page)["code"].(string)
+	require.NotEmpty(t, code, "the consent page must carry an approval code")
+	return code
 }
 
 // getWithToken GETs /echo on route with a bearer token, following no redirects,
