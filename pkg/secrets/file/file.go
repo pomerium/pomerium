@@ -22,6 +22,7 @@ import (
 
 	"github.com/zeebo/xxh3"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/secrets/provider"
 	"github.com/pomerium/pomerium/pkg/secrets/ref"
 )
@@ -35,6 +36,18 @@ const Scheme = "file"
 // account keys) while keeping a misdirected ref (a device node, a FIFO, a log
 // file) from growing the process without bound.
 const MaxFileSize = 1 << 20
+
+// MaxParkedReads is how many abandoned reads of one path may stay parked in an
+// uninterruptible syscall before further fetches of that path are refused
+// with ErrReadBlocked. It bounds the goroutines and descriptors a wedged mount
+// can pin per path while still letting a later read reach a path that has
+// been remounted underneath the stuck ones.
+const MaxParkedReads = 3
+
+// DefaultParkedRetryInterval is the minimum time between starting reads of a
+// path while an earlier read of it is parked, so retries against a wedged
+// mount reach MaxParkedReads slowly rather than in one burst.
+const DefaultParkedRetryInterval = 5 * time.Second
 
 // DefaultPollInterval is how often each watched path is stat'ed for changes.
 // It bounds rotation latency; a coarser interval costs nothing but promptness.
@@ -52,24 +65,40 @@ const DefaultPollInterval = 500 * time.Millisecond
 type Provider struct {
 	pollInterval time.Duration // zero means DefaultPollInterval
 
+	// parkedRetryInterval spaces new reads of a path that already has a read
+	// parked; zero means DefaultParkedRetryInterval.
+	parkedRetryInterval time.Duration
+
 	// readFile is the read strategy, swappable so tests can stand in for a
 	// wedged mount; nil means readCapped.
 	readFile func(path string) ([]byte, error)
 
 	mu      sync.Mutex
-	pollers map[string]*poller   // watched path -> its poller and registrations
-	reads   map[string]*readCall // path -> the read currently in flight
+	pollers map[string]*poller    // watched path -> its poller and registrations
+	reads   map[string]*pathReads // path -> its live and parked reads
 	nextID  int
 }
 
-// readCall is the single in-flight read of one path. waiters counts the live
-// callers still interested; at zero the read is abandoned and its goroutine is
+// pathReads tracks the reads of one path: at most one live read that current
+// callers share, plus the reads abandoned by callers that gave up and now
 // parked in an uninterruptible syscall.
+type pathReads struct {
+	live      *readCall
+	parked    int
+	lastStart time.Time
+}
+
+// readCall is one read of a path. waiters counts the live callers still
+// interested; when it drops to zero before the read finishes, the read is
+// abandoned and moves from live to parked.
 type readCall struct {
-	done    chan struct{}
-	waiters int
-	data    []byte
-	err     error
+	done     chan struct{}
+	started  time.Time
+	waiters  int
+	finished bool // set under Provider.mu once the read has returned
+	parked   bool // set under Provider.mu when the last waiter abandons it
+	data     []byte
+	err      error
 }
 
 type poller struct {
@@ -108,10 +137,10 @@ func (*Provider) Validate(r ref.Ref) error {
 	return nil
 }
 
-// ErrReadBlocked reports that an earlier read of this path is still parked in
-// an uninterruptible syscall, so the fetch was refused rather than piling a
-// second blocked reader on top of it. It is transient: the next fetch after
-// the stuck read returns proceeds normally.
+// ErrReadBlocked reports that earlier reads of this path are still parked in
+// an uninterruptible syscall, so the fetch was refused rather than piling
+// another blocked reader on top of them. It is transient: a later fetch
+// proceeds once a parked read returns or the retry interval has passed.
 var ErrReadBlocked = errors.New("an earlier read of this file is still blocked")
 
 // Fetch implements provider.Provider. It re-validates the ref (nothing in the
@@ -143,23 +172,25 @@ func (p *Provider) Fetch(ctx context.Context, r ref.Ref) (provider.Result, error
 // in open(2) or read(2) with no cancellation, so the read runs on its own
 // goroutine and is abandoned rather than waited on.
 //
-// Abandoning is bounded on both sides, which is what makes it safe:
+// Abandoning is bounded, which is what makes it safe:
 //
 //   - Concurrent live callers share one read, so a fan-out over one path costs
 //     one descriptor, not one per binding.
-//   - Once the last caller gives up, the read is abandoned. A later fetch will
-//     not join it — stale work must never answer for a fresh request, the
-//     failure Go's net resolver added singleflight.ForgetUnshared to avoid
-//     (golang/go#22724) and the one that wedged csi-driver-nfs (#1271).
-//   - Nor will a later fetch start a second read while the first is still
-//     parked; it fails fast with ErrReadBlocked. Retrying against a wedged
-//     mount therefore costs one parked goroutine and descriptor per path
-//     rather than one per attempt, which is what exhausted the CSI driver.
+//   - Once the last caller gives up, the read is abandoned and parked. A later
+//     fetch never joins it — stale work must never answer for a fresh
+//     request, the failure Go's net resolver added singleflight.ForgetUnshared
+//     to avoid (golang/go#22724).
+//   - A later fetch may start a fresh read alongside the parked ones, but only
+//     every parkedRetryInterval and only while fewer than MaxParkedReads are
+//     parked; otherwise it fails fast with ErrReadBlocked. Retrying against a
+//     wedged mount therefore pins a fixed number of goroutines and descriptors
+//     per path rather than one per attempt, the unbounded growth that
+//     exhausted csi-driver-nfs (#1271).
 //
-// Refusing to start a fresh read costs nothing: non-regular files are already
-// rejected without blocking, so a parked read means the mount itself is wedged
-// and a new read would park in exactly the same place. When the stuck read
-// finally returns, the path clears and the next fetch reads normally.
+// Allowing a fresh read at all matters because a parked read is stuck on the
+// mount it started on, not on the path: the standard recovery for a stale NFS
+// mount is a lazy unmount and remount, after which the path is healthy while
+// the old read may never return.
 func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -167,34 +198,38 @@ func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 
 	p.mu.Lock()
 	if p.reads == nil {
-		p.reads = make(map[string]*readCall)
+		p.reads = make(map[string]*pathReads)
 	}
-	c := p.reads[path]
-	switch {
-	case c == nil:
-		c = &readCall{done: make(chan struct{}), waiters: 1}
-		p.reads[path] = c
-		go p.runRead(path, c)
-	case c.waiters == 0:
-		p.mu.Unlock()
-		return nil, ErrReadBlocked
-	default:
+	pr := p.reads[path]
+	if pr == nil {
+		pr = &pathReads{}
+		p.reads[path] = pr
+	}
+	c := pr.live
+	if c != nil {
 		c.waiters++
+	} else {
+		now := time.Now()
+		if pr.parked > 0 {
+			if pr.parked >= MaxParkedReads || now.Sub(pr.lastStart) < p.retryInterval() {
+				p.mu.Unlock()
+				return nil, ErrReadBlocked
+			}
+			log.Ctx(ctx).Warn().Str("path", path).Int("parked", pr.parked).
+				Msg("file secret: earlier reads are still blocked; retrying with a fresh read")
+		}
+		c = &readCall{done: make(chan struct{}), started: now, waiters: 1}
+		pr.live, pr.lastStart = c, now
+		go p.runRead(context.WithoutCancel(ctx), path, pr, c)
 	}
 	p.mu.Unlock()
 
-	drop := func() {
-		p.mu.Lock()
-		c.waiters--
-		p.mu.Unlock()
-	}
-
 	select {
 	case <-ctx.Done():
-		drop()
+		p.drop(ctx, path, pr, c)
 		return nil, ctx.Err()
 	case <-c.done:
-		drop()
+		p.drop(ctx, path, pr, c)
 		if c.err != nil {
 			return nil, c.err
 		}
@@ -205,18 +240,60 @@ func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 	}
 }
 
-// runRead performs the read and retires it. The path is cleared before done is
-// closed so that a fetch arriving in between starts a fresh read rather than
-// seeing a finished call as still blocked.
-func (p *Provider) runRead(path string, c *readCall) {
+func (p *Provider) retryInterval() time.Duration {
+	if p.parkedRetryInterval == 0 {
+		return DefaultParkedRetryInterval
+	}
+	return p.parkedRetryInterval
+}
+
+// drop releases one caller's interest in c. The last caller to give up on an
+// unfinished read parks it, so the next fetch starts fresh instead of joining.
+func (p *Provider) drop(ctx context.Context, path string, pr *pathReads, c *readCall) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	c.waiters--
+	if c.waiters > 0 || c.finished {
+		return
+	}
+	c.parked = true
+	pr.live = nil
+	pr.parked++
+	ev := log.Ctx(ctx).Warn()
+	if pr.parked >= MaxParkedReads {
+		ev = log.Ctx(ctx).Error()
+	}
+	ev.Str("path", path).
+		Dur("elapsed", time.Since(c.started)).
+		Int("parked", pr.parked).
+		Int("max-parked", MaxParkedReads).
+		Msg("file secret: read abandoned while blocked in the filesystem (wedged mount?); it stays parked until the kernel returns it")
+}
+
+// runRead performs the read and retires it. The call is unlinked from the path
+// before done is closed so that a fetch arriving in between starts a fresh
+// read rather than joining a finished one.
+func (p *Provider) runRead(ctx context.Context, path string, pr *pathReads, c *readCall) {
 	read := p.readFile
 	if read == nil {
 		read = readCapped
 	}
-	c.data, c.err = read(path)
+	data, err := read(path)
 
 	p.mu.Lock()
-	if p.reads[path] == c {
+	c.data, c.err, c.finished = data, err, true
+	if pr.live == c {
+		pr.live = nil
+	}
+	if c.parked {
+		pr.parked--
+		log.Ctx(ctx).Info().Str("path", path).
+			Dur("elapsed", time.Since(c.started)).
+			Int("parked", pr.parked).
+			Msg("file secret: parked read returned")
+	}
+	if pr.live == nil && pr.parked == 0 && p.reads[path] == pr {
 		delete(p.reads, path)
 	}
 	p.mu.Unlock()
