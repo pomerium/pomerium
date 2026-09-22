@@ -15,6 +15,12 @@ import React, { useState } from "react";
 import { Wifi, WifiOff } from "react-feather";
 
 import type { Route } from "../types";
+import type { MCPServerStatus } from "../util/mcpRouteStatus";
+import {
+  canRefresh,
+  findServerStatus,
+  refreshTokenCaption,
+} from "../util/mcpRouteStatus";
 
 // Official MCP logo icon (3 interweaving paths from the Model Context Protocol logo)
 // on a circular white background.
@@ -29,15 +35,6 @@ const mcpLogoDataURI =
       '<path d="M109.853 46.9411L59.6482 97.1457C50.2756 106.518 50.2756 121.714 59.6482 131.087V131.087C69.0208 140.459 84.2167 140.459 93.5893 131.087L143.794 80.8822" stroke="#000" stroke-width="12" stroke-linecap="round" fill="none"/>' +
       "</g></svg>",
   );
-
-// Status of a single MCP server as returned by the /.pomerium/mcp/routes*
-// endpoints.
-type MCPServerStatus = {
-  url: string;
-  connected?: boolean;
-  token_expires_at?: string;
-  refresh_token_available?: boolean;
-};
 
 type MCPRoutesResponse = {
   servers?: MCPServerStatus[];
@@ -124,7 +121,7 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
         return;
       }
       const body = (await resp.json()) as MCPRoutesResponse;
-      const server = body.servers?.find((s) => s.url === route.from);
+      const server = findServerStatus(body.servers, route.from);
       if (server) {
         setTokenState(server);
       }
@@ -153,9 +150,7 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
       ? { label: "Expired", color: "warning" as const, live: false }
       : { label: "Connected", color: "success" as const, live: true };
 
-  const refreshTokenLabel = tokenState.refresh_token_available
-    ? "available"
-    : "not available";
+  const refreshCaption = refreshTokenCaption(tokenState);
 
   return (
     <Card
@@ -223,9 +218,9 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
               <Typography
                 variant="caption"
                 component="div"
-                color="textSecondary"
+                color={refreshCaption.color}
               >
-                Refresh token: {refreshTokenLabel}
+                {refreshCaption.text}
               </Typography>
             </>
           )}
@@ -243,14 +238,16 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
       <CardActions sx={{ justifyContent: "flex-end", pt: 0 }}>
         {tokenState.connected ? (
           <>
-            <Button
-              size="small"
-              color="primary"
-              disabled={pending}
-              onClick={handleRefresh}
-            >
-              Refresh
-            </Button>
+            {canRefresh(tokenState) && (
+              <Button
+                size="small"
+                color="primary"
+                disabled={pending}
+                onClick={handleRefresh}
+              >
+                Refresh
+              </Button>
+            )}
             <Button
               size="small"
               color="error"
