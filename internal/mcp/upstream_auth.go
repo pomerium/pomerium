@@ -304,7 +304,9 @@ func (h *UpstreamAuthHandler) refreshOrClearToken(
 //   - (refreshed, nil): refresh succeeded; the new token was persisted.
 //   - (nil, nil):       permanent failure (4xx from the AS — invalid_grant, revoked, etc.)
 //     or no refresh capability. The stale token has been deleted and the caller should
-//     trigger interactive re-auth.
+//     trigger interactive re-auth. A permanent failure whose token a concurrent refresh
+//     had already rotated instead returns that newer token — see
+//     clearRejectedUpstreamMCPToken.
 //   - (nil, error):     transient failure (network / 5xx). The stale token is preserved so
 //     a later retry can still refresh it; the caller should surface the error.
 //
@@ -349,15 +351,7 @@ func refreshExpiredUpstreamMCPToken(
 	})
 	if err != nil {
 		if isTokenRefreshPermanent(err) {
-			log.Ctx(ctx).Warn().Err(err).
-				Str("user_id", userID).
-				Str("route_id", routeID).
-				Str("upstream_server", upstreamServer).
-				Msg("mcp_upstream_auth: refresh token rejected by AS, clearing cached token")
-			if delErr := storage.DeleteUpstreamMCPToken(ctx, userID, routeID, upstreamServer); delErr != nil {
-				log.Ctx(ctx).Error().Err(delErr).Msg("mcp_upstream_auth: failed to delete stale token after refresh failure")
-			}
-			return nil, nil
+			return clearRejectedUpstreamMCPToken(ctx, storage, token, err)
 		}
 		log.Ctx(ctx).Warn().Err(err).
 			Str("user_id", userID).
@@ -376,6 +370,66 @@ func refreshExpiredUpstreamMCPToken(
 	}
 	event.Msg("mcp_upstream_auth: refreshed upstream token successfully")
 	return refreshed, nil
+}
+
+// clearRejectedUpstreamMCPToken clears a stored upstream token whose refresh token the
+// authorization server permanently rejected, and reports what the caller should do next
+// using refreshExpiredUpstreamMCPToken's three outcomes.
+//
+// The delete is conditional on the stored record still carrying the rejected refresh token,
+// because refreshes of the same (user, route, upstream) are not globally serialized: the
+// portal handler and this handler own separate singleflight groups, and separate replicas
+// share none. Against an authorization server that rotates refresh tokens, the loser is
+// rejected only after the winner has stored the rotated token, and an unconditional delete
+// would disconnect the user despite a successful refresh. When that happens the rotated
+// token is read back and returned as this call's result instead.
+//
+// A storage failure is transient: the caller cannot tell whether the rejected token is still
+// current, so the token stays in place and the error is surfaced.
+func clearRejectedUpstreamMCPToken(
+	ctx context.Context,
+	storage HandlerStorage,
+	rejected *oauth21proto.UpstreamMCPToken,
+	refreshErr error,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	userID := rejected.GetUserId()
+	routeID := rejected.GetRouteId()
+	upstreamServer := rejected.GetUpstreamServer()
+
+	err := storage.DeleteUpstreamMCPTokenIfRefreshTokenMatches(
+		ctx, userID, routeID, upstreamServer, rejected.GetRefreshToken())
+	switch {
+	case err == nil:
+		log.Ctx(ctx).Warn().Err(refreshErr).
+			Str("user_id", userID).
+			Str("route_id", routeID).
+			Str("upstream_server", upstreamServer).
+			Msg("mcp_upstream_auth: refresh token rejected by AS, cleared cached token")
+		return nil, nil
+	case !errors.Is(err, ErrUpstreamMCPTokenRotated):
+		log.Ctx(ctx).Error().Err(err).
+			Str("user_id", userID).
+			Str("route_id", routeID).
+			Str("upstream_server", upstreamServer).
+			Msg("mcp_upstream_auth: failed to clear rejected token, leaving it in place")
+		return nil, fmt.Errorf("clearing rejected upstream token: %w", err)
+	}
+
+	stored, err := storage.GetUpstreamMCPToken(ctx, userID, routeID, upstreamServer)
+	switch {
+	case isNotFound(err):
+		// Rotated and then removed; nothing left to hand back.
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("reading concurrently rotated upstream token: %w", err)
+	}
+
+	log.Ctx(ctx).Info().Err(refreshErr).
+		Str("user_id", userID).
+		Str("route_id", routeID).
+		Str("upstream_server", upstreamServer).
+		Msg("mcp_upstream_auth: refresh token rejected but concurrently rotated, keeping the newer token")
+	return stored, nil
 }
 
 // HandleUpstreamResponse processes a 401/403 response from upstream.

@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -1254,4 +1258,228 @@ func newTestUpstreamAuthHandler(t *testing.T, cfg *config.Config, store HandlerS
 	h, err := NewUpstreamAuthHandler(t.Context(), cfg, WithStorage(store), WithUpstreamHTTPClient(httpClient))
 	require.NoError(t, err)
 	return h
+}
+
+// concurrentRefreshTestStorage is an in-memory HandlerStorage with the upstream token
+// semantics the conditional-delete policy depends on.
+type concurrentRefreshTestStorage struct {
+	*testUpstreamAuthStorage
+
+	mu     sync.Mutex
+	tokens map[string]*oauth21proto.UpstreamMCPToken
+}
+
+func newConcurrentRefreshTestStorage() *concurrentRefreshTestStorage {
+	return &concurrentRefreshTestStorage{
+		testUpstreamAuthStorage: &testUpstreamAuthStorage{},
+		tokens:                  map[string]*oauth21proto.UpstreamMCPToken{},
+	}
+}
+
+func (s *concurrentRefreshTestStorage) key(userID, routeID, upstreamServer string) string {
+	return url.Values{"u": {userID}, "r": {routeID}, "s": {upstreamServer}}.Encode()
+}
+
+func (s *concurrentRefreshTestStorage) PutUpstreamMCPToken(_ context.Context, token *oauth21proto.UpstreamMCPToken) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.tokens[s.key(token.UserId, token.RouteId, token.UpstreamServer)] = token
+	return nil
+}
+
+func (s *concurrentRefreshTestStorage) GetUpstreamMCPToken(
+	_ context.Context, userID, routeID, upstreamServer string,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	token, ok := s.tokens[s.key(userID, routeID, upstreamServer)]
+	if !ok {
+		return nil, status.Error(codes.NotFound, "record not found")
+	}
+	return token, nil
+}
+
+func (s *concurrentRefreshTestStorage) DeleteUpstreamMCPToken(_ context.Context, userID, routeID, upstreamServer string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.tokens, s.key(userID, routeID, upstreamServer))
+	return nil
+}
+
+func (s *concurrentRefreshTestStorage) DeleteUpstreamMCPTokenIfRefreshTokenMatches(
+	_ context.Context, userID, routeID, upstreamServer, refreshToken string,
+) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	k := s.key(userID, routeID, upstreamServer)
+	token, ok := s.tokens[k]
+	if !ok {
+		return nil
+	}
+	if token.GetRefreshToken() != refreshToken {
+		return ErrUpstreamMCPTokenRotated
+	}
+	delete(s.tokens, k)
+	return nil
+}
+
+// TestConcurrentRefreshDoesNotDeleteNewlyRotatedToken covers two refreshes of the same
+// upstream token running under separate singleflight groups, as the portal handler and the
+// ext_proc upstream auth handler do. The loser's invalid_grant must not discard the rotated
+// token the winner stored.
+func TestConcurrentRefreshDoesNotDeleteNewlyRotatedToken(t *testing.T) {
+	t.Parallel()
+
+	firstStarted := make(chan struct{})
+	secondStarted := make(chan struct{})
+	finishFirst := make(chan struct{})
+	finishSecond := make(chan struct{})
+	var calls atomic.Int32
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		switch calls.Add(1) {
+		case 1:
+			close(firstStarted)
+			<-finishFirst
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"access_token":"new-at","refresh_token":"new-rt","token_type":"Bearer"}`)
+		case 2:
+			close(secondStarted)
+			<-finishSecond
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error":"invalid_grant"}`)
+		default:
+			t.Errorf("unexpected token endpoint call %d", calls.Load())
+		}
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	store := newConcurrentRefreshTestStorage()
+	stale := &oauth21proto.UpstreamMCPToken{
+		UserId:         "user-1",
+		RouteId:        "route-1",
+		UpstreamServer: "https://upstream.example.com",
+		AccessToken:    "old-at",
+		RefreshToken:   "old-rt",
+		TokenEndpoint:  tokenServer.URL,
+	}
+	require.NoError(t, store.PutUpstreamMCPToken(t.Context(), stale))
+
+	var portalGroup, extProcGroup singleflight.Group
+	type result struct {
+		token *oauth21proto.UpstreamMCPToken
+		err   error
+	}
+	first := make(chan result, 1)
+	second := make(chan result, 1)
+
+	go func() {
+		token, err := refreshExpiredUpstreamMCPToken(
+			t.Context(), store, tokenServer.Client(), &portalGroup, stale, "")
+		first <- result{token, err}
+	}()
+	<-firstStarted
+	go func() {
+		token, err := refreshExpiredUpstreamMCPToken(
+			t.Context(), store, tokenServer.Client(), &extProcGroup, stale, "")
+		second <- result{token, err}
+	}()
+	<-secondStarted
+
+	close(finishFirst)
+	firstResult := <-first
+	require.NoError(t, firstResult.err)
+	require.Equal(t, "new-rt", firstResult.token.GetRefreshToken())
+
+	close(finishSecond)
+	secondResult := <-second
+
+	// The rejected refresh must report the rotated token rather than clearing it.
+	require.NoError(t, secondResult.err)
+	require.Equal(t, "new-rt", secondResult.token.GetRefreshToken())
+
+	stored, err := store.GetUpstreamMCPToken(t.Context(), stale.UserId, stale.RouteId, stale.UpstreamServer)
+	require.NoError(t, err)
+	assert.Equal(t, "new-rt", stored.GetRefreshToken())
+}
+
+// TestRejectedRefreshClearsAnUnrotatedToken covers the ordinary permanent-failure path: the
+// stored token still carries the rejected refresh token, so it is cleared.
+func TestRejectedRefreshClearsAnUnrotatedToken(t *testing.T) {
+	t.Parallel()
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = io.WriteString(w, `{"error":"invalid_grant"}`)
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	store := newConcurrentRefreshTestStorage()
+	stale := &oauth21proto.UpstreamMCPToken{
+		UserId:         "user-1",
+		RouteId:        "route-1",
+		UpstreamServer: "https://upstream.example.com",
+		AccessToken:    "old-at",
+		RefreshToken:   "old-rt",
+		TokenEndpoint:  tokenServer.URL,
+	}
+	require.NoError(t, store.PutUpstreamMCPToken(t.Context(), stale))
+
+	var sf singleflight.Group
+	token, err := refreshExpiredUpstreamMCPToken(t.Context(), store, tokenServer.Client(), &sf, stale, "")
+	require.NoError(t, err)
+	assert.Nil(t, token)
+
+	_, err = store.GetUpstreamMCPToken(t.Context(), stale.UserId, stale.RouteId, stale.UpstreamServer)
+	assert.Equal(t, codes.NotFound, status.Code(err))
+}
+
+// TestRejectedRefreshTreatsStorageFailureAsTransient covers a databroker failure while
+// clearing: the caller cannot tell whether the rejected token is still current, so it must be
+// left in place and the failure surfaced.
+func TestRejectedRefreshTreatsStorageFailureAsTransient(t *testing.T) {
+	t.Parallel()
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = io.WriteString(w, `{"error":"invalid_grant"}`)
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	store := &failingDeleteTestStorage{
+		concurrentRefreshTestStorage: newConcurrentRefreshTestStorage(),
+		err:                          status.Error(codes.Unavailable, "databroker unavailable"),
+	}
+	stale := &oauth21proto.UpstreamMCPToken{
+		UserId:         "user-1",
+		RouteId:        "route-1",
+		UpstreamServer: "https://upstream.example.com",
+		AccessToken:    "old-at",
+		RefreshToken:   "old-rt",
+		TokenEndpoint:  tokenServer.URL,
+	}
+	require.NoError(t, store.PutUpstreamMCPToken(t.Context(), stale))
+
+	var sf singleflight.Group
+	token, err := refreshExpiredUpstreamMCPToken(t.Context(), store, tokenServer.Client(), &sf, stale, "")
+	require.Error(t, err)
+	assert.Nil(t, token)
+
+	stored, err := store.GetUpstreamMCPToken(t.Context(), stale.UserId, stale.RouteId, stale.UpstreamServer)
+	require.NoError(t, err)
+	assert.Equal(t, "old-rt", stored.GetRefreshToken())
+}
+
+type failingDeleteTestStorage struct {
+	*concurrentRefreshTestStorage
+	err error
+}
+
+func (s *failingDeleteTestStorage) DeleteUpstreamMCPTokenIfRefreshTokenMatches(
+	context.Context, string, string, string, string,
+) error {
+	return s.err
 }
