@@ -346,25 +346,47 @@ func refreshExpiredUpstreamMCPToken(
 		"route":    {routeID},
 		"upstream": {upstreamServer},
 	}.Encode()
+	// The whole outcome, rejection handling included, is produced inside the flight: the
+	// key does not cover the refresh token, so a waiter may hold a token the flight never
+	// presented. Only the call that presented a refresh token may compare or clear it.
 	result, err, _ := sf.Do(sfKey, func() (any, error) {
-		return doRefreshUpstreamMCPToken(ctx, storage, httpClient, token, configClientSecret)
+		refreshed, err := refreshUpstreamMCPTokenOnce(ctx, storage, httpClient, token, configClientSecret)
+		return refreshed, err
 	})
+	if err != nil {
+		return nil, err
+	}
+	refreshed, _ := result.(*oauth21proto.UpstreamMCPToken)
+	return refreshed, nil
+}
+
+// refreshUpstreamMCPTokenOnce performs a single refresh of token and resolves its outcome,
+// including clearing a permanently rejected refresh token. It runs inside the caller's
+// singleflight flight, so every waiter shares the result it produces for the refresh token it
+// presented; see refreshExpiredUpstreamMCPToken for the meaning of the return values.
+func refreshUpstreamMCPTokenOnce(
+	ctx context.Context,
+	storage HandlerStorage,
+	httpClient *http.Client,
+	token *oauth21proto.UpstreamMCPToken,
+	configClientSecret string,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	refreshed, err := doRefreshUpstreamMCPToken(ctx, storage, httpClient, token, configClientSecret)
 	if err != nil {
 		if isTokenRefreshPermanent(err) {
 			return clearRejectedUpstreamMCPToken(ctx, storage, token, err)
 		}
 		log.Ctx(ctx).Warn().Err(err).
-			Str("user_id", userID).
-			Str("route_id", routeID).
-			Str("upstream_server", upstreamServer).
+			Str("user_id", token.GetUserId()).
+			Str("route_id", token.GetRouteId()).
+			Str("upstream_server", token.GetUpstreamServer()).
 			Msg("mcp_upstream_auth: transient upstream token refresh failure, preserving cached token")
 		return nil, fmt.Errorf("refreshing upstream token: %w", err)
 	}
-	refreshed := result.(*oauth21proto.UpstreamMCPToken)
 	event := log.Ctx(ctx).Debug().
-		Str("user_id", userID).
-		Str("route_id", routeID).
-		Str("upstream_server", upstreamServer)
+		Str("user_id", token.GetUserId()).
+		Str("route_id", token.GetRouteId()).
+		Str("upstream_server", token.GetUpstreamServer())
 	if refreshed.ExpiresAt != nil {
 		event.Time("expires_at", refreshed.ExpiresAt.AsTime())
 	}

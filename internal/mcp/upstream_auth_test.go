@@ -1413,6 +1413,76 @@ func TestConcurrentRefreshDoesNotDeleteNewlyRotatedToken(t *testing.T) {
 	assert.Equal(t, "new-rt", stored.GetRefreshToken())
 }
 
+// TestSharedRejectionDoesNotDeleteWaitersToken covers a request that joins a refresh already
+// in flight for the same (user, route, upstream). The flight presented an older refresh
+// token, so its rejection says nothing about the newer token the waiter read: only the call
+// that actually presented a refresh token may clear it.
+func TestSharedRejectionDoesNotDeleteWaitersToken(t *testing.T) {
+	t.Parallel()
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Errorf("waiter refreshed on its own instead of joining the in-flight refresh")
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	store := newConcurrentRefreshTestStorage()
+	// The rotated token another replica stored while the refresh below, which presented the
+	// previous refresh token, was still awaiting its response.
+	rotated := &oauth21proto.UpstreamMCPToken{
+		UserId:         "user-1",
+		RouteId:        "route-1",
+		UpstreamServer: "https://upstream.example.com",
+		AccessToken:    "rotated-at",
+		RefreshToken:   "rotated-rt",
+		TokenEndpoint:  tokenServer.URL,
+	}
+	require.NoError(t, store.PutUpstreamMCPToken(t.Context(), rotated))
+
+	var sf singleflight.Group
+	inFlight := make(chan struct{})
+	finish := make(chan struct{})
+	var finishOnce sync.Once
+	release := func() { finishOnce.Do(func() { close(finish) }) }
+	t.Cleanup(release)
+
+	sfKey := "mcp:" + url.Values{
+		"user":     {rotated.UserId},
+		"route":    {rotated.RouteId},
+		"upstream": {rotated.UpstreamServer},
+	}.Encode()
+	leader := sf.DoChan(sfKey, func() (any, error) {
+		close(inFlight)
+		<-finish
+		// The authorization server rejecting the refresh token this flight presented.
+		return (*oauth21proto.UpstreamMCPToken)(nil), &tokenEndpointError{
+			StatusCode: http.StatusBadRequest,
+			Body:       `{"error":"invalid_grant"}`,
+		}
+	})
+	<-inFlight
+
+	joining := make(chan struct{})
+	waiter := make(chan error, 1)
+	go func() {
+		close(joining)
+		_, err := refreshExpiredUpstreamMCPToken(
+			t.Context(), store, tokenServer.Client(), &sf, rotated, "")
+		waiter <- err
+	}()
+	<-joining
+	timer := time.AfterFunc(250*time.Millisecond, release)
+	t.Cleanup(func() { timer.Stop() })
+
+	<-waiter
+	<-leader
+
+	stored, err := store.GetUpstreamMCPToken(
+		t.Context(), rotated.UserId, rotated.RouteId, rotated.UpstreamServer)
+	require.NoError(t, err, "the waiter's refresh token was never presented and must survive")
+	assert.Equal(t, "rotated-rt", stored.GetRefreshToken())
+}
+
 // TestRejectedRefreshClearsAnUnrotatedToken covers the ordinary permanent-failure path: the
 // stored token still carries the rejected refresh token, so it is cleared.
 func TestRejectedRefreshClearsAnUnrotatedToken(t *testing.T) {
