@@ -202,11 +202,12 @@ type StreamHandler struct {
 	internalChannelRequestC chan InternalChannelRequest
 	handoffRequestC         chan HandoffRequest
 
-	close         func()
-	runOnce       bool
-	terminateMu   sync.Mutex
-	terminateErr  error
-	terminateFunc context.CancelCauseFunc
+	close           func()
+	runOnce         bool
+	terminateMu     sync.Mutex
+	terminateCalled bool
+	terminateErr    error
+	terminateFunc   context.CancelCauseFunc
 
 	expectingInternalChannel atomic.Bool
 	internalSession          atomic.Pointer[ChannelHandler]
@@ -289,6 +290,10 @@ func (sh *StreamHandler) OnClusterHealthUpdate(_ context.Context, event *datav3.
 func (sh *StreamHandler) Terminate(err error) {
 	sh.terminateMu.Lock()
 	defer sh.terminateMu.Unlock()
+	if sh.terminateCalled {
+		return
+	}
+	sh.terminateCalled = true
 	sh.terminateErr = err
 	if sh.terminateFunc != nil {
 		sh.terminateFunc(err)
@@ -366,10 +371,13 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 
 	// If the stream was terminated before Run was called, exit early
 	sh.terminateMu.Lock()
-	terminateErr := sh.terminateErr
-	if terminateErr != nil {
+	if sh.terminateCalled {
+		err := sh.terminateErr
+		if err == nil {
+			err = status.Errorf(codes.Canceled, "canceled")
+		}
 		sh.terminateMu.Unlock()
-		return terminateErr
+		return err
 	}
 	ctx, sh.terminateFunc = context.WithCancelCause(ctx)
 	sh.terminateMu.Unlock()

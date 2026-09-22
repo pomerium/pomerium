@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
@@ -154,6 +155,56 @@ func TestStreamManager(t *testing.T) {
 		case <-time.After(1 * time.Second):
 			t.Fail()
 		}
+	})
+
+	t.Run("TerminateStreamBeforeRun", func(t *testing.T) {
+		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		testErr := errors.New("test error")
+		sh1.Terminate(testErr)
+		ctx, ca := context.WithTimeout(t.Context(), 10*time.Millisecond)
+		err := sh1.Run(ctx)
+		ca()
+		assert.ErrorIs(t, err, testErr)
+	})
+
+	t.Run("TerminateStreamTwice", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+			done1 := make(chan error)
+			go func() {
+				done1 <- sh1.Run(t.Context())
+			}()
+			synctest.Wait()
+			err1 := errors.New("test error 1")
+			err2 := errors.New("test error 1")
+			sh1.Terminate(err1)
+			sh1.Terminate(err2)
+			actual := <-done1
+			assert.ErrorIs(t, actual, err1)
+		})
+	})
+
+	t.Run("TerminateStreamWithNilError", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+			done1 := make(chan error)
+			go func() {
+				done1 <- sh1.Run(t.Context())
+			}()
+			synctest.Wait()
+			sh1.Terminate(nil)
+			actual := <-done1
+			assert.ErrorIs(t, actual, context.Canceled)
+		})
+	})
+
+	t.Run("TerminateStreamWithNilErrorBeforeRun", func(t *testing.T) {
+		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		sh1.Terminate(nil)
+		ctx, ca := context.WithTimeout(t.Context(), 10*time.Millisecond)
+		err := sh1.Run(ctx)
+		ca()
+		assert.Equal(t, status.Code(err), codes.Canceled)
 	})
 
 	t.Run("ClearRecords", func(t *testing.T) {
