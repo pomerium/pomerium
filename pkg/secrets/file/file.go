@@ -294,7 +294,10 @@ func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 				}
 				select {
 				case <-ctx.Done():
-					return nil, ErrReadBlocked
+					// The caller's own deadline ended the wait, so it must
+					// see ctx.Err() as on the read path; the reads are still
+					// blocked, so it wraps ErrReadBlocked too.
+					return nil, fmt.Errorf("%w: %w", ErrReadBlocked, ctx.Err())
 				case <-pc.done:
 				}
 				probed = true
