@@ -50,8 +50,10 @@ repos:
         language: system
         entry: bash -c 'cd ui && npm install && npm run format'
         files: "^ui/.*"
+        pass_filenames: false
       - id: ui-lint
         name: ui-lint
         language: system
         entry: bash -c 'cd ui && npm install && npm run lint'
         files: "^ui/.*"
+        pass_filenames: false
