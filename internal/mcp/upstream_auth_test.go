@@ -1335,6 +1335,9 @@ func TestConcurrentRefreshDoesNotDeleteNewlyRotatedToken(t *testing.T) {
 	finishFirst := make(chan struct{})
 	finishSecond := make(chan struct{})
 	var calls atomic.Int32
+	var firstOnce, secondOnce sync.Once
+	releaseFirst := func() { firstOnce.Do(func() { close(finishFirst) }) }
+	releaseSecond := func() { secondOnce.Do(func() { close(finishSecond) }) }
 
 	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		switch calls.Add(1) {
@@ -1354,6 +1357,12 @@ func TestConcurrentRefreshDoesNotDeleteNewlyRotatedToken(t *testing.T) {
 		}
 	}))
 	t.Cleanup(tokenServer.Close)
+	// Registered after the server close so it runs first: a failed assertion must not leave a
+	// handler blocked on its gate, which would make tokenServer.Close wait forever.
+	t.Cleanup(func() {
+		releaseFirst()
+		releaseSecond()
+	})
 
 	store := newConcurrentRefreshTestStorage()
 	stale := &oauth21proto.UpstreamMCPToken{
@@ -1387,12 +1396,12 @@ func TestConcurrentRefreshDoesNotDeleteNewlyRotatedToken(t *testing.T) {
 	}()
 	<-secondStarted
 
-	close(finishFirst)
+	releaseFirst()
 	firstResult := <-first
 	require.NoError(t, firstResult.err)
 	require.Equal(t, "new-rt", firstResult.token.GetRefreshToken())
 
-	close(finishSecond)
+	releaseSecond()
 	secondResult := <-second
 
 	// The rejected refresh must report the rotated token rather than clearing it.
