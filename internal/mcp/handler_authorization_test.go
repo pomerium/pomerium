@@ -111,6 +111,10 @@ func (s *authorizeTestStorage) DeleteUpstreamMCPToken(ctx context.Context, userI
 	panic("unexpected call to DeleteUpstreamMCPToken")
 }
 
+func (s *authorizeTestStorage) DeleteUpstreamMCPTokenIfRefreshTokenMatches(context.Context, string, string, string, string) error {
+	panic("unexpected call to DeleteUpstreamMCPTokenIfRefreshTokenMatches")
+}
+
 func (s *authorizeTestStorage) PutPendingUpstreamAuth(context.Context, *oauth21proto.PendingUpstreamAuth) error {
 	panic("unexpected call to PutPendingUpstreamAuth")
 }

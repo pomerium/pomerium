@@ -528,6 +528,10 @@ func (s *testConnectStorage) DeleteUpstreamMCPToken(ctx context.Context, userID,
 	panic("unexpected call to DeleteUpstreamMCPToken")
 }
 
+func (s *testConnectStorage) DeleteUpstreamMCPTokenIfRefreshTokenMatches(context.Context, string, string, string, string) error {
+	panic("unexpected call to DeleteUpstreamMCPTokenIfRefreshTokenMatches")
+}
+
 func (s *testConnectStorage) DeletePendingUpstreamAuth(context.Context, string, string) error {
 	panic("unexpected call to DeletePendingUpstreamAuth")
 }

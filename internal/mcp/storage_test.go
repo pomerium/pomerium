@@ -3,6 +3,7 @@ package mcp_test
 import (
 	"context"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -32,33 +33,7 @@ func TestStorage(t *testing.T) {
 
 	ctx := testutil.GetContext(t, time.Minute*5)
 
-	list := bufconn.Listen(1024 * 1024)
-	t.Cleanup(func() {
-		list.Close()
-	})
-
-	srv := databroker.NewBackendServer(noop.NewTracerProvider())
-	t.Cleanup(srv.Stop)
-	grpcServer := grpc.NewServer()
-	databroker_grpc.RegisterDataBrokerServiceServer(grpcServer, srv)
-
-	go func() {
-		if err := grpcServer.Serve(list); err != nil {
-			t.Errorf("failed to serve: %v", err)
-		}
-	}()
-	t.Cleanup(func() {
-		grpcServer.Stop()
-	})
-
-	conn, err := grpc.DialContext(ctx, "bufnet",
-		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-			return list.Dial()
-		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-
-	client := databroker_grpc.NewDataBrokerServiceClient(conn)
+	client := newTestDataBrokerClient(ctx, t)
 	storage := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(client))
 
 	t.Run("client registration", func(t *testing.T) {
@@ -454,5 +429,151 @@ func TestStorage(t *testing.T) {
 			_, err = storage.GetPendingUpstreamAuthByState(ctx, "del-idx-state")
 			assert.Error(t, err)
 		})
+	})
+}
+
+// newTestDataBrokerClient starts an in-memory databroker server and returns a client for it.
+func newTestDataBrokerClient(ctx context.Context, t *testing.T) databroker_grpc.DataBrokerServiceClient {
+	t.Helper()
+
+	list := bufconn.Listen(1024 * 1024)
+	t.Cleanup(func() { list.Close() })
+
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+	grpcServer := grpc.NewServer()
+	databroker_grpc.RegisterDataBrokerServiceServer(grpcServer, srv)
+
+	go func() {
+		if err := grpcServer.Serve(list); err != nil {
+			t.Errorf("failed to serve: %v", err)
+		}
+	}()
+	t.Cleanup(grpcServer.Stop)
+
+	conn, err := grpc.DialContext(ctx, "bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return list.Dial()
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { conn.Close() })
+
+	return databroker_grpc.NewDataBrokerServiceClient(conn)
+}
+
+// afterGetDataBrokerClient runs a hook after every successful Get, so a test can simulate
+// another writer modifying a record between a read-modify-write's read and its write.
+type afterGetDataBrokerClient struct {
+	databroker_grpc.DataBrokerServiceClient
+	hook func()
+}
+
+func (c *afterGetDataBrokerClient) Get(
+	ctx context.Context, in *databroker_grpc.GetRequest, opts ...grpc.CallOption,
+) (*databroker_grpc.GetResponse, error) {
+	res, err := c.DataBrokerServiceClient.Get(ctx, in, opts...)
+	if err == nil {
+		c.hook()
+	}
+	return res, err
+}
+
+func TestDeleteUpstreamMCPTokenIfRefreshTokenMatches(t *testing.T) {
+	t.Parallel()
+
+	ctx := testutil.GetContext(t, time.Minute*5)
+	client := newTestDataBrokerClient(ctx, t)
+
+	newToken := func(refreshToken string) *oauth21proto.UpstreamMCPToken {
+		return &oauth21proto.UpstreamMCPToken{
+			UserId:         "user-1",
+			RouteId:        "route-1",
+			UpstreamServer: "https://mcp.example.com",
+			AccessToken:    "access-" + refreshToken,
+			RefreshToken:   refreshToken,
+		}
+	}
+
+	t.Run("deletes when the refresh token matches", func(t *testing.T) {
+		storage := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(client))
+		token := newToken("rt-match")
+		require.NoError(t, storage.PutUpstreamMCPToken(ctx, token))
+
+		err := storage.DeleteUpstreamMCPTokenIfRefreshTokenMatches(
+			ctx, token.UserId, token.RouteId, token.UpstreamServer, "rt-match")
+		require.NoError(t, err)
+
+		_, err = storage.GetUpstreamMCPToken(ctx, token.UserId, token.RouteId, token.UpstreamServer)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+	})
+
+	t.Run("refuses to delete a rotated token", func(t *testing.T) {
+		storage := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(client))
+		token := newToken("rt-rotated")
+		require.NoError(t, storage.PutUpstreamMCPToken(ctx, token))
+
+		err := storage.DeleteUpstreamMCPTokenIfRefreshTokenMatches(
+			ctx, token.UserId, token.RouteId, token.UpstreamServer, "rt-stale")
+		require.ErrorIs(t, err, mcp.ErrUpstreamMCPTokenRotated)
+
+		got, err := storage.GetUpstreamMCPToken(ctx, token.UserId, token.RouteId, token.UpstreamServer)
+		require.NoError(t, err)
+		assert.Equal(t, "rt-rotated", got.RefreshToken)
+	})
+
+	t.Run("non-existent record is a no-op", func(t *testing.T) {
+		storage := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(client))
+
+		err := storage.DeleteUpstreamMCPTokenIfRefreshTokenMatches(
+			ctx, "no-user", "no-route", "https://no.example.com", "rt")
+		assert.NoError(t, err)
+	})
+
+	t.Run("rotation between the read and the write is refused", func(t *testing.T) {
+		plain := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(client))
+		token := newToken("rt-racy")
+		require.NoError(t, plain.PutUpstreamMCPToken(ctx, token))
+
+		var once sync.Once
+		hooked := &afterGetDataBrokerClient{DataBrokerServiceClient: client, hook: func() {
+			once.Do(func() {
+				rotated := proto.Clone(token).(*oauth21proto.UpstreamMCPToken)
+				rotated.RefreshToken = "rt-racy-rotated"
+				require.NoError(t, plain.PutUpstreamMCPToken(ctx, rotated))
+			})
+		}}
+		storage := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(hooked))
+
+		err := storage.DeleteUpstreamMCPTokenIfRefreshTokenMatches(
+			ctx, token.UserId, token.RouteId, token.UpstreamServer, "rt-racy")
+		require.ErrorIs(t, err, mcp.ErrUpstreamMCPTokenRotated)
+
+		got, err := plain.GetUpstreamMCPToken(ctx, token.UserId, token.RouteId, token.UpstreamServer)
+		require.NoError(t, err)
+		assert.Equal(t, "rt-racy-rotated", got.RefreshToken)
+	})
+
+	t.Run("an unrelated write between the read and the write is retried", func(t *testing.T) {
+		plain := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(client))
+		token := newToken("rt-retry")
+		require.NoError(t, plain.PutUpstreamMCPToken(ctx, token))
+
+		var once sync.Once
+		hooked := &afterGetDataBrokerClient{DataBrokerServiceClient: client, hook: func() {
+			once.Do(func() {
+				touched := proto.Clone(token).(*oauth21proto.UpstreamMCPToken)
+				touched.AccessToken = "access-touched"
+				require.NoError(t, plain.PutUpstreamMCPToken(ctx, touched))
+			})
+		}}
+		storage := mcp.NewStorage(databroker_grpc.NewStaticClientGetter(hooked))
+
+		err := storage.DeleteUpstreamMCPTokenIfRefreshTokenMatches(
+			ctx, token.UserId, token.RouteId, token.UpstreamServer, "rt-retry")
+		require.NoError(t, err)
+
+		_, err = plain.GetUpstreamMCPToken(ctx, token.UserId, token.RouteId, token.UpstreamServer)
+		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 }

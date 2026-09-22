@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -35,6 +36,7 @@ type HandlerStorage interface {
 	PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
 	GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
 	DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error
+	DeleteUpstreamMCPTokenIfRefreshTokenMatches(ctx context.Context, userID, routeID, upstreamServer, refreshToken string) error
 	PutPendingUpstreamAuth(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
 	GetPendingUpstreamAuth(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
 	DeletePendingUpstreamAuth(ctx context.Context, userID, host string) error
@@ -345,6 +347,84 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 		Str("upstream-server", upstreamServer).
 		Msg("deleted upstream mcp token")
 	return nil
+}
+
+// ErrUpstreamMCPTokenRotated is returned by DeleteUpstreamMCPTokenIfRefreshTokenMatches when
+// the stored record carries a different refresh token than the caller presented. A concurrent
+// refresh rotated it, so the record must be kept.
+var ErrUpstreamMCPTokenRotated = errors.New("upstream MCP token was rotated by a concurrent refresh")
+
+// deleteUpstreamMCPTokenAttempts bounds the read-modify-write retries of
+// DeleteUpstreamMCPTokenIfRefreshTokenMatches.
+const deleteUpstreamMCPTokenAttempts = 3
+
+// DeleteUpstreamMCPTokenIfRefreshTokenMatches removes an upstream MCP token record, but only
+// while it still carries refreshToken.
+//
+// Refreshes for the same (user, route, upstream) run concurrently across handlers and replicas:
+// the portal handler and the ext_proc upstream auth handler each deduplicate with their own
+// singleflight group, and they write the same record. Against an authorization server that
+// rotates refresh tokens, a loser is rejected with invalid_grant after the winner has already
+// stored the rotated token, and deleting unconditionally would disconnect the user despite a
+// successful refresh.
+//
+// The delete is therefore conditional on both the refresh token and the record version: a
+// rotation observed before the write returns ErrUpstreamMCPTokenRotated, and one landing
+// between the read and the write is caught by the version check and re-evaluated. A record
+// that is already gone is not an error.
+func (storage *Storage) DeleteUpstreamMCPTokenIfRefreshTokenMatches(
+	ctx context.Context,
+	userID, routeID, upstreamServer, refreshToken string,
+) error {
+	id, err := upstreamMCPTokenID(userID, routeID, upstreamServer)
+	if err != nil {
+		return err
+	}
+	typeURL := protoutil.GetTypeURL(new(oauth21proto.UpstreamMCPToken))
+
+	for range deleteUpstreamMCPTokenAttempts {
+		res, err := storage.client().Get(ctx, &databroker.GetRequest{Type: typeURL, Id: id})
+		switch {
+		case isNotFound(err):
+			return nil
+		case err != nil:
+			return fmt.Errorf("failed to get upstream MCP token: %w", err)
+		}
+
+		stored := new(oauth21proto.UpstreamMCPToken)
+		if err := res.GetRecord().GetData().UnmarshalTo(stored); err != nil {
+			return fmt.Errorf("failed to unmarshal upstream MCP token: %w", err)
+		}
+		if stored.GetRefreshToken() != refreshToken {
+			return ErrUpstreamMCPTokenRotated
+		}
+
+		data := protoutil.NewAny(&oauth21proto.UpstreamMCPToken{})
+		_, err = databroker.PutIfMatchVersion(ctx, storage.client(), &databroker.Record{
+			Id:        id,
+			Data:      data,
+			Type:      data.TypeUrl,
+			DeletedAt: timestamppb.Now(),
+			Version:   res.GetRecord().GetVersion(),
+		})
+		switch {
+		case err == nil:
+			log.Ctx(ctx).Info().
+				Str("user-id", userID).
+				Str("route-id", routeID).
+				Str("upstream-server", upstreamServer).
+				Msg("deleted upstream mcp token")
+			return nil
+		case databroker.IsRecordVersionMismatch(err):
+			// Someone wrote the record between the read and the write; re-read and decide again.
+			continue
+		default:
+			return fmt.Errorf("failed to delete upstream MCP token: %w", err)
+		}
+	}
+
+	return fmt.Errorf("failed to delete upstream MCP token: record kept changing after %d attempts",
+		deleteUpstreamMCPTokenAttempts)
 }
 
 // PutSession stores a session in the databroker.

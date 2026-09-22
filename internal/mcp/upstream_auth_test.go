@@ -247,6 +247,10 @@ func (s *testUpstreamAuthStorage) DeleteUpstreamMCPToken(context.Context, string
 	panic("unexpected call to DeleteUpstreamMCPToken")
 }
 
+func (s *testUpstreamAuthStorage) DeleteUpstreamMCPTokenIfRefreshTokenMatches(context.Context, string, string, string, string) error {
+	panic("unexpected call to DeleteUpstreamMCPTokenIfRefreshTokenMatches")
+}
+
 func (s *testUpstreamAuthStorage) GetPendingUpstreamAuth(context.Context, string, string) (*oauth21proto.PendingUpstreamAuth, error) {
 	panic("unexpected call to GetPendingUpstreamAuth")
 }
@@ -841,6 +845,10 @@ func (s *refreshTokenTestStorage) DeleteUpstreamMCPToken(context.Context, string
 	panic("unexpected call")
 }
 
+func (s *refreshTokenTestStorage) DeleteUpstreamMCPTokenIfRefreshTokenMatches(context.Context, string, string, string, string) error {
+	panic("unexpected call")
+}
+
 func (s *refreshTokenTestStorage) PutPendingUpstreamAuth(context.Context, *oauth21proto.PendingUpstreamAuth) error {
 	panic("unexpected call")
 }
@@ -1217,6 +1225,13 @@ func (s *autoDiscoveryTestStorage) GetUpstreamMCPToken(ctx context.Context, user
 }
 
 func (s *autoDiscoveryTestStorage) DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error {
+	if s.deleteUpstreamMCPTokenFunc != nil {
+		return s.deleteUpstreamMCPTokenFunc(ctx, userID, routeID, upstreamServer)
+	}
+	return nil
+}
+
+func (s *autoDiscoveryTestStorage) DeleteUpstreamMCPTokenIfRefreshTokenMatches(ctx context.Context, userID, routeID, upstreamServer, _ string) error {
 	if s.deleteUpstreamMCPTokenFunc != nil {
 		return s.deleteUpstreamMCPTokenFunc(ctx, userID, routeID, upstreamServer)
 	}
