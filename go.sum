@@ -414,8 +414,8 @@ github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMo
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/fsnotify/fsnotify v1.10.1 h1:b0/UzAf9yR5rhf3RPm9gf3ehBPpf0oZKIjtpKrx59Ho=
 github.com/fsnotify/fsnotify v1.10.1/go.mod h1:TLheqan6HD6GBK6PrDWyDPBaEV8LspOxvPSjC+bVfgo=
-github.com/fxamacker/cbor/v2 v2.9.3 h1:oQBnFATpNdY8gJHTndDDv5Xl4QqNaz51G5LLEPhng3Q=
-github.com/fxamacker/cbor/v2 v2.9.3/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
+github.com/fxamacker/cbor/v2 v2.9.4 h1:xwjVlxEMR3S605oUlgBjKLTTeGFciYPGYCtF/35LKGo=
+github.com/fxamacker/cbor/v2 v2.9.4/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
 github.com/gaissmai/bart v0.29.0 h1:wO6HGE8g9YE0Wm0bCpYxwRzfQ4+fbJKOhL64e5ACGCI=
 github.com/gaissmai/bart v0.29.0/go.mod h1:GREWQfTLRWz/c5FTOsIw+KkscuFkIV5t8Rp7Nd1Td5c=
 github.com/getkin/kin-openapi v0.144.0 h1:hIRcTH+KjLfkLpYU6bSSfdFpi0fZi1fp+hSPi4aQu9Y=
@@ -890,8 +890,8 @@ github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10/go.mod h1
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/pomerium/datasource v0.18.2-0.20260903003835-0e65bb3b87a4 h1:mT6CHKmlaa7txoX3LGMj6sGNJChNSWWAhovvOrNxgPs=
-github.com/pomerium/datasource v0.18.2-0.20260903003835-0e65bb3b87a4/go.mod h1:N8eRmrayFfIEXyDqz7LxRZdbX9BTjngkgBb6w9rx1o4=
+github.com/pomerium/datasource v0.18.2-0.20260922154737-b11e50c8da3c h1:NQ3P9po3v7Aioode0NPtN+HO7C2sxUBxpdzEGRxZPwM=
+github.com/pomerium/datasource v0.18.2-0.20260922154737-b11e50c8da3c/go.mod h1:11eaGb35gOD5ZquBNaRwmE4ZOVHFKhyXSWVzqju5CV8=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f h1:LG3PfhAQrJzPoSNnpkGpqwojoJQzrmrynX484yCmn4Y=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f/go.mod h1:7Svo/CaRt9vfJ22sEC+T/q/y2WNi/cZTlugNYUS7xwI=
 github.com/pomerium/protoutil v0.0.0-20260903003736-c0c6cb1eb609 h1:CWUK7GRqnsk3/pW/uB/VPB2uq0cMS3W84ZHw6/uLl3Y=
