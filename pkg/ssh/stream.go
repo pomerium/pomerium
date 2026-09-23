@@ -348,7 +348,6 @@ func (sh *StreamHandler) Prompt(ctx context.Context, prompts *extensions_ssh.Key
 	select {
 	case <-ctx.Done():
 		// Important: ctx is expected to be canceled on terminate
-		// TODO sanity check this
 		return nil, context.Cause(ctx)
 	case req := <-sh.readC:
 		switch msg := req.Message.(type) {

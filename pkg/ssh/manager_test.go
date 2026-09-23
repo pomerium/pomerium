@@ -207,6 +207,135 @@ func TestStreamManager(t *testing.T) {
 		assert.Equal(t, status.Code(err), codes.Canceled)
 	})
 
+	t.Run("TerminateStreamDuringPublicKeyAuthHandler", func(t *testing.T) {
+		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		done := make(chan error)
+		go func() {
+			done <- sh.Run(t.Context())
+		}()
+
+		key := newSSHKey(t)
+		sshKey, _ := gossh.NewPublicKey(key.Public())
+
+		wait := make(chan chan error, 1)
+		auth.EXPECT().
+			HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+				// whichever context is passed to this function should be canceled when
+				// the stream is terminated
+				errC := make(chan error)
+				wait <- errC
+				<-ctx.Done()
+				err := context.Cause(ctx)
+				errC <- err
+				return ssh.AuthMethodResponse{}, err
+			})
+
+		sh.ReadC() <- &extensions_ssh.ClientMessage{
+			Message: &extensions_ssh.ClientMessage_AuthRequest{
+				AuthRequest: &extensions_ssh.AuthenticationRequest{
+					Protocol:   "ssh",
+					Service:    "ssh-connection",
+					Username:   "user",
+					AuthMethod: "publickey",
+					MethodRequest: marshalAny(&extensions_ssh.PublicKeyMethodRequest{
+						PublicKey:                  key,
+						PublicKeyAlg:               "ssh-ed25519",
+						PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
+					}),
+				},
+			},
+		}
+
+		errC := <-wait
+		testErr := errors.New("test error")
+		sh.Terminate(testErr)
+		select {
+		case actualErr := <-errC:
+			assert.ErrorIs(t, actualErr, testErr)
+		case <-time.After(1 * time.Second):
+			t.Error("timed out waiting for error")
+		}
+		err := <-done
+		assert.ErrorIs(t, err, testErr)
+	})
+
+	t.Run("TerminateStreamDuringKbdIntAuthHandler", func(t *testing.T) {
+		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		done := make(chan error)
+		go func() {
+			done <- sh.Run(t.Context())
+		}()
+
+		key := newSSHKey(t)
+		sshKey, _ := gossh.NewPublicKey(key.Public())
+
+		wait := make(chan chan error, 1)
+		auth.EXPECT().
+			HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+				return ssh.AuthMethodResponse{
+					AllowMethod:            true,
+					NextRequiredAuthMethod: "keyboard-interactive",
+					ContextUpdates: &extensions_ssh.AuthContext{
+						PublicKey:                  sshKey.Marshal(),
+						PublicKeyAlg:               sshKey.Type(),
+						PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
+					},
+				}, nil
+			})
+		auth.EXPECT().
+			HandleKeyboardInteractiveMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.KeyboardInteractiveMethodRequest, _ ssh.KeyboardInteractiveQuerier) (ssh.AuthMethodResponse, error) {
+				errC := make(chan error)
+				wait <- errC
+				<-ctx.Done()
+				err := context.Cause(ctx)
+				errC <- err
+				return ssh.AuthMethodResponse{}, err
+			})
+
+		sh.ReadC() <- &extensions_ssh.ClientMessage{
+			Message: &extensions_ssh.ClientMessage_AuthRequest{
+				AuthRequest: &extensions_ssh.AuthenticationRequest{
+					Protocol:   "ssh",
+					Service:    "ssh-connection",
+					Username:   "user",
+					AuthMethod: "publickey",
+					MethodRequest: marshalAny(&extensions_ssh.PublicKeyMethodRequest{
+						PublicKey:                  key,
+						PublicKeyAlg:               "ssh-ed25519",
+						PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
+					}),
+				},
+			},
+		}
+		_ = <-sh.WriteC()
+		sh.ReadC() <- &extensions_ssh.ClientMessage{
+			Message: &extensions_ssh.ClientMessage_AuthRequest{
+				AuthRequest: &extensions_ssh.AuthenticationRequest{
+					Protocol:      "ssh",
+					Service:       "ssh-connection",
+					Username:      "user",
+					AuthMethod:    "keyboard-interactive",
+					MethodRequest: marshalAny(&extensions_ssh.KeyboardInteractiveMethodRequest{}),
+				},
+			},
+		}
+
+		errC := <-wait
+		testErr := errors.New("test error")
+		sh.Terminate(testErr)
+		select {
+		case actualErr := <-errC:
+			assert.ErrorIs(t, actualErr, testErr)
+		case <-time.After(1 * time.Second):
+			t.Error("timed out waiting for error")
+		}
+		err := <-done
+		assert.ErrorIs(t, err, testErr)
+	})
+
 	t.Run("ClearRecords", func(t *testing.T) {
 		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 		done1 := make(chan error)
