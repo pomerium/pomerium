@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
+	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	metrics_ids "github.com/pomerium/pomerium/pkg/metrics"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -233,7 +234,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), NewSessionUnmarshaler(s))
 	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
-	if isTemporaryError(err) {
+	if oidc.IsTemporaryError(err) {
 		log.Ctx(ctx).Error().Err(err).
 			Str("user-id", s.GetUserId()).
 			Str("session-id", s.GetId()).
@@ -252,7 +253,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), newMultiUnmarshaler(newUserUnmarshaler(u), NewSessionUnmarshaler(s)))
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
-	if isTemporaryError(err) {
+	if oidc.IsTemporaryError(err) {
 		log.Ctx(ctx).Error().Err(err).
 			Str("user-id", s.GetUserId()).
 			Str("session-id", s.GetId()).
@@ -303,7 +304,7 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 		err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.GetOauthToken()), newUserUnmarshaler(u))
 		metrics.RecordIdentityManagerUserRefresh(ctx, err)
 		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
-		if isTemporaryError(err) {
+		if oidc.IsTemporaryError(err) {
 			log.Ctx(ctx).Error().Err(err).
 				Str("user-id", s.GetUserId()).
 				Str("session-id", s.GetId()).
