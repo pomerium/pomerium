@@ -32,6 +32,15 @@ import (
 // State is the identity state.
 type State = identity.State
 
+// ReAuthenticationCapability indicates whether or not reauthentication is supported
+type ReAuthenticationCapability = identity.ReAuthenticationCapability
+
+const (
+	ReAuthenticationNone     = identity.ReAuthenticationNone
+	ReAuthenticationDisabled = identity.ReAuthenticationDisabled
+	ReAuthenticationEnabled  = identity.ReAuthenticationEnabled
+)
+
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
 	Authenticate(context.Context, string, State) (*oauth2.Token, error)
@@ -47,6 +56,13 @@ type Authenticator interface {
 
 	DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, error)
 	DeviceAccessToken(ctx context.Context, r *oauth2.DeviceAuthResponse, state State) (*oauth2.Token, error)
+
+	// Returns whether or not the current IDP / oauth code options include support for both `prompt=login`
+	// and `max_age` during auth code exchange.
+	// When `max_age` is sent to the IDP and if we must validate the returned auth_time claims based on the
+	// time of the auth code request from the client and not the iat.
+	// Ref : https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+	ReAuthSupport() ReAuthenticationCapability
 }
 
 // AuthenticatorConstructor makes an Authenticator from the given options.

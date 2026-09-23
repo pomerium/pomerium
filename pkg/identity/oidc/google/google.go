@@ -10,6 +10,7 @@ import (
 
 	oidc "github.com/coreos/go-oidc/v3/oidc"
 
+	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
 )
@@ -64,4 +65,8 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 // Name returns the provider name.
 func (p *Provider) Name() string {
 	return Name
+}
+
+func (p *Provider) ReAuthSupport() identity.ReAuthenticationCapability {
+	return identity.ReAuthenticationNone
 }

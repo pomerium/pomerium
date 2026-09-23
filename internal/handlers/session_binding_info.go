@@ -9,16 +9,20 @@ import (
 
 type SessionInfoData struct {
 	UserInfoData
-	SessionData []SessionBindingData
+	SessionData   []SessionBindingData
+	ReAuthEnabled bool
 }
 
 type SessionBindingData struct {
 	SessionBindingID         string
 	Protocol                 string
-	IssuedAt                 string
+	Resource                 string
+	ClientAddress            string
+	InitiatedAt              string
 	ExpiresAt                string
 	RevokeSessionBindingURL  string
 	RevokeIdentityBindingURL string
+	IsCurrentBrowser         bool
 	HasIdentityBinding       bool
 	DetailsSSH               *ProtocolDetailsSSH
 }
@@ -31,6 +35,7 @@ type ProtocolDetailsSSH struct {
 func (data SessionInfoData) ToJSON() map[string]any {
 	m := data.UserInfoData.ToJSON()
 	m["sessionBindings"] = data.SessionData
+	m["reauth_enabled"] = data.ReAuthEnabled
 	return m
 }
 

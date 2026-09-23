@@ -21,8 +21,6 @@ import (
 type authenticateFlow interface {
 	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string, additionalHosts []string) (string, error)
 	Callback(w http.ResponseWriter, r *http.Request) error
-	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, h *session.Handle) error
-	RevokeSessionBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 	RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 }
 

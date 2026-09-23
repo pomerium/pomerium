@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
@@ -17,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // registerDashboardHandlers returns the proxy service's ServeMux
@@ -49,7 +52,6 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 	h.Path("/" + endpoints.SubPathUser).Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
 	h.Path("/" + endpoints.SubPathWebAuthn).Handler(p.webauthn)
 	h.Path("/" + endpoints.SubPathSessionBindingInfo).Handler(httputil.HandlerFunc(p.sessionBindingInfo)).Methods(http.MethodGet)
-	h.Path("/" + endpoints.SubPathSessionBindingRevoke).Handler(httputil.HandlerFunc(p.revokeSessionBinding)).Methods(http.MethodPost)
 	h.Path("/" + endpoints.SubPathIdentityBindingRevoke).Handler(httputil.HandlerFunc(p.revokeIdentityBinding)).Methods(http.MethodPost)
 
 	// called following authenticate auth flow to grab a new or existing session
@@ -181,19 +183,37 @@ func (p *Proxy) jsonUserInfo(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (p *Proxy) sessionBindingInfo(w http.ResponseWriter, r *http.Request) error {
-	sessionHandle, err := p.sessionHandle(r)
-	if err != nil {
-		return err
-	}
-	return p.state.Load().authenticateFlow.GetSessionBindingInfo(w, r, sessionHandle)
+	return p.redirectToAuthenticateDashboard(w, r, authenticateDashboardRedirect{
+		subPath: endpoints.SubPathSessionBindingInfo,
+	})
 }
 
-func (p *Proxy) revokeSessionBinding(w http.ResponseWriter, r *http.Request) error {
-	sessionHandle, err := p.sessionHandle(r)
-	if err != nil {
-		return err
+type authenticateDashboardRedirect struct {
+	subPath string
+	query   url.Values
+	sign    bool
+}
+
+// redirectToAuthenticateDashboard sends the user to the equivalent dashboard
+// endpoint on the authenticate service, which owns the session records.
+func (p *Proxy) redirectToAuthenticateDashboard(
+	w http.ResponseWriter, r *http.Request, opt authenticateDashboardRedirect,
+) error {
+	state := p.state.Load()
+
+	dashboardURL := state.authenticateDashboardURL.ResolveReference(&url.URL{Path: opt.subPath})
+	q := dashboardURL.Query()
+	maps.Copy(q, opt.query)
+	otel.GetTextMapPropagator().Inject(r.Context(), trace.PomeriumURLQueryCarrier(q))
+	dashboardURL.RawQuery = q.Encode()
+
+	redirectTo := dashboardURL.String()
+	if opt.sign {
+		redirectTo = urlutil.NewSignedURL(state.sharedKey, dashboardURL).String()
 	}
-	return p.state.Load().authenticateFlow.RevokeSessionBinding(w, r, sessionHandle)
+
+	httputil.Redirect(w, r, redirectTo, http.StatusFound)
+	return nil
 }
 
 func (p *Proxy) revokeIdentityBinding(w http.ResponseWriter, r *http.Request) error {
