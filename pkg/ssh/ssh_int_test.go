@@ -480,11 +480,23 @@ func (s *SSHTestSuite) dialFrom127002(cc *gossh.ClientConfig) (*gossh.Client, er
 func (s *SSHTestSuite) fetchAndUpdateStreamAccessRequest(id string, f func(*databroker.Record, *session.StreamAccessRequest)) {
 	s.T().Helper()
 	client := s.env.NewDataBrokerServiceClient()
-	record, err := client.Get(s.T().Context(), &databroker.GetRequest{
-		Type: "type.googleapis.com/session.StreamAccessRequest",
-		Id:   id,
-	})
+	var record *databroker.GetResponse
+	var err error
+	for range 20 {
+		record, err = client.Get(s.T().Context(), &databroker.GetRequest{
+			Type: "type.googleapis.com/session.StreamAccessRequest",
+			Id:   id,
+		})
+		if err == nil {
+			break
+		} else if databroker.IsNotFound(err) {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		s.Require().NoError(err) // fail on any other error
+	}
 	s.Require().NoError(err)
+	s.Require().NotNil(record.GetRecord())
 	s.Require().Nil(record.GetRecord().DeletedAt)
 	var msg session.StreamAccessRequest
 	err = record.GetRecord().GetData().UnmarshalTo(&msg)

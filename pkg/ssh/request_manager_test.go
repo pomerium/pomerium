@@ -466,7 +466,8 @@ func TestRequestManager_RequestRecordsDeleted(t *testing.T) {
 		t.Context(),
 		client,
 		"type.googleapis.com/session.StreamAccessRequest",
-		"1")
+		"1",
+	)
 	require.NoError(t, err)
 
 	select {
@@ -909,7 +910,7 @@ func TestRequestManager_ShutDown(t *testing.T) {
 func TestRequestManager_DuplicateRecords(t *testing.T) {
 	t.Parallel()
 
-	_, clientGetter := initDatabrokerServer(t)
+	client, clientGetter := initDatabrokerServer(t)
 
 	ctx, ca := context.WithCancel(t.Context())
 	defer ca()
@@ -918,6 +919,7 @@ func TestRequestManager_DuplicateRecords(t *testing.T) {
 	// There should never be duplicate requests for the same stream ID. Or at
 	// least, it would be rather unlikely.
 	go mgr.DoRequest(ctx, 10*time.Second, newRequestParams(1))
+	waitForRequestCreated(t, client, 1)
 	_, err := mgr.DoRequest(ctx, 10*time.Second, newRequestParams(1))
 	assert.ErrorContains(t, err, "duplicate access request for stream 1")
 }
