@@ -1,7 +1,11 @@
 package oidc
 
 import (
+	"context"
 	"errors"
+	"net/http"
+
+	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/pkg/identity/oidc/internal"
 )
@@ -32,3 +36,21 @@ var ErrMissingRefreshToken = errors.New("identity/oidc: missing refresh token")
 
 // ErrMissingAccessToken is returned when no access token was found.
 var ErrMissingAccessToken = errors.New("identity/oidc: missing access token")
+
+// IsTemporaryError returns whether not errors returned by IDPs are temporary or permanent
+func IsTemporaryError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	var hasTemporary interface{ Temporary() bool }
+	if errors.As(err, &hasTemporary) && hasTemporary.Temporary() {
+		return true
+	}
+	if re, ok := errors.AsType[*oauth2.RetrieveError](err); ok {
+		return re.Response.StatusCode == http.StatusTooManyRequests || re.Response.StatusCode >= 500
+	}
+	return false
+}
