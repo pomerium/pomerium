@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"iter"
 	"maps"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -53,6 +54,18 @@ import (
 
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
+
+// defaultAgenticRunIdleTimeout is how long an approved run stays renewable
+// without a token poll. It is generous on purpose: a paused conversation that
+// somebody comes back to the next morning must still be revivable, and the
+// security property lives on the token's own (much shorter) expiry, not here.
+const defaultAgenticRunIdleTimeout = 48 * time.Hour
+
+// agenticRunRecordTTLSlack is how much longer than the idle timeout an
+// agentic.Run record is kept: slack for clock skew and for the gap between the
+// last mint and the sweep. It also bounds the configurable idle timeout, since
+// the two are added together (see GetAgenticRunRecordTTL and Validate).
+const agenticRunRecordTTLSlack = 24 * time.Hour
 
 // The randomSharedKey is used if no shared key is supplied in all-in-one mode.
 var randomSharedKey = cryptutil.NewBase64Key()
@@ -307,6 +320,19 @@ type Options struct {
 
 	RuntimeFlags RuntimeFlags `mapstructure:"runtime_flags" yaml:"runtime_flags,omitempty"`
 
+	// AgenticRunIdleTimeout is how long an approved agentic run stays renewable
+	// without the executor polling for a token. Every successful mint pushes the
+	// run's expiry to now+this, so a paused conversation can idle for days and
+	// come back; the token itself keeps its own much shorter life, which is what
+	// carries the security property. The run record's storage TTL is derived from
+	// this (idle + 24h) and is not separately settable, so a TTL that could delete
+	// a live run cannot be configured.
+	//
+	// YAML and env only, deliberately: there is no Settings proto field for it.
+	// The databroker config path discards an entire bundle on any validation
+	// error, so an option Validate can reject must not be settable from there.
+	AgenticRunIdleTimeout time.Duration `mapstructure:"agentic_run_idle_timeout" yaml:"agentic_run_idle_timeout,omitempty"`
+
 	HTTP3AdvertisePort       null.Uint32               `mapstructure:"-" yaml:"-" json:"-"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
 	// Address/Port to bind to for health check http probes
@@ -355,11 +381,34 @@ var defaultOptions = Options{
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
 	SSHRLSEnabled:                       false,
+	AgenticRunIdleTimeout:               defaultAgenticRunIdleTimeout,
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
 func (o *Options) IsRuntimeFlagSet(flag RuntimeFlag) bool {
 	return o.RuntimeFlags[flag]
+}
+
+// GetAgenticRunIdleTimeout returns how long an approved run stays renewable
+// without a poll, falling back to the default for an unset (or explicitly zero)
+// value — zero would otherwise mean every run expires the instant it is minted.
+func (o *Options) GetAgenticRunIdleTimeout() time.Duration {
+	if o.AgenticRunIdleTimeout <= 0 {
+		return defaultAgenticRunIdleTimeout
+	}
+	return o.AgenticRunIdleTimeout
+}
+
+// GetAgenticRunRecordTTL returns the storage TTL registered for agentic.Run
+// records. It is derived from the idle timeout rather than configured, because
+// the two are not independent: a TTL shorter than the idle window would delete
+// runs that are still being renewed. The extra day is agenticRunRecordTTLSlack.
+//
+// Validate bounds the configurable idle timeout so this addition cannot
+// overflow: a negative TTL would make the databroker treat every run as already
+// expired.
+func (o *Options) GetAgenticRunRecordTTL() time.Duration {
+	return o.GetAgenticRunIdleTimeout() + agenticRunRecordTTLSlack
 }
 
 var defaultSetResponseHeaders = map[string]string{
@@ -710,6 +759,17 @@ func (o *Options) Validate() error {
 
 	if err := ValidateAddress(o.HealthCheckAddr); err != nil {
 		return fmt.Errorf("config : invalid health_check_addr : %w", err)
+	}
+
+	if o.AgenticRunIdleTimeout < 0 {
+		return fmt.Errorf("config: agentic_run_idle_timeout must not be negative")
+	}
+	// GetAgenticRunRecordTTL adds agenticRunRecordTTLSlack to this value. Without
+	// an upper bound that addition overflows into a negative TTL, which would be
+	// accepted here and then expire every run record immediately.
+	if o.AgenticRunIdleTimeout > math.MaxInt64-agenticRunRecordTTLSlack {
+		return fmt.Errorf("config: agentic_run_idle_timeout must not exceed %s",
+			math.MaxInt64-agenticRunRecordTTLSlack)
 	}
 
 	// validate metrics basic auth
