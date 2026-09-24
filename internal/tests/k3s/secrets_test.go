@@ -9,7 +9,8 @@
 // Pomerium runs in-cluster because only a pod can mount a Secret volume. The
 // test cross-compiles a linux binary of this checkout and hands it to a stock
 // distroless pod through a hostPath on the k3s node, so no docker build is
-// needed. The upstream is traefik/whoami, which echoes request headers.
+// needed. The upstream is pomerium/verify, whose /headers endpoint echoes the
+// request headers it received as JSON.
 //
 // The Secret is mounted twice — through a plain `secret` volume and through a
 // `projected` volume — because both are written by kubelet's atomic writer,
@@ -31,15 +32,14 @@
 package k3s_test
 
 import (
-	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -54,7 +54,7 @@ import (
 const (
 	// Same base as the dev image built by scripts/build-dev-docker.bash.
 	pomeriumBaseImage = "gcr.io/distroless/base-nossl-debian12:debug"
-	whoamiImage       = "traefik/whoami:v1.11.0"
+	verifyImage       = "pomerium/verify:sha-6bdce79"
 
 	pomeriumNodePort = "30080"
 	secretsRouteHost = "echo.example.com"
@@ -75,21 +75,21 @@ stringData:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: whoami
-  labels: {app: whoami}
+  name: verify
+  labels: {app: verify}
 spec:
   containers:
-  - name: whoami
-    image: ` + whoamiImage + `
-    ports: [{containerPort: 80}]
+  - name: verify
+    image: ` + verifyImage + `
+    ports: [{containerPort: 8000}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: whoami
+  name: verify
 spec:
-  selector: {app: whoami}
-  ports: [{port: 80}]
+  selector: {app: verify}
+  ports: [{port: 80, targetPort: 8000}]
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -113,7 +113,7 @@ data:
           url: file:///secrets/projected/token
     routes:
     - from: http://` + secretsRouteHost + `
-      to: http://whoami.default.svc.cluster.local
+      to: http://verify.default.svc.cluster.local
       allow_public_unauthenticated_access: true
       set_request_headers:
         X-Secret-Plain: plain=${secret.plain}
@@ -217,20 +217,20 @@ func TestSecretInjection_K3s(t *testing.T) {
 	require.NoError(t, k3sCtr.CopyToContainer(k3stest.DockerContext(ctx), []byte(secretsK3sManifest), "/tmp/manifest.yaml", 0o644))
 	k3stest.Kubectl(ctx, t, k3sCtr, "apply", "-f", "/tmp/manifest.yaml")
 	// The first run pulls both images into the node.
-	k3stest.Kubectl(ctx, t, k3sCtr, "wait", "--for=condition=Ready", "pod/whoami", "pod/pomerium", "--timeout=5m")
+	k3stest.Kubectl(ctx, t, k3sCtr, "wait", "--for=condition=Ready", "pod/verify", "pod/pomerium", "--timeout=5m")
 
 	port, err := k3sCtr.MappedPort(k3stest.DockerContext(ctx), pomeriumNodePort+"/tcp")
 	require.NoError(t, err)
 	host, err := k3sCtr.Host(k3stest.DockerContext(ctx))
 	require.NoError(t, err)
-	baseURL := fmt.Sprintf("http://%s:%s/", host, port.Port())
+	headersURL := fmt.Sprintf("http://%s:%s/headers", host, port.Port())
 
 	// probe returns the response status (0 if the request itself failed) and,
-	// on a 200, the headers whoami saw, keyed by lower-cased name.
-	probe := func() (int, map[string]string) {
+	// on a 200, the request headers the upstream saw.
+	probe := func() (int, http.Header) {
 		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, baseURL, nil)
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, headersURL, nil)
 		require.NoError(t, err)
 		req.Host = secretsRouteHost
 		resp, err := http.DefaultClient.Do(req)
@@ -244,15 +244,8 @@ func TestSecretInjection_K3s(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			return resp.StatusCode, nil
 		}
-		// whoami writes one "Name: value" line per request header.
-		hdrs := map[string]string{}
-		sc := bufio.NewScanner(resp.Body)
-		for sc.Scan() {
-			if k, v, ok := strings.Cut(sc.Text(), ": "); ok {
-				hdrs[strings.ToLower(k)] = v
-			}
-		}
-		if sc.Err() != nil {
+		var hdrs http.Header
+		if err := json.NewDecoder(resp.Body).Decode(&hdrs); err != nil {
 			return 0, nil
 		}
 		return resp.StatusCode, hdrs
@@ -269,8 +262,8 @@ func TestSecretInjection_K3s(t *testing.T) {
 		require.Eventuallyf(t, func() bool {
 			status, hdrs := probe()
 			return status == http.StatusOK &&
-				hdrs["x-secret-plain"] == "plain="+v &&
-				hdrs["x-secret-projected"] == "projected="+v
+				hdrs.Get("X-Secret-Plain") == "plain="+v &&
+				hdrs.Get("X-Secret-Projected") == "projected="+v
 		}, 2*time.Minute, time.Second, "upstream should see secret value %q through both mounts", v)
 	}
 
