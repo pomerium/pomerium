@@ -42,6 +42,7 @@ type backendServer struct {
 	storageConnectionString string
 	storageMetricAttributes []attribute.KeyValue
 	sharedKey               []byte
+	agenticRunTTL           time.Duration
 
 	stopWG  sync.WaitGroup
 	stopCtx context.Context
@@ -57,6 +58,7 @@ func NewBackendServer(tracerProvider oteltrace.TracerProvider) Server {
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 		storageType:    config.StorageInMemoryName,
+		agenticRunTTL:  new(config.Options).GetAgenticRunRecordTTL(),
 	}
 	srv.backendConfigServer = &backendConfigServer{
 		backendServer: srv,
@@ -691,6 +693,28 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 		return
 	}
 
+	// The agentic run record TTL follows the idle timeout, which is an ordinary
+	// reloadable option. Re-register the whole table on the live backend rather
+	// than waiting for one to be rebuilt, which only happens when the storage
+	// config itself changes — setupRequiredIndex is idempotent, and going through
+	// it keeps one definition of every record type's options.
+	if agenticRunTTL := cfg.Options.GetAgenticRunRecordTTL(); srv.agenticRunTTL != agenticRunTTL {
+		previous := srv.agenticRunTTL
+		// setupRequiredIndex reads the cached value, so it has to be in place
+		// before the call.
+		srv.agenticRunTTL = agenticRunTTL
+		if srv.backend != nil {
+			if err := srv.setupRequiredIndex(ctx, srv.backend); err != nil {
+				// Put the old value back. Caching a TTL the backend refused would
+				// record a failure as success: the next reload of this same
+				// configuration would compare equal and skip the update, leaving
+				// cleanup on the stale TTL until the backend happened to be rebuilt.
+				srv.agenticRunTTL = previous
+				log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error updating agentic run record ttl")
+			}
+		}
+	}
+
 	// nothing changed
 	if srv.storageType == storageType &&
 		srv.storageConnectionString == storageConnectionString &&
@@ -816,6 +840,25 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 	// nodes still running the old code keep working until they are replaced.
 	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.MCPRefreshToken", &databrokerpb.Options{
 		Ttl: durationpb.New(24 * time.Hour),
+	}); err != nil {
+		return err
+	}
+
+	// agentic.Run is resolved at token bind from the executor's attested claims:
+	// the /token handler re-derives bound_claims_index and queries this index.
+	//
+	// The TTL matters because a run nobody ever approves is now an ordinary
+	// ending — a person simply never clicked — and without one those records
+	// accumulate forever on a file-backed store. It is derived from the idle
+	// timeout rather than configured (see Options.GetAgenticRunRecordTTL), and
+	// the clock is modified_at: every successful mint re-Puts the run, so an
+	// active run is continually refreshed while an abandoned one ages from
+	// creation.
+	if err := backend.SetOptions(ctx, "type.googleapis.com/agentic.Run", &databrokerpb.Options{
+		IndexableFields: []string{
+			"bound_claims_index",
+		},
+		Ttl: durationpb.New(srv.agenticRunTTL),
 	}); err != nil {
 		return err
 	}
