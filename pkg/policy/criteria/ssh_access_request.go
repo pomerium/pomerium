@@ -25,13 +25,10 @@ func (sshAccessRequestApprovedCriterion) Name() string {
 }
 
 func (c sshAccessRequestApprovedCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
-	r1 := c.g.NewRule(c.Name())
-	r1.Head.Value = NewCriterionTerm(true, ReasonSSHAccessRequestOK)
-	r1.Body = accessRequestApprovedBody
-	r1.Else = &ast.Rule{
-		Head: generator.NewHead("", NewCriterionTerm(false, ReasonSSHAccessRequestRequired)),
-	}
-	return r1, nil, nil
+	rule := NewCriterionRule(c.g, c.Name(),
+		ReasonSSHAccessRequestOK, ReasonSSHAccessRequestRequired,
+		accessRequestApprovedBody)
+	return rule, nil, nil
 }
 
 func SSHAccessRequestApprovedCriterion(generator *Generator) Criterion {
