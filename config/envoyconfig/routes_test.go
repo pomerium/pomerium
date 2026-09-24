@@ -2601,9 +2601,7 @@ func Test_statefulSessionFilterEnabledForConsoleRoutes(t *testing.T) {
 					PassIdentityHeaders:       new(true),
 				},
 			},
-			GlobalOptions: config.GlobalOptions{
-				ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
-			},
+			ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
 		}), "console.example.com")
 		require.NoError(t, err)
 
@@ -2647,9 +2645,7 @@ func Test_statefulSessionFilterEnabledForConsoleRoutes(t *testing.T) {
 					PassIdentityHeaders:       new(true),
 				},
 			},
-			GlobalOptions: config.GlobalOptions{
-				ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
-			},
+			ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
 		}), "not-console.example.com")
 		require.NoError(t, err)
 		assert.NotContains(t, routes[0].TypedPerFilterConfig, PerFilterConfigStatefulSessionName)
