@@ -28,6 +28,7 @@ import (
 	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
@@ -63,22 +64,24 @@ type Evaluator interface {
 }
 
 type AuthRequest struct {
-	Username         string
-	Hostname         string
-	PublicKey        string // No encoding
-	SessionID        string
-	SourceAddress    string
-	SessionBindingID string
-	LogOnlyIfDenied  bool
+	Username              string
+	Hostname              string
+	PublicKey             string // No encoding
+	SessionID             string
+	SourceAddress         string
+	SessionBindingID      string
+	LogOnlyIfDenied       bool
+	AccessRequestApproved bool
 }
 
 type Auth struct {
-	evaluator      Evaluator
-	currentConfig  *atomic.Pointer[config.Config]
-	tracerProvider oteltrace.TracerProvider
-	tracer         oteltrace.Tracer
-	codeIssuer     code.Issuer
-	codeMetrics    *code.Metrics
+	evaluator        Evaluator
+	currentConfig    *atomic.Pointer[config.Config]
+	tracerProvider   oteltrace.TracerProvider
+	tracer           oteltrace.Tracer
+	codeIssuer       code.Issuer
+	codeMetrics      *code.Metrics
+	accessRequestMgr *StreamAccessRequestManager
 }
 
 type Options struct {
@@ -111,7 +114,7 @@ func NewAuth(
 	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
 	codeIssuer code.Issuer,
-	_ any, // temporary placeholder
+	accessRequestMgr *StreamAccessRequestManager,
 	opts ...Option,
 ) *Auth {
 	options := Options{
@@ -131,6 +134,7 @@ func NewAuth(
 		options.tracer,
 		codeIssuer,
 		metrics,
+		accessRequestMgr,
 	}
 }
 
@@ -189,37 +193,16 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	}
 
 	// Check for non-retriable deny reasons
-	if !res.Allow.Value {
-		if res.Allow.Reasons.Has(criteria.ReasonSourceIPUnauthorized) {
-			return AuthMethodResponse{}, nil
-		}
-		if res.Allow.Reasons.Has(criteria.ReasonSSHUsernameUnauthorized) {
-			return AuthMethodResponse{}, nil
-		}
-		if res.Allow.Reasons.Has(criteria.ReasonSSHPublickeyUnauthorized) {
-			// If the public key itself is not allowed, let the client try a different
-			// public key
-			return AuthMethodResponse{
-				AllowMethod:            false,
-				NextRequiredAuthMethod: MethodPublicKey,
-			}, nil
-		}
+	if resultNonRetriable(res) {
+		return AuthMethodResponse{}, nil
 	}
-	// Check for inverse reasons in the deny response. These show up when denying
-	// specific addresses/usernames/keys as opposed to failing an allow rule
-	if res.Deny.Value {
-		if res.Deny.Reasons.Has(criteria.ReasonSourceIPOK) {
-			return AuthMethodResponse{}, nil
-		}
-		if res.Deny.Reasons.Has(criteria.ReasonSSHUsernameOK) {
-			return AuthMethodResponse{}, nil
-		}
-		if res.Deny.Reasons.Has(criteria.ReasonSSHPublickeyOK) {
-			return AuthMethodResponse{
-				AllowMethod:            false,
-				NextRequiredAuthMethod: MethodPublicKey,
-			}, nil
-		}
+	if resultPublicKeyRetriable(res) {
+		// If the public key itself is not allowed, let the client try a different
+		// public key
+		return AuthMethodResponse{
+			AllowMethod:            false,
+			NextRequiredAuthMethod: MethodPublicKey,
+		}, nil
 	}
 
 	// The public key is acceptable
@@ -291,6 +274,59 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	}, res, pendingAuthContextUpdates)
 }
 
+func resultPublicKeyRetriable(res *evaluator.Result) bool {
+	if !res.Allow.Value {
+		if res.Allow.Reasons.Has(criteria.ReasonSSHPublickeyUnauthorized) {
+			return true
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHPublickeyOK) {
+			return true
+		}
+	}
+	if res.Deny.Value {
+		if res.Deny.Reasons.Has(criteria.ReasonSSHPublickeyUnauthorized) {
+			return true
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHPublickeyOK) {
+			return true
+		}
+	}
+	return false
+}
+
+func resultNonRetriable(res *evaluator.Result) bool {
+	if !res.Allow.Value {
+		if res.Allow.Reasons.Has(criteria.ReasonSourceIPUnauthorized) {
+			return true
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSourceIPOK) {
+			return true
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHUsernameUnauthorized) {
+			return true
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHUsernameOK) {
+			return true
+		}
+	}
+	if res.Deny.Value {
+		if res.Deny.Reasons.Has(criteria.ReasonSourceIPUnauthorized) {
+			return true
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSourceIPOK) {
+			return true
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHUsernameUnauthorized) {
+			return true
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHUsernameOK) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 	ctx context.Context,
 	streamInfo StreamInfo,
@@ -347,6 +383,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	}
 
 	var sessionID, userID, sessionBindingID string
+	var accessRequestApproved bool
 
 	if !authInfoHasSession(authInfo) {
 		// No session (this is the most common case)
@@ -367,21 +404,37 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 		userID = authInfo.GetUserId()
 		sessionBindingID = authInfo.GetSessionBindingId()
 
-		// (not implemented yet)
-		_ = sessionID
-		_ = userID
-		_ = sessionBindingID
+		if authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Pending {
+			if policy == nil {
+				panic("bug: two-person approval requested with no route info")
+			}
 
-		panic("bug: keyboard-interactive auth request is not valid in this state")
+			timeout := cfg.Options.SSHTwoPersonApprovalRequestTimeout.Or(5 * time.Minute)
+			reply, err := a.handleTwoPersonApproval(ctx, timeout, policy, streamInfo, authInfo, querier)
+			if err != nil {
+				return AuthMethodResponse{}, err
+			}
+			if !reply.Approved {
+				return AuthMethodResponse{}, status.Errorf(codes.PermissionDenied, "access request denied")
+			}
+
+			accessRequestApproved = true
+			pendingAuthContextUpdates.AccessRequestState = extensions_ssh.AccessRequestState_Approved
+			pendingAuthContextUpdates.AccessRequestMetadata = reply.Metadata
+		} else {
+			// Shouldn't be able to get here
+			panic("bug: keyboard-interactive auth request is not valid in this state")
+		}
 	}
 
 	res, err := a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, AuthRequest{
-		Username:         user.Username(),
-		Hostname:         user.Hostname(),
-		PublicKey:        string(authInfo.GetPublicKey()),
-		SourceAddress:    streamInfo.SourceAddress,
-		SessionID:        sessionID,
-		SessionBindingID: sessionBindingID,
+		Username:              user.Username(),
+		Hostname:              user.Hostname(),
+		PublicKey:             string(authInfo.GetPublicKey()),
+		SourceAddress:         streamInfo.SourceAddress,
+		SessionID:             sessionID,
+		SessionBindingID:      sessionBindingID,
+		AccessRequestApproved: accessRequestApproved,
 	}, streamInfo.InitialAuthComplete)
 	if err != nil {
 		return AuthMethodResponse{}, err
@@ -404,23 +457,116 @@ func processSessionEvaluateResult(
 	res *evaluator.Result,
 	pendingAuthContextUpdates *extensions_ssh.AuthContext,
 ) (AuthMethodResponse, error) {
-	if res.Allow.Value {
-		if !res.Deny.Value {
-			// The session is valid and there are no deny reasons
-			pendingAuthContextUpdates.SessionBindingId = ids.SessionBindingID
-			pendingAuthContextUpdates.SessionId = ids.SessionID
-			pendingAuthContextUpdates.UserId = ids.UserID
+	if res.Allow.Value && !res.Deny.Value {
+		pendingAuthContextUpdates.SessionBindingId = ids.SessionBindingID
+		pendingAuthContextUpdates.SessionId = ids.SessionID
+		pendingAuthContextUpdates.UserId = ids.UserID
 
-			return AuthMethodResponse{
-				AllowMethod:              true, // publickey
-				NoFurtherMethodsRequired: true,
-				ContextUpdates:           pendingAuthContextUpdates, // public key + session
-			}, nil
-		}
+		return AuthMethodResponse{
+			AllowMethod:              true,
+			NoFurtherMethodsRequired: true,
+			ContextUpdates:           pendingAuthContextUpdates,
+		}, nil
+	}
+
+	if twoPersonAuthRequired(res) {
+		// The session is valid
+		pendingAuthContextUpdates.SessionBindingId = ids.SessionBindingID
+		pendingAuthContextUpdates.SessionId = ids.SessionID
+		pendingAuthContextUpdates.UserId = ids.UserID
+		// Two person auth is required
+		pendingAuthContextUpdates.AccessRequestState = extensions_ssh.AccessRequestState_Pending
+
+		return AuthMethodResponse{
+			AllowMethod:            true,
+			NextRequiredAuthMethod: MethodKeyboardInteractive,
+			ContextUpdates:         pendingAuthContextUpdates,
+		}, nil
 	}
 
 	// Deny
 	return AuthMethodResponse{}, nil
+}
+
+func twoPersonAuthRequired(res *evaluator.Result) bool {
+	// Note that the same "ssh-access-request-required" reason is checked in both
+	// allow and deny reasons, contrary to the way ssh_publickey and source_ip
+	// reasons are handled. This criteria only makes sense when used with
+	// allow+and/or or deny+not/nor, which will have the same failure reason.
+	//
+
+	allowed := res.Allow.Value
+	denied := res.Deny.Value
+	isRemainingAllowReason := len(res.Allow.Reasons) == 1 &&
+		res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired)
+	isRemainingDenyReason := len(res.Deny.Reasons) == 1 &&
+		res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired)
+
+	// there are 9 possibilities here:
+	// 1. allowed && !denied (false)
+	// 2. allowed && denied && isRemainingDenyReason (true)
+	// 3. allowed && denied && !isRemainingDenyReason (false)
+	// 4. !allowed && !denied && isRemainingAllowReason (true)
+	// 5. !allowed && !denied && !isRemainingAllowReason (false)
+	// 6. !allowed && denied && isRemainingAllowReason && isRemainingDenyReason (true)
+	// 7. !allowed && denied && isRemainingAllowReason && !isRemainingDenyReason (false)
+	// 8. !allowed && denied && !isRemainingAllowReason && isRemainingDenyReason (false)
+	// 9. !allowed && denied && !isRemainingAllowReason && !isRemainingDenyReason (false)
+
+	switch {
+	case allowed && denied && isRemainingDenyReason:
+		// The request was otherwise allowed, and has ssh_access_request_approved
+		// in the deny block
+		return true
+	case !allowed && !denied && isRemainingAllowReason:
+		// The request was not denied, and has ssh_access_request_approved in the
+		// allow block
+		return true
+	case !allowed && denied && isRemainingAllowReason && isRemainingDenyReason:
+		// This handles the unusual case of redundant criteria, as in:
+		//
+		//  allow:
+		//    and:
+		//      - ssh_access_request_approved: {}
+		//  deny:
+		//    not:
+		//      - ssh_access_request_approved: {}
+		return true
+	default:
+		return false
+	}
+}
+
+func (a *Auth) handleTwoPersonApproval(
+	ctx context.Context,
+	timeout time.Duration,
+	policy *config.Policy,
+	streamInfo StreamInfo,
+	authInfo StreamAuthInfo,
+	querier KeyboardInteractiveQuerier,
+) (AccessRequestReply, error) {
+	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleTwoPersonApproval")
+	defer span.End()
+
+	ctx, ca := context.WithTimeout(ctx, timeout)
+	defer ca()
+
+	_, err := querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
+		Name:        fmt.Sprintf("Waiting for approval (timeout: %s)", timeout),
+		Instruction: fmt.Sprintf("Request ID: %s", fmt.Sprintf("%x", streamInfo.StreamID)),
+		Prompts:     nil,
+	})
+	if err != nil {
+		return AccessRequestReply{}, err
+	}
+
+	return a.accessRequestMgr.DoRequest(ctx, timeout, &session.StreamAccessRequestParams{
+		Protocol:  session.ProtocolSSH,
+		SessionId: authInfo.GetSessionId(),
+		UserId:    authInfo.GetUserId(),
+		StreamId:  streamInfo.StreamID,
+		ClusterId: envoyconfig.GetClusterID(policy),
+	})
 }
 
 func (a *Auth) handleLogin(
@@ -614,11 +760,16 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authI
 	if !authInfoHasSession(authInfo) {
 		panic("bug: EvaluateDelayed called with missing session info")
 	}
-	req, err := a.sshRequestFromStreamAuthInfo(ctx, streamInfo, authInfo, user)
-	if err != nil {
-		return err
-	}
-	res, err := a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, req, streamInfo.InitialAuthComplete)
+	res, err := a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, AuthRequest{
+		Username:              user.Username(),
+		Hostname:              user.Hostname(),
+		PublicKey:             string(authInfo.GetPublicKey()),
+		SessionID:             authInfo.GetSessionId(),
+		SourceAddress:         streamInfo.SourceAddress,
+		SessionBindingID:      authInfo.GetSessionBindingId(),
+		LogOnlyIfDenied:       streamInfo.InitialAuthComplete,
+		AccessRequestApproved: authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Approved,
+	}, streamInfo.InitialAuthComplete)
 	if err != nil {
 		return err
 	}
@@ -630,7 +781,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authI
 }
 
 // BuildTargetChannelFilters implements [AuthInterface].
-func (a *Auth) BuildTargetChannelFilters(ctx context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
+func (a *Auth) BuildTargetChannelFilters(_ context.Context, _ StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
 	hostname := user.Hostname()
 	if hostname == "" {
 		return nil, nil, status.Errorf(codes.Internal, "no hostname")
@@ -642,20 +793,20 @@ func (a *Auth) BuildTargetChannelFilters(ctx context.Context, streamInfo StreamI
 		return nil, nil, status.Errorf(codes.Internal, "no route")
 	}
 	addr := SocketAddressFromString(route)
-	if !route.SessionRecording.IsSet || !route.SessionRecording.Value.Enabled.Or(false) {
-		return addr, []*corev3.TypedExtensionConfig{}, nil
+	extensionConfigs := []*corev3.TypedExtensionConfig{}
+
+	enableSessionRecording := route.SessionRecording.IsSet && route.SessionRecording.Value.Enabled.Or(false)
+
+	if authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Approved {
+		md := authInfo.GetAccessRequestMetadata()
+		if _, ok := md["enable_session_recording"]; ok {
+			enableSessionRecording = true
+		}
 	}
-	sess, err := a.GetSession(ctx, streamInfo, authInfo)
-	if err != nil {
-		return nil, nil, fmt.Errorf("no session")
+	if enableSessionRecording {
+		extensionConfigs = append(extensionConfigs, buildSSHRecordingConfig(authInfo.GetSessionId(), authInfo.GetUserId()))
 	}
-	if recordingConfig := buildSSHRecordingConfig(&route.SessionRecording.Value, sess.GetId(), sess.GetUserId()); recordingConfig != nil {
-		return addr,
-			[]*corev3.TypedExtensionConfig{
-				recordingConfig,
-			}, nil
-	}
-	return addr, []*corev3.TypedExtensionConfig{}, nil
+	return addr, extensionConfigs, nil
 }
 
 func SocketAddressFromString(route *config.Policy) *corev3.SocketAddress {
@@ -674,13 +825,7 @@ func SocketAddressFromString(route *config.Policy) *corev3.SocketAddress {
 	return sa
 }
 
-func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID string) *corev3.TypedExtensionConfig {
-	if recCfg == nil {
-		return nil
-	}
-	if !recCfg.Enabled.Or(false) {
-		return nil
-	}
+func buildSSHRecordingConfig(sessionID, userID string) *corev3.TypedExtensionConfig {
 	ext := &xssh.UpstreamTargetExtensionConfig{
 		SessionId: sessionID,
 		UserId:    userID,
@@ -706,7 +851,8 @@ func (a *Auth) DeleteSession(ctx context.Context, _ StreamInfo, authInfo StreamA
 	}
 	toInvalidate := []*databroker.Record{}
 	sessionErr := session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), binding.SessionId)
-	a.evaluator.InvalidateCacheForRecords(ctx,
+	a.evaluator.InvalidateCacheForRecords(
+		ctx,
 		&databroker.Record{
 			Type: "type.googleapis.com/session.Session",
 			Id:   binding.SessionId,
@@ -800,17 +946,4 @@ func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 		return "", errInvalidFingerprint
 	}
 	return "sshkey-SHA256:" + base64.RawStdEncoding.EncodeToString(sha256fingerprint), nil
-}
-
-// Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
-func (a *Auth) sshRequestFromStreamAuthInfo(_ context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (AuthRequest, error) {
-	return AuthRequest{
-		Username:         user.Username(),
-		Hostname:         user.Hostname(),
-		PublicKey:        string(authInfo.GetPublicKey()),
-		SessionID:        authInfo.GetSessionId(),
-		SourceAddress:    streamInfo.SourceAddress,
-		SessionBindingID: authInfo.GetSessionBindingId(),
-		LogOnlyIfDenied:  streamInfo.InitialAuthComplete,
-	}, nil
 }

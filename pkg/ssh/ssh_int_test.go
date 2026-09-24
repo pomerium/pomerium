@@ -17,6 +17,7 @@ import (
 	"time"
 
 	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
@@ -35,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 )
@@ -69,7 +71,7 @@ type IdpUserOptions struct {
 }
 
 const (
-	idpUserMaxRoutes = 50
+	idpUserMaxRoutes = 100
 	idpUserMaxUsers  = 7
 )
 
@@ -232,10 +234,9 @@ type routeTestCase struct {
 }
 
 type RouteTests struct {
-	s            *SSHTestSuite
-	subtestCount int
-	testCases    []routeTestCase
-	modes        []PublicKeyType
+	s         *SSHTestSuite
+	testCases []routeTestCase
+	modes     []PublicKeyType
 }
 
 func (s *SSHTestSuite) InitRouteTests(modes []PublicKeyType) *RouteTests {
@@ -282,72 +283,173 @@ func (api *routeTestAPI) StaticUserEmail(userPlaceholder int) string {
 
 func (rt *RouteTests) AddRouteTest(pplTemplate string, fn func(api RouteTestAPI)) {
 	rt.s.Require().NotContains(pplTemplate, "\t", "ppl template yaml must not contain tab characters")
-	rt.subtestCount++
-	tcNamePrefix := fmt.Sprintf("route-test-%d", rt.subtestCount)
+	_, _, line, _ := runtime.Caller(1)
+	tcNamePrefix := fmt.Sprintf("route-test-%d", line)
 
-	for _, mode := range rt.modes {
-		rt.s.Require().Less(len(rt.testCases), idpUserMaxRoutes, "too many route tests; increase the value of idpUserMaxRoutes")
-		var routeUserFmt string
-		var staticUserFmt string
-		var tcNameSuffix string
-		routeName := fmt.Sprintf("route%d", len(rt.testCases))
-		switch mode {
-		case Regular:
-			routeUserFmt = routeName + "-user%d"
-			staticUserFmt = "user%c"
-			tcNameSuffix = ""
-		case CertKey:
-			routeUserFmt = routeName + "-certuser%d"
-			staticUserFmt = "certuser%c"
-			tcNameSuffix = "-certkeys"
-		default:
-			panic("unimplemented mode")
+	for _, inverse := range []bool{false, true} {
+		pplTemplate := pplTemplate
+		if inverse {
+			tcNamePrefix += "-inverse"
+			pplTemplate = invertPplTemplate(pplTemplate)
 		}
-		template := template.New("route-tests").
-			Funcs(template.FuncMap{
-				"routeUserPublicKey": func(userNum int) string {
-					targetEmail := fmt.Sprintf(routeUserFmt, userNum) + "@example.com"
-					for _, user := range rt.s.idpUsers {
-						if user.Email == targetEmail {
-							return strings.TrimSpace(string(gossh.MarshalAuthorizedKey(user.SSHKey.PublicKey())))
+		for _, mode := range rt.modes {
+			rt.s.Require().Less(len(rt.testCases), idpUserMaxRoutes, "too many route tests; increase the value of idpUserMaxRoutes")
+			var routeUserFmt string
+			var staticUserFmt string
+			var tcNameSuffix string
+			routeName := fmt.Sprintf("route%d", len(rt.testCases))
+			switch mode {
+			case Regular:
+				routeUserFmt = routeName + "-user%d"
+				staticUserFmt = "user%c"
+				tcNameSuffix = ""
+			case CertKey:
+				routeUserFmt = routeName + "-certuser%d"
+				staticUserFmt = "certuser%c"
+				tcNameSuffix = "-certkeys"
+			default:
+				panic("unimplemented mode")
+			}
+			template := template.New("route-tests").
+				Funcs(template.FuncMap{
+					"routeUserPublicKey": func(userNum int) string {
+						targetEmail := fmt.Sprintf(routeUserFmt, userNum) + "@example.com"
+						for _, user := range rt.s.idpUsers {
+							if user.Email == targetEmail {
+								return strings.TrimSpace(string(gossh.MarshalAuthorizedKey(user.SSHKey.PublicKey())))
+							}
 						}
-					}
-					return "<error>"
+						return "<error>"
+					},
+					"routeUserName": func(userPlaceholder int) string {
+						rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+						return fmt.Sprintf(routeUserFmt, userPlaceholder)
+					},
+					"staticUserName": func(userPlaceholder uint) string {
+						rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+						return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder)
+					},
+					"routeUserEmail": func(userPlaceholder int) string {
+						rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+						return fmt.Sprintf(routeUserFmt, userPlaceholder) + "@example.com"
+					},
+					"staticUserEmail": func(userPlaceholder uint) string {
+						rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+						return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder) + "@example.com"
+					},
+				})
+			var out bytes.Buffer
+			tmpl, err := template.Parse(pplTemplate)
+			rt.s.Require().NoError(err, "invalid template input")
+			err = tmpl.Execute(&out, rt.s.getTemplateContext())
+			rt.s.Require().NoError(err, "failed to execute template")
+			rt.testCases = append(rt.testCases, routeTestCase{
+				testName: tcNamePrefix + tcNameSuffix,
+				opts: RouteOptions{
+					Name: routeName,
+					PPL:  out.String(),
 				},
-				"routeUserName": func(userPlaceholder int) string {
-					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
-					return fmt.Sprintf(routeUserFmt, userPlaceholder)
-				},
-				"staticUserName": func(userPlaceholder uint) string {
-					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
-					return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder)
-				},
-				"routeUserEmail": func(userPlaceholder int) string {
-					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
-					return fmt.Sprintf(routeUserFmt, userPlaceholder) + "@example.com"
-				},
-				"staticUserEmail": func(userPlaceholder uint) string {
-					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
-					return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder) + "@example.com"
+				testFunc: fn,
+				api: &routeTestAPI{
+					routeName:     routeName,
+					routeUserFmt:  routeUserFmt,
+					staticUserFmt: staticUserFmt,
 				},
 			})
-		var out bytes.Buffer
-		tmpl, err := template.Parse(pplTemplate)
-		rt.s.Require().NoError(err, "invalid template input")
-		err = tmpl.Execute(&out, rt.s.getTemplateContext())
-		rt.s.Require().NoError(err, "failed to execute template")
-		rt.testCases = append(rt.testCases, routeTestCase{
-			testName: tcNamePrefix + tcNameSuffix,
-			opts: RouteOptions{
-				Name: routeName,
-				PPL:  out.String(),
-			},
-			testFunc: fn,
-			api: &routeTestAPI{
-				routeName:     routeName,
-				routeUserFmt:  routeUserFmt,
-				staticUserFmt: staticUserFmt,
-			},
+		}
+	}
+}
+
+var pplKeywordRegex = regexp.MustCompile(`\b(allow|deny|and|or|not|nor):`)
+
+func invertPplTemplate(pplTemplate string) string {
+	res := pplKeywordRegex.ReplaceAllStringFunc(pplTemplate, func(s string) string {
+		switch s {
+		case "allow:":
+			return "deny:"
+		case "deny:":
+			return "allow:"
+		case "and:":
+			return "nor:"
+		case "or:":
+			return "not:"
+		case "not:":
+			return "or:"
+		case "nor:":
+			return "and:"
+		}
+		return s
+	})
+
+	if !strings.Contains(res, "allow:") {
+		if !strings.HasSuffix(res, "\n") {
+			res += "\n"
+		}
+		res += `allow:
+  and:
+    - accept: {}
+`
+	}
+	return res
+}
+
+func TestInvertPplTemplate(t *testing.T) {
+	tests := []struct {
+		pplTemplate string
+		want        string
+	}{
+		{
+			pplTemplate: `
+allow:
+  and:
+    - foo
+`,
+			want: `
+deny:
+  nor:
+    - foo
+allow:
+  and:
+    - accept: {}
+`,
+		},
+		{
+			pplTemplate: `
+allow:
+  or:
+    - foo
+deny:
+  and:
+    - foo
+`,
+			want: `
+deny:
+  not:
+    - foo
+allow:
+  nor:
+    - foo
+`,
+		},
+		{
+			pplTemplate: `
+allow: { not: [and] }
+deny: { nor: [or] }
+`,
+			want: `
+deny: { or: [and] }
+allow: { and: [or] }
+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run("", func(t *testing.T) {
+			inverted := invertPplTemplate(tt.pplTemplate)
+			assert.Equal(t, tt.want, inverted)
+
+			reverted := invertPplTemplate(inverted)
+			reverted = strings.TrimSuffix(reverted, "deny:\n  nor:\n    - accept: {}\n")
+			assert.Equal(t, tt.pplTemplate, reverted)
 		})
 	}
 }
@@ -476,6 +578,44 @@ func (s *SSHTestSuite) dialFrom127002(cc *gossh.ClientConfig) (*gossh.Client, er
 	return gossh.NewClient(c, chans, reqs), nil
 }
 
+func (s *SSHTestSuite) fetchAndUpdateStreamAccessRequest(id string, f func(*databroker.Record, *session.StreamAccessRequest)) {
+	s.T().Helper()
+	client := s.env.NewDataBrokerServiceClient()
+	var record *databroker.GetResponse
+	var err error
+	for range 20 {
+		record, err = client.Get(s.T().Context(), &databroker.GetRequest{
+			Type: "type.googleapis.com/session.StreamAccessRequest",
+			Id:   id,
+		})
+		if err == nil {
+			break
+		} else if databroker.IsNotFound(err) {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		s.Require().NoError(err) // fail on any other error
+	}
+	s.Require().NoError(err)
+	s.Require().NotNil(record.GetRecord())
+	s.Require().Nil(record.GetRecord().DeletedAt)
+	var msg session.StreamAccessRequest
+	err = record.GetRecord().GetData().UnmarshalTo(&msg)
+	s.Require().NoError(err)
+	s.Require().Equal(session.StreamAccessRequest_PENDING, msg.State)
+	f(record.GetRecord(), &msg)
+	_, err = client.Put(s.T().Context(), &databroker.PutRequest{
+		Records: []*databroker.Record{
+			{
+				Type: "type.googleapis.com/session.StreamAccessRequest",
+				Id:   id,
+				Data: marshalAny(&msg),
+			},
+		},
+	})
+	s.Require().NoError(err)
+}
+
 func expectAuthSequence(t *testing.T, cc *gossh.ClientConfig, attemptListeners []func(ctx *gossh.ClientAuthContext) gossh.AuthMethod) (verify func()) {
 	if !future {
 		return func() {}
@@ -515,6 +655,25 @@ func seqPublicKeyAcceptedThenKbdInt(t *testing.T) []func(*gossh.ClientAuthContex
 			return nil
 		},
 	}
+}
+
+func seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(t *testing.T, requestID chan<- string) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
+	return append(seqPublicKeyAcceptedThenKbdInt(t), func(ctx *gossh.ClientAuthContext) gossh.AuthMethod {
+		t.Helper()
+		require.Equal(t, []string{"keyboard-interactive"}, ctx.AllowedMethods)
+		require.Equal(t, []string{"publickey", "keyboard-interactive"}, ctx.PartialSuccessMethods)
+		require.Equal(t, []string{"none"}, ctx.TriedMethods)
+		return gossh.KeyboardInteractive(func(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
+			t.Helper()
+			assert.Empty(t, questions)
+			assert.Empty(t, echos)
+			assert.Contains(t, name, "Waiting for approval")
+			require.Contains(t, instruction, "Request ID: ")
+			idStr := strings.TrimPrefix(instruction, "Request ID: ")
+			requestID <- idStr
+			return nil, nil
+		})
+	})
 }
 
 func seqPublicKeyRejected(t *testing.T) []func(*gossh.ClientAuthContext) gossh.AuthMethod {
@@ -1096,6 +1255,208 @@ allow:
 			_, err := s.upstream.Dial(cc)
 			s.ErrorContains(err, "Permission Denied")
 		})
+	})
+
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+deny:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+`, func(api RouteTestAPI) {
+		s.Run("email allowed and denied", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+		s.Run("email neither allowed nor denied", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+			defer verify()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+	})
+
+	approveAndVerifySuccess := func(cc *gossh.ClientConfig) {
+		s.T().Helper()
+		requestID := make(chan string, 1)
+		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
+		defer verify()
+		go func() {
+			select {
+			case id := <-requestID:
+				s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
+					req.State = session.StreamAccessRequest_APPROVED
+				})
+			case <-s.T().Context().Done():
+			}
+		}()
+		client, err := s.upstream.Dial(cc)
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		client.Close()
+	}
+
+	accessRequestTest := func(api RouteTestAPI) {
+		s.Run("request approved", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+			approveAndVerifySuccess(cc)
+		})
+		s.Run("request denied", func() {
+			cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(2))
+			requestID := make(chan string, 1)
+			verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
+			defer verify()
+			go func() {
+				select {
+				case id := <-requestID:
+					s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
+						s.Require().Equal(session.StreamAccessRequest_PENDING, req.State)
+						req.State = session.StreamAccessRequest_DENIED
+					})
+				case <-s.T().Context().Done():
+				}
+			}()
+			_, err := s.upstream.Dial(cc)
+			s.ErrorContains(err, "Permission Denied")
+		})
+	}
+	// these policies should be equivalent
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+          - "{{ routeUserEmail 2 }}"
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		accessRequestTest(api)
+	})
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+          - "{{ routeUserEmail 2 }}"
+deny:
+  nor:
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		accessRequestTest(api)
+	})
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email:
+        in:
+          - "{{ routeUserEmail 1 }}"
+          - "{{ routeUserEmail 2 }}"
+deny:
+  not:
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		accessRequestTest(api)
+	})
+
+	misconfiguredAccessRequestIgnoredTest := func(api RouteTestAPI) {
+		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdInt(s.T()))
+		defer verify()
+		client, err := s.upstream.Dial(cc)
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		client.Close()
+	}
+	rt.AddRouteTest(`
+allow:
+  not:
+    - email:
+        in: ["{{ routeUserEmail 2 }}"]
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		misconfiguredAccessRequestIgnoredTest(api)
+	})
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+deny:
+  or:
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		misconfiguredAccessRequestIgnoredTest(api)
+	})
+	rt.AddRouteTest(`
+allow:
+  not:
+    - email:
+        in: ["{{ routeUserEmail 2 }}"]
+    - ssh_access_request_approved: {}
+deny:
+  or:
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		misconfiguredAccessRequestIgnoredTest(api)
+	})
+	// if the policy is contradictory, it must not cause an infinite loop of
+	// requests
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+    - ssh_access_request_approved: {}
+deny:
+  and:
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+		requestID := make(chan string, 1)
+		verify := expectAuthSequence(s.T(), cc, seqPublicKeyAcceptedThenKbdIntThenTwoPersonAuth(s.T(), requestID))
+		defer verify()
+		go func() {
+			select {
+			case id := <-requestID:
+				s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
+					req.State = session.StreamAccessRequest_APPROVED
+				})
+			case <-s.T().Context().Done():
+			}
+		}()
+		defer verify()
+		_, err := s.upstream.Dial(cc)
+		s.ErrorContains(err, "Permission Denied")
+	})
+
+	// same for duplicate conditions (the second condition should be a no-op)
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+    - ssh_access_request_approved: {}
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+		approveAndVerifySuccess(cc)
+	})
+
+	// redundant conditions
+	rt.AddRouteTest(`
+allow:
+  and:
+    - email: "{{ routeUserEmail 1 }}"
+    - ssh_access_request_approved: {}
+deny:
+  nor:
+    - ssh_access_request_approved: {}
+`, func(api RouteTestAPI) {
+		cc := s.newClientConfig("username", api.RouteName(), api.RouteUserEmail(1))
+		approveAndVerifySuccess(cc)
 	})
 
 	rt.Start()
