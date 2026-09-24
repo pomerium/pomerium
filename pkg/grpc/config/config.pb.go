@@ -9771,7 +9771,7 @@ const file_config_proto_rawDesc = "" +
 	"\x0esupported_algs\x18\x03 \x03(\tR\rsupportedAlgs\x12\x1c\n" +
 	"\taudiences\x18\x04 \x03(\tR\taudiences\",\n" +
 	"\x10SessionRecording\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\"\xe2/\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\"\xe8/\n" +
 	"\x05Route\x12\x13\n" +
 	"\x02id\x18\x1c \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18P \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -9820,8 +9820,8 @@ const file_config_proto_rawDesc = "" +
 	"\x1dtls_downstream_client_ca_file\x18' \x01(\tB\x02\x18\x01R\x19tlsDownstreamClientCaFile\x12U\n" +
 	"$tls_downstream_client_ca_key_pair_id\x18T \x01(\tB\x02\x18\x01H\n" +
 	"R\x1etlsDownstreamClientCaKeyPairId\x88\x01\x01\x12G\n" +
-	" tls_upstream_allow_renegotiation\x18< \x01(\bR\x1dtlsUpstreamAllowRenegotiation\x12]\n" +
-	"\x13set_request_headers\x18\x16 \x03(\v2-.pomerium.config.Route.SetRequestHeadersEntryR\x11setRequestHeaders\x124\n" +
+	" tls_upstream_allow_renegotiation\x18< \x01(\bR\x1dtlsUpstreamAllowRenegotiation\x12c\n" +
+	"\x13set_request_headers\x18\x16 \x03(\v2-.pomerium.config.Route.SetRequestHeadersEntryB\x04\xf0\xd6,\x01R\x11setRequestHeaders\x124\n" +
 	"\x16remove_request_headers\x18\x17 \x03(\tR\x14removeRequestHeaders\x12`\n" +
 	"\x14set_response_headers\x18) \x03(\v2..pomerium.config.Route.SetResponseHeadersEntryR\x12setResponseHeaders\x12]\n" +
 	"\x18rewrite_response_headers\x18( \x03(\v2#.pomerium.config.RouteRewriteHeaderR\x16rewriteResponseHeaders\x120\n" +
