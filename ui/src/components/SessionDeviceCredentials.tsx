@@ -3,12 +3,7 @@ import type { FC } from "react";
 import React from "react";
 
 import DeviceCredentialsTable from "../components/DeviceCredentialsTable";
-import type {
-  Session,
-  User,
-  WebAuthnCreationOptions,
-  WebAuthnRequestOptions,
-} from "../types";
+import type { Session, User, WebAuthnCreationOptions, WebAuthnRequestOptions } from "../types";
 import WebAuthnAuthenticateButton from "./WebAuthnAuthenticateButton";
 import WebAuthnRegisterButton from "./WebAuthnRegisterButton";
 
@@ -45,11 +40,7 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
               Current Session Device Credentials
             </Typography>
 
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{ justifyContent: "center" }}
-            >
+            <Stack direction="row" spacing={1} sx={{ justifyContent: "center" }}>
               <WebAuthnRegisterButton
                 creationOptions={webAuthnCreationOptions}
                 url={webAuthnUrl}
@@ -81,10 +72,7 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
                 </Typography>
               </Toolbar>
               <Box sx={{ padding: 3, paddingTop: 0 }}>
-                <DeviceCredentialsTable
-                  ids={otherDeviceCredentialIds}
-                  webAuthnUrl={webAuthnUrl}
-                />
+                <DeviceCredentialsTable ids={otherDeviceCredentialIds} webAuthnUrl={webAuthnUrl} />
               </Box>
             </Stack>
           </Paper>

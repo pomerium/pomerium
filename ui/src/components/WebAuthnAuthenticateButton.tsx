@@ -42,9 +42,10 @@ export type WebAuthnAuthenticateButtonProps = Omit<
 > & {
   requestOptions?: WebAuthnRequestOptions;
 };
-export const WebAuthnAuthenticateButton: FC<
-  WebAuthnAuthenticateButtonProps
-> = ({ requestOptions, ...props }) => {
+export const WebAuthnAuthenticateButton: FC<WebAuthnAuthenticateButtonProps> = ({
+  requestOptions,
+  ...props
+}) => {
   async function authenticate(): Promise<unknown> {
     if (!requestOptions) return;
     const credential = await authenticateCredential(requestOptions);

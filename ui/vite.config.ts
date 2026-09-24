@@ -27,9 +27,7 @@ export default defineConfig(({ mode }) => {
           format: "iife",
           entryFileNames: "index.js",
           assetFileNames: (asset) =>
-            asset.names.some((name) => name.endsWith(".css"))
-              ? "index.css"
-              : "[name][extname]",
+            asset.names.some((name) => name.endsWith(".css")) ? "index.css" : "[name][extname]",
         },
       },
     },

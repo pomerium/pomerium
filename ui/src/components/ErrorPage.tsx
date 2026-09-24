@@ -23,9 +23,7 @@ import SectionFooter from "./SectionFooter";
 type PolicyEvaluationTraceDetailsProps = {
   trace: PolicyEvaluationTrace;
 } & ListItemProps;
-const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
-  trace,
-}) => {
+const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({ trace }) => {
   return (
     <TableRow>
       <TableCell align={"center"}>
@@ -41,9 +39,7 @@ const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
         <Markdown>{trace.explanation || `Policy ID ${trace.id}`}</Markdown>
       </TableCell>
       <TableCell>
-        <Markdown>
-          {trace.deny || !trace.allow ? trace.remediation : ""}
-        </Markdown>
+        <Markdown>{trace.deny || !trace.allow ? trace.remediation : ""}</Markdown>
       </TableCell>
     </TableRow>
   );
@@ -53,8 +49,7 @@ export type ErrorPageProps = {
   data: ErrorPageData;
 };
 export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
-  const traces =
-    data?.policyEvaluationTraces?.filter((trace) => !!trace.id) || [];
+  const traces = data?.policyEvaluationTraces?.filter((trace) => !!trace.id) || [];
   const status = data?.status || 500;
 
   return (
@@ -62,17 +57,11 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
       <Paper sx={{ overflow: "hidden" }}>
         <Stack>
           <Box sx={{ padding: "16px" }}>
-            <Alert
-              severity={status < 200 || status >= 300 ? "error" : "success"}
-            >
+            <Alert severity={status < 200 || status >= 300 ? "error" : "success"}>
               <AlertTitle>
                 {status} {data?.statusText || "Internal Server Error"}
               </AlertTitle>
-              {data?.description ? (
-                <Markdown>{data.description}</Markdown>
-              ) : (
-                <></>
-              )}
+              {data?.description ? <Markdown>{data.description}</Markdown> : <></>}
             </Alert>
           </Box>
           {!!data?.errorMessageFirstParagraph && (
@@ -99,8 +88,8 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
           {data?.requestId ? (
             <SectionFooter>
               <Typography variant="caption">
-                If you should have access, contact your administrator with your
-                request id {data?.requestId}.
+                If you should have access, contact your administrator with your request id{" "}
+                {data?.requestId}.
               </Typography>
             </SectionFooter>
           ) : (

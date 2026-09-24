@@ -95,9 +95,7 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
           }
         />
         <CardContent>
-          {route.description && (
-            <Typography variant="body2">{route.description}</Typography>
-          )}
+          {route.description && <Typography variant="body2">{route.description}</Typography>}
           {route.connect_command && (
             <Box
               component="span"
@@ -196,29 +194,13 @@ const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
             Connection failed: {connectError}
           </Alert>
         )}
-        {data?.mcp_status_error && (
-          <Alert severity="warning">{data.mcp_status_error}</Alert>
-        )}
+        {data?.mcp_status_error && <Alert severity="warning">{data.mcp_status_error}</Alert>}
         {data?.routes?.length > 0 ? (
           <>
-            <RoutesSection
-              type={"http"}
-              title={"HTTP Routes"}
-              allRoutes={data.routes}
-            />
-            {data?.runtimeFlags?.mcp && (
-              <MCPRoutesSection allRoutes={data.routes} />
-            )}
-            <RoutesSection
-              type={"tcp"}
-              title={"TCP Routes"}
-              allRoutes={data.routes}
-            />
-            <RoutesSection
-              type={"udp"}
-              title={"UDP Routes"}
-              allRoutes={data.routes}
-            />
+            <RoutesSection type={"http"} title={"HTTP Routes"} allRoutes={data.routes} />
+            {data?.runtimeFlags?.mcp && <MCPRoutesSection allRoutes={data.routes} />}
+            <RoutesSection type={"tcp"} title={"TCP Routes"} allRoutes={data.routes} />
+            <RoutesSection type={"udp"} title={"UDP Routes"} allRoutes={data.routes} />
           </>
         ) : (
           <Paper sx={{ padding: 3 }}>

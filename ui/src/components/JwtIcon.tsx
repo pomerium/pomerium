@@ -2,12 +2,7 @@ import { createSvgIcon } from "@mui/material/utils";
 import React from "react";
 
 const JwtIcon = createSvgIcon(
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="1em"
-    height="1em"
-    viewBox="0 0 15 15"
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 15 15">
     <path
       style={{
         stroke: "none",
