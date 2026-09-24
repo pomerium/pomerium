@@ -280,6 +280,32 @@ func TestPathReadsProbeAfterParkedReadsDrainAdmitsNothing(t *testing.T) {
 	assert.True(t, pr.idle())
 }
 
+// A read started below the cap after an admission was granted can park on the
+// admitted device itself; the admission must not then let a second read onto
+// it without a fresh probe.
+func TestPathReadsAdmissionVoidedByReadParkedOnItsDevice(t *testing.T) {
+	pr := newTestPathReads()
+	last, parked := parkReads(t, pr, testEpoch, MaxParkedReads, 1)
+	now := last.Add(testRetry)
+	a, err := pr.admit(t.Context(), now, testRetry, false)
+	require.NoError(t, err)
+	pr.finishProbe(t.Context(), a.probe, fileState{exists: true, dev: 2}, now)
+	require.True(t, pr.admitReady)
+
+	// One parked read returns, so the path drops below the cap and a retry
+	// starts a read that opens on device 2 and parks there.
+	pr.finishRead(t.Context(), parked[0], nil, nil)
+	c := startRead(t, pr, now)
+	c.dev, c.devKnown = 2, true
+	pr.abandon(t.Context(), c)
+	require.Len(t, pr.parked, MaxParkedReads)
+
+	a, err = pr.admit(t.Context(), now, testRetry, true)
+	assert.ErrorIs(t, err, ErrReadBlocked)
+	assert.Nil(t, a.read)
+	assert.False(t, pr.admitReady)
+}
+
 func TestPathReadsParkedReadReturningLeavesLiveRead(t *testing.T) {
 	pr := newTestPathReads()
 	last, parked := parkReads(t, pr, testEpoch, 1, 1)

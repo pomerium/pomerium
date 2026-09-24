@@ -132,6 +132,13 @@ func (pr *pathReads) admit(ctx context.Context, now time.Time, retry time.Durati
 		return admission{read: c}, nil
 	}
 
+	// An admission is for a device no parked read is on. A read that parked
+	// since the probe (one started below the cap that then opened on the new
+	// device, say) voids it.
+	if pr.admitReady && pr.onParkedDevice(pr.admitDev) {
+		pr.admitReady = false
+	}
+
 	var dev uint64
 	var devKnown bool
 	if n := len(pr.parked); n > 0 {
