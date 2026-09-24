@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/rs/zerolog"
@@ -19,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
+	"github.com/pomerium/pomerium/internal/agentic"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
@@ -68,21 +70,24 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	}
 
 	// Cookie + Authorization: Bearer are mutually exclusive trust contexts,
-	// but only on bearer_token_format: jwt routes: cookies come from a
-	// browser, an external JWT comes from an M2M client, so a request
-	// carrying both is a misconfigured client or a confusion attempt —
-	// reject with 400. The IdP access/identity token formats predate this
-	// check and allow both credentials together (a logged-in browser may
-	// send its IdP token via Authorization; see TestBearerTokenFormat), and
-	// on pass-through routes the Authorization header belongs to the
-	// upstream, so neither may be rejected here.
+	// but only on the formats whose token is inherently machine-to-machine:
+	// an external JWT or an agentic run token. Cookies come from a browser,
+	// so a request carrying both is a misconfigured client or a confusion
+	// attempt — reject with 400. The IdP access/identity token formats
+	// predate this check and allow both credentials together (a logged-in
+	// browser may send its IdP token via Authorization; see
+	// TestBearerTokenFormat), and on pass-through routes the Authorization
+	// header belongs to the upstream, so neither may be rejected here.
 	cfg := a.currentConfig.Load()
-	if cfg.GetBearerTokenFormatForPolicy(req.Policy) == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT &&
-		hasCookieAndBearer(hreq, cfg.Options.CookieName) {
-		log.Ctx(ctx).Info().
-			Str("request-id", requestID).
-			Msg("request carried both a session cookie and an Authorization: Bearer header on a bearer_token_format:jwt route; rejecting as 400")
-		return a.deniedResponse(ctx, in, int32(http.StatusBadRequest), http.StatusText(http.StatusBadRequest), nil)
+	switch cfg.GetBearerTokenFormatForPolicy(req.Policy) {
+	case configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT,
+		configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN:
+		if hasCookieAndBearer(hreq, cfg.Options.CookieName) {
+			log.Ctx(ctx).Info().
+				Str("request-id", requestID).
+				Msg("request carried both a session cookie and an Authorization: Bearer header on a machine-to-machine bearer-token route; rejecting as 400")
+			return a.deniedResponse(ctx, in, int32(http.StatusBadRequest), http.StatusText(http.StatusBadRequest), nil)
+		}
 	}
 
 	// load the session
@@ -164,25 +169,144 @@ func (a *Authorize) loadSession(
 	return s, nil
 }
 
+// bearerResolution selects how maybeGetSessionFromRequest resolves an incoming
+// request's Authorization: Bearer credential.
+type bearerResolution int
+
+const (
+	// resolveNone leaves the credential to the idp-token creator, which may in
+	// turn fall through to cookie handling.
+	resolveNone bearerResolution = iota
+	// resolveMCP resolves the bearer as an MCP access token.
+	resolveMCP
+	// resolveAgentic resolves the bearer as an opaque agentic run token.
+	resolveAgentic
+)
+
+// resolveBearer decides — without side effects — which credential resolver a
+// request should use. Run-token acceptance is declared per route, MCP routes
+// included: a route interprets a run token only when it sets
+// bearer_token_format: agentic_run_token. Normal MCP clients are unaffected,
+// since an MCP access token carries no run-token prefix.
+//
+// Defense in depth rather than an absolute bound: GetBearerTokenFormatForPolicy
+// falls back to the global bearer_token_format, so a deployment that sets
+// agentic_run_token globally satisfies the check everywhere. What actually bounds
+// the agent is that it reaches only the loopback listeners its sidecar serves,
+// each pinned to a fixed upstream from an operator-authored template.
+func resolveBearer(agenticEnabled, isMCPRoute, hasRunToken bool, format configpb.BearerTokenFormat) bearerResolution {
+	switch {
+	case agenticEnabled && hasRunToken &&
+		format == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN:
+		return resolveAgentic
+	case isMCPRoute:
+		return resolveMCP
+	default:
+		return resolveNone
+	}
+}
+
 func (a *Authorize) maybeGetSessionFromRequest(
 	ctx context.Context,
 	hreq *http.Request,
 	policy *config.Policy,
 ) (*session.Session, error) {
-	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		if policy.IsMCPServer() || strings.HasPrefix(hreq.URL.Path, mcp.DefaultPrefix) {
-			s, err := a.getMCPSession(ctx, hreq)
-			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Msg("error getting mcp session")
-				return nil, err
-			}
-			return s, nil
+	cfg := a.currentConfig.Load()
+	opts := cfg.Options
+	mcpEnabled := opts.IsRuntimeFlagSet(config.RuntimeFlagMCP)
+	agenticEnabled := opts.IsRuntimeFlagSet(config.RuntimeFlagAgentic)
+	isMCPRoute := mcpEnabled && (policy.IsMCPServer() || strings.HasPrefix(hreq.URL.Path, mcp.DefaultPrefix))
+
+	runToken, hasRunToken := agentic.RunTokenFromAuthorizationHeader(hreq.Header.Get(httputil.HeaderAuthorization))
+
+	switch resolveBearer(agenticEnabled, isMCPRoute, hasRunToken, cfg.GetBearerTokenFormatForPolicy(policy)) {
+	case resolveAgentic:
+		return a.getAgenticRunSession(ctx, runToken)
+	case resolveMCP:
+		s, err := a.getMCPSession(ctx, hreq)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("error getting mcp session")
+			return nil, err
 		}
+		return s, nil
 	}
 
 	// attempt to create a session from an incoming idp token
 	return a.state.Load().idpTokenSessionCreator.
-		CreateSession(ctx, a.currentConfig.Load(), policy, hreq)
+		CreateSession(ctx, cfg, policy, hreq)
+}
+
+// getAgenticRunSession resolves an opaque agentic run token to its session.
+//
+// Every *authentication* failure wraps sessions.ErrInvalidSession, which Check
+// short-circuits to a 403 deny with no policy evaluation and no SSO redirect. It
+// must never wrap sessions.ErrNoSessionFound here: that would fall through to
+// cookie handling and redirect the run's M2M client into an interactive sign-in.
+//
+// Transient databroker errors (codes.Unavailable) are the exception: they are
+// returned unwrapped so Check propagates a retryable error instead of denying a
+// valid run token during a brief outage (mirrors loadSession).
+func (a *Authorize) getAgenticRunSession(
+	ctx context.Context,
+	token string,
+) (*session.Session, error) {
+	state := a.state.Load()
+	if state.agenticCipher == nil {
+		return nil, fmt.Errorf("agentic: not configured: %w", sessions.ErrInvalidSession)
+	}
+
+	runID, sessionRecordVersion, err := agentic.ParseRunToken(state.agenticCipher, token)
+	if err != nil {
+		return nil, fmt.Errorf("agentic: invalid run token: %w: %w", err, sessions.ErrInvalidSession)
+	}
+
+	// Authoritative (uncached) read: revocation must take effect on the next
+	// request. The querier cache used for the session read below keys its
+	// invalidation off databroker server-version changes, so a revocation Put
+	// from another client would not invalidate it promptly; the direct Get here
+	// is what makes revocation immediate.
+	run, err := agentic.GetRun(ctx, state.dataBrokerClient, runID)
+	if status.Code(err) == codes.NotFound {
+		return nil, fmt.Errorf("agentic: run not found: %w: %w", err, sessions.ErrInvalidSession)
+	} else if err != nil {
+		// Anything else is an infrastructure failure, not a verdict on the
+		// credential. These reads inherit the ext_authz request context, so
+		// DeadlineExceeded and Canceled arrive here in normal operation; wrapping
+		// them as ErrInvalidSession would answer a transient failure with a 403 and
+		// deny a perfectly valid run token.
+		return nil, err
+	}
+	switch {
+	case run.GetRevoked():
+		return nil, fmt.Errorf("agentic: run revoked: %w", sessions.ErrInvalidSession)
+	case run.GetExpiresAt().AsTime().Before(time.Now()):
+		return nil, fmt.Errorf("agentic: run expired: %w", sessions.ErrInvalidSession)
+	case !agentic.IsApproved(run):
+		// A token for an unapproved run cannot normally exist (Token refuses to mint
+		// one), but keep the invariant local as defense in depth.
+		return nil, fmt.Errorf("agentic: run not approved: %w", sessions.ErrInvalidSession)
+	}
+
+	// Cached, versioned session read — read-your-writes (same pattern as
+	// getMCPSession), which also warms the cache entry the rego claim/ lookup uses.
+	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)),
+		agentic.SessionID(runID), sessionRecordVersion)
+	if status.Code(err) == codes.NotFound {
+		return nil, fmt.Errorf("agentic: session not found: %w: %w", err, sessions.ErrInvalidSession)
+	} else if err != nil {
+		// Same reasoning as the run read above: only a missing record is a statement
+		// about the credential.
+		return nil, err
+	}
+	msg, err := record.GetData().UnmarshalNew()
+	if err != nil {
+		return nil, fmt.Errorf("agentic: bad session record: %w: %w", err, sessions.ErrInvalidSession)
+	}
+	s, ok := msg.(*session.Session)
+	if !ok {
+		return nil, fmt.Errorf("agentic: unexpected session type %T: %w", msg, sessions.ErrInvalidSession)
+	}
+	return s, nil
 }
 
 func (a *Authorize) getMCPSession(
