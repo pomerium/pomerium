@@ -41,6 +41,7 @@ enum BindingProtocol {
   BINDING_PROTOCOL_UNKNOWN = 0;
   BINDING_PROTOCOL_BROWSER = 1;
   BINDING_PROTOCOL_MCP = 2;
+  BINDING_PROTOCOL_AGENTIC = 3;
 }
 
 // Binding binds a particular client session to a user's centralized IDP session. It

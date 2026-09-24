@@ -43,6 +43,38 @@ func GetRun(ctx context.Context, client databroker.DataBrokerServiceClient, id s
 	return run, nil
 }
 
+// GetRunRecordVersion reads a run together with the databroker record version it
+// was read at, for a caller that will write it back conditionally.
+func GetRunRecordVersion(ctx context.Context, client databroker.DataBrokerServiceClient, id string) (*agenticpb.Run, uint64, error) {
+	res, err := client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(new(agenticpb.Run)),
+		Id:   id,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	run := new(agenticpb.Run)
+	if err := res.GetRecord().GetData().UnmarshalTo(run); err != nil {
+		return nil, 0, err
+	}
+	return run, res.GetRecord().GetVersion(), nil
+}
+
+// PutRunIfUnchanged stores a run only if the stored record is still at version —
+// the version the caller read it at. It reports databroker.IsRecordVersionMismatch
+// when somebody else wrote the run in between, which is how approval stays
+// single-use under concurrency.
+func PutRunIfUnchanged(ctx context.Context, client databroker.DataBrokerServiceClient, run *agenticpb.Run, version uint64) error {
+	data := protoutil.NewAny(run)
+	_, err := databroker.PutIfMatchVersion(ctx, client, &databroker.Record{
+		Id:      run.GetId(),
+		Data:    data,
+		Type:    data.GetTypeUrl(),
+		Version: version,
+	})
+	return err
+}
+
 // PutRun stores (creates or updates) a run record.
 func PutRun(ctx context.Context, client databroker.DataBrokerServiceClient, run *agenticpb.Run) error {
 	data := protoutil.NewAny(run)

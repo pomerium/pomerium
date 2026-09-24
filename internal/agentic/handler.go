@@ -155,6 +155,8 @@ func (h *Handler) newRouter() *mux.Router {
 	r.Path(RunsPath(h.prefix)).Methods(http.MethodPost).HandlerFunc(h.CreateRun)
 	r.Path(path.Join(RunsPath(h.prefix), "{run_id}")).Methods(http.MethodGet).HandlerFunc(h.GetRun)
 	r.Path(TokenPath(h.prefix)).Methods(http.MethodPost).HandlerFunc(h.Token)
+	r.Path(ApprovePath(h.prefix)).Methods(http.MethodGet).HandlerFunc(h.ApproveGet)
+	r.Path(ApprovePath(h.prefix)).Methods(http.MethodPost).HandlerFunc(h.ApprovePost)
 	// Nothing ties a route's prefix to where the AS actually mounts its
 	// endpoints, so a typo in a route's `prefix:` produces a request that reaches
 	// this handler and matches nothing. Say which server answered and where it
