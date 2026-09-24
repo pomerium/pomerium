@@ -94,8 +94,10 @@ type Provider struct {
 // pathReads tracks the reads of one path: at most one live read that current
 // callers share, the reads abandoned by callers that gave up and now parked in
 // an uninterruptible syscall, and the remount probe that lets a fresh read past
-// the parked cap.
+// the parked cap. Its methods are the path's state transitions; they never
+// block and must be called under Provider.mu.
 type pathReads struct {
+	path      string
 	live      *readCall
 	parked    map[*readCall]struct{}
 	lastStart time.Time
@@ -108,6 +110,162 @@ type pathReads struct {
 	// on; the next fetch at the cap may start one read against it.
 	admitDev   uint64
 	admitReady bool
+}
+
+// An admission is pathReads.admit's verdict for one fetch: exactly one of a
+// read to wait on or a remount probe to wait on before asking again. A fresh
+// read and a probe are recorded but not yet running; the caller starts them.
+type admission struct {
+	read  *readCall
+	fresh bool
+	probe *probeCall
+}
+
+// admit decides how a fetch proceeds. It joins the live read if there is one;
+// otherwise, subject to the parked-read bounds described on Provider.read, it
+// records a fresh read or, at the parked cap, a remount probe, or refuses with
+// ErrReadBlocked. probed reports whether the fetch has already waited on a
+// probe.
+func (pr *pathReads) admit(ctx context.Context, now time.Time, retry time.Duration, probed bool) (admission, error) {
+	if c := pr.live; c != nil {
+		c.waiters++
+		return admission{read: c}, nil
+	}
+
+	var dev uint64
+	var devKnown bool
+	if n := len(pr.parked); n > 0 {
+		switch {
+		case n >= MaxParkedReads && pr.admitReady:
+			dev, devKnown = pr.admitDev, true
+			pr.admitReady = false
+			log.Ctx(ctx).Warn().Str("path", pr.path).Int("parked", n).Uint64("dev", dev).
+				Msg("file secret: path now resolves to a different device than its blocked reads (remounted?); retrying with a fresh read")
+		case n >= MaxParkedReads:
+			// A fetch that starts a probe waits for it, within ctx, so the
+			// first fetch after a remount can already succeed. Others fail
+			// fast rather than wait on a probe that may be as stuck as the
+			// reads, and no fetch asks for a second verdict.
+			var pc *probeCall
+			if !probed {
+				pc = pr.startProbe(ctx, now, retry)
+			}
+			if pc == nil {
+				return admission{}, ErrReadBlocked
+			}
+			return admission{probe: pc}, nil
+		case now.Sub(pr.lastStart) < retry:
+			return admission{}, ErrReadBlocked
+		default:
+			log.Ctx(ctx).Warn().Str("path", pr.path).Int("parked", n).
+				Msg("file secret: earlier reads are still blocked; retrying with a fresh read")
+		}
+	}
+	c := &readCall{done: make(chan struct{}), started: now, waiters: 1, dev: dev, devKnown: devKnown}
+	pr.live, pr.lastStart = c, now
+	return admission{read: c, fresh: true}, nil
+}
+
+// abandon releases one caller's interest in c. The last caller to give up on
+// an unfinished read parks it, so the next fetch starts fresh instead of
+// joining.
+func (pr *pathReads) abandon(ctx context.Context, c *readCall) {
+	c.waiters--
+	if c.waiters > 0 || c.finished {
+		return
+	}
+	c.parked = true
+	pr.live = nil
+	pr.parked[c] = struct{}{}
+	n := len(pr.parked)
+	ev := log.Ctx(ctx).Warn()
+	if n >= MaxParkedReads {
+		ev = log.Ctx(ctx).Error()
+	}
+	ev.Str("path", pr.path).
+		Dur("elapsed", time.Since(c.started)).
+		Int("parked", n).
+		Int("max-parked", MaxParkedReads).
+		Msg("file secret: read abandoned while blocked in the filesystem (wedged mount?); it stays parked until the kernel returns it")
+}
+
+// finishRead records c's result and unlinks it, before c.done is closed, so
+// that a fetch arriving in between starts a fresh read rather than joining a
+// finished one.
+func (pr *pathReads) finishRead(ctx context.Context, c *readCall, data []byte, err error) {
+	c.data, c.err, c.finished = data, err, true
+	if pr.live == c {
+		pr.live = nil
+	}
+	if c.parked {
+		delete(pr.parked, c)
+		log.Ctx(ctx).Info().Str("path", pr.path).
+			Dur("elapsed", time.Since(c.started)).
+			Int("parked", len(pr.parked)).
+			Msg("file secret: parked read returned")
+		// An admission only matters while reads are parked, so it lapses
+		// with them.
+		if len(pr.parked) == 0 {
+			pr.admitReady = false
+		}
+	}
+}
+
+// startProbe records a new remount probe of a path at the parked cap and
+// returns it, or returns nil when none is due: one is already in flight, or the
+// last finished less than a retry interval ago. A probe in flight longer than
+// the current backoff is presumed stuck on the old mount and replaced, with
+// the backoff doubling, so one that started before a remount cannot keep a
+// later one from reaching the new mount. At most MaxParkedProbes may be stuck
+// at once.
+func (pr *pathReads) startProbe(ctx context.Context, now time.Time, retry time.Duration) *probeCall {
+	if pr.probeBackoff == 0 {
+		pr.probeBackoff = retry
+	}
+	if pc := pr.probe; pc != nil {
+		if now.Sub(pc.started) < pr.probeBackoff || pr.probesParked+1 >= MaxParkedProbes {
+			return nil
+		}
+		pc.abandoned = true
+		pr.probe = nil
+		pr.probesParked++
+		pr.probeBackoff = min(2*pr.probeBackoff, maxProbeBackoff)
+		ev := log.Ctx(ctx).Warn()
+		if pr.probesParked+1 >= MaxParkedProbes {
+			ev = log.Ctx(ctx).Error()
+		}
+		ev.Str("path", pr.path).
+			Int("parked-probes", pr.probesParked).
+			Int("max-parked-probes", MaxParkedProbes).
+			Dur("next-probe-after", pr.probeBackoff).
+			Msg("file secret: remount probe blocked in the filesystem; starting another")
+	} else if now.Sub(pr.lastProbeDone) < retry {
+		return nil
+	}
+	pc := &probeCall{done: make(chan struct{}), started: now}
+	pr.probe = pc
+	return pc
+}
+
+// finishProbe records pc's stat of the path and, when reads are still parked
+// and it resolves to a device none of them is on, lets the next fetch at the
+// cap start one fresh read there.
+func (pr *pathReads) finishProbe(ctx context.Context, pc *probeCall, st fileState, now time.Time) {
+	if pc.abandoned {
+		pr.probesParked--
+		log.Ctx(ctx).Info().Str("path", pr.path).
+			Dur("elapsed", time.Since(pc.started)).
+			Int("parked-probes", pr.probesParked).
+			Msg("file secret: parked remount probe returned")
+	}
+	if pr.probe == pc {
+		pr.probe = nil
+		pr.probeBackoff = 0
+	}
+	pr.lastProbeDone = now
+	if len(pr.parked) > 0 && st.exists && !pr.onParkedDevice(st.dev) {
+		pr.admitDev, pr.admitReady = st.dev, true
+	}
 }
 
 // idle reports whether pr holds nothing worth keeping.
@@ -251,77 +409,61 @@ func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 		return nil, err
 	}
 
-	var pr *pathReads
-	var c *readCall
-	for probed := false; c == nil; {
-		p.mu.Lock()
-		if p.reads == nil {
-			p.reads = make(map[string]*pathReads)
+	for probed := false; ; probed = true {
+		pr, a, err := p.acquire(ctx, path, probed)
+		if err != nil {
+			return nil, err
 		}
-		pr = p.reads[path]
-		if pr == nil {
-			pr = &pathReads{parked: make(map[*readCall]struct{})}
-			p.reads[path] = pr
+		if a.read != nil {
+			return p.await(ctx, pr, a.read)
 		}
-		if c = pr.live; c != nil {
-			c.waiters++
-			p.mu.Unlock()
-			break
+		select {
+		case <-ctx.Done():
+			// The caller's own deadline ended the wait, so it must see
+			// ctx.Err() as on the read path; the reads are still blocked, so
+			// it wraps ErrReadBlocked too.
+			return nil, fmt.Errorf("%w: %w", ErrReadBlocked, ctx.Err())
+		case <-a.probe.done:
 		}
-
-		now := time.Now()
-		var dev uint64
-		var devKnown bool
-		if n := len(pr.parked); n > 0 {
-			switch {
-			case n >= MaxParkedReads && pr.admitReady:
-				dev, devKnown = pr.admitDev, true
-				pr.admitReady = false
-				log.Ctx(ctx).Warn().Str("path", path).Int("parked", n).Uint64("dev", dev).
-					Msg("file secret: path now resolves to a different device than its blocked reads (remounted?); retrying with a fresh read")
-			case n >= MaxParkedReads:
-				// A fetch that starts a probe waits for it, within ctx, so
-				// the first fetch after a remount can already succeed. Others
-				// fail fast rather than wait on a probe that may be as stuck
-				// as the reads, and no fetch asks for a second verdict.
-				var pc *probeCall
-				if !probed {
-					pc = p.probeLocked(ctx, path, pr, now)
-				}
-				p.mu.Unlock()
-				if pc == nil {
-					return nil, ErrReadBlocked
-				}
-				select {
-				case <-ctx.Done():
-					// The caller's own deadline ended the wait, so it must
-					// see ctx.Err() as on the read path; the reads are still
-					// blocked, so it wraps ErrReadBlocked too.
-					return nil, fmt.Errorf("%w: %w", ErrReadBlocked, ctx.Err())
-				case <-pc.done:
-				}
-				probed = true
-				continue
-			case now.Sub(pr.lastStart) < p.retryInterval():
-				p.mu.Unlock()
-				return nil, ErrReadBlocked
-			default:
-				log.Ctx(ctx).Warn().Str("path", path).Int("parked", n).
-					Msg("file secret: earlier reads are still blocked; retrying with a fresh read")
-			}
-		}
-		c = &readCall{done: make(chan struct{}), started: now, waiters: 1, dev: dev, devKnown: devKnown}
-		pr.live, pr.lastStart = c, now
-		go p.runRead(context.WithoutCancel(ctx), path, pr, c)
-		p.mu.Unlock()
 	}
+}
 
+// acquire admits a fetch of path and starts whatever fresh read or probe the
+// admission calls for.
+func (p *Provider) acquire(ctx context.Context, path string, probed bool) (*pathReads, admission, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.reads == nil {
+		p.reads = make(map[string]*pathReads)
+	}
+	pr := p.reads[path]
+	if pr == nil {
+		pr = &pathReads{path: path, parked: make(map[*readCall]struct{})}
+		p.reads[path] = pr
+	}
+	a, err := pr.admit(ctx, time.Now(), p.retryInterval(), probed)
+	if err != nil {
+		return nil, admission{}, err
+	}
+	if a.fresh {
+		go p.runRead(context.WithoutCancel(ctx), pr, a.read)
+	}
+	if a.probe != nil {
+		go p.runProbe(context.WithoutCancel(ctx), pr, a.probe)
+	}
+	return pr, a, nil
+}
+
+// await waits for c within ctx and releases the caller's interest in it.
+func (p *Provider) await(ctx context.Context, pr *pathReads, c *readCall) ([]byte, error) {
 	select {
 	case <-ctx.Done():
-		p.drop(ctx, path, pr, c)
+		p.update(pr, func() { pr.abandon(ctx, c) })
 		return nil, ctx.Err()
 	case <-c.done:
-		p.drop(ctx, path, pr, c)
+		// A finished read is already unlinked from pr, so there is no
+		// interest left to release.
 		if c.err != nil {
 			return nil, c.err
 		}
@@ -339,139 +481,41 @@ func (p *Provider) retryInterval() time.Duration {
 	return p.parkedRetryInterval
 }
 
-// drop releases one caller's interest in c. The last caller to give up on an
-// unfinished read parks it, so the next fetch starts fresh instead of joining.
-func (p *Provider) drop(ctx context.Context, path string, pr *pathReads, c *readCall) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	c.waiters--
-	if c.waiters > 0 || c.finished {
-		return
-	}
-	c.parked = true
-	pr.live = nil
-	pr.parked[c] = struct{}{}
-	n := len(pr.parked)
-	ev := log.Ctx(ctx).Warn()
-	if n >= MaxParkedReads {
-		ev = log.Ctx(ctx).Error()
-	}
-	ev.Str("path", path).
-		Dur("elapsed", time.Since(c.started)).
-		Int("parked", n).
-		Int("max-parked", MaxParkedReads).
-		Msg("file secret: read abandoned while blocked in the filesystem (wedged mount?); it stays parked until the kernel returns it")
-}
-
-// runRead performs the read and retires it. The call is unlinked from the path
-// before done is closed so that a fetch arriving in between starts a fresh
-// read rather than joining a finished one.
-func (p *Provider) runRead(ctx context.Context, path string, pr *pathReads, c *readCall) {
+// runRead performs the read and retires it.
+func (p *Provider) runRead(ctx context.Context, pr *pathReads, c *readCall) {
 	read := p.readFile
 	if read == nil {
 		read = readCapped
 	}
-	data, err := read(path, func(dev uint64) {
-		p.mu.Lock()
-		c.dev, c.devKnown = dev, true
-		p.mu.Unlock()
+	data, err := read(pr.path, func(dev uint64) {
+		p.update(pr, func() { c.dev, c.devKnown = dev, true })
 	})
-
-	p.mu.Lock()
-	c.data, c.err, c.finished = data, err, true
-	if pr.live == c {
-		pr.live = nil
-	}
-	if c.parked {
-		delete(pr.parked, c)
-		log.Ctx(ctx).Info().Str("path", path).
-			Dur("elapsed", time.Since(c.started)).
-			Int("parked", len(pr.parked)).
-			Msg("file secret: parked read returned")
-	}
-	p.retireLocked(path, pr)
-	p.mu.Unlock()
-
+	p.update(pr, func() { pr.finishRead(ctx, c, data, err) })
 	close(c.done)
 }
 
-// probeLocked starts a remount probe of a path at the parked cap and returns
-// it, or returns nil when none is started: one is already in flight, or the
-// last finished less than a retry interval ago. A probe in flight longer than
-// the current backoff is presumed stuck on the old mount and replaced, with
-// the backoff doubling, so one that started before a remount cannot keep a
-// later one from reaching the new mount. At most MaxParkedProbes may be stuck
-// at once.
-func (p *Provider) probeLocked(ctx context.Context, path string, pr *pathReads, now time.Time) *probeCall {
-	if pr.probeBackoff == 0 {
-		pr.probeBackoff = p.retryInterval()
-	}
-	if pc := pr.probe; pc != nil {
-		if now.Sub(pc.started) < pr.probeBackoff || pr.probesParked+1 >= MaxParkedProbes {
-			return nil
-		}
-		pc.abandoned = true
-		pr.probe = nil
-		pr.probesParked++
-		pr.probeBackoff = min(2*pr.probeBackoff, maxProbeBackoff)
-		ev := log.Ctx(ctx).Warn()
-		if pr.probesParked+1 >= MaxParkedProbes {
-			ev = log.Ctx(ctx).Error()
-		}
-		ev.Str("path", path).
-			Int("parked-probes", pr.probesParked).
-			Int("max-parked-probes", MaxParkedProbes).
-			Dur("next-probe-after", pr.probeBackoff).
-			Msg("file secret: remount probe blocked in the filesystem; starting another")
-	} else if now.Sub(pr.lastProbeDone) < p.retryInterval() {
-		return nil
-	}
-	pc := &probeCall{done: make(chan struct{}), started: now}
-	pr.probe = pc
-	go p.runProbe(context.WithoutCancel(ctx), path, pr, pc)
-	return pc
-}
-
-// runProbe stats path and, when it resolves to a device no parked read is on,
-// admits one fresh read there.
-func (p *Provider) runProbe(ctx context.Context, path string, pr *pathReads, pc *probeCall) {
+// runProbe stats the path and records the verdict.
+func (p *Provider) runProbe(ctx context.Context, pr *pathReads, pc *probeCall) {
 	stat := p.statPath
 	if stat == nil {
 		stat = statFile
 	}
-	st := stat(path)
-
-	p.mu.Lock()
-	if pc.abandoned {
-		pr.probesParked--
-		log.Ctx(ctx).Info().Str("path", path).
-			Dur("elapsed", time.Since(pc.started)).
-			Int("parked-probes", pr.probesParked).
-			Msg("file secret: parked remount probe returned")
-	}
-	if pr.probe == pc {
-		pr.probe = nil
-		pr.probeBackoff = 0
-	}
-	pr.lastProbeDone = time.Now()
-	if st.exists && !pr.onParkedDevice(st.dev) {
-		pr.admitDev, pr.admitReady = st.dev, true
-	}
-	p.retireLocked(path, pr)
-	p.mu.Unlock()
-
+	st := stat(pr.path)
+	p.update(pr, func() { pr.finishProbe(ctx, pc, st, time.Now()) })
 	close(pc.done)
 }
 
-// retireLocked drops pr from the provider once nothing for the path remains.
-// An admission only matters while reads are parked, so it lapses with them.
-func (p *Provider) retireLocked(path string, pr *pathReads) {
-	if len(pr.parked) == 0 {
-		pr.admitReady = false
-	}
-	if pr.idle() && p.reads[path] == pr {
-		delete(p.reads, path)
+// update applies fn to pr under p.mu, then drops pr from the provider once
+// nothing for its path remains. pr may already have been dropped, and its path
+// taken by a newer pathReads, when fn releases a caller whose ctx ended just as
+// its read finished; the identity check keeps it from dropping the newer one.
+func (p *Provider) update(pr *pathReads, fn func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	fn()
+	if pr.idle() && p.reads[pr.path] == pr {
+		delete(p.reads, pr.path)
 	}
 }
 
