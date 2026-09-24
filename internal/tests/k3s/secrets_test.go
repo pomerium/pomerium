@@ -225,30 +225,26 @@ func TestSecretInjection_K3s(t *testing.T) {
 	require.NoError(t, err)
 	headersURL := fmt.Sprintf("http://%s:%s/headers", host, port.Port())
 
-	// probe returns the response status (0 if the request itself failed) and,
-	// on a 200, the request headers the upstream saw.
-	probe := func() (int, http.Header) {
+	// probe returns the response status (0 if the request itself failed) and
+	// body.
+	probe := func() (int, []byte) {
 		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, headersURL, nil)
 		require.NoError(t, err)
 		req.Host = secretsRouteHost
+		// Ask for JSON so that a Pomerium denial carries its reason.
+		req.Header.Set("Accept", "application/json")
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return 0, nil
 		}
-		defer func() {
-			_, _ = io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
-		}()
-		if resp.StatusCode != http.StatusOK {
-			return resp.StatusCode, nil
-		}
-		var hdrs http.Header
-		if err := json.NewDecoder(resp.Body).Decode(&hdrs); err != nil {
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
 			return 0, nil
 		}
-		return resp.StatusCode, hdrs
+		return resp.StatusCode, body
 	}
 
 	// Each value must reach the upstream through both mounts before the next
@@ -260,20 +256,33 @@ func TestSecretInjection_K3s(t *testing.T) {
 				"-p", fmt.Sprintf(`{"stringData":{"token":%q}}`, v))
 		}
 		require.Eventuallyf(t, func() bool {
-			status, hdrs := probe()
+			status, body := probe()
+			var hdrs http.Header
 			return status == http.StatusOK &&
+				json.Unmarshal(body, &hdrs) == nil &&
 				hdrs.Get("X-Secret-Plain") == "plain="+v &&
 				hdrs.Get("X-Secret-Projected") == "projected="+v
 		}, 2*time.Minute, time.Second, "upstream should see secret value %q through both mounts", v)
 	}
 
 	// Removing the key makes kubelet delete the projected files; once the
-	// stale grace elapses, requests fail closed with a 503 instead of reaching
-	// the upstream with a stale or empty header.
+	// stale grace elapses, requests fail closed instead of reaching the
+	// upstream with a stale or empty header. The reason tells this denial
+	// apart from a 503 that Envoy returns when the upstream is unavailable.
 	k3stest.Kubectl(ctx, t, k3sCtr, "patch", "secret", "upstream-token",
 		"--type=json", "-p", `[{"op":"remove","path":"/data/token"}]`)
 	require.Eventually(t, func() bool {
-		status, _ := probe()
-		return status == http.StatusServiceUnavailable
+		status, body := probe()
+		var denial struct{ Error string }
+		return status == http.StatusServiceUnavailable &&
+			json.Unmarshal(body, &denial) == nil &&
+			denial.Error == "secret unavailable"
 	}, 2*time.Minute, time.Second, "requests should fail closed once the key is removed")
+
+	// A restart would reread the files at startup and pass every check above
+	// without the watcher, so the same Pomerium process must have served them
+	// all.
+	restarts := k3stest.Kubectl(ctx, t, k3sCtr, "get", "pod", "pomerium",
+		"-o", "jsonpath={.status.containerStatuses[0].restartCount}")
+	require.Equal(t, "0", restarts, "pomerium must not restart during the test")
 }
