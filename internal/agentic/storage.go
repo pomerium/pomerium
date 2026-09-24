@@ -2,12 +2,16 @@ package agentic
 
 import (
 	"context"
+	"time"
 
 	"google.golang.org/protobuf/types/known/structpb"
 
 	agenticpb "github.com/pomerium/pomerium/internal/agentic/gen"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -135,4 +139,46 @@ func betterSealCandidate(current, candidate *agenticpb.Run) bool {
 // approved is the fail-open this replaced.
 func IsApproved(run *agenticpb.Run) bool {
 	return run.GetState() == agenticpb.RunState_RUN_STATE_APPROVED
+}
+
+// buildRunSession issues the run's session.Session from the approver's IDPSession
+// and stamps the run's identity onto it. It is shared by approval (which creates
+// the session as a bound dependent) and every /token mint (which refreshes it),
+// so both write an identical record shape.
+//
+// Via idpsession.IssueSession the session carries the approver's upstream tokens
+// and IdP claims — the identity manager's reconciler keeps them fresh and deletes
+// the session when the IDPSession dies — while the run-specific claims (sub,
+// run_id, act.<sealed executor claim>) are what authorize evaluates. The run's
+// own sub overrides the IdP subject; RefreshDisabled keeps any legacy per-session
+// refresher from ever presenting the copied upstream refresh token.
+func buildRunSession(idpSess *idpsessionpb.IDPSession, run *agenticpb.Run, now time.Time) *session.Session {
+	s := idpsessionpb.IssueSession(SessionID(run.GetId()), idpSess, now, 0)
+	s.ExpiresAt = run.GetExpiresAt()
+	s.RefreshDisabled = true
+	claims := identity.FlattenedClaims{
+		"sub":    {run.GetSub()},
+		"run_id": {run.GetId()},
+	}
+	for k, vs := range identity.NewFlattenedClaimsFromPB(run.GetBoundClaims()) {
+		claims[ActClaimPrefix+k] = vs
+	}
+	s.AddClaims(claims)
+	return s
+}
+
+// approverSubject is the approver's subject, or "" if nobody approved the run.
+func approverSubject(run *agenticpb.Run) string {
+	if !IsApproved(run) {
+		return ""
+	}
+	return run.GetSub()
+}
+
+// stateString renders a run's state for the API and the consent page.
+func stateString(run *agenticpb.Run) string {
+	if IsApproved(run) {
+		return "approved"
+	}
+	return "pending_approval"
 }
