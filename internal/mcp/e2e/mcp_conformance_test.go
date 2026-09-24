@@ -238,7 +238,7 @@ func runMCPConformance(t *testing.T, mode registrationMode) {
 				}
 				resp, result := doTokenRequest(t, params, nil) // No auth header
 				assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-				assert.Equal(t, "invalid_request", result["error"])
+				assert.Equal(t, "invalid_client", result["error"])
 			})
 
 			t.Run("wrong_secret_fails", func(t *testing.T) {
@@ -255,11 +255,34 @@ func runMCPConformance(t *testing.T, mode registrationMode) {
 					"code_verifier": {newCodeVerifier},
 				}
 				resp, result := doTokenRequest(t, params, &[2]string{clientID, "wrong-secret"})
-				assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-				assert.Equal(t, "invalid_request", result["error"])
+				// OAuth 2.1 3.2.4: the client authenticated via the Authorization
+				// header, so the failure MUST be a 401 carrying WWW-Authenticate.
+				assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+				assert.Equal(t, "invalid_client", result["error"])
+				assert.Equal(t, `Basic realm="pomerium"`, resp.Header.Get("WWW-Authenticate"))
 			})
 		})
 	}
+
+	// ============================================================================
+	// Test #1b: Unknown client_id at the token endpoint
+	//
+	// Reproduces what an MCP client sees after the databroker storage is cleared:
+	// it still holds a persisted registration, but the authorization server no
+	// longer knows the client. OAuth 2.1 3.2.3.1 requires invalid_client, which is
+	// the signal MCP clients use to discard the stale registration and register
+	// again. Anything else leaves the client retrying a dead client_id forever.
+	// ============================================================================
+	t.Run("unknown_client_id_fails_with_invalid_client", func(t *testing.T) {
+		params := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {"stale-refresh-token"},
+			"client_id":     {"e6a1f0b2-6d2d-4c53-9a3f-2b7a4c1d8e90"},
+		}
+		resp, result := doTokenRequest(t, params, nil)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		assert.Equal(t, "invalid_client", result["error"])
+	})
 
 	// ============================================================================
 	// Test #2: PKCE Code Verifier Validation
