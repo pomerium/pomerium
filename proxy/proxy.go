@@ -15,6 +15,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/agentic"
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -23,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -61,6 +63,7 @@ type Proxy struct {
 	tracerProvider   oteltrace.TracerProvider
 	logoProvider     portal.LogoProvider
 	mcp              atomic.Pointer[mcp.Handler]
+	agentic          atomic.Pointer[agentic.Handler]
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn
 }
 
@@ -93,6 +96,13 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 		}
 		p.mcp.Store(mcpHandler)
 	}
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagAgentic) {
+		agenticHandler, err := agentic.New(ctx, agentic.DefaultPrefix, cfg, p)
+		if err != nil {
+			return nil, fmt.Errorf("proxy: failed to create agentic handler: %w", err)
+		}
+		p.agentic.Store(agenticHandler)
+	}
 	p.OnConfigChange(ctx, cfg)
 	p.webauthn = webauthn.New(p.getWebauthnState)
 
@@ -111,6 +121,21 @@ func (p *Proxy) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient 
 // Mount mounts the http handler to a mux router.
 func (p *Proxy) Mount(r *mux.Router) {
 	r.PathPrefix("/").Handler(p)
+}
+
+// AgenticHandler returns the handler for the agentic authorization server's own
+// listener. It resolves the current handler per request rather than capturing
+// one, so a config reload — including one that turns the agentic flag off and
+// clears the slot — takes effect without re-registering anything.
+func (p *Proxy) AgenticHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := p.agentic.Load()
+		if h == nil {
+			http.Error(w, "agentic authorization server not available", http.StatusServiceUnavailable)
+			return
+		}
+		h.HandlerFunc().ServeHTTP(w, r)
+	})
 }
 
 // OnConfigChange updates internal structures based on config.Options
@@ -141,6 +166,33 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		} else {
 			p.mcp.Store(mcpHandler)
 		}
+	}
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagAgentic) {
+		var previousIDPResolver *config.IdentityProviderResolver
+		if previous := p.agentic.Load(); previous != nil {
+			previousIDPResolver = previous.IdentityProviderResolver()
+		}
+		agenticHandler, err := agentic.New(ctx, agentic.DefaultPrefix, cfg, p,
+			agentic.WithPreviousIdentityProviderResolver(previousIDPResolver),
+		)
+		if err != nil {
+			// The previous handler stays, and it holds an immutable config
+			// snapshot — stale JWKS, stale identity providers, stale route config —
+			// which it will keep authenticating against for as long as this keeps
+			// failing. That must not live behind a log line alone, so report it as
+			// a health failure too.
+			log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update agentic handler from configuration settings; the authorization server is serving a stale configuration")
+			health.ReportError(health.AgenticAuthorizationServer, err)
+		} else {
+			p.agentic.Store(agenticHandler)
+			health.ReportRunning(health.AgenticAuthorizationServer)
+		}
+	} else {
+		// The agentic listener is not re-gated by setHandlers the way the dashboard
+		// mount was, so leaving a handler behind would keep /agentic/runs and
+		// /agentic/approve answering after the flag went off — creating and
+		// approving runs whose tokens authorize refuses to honour.
+		p.agentic.Store(nil)
 	}
 }
 

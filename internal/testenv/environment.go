@@ -484,6 +484,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			ALPN:         values.Deferred[int](),
 			Health:       values.Deferred[int](),
 			Connect:      values.Deferred[int](),
+			Agentic:      values.Deferred[int](),
 		},
 		workspaceFolder:      workspaceFolder,
 		silent:               silent,
@@ -556,6 +557,9 @@ type Ports struct {
 	ALPN         values.MutableValue[int]
 	Health       values.MutableValue[int]
 	Connect      values.MutableValue[int]
+	// Agentic is the loopback port the agentic authorization server binds to.
+	// Routes reach it as `to: pomerium://agentic`, not by this port.
+	Agentic values.MutableValue[int]
 }
 
 func (e *environment) TempDir() string {
@@ -651,7 +655,7 @@ func (e *environment) Start() {
 	e.debugf("temp dir: %s", e.TempDir())
 
 	cfg := config.New(config.NewDefaultOptions())
-	ports, err := AllocatePorts(13)
+	ports, err := AllocatePorts(14)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -673,7 +677,8 @@ func (e *environment) Start() {
 	e.ports.Debug.Resolve(atoi(ports[10]))
 	e.ports.ALPN.Resolve(atoi(ports[11]))
 	e.ports.Connect.Resolve(atoi(ports[12]))
-	cfg.AllocatePorts(*(*[7]string)(ports[6:]))
+	e.ports.Agentic.Resolve(atoi(ports[13]))
+	cfg.AllocatePorts(*(*[8]string)(ports[6:]))
 
 	cfg.Options.SSHRLSEnabled = true
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}

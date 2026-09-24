@@ -60,6 +60,9 @@ type Config struct {
 	ACMETLSALPNPort string
 	// ConnectPort is the port the connect server is running on.
 	ConnectPort string
+	// AgenticPort is the loopback port the agentic authorization server listens
+	// on. Routes reach it as `to: pomerium://agentic`.
+	AgenticPort string
 
 	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
 	MetricsScrapeEndpoints []MetricsScrapeEndpoint
@@ -103,6 +106,7 @@ func (cfg *Config) Clone() *Config {
 		DebugPort:                 cfg.DebugPort,
 		ACMETLSALPNPort:           cfg.ACMETLSALPNPort,
 		ConnectPort:               cfg.ConnectPort,
+		AgenticPort:               cfg.AgenticPort,
 
 		MetricsScrapeEndpoints: endpoints,
 
@@ -158,7 +162,7 @@ func (cfg *Config) Checksum() uint64 {
 }
 
 // AllocatePorts populates
-func (cfg *Config) AllocatePorts(ports [7]string) {
+func (cfg *Config) AllocatePorts(ports [8]string) {
 	cfg.GRPCPort = ports[0]
 	cfg.HTTPPort = ports[1]
 	cfg.OutboundPort = ports[2]
@@ -166,6 +170,7 @@ func (cfg *Config) AllocatePorts(ports [7]string) {
 	cfg.DebugPort = ports[4]
 	cfg.ACMETLSALPNPort = ports[5]
 	cfg.ConnectPort = ports[6]
+	cfg.AgenticPort = ports[7]
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries
