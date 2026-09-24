@@ -207,6 +207,7 @@ func (m *StreamAccessRequestManager) DoRequest(streamCtx context.Context, timeou
 					Params:    params,
 					CreatedAt: timestamppb.New(now),
 					ExpiresAt: timestamppb.New(deadline),
+					State:     session.StreamAccessRequest_PENDING,
 				}),
 			},
 		},
@@ -232,7 +233,8 @@ func (m *StreamAccessRequestManager) DoRequest(streamCtx context.Context, timeou
 			context.Background(),
 			m.GetDataBrokerServiceClient(),
 			streamAccessRequestTypeURL,
-			recordID)
+			recordID,
+		)
 		if err != nil {
 			lg.Err(err).Msg("error deleting StreamAccessRequest databroker record; " +
 				"this record may still exist and will not be deleted automatically until it expires")
@@ -332,7 +334,8 @@ func (m *StreamAccessRequestManager) UpdateRecords(ctx context.Context, _ uint64
 				context.Background(),
 				m.GetDataBrokerServiceClient(),
 				streamAccessRequestTypeURL,
-				record.Id)
+				record.Id,
+			)
 			continue
 		}
 
@@ -343,11 +346,11 @@ func (m *StreamAccessRequestManager) UpdateRecords(ctx context.Context, _ uint64
 			if cached.Local {
 				m.localWaitingStreamsMu.Lock()
 
-				if req.State != session.StreamAccessRequest_Pending {
+				if req.State == session.StreamAccessRequest_APPROVED || req.State == session.StreamAccessRequest_DENIED {
 					// the request is approved or denied. check if the stream for this request is
 					// still waiting
 					if stream, ok := m.localWaitingStreams[record.Id]; ok {
-						if req.State == session.StreamAccessRequest_Approved {
+						if req.State == session.StreamAccessRequest_APPROVED {
 							// Check if the request is expired or if it was modified after the expiration time
 							if exp := req.ExpiresAt.AsTime(); exp.Before(time.Now()) || record.ModifiedAt.AsTime().After(exp) {
 								if stream.Deny(req.Metadata) {
@@ -370,7 +373,7 @@ func (m *StreamAccessRequestManager) UpdateRecords(ctx context.Context, _ uint64
 			}
 		} else {
 			// new record
-			if req.State == session.StreamAccessRequest_Pending {
+			if req.State == session.StreamAccessRequest_PENDING {
 				m.localWaitingStreamsMu.Lock()
 
 				if stream, ok := m.localWaitingStreams[record.Id]; ok {

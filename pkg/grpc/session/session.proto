@@ -95,9 +95,10 @@ message IdentityBinding {
 // to access a protected route.
 message StreamAccessRequest {
   enum State {
-    Pending  = 0;
-    Approved = 1;
-    Denied   = 2;
+    NONE     = 0;
+    PENDING  = 1;
+    APPROVED = 2;
+    DENIED   = 3;
   }
   StreamAccessRequestParams params     = 1;
   google.protobuf.Timestamp created_at = 2;

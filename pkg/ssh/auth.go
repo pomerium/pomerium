@@ -193,37 +193,16 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	}
 
 	// Check for non-retriable deny reasons
-	if !res.Allow.Value {
-		if res.Allow.Reasons.Has(criteria.ReasonSourceIPUnauthorized) {
-			return AuthMethodResponse{}, nil
-		}
-		if res.Allow.Reasons.Has(criteria.ReasonSSHUsernameUnauthorized) {
-			return AuthMethodResponse{}, nil
-		}
-		if res.Allow.Reasons.Has(criteria.ReasonSSHPublickeyUnauthorized) {
-			// If the public key itself is not allowed, let the client try a different
-			// public key
-			return AuthMethodResponse{
-				AllowMethod:            false,
-				NextRequiredAuthMethod: MethodPublicKey,
-			}, nil
-		}
+	if resultNonRetriable(res) {
+		return AuthMethodResponse{}, nil
 	}
-	// Check for inverse reasons in the deny response. These show up when denying
-	// specific addresses/usernames/keys as opposed to failing an allow rule
-	if res.Deny.Value {
-		if res.Deny.Reasons.Has(criteria.ReasonSourceIPOK) {
-			return AuthMethodResponse{}, nil
-		}
-		if res.Deny.Reasons.Has(criteria.ReasonSSHUsernameOK) {
-			return AuthMethodResponse{}, nil
-		}
-		if res.Deny.Reasons.Has(criteria.ReasonSSHPublickeyOK) {
-			return AuthMethodResponse{
-				AllowMethod:            false,
-				NextRequiredAuthMethod: MethodPublicKey,
-			}, nil
-		}
+	if resultPublicKeyRetriable(res) {
+		// If the public key itself is not allowed, let the client try a different
+		// public key
+		return AuthMethodResponse{
+			AllowMethod:            false,
+			NextRequiredAuthMethod: MethodPublicKey,
+		}, nil
 	}
 
 	// The public key is acceptable
@@ -293,6 +272,59 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		SessionID:        sessionBinding.SessionId,
 		UserID:           sessionBinding.UserId,
 	}, res, pendingAuthContextUpdates)
+}
+
+func resultPublicKeyRetriable(res *evaluator.Result) bool {
+	if !res.Allow.Value {
+		if res.Allow.Reasons.Has(criteria.ReasonSSHPublickeyUnauthorized) {
+			return true
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHPublickeyOK) {
+			return true
+		}
+	}
+	if res.Deny.Value {
+		if res.Deny.Reasons.Has(criteria.ReasonSSHPublickeyUnauthorized) {
+			return true
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHPublickeyOK) {
+			return true
+		}
+	}
+	return false
+}
+
+func resultNonRetriable(res *evaluator.Result) bool {
+	if !res.Allow.Value {
+		if res.Allow.Reasons.Has(criteria.ReasonSourceIPUnauthorized) {
+			return true
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSourceIPOK) {
+			return true
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHUsernameUnauthorized) {
+			return true
+		}
+		if res.Allow.Reasons.Has(criteria.ReasonSSHUsernameOK) {
+			return true
+		}
+	}
+	if res.Deny.Value {
+		if res.Deny.Reasons.Has(criteria.ReasonSourceIPUnauthorized) {
+			return true
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSourceIPOK) {
+			return true
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHUsernameUnauthorized) {
+			return true
+		}
+		if res.Deny.Reasons.Has(criteria.ReasonSSHUsernameOK) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (a *Auth) HandleKeyboardInteractiveMethodRequest(
@@ -458,26 +490,39 @@ func processSessionEvaluateResult(
 
 func twoPersonAuthRequired(res *evaluator.Result) bool {
 	// Note that the same "ssh-access-request-required" reason is checked in both
-	// allow and deny reasons (contrary to the way ssh_publickey and source_ip
-	// reasons are handled). This is because you can use the
-	// ssh_access_request_approved criteria in an allow block using and/or, or in
-	// a deny block using not/nor. The failure reason is always
-	// "ssh-access-request-required" regardless because not/nor will swap the
-	// success and failure reasons for criteria used in those blocks.
+	// allow and deny reasons, contrary to the way ssh_publickey and source_ip
+	// reasons are handled. This criteria only makes sense when used with
+	// allow+and/or or deny+not/nor, which will have the same failure reason.
+	//
 
-	if res.Allow.Value == res.Deny.Value {
-		// Either the allow or deny criteria failed, but not both. If the last
-		// remaining reason for whichever one was rejected is
-		// "ssh-access-request-required", then two person auth is required. If there
-		// are any other unrelated failure reasons then the request is denied.
-		if res.Allow.Value && len(res.Deny.Reasons) == 1 &&
-			res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {
-			return true
-		} else if !res.Deny.Value && len(res.Allow.Reasons) == 1 &&
-			res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {
-			return true
-		}
-	} else if !res.Allow.Value {
+	allowed := res.Allow.Value
+	denied := res.Deny.Value
+	isRemainingAllowReason := len(res.Allow.Reasons) == 1 &&
+		res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired)
+	isRemainingDenyReason := len(res.Deny.Reasons) == 1 &&
+		res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired)
+
+	// there are 9 possibilities here:
+	// 1. allowed && !denied (false)
+	// 2. allowed && denied && isRemainingDenyReason (true)
+	// 3. allowed && denied && !isRemainingDenyReason (false)
+	// 4. !allowed && !denied && isRemainingAllowReason (true)
+	// 5. !allowed && !denied && !isRemainingAllowReason (false)
+	// 6. !allowed && denied && isRemainingAllowReason && isRemainingDenyReason (true)
+	// 7. !allowed && denied && isRemainingAllowReason && !isRemainingDenyReason (false)
+	// 8. !allowed && denied && !isRemainingAllowReason && isRemainingDenyReason (false)
+	// 9. !allowed && denied && !isRemainingAllowReason && !isRemainingDenyReason (false)
+
+	switch {
+	case allowed && denied && isRemainingDenyReason:
+		// The request was otherwise allowed, and has ssh_access_request_approved
+		// in the deny block
+		return true
+	case !allowed && !denied && isRemainingAllowReason:
+		// The request was not denied, and has ssh_access_request_approved in the
+		// allow block
+		return true
+	case !allowed && denied && isRemainingAllowReason && isRemainingDenyReason:
 		// This handles the unusual case of redundant criteria, as in:
 		//
 		//  allow:
@@ -486,13 +531,10 @@ func twoPersonAuthRequired(res *evaluator.Result) bool {
 		//  deny:
 		//    not:
 		//      - ssh_access_request_approved: {}
-		if len(res.Allow.Reasons) == 1 && len(res.Deny.Reasons) == 1 &&
-			res.Allow.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) &&
-			res.Deny.Reasons.Has(criteria.ReasonSSHAccessRequestRequired) {
-			return true
-		}
+		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func (a *Auth) handleTwoPersonApproval(
@@ -718,11 +760,16 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, streamInfo StreamInfo, authI
 	if !authInfoHasSession(authInfo) {
 		panic("bug: EvaluateDelayed called with missing session info")
 	}
-	req, err := a.sshRequestFromStreamAuthInfo(ctx, streamInfo, authInfo, user)
-	if err != nil {
-		return err
-	}
-	res, err := a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, req, streamInfo.InitialAuthComplete)
+	res, err := a.evaluator.EvaluateSSH(ctx, streamInfo.StreamID, AuthRequest{
+		Username:              user.Username(),
+		Hostname:              user.Hostname(),
+		PublicKey:             string(authInfo.GetPublicKey()),
+		SessionID:             authInfo.GetSessionId(),
+		SourceAddress:         streamInfo.SourceAddress,
+		SessionBindingID:      authInfo.GetSessionBindingId(),
+		LogOnlyIfDenied:       streamInfo.InitialAuthComplete,
+		AccessRequestApproved: authInfo.GetAccessRequestState() == extensions_ssh.AccessRequestState_Approved,
+	}, streamInfo.InitialAuthComplete)
 	if err != nil {
 		return err
 	}
@@ -804,7 +851,8 @@ func (a *Auth) DeleteSession(ctx context.Context, _ StreamInfo, authInfo StreamA
 	}
 	toInvalidate := []*databroker.Record{}
 	sessionErr := session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), binding.SessionId)
-	a.evaluator.InvalidateCacheForRecords(ctx,
+	a.evaluator.InvalidateCacheForRecords(
+		ctx,
 		&databroker.Record{
 			Type: "type.googleapis.com/session.Session",
 			Id:   binding.SessionId,
@@ -898,17 +946,4 @@ func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 		return "", errInvalidFingerprint
 	}
 	return "sshkey-SHA256:" + base64.RawStdEncoding.EncodeToString(sha256fingerprint), nil
-}
-
-// Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
-func (a *Auth) sshRequestFromStreamAuthInfo(_ context.Context, streamInfo StreamInfo, authInfo StreamAuthInfo, user api.UserRequest) (AuthRequest, error) {
-	return AuthRequest{
-		Username:         user.Username(),
-		Hostname:         user.Hostname(),
-		PublicKey:        string(authInfo.GetPublicKey()),
-		SessionID:        authInfo.GetSessionId(),
-		SourceAddress:    streamInfo.SourceAddress,
-		SessionBindingID: authInfo.GetSessionBindingId(),
-		LogOnlyIfDenied:  streamInfo.InitialAuthComplete,
-	}, nil
 }

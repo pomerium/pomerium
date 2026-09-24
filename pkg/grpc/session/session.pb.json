@@ -39,18 +39,23 @@
           "description": "",
           "values": [
             {
-              "name": "Pending",
+              "name": "NONE",
               "number": "0",
               "description": ""
             },
             {
-              "name": "Approved",
+              "name": "PENDING",
               "number": "1",
               "description": ""
             },
             {
-              "name": "Denied",
+              "name": "APPROVED",
               "number": "2",
+              "description": ""
+            },
+            {
+              "name": "DENIED",
+              "number": "3",
               "description": ""
             }
           ]

@@ -119,6 +119,11 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 		res, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey1))
 		assert.ErrorContains(t, err, "test error")
 		assert.Equal(t, ssh.AuthMethodResponse{}, res)
+		{
+			res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey1))
+			assert.ErrorIs(t, err, status.Errorf(codes.PermissionDenied, "permission denied"))
+			assert.Equal(t, ssh.AuthMethodResponse{}, res)
+		}
 	})
 
 	t.Run("public key unauthorized", func(t *testing.T) {
@@ -485,13 +490,34 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 	t.Run("session is valid but user is unauthorized", func(t *testing.T) {
 		// there are several ways this can occur
 		results := []*evaluator.Result{
-			{ // allow is false
+			{ // allow is false and reason isn't ReasonSSHAccessRequestRequired
 				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthorized),
 				Deny:  evaluator.NewRuleResult(false),
 			},
 			{ // deny is true and reason isn't ReasonSSHAccessRequestRequired
 				Allow: evaluator.NewRuleResult(true, criteria.ReasonUserOK),
 				Deny:  evaluator.NewRuleResult(true, criteria.ReasonClaimOK), // inverse
+			},
+			// or there are other reasons in addition to AccessRequestRequired
+			{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthorized, criteria.ReasonSSHAccessRequestRequired),
+				Deny:  evaluator.NewRuleResult(false),
+			},
+			{
+				Allow: evaluator.NewRuleResult(true),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonClaimOK, criteria.ReasonSSHAccessRequestRequired),
+			},
+			{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthorized, criteria.ReasonSSHAccessRequestRequired),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonClaimOK, criteria.ReasonSSHAccessRequestRequired),
+			},
+			{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHAccessRequestRequired),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonClaimOK, criteria.ReasonSSHAccessRequestRequired),
+			},
+			{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthorized, criteria.ReasonSSHAccessRequestRequired),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonSSHAccessRequestRequired),
 			},
 		}
 
@@ -515,6 +541,93 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 				assert.Equal(t, ssh.AuthMethodResponse{}, res)
 			})
 		}
+	})
+
+	t.Run("session is valid but access request is required", func(t *testing.T) {
+		results := []*evaluator.Result{
+			{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHAccessRequestRequired),
+				Deny:  evaluator.NewRuleResult(false),
+			},
+			{
+				Allow: evaluator.NewRuleResult(true, criteria.ReasonUserOK),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonSSHAccessRequestRequired),
+			},
+			{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHAccessRequestRequired),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonSSHAccessRequestRequired),
+			},
+		}
+
+		for i, result := range results {
+			t.Run(fmt.Sprintf("result %d", i), func(t *testing.T) {
+				evaluator := &fakePolicyEvaluator{
+					evaluateSSH: func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
+						if r.SessionBindingID == "" || r.SessionID == "" {
+							return &evaluator.Result{
+								Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+								Deny:  evaluator.NewRuleResult(false),
+							}, nil
+						}
+						return result, nil
+					},
+					client: databrokerClient,
+				}
+				a := ssh.NewAuth(evaluator, nil, &nooptrace.TracerProvider{}, &fakeIssuer{}, nil)
+				res, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamInfo{}, &extensions_ssh.AuthContext{}, user, newPkMethodRequest(sshKey1))
+				require.NoError(t, err)
+				assert.Equal(t, ssh.AuthMethodResponse{
+					AllowMethod:            true,
+					NextRequiredAuthMethod: ssh.MethodKeyboardInteractive,
+					ContextUpdates: &extensions_ssh.AuthContext{
+						PublicKey:                  sshKey1.Marshal(),
+						PublicKeyAlg:               sshKey1.Type(),
+						PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey1),
+						SessionId:                  sessionID,
+						UserId:                     userID,
+						SessionBindingId:           sessionBindingID,
+						AccessRequestState:         extensions_ssh.AccessRequestState_Pending,
+					},
+				}, res)
+			})
+		}
+	})
+
+	t.Run("access request state persisted on reauth", func(t *testing.T) {
+		evaluator := &fakePolicyEvaluator{
+			evaluateSSH: func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
+				if !assert.Equal(t, ssh.AuthRequest{
+					Username:              user.Username(),
+					Hostname:              user.Hostname(),
+					PublicKey:             string(sshKey1.Marshal()),
+					SessionID:             sessionID,
+					SourceAddress:         "source",
+					SessionBindingID:      sessionBindingID,
+					LogOnlyIfDenied:       true,
+					AccessRequestApproved: true,
+				}, r) {
+					return nil, errors.New("test failed")
+				}
+				return &evalResultAlwaysAllow, nil
+			},
+			client: databrokerClient,
+		}
+		a := ssh.NewAuth(evaluator, nil, &nooptrace.TracerProvider{}, &fakeIssuer{}, nil)
+		err := a.EvaluateDelayed(t.Context(), ssh.StreamInfo{
+			StreamID:            1,
+			SourceAddress:       "source",
+			ChannelType:         "session",
+			InitialAuthComplete: true,
+		}, &extensions_ssh.AuthContext{
+			PublicKey:                  sshKey1.Marshal(),
+			PublicKeyAlg:               sshKey1.Type(),
+			PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey1),
+			SessionId:                  sessionID,
+			UserId:                     userID,
+			SessionBindingId:           sessionBindingID,
+			AccessRequestState:         extensions_ssh.AccessRequestState_Approved,
+		}, user)
+		assert.NoError(t, err)
 	})
 
 	t.Run("session or session binding records missing or invalid", func(t *testing.T) {

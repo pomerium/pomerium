@@ -71,7 +71,7 @@ type IdpUserOptions struct {
 }
 
 const (
-	idpUserMaxRoutes = 50
+	idpUserMaxRoutes = 100
 	idpUserMaxUsers  = 7
 )
 
@@ -286,69 +286,170 @@ func (rt *RouteTests) AddRouteTest(pplTemplate string, fn func(api RouteTestAPI)
 	_, _, line, _ := runtime.Caller(1)
 	tcNamePrefix := fmt.Sprintf("route-test-%d", line)
 
-	for _, mode := range rt.modes {
-		rt.s.Require().Less(len(rt.testCases), idpUserMaxRoutes, "too many route tests; increase the value of idpUserMaxRoutes")
-		var routeUserFmt string
-		var staticUserFmt string
-		var tcNameSuffix string
-		routeName := fmt.Sprintf("route%d", len(rt.testCases))
-		switch mode {
-		case Regular:
-			routeUserFmt = routeName + "-user%d"
-			staticUserFmt = "user%c"
-			tcNameSuffix = ""
-		case CertKey:
-			routeUserFmt = routeName + "-certuser%d"
-			staticUserFmt = "certuser%c"
-			tcNameSuffix = "-certkeys"
-		default:
-			panic("unimplemented mode")
+	for _, inverse := range []bool{false, true} {
+		pplTemplate := pplTemplate
+		if inverse {
+			tcNamePrefix += "-inverse"
+			pplTemplate = invertPplTemplate(pplTemplate)
 		}
-		template := template.New("route-tests").
-			Funcs(template.FuncMap{
-				"routeUserPublicKey": func(userNum int) string {
-					targetEmail := fmt.Sprintf(routeUserFmt, userNum) + "@example.com"
-					for _, user := range rt.s.idpUsers {
-						if user.Email == targetEmail {
-							return strings.TrimSpace(string(gossh.MarshalAuthorizedKey(user.SSHKey.PublicKey())))
+		for _, mode := range rt.modes {
+			rt.s.Require().Less(len(rt.testCases), idpUserMaxRoutes, "too many route tests; increase the value of idpUserMaxRoutes")
+			var routeUserFmt string
+			var staticUserFmt string
+			var tcNameSuffix string
+			routeName := fmt.Sprintf("route%d", len(rt.testCases))
+			switch mode {
+			case Regular:
+				routeUserFmt = routeName + "-user%d"
+				staticUserFmt = "user%c"
+				tcNameSuffix = ""
+			case CertKey:
+				routeUserFmt = routeName + "-certuser%d"
+				staticUserFmt = "certuser%c"
+				tcNameSuffix = "-certkeys"
+			default:
+				panic("unimplemented mode")
+			}
+			template := template.New("route-tests").
+				Funcs(template.FuncMap{
+					"routeUserPublicKey": func(userNum int) string {
+						targetEmail := fmt.Sprintf(routeUserFmt, userNum) + "@example.com"
+						for _, user := range rt.s.idpUsers {
+							if user.Email == targetEmail {
+								return strings.TrimSpace(string(gossh.MarshalAuthorizedKey(user.SSHKey.PublicKey())))
+							}
 						}
-					}
-					return "<error>"
+						return "<error>"
+					},
+					"routeUserName": func(userPlaceholder int) string {
+						rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+						return fmt.Sprintf(routeUserFmt, userPlaceholder)
+					},
+					"staticUserName": func(userPlaceholder uint) string {
+						rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+						return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder)
+					},
+					"routeUserEmail": func(userPlaceholder int) string {
+						rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+						return fmt.Sprintf(routeUserFmt, userPlaceholder) + "@example.com"
+					},
+					"staticUserEmail": func(userPlaceholder uint) string {
+						rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
+						return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder) + "@example.com"
+					},
+				})
+			var out bytes.Buffer
+			tmpl, err := template.Parse(pplTemplate)
+			rt.s.Require().NoError(err, "invalid template input")
+			err = tmpl.Execute(&out, rt.s.getTemplateContext())
+			rt.s.Require().NoError(err, "failed to execute template")
+			rt.testCases = append(rt.testCases, routeTestCase{
+				testName: tcNamePrefix + tcNameSuffix,
+				opts: RouteOptions{
+					Name: routeName,
+					PPL:  out.String(),
 				},
-				"routeUserName": func(userPlaceholder int) string {
-					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
-					return fmt.Sprintf(routeUserFmt, userPlaceholder)
-				},
-				"staticUserName": func(userPlaceholder uint) string {
-					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
-					return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder)
-				},
-				"routeUserEmail": func(userPlaceholder int) string {
-					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
-					return fmt.Sprintf(routeUserFmt, userPlaceholder) + "@example.com"
-				},
-				"staticUserEmail": func(userPlaceholder uint) string {
-					rt.s.Require().Less(userPlaceholder, idpUserMaxUsers)
-					return fmt.Sprintf(staticUserFmt, 'A'+userPlaceholder) + "@example.com"
+				testFunc: fn,
+				api: &routeTestAPI{
+					routeName:     routeName,
+					routeUserFmt:  routeUserFmt,
+					staticUserFmt: staticUserFmt,
 				},
 			})
-		var out bytes.Buffer
-		tmpl, err := template.Parse(pplTemplate)
-		rt.s.Require().NoError(err, "invalid template input")
-		err = tmpl.Execute(&out, rt.s.getTemplateContext())
-		rt.s.Require().NoError(err, "failed to execute template")
-		rt.testCases = append(rt.testCases, routeTestCase{
-			testName: tcNamePrefix + tcNameSuffix,
-			opts: RouteOptions{
-				Name: routeName,
-				PPL:  out.String(),
-			},
-			testFunc: fn,
-			api: &routeTestAPI{
-				routeName:     routeName,
-				routeUserFmt:  routeUserFmt,
-				staticUserFmt: staticUserFmt,
-			},
+		}
+	}
+}
+
+var pplKeywordRegex = regexp.MustCompile(`\b(allow|deny|and|or|not|nor):`)
+
+func invertPplTemplate(pplTemplate string) string {
+	res := pplKeywordRegex.ReplaceAllStringFunc(pplTemplate, func(s string) string {
+		switch s {
+		case "allow:":
+			return "deny:"
+		case "deny:":
+			return "allow:"
+		case "and:":
+			return "nor:"
+		case "or:":
+			return "not:"
+		case "not:":
+			return "or:"
+		case "nor:":
+			return "and:"
+		}
+		return s
+	})
+
+	if !strings.Contains(res, "allow:") {
+		if !strings.HasSuffix(res, "\n") {
+			res += "\n"
+		}
+		res += `allow:
+  and:
+    - accept: {}
+`
+	}
+	return res
+}
+
+func TestInvertPplTemplate(t *testing.T) {
+	tests := []struct {
+		pplTemplate string
+		want        string
+	}{
+		{
+			pplTemplate: `
+allow:
+  and:
+    - foo
+`,
+			want: `
+deny:
+  nor:
+    - foo
+allow:
+  and:
+    - accept: {}
+`,
+		},
+		{
+			pplTemplate: `
+allow:
+  or:
+    - foo
+deny:
+  and:
+    - foo
+`,
+			want: `
+deny:
+  not:
+    - foo
+allow:
+  nor:
+    - foo
+`,
+		},
+		{
+			pplTemplate: `
+allow: { not: [and] }
+deny: { nor: [or] }
+`,
+			want: `
+deny: { or: [and] }
+allow: { and: [or] }
+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run("", func(t *testing.T) {
+			inverted := invertPplTemplate(tt.pplTemplate)
+			assert.Equal(t, tt.want, inverted)
+
+			reverted := invertPplTemplate(inverted)
+			reverted = strings.TrimSuffix(reverted, "deny:\n  nor:\n    - accept: {}\n")
+			assert.Equal(t, tt.pplTemplate, reverted)
 		})
 	}
 }
@@ -501,7 +602,7 @@ func (s *SSHTestSuite) fetchAndUpdateStreamAccessRequest(id string, f func(*data
 	var msg session.StreamAccessRequest
 	err = record.GetRecord().GetData().UnmarshalTo(&msg)
 	s.Require().NoError(err)
-	s.Require().Equal(session.StreamAccessRequest_Pending, msg.State)
+	s.Require().Equal(session.StreamAccessRequest_PENDING, msg.State)
 	f(record.GetRecord(), &msg)
 	_, err = client.Put(s.T().Context(), &databroker.PutRequest{
 		Records: []*databroker.Record{
@@ -1189,7 +1290,7 @@ deny:
 			select {
 			case id := <-requestID:
 				s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
-					req.State = session.StreamAccessRequest_Approved
+					req.State = session.StreamAccessRequest_APPROVED
 				})
 			case <-s.T().Context().Done():
 			}
@@ -1214,8 +1315,8 @@ deny:
 				select {
 				case id := <-requestID:
 					s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
-						s.Require().Equal(session.StreamAccessRequest_Pending, req.State)
-						req.State = session.StreamAccessRequest_Denied
+						s.Require().Equal(session.StreamAccessRequest_PENDING, req.State)
+						req.State = session.StreamAccessRequest_DENIED
 					})
 				case <-s.T().Context().Done():
 				}
@@ -1322,7 +1423,7 @@ deny:
 			select {
 			case id := <-requestID:
 				s.fetchAndUpdateStreamAccessRequest(id, func(_ *databroker.Record, req *session.StreamAccessRequest) {
-					req.State = session.StreamAccessRequest_Approved
+					req.State = session.StreamAccessRequest_APPROVED
 				})
 			case <-s.T().Context().Done():
 			}

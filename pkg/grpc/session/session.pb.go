@@ -76,22 +76,25 @@ func (SessionBindingRequestState) EnumDescriptor() ([]byte, []int) {
 type StreamAccessRequest_State int32
 
 const (
-	StreamAccessRequest_Pending  StreamAccessRequest_State = 0
-	StreamAccessRequest_Approved StreamAccessRequest_State = 1
-	StreamAccessRequest_Denied   StreamAccessRequest_State = 2
+	StreamAccessRequest_NONE     StreamAccessRequest_State = 0
+	StreamAccessRequest_PENDING  StreamAccessRequest_State = 1
+	StreamAccessRequest_APPROVED StreamAccessRequest_State = 2
+	StreamAccessRequest_DENIED   StreamAccessRequest_State = 3
 )
 
 // Enum value maps for StreamAccessRequest_State.
 var (
 	StreamAccessRequest_State_name = map[int32]string{
-		0: "Pending",
-		1: "Approved",
-		2: "Denied",
+		0: "NONE",
+		1: "PENDING",
+		2: "APPROVED",
+		3: "DENIED",
 	}
 	StreamAccessRequest_State_value = map[string]int32{
-		"Pending":  0,
-		"Approved": 1,
-		"Denied":   2,
+		"NONE":     0,
+		"PENDING":  1,
+		"APPROVED": 2,
+		"DENIED":   3,
 	}
 )
 
@@ -736,7 +739,7 @@ func (x *StreamAccessRequest) GetState() StreamAccessRequest_State {
 	if x != nil {
 		return x.State
 	}
-	return StreamAccessRequest_Pending
+	return StreamAccessRequest_NONE
 }
 
 func (x *StreamAccessRequest) GetMetadata() map[string]string {
@@ -1110,7 +1113,7 @@ const file_session_proto_rawDesc = "" +
 	"\adetails\x18\x04 \x03(\v2%.session.IdentityBinding.DetailsEntryR\adetails\x1a:\n" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb6\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc0\x03\n" +
 	"\x13StreamAccessRequest\x12:\n" +
 	"\x06params\x18\x01 \x01(\v2\".session.StreamAccessRequestParamsR\x06params\x129\n" +
 	"\n" +
@@ -1121,12 +1124,13 @@ const file_session_proto_rawDesc = "" +
 	"\bmetadata\x18\x05 \x03(\v2*.session.StreamAccessRequest.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\".\n" +
-	"\x05State\x12\v\n" +
-	"\aPending\x10\x00\x12\f\n" +
-	"\bApproved\x10\x01\x12\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"8\n" +
+	"\x05State\x12\b\n" +
+	"\x04NONE\x10\x00\x12\v\n" +
+	"\aPENDING\x10\x01\x12\f\n" +
+	"\bAPPROVED\x10\x02\x12\n" +
 	"\n" +
-	"\x06Denied\x10\x02\"\xab\x01\n" +
+	"\x06DENIED\x10\x03\"\xab\x01\n" +
 	"\x19StreamAccessRequestParams\x12\x1a\n" +
 	"\bprotocol\x18\x01 \x01(\tR\bprotocol\x12\x1d\n" +
 	"\n" +

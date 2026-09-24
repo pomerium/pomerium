@@ -102,7 +102,7 @@ func approveRequest(t *testing.T, client databrokerpb.DataBrokerServiceClient, s
 				Type: "type.googleapis.com/session.StreamAccessRequest",
 				Id:   fmt.Sprintf("%x", streamID),
 				Data: marshalAny(&session.StreamAccessRequest{
-					State: session.StreamAccessRequest_Approved,
+					State: session.StreamAccessRequest_APPROVED,
 				}),
 			},
 		},
@@ -120,7 +120,7 @@ func denyRequest(t *testing.T, client databrokerpb.DataBrokerServiceClient, stre
 				Type: "type.googleapis.com/session.StreamAccessRequest",
 				Id:   fmt.Sprintf("%x", streamID),
 				Data: marshalAny(&session.StreamAccessRequest{
-					State: session.StreamAccessRequest_Denied,
+					State: session.StreamAccessRequest_DENIED,
 				}),
 			},
 		},
@@ -284,7 +284,7 @@ func TestRequestManager_ConcurrentApprovalOrDenial(t *testing.T) {
 	}
 
 	for i := range n {
-		a, b := session.StreamAccessRequest_Approved, session.StreamAccessRequest_Denied
+		a, b := session.StreamAccessRequest_APPROVED, session.StreamAccessRequest_DENIED
 		if i%2 == 0 {
 			a, b = b, a
 		}
@@ -411,7 +411,7 @@ func TestRequestManager_StaleRecords(t *testing.T) {
 					Params:    newRequestParams(1234),
 					CreatedAt: timestamppb.New(time.Now().Add(-2 * time.Minute)),
 					ExpiresAt: timestamppb.New(time.Now().Add(-1 * time.Minute)),
-					State:     session.StreamAccessRequest_Pending,
+					State:     session.StreamAccessRequest_PENDING,
 				}),
 			},
 			{
@@ -421,7 +421,7 @@ func TestRequestManager_StaleRecords(t *testing.T) {
 					Params:    newRequestParams(2345),
 					CreatedAt: timestamppb.New(time.Now().Add(-2 * time.Minute)),
 					ExpiresAt: timestamppb.New(time.Now().Add(-1 * time.Minute)),
-					State:     session.StreamAccessRequest_Approved,
+					State:     session.StreamAccessRequest_APPROVED,
 				}),
 			},
 		},
@@ -585,7 +585,7 @@ func TestRequestManager_IgnoreInvalidRecords(t *testing.T) {
 					Params:    newRequestParams(2),
 					CreatedAt: timestamppb.New(time.Now()),
 					ExpiresAt: timestamppb.New(time.Now().Add(1 * time.Minute)),
-					State:     session.StreamAccessRequest_Approved,
+					State:     session.StreamAccessRequest_APPROVED,
 				}),
 			},
 			{
@@ -595,7 +595,7 @@ func TestRequestManager_IgnoreInvalidRecords(t *testing.T) {
 					Params:    newRequestParams(3),
 					CreatedAt: timestamppb.New(time.Now()),
 					ExpiresAt: timestamppb.New(time.Now().Add(1 * time.Minute)),
-					State:     session.StreamAccessRequest_Denied,
+					State:     session.StreamAccessRequest_DENIED,
 				}),
 			},
 		},
@@ -874,7 +874,7 @@ func TestRequestManager_RequestApprovedAfterExpiry(t *testing.T) {
 				Type: "type.googleapis.com/session.StreamAccessRequest",
 				Id:   fmt.Sprintf("%x", uint64(1)),
 				Data: marshalAny(&session.StreamAccessRequest{
-					State:     session.StreamAccessRequest_Approved,
+					State:     session.StreamAccessRequest_APPROVED,
 					ExpiresAt: timestamppb.New(time.Now().Add(-1 * time.Microsecond)),
 				}),
 			},
