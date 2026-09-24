@@ -171,7 +171,7 @@ test-e2e-k3s: get-envoy ## Runs the k3s external-JWT e2e test (requires Docker).
 .PHONY: test-e2e-k3s-secrets
 test-e2e-k3s-secrets: get-envoy ## Runs the k3s secret-rotation e2e test (requires Docker).
 	@echo "==> $@"
-	RUN_TestSecretInjection_K3s=1 $(GO) test -timeout=20m -run '^TestSecretInjection_K3s$$' ./authorize/...
+	RUN_TestSecretInjection_K3s=1 $(GO) test -timeout=20m -run '^TestSecretInjection_K3s$$' ./internal/tests/k3s/...
 
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage

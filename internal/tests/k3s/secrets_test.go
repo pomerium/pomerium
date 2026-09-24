@@ -1,4 +1,7 @@
-// This file holds the Kubernetes end-to-end test for secret injection: a real
+// Package k3s_test holds end-to-end tests that run Pomerium as a pod in a
+// throwaway k3s cluster.
+//
+// TestSecretInjection_K3s covers secret injection: a real
 // kubelet projects a Kubernetes Secret into a Pomerium pod, and rotating the
 // Secret must reach the upstream as a changed request header with no Pomerium
 // restart or config reload.
@@ -15,17 +18,17 @@
 // Kubelet's pod sync is shortened to a few seconds so each rotation lands
 // quickly; the mechanism is unchanged.
 //
-// Gated like TestExternalJWTBearer_K3s (slow, needs Docker and network access
-// to pull the pod images). Run it via:
+// Gated by k3stest.RequireExclusive (slow, needs Docker and network access to
+// pull the pod images). Run it via:
 //
 //	make test-e2e-k3s-secrets
 //
 // or directly:
 //
 //	RUN_TestSecretInjection_K3s=1 go test -timeout=20m \
-//	    -run '^TestSecretInjection_K3s$' ./authorize/
+//	    -run '^TestSecretInjection_K3s$' ./internal/tests/k3s/
 
-package authorize_test
+package k3s_test
 
 import (
 	"bufio"
@@ -43,8 +46,9 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	tck3s "github.com/testcontainers/testcontainers-go/modules/k3s"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/pomerium/pomerium/internal/testutil/k3stest"
 )
 
 const (
@@ -176,7 +180,7 @@ func buildLinuxPomerium(ctx context.Context, dir string) (string, error) {
 	}
 
 	cmd := exec.CommandContext(ctx, "make", "build-go", "BINDIR="+dir)
-	cmd.Dir = ".." // module root; go test runs in the package directory
+	cmd.Dir = "../../.." // module root; go test runs in the package directory
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+ver.Arch)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("building linux/%s pomerium: %w: %s", ver.Arch, err, b)
@@ -185,7 +189,7 @@ func buildLinuxPomerium(ctx context.Context, dir string) (string, error) {
 }
 
 func TestSecretInjection_K3s(t *testing.T) {
-	gateExclusiveIntegrationTest(t)
+	k3stest.RequireExclusive(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
@@ -194,32 +198,30 @@ func TestSecretInjection_K3s(t *testing.T) {
 	var binary string
 	var build errgroup.Group
 	build.Go(func() (err error) {
-		binary, err = buildLinuxPomerium(dockerContext(ctx), t.TempDir())
+		binary, err = buildLinuxPomerium(k3stest.DockerContext(ctx), t.TempDir())
 		return err
 	})
 
-	k3sCtr, err := tck3s.Run(dockerContext(ctx), k3sImage,
+	k3sCtr := k3stest.Run(ctx, t,
 		testcontainers.WithCmdArgs("--kubelet-arg=sync-frequency=5s"),
 		testcontainers.WithExposedPorts(pomeriumNodePort+"/tcp"))
-	require.NoError(t, err, "failed to start k3s testcontainer")
 	t.Cleanup(func() {
 		// Not ctx: it may already be cancelled by the time cleanup runs.
 		if t.Failed() {
-			t.Logf("pomerium logs:\n%s", kubectl(context.Background(), t, k3sCtr, "logs", "pomerium", "--tail=200"))
+			t.Logf("pomerium logs:\n%s", k3stest.Kubectl(context.Background(), t, k3sCtr, "logs", "pomerium", "--tail=200"))
 		}
-		_ = k3sCtr.Terminate(dockerContext(context.Background()))
 	})
 	require.NoError(t, build.Wait())
 
-	require.NoError(t, k3sCtr.CopyFileToContainer(dockerContext(ctx), binary, secretsNodeDir+"/pomerium", 0o755))
-	require.NoError(t, k3sCtr.CopyToContainer(dockerContext(ctx), []byte(secretsK3sManifest), "/tmp/manifest.yaml", 0o644))
-	kubectl(ctx, t, k3sCtr, "apply", "-f", "/tmp/manifest.yaml")
+	require.NoError(t, k3sCtr.CopyFileToContainer(k3stest.DockerContext(ctx), binary, secretsNodeDir+"/pomerium", 0o755))
+	require.NoError(t, k3sCtr.CopyToContainer(k3stest.DockerContext(ctx), []byte(secretsK3sManifest), "/tmp/manifest.yaml", 0o644))
+	k3stest.Kubectl(ctx, t, k3sCtr, "apply", "-f", "/tmp/manifest.yaml")
 	// The first run pulls both images into the node.
-	kubectl(ctx, t, k3sCtr, "wait", "--for=condition=Ready", "pod/whoami", "pod/pomerium", "--timeout=5m")
+	k3stest.Kubectl(ctx, t, k3sCtr, "wait", "--for=condition=Ready", "pod/whoami", "pod/pomerium", "--timeout=5m")
 
-	port, err := k3sCtr.MappedPort(dockerContext(ctx), pomeriumNodePort+"/tcp")
+	port, err := k3sCtr.MappedPort(k3stest.DockerContext(ctx), pomeriumNodePort+"/tcp")
 	require.NoError(t, err)
-	host, err := k3sCtr.Host(dockerContext(ctx))
+	host, err := k3sCtr.Host(k3stest.DockerContext(ctx))
 	require.NoError(t, err)
 	baseURL := fmt.Sprintf("http://%s:%s/", host, port.Port())
 
@@ -261,7 +263,7 @@ func TestSecretInjection_K3s(t *testing.T) {
 	// swap, not just the first.
 	for _, v := range []string{"v1", "v2", "v3"} {
 		if v != "v1" {
-			kubectl(ctx, t, k3sCtr, "patch", "secret", "upstream-token",
+			k3stest.Kubectl(ctx, t, k3sCtr, "patch", "secret", "upstream-token",
 				"-p", fmt.Sprintf(`{"stringData":{"token":%q}}`, v))
 		}
 		require.Eventuallyf(t, func() bool {
@@ -275,7 +277,7 @@ func TestSecretInjection_K3s(t *testing.T) {
 	// Removing the key makes kubelet delete the projected files; once the
 	// stale grace elapses, requests fail closed with a 503 instead of reaching
 	// the upstream with a stale or empty header.
-	kubectl(ctx, t, k3sCtr, "patch", "secret", "upstream-token",
+	k3stest.Kubectl(ctx, t, k3sCtr, "patch", "secret", "upstream-token",
 		"--type=json", "-p", `[{"op":"remove","path":"/data/token"}]`)
 	require.Eventually(t, func() bool {
 		status, _ := probe()
