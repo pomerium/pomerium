@@ -597,7 +597,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsUpstreamServerName:             p.TLSUpstreamServerName,
 	}
 	if pb.Name == nil || *pb.Name == "" {
-		pb.Name = new(fmt.Sprint(p.RouteID()))
+		routeID, _ := p.RouteID()
+		pb.Name = new(routeID)
 	}
 	if p.HostPathRegexRewritePattern != "" {
 		pb.HostPathRegexRewritePattern = new(p.HostPathRegexRewritePattern)

@@ -113,7 +113,7 @@ func TestConfigServiceLocalRoutes(t *testing.T) {
 		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
 		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
 		Routes: []config.Policy{{
-			From: "https://from.example.com",
+			From: "https://example.com",
 			To: config.WeightedURLs{{
 				URL: *to,
 			}},
@@ -129,11 +129,10 @@ func TestConfigServiceLocalRoutes(t *testing.T) {
 
 	res, err := client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{}))
 	require.NoError(t, err)
-	var ids []string
-	for _, route := range res.Msg.Routes {
-		ids = append(ids, route.GetId())
+	if assert.Len(t, res.Msg.Routes, 1) {
+		assert.Equal(t, "local-route-0", res.Msg.Routes[0].GetId(), "should return local routes")
+		assert.Equal(t, "example", res.Msg.Routes[0].GetName())
 	}
-	assert.Contains(t, ids, "local-route-0", "should return local routes")
 }
 
 func TestConfigServiceServiceAccounts(t *testing.T) {
