@@ -200,6 +200,44 @@ func (c *MockAuthInterfaceGetDataBrokerServiceClientCall) DoAndReturn(f func() d
 	return c
 }
 
+// GetExtraAuthInfo mocks base method.
+func (m *MockAuthInterface) GetExtraAuthInfo(ctx context.Context, authInfo ssh0.StreamAuthInfo, user api.UserRequest) *ssh.ExtraAuthInfo {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetExtraAuthInfo", ctx, authInfo, user)
+	ret0, _ := ret[0].(*ssh.ExtraAuthInfo)
+	return ret0
+}
+
+// GetExtraAuthInfo indicates an expected call of GetExtraAuthInfo.
+func (mr *MockAuthInterfaceMockRecorder) GetExtraAuthInfo(ctx, authInfo, user any) *MockAuthInterfaceGetExtraAuthInfoCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExtraAuthInfo", reflect.TypeOf((*MockAuthInterface)(nil).GetExtraAuthInfo), ctx, authInfo, user)
+	return &MockAuthInterfaceGetExtraAuthInfoCall{Call: call}
+}
+
+// MockAuthInterfaceGetExtraAuthInfoCall wrap *gomock.Call
+type MockAuthInterfaceGetExtraAuthInfoCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockAuthInterfaceGetExtraAuthInfoCall) Return(arg0 *ssh.ExtraAuthInfo) *MockAuthInterfaceGetExtraAuthInfoCall {
+	c.Call = c.Call.Return(arg0)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockAuthInterfaceGetExtraAuthInfoCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) *ssh.ExtraAuthInfo) *MockAuthInterfaceGetExtraAuthInfoCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockAuthInterfaceGetExtraAuthInfoCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) *ssh.ExtraAuthInfo) *MockAuthInterfaceGetExtraAuthInfoCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // GetSession mocks base method.
 func (m *MockAuthInterface) GetSession(ctx context.Context, streamInfo ssh0.StreamInfo, authInfo ssh0.StreamAuthInfo) (*session.Session, error) {
 	m.ctrl.T.Helper()
