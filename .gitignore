@@ -37,6 +37,7 @@ _testmain.go
 
 # Other dirs
 /bin/
+/pomerium
 
 # Without this, the *.[568vq] above ignores this folder.
 !**/graphrbac/1.6
