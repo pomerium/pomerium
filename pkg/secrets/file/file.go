@@ -168,7 +168,7 @@ func (pr *pathReads) admit(ctx context.Context, now time.Time, retry time.Durati
 				Msg("file secret: earlier reads are still blocked; retrying with a fresh read")
 		}
 	}
-	c := &readCall{done: make(chan struct{}), started: now, waiters: 1, dev: dev, devKnown: devKnown}
+	c := &readCall{owner: pr, done: make(chan struct{}), started: now, waiters: 1, dev: dev, devKnown: devKnown}
 	pr.live, pr.lastStart = c, now
 	return admission{read: c, fresh: true}, nil
 }
@@ -249,7 +249,7 @@ func (pr *pathReads) startProbe(ctx context.Context, now time.Time, retry time.D
 	} else if now.Sub(pr.lastProbeDone) < retry {
 		return nil
 	}
-	pc := &probeCall{done: make(chan struct{}), started: now}
+	pc := &probeCall{owner: pr, done: make(chan struct{}), started: now}
 	pr.probe = pc
 	return pc
 }
@@ -300,6 +300,7 @@ func (pr *pathReads) onParkedDevice(dev uint64) bool {
 // abandoned and moves from live to parked. dev is the device it is reading
 // from, once known.
 type readCall struct {
+	owner    *pathReads // the path it reads; fixed at creation
 	done     chan struct{}
 	started  time.Time
 	waiters  int
@@ -313,6 +314,7 @@ type readCall struct {
 
 // probeCall is one remount probe: a stat of the path, detached like a read.
 type probeCall struct {
+	owner     *pathReads // the path it probes; fixed at creation
 	done      chan struct{}
 	started   time.Time
 	abandoned bool // set under Provider.mu when a newer probe replaces it
@@ -415,12 +417,12 @@ func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 	}
 
 	for probed := false; ; probed = true {
-		pr, a, err := p.acquire(ctx, path, probed)
+		a, err := p.acquire(ctx, path, probed)
 		if err != nil {
 			return nil, err
 		}
 		if a.read != nil {
-			return p.await(ctx, pr, a.read)
+			return p.await(ctx, a.read)
 		}
 		select {
 		case <-ctx.Done():
@@ -435,7 +437,7 @@ func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 
 // acquire admits a fetch of path and starts whatever fresh read or probe the
 // admission calls for.
-func (p *Provider) acquire(ctx context.Context, path string, probed bool) (*pathReads, admission, error) {
+func (p *Provider) acquire(ctx context.Context, path string, probed bool) (admission, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -449,25 +451,25 @@ func (p *Provider) acquire(ctx context.Context, path string, probed bool) (*path
 	}
 	a, err := pr.admit(ctx, time.Now(), p.retryInterval(), probed)
 	if err != nil {
-		return nil, admission{}, err
+		return admission{}, err
 	}
 	if a.fresh {
-		go p.runRead(context.WithoutCancel(ctx), pr, a.read)
+		go p.runRead(context.WithoutCancel(ctx), a.read)
 	}
 	if a.probe != nil {
-		go p.runProbe(context.WithoutCancel(ctx), pr, a.probe)
+		go p.runProbe(context.WithoutCancel(ctx), a.probe)
 	}
-	return pr, a, nil
+	return a, nil
 }
 
 // await waits for c within ctx and releases the caller's interest in it.
-func (p *Provider) await(ctx context.Context, pr *pathReads, c *readCall) ([]byte, error) {
+func (p *Provider) await(ctx context.Context, c *readCall) ([]byte, error) {
 	select {
 	case <-ctx.Done():
-		p.update(pr, func() { pr.abandon(ctx, c) })
+		p.update(c.owner, func() { c.owner.abandon(ctx, c) })
 		return nil, ctx.Err()
 	case <-c.done:
-		// A finished read is already unlinked from pr, so there is no
+		// A finished read is already unlinked from its owner, so there is no
 		// interest left to release.
 		if c.err != nil {
 			return nil, c.err
@@ -487,7 +489,8 @@ func (p *Provider) retryInterval() time.Duration {
 }
 
 // runRead performs the read and retires it.
-func (p *Provider) runRead(ctx context.Context, pr *pathReads, c *readCall) {
+func (p *Provider) runRead(ctx context.Context, c *readCall) {
+	pr := c.owner
 	read := p.readFile
 	if read == nil {
 		read = readCapped
@@ -500,7 +503,8 @@ func (p *Provider) runRead(ctx context.Context, pr *pathReads, c *readCall) {
 }
 
 // runProbe stats the path and records the verdict.
-func (p *Provider) runProbe(ctx context.Context, pr *pathReads, pc *probeCall) {
+func (p *Provider) runProbe(ctx context.Context, pc *probeCall) {
+	pr := pc.owner
 	stat := p.statPath
 	if stat == nil {
 		stat = statFile
