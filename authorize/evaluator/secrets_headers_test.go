@@ -178,7 +178,7 @@ func TestFillSetRequestHeadersSecrets(t *testing.T) {
 	})
 }
 
-// The rejection warning and its metric must be emitted on the request context,
+// The rejection log and its metric must be emitted on the request context,
 // so operators can correlate the resulting 503 with the request that caused it.
 func TestSecretRejectionLoggedOnRequestContext(t *testing.T) {
 	t.Parallel()

@@ -308,7 +308,7 @@ func (e *headersEvaluatorEvaluation) recordHeaderInject(ctx context.Context, out
 		attribute.String("outcome", outcome),
 	))
 	if outcome == headerInjectRejected {
-		log.Ctx(ctx).Warn().
+		log.Ctx(ctx).Error().
 			Str("route_id", routeID).
 			Str("error_class", errorClass).
 			Msg("authorize/header-evaluator: secret unavailable, rejecting request")
