@@ -479,6 +479,42 @@ func TestExpiredAfterGraceDuringNegativeCache(t *testing.T) {
 	})
 }
 
+// A backend that hangs rather than fails must still age the value through
+// stale into expired: stale grace is a bound on how long a value is served
+// without a successful refresh, whatever the refresh is doing.
+func TestExpiredAfterGraceWhileFetchHangs(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		reg, fake := testFakeRegistry(t)
+		fk := fkOf(t, "file:///a")
+		fake.SetValue(fk, "v1")
+
+		r := newTestResolver(t, reg)
+		defer r.Close()
+
+		r.Apply(context.Background(), buildScope(t, reg,
+			bindTuned(t, "tok", "file:///a", 10*time.Second, 30*time.Second)))
+		synctest.Wait()
+		require.Equal(t, StateFresh, r.Lookup("tok").State)
+
+		// t=11s: the scheduled refresh enters a fetch that never returns.
+		fake.Block(fk)
+		advance(11 * time.Second)
+		require.Equal(t, 2, fake.StartedCount(fk))
+
+		// t=26s: that fetch has been given up on, and the value, still within
+		// grace, serves stale.
+		advance(15 * time.Second)
+		require.Equal(t, StateStale, r.Lookup("tok").State)
+
+		// Well past the grace boundary (t=30s), the value has been dropped.
+		advance(time.Minute)
+		got := r.Lookup("tok")
+		assert.Equal(t, StateExpired, got.State)
+		assert.Empty(t, got.Value, "an expired value must not be served")
+	})
+}
+
 // A binding removed by Apply must not keep emitting cache-state events when
 // its already-in-flight fetch finally returns.
 func TestNoStaleEventsAfterBindingRemoval(t *testing.T) {

@@ -308,6 +308,13 @@ func (r *Resolver) watchPump(ctx context.Context, fs *fetchState) {
 	}
 }
 
+// fetchTimeout bounds one provider call. Value states change only when a fetch
+// returns, so without it a backend that hangs instead of failing would keep a
+// value fresh indefinitely, past its stale grace. It is far above a healthy
+// read and far below any sensible grace, and a timed-out fetch is a transient
+// error like any other.
+const fetchTimeout = 10 * time.Second
+
 // doFetch performs one fetch through singleflight, keyed by FetchKey, so at
 // most one provider call per backend URL is in flight regardless of trigger.
 // The result is returned to every caller, so the schedule loop can compute the
@@ -327,7 +334,9 @@ func (r *Resolver) doFetch(ctx context.Context, fs *fetchState) (provider.Result
 		}
 
 		start := r.now()
-		res, ferr := fs.provider.Fetch(ctx, fs.fetchRef)
+		fetchCtx, cancel := context.WithTimeout(ctx, fetchTimeout)
+		res, ferr := fs.provider.Fetch(fetchCtx, fs.fetchRef)
+		cancel()
 		dur := r.now().Sub(start)
 		r.commitFetch(fs, res, ferr)
 		r.recordFetchMetrics(fs, ferr, dur)
