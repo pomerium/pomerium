@@ -1,0 +1,43 @@
+# Pomerium configuration for the OLD Hosted Authenticate flow e2e tests.
+#
+# authenticate_service_url points at the real cloud service, which switches
+# this instance to the STATELESS authenticate flow (config/options.go
+# UseStatelessAuthenticateFlow): no local authenticate service, the whole
+# sign-in/sign-out UI lives at https://authenticate.pomerium.app. No idp_*
+# settings locally - the IdP is managed by the hosted service.
+#
+# Session refresh is disabled in stateless mode, so cookie_expire is a hard
+# deadline. It is shortened to 90s (Notion test case says 2m) so the
+# session-timeout test completes in ~2 minutes; every test against this
+# instance logs in fresh and finishes its assertions well inside 90s.
+#
+# Started only with the "hosted" compose profile (make up-hosted). Requires
+# outbound internet access to reach authenticate.pomerium.app.
+
+address: :8445
+authenticate_service_url: https://authenticate.pomerium.app
+
+# TLS Configuration
+certificate_file: /certs/pomerium.crt
+certificate_key_file: /certs/pomerium.key
+
+# Secrets shared with pomerium/config.yaml.
+# These are test-only values - NEVER use in production
+cookie_secret: dj5y7E03ULP9YebCgHNIXmxWnWfYlVXCgwbm9IEdysI=
+shared_secret: 0CdEkgO02jgxmgSC2AdkqIbFELAN4CGw0v0RY85xNr4=
+
+cookie_expire: 90s
+
+# Logging
+log_level: debug
+
+# Pass the email claim as an HTTP header so the verify upstream can echo it
+jwt_claims_headers:
+  X-Pomerium-Claim-Email: email
+
+routes:
+  # Test route: any user authenticated via the hosted authenticate may access
+  - from: https://verify-hosted-old.localhost.pomerium.io:8445
+    to: http://upstream:8000
+    pass_identity_headers: true
+    allow_any_authenticated_user: true
