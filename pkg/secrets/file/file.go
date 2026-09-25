@@ -444,7 +444,7 @@ func (pr *pathReads) admit(ctx context.Context, now time.Time, retry time.Durati
 		case n >= MaxParkedReads && pr.admitReady:
 			dev, devKnown = pr.admitDev, true
 			pr.admitReady = false
-			log.Ctx(ctx).Warn().Str("path", pr.path).Int("parked", n).Uint64("dev", dev).
+			log.Ctx(ctx).Info().Str("path", pr.path).Int("parked", n).Uint64("dev", dev).
 				Msg("file secret: path now resolves to a different device than its blocked reads (remounted?); retrying with a fresh read")
 		case n >= MaxParkedReads:
 			// A fetch that starts a probe waits for it, within ctx, so the
@@ -462,7 +462,7 @@ func (pr *pathReads) admit(ctx context.Context, now time.Time, retry time.Durati
 		case now.Sub(pr.lastStart) < retry:
 			return admission{}, ErrReadBlocked
 		default:
-			log.Ctx(ctx).Warn().Str("path", pr.path).Int("parked", n).
+			log.Ctx(ctx).Debug().Str("path", pr.path).Int("parked", n).
 				Msg("file secret: earlier reads are still blocked; retrying with a fresh read")
 		}
 	}
@@ -482,7 +482,7 @@ func (pr *pathReads) abandon(ctx context.Context, c *readCall, now time.Time) {
 	pr.live = nil
 	pr.parked[c] = struct{}{}
 	n := len(pr.parked)
-	ev := log.Ctx(ctx).Warn()
+	ev := log.Ctx(ctx).Info()
 	if n >= MaxParkedReads {
 		ev = log.Ctx(ctx).Error()
 	}
@@ -534,7 +534,7 @@ func (pr *pathReads) startProbe(ctx context.Context, now time.Time, retry time.D
 		pr.probe = nil
 		pr.probesParked++
 		pr.probeBackoff = min(2*pr.probeBackoff, maxProbeBackoff)
-		ev := log.Ctx(ctx).Warn()
+		ev := log.Ctx(ctx).Info()
 		if pr.probesParked+1 >= MaxParkedProbes {
 			ev = log.Ctx(ctx).Error()
 		}
