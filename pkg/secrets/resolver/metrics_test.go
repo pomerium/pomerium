@@ -145,7 +145,7 @@ func TestLogTransitions(t *testing.T) {
 		synctest.Wait()
 
 		fake.SetError(fk, errors.New("io error"))
-		advance(11 * time.Second) // -> Stale (WARN)
+		advance(11 * time.Second) // -> Stale (INFO)
 		advance(90 * time.Second) // -> Expired (ERROR)
 
 		fake.SetValue(fk, "v2")

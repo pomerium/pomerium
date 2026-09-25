@@ -520,7 +520,7 @@ func (r *Resolver) logTransitionLocked(fs *fetchState, vs *valueState, prev, cur
 			r.logEvent(zerolog.InfoLevel, fs, vs, "secret recovered")
 		}
 	case StateStale:
-		r.logEvent(zerolog.WarnLevel, fs, vs, "secret serving stale")
+		r.logEvent(zerolog.InfoLevel, fs, vs, "secret serving stale")
 	case StateExpired:
 		r.logEvent(zerolog.ErrorLevel, fs, vs, "secret expired")
 	}
@@ -531,7 +531,7 @@ func (r *Resolver) logNegativeCacheLocked(fs *fetchState, now time.Time) {
 		return
 	}
 	fs.negLoggedAt = now
-	r.logger.Warn().
+	r.logger.Info().
 		Str("ref", fs.fetchRef.String()).
 		Str("error_class", "not_found").
 		Msg("secret not found; negative-caching")
