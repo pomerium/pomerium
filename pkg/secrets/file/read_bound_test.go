@@ -123,10 +123,9 @@ func TestFetchSpacesRetriesWhileParked(t *testing.T) {
 	assert.Equal(t, int64(1), b.active.Load())
 }
 
-// A parked read is stuck on the mount it started on, not on the path. Below the
-// parked cap, a read that never returns must not keep a later fetch from
-// reaching the path once it is healthy again, say on a new mount.
-func TestFetchRecoversAfterRemount(t *testing.T) {
+// Below the parked cap, a read that never returns must not keep a later fetch
+// from reading the path once the retry interval has passed.
+func TestFetchReadsPastParkedRead(t *testing.T) {
 	t.Parallel()
 
 	release := make(chan struct{})
@@ -136,9 +135,9 @@ func TestFetchRecoversAfterRemount(t *testing.T) {
 		parkedRetryInterval: 50 * time.Millisecond,
 		readFile: func(string) ([]byte, error) {
 			if calls.Add(1) == 1 {
-				<-release // wedged on the old mount, never returns
+				<-release // wedged, never returns
 			}
-			return []byte("remounted"), nil
+			return []byte("fresh"), nil
 		},
 	}
 	r := fileRef(t, filepath.Join(t.TempDir(), "secret"))
@@ -150,7 +149,7 @@ func TestFetchRecoversAfterRemount(t *testing.T) {
 
 	assert.Eventually(t, func() bool {
 		res, err := p.Fetch(context.Background(), r)
-		return err == nil && string(res.Value) == "remounted"
+		return err == nil && string(res.Value) == "fresh"
 	}, 5*time.Second, 10*time.Millisecond, "path never recovered while the old read stayed parked")
 }
 

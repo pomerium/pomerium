@@ -160,8 +160,8 @@ func (p *Provider) Fetch(ctx context.Context, r ref.Ref) (provider.Result, error
 //     descriptors per path rather than one per attempt.
 //
 // At the cap the path stays refused until a parked read returns, which on a
-// hard NFS mount is when the server answers again. A remount that leaves the
-// old reads stuck forever needs a restart to recover the path.
+// hard NFS mount is when the server answers again. Reads that never return,
+// as on a mount lazily unmounted and replaced, keep it refused until restart.
 func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
