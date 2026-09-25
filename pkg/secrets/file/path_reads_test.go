@@ -1,19 +1,32 @@
 package file
 
 import (
+	"math/rand/v2"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// These tests drive pathReads' state transitions directly, with a fixed clock
-// and no goroutines: each call stands in for one Provider.update or acquire.
+// These tests drive the fetch state machine without goroutines or the
+// filesystem: pathReads' transitions directly, with a fixed clock, and
+// readGroup's methods, which read the real one.
 
 const testRetry = time.Second
 
 var testEpoch = time.Unix(1_000_000, 0)
+
+func isClosed(ch <-chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
+}
 
 func newTestPathReads() *pathReads {
 	return &pathReads{path: "/secret", parked: make(map[*readCall]struct{})}
@@ -41,8 +54,8 @@ func parkReads(t *testing.T, pr *pathReads, now time.Time, n int, dev uint64) (t
 		}
 		c := startRead(t, pr, now)
 		c.dev, c.devKnown = dev, true
-		pr.abandon(t.Context(), c)
-		require.True(t, c.parked)
+		pr.abandon(t.Context(), c, testEpoch)
+		require.Contains(t, pr.parked, c)
 		parked = append(parked, c)
 	}
 	return now, parked
@@ -65,13 +78,12 @@ func TestPathReadsParksOnlyWhenLastWaiterLeaves(t *testing.T) {
 	_, err := pr.admit(t.Context(), testEpoch, testRetry, false)
 	require.NoError(t, err)
 
-	pr.abandon(t.Context(), c)
+	pr.abandon(t.Context(), c, testEpoch)
 	assert.Same(t, c, pr.live, "a read with a waiter left stays live")
-	assert.False(t, c.parked)
+	assert.NotContains(t, pr.parked, c)
 
-	pr.abandon(t.Context(), c)
+	pr.abandon(t.Context(), c, testEpoch)
 	assert.Nil(t, pr.live)
-	assert.True(t, c.parked)
 	assert.Contains(t, pr.parked, c)
 	assert.False(t, pr.idle(), "a parked read must keep the path's state")
 }
@@ -80,10 +92,10 @@ func TestPathReadsDoesNotParkFinishedRead(t *testing.T) {
 	pr := newTestPathReads()
 	c := startRead(t, pr, testEpoch)
 
-	pr.finishRead(t.Context(), c, []byte("v"), nil)
+	pr.finishRead(t.Context(), c, []byte("v"), nil, testEpoch)
 	assert.Nil(t, pr.live, "a finished read must not be joined")
-	pr.abandon(t.Context(), c)
-	assert.False(t, c.parked)
+	assert.True(t, isClosed(c.done), "finishing a read publishes it")
+	pr.abandon(t.Context(), c, testEpoch)
 	assert.Empty(t, pr.parked)
 	assert.True(t, pr.idle())
 }
@@ -109,9 +121,9 @@ func TestPathReadsParkedReadReturning(t *testing.T) {
 	pr := newTestPathReads()
 	now := testEpoch
 	c := startRead(t, pr, now)
-	pr.abandon(t.Context(), c)
+	pr.abandon(t.Context(), c, testEpoch)
 
-	pr.finishRead(t.Context(), c, nil, nil)
+	pr.finishRead(t.Context(), c, nil, nil, testEpoch)
 	assert.Empty(t, pr.parked)
 	assert.True(t, pr.idle())
 	// With nothing parked, a fetch no longer waits out the retry interval.
@@ -154,7 +166,7 @@ func TestPathReadsProbeAdmitsOneReadOnNewDevice(t *testing.T) {
 
 	// Parked on the new device too, the path is refused until another
 	// remount: a probe finding device 2 again admits nothing.
-	pr.abandon(t.Context(), c)
+	pr.abandon(t.Context(), c, testEpoch)
 	now = now.Add(testRetry)
 	a, err = pr.admit(t.Context(), now, testRetry, false)
 	require.NoError(t, err)
@@ -196,6 +208,7 @@ func TestPathReadsSpacesProbes(t *testing.T) {
 	pc := pr.startProbe(t.Context(), now, testRetry)
 	require.NotNil(t, pc)
 	pr.finishProbe(t.Context(), pc, fileState{exists: true, dev: 1}, now)
+	assert.True(t, isClosed(pc.done), "finishing a probe publishes it")
 
 	assert.Nil(t, pr.startProbe(t.Context(), now.Add(testRetry-time.Nanosecond), testRetry))
 	assert.NotNil(t, pr.startProbe(t.Context(), now.Add(testRetry), testRetry))
@@ -259,7 +272,7 @@ func TestPathReadsAdmissionLapsesWithParkedReads(t *testing.T) {
 	require.True(t, pr.admitReady)
 
 	for _, c := range parked {
-		pr.finishRead(t.Context(), c, nil, nil)
+		pr.finishRead(t.Context(), c, nil, nil, testEpoch)
 	}
 	assert.False(t, pr.admitReady)
 	assert.True(t, pr.idle(), "with no reads parked, nothing is worth keeping")
@@ -272,7 +285,7 @@ func TestPathReadsProbeAfterParkedReadsDrainAdmitsNothing(t *testing.T) {
 	a, err := pr.admit(t.Context(), now, testRetry, false)
 	require.NoError(t, err)
 	for _, c := range parked {
-		pr.finishRead(t.Context(), c, nil, nil)
+		pr.finishRead(t.Context(), c, nil, nil, testEpoch)
 	}
 
 	pr.finishProbe(t.Context(), a.probe, fileState{exists: true, dev: 2}, now)
@@ -294,10 +307,10 @@ func TestPathReadsAdmissionVoidedByReadParkedOnItsDevice(t *testing.T) {
 
 	// One parked read returns, so the path drops below the cap and a retry
 	// starts a read that opens on device 2 and parks there.
-	pr.finishRead(t.Context(), parked[0], nil, nil)
+	pr.finishRead(t.Context(), parked[0], nil, nil, testEpoch)
 	c := startRead(t, pr, now)
 	c.dev, c.devKnown = 2, true
-	pr.abandon(t.Context(), c)
+	pr.abandon(t.Context(), c, testEpoch)
 	require.Len(t, pr.parked, MaxParkedReads)
 
 	a, err = pr.admit(t.Context(), now, testRetry, true)
@@ -312,22 +325,130 @@ func TestPathReadsParkedReadReturningLeavesLiveRead(t *testing.T) {
 	old := parked[0]
 	live := startRead(t, pr, last.Add(testRetry))
 
-	pr.finishRead(t.Context(), old, nil, nil)
+	pr.finishRead(t.Context(), old, nil, nil, testEpoch)
 	assert.Same(t, live, pr.live)
 	assert.Empty(t, pr.parked)
 }
 
-func TestProviderUpdateKeepsNewerPathReads(t *testing.T) {
-	p := New()
-	stale := newTestPathReads()
-	current := newTestPathReads()
-	current.live = &readCall{done: make(chan struct{}), waiters: 1}
-	p.reads = map[string]*pathReads{current.path: current}
+// A caller whose ctx ends just as its read finishes releases the read after
+// its pathReads may have been retired and the path taken by a newer one; that
+// must leave the newer one alone.
+func TestReadGroupLateAbandonKeepsNewerPathReads(t *testing.T) {
+	var g readGroup
+	a, err := g.admit(t.Context(), "/secret", testRetry, false)
+	require.NoError(t, err)
+	stale := a.read
+	g.finishRead(t.Context(), stale, []byte("v"), nil)
+	require.NotContains(t, g.paths, "/secret", "an idle pathReads is retired")
 
-	p.update(stale, func() {})
-	assert.Same(t, current, p.reads[current.path], "a retired pathReads must not drop its successor")
+	a, err = g.admit(t.Context(), "/secret", testRetry, false)
+	require.NoError(t, err)
+	current := g.paths["/secret"]
+	require.NotSame(t, stale.owner, current)
 
-	current.live = nil
-	p.update(current, func() {})
-	assert.NotContains(t, p.reads, current.path)
+	g.abandon(t.Context(), stale)
+	assert.Same(t, current, g.paths["/secret"])
+	assert.Same(t, a.read, current.live)
+}
+
+// TestReadGroupInvariants drives a readGroup through random interleavings of
+// what fetches, their reads and their probes do, and checks after every step
+// the invariants the lock-free fetch code relies on.
+func TestReadGroupInvariants(t *testing.T) {
+	ctx := zerolog.Nop().WithContext(t.Context())
+	paths := []string{"/a", "/b"}
+	for seed := range uint64(500) {
+		rng := rand.New(rand.NewPCG(seed, 0))
+		retry := time.Duration(rng.IntN(2)) * time.Microsecond
+		var g readGroup
+		var (
+			waiters []*readCall  // one per caller waiting on a read
+			reads   []*readCall  // started and not yet returned
+			probes  []*probeCall // started and not yet returned
+		)
+		pick := func(n int) int { return rng.IntN(n) }
+		for range 200 {
+			switch rng.IntN(6) {
+			case 0: // a fetch arrives
+				probed := rng.IntN(4) == 0
+				a, err := g.admit(ctx, paths[pick(len(paths))], retry, probed)
+				if err != nil {
+					require.ErrorIs(t, err, ErrReadBlocked)
+					break
+				}
+				require.NotEqual(t, a.read == nil, a.probe == nil, "an admission is exactly one of a read or a probe")
+				if probed {
+					require.Nil(t, a.probe, "a fetch that waited on a probe was handed another")
+				}
+				if a.fresh {
+					reads = append(reads, a.read)
+				}
+				if a.read != nil {
+					waiters = append(waiters, a.read)
+				}
+				if a.probe != nil {
+					probes = append(probes, a.probe)
+				}
+			case 1: // a caller gives up, perhaps just as its read finished
+				if len(waiters) > 0 {
+					i := pick(len(waiters))
+					g.abandon(ctx, waiters[i])
+					waiters = slices.Delete(waiters, i, i+1)
+				}
+			case 2: // a caller sees its read finish
+				if len(waiters) > 0 {
+					if i := pick(len(waiters)); isClosed(waiters[i].done) {
+						waiters = slices.Delete(waiters, i, i+1)
+					}
+				}
+			case 3: // a read opens the file
+				if len(reads) > 0 {
+					g.opened(reads[pick(len(reads))], uint64(1+pick(3)))
+				}
+			case 4: // a read returns
+				if len(reads) > 0 {
+					i := pick(len(reads))
+					g.finishRead(ctx, reads[i], nil, nil)
+					reads = slices.Delete(reads, i, i+1)
+				}
+			case 5: // a probe returns
+				if len(probes) > 0 {
+					i := pick(len(probes))
+					g.finishProbe(ctx, probes[i], fileState{exists: pick(4) != 0, dev: uint64(1 + pick(3))})
+					probes = slices.Delete(probes, i, i+1)
+				}
+			}
+			checkReadGroup(t, &g, reads, probes)
+		}
+	}
+}
+
+func checkReadGroup(t *testing.T, g *readGroup, reads []*readCall, probes []*probeCall) {
+	t.Helper()
+	for path, pr := range g.paths {
+		require.Equal(t, path, pr.path)
+		require.False(t, pr.idle(), "an idle pathReads was left in paths")
+		if pr.admitReady {
+			require.NotEmpty(t, pr.parked, "an admission outlived the parked reads")
+		}
+	}
+	for _, c := range reads {
+		require.Same(t, g.paths[c.owner.path], c.owner, "a running read's owner is not the one in paths")
+		_, parked := c.owner.parked[c]
+		require.NotEqual(t, parked, c.owner.live == c, "a running read must be exactly one of live or parked")
+		require.False(t, isClosed(c.done))
+	}
+	abandoned := make(map[*pathReads]int)
+	for _, pc := range probes {
+		require.Same(t, g.paths[pc.owner.path], pc.owner, "a running probe's owner is not the one in paths")
+		if pc.abandoned {
+			abandoned[pc.owner]++
+		} else {
+			require.Same(t, pc, pc.owner.probe)
+		}
+		require.False(t, isClosed(pc.done))
+	}
+	for _, pr := range g.paths {
+		require.Equal(t, abandoned[pr], pr.probesParked)
+	}
 }

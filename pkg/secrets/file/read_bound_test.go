@@ -328,17 +328,13 @@ func TestFetchDoesNotWaitOnAnotherFetchsProbe(t *testing.T) {
 	require.NoError(t, err)
 	m.wedged.Store(true)
 	m.statWedged.Store(true)
-	p.mu.Lock()
 	p.parkedRetryInterval = time.Nanosecond
-	p.mu.Unlock()
 	for range MaxParkedReads {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 		_, _ = p.Fetch(ctx, r)
 		cancel()
 	}
-	p.mu.Lock()
 	p.parkedRetryInterval = time.Hour // the stuck probe is not replaced during the test
-	p.mu.Unlock()
 
 	ctx1, cancel1 := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	_, err = p.Fetch(ctx1, r) // starts the probe, which parks
@@ -520,9 +516,9 @@ func TestFetchSharesOneReadAcrossConcurrentCallers(t *testing.T) {
 	// Release the read only once every caller has joined it; a caller that
 	// arrives after it finished rightly starts a fresh one.
 	require.Eventually(t, func() bool {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		pr := p.reads[path]
+		p.reads.mu.Lock()
+		defer p.reads.mu.Unlock()
+		pr := p.reads.paths[path]
 		return pr != nil && pr.live != nil && pr.live.waiters == callers
 	}, 3*time.Second, 10*time.Millisecond)
 	close(gate)

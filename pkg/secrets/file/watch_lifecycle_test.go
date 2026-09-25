@@ -18,8 +18,8 @@ import (
 
 // watchState reports the provider's watcher bookkeeping for tests.
 func (p *Provider) watchState() (nWatches, nPaths int) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.watchMu.Lock()
+	defer p.watchMu.Unlock()
 	for _, pl := range p.pollers {
 		nWatches += len(pl.regs)
 	}
