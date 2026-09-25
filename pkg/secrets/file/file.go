@@ -189,11 +189,14 @@ func (p *Provider) read(ctx context.Context, path string) ([]byte, error) {
 	if a.probe != nil {
 		select {
 		case <-ctx.Done():
-			// The caller's own deadline ended the wait, so it must see
-			// ctx.Err() as on the read path; the reads are still blocked, so
-			// it wraps ErrReadBlocked too.
-			return nil, fmt.Errorf("%w: %w", ErrReadBlocked, ctx.Err())
 		case <-a.probe.done:
+		}
+		// A caller whose ctx has ended must not spend the read a probe may
+		// have let through (select picks at random when both are ready). It
+		// sees ctx.Err() as on the read path, wrapped with ErrReadBlocked
+		// since the reads are still blocked.
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrReadBlocked, err)
 		}
 		// Having waited on a probe, the fetch gets a read or ErrReadBlocked.
 		if a, err = p.admitAndStart(ctx, path, true); err != nil {

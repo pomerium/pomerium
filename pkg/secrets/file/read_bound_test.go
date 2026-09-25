@@ -371,6 +371,55 @@ func TestFetchProbeWaitReturnsContextError(t *testing.T) {
 	require.ErrorIs(t, err, ErrReadBlocked)
 }
 
+// lateCancelCtx reports cancellation from Err without ever firing Done. It
+// stands in for a deadline that passes just after a probe has woken the fetch
+// waiting on it, a window no real ctx can be made to hit on demand.
+type lateCancelCtx struct {
+	context.Context
+	cancelled atomic.Bool
+}
+
+func (*lateCancelCtx) Done() <-chan struct{} { return nil }
+
+func (c *lateCancelCtx) Err() error {
+	if c.cancelled.Load() {
+		return context.Canceled
+	}
+	return nil
+}
+
+// A fetch whose ctx ends as the probe it waited on returns must fail without
+// spending the read that probe let through: the next fetch should get it.
+func TestFetchProbeWaitDoesNotSpendAdmissionOnceCancelled(t *testing.T) {
+	t.Parallel()
+
+	m := newMount()
+	defer close(m.release)
+	p := m.provider()
+	ctx := &lateCancelCtx{Context: context.Background()}
+	p.statPath = func(path string) fileState {
+		st := m.stat(path)
+		ctx.cancelled.Store(true)
+		return st
+	}
+	r := fileRef(t, filepath.Join(t.TempDir(), "secret"))
+
+	_, err := p.Fetch(context.Background(), r)
+	require.NoError(t, err)
+	fillParkedCap(t, p, m, r)
+	m.remount()
+
+	reads := m.reads.Load()
+	_, err = p.Fetch(ctx, r)
+	require.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, ErrReadBlocked)
+	assert.Equal(t, reads, m.reads.Load(), "a fetch that had given up started a read")
+
+	res, err := p.Fetch(context.Background(), r)
+	require.NoError(t, err, "the read the probe let through must still be there")
+	assert.Equal(t, "dev2", string(res.Value))
+}
+
 // Stuck probes are bounded too: they hold no descriptor, but each pins a
 // goroutine and thread.
 func TestFetchBoundsParkedProbes(t *testing.T) {
