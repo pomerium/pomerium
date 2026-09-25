@@ -33,6 +33,7 @@ const (
 	listRoutesEndpoint    = "/routes"
 	connectEndpoint       = "/connect"
 	disconnectEndpoint    = "/routes/disconnect"
+	refreshRoutesEndpoint = "/routes/refresh"
 
 	// clientOAuthCallbackEndpoint is used when Pomerium acts as an OAuth 2.1 client
 	// to remote MCP servers' authorization servers (upstream OAuth proxy mode).
@@ -50,11 +51,14 @@ type Handler struct {
 	hosts   *HostInfo
 	// singleFlight deduplicates concurrent auxiliary operations keyed by a namespace
 	// prefix: "dcr:" for dynamic client registrations, "mcp:" for upstream token refreshes.
-	singleFlight            singleflight.Group
-	clientMetadataFetcher   *ClientMetadataFetcher
-	getAuthenticator        AuthenticatorGetter
-	sessionExpiry           time.Duration
-	httpClient              *http.Client // for upstream discovery fetches
+	singleFlight          singleflight.Group
+	clientMetadataFetcher *ClientMetadataFetcher
+	getAuthenticator      AuthenticatorGetter
+	sessionExpiry         time.Duration
+	// httpClient is used for upstream discovery fetches and for the portal-triggered
+	// upstream token refresh. It trusts the CAs configured in the options, the same
+	// way UpstreamAuthHandler's client does.
+	httpClient              *http.Client
 	asMetadataDomainMatcher *DomainMatcher
 	dcrEnabled              bool
 }
@@ -127,15 +131,17 @@ func New(
 
 	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
 
+	upstreamHTTPClient := newUpstreamHTTPClient(ctx, cfg)
+
 	h := &Handler{
 		prefix:                  prefix,
 		trace:                   tracerProvider,
 		storage:                 NewStorage(client),
 		cipher:                  cipher,
-		hosts:                   NewHostInfo(cfg, http.DefaultClient),
+		hosts:                   NewHostInfo(cfg, upstreamHTTPClient),
 		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
 		sessionExpiry:           cfg.Options.CookieExpire,
-		httpClient:              http.DefaultClient,
+		httpClient:              upstreamHTTPClient,
 		asMetadataDomainMatcher: asDomainMatcher,
 		dcrEnabled: cfg.Options.IsRuntimeFlagSet(
 			config.RuntimeFlagMCPDynamicClientRegistration,
@@ -171,6 +177,7 @@ func (h *Handler) HandlerFunc() http.HandlerFunc {
 	r.Path(path.Join(h.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ListRoutes)
 	r.Path(path.Join(h.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ConnectGet)
 	r.Path(path.Join(h.prefix, disconnectEndpoint)).Methods(http.MethodPost).HandlerFunc(h.DisconnectRoutes)
+	r.Path(path.Join(h.prefix, refreshRoutesEndpoint)).Methods(http.MethodPost).HandlerFunc(h.RefreshRoutes)
 
 	return r.ServeHTTP
 }

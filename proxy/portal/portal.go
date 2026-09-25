@@ -3,6 +3,7 @@ package portal
 
 import (
 	"strings"
+	"time"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -29,6 +30,10 @@ type Route struct {
 	LogoURL        string `json:"logo_url"`
 	MCPConnectURL  string `json:"mcp_connect_url,omitempty"`
 	MCPConnected   bool   `json:"mcp_connected,omitempty"`
+	// MCPTokenExpiresAt is the upstream MCP access token expiry, if known.
+	MCPTokenExpiresAt time.Time `json:"mcp_token_expires_at,omitzero"`
+	// MCPRefreshTokenAvailable indicates an upstream refresh token is stored for the user.
+	MCPRefreshTokenAvailable bool `json:"mcp_refresh_token_available,omitempty"`
 }
 
 // RoutesFromConfigRoutes converts config routes into portal routes.

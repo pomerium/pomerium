@@ -121,6 +121,12 @@ func (p *Proxy) fillMCPPortalRoutes(ctx context.Context, u handlers.UserInfoData
 		return fmt.Sprintf("Unable to load MCP connection status. Ask your administrator to check logs for request ID: %s", reqID)
 	}
 
+	applyMCPPortalInfo(ctx, portalRoutes, infos)
+	return ""
+}
+
+// applyMCPPortalInfo overlays MCP connection info onto the matching MCP portal routes.
+func applyMCPPortalInfo(ctx context.Context, portalRoutes []portal.Route, infos []mcp.PortalRouteInfo) {
 	// Build a lookup by host for matching portal routes to MCP server info.
 	infoByHost := make(map[string]mcp.PortalRouteInfo, len(infos))
 	for _, info := range infos {
@@ -149,6 +155,8 @@ func (p *Proxy) fillMCPPortalRoutes(ctx context.Context, u handlers.UserInfoData
 		}
 
 		portalRoutes[i].MCPConnected = info.Connected
+		portalRoutes[i].MCPTokenExpiresAt = info.TokenExpiresAt
+		portalRoutes[i].MCPRefreshTokenAvailable = info.RefreshTokenAvailable
 		redirectURL := (&url.URL{Scheme: fromURL.Scheme, Host: fromURL.Host, Path: endpoints.PathPomeriumRoutes}).String()
 		connectURL := url.URL{
 			Scheme:   fromURL.Scheme,
@@ -158,7 +166,6 @@ func (p *Proxy) fillMCPPortalRoutes(ctx context.Context, u handlers.UserInfoData
 		}
 		portalRoutes[i].MCPConnectURL = connectURL.String()
 	}
-	return ""
 }
 
 func (p *Proxy) getPortalUser(u handlers.UserInfoData) portal.User {

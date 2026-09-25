@@ -257,13 +257,7 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 			Bool("has_token_endpoint", token.TokenEndpoint != "").
 			Time("expires_at", token.ExpiresAt.AsTime()).
 			Msg("mcp_upstream_auth: cached upstream token expired, attempting refresh or clear")
-		// Read client_secret from config (single source of truth) rather than from
-		// the stored token, to avoid replicating the shared credential per-user.
-		var configClientSecret string
-		if info.UpstreamOAuth2 != nil {
-			configClientSecret = info.UpstreamOAuth2.ClientSecret
-		}
-		return h.refreshOrClearToken(ctx, token, configClientSecret)
+		return h.refreshOrClearToken(ctx, token, info.ConfigClientSecret())
 	}
 
 	log.Ctx(ctx).Debug().
@@ -325,7 +319,7 @@ func refreshExpiredUpstreamMCPToken(
 	routeID := token.RouteId
 	upstreamServer := token.UpstreamServer
 
-	if token.RefreshToken == "" || token.TokenEndpoint == "" {
+	if !canRefresh(token) {
 		log.Ctx(ctx).Debug().
 			Str("user_id", userID).
 			Str("route_id", routeID).
@@ -338,6 +332,57 @@ func refreshExpiredUpstreamMCPToken(
 		}
 		return nil, nil
 	}
+
+	return refreshUpstreamMCPToken(ctx, storage, httpClient, sf, token, configClientSecret)
+}
+
+// errTokenNotRefreshable indicates that a stored upstream token carries no refresh
+// token or no token endpoint, so a refresh_token grant is impossible.
+var errTokenNotRefreshable = errors.New("token cannot be refreshed: no refresh token or token endpoint")
+
+// canRefresh reports whether a stored upstream token can be used for a refresh_token grant.
+func canRefresh(token *oauth21proto.UpstreamMCPToken) bool {
+	return token.GetRefreshToken() != "" && token.GetTokenEndpoint() != ""
+}
+
+// forceRefreshUpstreamMCPToken performs a refresh_token grant for a stored upstream token
+// regardless of its current expiry. Unlike refreshExpiredUpstreamMCPToken, a token without
+// refresh capability is left in place and reported as errTokenNotRefreshable rather than
+// being deleted.
+//
+// Return values otherwise match refreshExpiredUpstreamMCPToken:
+//   - (refreshed, nil): refresh succeeded; the new token was persisted.
+//   - (nil, nil):       permanent failure; the stale token has been deleted.
+//   - (nil, error):     the token is not refreshable, or a transient failure occurred and
+//     the stored token was preserved.
+func forceRefreshUpstreamMCPToken(
+	ctx context.Context,
+	storage HandlerStorage,
+	httpClient *http.Client,
+	sf *singleflight.Group,
+	token *oauth21proto.UpstreamMCPToken,
+	configClientSecret string,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	if !canRefresh(token) {
+		return nil, errTokenNotRefreshable
+	}
+	return refreshUpstreamMCPToken(ctx, storage, httpClient, sf, token, configClientSecret)
+}
+
+// refreshUpstreamMCPToken runs the refresh_token grant under the supplied singleflight group
+// and applies the permanent-vs-transient failure policy. Callers must have already verified
+// that the token has refresh capability.
+func refreshUpstreamMCPToken(
+	ctx context.Context,
+	storage HandlerStorage,
+	httpClient *http.Client,
+	sf *singleflight.Group,
+	token *oauth21proto.UpstreamMCPToken,
+	configClientSecret string,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	userID := token.UserId
+	routeID := token.RouteId
+	upstreamServer := token.UpstreamServer
 
 	sfKey := "mcp:" + url.Values{
 		"user":     {userID},
