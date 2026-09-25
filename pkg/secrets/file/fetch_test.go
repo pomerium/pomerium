@@ -184,8 +184,6 @@ func TestFetchRejectsUnvalidatedRef(t *testing.T) {
 
 // A read abandoned on a path that never returns must not answer for later
 // fetches of that path: the secret has to come back as soon as the file does.
-// Sharing an in-flight read by path is what wedged csi-driver-nfs (#1271) and
-// what Go's net resolver avoids via singleflight.ForgetUnshared (golang/go#22724).
 func TestFetchRecoversAfterBlockedPathIsReplaced(t *testing.T) {
 	t.Parallel()
 

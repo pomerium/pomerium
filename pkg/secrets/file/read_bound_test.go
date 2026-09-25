@@ -42,8 +42,7 @@ func (b *blockedReads) read(string, func(uint64)) ([]byte, error) {
 }
 
 // Retrying against a wedged mount must pin a fixed number of goroutines and
-// descriptors per path, not one per attempt: unbounded growth is what
-// exhausted csi-driver-nfs (#1271).
+// descriptors per path, not one per attempt.
 func TestFetchBoundsAbandonedReads(t *testing.T) {
 	t.Parallel()
 
@@ -447,7 +446,7 @@ func (b *syncBuffer) String() string {
 }
 
 // A later fetch must neither join the abandoned read nor wait on it: stale work
-// must never answer a fresh request (golang/go#22724).
+// must never answer a fresh request.
 func TestFetchDoesNotJoinAbandonedRead(t *testing.T) {
 	t.Parallel()
 

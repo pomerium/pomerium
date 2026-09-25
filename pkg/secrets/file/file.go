@@ -396,14 +396,12 @@ func (p *Provider) Fetch(ctx context.Context, r ref.Ref) (provider.Result, error
 //     one descriptor, not one per binding.
 //   - Once the last caller gives up, the read is abandoned and parked. A later
 //     fetch never joins it — stale work must never answer for a fresh
-//     request, the failure Go's net resolver added singleflight.ForgetUnshared
-//     to avoid (golang/go#22724).
+//     request.
 //   - A later fetch may start a fresh read alongside the parked ones, but only
 //     every parkedRetryInterval and only while fewer than MaxParkedReads are
 //     parked; otherwise it fails fast with ErrReadBlocked. Retrying against a
 //     wedged mount therefore pins a fixed number of goroutines and descriptors
-//     per path rather than one per attempt, the unbounded growth that
-//     exhausted csi-driver-nfs (#1271).
+//     per path rather than one per attempt.
 //
 // A parked read is stuck on the mount it started on, not on the path: the
 // standard recovery for a stale NFS mount is a lazy unmount and remount, after
