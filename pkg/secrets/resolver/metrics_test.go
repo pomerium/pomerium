@@ -14,6 +14,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/noop"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 
@@ -21,6 +23,35 @@ import (
 )
 
 func sprintfPlus(v any) string { return fmt.Sprintf("%+v", v) }
+
+// collectOnRegister is a meter that collects each observable gauge the moment
+// its callback is registered, the earliest a reader already collecting in the
+// background could reach it.
+type collectOnRegister struct {
+	metric.Meter
+	t *testing.T
+}
+
+func (m collectOnRegister) Int64ObservableGauge(name string, opts ...metric.Int64ObservableGaugeOption) (metric.Int64ObservableGauge, error) {
+	for _, cb := range metric.NewInt64ObservableGaugeConfig(opts...).Callbacks() {
+		require.NoError(m.t, cb(context.Background(), nopInt64Observer{}))
+	}
+	return m.Meter.Int64ObservableGauge(name, opts...)
+}
+
+type nopInt64Observer struct{ metric.Int64Observer }
+
+func (nopInt64Observer) Observe(int64, ...metric.ObserveOption) {}
+
+// A periodic reader is already collecting before the resolver exists, so a
+// collection can land while New is still running: the gauges must see an
+// empty snapshot then, never a missing one.
+func TestMetricsCollectedDuringNew(t *testing.T) {
+	t.Parallel()
+	reg, _ := testFakeRegistry(t)
+	r := New(reg, WithMeter(collectOnRegister{Meter: noop.Meter{}, t: t}), WithLogger(zerolog.Nop()))
+	r.Close()
+}
 
 // counterSum collects the reader and returns the summed value of an int64 sum
 // instrument by name (0 if absent).

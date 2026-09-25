@@ -94,12 +94,14 @@ func New(reg *provider.Registry, opts ...Option) *Resolver {
 	for _, o := range opts {
 		o(r)
 	}
-	r.metrics = newResolverMetrics(r.meter, r)
 	r.baseCtx, r.baseCancel = context.WithCancel(context.Background())
+	// The gauge callbacks read the snapshot and a reader may run them as soon
+	// as they are registered, so there must already be one to read.
 	r.snap.Store(&snapshot{
 		bindings: map[string]bindingInfo{},
 		values:   map[string]valueEntry{},
 	})
+	r.metrics = newResolverMetrics(r.meter, r)
 	return r
 }
 
