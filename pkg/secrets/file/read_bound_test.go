@@ -373,7 +373,8 @@ func TestFetchProbeWaitReturnsContextError(t *testing.T) {
 
 // lateCancelCtx reports cancellation from Err without ever firing Done. It
 // stands in for a deadline that passes just after a probe has woken the fetch
-// waiting on it, a window no real ctx can be made to hit on demand.
+// waiting on it, a window no real ctx can be made to hit on demand. That
+// breaks the context.Context contract, so it is fit only for this test.
 type lateCancelCtx struct {
 	context.Context
 	cancelled atomic.Bool

@@ -73,13 +73,12 @@ const DefaultPollInterval = 500 * time.Millisecond
 // its last registration stops, so a Provider used only for validation never
 // spawns goroutines.
 type Provider struct {
-	// Configuration, read without a lock. It is set before first use; tests
-	// also change parkedRetryInterval between fetches, which is safe because
-	// only goroutines calling Fetch read it.
+	// Configuration, set before first use and read without a lock.
 	pollInterval time.Duration // zero means DefaultPollInterval
 
 	// parkedRetryInterval spaces new reads of a path that already has a read
-	// parked; zero means DefaultParkedRetryInterval.
+	// parked; zero means DefaultParkedRetryInterval. Only goroutines calling
+	// Fetch read it, so tests also change it between fetches.
 	parkedRetryInterval time.Duration
 
 	// readFile and statPath are the read and remount-probe strategies,
@@ -375,15 +374,14 @@ type readCall struct {
 	err  error
 }
 
-// probeCall is one remount probe: a stat of the path, detached like a read.
+// probeCall is one remount probe: a stat of the path, detached like a read. A
+// newer probe may replace it as its owner's probe while it is still stuck; it
+// is then counted in probesParked until it returns.
 type probeCall struct {
 	// Set at creation and never changed.
 	owner   *pathReads
 	done    chan struct{} // closed, under readGroup.mu, once the stat has returned
 	started time.Time
-
-	// Guarded by readGroup.mu.
-	abandoned bool // a newer probe replaced it
 }
 
 // An admission is pathReads.admit's verdict for one fetch: exactly one of a
@@ -408,7 +406,7 @@ type pathReads struct {
 	lastStart time.Time
 
 	probe         *probeCall // the probe in flight, if any
-	probesParked  int        // abandoned probes still stuck in stat
+	probesParked  int        // replaced probes still stuck in stat
 	probeBackoff  time.Duration
 	lastProbeDone time.Time
 
@@ -533,7 +531,6 @@ func (pr *pathReads) startProbe(ctx context.Context, now time.Time, retry time.D
 		if now.Sub(pc.started) < pr.probeBackoff || pr.probesParked+1 >= MaxParkedProbes {
 			return nil
 		}
-		pc.abandoned = true
 		pr.probe = nil
 		pr.probesParked++
 		pr.probeBackoff = min(2*pr.probeBackoff, maxProbeBackoff)
@@ -558,16 +555,15 @@ func (pr *pathReads) startProbe(ctx context.Context, now time.Time, retry time.D
 // it resolves to a device none of them is on, it lets the next fetch at the
 // cap start one fresh read there. It closes pc.done.
 func (pr *pathReads) finishProbe(ctx context.Context, pc *probeCall, st fileState, now time.Time) {
-	if pc.abandoned {
+	if pr.probe == pc {
+		pr.probe = nil
+		pr.probeBackoff = 0
+	} else { // replaced while stuck
 		pr.probesParked--
 		log.Ctx(ctx).Info().Str("path", pr.path).
 			Dur("elapsed", now.Sub(pc.started)).
 			Int("parked-probes", pr.probesParked).
 			Msg("file secret: parked remount probe returned")
-	}
-	if pr.probe == pc {
-		pr.probe = nil
-		pr.probeBackoff = 0
 	}
 	pr.lastProbeDone = now
 	if len(pr.parked) > 0 && st.exists && !pr.onParkedDevice(st.dev) {

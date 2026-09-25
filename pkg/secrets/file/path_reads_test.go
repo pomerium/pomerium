@@ -227,7 +227,7 @@ func TestPathReadsReplacesStuckProbeWithBackoff(t *testing.T) {
 	now = now.Add(testRetry)
 	second := pr.startProbe(t.Context(), now, testRetry)
 	require.NotNil(t, second)
-	assert.True(t, first.abandoned)
+	assert.NotSame(t, first, pr.probe)
 	assert.Same(t, second, pr.probe)
 	assert.Equal(t, 1, pr.probesParked)
 	assert.Equal(t, 2*testRetry, pr.probeBackoff)
@@ -438,17 +438,15 @@ func checkReadGroup(t *testing.T, g *readGroup, reads []*readCall, probes []*pro
 		require.NotEqual(t, parked, c.owner.live == c, "a running read must be exactly one of live or parked")
 		require.False(t, isClosed(c.done))
 	}
-	abandoned := make(map[*pathReads]int)
+	replaced := make(map[*pathReads]int)
 	for _, pc := range probes {
 		require.Same(t, g.paths[pc.owner.path], pc.owner, "a running probe's owner is not the one in paths")
-		if pc.abandoned {
-			abandoned[pc.owner]++
-		} else {
-			require.Same(t, pc, pc.owner.probe)
+		if pc.owner.probe != pc {
+			replaced[pc.owner]++
 		}
 		require.False(t, isClosed(pc.done))
 	}
 	for _, pr := range g.paths {
-		require.Equal(t, abandoned[pr], pr.probesParked)
+		require.Equal(t, replaced[pr], pr.probesParked, "probesParked must count the replaced probes still running")
 	}
 }
