@@ -84,9 +84,9 @@ require (
 	github.com/open-policy-agent/opa v1.20.1
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/peterbourgon/ff/v3 v3.4.0
-	github.com/pires/go-proxyproto v0.15.0
-	github.com/pomerium/datasource v0.18.2-0.20260903003835-0e65bb3b87a4
-	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f
+	github.com/pires/go-proxyproto v0.11.0
+	github.com/pomerium/datasource v0.18.2-0.20260712023818-d0e40970f4c4
+	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260916000610-36777435573c
 	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-00010101000000-000000000000
 	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-00010101000000-000000000000
 	github.com/pomerium/protoutil v0.0.0-20260903003736-c0c6cb1eb609
@@ -249,7 +249,7 @@ require (
 	github.com/ebitengine/purego v0.11.0-alpha.6.0.20260707033313-5f49e7c49322 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
 	github.com/getkin/kin-openapi v0.144.0 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
@@ -329,7 +329,7 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mwitkow/go-proto-validators v0.0.0-20180403085117-0950a7990007 // indirect
-	github.com/oapi-codegen/oapi-codegen/v2 v2.7.1 // indirect
+	github.com/oapi-codegen/oapi-codegen/v2 v2.8.0 // indirect
 	github.com/oasdiff/yaml v0.1.1 // indirect
 	github.com/oasdiff/yaml3 v0.0.14 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
@@ -366,7 +366,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/speakeasy-api/jsonpath v0.6.3 // indirect
-	github.com/speakeasy-api/openapi v1.19.2 // indirect
+	github.com/speakeasy-api/openapi v1.24.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.7.0 // indirect

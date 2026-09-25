@@ -795,14 +795,11 @@ func (p *Policy) Validate() error {
 	}
 
 	if p.Regex != "" {
-		rawRE := p.Regex
-		if !strings.HasPrefix(rawRE, "^") {
-			rawRE = "^" + rawRE
+		re := p.Regex
+		if _, err = regexp.Compile(re); err != nil {
+			return fmt.Errorf("config: invalid regex: %w", err)
 		}
-		if !strings.HasSuffix(rawRE, "$") {
-			rawRE += "$"
-		}
-		p.compiledRegex, _ = regexp.Compile(rawRE)
+		p.compiledRegex, _ = regexp.Compile("^(" + re + ")$")
 	}
 
 	if len(p.DependsOn) > 5 {
@@ -830,6 +827,10 @@ func (p *Policy) Validate() error {
 		if u.Scheme != "https" {
 			return fmt.Errorf("config: mcp authorization_server_url must be https, got %q", u.Scheme)
 		}
+	}
+
+	if p.IsSSH() && p.AllowPublicUnauthenticatedAccess {
+		return fmt.Errorf("config: allow_public_unauthenticated_access cannot be used with ssh routes")
 	}
 	return nil
 }

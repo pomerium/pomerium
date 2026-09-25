@@ -2,7 +2,9 @@ package mcp
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -29,6 +31,71 @@ const (
 	RefreshTokenTTL = 365 * 24 * time.Hour
 )
 
+// tokenEndpointRealm is the realm reported in the WWW-Authenticate challenge the
+// token endpoint sends when Basic client authentication fails.
+const tokenEndpointRealm = "pomerium"
+
+// clientAuthFailedDescription is the error_description sent for every client
+// authentication failure. It is deliberately uniform: telling the client apart
+// from "unknown client" and "wrong secret" would let an unauthenticated caller
+// enumerate registered clients.
+const clientAuthFailedDescription = "client authentication failed: the client is unknown, or its credentials were rejected"
+
+// clientAuthError is a token request that failed client authentication: the
+// client is unknown, or it did not prove possession of its registered secret.
+// OAuth 2.1 3.2.3.1 requires these be answered with invalid_client rather than
+// invalid_request, and MCP clients treat invalid_client as the signal to discard
+// a persisted dynamic client registration and register again.
+//
+// challengeBasic records whether the client authenticated through the
+// Authorization header, which decides the status and challenge the caller
+// responds with. It is captured where the credentials are read rather than
+// re-derived from the request afterwards.
+type clientAuthError struct {
+	err error
+	// description is sent to the client as error_description. It names the
+	// failure without revealing whether the client exists.
+	description    string
+	challengeBasic bool
+}
+
+func (e *clientAuthError) Error() string { return e.err.Error() }
+func (e *clientAuthError) Unwrap() error { return e.err }
+
+// status reports the response status and WWW-Authenticate challenge this
+// failure must be reported with, per OAuth 2.1 3.2.4.
+func (e *clientAuthError) status() (code int, challenge string) {
+	if e.challengeBasic {
+		return http.StatusUnauthorized, `Basic realm="` + tokenEndpointRealm + `"`
+	}
+	return http.StatusBadRequest, ""
+}
+
+// errServerFault marks a token request that could not be resolved because
+// Pomerium itself failed, not because anything was wrong with the request.
+var errServerFault = errors.New("server fault")
+
+// isClientIdentityError reports whether an error from getOrFetchClient means the
+// client is genuinely unknown or invalid, rather than Pomerium being unable to
+// find out. Only the former is a client authentication failure: a databroker
+// outage or a client metadata host returning 502 would otherwise answer
+// invalid_client, telling every client to discard a registration that is fine.
+func isClientIdentityError(err error) bool {
+	return status.Code(err) == codes.NotFound ||
+		errors.Is(err, ErrClientMetadataValidation) ||
+		errors.Is(err, ErrDomainNotAllowed)
+}
+
+// attemptedBasicAuth reports whether the client tried to authenticate through
+// the Authorization header. A malformed Basic header is still an attempt, and
+// RFC 6749 5.2 requires those be answered with a challenge too, so
+// r.BasicAuth() succeeding is not the right test.
+func attemptedBasicAuth(r *http.Request) bool {
+	const prefix = "Basic "
+	auth := r.Header.Get("Authorization")
+	return len(auth) >= len(prefix) && strings.EqualFold(auth[:len(prefix)], prefix)
+}
+
 // Token handles the /token endpoint.
 func (srv *Handler) Token(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -49,7 +116,19 @@ func (srv *Handler) Token(w http.ResponseWriter, r *http.Request) {
 	req, err := srv.getTokenRequest(r)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/token: get token request failed")
-		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidRequest)
+		var authErr *clientAuthError
+		switch {
+		case errors.As(err, &authErr):
+			code, challenge := authErr.status()
+			if challenge != "" {
+				w.Header().Set("WWW-Authenticate", challenge)
+			}
+			oauth21.ErrorResponseWithDescription(w, code, oauth21.InvalidClient, authErr.description)
+		case errors.Is(err, errServerFault):
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		default:
+			oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidRequest)
+		}
 		return
 	}
 
@@ -270,6 +349,17 @@ func (srv *Handler) getTokenRequest(
 		return nil, fmt.Errorf("failed to parse token request: %w", err)
 	}
 
+	// Whether the client presented credentials in the Authorization header,
+	// captured once here so every failure below reports the same challenge.
+	usedBasicAuth := attemptedBasicAuth(r)
+	authFailure := func(description, format string, args ...any) error {
+		return &clientAuthError{
+			err:            fmt.Errorf(format, args...),
+			description:    description,
+			challengeBasic: usedBasicAuth,
+		}
+	}
+
 	log.Ctx(ctx).Debug().
 		Str("client-id", tokenReq.GetClientId()).
 		Str("grant-type", tokenReq.GetGrantType()).
@@ -278,7 +368,10 @@ func (srv *Handler) getTokenRequest(
 	clientReg, err := srv.getOrFetchClient(ctx, tokenReq.GetClientId())
 	if err != nil {
 		log.Ctx(ctx).Debug().Err(err).Str("client-id", tokenReq.GetClientId()).Msg("mcp/token: failed to fetch client")
-		return nil, fmt.Errorf("failed to get client registration: %w", err)
+		if !isClientIdentityError(err) {
+			return nil, fmt.Errorf("%w: failed to get client registration: %w", errServerFault, err)
+		}
+		return nil, authFailure(clientAuthFailedDescription, "failed to get client registration: %w", err)
 	}
 
 	m := clientReg.ResponseMetadata.GetTokenEndpointAuthMethod()
@@ -294,29 +387,70 @@ func (srv *Handler) getTokenRequest(
 
 	secret := clientReg.ClientSecret
 	if secret == nil {
-		return nil, fmt.Errorf("client registration does not have a client secret")
+		return nil, authFailure(clientAuthFailedDescription, "client registration does not have a client secret")
 	}
 	if expires := secret.ExpiresAt; expires != nil && expires.AsTime().Before(time.Now()) {
 		log.Ctx(ctx).Debug().Time("secret-expires", expires.AsTime()).Msg("mcp/token: client secret has expired")
-		return nil, fmt.Errorf("client registration client secret has expired")
+		return nil, authFailure(clientAuthFailedDescription, "client registration client secret has expired")
 	}
+
+	// ParseTokenRequest folds credentials from either transport into ClientSecret,
+	// so the request itself is what says which mechanism the client actually
+	// used. A client is bound to the method it registered for: holding the right
+	// secret is not enough if it arrives the wrong way.
+	_, _, sentBasicCredentials := r.BasicAuth()
+	sentPostCredentials := r.PostForm.Get("client_secret") != ""
+
+	// OAuth 2.1 2.4: a client must not use more than one authentication
+	// mechanism. That is a malformed request rather than a bad client.
+	if sentBasicCredentials && sentPostCredentials {
+		return nil, fmt.Errorf("more than one client authentication mechanism was used")
+	}
+
+	// The secret is taken from the transport the client registered for, never
+	// from tokenReq: ParseTokenRequest fills that through the query-aware
+	// FormValue, so a query parameter could otherwise stand in for the Basic
+	// password the client is supposed to prove.
+	verifySecret := func(presented string) error {
+		if subtle.ConstantTimeCompare([]byte(presented), []byte(secret.Value)) != 1 {
+			return authFailure(clientAuthFailedDescription, "client secret mismatch")
+		}
+		log.Ctx(ctx).Debug().Msg("mcp/token: client secret verified")
+		return nil
+	}
+
+	log.Ctx(ctx).Debug().
+		Str("auth-method", m).
+		Bool("sent-basic-credentials", sentBasicCredentials).
+		Bool("sent-post-credentials", sentPostCredentials).
+		Msg("mcp/token: verifying client authentication")
 
 	switch m {
 	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic:
-		log.Ctx(ctx).Debug().Msg("mcp/token: client_secret_basic authentication (handled by HTTP layer)")
+		basicID, basicSecret, ok := r.BasicAuth()
+		if !ok {
+			return nil, authFailure(clientAuthFailedDescription,
+				"client is registered for client_secret_basic but sent no Basic credentials")
+		}
+		// The header names the client it authenticates, so it cannot vouch for a
+		// request made in another client's name.
+		if basicID != tokenReq.GetClientId() {
+			return nil, authFailure(clientAuthFailedDescription,
+				"Basic credentials are for a different client than the request")
+		}
+		if err := verifySecret(basicSecret); err != nil {
+			return nil, err
+		}
 	case rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
-		log.Ctx(ctx).Debug().
-			Bool("has-client-secret-in-request", tokenReq.ClientSecret != nil).
-			Msg("mcp/token: verifying client_secret_post authentication")
-		if tokenReq.ClientSecret == nil {
-			return nil, fmt.Errorf("client_secret was not provided")
+		if !sentPostCredentials {
+			return nil, authFailure(clientAuthFailedDescription,
+				"client is registered for client_secret_post but sent no client_secret parameter")
 		}
-		if tokenReq.GetClientSecret() != secret.Value {
-			return nil, fmt.Errorf("client secret mismatch")
+		if err := verifySecret(r.PostForm.Get("client_secret")); err != nil {
+			return nil, err
 		}
-		log.Ctx(ctx).Debug().Msg("mcp/token: client secret verified")
 	default:
-		return nil, fmt.Errorf("unsupported token endpoint authentication method: %s", m)
+		return nil, authFailure(clientAuthFailedDescription, "unsupported token endpoint authentication method: %s", m)
 	}
 
 	return tokenReq, nil

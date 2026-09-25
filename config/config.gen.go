@@ -77,18 +77,19 @@ type SessionRecording struct {
 }
 
 type GlobalOptions struct {
-	AllowUpgrades                Value[[]string]                              `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
-	AutoApplyChangesets          Value[bool]                                  `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
-	BearerTokenFormat            Value[configpb.BearerTokenFormat]            `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
-	CodecType                    Value[configpb.CodecType]                    `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
-	EnvoyDynamicExtensions       Value[[]string]                              `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
-	HeadersWithUnderscoresAction Value[configpb.HeadersWithUnderscoresAction] `json:"headers_with_underscores_action,omitzero" mapstructure:"headers_with_underscores_action" yaml:"headers_with_underscores_action,omitempty"`
-	JWTIssuerFormat              Value[configpb.IssuerFormat]                 `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
-	MergeSlashes                 Value[bool]                                  `json:"merge_slashes,omitzero" mapstructure:"merge_slashes" yaml:"merge_slashes,omitempty"`
-	NormalizePath                Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
-	OriginatorID                 Value[string]                                `json:"originator_id,omitzero" mapstructure:"originator_id" yaml:"originator_id,omitempty"`
-	PathWithEscapedSlashesAction Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
-	SessionRecordingConcurrency  Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
+	AllowUpgrades                      Value[[]string]                              `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AutoApplyChangesets                Value[bool]                                  `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
+	BearerTokenFormat                  Value[configpb.BearerTokenFormat]            `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+	CodecType                          Value[configpb.CodecType]                    `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
+	EnvoyDynamicExtensions             Value[[]string]                              `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
+	HeadersWithUnderscoresAction       Value[configpb.HeadersWithUnderscoresAction] `json:"headers_with_underscores_action,omitzero" mapstructure:"headers_with_underscores_action" yaml:"headers_with_underscores_action,omitempty"`
+	JWTIssuerFormat                    Value[configpb.IssuerFormat]                 `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	MergeSlashes                       Value[bool]                                  `json:"merge_slashes,omitzero" mapstructure:"merge_slashes" yaml:"merge_slashes,omitempty"`
+	NormalizePath                      Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
+	OriginatorID                       Value[string]                                `json:"originator_id,omitzero" mapstructure:"originator_id" yaml:"originator_id,omitempty"`
+	PathWithEscapedSlashesAction       Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
+	SessionRecordingConcurrency        Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
+	SSHTwoPersonApprovalRequestTimeout Value[time.Duration]                         `json:"ssh_two_person_approval_request_timeout,omitzero" mapstructure:"ssh_two_person_approval_request_timeout" yaml:"ssh_two_person_approval_request_timeout,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -450,6 +451,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableStringFromProto(&dst.OriginatorID, src.OriginatorId),
 		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
+		setNullableDurationFromProto(&dst.SSHTwoPersonApprovalRequestTimeout, src.SshTwoPersonApprovalRequestTimeout),
 	)
 }
 
@@ -895,6 +897,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableStringToProto(&obj.OriginatorId, src.OriginatorID),
 		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
+		setNullableDurationToProto(&obj.SshTwoPersonApprovalRequestTimeout, src.SSHTwoPersonApprovalRequestTimeout),
 	)
 }
 
