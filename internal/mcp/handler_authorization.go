@@ -190,19 +190,18 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if tokenErr == nil && token != nil {
-			refreshed, refreshErr := srv.tryRefreshExpiredUpstreamToken(ctx, token, info)
-			if refreshErr != nil {
-				log.Ctx(ctx).Error().Err(refreshErr).
-					Str("user_id", userID).
-					Str("route_id", info.RouteID).
-					Msg("mcp/authorize: transient upstream token refresh failure")
+			refreshErr := srv.tryRefreshExpiredUpstreamToken(ctx, token, info)
+			switch {
+			case errors.Is(refreshErr, errUpstreamTokenCleared):
+				// Fall through to interactive re-auth.
+			case refreshErr != nil:
+				// The refresh site already logged the failure.
 				if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
 					log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
 				}
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
-			}
-			if refreshed != nil {
+			default:
 				log.Ctx(ctx).Info().
 					Str("user_id", userID).
 					Str("route_id", info.RouteID).

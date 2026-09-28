@@ -101,24 +101,18 @@ func (srv *Handler) refreshRoute(ctx context.Context, userID, routeURL string) e
 		return errors.New("route is not connected")
 	}
 
-	refreshed, err := forceRefreshUpstreamMCPToken(
+	err = forceRefreshUpstreamMCPToken(
 		ctx, srv.storage, srv.httpClient, &srv.singleFlight,
 		token, info.ConfigClientSecret(),
 	)
+	// refreshUpstreamMCPToken already logs the refresh outcome.
 	switch {
 	case errors.Is(err, errTokenNotRefreshable):
 		return errors.New("token cannot be refreshed: the upstream authorization server did not issue a refresh token")
-	case err != nil:
-		log.Ctx(ctx).Warn().Err(err).
-			Str("user_id", userID).
-			Str("route_id", info.RouteID).
-			Msg("mcp/refresh: transient upstream token refresh failure")
-		return errors.New("temporary failure refreshing the upstream token, try again")
-	case refreshed == nil:
-		// Permanent failure: the stale token has been cleared, re-authorization is required.
+	case errors.Is(err, errUpstreamTokenCleared):
 		return errors.New("the upstream authorization server rejected the refresh token, reconnect required")
+	case err != nil:
+		return errors.New("temporary failure refreshing the upstream token, try again")
 	}
-
-	// refreshUpstreamMCPToken already logs the successful refresh with the new expiry.
 	return nil
 }

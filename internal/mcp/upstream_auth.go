@@ -270,8 +270,9 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 }
 
 // refreshOrClearToken attempts to refresh an expired token. On permanent failure (4xx) or no refresh
-// capability, it clears the cached token and returns empty. On transient failure (5xx, network),
-// it preserves the token and returns an error.
+// capability, the cached token has been cleared and it returns an empty token so the request proceeds
+// unauthenticated and triggers interactive re-auth. On transient failure (5xx, network), it preserves
+// the token and returns an error.
 func (h *UpstreamAuthHandler) refreshOrClearToken(
 	ctx context.Context,
 	token *oauth21proto.UpstreamMCPToken,
@@ -281,11 +282,10 @@ func (h *UpstreamAuthHandler) refreshOrClearToken(
 		ctx, h.storage, h.httpClient, &h.singleFlight,
 		token, configClientSecret,
 	)
-	if err != nil {
-		return "", err
-	}
-	if refreshed == nil {
+	if errors.Is(err, errUpstreamTokenCleared) {
 		return "", nil
+	} else if err != nil {
+		return "", err
 	}
 	return refreshed.AccessToken, nil
 }
@@ -294,13 +294,11 @@ func (h *UpstreamAuthHandler) refreshOrClearToken(
 // The permanent-vs-transient split is driven by isTokenRefreshPermanent (4xx from the token
 // endpoint vs 5xx / network).
 //
-// Return values encode three outcomes the caller must distinguish:
-//   - (refreshed, nil): refresh succeeded; the new token was persisted.
-//   - (nil, nil):       permanent failure (4xx from the AS — invalid_grant, revoked, etc.)
-//     or no refresh capability. The stale token has been deleted and the caller should
-//     trigger interactive re-auth.
-//   - (nil, error):     transient failure (network / 5xx). The stale token is preserved so
-//     a later retry can still refresh it; the caller should surface the error.
+// On permanent failure (4xx from the AS — invalid_grant, revoked, etc.) or no refresh
+// capability, the stale token is deleted and the returned error wraps errUpstreamTokenCleared;
+// the caller should trigger interactive re-auth. Any other error is transient (network / 5xx):
+// the stale token is preserved so a later retry can still refresh it, and the caller should
+// surface the error.
 //
 // Each terminal branch logs inline so failures are always traceable at the refresh site,
 // regardless of whether the caller logs again.
@@ -330,11 +328,16 @@ func refreshExpiredUpstreamMCPToken(
 		if delErr := storage.DeleteUpstreamMCPToken(ctx, userID, routeID, upstreamServer); delErr != nil {
 			log.Ctx(ctx).Error().Err(delErr).Msg("mcp_upstream_auth: failed to delete expired token")
 		}
-		return nil, nil
+		return nil, fmt.Errorf("%w: expired with no refresh capability", errUpstreamTokenCleared)
 	}
 
 	return refreshUpstreamMCPToken(ctx, storage, httpClient, sf, token, configClientSecret)
 }
+
+// errUpstreamTokenCleared indicates that a stored upstream token could not be refreshed
+// permanently (rejected by the AS, or expired with no refresh capability) and has been
+// deleted; interactive re-authorization is required.
+var errUpstreamTokenCleared = errors.New("upstream token cleared, re-authorization required")
 
 // errTokenNotRefreshable indicates that a stored upstream token carries no refresh
 // token or no token endpoint, so a refresh_token grant is impossible.
@@ -348,13 +351,7 @@ func canRefresh(token *oauth21proto.UpstreamMCPToken) bool {
 // forceRefreshUpstreamMCPToken performs a refresh_token grant for a stored upstream token
 // regardless of its current expiry. Unlike refreshExpiredUpstreamMCPToken, a token without
 // refresh capability is left in place and reported as errTokenNotRefreshable rather than
-// being deleted.
-//
-// Return values otherwise match refreshExpiredUpstreamMCPToken:
-//   - (refreshed, nil): refresh succeeded; the new token was persisted.
-//   - (nil, nil):       permanent failure; the stale token has been deleted.
-//   - (nil, error):     the token is not refreshable, or a transient failure occurred and
-//     the stored token was preserved.
+// being deleted. Refresh failures are otherwise reported as in refreshExpiredUpstreamMCPToken.
 func forceRefreshUpstreamMCPToken(
 	ctx context.Context,
 	storage HandlerStorage,
@@ -362,11 +359,12 @@ func forceRefreshUpstreamMCPToken(
 	sf *singleflight.Group,
 	token *oauth21proto.UpstreamMCPToken,
 	configClientSecret string,
-) (*oauth21proto.UpstreamMCPToken, error) {
+) error {
 	if !canRefresh(token) {
-		return nil, errTokenNotRefreshable
+		return errTokenNotRefreshable
 	}
-	return refreshUpstreamMCPToken(ctx, storage, httpClient, sf, token, configClientSecret)
+	_, err := refreshUpstreamMCPToken(ctx, storage, httpClient, sf, token, configClientSecret)
+	return err
 }
 
 // refreshUpstreamMCPToken runs the refresh_token grant under the supplied singleflight group
@@ -394,7 +392,7 @@ func refreshUpstreamMCPToken(
 	})
 	if err != nil {
 		if isTokenRefreshPermanent(err) {
-			log.Ctx(ctx).Warn().Err(err).
+			log.Ctx(ctx).Info().Err(err).
 				Str("user_id", userID).
 				Str("route_id", routeID).
 				Str("upstream_server", upstreamServer).
@@ -402,9 +400,9 @@ func refreshUpstreamMCPToken(
 			if delErr := storage.DeleteUpstreamMCPToken(ctx, userID, routeID, upstreamServer); delErr != nil {
 				log.Ctx(ctx).Error().Err(delErr).Msg("mcp_upstream_auth: failed to delete stale token after refresh failure")
 			}
-			return nil, nil
+			return nil, fmt.Errorf("%w: %w", errUpstreamTokenCleared, err)
 		}
-		log.Ctx(ctx).Warn().Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", userID).
 			Str("route_id", routeID).
 			Str("upstream_server", upstreamServer).
