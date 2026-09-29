@@ -65,7 +65,8 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 	}
 	if !isFrontingAuthenticate {
 		// Add common routes
-		routes = append(routes,
+		routes = append(
+			routes,
 			b.buildControlPlanePathRoute(options, endpoints.PathPing),
 			b.buildControlPlanePathRoute(options, endpoints.PathHealthz),
 			b.buildControlPlanePathRoute(options, endpoints.PathPomeriumDashboard),
@@ -75,7 +76,8 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 		)
 
 		if options.IsRuntimeFlagSet(config.RuntimeFlagMCP) && isMCPHost {
-			routes = append(routes,
+			routes = append(
+				routes,
 				b.buildControlPlanePathRoute(options, mcp.WellKnownAuthorizationServerEndpoint),
 				b.buildControlPlanePrefixRoute(options, mcp.WellKnownProtectedResourceEndpoint),
 			)
@@ -338,9 +340,6 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		route.TypedPerFilterConfig = map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: extAuthzCfg,
 		}
-		if policy.IsMCPServer() {
-			route.TypedPerFilterConfig[PerFilterConfigExtProcName] = PerFilterConfigExtProcEnabled()
-		}
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 			Kind: &structpb.Value_StringValue{
 				StringValue: cfg.Options.CookieName,
@@ -588,7 +587,8 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 		}
 	}
 	// remove these headers to prevent a user from re-proxying requests through the control plane
-	requestHeadersToRemove = append(requestHeadersToRemove,
+	requestHeadersToRemove = append(
+		requestHeadersToRemove,
 		httputil.HeaderPomeriumReproxyPolicy,
 		httputil.HeaderPomeriumReproxyPolicyHMAC,
 	)
