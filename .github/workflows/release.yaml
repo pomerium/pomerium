@@ -129,20 +129,20 @@ jobs:
       - name: Publish latest tag
         if: github.event_name == 'release' && steps.latestTag.outputs.tag == steps.tagName.outputs.tag
         run: |
-          docker manifest create -a pomerium/pomerium:latest pomerium/pomerium:amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push pomerium/pomerium:latest
+          docker manifest create -a pomerium/pomerium-oss:latest pomerium/pomerium-oss:amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium-oss:arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push pomerium/pomerium-oss:latest
 
           docker tag gcr.io/pomerium-io/pomerium:${{ steps.tagName.outputs.tag }}-cloudrun gcr.io/pomerium-io/pomerium:latest-cloudrun
           docker push gcr.io/pomerium-io/pomerium:latest-cloudrun
 
-          docker manifest create -a pomerium/pomerium:nonroot pomerium/pomerium:nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push pomerium/pomerium:nonroot
+          docker manifest create -a pomerium/pomerium-oss:nonroot pomerium/pomerium-oss:nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium-oss:nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push pomerium/pomerium-oss:nonroot
 
-          docker manifest create -a pomerium/pomerium:debug pomerium/pomerium:debug-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:debug-arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push pomerium/pomerium:debug
+          docker manifest create -a pomerium/pomerium-oss:debug pomerium/pomerium-oss:debug-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium-oss:debug-arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push pomerium/pomerium-oss:debug
 
-          docker manifest create -a pomerium/pomerium:debug-nonroot pomerium/pomerium:debug-nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:debug-nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push pomerium/pomerium:debug-nonroot
+          docker manifest create -a pomerium/pomerium-oss:debug-nonroot pomerium/pomerium-oss:debug-nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium-oss:debug-nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push pomerium/pomerium-oss:debug-nonroot
 
   tag-sub-packages:
     runs-on: ubuntu-22.04

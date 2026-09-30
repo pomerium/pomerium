@@ -38,7 +38,7 @@ jobs:
       - name: Prepare Image Metadata
         id: metadata
         run: |
-          IMAGE=pomerium/pomerium
+          IMAGE=pomerium/pomerium-oss
           SHA_TAG=git-${GITHUB_SHA::8}
           TAGS="${IMAGE}:main ${IMAGE}:master ${IMAGE}:${SHA_TAG}"
           TS=$(date +%Y%m%d%H%M%S)
@@ -70,7 +70,7 @@ jobs:
           push: true
           platforms: linux/amd64
           provenance: false
-          tags: pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-amd64
+          tags: pomerium/pomerium-oss:${{ steps.metadata.outputs.sha-tag }}-amd64
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -84,7 +84,7 @@ jobs:
           push: true
           platforms: linux/arm64
           provenance: false
-          tags: pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-arm64v8
+          tags: pomerium/pomerium-oss:${{ steps.metadata.outputs.sha-tag }}-arm64v8
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -95,8 +95,8 @@ jobs:
           for tag in ${{ steps.metadata.outputs.tags }}
           do
             docker manifest create -a $tag \
-              pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-amd64 \
-              pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-arm64v8
+              pomerium/pomerium-oss:${{ steps.metadata.outputs.sha-tag }}-amd64 \
+              pomerium/pomerium-oss:${{ steps.metadata.outputs.sha-tag }}-arm64v8
             docker manifest push $tag
           done
 
@@ -108,7 +108,7 @@ jobs:
           push: true
           platforms: linux/amd64
           provenance: false
-          tags: pomerium/pomerium:debug-amd64-main
+          tags: pomerium/pomerium-oss:debug-amd64-main
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -122,7 +122,7 @@ jobs:
           push: true
           platforms: linux/arm64
           provenance: false
-          tags: pomerium/pomerium:debug-arm64v8-main
+          tags: pomerium/pomerium-oss:debug-arm64v8-main
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -130,10 +130,10 @@ jobs:
 
       - name: Docker Publish - Debug Main Manifest
         run: |
-          docker manifest create -a pomerium/pomerium:debug-main \
-            pomerium/pomerium:debug-amd64-main \
-            pomerium/pomerium:debug-arm64v8-main
-          docker manifest push pomerium/pomerium:debug-main
+          docker manifest create -a pomerium/pomerium-oss:debug-main \
+            pomerium/pomerium-oss:debug-amd64-main \
+            pomerium/pomerium-oss:debug-arm64v8-main
+          docker manifest push pomerium/pomerium-oss:debug-main
 
   deploy:
     runs-on: ubuntu-22.04
