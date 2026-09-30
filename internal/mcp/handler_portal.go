@@ -12,6 +12,7 @@ type PortalRouteInfo struct {
 	Host      string
 	ServerURL string
 	Connected bool
+	UpstreamTokenStatus
 }
 
 // GetPortalInfoForUser returns MCP connection status for all server routes,
@@ -31,9 +32,10 @@ func (srv *Handler) GetPortalInfoForUser(ctx context.Context, userID string) ([]
 	result := make([]PortalRouteInfo, len(servers))
 	for i, s := range servers {
 		result[i] = PortalRouteInfo{
-			Host:      s.host,
-			ServerURL: s.URL,
-			Connected: s.Connected,
+			Host:                s.host,
+			ServerURL:           s.URL,
+			Connected:           s.Connected,
+			UpstreamTokenStatus: s.UpstreamTokenStatus,
 		}
 	}
 

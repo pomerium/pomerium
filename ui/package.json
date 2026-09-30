@@ -8,6 +8,7 @@
     "format": "prettier --write .",
     "lint": "eslint .",
     "watch": "vite build --watch --mode development",
+    "test": "node --test \"test/*.test.mjs\"",
     "start": "npm run watch"
   },
   "browserslist": {
