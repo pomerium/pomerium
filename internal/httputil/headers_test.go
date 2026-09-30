@@ -1,0 +1,30 @@
+package httputil
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestBearerToken(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		authorization string
+		token         string
+		ok            bool
+	}{
+		{"Bearer abc", "abc", true},
+		{"bearer abc", "abc", true},
+		{"BEARER abc", "abc", true},
+		{"Bearer ", "", true},
+		{"Bearer", "", false},
+		{"Basic abc", "", false},
+		{"Pomerium abc", "", false},
+		{"", "", false},
+	} {
+		token, ok := BearerToken(tc.authorization)
+		assert.Equal(t, tc.ok, ok, tc.authorization)
+		assert.Equal(t, tc.token, token, tc.authorization)
+	}
+}

@@ -1,5 +1,7 @@
 package httputil
 
+import "strings"
+
 // Pomerium authorization types
 const (
 	// AuthorizationTypePomerium is for Authorization: Pomerium JWT... headers
@@ -50,4 +52,14 @@ var HeadersContentSecurityPolicy = map[string]string{
 // PomeriumJWTHeaderName returns the header name set by pomerium for given JWT claim field.
 func PomeriumJWTHeaderName(claim string) string {
 	return "x-pomerium-claim-" + claim
+}
+
+// BearerToken returns the token from an Authorization header value that uses
+// the Bearer scheme (matched case-insensitively), and whether it did.
+func BearerToken(authorization string) (string, bool) {
+	const prefix = "Bearer "
+	if len(authorization) < len(prefix) || !strings.EqualFold(authorization[:len(prefix)], prefix) {
+		return "", false
+	}
+	return authorization[len(prefix):], true
 }

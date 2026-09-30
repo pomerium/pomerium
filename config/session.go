@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -667,12 +666,8 @@ func (cfg *Config) getIncomingBearerToken(policy *Policy, r *http.Request) (rawT
 		return "", format, false
 	}
 
-	auth := r.Header.Get(httputil.HeaderAuthorization)
-	const prefix = "Bearer "
-	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
-		return "", format, false
-	}
-	return auth[len(prefix):], format, true
+	rawToken, ok = httputil.BearerToken(r.Header.Get(httputil.HeaderAuthorization))
+	return rawToken, format, ok
 }
 
 var accessTokenUUIDNamespace = uuid.MustParse("0194f6f8-e760-76a0-8917-e28ac927a34d")

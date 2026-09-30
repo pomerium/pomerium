@@ -732,6 +732,123 @@ func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
 	}
 }
 
+func TestHeadersEvaluator_JWTBearerAuthorization(t *testing.T) {
+	t.Parallel()
+
+	privateJWK, _ := newJWK(t)
+
+	const jwt = configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
+
+	cases := []struct {
+		name          string
+		format        configpb.BearerTokenFormat
+		internal      bool
+		policy        config.Policy
+		authorization string
+		wantRemove    bool
+		wantAuth      string
+	}{
+		{
+			name:          "jwt route strips the caller's bearer token",
+			format:        jwt,
+			authorization: "Bearer caller-jwt",
+			wantRemove:    true,
+		},
+		{
+			name:          "jwt route strips a lowercase bearer scheme",
+			format:        jwt,
+			authorization: "bearer caller-jwt",
+			wantRemove:    true,
+		},
+		{
+			name:          "jwt route keeps a non-bearer Authorization",
+			format:        jwt,
+			authorization: "Basic dXNlcjpwYXNz",
+		},
+		{
+			name:          "jwt route set_request_headers Authorization wins",
+			format:        jwt,
+			policy:        config.Policy{SetRequestHeaders: map[string]string{"Authorization": "Bearer upstream-api-key"}},
+			authorization: "Bearer caller-jwt",
+			wantAuth:      "Bearer upstream-api-key",
+		},
+		{
+			name:          "jwt route kubernetes token wins",
+			format:        jwt,
+			policy:        config.Policy{KubernetesServiceAccountToken: "TOKEN"},
+			authorization: "Bearer caller-jwt",
+			wantAuth:      "Bearer TOKEN",
+		},
+		{
+			name:          "jwt route mcp client token wins",
+			format:        jwt,
+			policy:        config.Policy{MCP: &config.MCP{Client: &config.MCPClient{}}},
+			authorization: "Bearer caller-jwt",
+			wantAuth:      "Bearer mcp-access-token",
+		},
+		{
+			name:          "jwt route mcp server strips once",
+			format:        jwt,
+			policy:        config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
+			authorization: "Bearer caller-jwt",
+			wantRemove:    true,
+		},
+		{
+			name:          "internal request keeps the caller's bearer token",
+			format:        jwt,
+			internal:      true,
+			authorization: "Bearer caller-jwt",
+		},
+		{
+			name:          "default route passes the bearer token through",
+			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			authorization: "Bearer upstream-token",
+		},
+		{
+			name:          "idp access token route is unchanged",
+			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN,
+			authorization: "Bearer idp-access-token",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := store.New()
+			s.UpdateSigningKey(privateJWK)
+			s.UpdateMCPAccessTokenProvider(&mockMCPAccessTokenProvider{sessionToken: "mcp-access-token"})
+
+			ctx := storage.WithQuerier(t.Context(), storage.NewStaticQuerier(
+				&session.Session{Id: "s1", UserId: "u1"},
+			))
+			output, err := NewHeadersEvaluator(s).Evaluate(ctx, &Request{
+				IsInternal:        tc.internal,
+				Policy:            &tc.policy,
+				BearerTokenFormat: tc.format,
+				HTTP: RequestHTTP{
+					Headers: map[string]string{"Authorization": tc.authorization},
+				},
+				Session: RequestSession{ID: "s1"},
+			})
+			require.NoError(t, err)
+
+			removes := 0
+			for _, h := range output.HeadersToRemove {
+				if h == "Authorization" {
+					removes++
+				}
+			}
+			if tc.wantRemove {
+				assert.Equal(t, 1, removes, "Authorization must be removed exactly once: %v", output.HeadersToRemove)
+			} else {
+				assert.Zero(t, removes, "Authorization must not be removed: %v", output.HeadersToRemove)
+			}
+			assert.Equal(t, tc.wantAuth, output.Headers.Get("Authorization"))
+		})
+	}
+}
+
 func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 	t.Parallel()
 

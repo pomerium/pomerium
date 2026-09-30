@@ -119,7 +119,7 @@ func (e *headersEvaluatorEvaluation) fillMCPHeaders(_ context.Context) error {
 	}
 
 	// For MCP server routes, strip the Authorization header; ext_proc handles upstream token injection.
-	e.response.HeadersToRemove = append(e.response.HeadersToRemove, "Authorization")
+	e.response.HeadersToRemove = append(e.response.HeadersToRemove, httputil.HeaderAuthorization)
 	return nil
 }
 
@@ -219,7 +219,27 @@ func (e *headersEvaluatorEvaluation) fillHeaders(ctx context.Context) error {
 	e.fillGoogleCloudServerlessHeaders(ctx)
 	e.fillRoutingKeyHeaders()
 	e.fillSetRequestHeaders(ctx)
+	e.removeJWTBearerHeader()
 	return nil
+}
+
+// removeJWTBearerHeader strips the caller's Authorization: Bearer header on
+// routes where Pomerium consumes it as a JWT, so the caller's credential is
+// not forwarded upstream. An Authorization header Pomerium sets itself (e.g.
+// via set_request_headers) replaces the caller's and is kept. Internal
+// requests are left alone: Pomerium's own handlers read the token.
+func (e *headersEvaluatorEvaluation) removeJWTBearerHeader() {
+	if e.request.IsInternal || e.request.BearerTokenFormat != configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT {
+		return
+	}
+	if _, ok := httputil.BearerToken(e.request.HTTP.Headers[httputil.HeaderAuthorization]); !ok {
+		return
+	}
+	if e.response.Headers.Get(httputil.HeaderAuthorization) != "" ||
+		slices.Contains(e.response.HeadersToRemove, httputil.HeaderAuthorization) {
+		return
+	}
+	e.response.HeadersToRemove = append(e.response.HeadersToRemove, httputil.HeaderAuthorization)
 }
 
 func (e *headersEvaluatorEvaluation) getSessionOrServiceAccount(ctx context.Context) (*session.Session, *user.ServiceAccount) {
