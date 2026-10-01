@@ -23,13 +23,13 @@ jobs:
           echo "value=$latest_release_branch" >> "$GITHUB_OUTPUT"
 
       - name: Trigger Update Latest Release Dependencies
-        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+        uses: benc-uk/workflow-dispatch@d004979be141727c7a17c28f603e2facc40d0855
         with:
           workflow: update-branch-dependencies.yaml
           inputs: '{"branch":"${{ steps.latest_release_branch.outputs.value }}"}'
 
       - name: Trigger Update Main Dependencies
-        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26
+        uses: benc-uk/workflow-dispatch@d004979be141727c7a17c28f603e2facc40d0855
         with:
           workflow: update-branch-dependencies.yaml
           inputs: '{"branch":"main"}'
