@@ -5,12 +5,12 @@ go 1.26.3
 require (
 	connectrpc.com/connect v1.21.0
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/envoyproxy/go-control-plane/envoy v1.39.0
+	github.com/envoyproxy/go-control-plane/envoy v1.39.1-0.20260819172001-e6e3fd93e4be
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
 	github.com/google/gnostic v0.7.2-0.20250814192921-e0e09f706281
 	github.com/google/go-cmp v0.7.0
 	github.com/stretchr/testify v1.12.1
-	google.golang.org/grpc v1.84.0
+	google.golang.org/grpc v1.86.0-dev
 	google.golang.org/protobuf v1.36.12
 )
 
