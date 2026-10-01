@@ -219,20 +219,32 @@ func (e *headersEvaluatorEvaluation) fillHeaders(ctx context.Context) error {
 	e.fillGoogleCloudServerlessHeaders(ctx)
 	e.fillRoutingKeyHeaders()
 	e.fillSetRequestHeaders(ctx)
-	e.removeJWTBearerHeader()
+	e.removeCallerBearerToken()
 	return nil
 }
 
-// removeJWTBearerHeader strips the caller's Authorization: Bearer header on
-// routes where Pomerium consumes it as a JWT, so the caller's credential is
-// not forwarded upstream. An Authorization header Pomerium sets itself (e.g.
-// via set_request_headers) replaces the caller's and is kept. Internal
-// requests are left alone: Pomerium's own handlers read the token.
-func (e *headersEvaluatorEvaluation) removeJWTBearerHeader() {
-	if e.request.IsInternal || e.request.BearerTokenFormat != configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT {
+// removeCallerBearerToken strips the caller's Authorization: Bearer header
+// when it carries a credential Pomerium consumes, so it is not forwarded
+// upstream: a Pomerium JWT (Bearer Pomerium-<jwt>) on any route, or any bearer
+// token on routes whose bearer_token_format makes Pomerium authenticate from
+// it. An Authorization header Pomerium sets itself (e.g. via
+// set_request_headers) replaces the caller's and is kept. Internal requests
+// are left alone: Pomerium's own handlers read the token.
+//
+// The other Pomerium JWT forms (Authorization: Pomerium <jwt> and
+// X-Pomerium-Authorization) are stripped by clean-upstream.lua. Bearer tokens
+// are handled here instead because the Lua filter runs after ext_authz and
+// cannot tell the caller's Authorization header from one Pomerium set.
+func (e *headersEvaluatorEvaluation) removeCallerBearerToken() {
+	if e.request.IsInternal {
 		return
 	}
-	if _, ok := httputil.BearerToken(e.request.HTTP.Headers[httputil.HeaderAuthorization]); !ok {
+	authorization := e.request.HTTP.Headers[httputil.HeaderAuthorization]
+	if _, ok := httputil.BearerToken(authorization); !ok {
+		return
+	}
+	if _, ok := httputil.PomeriumBearerToken(authorization); !ok &&
+		!config.ConsumesBearerToken(e.request.BearerTokenFormat) {
 		return
 	}
 	if e.response.Headers.Get(httputil.HeaderAuthorization) != "" ||

@@ -61,9 +61,8 @@ func TokenFromHeaders(header http.Header) string {
 	}
 
 	// Authorization: Bearer Pomerium-<JWT>
-	prefix = "Bearer " + httputil.AuthorizationTypePomerium + "-"
-	if strings.HasPrefix(bearer, prefix) {
-		return bearer[len(prefix):]
+	if jwt, ok := httputil.PomeriumBearerToken(bearer); ok {
+		return jwt
 	}
 
 	return ""

@@ -732,7 +732,7 @@ func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
 	}
 }
 
-func TestHeadersEvaluator_JWTBearerAuthorization(t *testing.T) {
+func TestHeadersEvaluator_CallerBearerToken(t *testing.T) {
 	t.Parallel()
 
 	privateJWK, _ := newJWK(t)
@@ -805,9 +805,41 @@ func TestHeadersEvaluator_JWTBearerAuthorization(t *testing.T) {
 			authorization: "Bearer upstream-token",
 		},
 		{
-			name:          "idp access token route is unchanged",
+			name:          "idp access token route strips the caller's bearer token",
 			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN,
 			authorization: "Bearer idp-access-token",
+			wantRemove:    true,
+		},
+		{
+			name:          "idp identity token route strips the caller's bearer token",
+			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN,
+			authorization: "Bearer idp-identity-token",
+			wantRemove:    true,
+		},
+		{
+			name:          "default route strips a Pomerium JWT bearer token",
+			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			authorization: "Bearer Pomerium-caller-jwt",
+			wantRemove:    true,
+		},
+		{
+			name:          "unset format strips a Pomerium JWT bearer token",
+			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN,
+			authorization: "Bearer Pomerium-caller-jwt",
+			wantRemove:    true,
+		},
+		{
+			name:          "default route set_request_headers Authorization wins over a Pomerium JWT",
+			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			policy:        config.Policy{SetRequestHeaders: map[string]string{"Authorization": "Bearer upstream-api-key"}},
+			authorization: "Bearer Pomerium-caller-jwt",
+			wantAuth:      "Bearer upstream-api-key",
+		},
+		{
+			name:          "internal request keeps a Pomerium JWT bearer token",
+			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			internal:      true,
+			authorization: "Bearer Pomerium-caller-jwt",
 		},
 	}
 

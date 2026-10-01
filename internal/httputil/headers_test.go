@@ -28,3 +28,24 @@ func TestBearerToken(t *testing.T) {
 		assert.Equal(t, tc.token, token, tc.authorization)
 	}
 }
+
+func TestPomeriumBearerToken(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		authorization string
+		token         string
+		ok            bool
+	}{
+		{"Bearer Pomerium-abc", "abc", true},
+		{"bearer Pomerium-abc", "abc", true},
+		{"Bearer abc", "", false},
+		{"Bearer Pomerium abc", "", false},
+		{"Pomerium abc", "", false},
+		{"", "", false},
+	} {
+		token, ok := PomeriumBearerToken(tc.authorization)
+		assert.Equal(t, tc.ok, ok, tc.authorization)
+		assert.Equal(t, tc.token, token, tc.authorization)
+	}
+}

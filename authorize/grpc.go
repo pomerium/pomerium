@@ -195,12 +195,10 @@ func (a *Authorize) getMCPSession(
 		return nil, fmt.Errorf("no authorization header was provided: %w", sessions.ErrNoSessionFound)
 	}
 
-	prefix := "Bearer "
-	if !strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-		return nil, fmt.Errorf("authorization header does not start with %q: %w", prefix, sessions.ErrNoSessionFound)
+	accessToken, ok := httputil.BearerToken(auth)
+	if !ok {
+		return nil, fmt.Errorf("authorization header does not use the Bearer scheme: %w", sessions.ErrNoSessionFound)
 	}
-
-	accessToken := auth[len(prefix):]
 	sessionID, sessionRecordVersion, err := a.state.Load().mcp.GetSessionAndVersionFromAccessToken(accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("no session found for access token: %w: %w", err, sessions.ErrNoSessionFound)

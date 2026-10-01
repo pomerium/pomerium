@@ -658,16 +658,26 @@ func (cfg *Config) GetBearerTokenFormatForPolicy(policy *Policy) config.BearerTo
 // UNKNOWN (passthrough), or when no Bearer header is present, ok is false.
 func (cfg *Config) getIncomingBearerToken(policy *Policy, r *http.Request) (rawToken string, format config.BearerTokenFormat, ok bool) {
 	format = cfg.GetBearerTokenFormatForPolicy(policy)
-	switch format {
-	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN,
-		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN,
-		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT:
-	default:
+	if !ConsumesBearerToken(format) {
 		return "", format, false
 	}
 
 	rawToken, ok = httputil.BearerToken(r.Header.Get(httputil.HeaderAuthorization))
 	return rawToken, format, ok
+}
+
+// ConsumesBearerToken reports whether Pomerium authenticates the caller from
+// the Authorization: Bearer token under the given bearer_token_format, rather
+// than passing it through to the upstream.
+func ConsumesBearerToken(format config.BearerTokenFormat) bool {
+	switch format {
+	case config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN,
+		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN,
+		config.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT:
+		return true
+	default:
+		return false
+	}
 }
 
 var accessTokenUUIDNamespace = uuid.MustParse("0194f6f8-e760-76a0-8917-e28ac927a34d")
