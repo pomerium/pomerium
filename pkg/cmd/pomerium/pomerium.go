@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
@@ -162,7 +161,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	}
 
 	// override the default http transport so we can use the custom CA in the TLS client config (#1570)
-	http.DefaultTransport = config.NewHTTPTransport(src)
+	globalConfigSource.Swap(ctx, src)
 
 	metricsMgr := config.NewMetricsManager(ctx, src)
 
