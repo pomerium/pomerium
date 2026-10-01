@@ -17,7 +17,8 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
-	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
+	mirroring_ssh "github.com/pomerium/envoy-custom/api/x/mirroring"
+	recording_ssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
@@ -135,7 +136,7 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 
 	var enabledChannelFilters []*envoy_config_core_v3.TypedExtensionConfig
 	if slices.Contains(extensionsToLoad, ExtensionSSHSessionRecording) {
-		ext := &xssh.ChannelFilterConfig{}
+		ext := &recording_ssh.ChannelFilterConfig{}
 		ts := &xds_type_v3.TypedStruct{
 			TypeUrl: "type.googleapis.com/" + string(ext.ProtoReflect().Descriptor().FullName()),
 			Value:   &structpb.Struct{},
@@ -149,6 +150,24 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 		}
 		enabledChannelFilters = append(enabledChannelFilters, &envoy_config_core_v3.TypedExtensionConfig{
 			Name:        "session_recording",
+			TypedConfig: marshalAny(ts),
+		})
+	}
+	if slices.Contains(extensionsToLoad, ExtensionSSHSessionMirroring) {
+		ext := &mirroring_ssh.ChannelFilterConfig{}
+		ts := &xds_type_v3.TypedStruct{
+			TypeUrl: "type.googleapis.com/" + string(ext.ProtoReflect().Descriptor().FullName()),
+			Value:   &structpb.Struct{},
+		}
+		data, err := protojson.Marshal(ext)
+		if err != nil {
+			return nil, err
+		}
+		if err := protojson.Unmarshal(data, ts.Value); err != nil {
+			return nil, err
+		}
+		enabledChannelFilters = append(enabledChannelFilters, &envoy_config_core_v3.TypedExtensionConfig{
+			Name:        "session_mirroring",
 			TypedConfig: marshalAny(ts),
 		})
 	}

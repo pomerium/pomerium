@@ -3,8 +3,11 @@ package envoyconfig
 import (
 	"strconv"
 
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	envoy_extensions_filters_http_ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
+	envoy_extensions_stateful_session_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/stateful_session/v3"
+	envoy_extensions_stateful_session_envelope_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/http/stateful_session/envelope/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -13,6 +16,8 @@ const PerFilterConfigExtAuthzName = "envoy.filters.http.ext_authz"
 
 // PerFilterConfigExtProcName is the name of the ext_proc filter to apply config to
 const PerFilterConfigExtProcName = "envoy.filters.http.ext_proc"
+
+const PerFilterConfigStatefulSessionName = "envoy.filters.http.stateful_session"
 
 // PerFilterConfigExtAuthzContextExtensions returns a per-filter config for ext authz that disables ext-authz.
 func PerFilterConfigExtAuthzContextExtensions(authzContextExtensions map[string]string) *anypb.Any {
@@ -46,6 +51,26 @@ func PerFilterConfigExtAuthzDisabled() *anypb.Any {
 	return marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{
 		Override: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute_Disabled{
 			Disabled: true,
+		},
+	})
+}
+
+// PerFilterConfigStatefulSessionEnabled returns a per-filter config which enables stateful session processing.
+// This is used for enterprise console routes.
+func PerFilterConfigStatefulSessionEnabled() *anypb.Any {
+	return marshalAny(&envoy_extensions_stateful_session_v3.StatefulSessionPerRoute{
+		Override: &envoy_extensions_stateful_session_v3.StatefulSessionPerRoute_StatefulSession{
+			StatefulSession: &envoy_extensions_stateful_session_v3.StatefulSession{
+				Strict: true,
+				SessionState: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.http.stateful_session.envelope",
+					TypedConfig: marshalAny(&envoy_extensions_stateful_session_envelope_v3.EnvelopeSessionState{
+						Header: &envoy_extensions_stateful_session_envelope_v3.EnvelopeSessionState_Header{
+							Name: "x-pomerium-stateful-session-id",
+						},
+					}),
+				},
+			},
 		},
 	})
 }

@@ -5460,6 +5460,20 @@ components:
           description: When the settings were last modified.
           readOnly: true
           $ref: '#/components/schemas/google.protobuf.Timestamp'
+        readonlyConsoleAudiences:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.Settings.StringList'
+            - type: "null"
+          title: readonly_console_audiences
+          description: |-
+            When syncing settings from enterprise console, this field will be
+             populated with the console's current list of audiences (based on the value
+             of the --audiences flag). This is used to identify the bootstrap console
+             route(s) that are defined in core so that additional configuration can be
+             applied to those routes automatically. Some console features require
+             additional http route options to work correctly, in particular when using
+             multiple console replicas.
+          readOnly: true
       title: Settings
       additionalProperties: false
       description: Global Pomerium configuration settings.

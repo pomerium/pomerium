@@ -88,6 +88,7 @@ type GlobalOptions struct {
 	NormalizePath                      Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
 	OriginatorID                       Value[string]                                `json:"originator_id,omitzero" mapstructure:"originator_id" yaml:"originator_id,omitempty"`
 	PathWithEscapedSlashesAction       Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
+	ReadonlyConsoleAudiences           Value[[]string]                              `json:"readonly_console_audiences,omitzero" mapstructure:"readonly_console_audiences" yaml:"readonly_console_audiences,omitempty"`
 	SessionRecordingConcurrency        Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
 	SSHTwoPersonApprovalRequestTimeout Value[time.Duration]                         `json:"ssh_two_person_approval_request_timeout,omitzero" mapstructure:"ssh_two_person_approval_request_timeout" yaml:"ssh_two_person_approval_request_timeout,omitempty"`
 }
@@ -450,6 +451,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.NormalizePath, src.NormalizePath),
 		setNullableStringFromProto(&dst.OriginatorID, src.OriginatorId),
 		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
+		setNullableStringListFromProto(&dst.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 		setNullableDurationFromProto(&dst.SSHTwoPersonApprovalRequestTimeout, src.SshTwoPersonApprovalRequestTimeout),
 	)
@@ -896,6 +898,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.NormalizePath, src.NormalizePath),
 		setNullableStringToProto(&obj.OriginatorId, src.OriginatorID),
 		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
+		setNullableStringListToProto(&obj.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 		setNullableDurationToProto(&obj.SshTwoPersonApprovalRequestTimeout, src.SSHTwoPersonApprovalRequestTimeout),
 	)

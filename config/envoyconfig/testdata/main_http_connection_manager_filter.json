@@ -178,6 +178,13 @@
         }
       },
       {
+        "name": "envoy.filters.http.stateful_session",
+        "disabled": true,
+        "typedConfig": {
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSession"
+        }
+      },
+      {
         "name": "envoy.filters.http.router",
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
