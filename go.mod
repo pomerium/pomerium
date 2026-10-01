@@ -46,7 +46,7 @@ require (
 	github.com/envoyproxy/go-control-plane/envoy v1.39.0
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
 	github.com/ettle/strcase v0.2.0
-	github.com/exaring/otelpgx v0.11.1
+	github.com/exaring/otelpgx v0.12.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gaissmai/bart v0.29.0
 	github.com/go-chi/chi/v5 v5.3.2
@@ -378,7 +378,7 @@ require (
 	github.com/tetratelabs/wazero v1.12.0 // indirect
 	github.com/tidwall/btree v1.8.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect
