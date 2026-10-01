@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -55,4 +56,33 @@ func TestSwappableConfigSource(t *testing.T) {
 
 	src1.SetConfig(ctx, cfg4)
 	assert.Equal(t, []*config.Config{cfg1, cfg3, cfg2}, received(), "changes to a previous source should be ignored")
+}
+
+func TestSwappableConfigSourceReentrant(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	cfg1 := config.New(config.NewDefaultOptions())
+	src := config.NewStaticSource(cfg1)
+
+	source := &swappableConfigSource{current: config.NewStaticSource(config.New(config.NewDefaultOptions()))}
+
+	var got []*config.Config
+	source.OnConfigChange(ctx, func(_ context.Context, _ *config.Config) {
+		// calling back into the source from a listener must not deadlock
+		got = append(got, source.GetConfig())
+	})
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		source.Swap(ctx, src)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("deadlock")
+	}
+	assert.Equal(t, []*config.Config{cfg1}, got)
 }
