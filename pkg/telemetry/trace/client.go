@@ -197,10 +197,16 @@ func NewTraceClientFromConfig(opts otelconfig.Config) (otlptrace.Client, error) 
 				otlptracegrpc.WithTimeout(defaultTimeout),
 			), nil
 		case "http/protobuf", "":
+			endpointOpts, err := httpClientOptionsFromEndpointURL(endpoint)
+			if err != nil {
+				return nil, err
+			}
 			return otlptracehttp.NewClient(
-				otlptracehttp.WithEndpointURL(endpoint),
-				otlptracehttp.WithHeaders(headers),
-				otlptracehttp.WithTimeout(defaultTimeout),
+				append(
+					endpointOpts,
+					otlptracehttp.WithHeaders(headers),
+					otlptracehttp.WithTimeout(defaultTimeout),
+				)...,
 			), nil
 		default:
 			return nil, fmt.Errorf(`unknown otlp trace exporter protocol %q, expected one of ["grpc", "http/protobuf"]`, protocol)
@@ -210,6 +216,23 @@ func NewTraceClientFromConfig(opts otelconfig.Config) (otlptrace.Client, error) 
 	default:
 		return nil, fmt.Errorf(`unknown otlp trace exporter %q, expected one of ["otlp", "none"]`, *opts.OtelTracesExporter)
 	}
+}
+
+func httpClientOptionsFromEndpointURL(endpoint string) ([]otlptracehttp.Option, error) {
+	// Preserves the old behavior before https://github.com/open-telemetry/opentelemetry-go/pull/8538
+	// where an empty path uses the default /v1/traces instead of /
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpoint(u.Host),
+		otlptracehttp.WithURLPath(u.Path),
+	}
+	if u.Scheme != "https" {
+		opts = append(opts, otlptracehttp.WithInsecure())
+	}
+	return opts, nil
 }
 
 func BestEffortProtocolFromOTLPEndpoint(endpoint string, specificEnv bool) string {
