@@ -40,6 +40,36 @@ func TestTokenFromHeader(t *testing.T) {
 	})
 }
 
+func TestCredentialHeaders(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		headers map[string]string
+		want    []string
+	}{
+		{map[string]string{"X-Pomerium-Authorization": "JWT"}, []string{"X-Pomerium-Authorization"}},
+		{map[string]string{"Authorization": "Pomerium JWT"}, []string{"Authorization"}},
+		{map[string]string{"Authorization": "Bearer Pomerium-JWT"}, []string{"Authorization"}},
+		{
+			map[string]string{"X-Pomerium-Authorization": "JWT", "Authorization": "Pomerium JWT"},
+			[]string{"X-Pomerium-Authorization", "Authorization"},
+		},
+		{map[string]string{"Authorization": "Bearer upstream-token"}, nil},
+		{map[string]string{"X-Pomerium-Authorization": ""}, nil},
+		{nil, nil},
+	} {
+		got := CredentialHeaders(func(name string) string { return tc.headers[name] })
+		assert.Equal(t, tc.want, got, tc.headers)
+
+		// every header CredentialHeaders reports carries a JWT TokenFromHeaders accepts
+		for _, name := range got {
+			h := make(http.Header)
+			h.Set(name, tc.headers[name])
+			assert.NotEmpty(t, TokenFromHeaders(h), name)
+		}
+	}
+}
+
 func TestReadSessionHandleJWT(t *testing.T) {
 	t.Parallel()
 

@@ -64,6 +64,17 @@ func BearerToken(authorization string) (string, bool) {
 	return authorization[len(prefix):], true
 }
 
+// PomeriumAuthorizationToken returns the Pomerium JWT from an Authorization
+// header value of the form "Pomerium <JWT>" (scheme matched case-sensitively),
+// and whether it was one.
+func PomeriumAuthorizationToken(authorization string) (string, bool) {
+	jwt, ok := strings.CutPrefix(authorization, AuthorizationTypePomerium+" ")
+	if !ok {
+		return "", false
+	}
+	return jwt, true
+}
+
 // PomeriumBearerToken returns the Pomerium JWT from an Authorization header
 // value of the form "Bearer Pomerium-<JWT>", and whether it was one.
 func PomeriumBearerToken(authorization string) (string, bool) {

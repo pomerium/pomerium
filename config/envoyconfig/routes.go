@@ -346,11 +346,6 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 				StringValue: cfg.Options.CookieName,
 			},
 		}
-		luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
-			Kind: &structpb.Value_BoolValue{
-				BoolValue: true,
-			},
-		}
 		luaMetadata["remove_impersonate_headers"] = &structpb.Value{
 			Kind: &structpb.Value_BoolValue{
 				BoolValue: policy.IsForKubernetes(),

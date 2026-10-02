@@ -732,7 +732,7 @@ func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
 	}
 }
 
-func TestHeadersEvaluator_CallerBearerToken(t *testing.T) {
+func TestHeadersEvaluator_CallerCredentials(t *testing.T) {
 	t.Parallel()
 
 	privateJWK, _ := newJWK(t)
@@ -740,106 +740,137 @@ func TestHeadersEvaluator_CallerBearerToken(t *testing.T) {
 	const jwt = configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT
 
 	cases := []struct {
-		name          string
-		format        configpb.BearerTokenFormat
-		internal      bool
-		policy        config.Policy
-		authorization string
-		wantRemove    bool
-		wantAuth      string
+		name       string
+		format     configpb.BearerTokenFormat
+		internal   bool
+		policy     config.Policy
+		headers    map[string]string
+		wantRemove []string
+		wantAuth   string
 	}{
 		{
-			name:          "jwt route strips the caller's bearer token",
-			format:        jwt,
-			authorization: "Bearer caller-jwt",
-			wantRemove:    true,
+			name:       "jwt route strips the caller's bearer token",
+			format:     jwt,
+			headers:    map[string]string{"Authorization": "Bearer caller-jwt"},
+			wantRemove: []string{"Authorization"},
 		},
 		{
-			name:          "jwt route strips a lowercase bearer scheme",
-			format:        jwt,
-			authorization: "bearer caller-jwt",
-			wantRemove:    true,
+			name:       "jwt route strips a lowercase bearer scheme",
+			format:     jwt,
+			headers:    map[string]string{"Authorization": "bearer caller-jwt"},
+			wantRemove: []string{"Authorization"},
 		},
 		{
-			name:          "jwt route keeps a non-bearer Authorization",
-			format:        jwt,
-			authorization: "Basic dXNlcjpwYXNz",
+			name:    "jwt route keeps a non-bearer Authorization",
+			format:  jwt,
+			headers: map[string]string{"Authorization": "Basic dXNlcjpwYXNz"},
 		},
 		{
-			name:          "jwt route set_request_headers Authorization wins",
-			format:        jwt,
-			policy:        config.Policy{SetRequestHeaders: map[string]string{"Authorization": "Bearer upstream-api-key"}},
-			authorization: "Bearer caller-jwt",
-			wantAuth:      "Bearer upstream-api-key",
+			name:     "jwt route set_request_headers Authorization wins",
+			format:   jwt,
+			policy:   config.Policy{SetRequestHeaders: map[string]string{"Authorization": "Bearer upstream-api-key"}},
+			headers:  map[string]string{"Authorization": "Bearer caller-jwt"},
+			wantAuth: "Bearer upstream-api-key",
 		},
 		{
-			name:          "jwt route kubernetes token wins",
-			format:        jwt,
-			policy:        config.Policy{KubernetesServiceAccountToken: "TOKEN"},
-			authorization: "Bearer caller-jwt",
-			wantAuth:      "Bearer TOKEN",
+			name:     "jwt route kubernetes token wins",
+			format:   jwt,
+			policy:   config.Policy{KubernetesServiceAccountToken: "TOKEN"},
+			headers:  map[string]string{"Authorization": "Bearer caller-jwt"},
+			wantAuth: "Bearer TOKEN",
 		},
 		{
-			name:          "jwt route mcp client token wins",
-			format:        jwt,
-			policy:        config.Policy{MCP: &config.MCP{Client: &config.MCPClient{}}},
-			authorization: "Bearer caller-jwt",
-			wantAuth:      "Bearer mcp-access-token",
+			name:     "jwt route mcp client token wins",
+			format:   jwt,
+			policy:   config.Policy{MCP: &config.MCP{Client: &config.MCPClient{}}},
+			headers:  map[string]string{"Authorization": "Bearer caller-jwt"},
+			wantAuth: "Bearer mcp-access-token",
 		},
 		{
-			name:          "jwt route mcp server strips once",
-			format:        jwt,
-			policy:        config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
-			authorization: "Bearer caller-jwt",
-			wantRemove:    true,
+			name:       "jwt route mcp server strips once",
+			format:     jwt,
+			policy:     config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
+			headers:    map[string]string{"Authorization": "Bearer caller-jwt"},
+			wantRemove: []string{"Authorization"},
 		},
 		{
-			name:          "internal request keeps the caller's bearer token",
-			format:        jwt,
-			internal:      true,
-			authorization: "Bearer caller-jwt",
+			name:     "internal request keeps the caller's bearer token",
+			format:   jwt,
+			internal: true,
+			headers:  map[string]string{"Authorization": "Bearer caller-jwt"},
 		},
 		{
-			name:          "default route passes the bearer token through",
-			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
-			authorization: "Bearer upstream-token",
+			name:    "default route passes the bearer token through",
+			format:  configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			headers: map[string]string{"Authorization": "Bearer upstream-token"},
 		},
 		{
-			name:          "idp access token route strips the caller's bearer token",
-			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN,
-			authorization: "Bearer idp-access-token",
-			wantRemove:    true,
+			name:       "idp access token route strips the caller's bearer token",
+			format:     configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN,
+			headers:    map[string]string{"Authorization": "Bearer idp-access-token"},
+			wantRemove: []string{"Authorization"},
 		},
 		{
-			name:          "idp identity token route strips the caller's bearer token",
-			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN,
-			authorization: "Bearer idp-identity-token",
-			wantRemove:    true,
+			name:       "idp identity token route strips the caller's bearer token",
+			format:     configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN,
+			headers:    map[string]string{"Authorization": "Bearer idp-identity-token"},
+			wantRemove: []string{"Authorization"},
 		},
 		{
-			name:          "default route strips a Pomerium JWT bearer token",
-			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
-			authorization: "Bearer Pomerium-caller-jwt",
-			wantRemove:    true,
+			name:       "default route strips a Pomerium JWT bearer token",
+			format:     configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			headers:    map[string]string{"Authorization": "Bearer Pomerium-caller-jwt"},
+			wantRemove: []string{"Authorization"},
 		},
 		{
-			name:          "unset format strips a Pomerium JWT bearer token",
-			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN,
-			authorization: "Bearer Pomerium-caller-jwt",
-			wantRemove:    true,
+			name:       "unset format strips a Pomerium JWT bearer token",
+			format:     configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN,
+			headers:    map[string]string{"Authorization": "Bearer Pomerium-caller-jwt"},
+			wantRemove: []string{"Authorization"},
 		},
 		{
-			name:          "default route set_request_headers Authorization wins over a Pomerium JWT",
-			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
-			policy:        config.Policy{SetRequestHeaders: map[string]string{"Authorization": "Bearer upstream-api-key"}},
-			authorization: "Bearer Pomerium-caller-jwt",
-			wantAuth:      "Bearer upstream-api-key",
+			name:     "default route set_request_headers Authorization wins over a Pomerium JWT",
+			format:   configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			policy:   config.Policy{SetRequestHeaders: map[string]string{"Authorization": "Bearer upstream-api-key"}},
+			headers:  map[string]string{"Authorization": "Bearer Pomerium-caller-jwt"},
+			wantAuth: "Bearer upstream-api-key",
 		},
 		{
-			name:          "internal request keeps a Pomerium JWT bearer token",
-			format:        configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
-			internal:      true,
-			authorization: "Bearer Pomerium-caller-jwt",
+			name:     "internal request keeps a Pomerium JWT bearer token",
+			format:   configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			internal: true,
+			headers:  map[string]string{"Authorization": "Bearer Pomerium-caller-jwt"},
+		},
+		{
+			name:       "Authorization: Pomerium JWT is stripped",
+			format:     configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			headers:    map[string]string{"Authorization": "Pomerium caller-jwt"},
+			wantRemove: []string{"Authorization"},
+		},
+		{
+			name:     "set_request_headers Authorization wins over Authorization: Pomerium",
+			format:   configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			policy:   config.Policy{SetRequestHeaders: map[string]string{"Authorization": "Pomerium upstream-jwt"}},
+			headers:  map[string]string{"Authorization": "Pomerium caller-jwt"},
+			wantAuth: "Pomerium upstream-jwt",
+		},
+		{
+			name:       "X-Pomerium-Authorization is stripped",
+			format:     configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			headers:    map[string]string{"X-Pomerium-Authorization": "caller-jwt"},
+			wantRemove: []string{"X-Pomerium-Authorization"},
+		},
+		{
+			name:       "X-Pomerium-Authorization is stripped alongside a passed-through bearer token",
+			format:     configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			headers:    map[string]string{"X-Pomerium-Authorization": "caller-jwt", "Authorization": "Bearer upstream-token"},
+			wantRemove: []string{"X-Pomerium-Authorization"},
+		},
+		{
+			name:     "internal request keeps X-Pomerium-Authorization",
+			format:   configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			internal: true,
+			headers:  map[string]string{"X-Pomerium-Authorization": "caller-jwt"},
 		},
 	}
 
@@ -859,23 +890,13 @@ func TestHeadersEvaluator_CallerBearerToken(t *testing.T) {
 				Policy:            &tc.policy,
 				BearerTokenFormat: tc.format,
 				HTTP: RequestHTTP{
-					Headers: map[string]string{"Authorization": tc.authorization},
+					Headers: tc.headers,
 				},
 				Session: RequestSession{ID: "s1"},
 			})
 			require.NoError(t, err)
 
-			removes := 0
-			for _, h := range output.HeadersToRemove {
-				if h == "Authorization" {
-					removes++
-				}
-			}
-			if tc.wantRemove {
-				assert.Equal(t, 1, removes, "Authorization must be removed exactly once: %v", output.HeadersToRemove)
-			} else {
-				assert.Zero(t, removes, "Authorization must not be removed: %v", output.HeadersToRemove)
-			}
+			assert.ElementsMatch(t, tc.wantRemove, output.HeadersToRemove)
 			assert.Equal(t, tc.wantAuth, output.Headers.Get("Authorization"))
 		})
 	}
