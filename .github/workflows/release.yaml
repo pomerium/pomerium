@@ -46,11 +46,6 @@ jobs:
       - name: Set up Docker
         run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
-      - uses: azure/docker-login@15c4aadf093404726ab2ff205b2cdd33fa6d054c
-        with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: gcloud authenticate
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:
@@ -61,7 +56,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
 
       - name: Gcloud login
-        run: gcloud auth configure-docker
+        run: gcloud auth configure-docker gcr.io,us-central1-docker.pkg.dev
 
       - name: Get GoReleaser version
         id: goreleaser-version
@@ -129,20 +124,20 @@ jobs:
       - name: Publish latest tag
         if: github.event_name == 'release' && steps.latestTag.outputs.tag == steps.tagName.outputs.tag
         run: |
-          docker manifest create -a pomerium/pomerium-oss:latest pomerium/pomerium-oss:amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium-oss:arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push pomerium/pomerium-oss:latest
+          docker manifest create -a us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:latest us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:amd64-${{ steps.tagName.outputs.tag }} us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:latest
 
           docker tag gcr.io/pomerium-io/pomerium:${{ steps.tagName.outputs.tag }}-cloudrun gcr.io/pomerium-io/pomerium:latest-cloudrun
           docker push gcr.io/pomerium-io/pomerium:latest-cloudrun
 
-          docker manifest create -a pomerium/pomerium-oss:nonroot pomerium/pomerium-oss:nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium-oss:nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push pomerium/pomerium-oss:nonroot
+          docker manifest create -a us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot-amd64-${{ steps.tagName.outputs.tag }} us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot
 
-          docker manifest create -a pomerium/pomerium-oss:debug pomerium/pomerium-oss:debug-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium-oss:debug-arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push pomerium/pomerium-oss:debug
+          docker manifest create -a us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-amd64-${{ steps.tagName.outputs.tag }} us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug
 
-          docker manifest create -a pomerium/pomerium-oss:debug-nonroot pomerium/pomerium-oss:debug-nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium-oss:debug-nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push pomerium/pomerium-oss:debug-nonroot
+          docker manifest create -a us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot-amd64-${{ steps.tagName.outputs.tag }} us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot
 
   tag-sub-packages:
     runs-on: ubuntu-22.04

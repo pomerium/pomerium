@@ -20,7 +20,7 @@ jobs:
         with:
           # list of Docker images to use as base name for tags
           images: |
-            pomerium/pomerium-oss
+            us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium
           # generate Docker tags based on the following events/attributes
           tags: |
             type=ref,event=branch
@@ -32,11 +32,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
 
-      - name: Login to DockerHub
+      - name: gcloud authenticate
+        id: gcloud-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: ${{ secrets.GCP_PRODUCTION_PROJECT_ID }}
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Login to Artifact Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
         with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: us-central1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.gcloud-auth.outputs.access_token }}
 
       - name: Docker Publish - Version Branches
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
