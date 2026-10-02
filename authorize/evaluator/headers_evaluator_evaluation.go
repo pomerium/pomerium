@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/headertemplate"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -114,12 +115,12 @@ func (e *headersEvaluatorEvaluation) fillMCPHeaders(_ context.Context) error {
 		if err != nil {
 			return fmt.Errorf("authorize/header-evaluator: error getting MCP access token: %w", err)
 		}
-		e.response.Headers.Set("Authorization", "Bearer "+accessToken)
+		e.response.Headers.Set(httputil.HeaderAuthorization, "Bearer "+accessToken)
 		return nil
 	}
 
 	// For MCP server routes, strip the Authorization header; ext_proc handles upstream token injection.
-	e.response.HeadersToRemove = append(e.response.HeadersToRemove, "Authorization")
+	e.response.HeadersToRemove = append(e.response.HeadersToRemove, httputil.HeaderAuthorization)
 	return nil
 }
 
@@ -219,7 +220,39 @@ func (e *headersEvaluatorEvaluation) fillHeaders(ctx context.Context) error {
 	e.fillGoogleCloudServerlessHeaders(ctx)
 	e.fillRoutingKeyHeaders()
 	e.fillSetRequestHeaders(ctx)
+	e.removeCallerCredentials()
 	return nil
+}
+
+// removeCallerCredentials strips the caller's credentials for Pomerium from
+// the request, so they are not forwarded upstream: a Pomerium JWT in any form
+// the session loader accepts, and the Authorization: Bearer token on routes
+// whose bearer_token_format makes Pomerium authenticate from it.
+//
+// A header Pomerium sets itself (e.g. via set_request_headers) replaces the
+// caller's and is kept. Internal requests are left alone: Pomerium's own
+// handlers read the token.
+func (e *headersEvaluatorEvaluation) removeCallerCredentials() {
+	if e.request.IsInternal {
+		return
+	}
+	headers := e.request.HTTP.Headers
+	for _, name := range header.CredentialHeaders(func(name string) string { return headers[name] }) {
+		e.removeCallerHeader(name)
+	}
+	if _, ok := httputil.BearerToken(headers[httputil.HeaderAuthorization]); ok &&
+		config.ConsumesBearerToken(e.request.BearerTokenFormat) {
+		e.removeCallerHeader(httputil.HeaderAuthorization)
+	}
+}
+
+// removeCallerHeader removes the caller's value of the canonical header name,
+// unless Pomerium sets or already removes that header.
+func (e *headersEvaluatorEvaluation) removeCallerHeader(name string) {
+	if e.response.Headers.Get(name) != "" || slices.Contains(e.response.HeadersToRemove, name) {
+		return
+	}
+	e.response.HeadersToRemove = append(e.response.HeadersToRemove, name)
 }
 
 func (e *headersEvaluatorEvaluation) getSessionOrServiceAccount(ctx context.Context) (*session.Session, *user.ServiceAccount) {
