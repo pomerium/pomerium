@@ -5,7 +5,6 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	set_filter_statev3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/common/set_filter_state/v3"
 	envoy_extensions_filters_http_set_filter_state_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/set_filter_state/v3"
-	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_internal_upstream_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/internal_upstream/v3"
 	envoy_extensions_transport_sockets_raw_buffer_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/raw_buffer/v3"
 	envoy_extensions_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
@@ -116,66 +115,63 @@ func wrapTransportSocket(socket *envoy_config_core_v3.TransportSocket) {
 	socket.ConfigType = wrappedTypedConfig
 }
 
-func SetConnectionStateFilter() *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
-	// TODO: this would probably be better implemented via http PerFilterConfig
-	return &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+func UpstreamTunnelSetFilterStateFilter() *envoy_config_core_v3.TypedExtensionConfig {
+	return &envoy_config_core_v3.TypedExtensionConfig{
 		Name: "envoy.filters.http.set_filter_state",
-		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
-			TypedConfig: marshalAny(&envoy_extensions_filters_http_set_filter_state_v3.Config{
-				OnRequestHeaders: []*set_filter_statev3.FilterStateValue{
-					{
-						Key: &set_filter_statev3.FilterStateValue_ObjectKey{
-							ObjectKey: "pomerium.extensions.ssh.downstream_source_address",
-						},
-						Value: &set_filter_statev3.FilterStateValue_FormatString{
-							FormatString: &envoy_config_core_v3.SubstitutionFormatString{
-								Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
-									TextFormatSource: &envoy_config_core_v3.DataSource{
-										Specifier: &envoy_config_core_v3.DataSource_InlineString{
-											InlineString: "%DOWNSTREAM_REMOTE_ADDRESS%",
-										},
+		TypedConfig: marshalAny(&envoy_extensions_filters_http_set_filter_state_v3.Config{
+			OnRequestHeaders: []*set_filter_statev3.FilterStateValue{
+				{
+					Key: &set_filter_statev3.FilterStateValue_ObjectKey{
+						ObjectKey: "pomerium.extensions.ssh.downstream_source_address",
+					},
+					Value: &set_filter_statev3.FilterStateValue_FormatString{
+						FormatString: &envoy_config_core_v3.SubstitutionFormatString{
+							Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
+								TextFormatSource: &envoy_config_core_v3.DataSource{
+									Specifier: &envoy_config_core_v3.DataSource_InlineString{
+										InlineString: "%DOWNSTREAM_REMOTE_ADDRESS%",
 									},
 								},
 							},
 						},
-						SharedWithUpstream: set_filter_statev3.FilterStateValue_ONCE,
 					},
-					{
-						Key: &set_filter_statev3.FilterStateValue_ObjectKey{
-							ObjectKey: "pomerium.extensions.ssh.requested_server_name",
-						},
-						Value: &set_filter_statev3.FilterStateValue_FormatString{
-							FormatString: &envoy_config_core_v3.SubstitutionFormatString{
-								Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
-									TextFormatSource: &envoy_config_core_v3.DataSource{
-										Specifier: &envoy_config_core_v3.DataSource_InlineString{
-											InlineString: "%REQUESTED_SERVER_NAME%",
-										},
-									},
-								},
-							},
-						},
-						SharedWithUpstream: set_filter_statev3.FilterStateValue_ONCE,
-					},
-					{
-						Key: &set_filter_statev3.FilterStateValue_ObjectKey{
-							ObjectKey: "pomerium.extensions.ssh.requested_path",
-						},
-						Value: &set_filter_statev3.FilterStateValue_FormatString{
-							FormatString: &envoy_config_core_v3.SubstitutionFormatString{
-								Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
-									TextFormatSource: &envoy_config_core_v3.DataSource{
-										Specifier: &envoy_config_core_v3.DataSource_InlineString{
-											InlineString: "%PATH(NQ)%",
-										},
-									},
-								},
-							},
-						},
-						SharedWithUpstream: set_filter_statev3.FilterStateValue_ONCE,
-					},
+					SharedWithUpstream: set_filter_statev3.FilterStateValue_ONCE,
 				},
-			}),
-		},
+				{
+					Key: &set_filter_statev3.FilterStateValue_ObjectKey{
+						ObjectKey: "pomerium.extensions.ssh.requested_server_name",
+					},
+					Value: &set_filter_statev3.FilterStateValue_FormatString{
+						FormatString: &envoy_config_core_v3.SubstitutionFormatString{
+							Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
+								TextFormatSource: &envoy_config_core_v3.DataSource{
+									Specifier: &envoy_config_core_v3.DataSource_InlineString{
+										InlineString: "%REQUESTED_SERVER_NAME%",
+									},
+								},
+							},
+						},
+					},
+					SharedWithUpstream: set_filter_statev3.FilterStateValue_ONCE,
+				},
+				{
+					Key: &set_filter_statev3.FilterStateValue_ObjectKey{
+						ObjectKey: "pomerium.extensions.ssh.requested_path",
+					},
+					Value: &set_filter_statev3.FilterStateValue_FormatString{
+						FormatString: &envoy_config_core_v3.SubstitutionFormatString{
+							Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
+								TextFormatSource: &envoy_config_core_v3.DataSource{
+									Specifier: &envoy_config_core_v3.DataSource_InlineString{
+										InlineString: "%PATH(NQ)%",
+									},
+								},
+							},
+						},
+					},
+					SharedWithUpstream: set_filter_statev3.FilterStateValue_ONCE,
+				},
+			},
+		}),
 	}
 }
