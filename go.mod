@@ -85,12 +85,12 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.15.0
-	github.com/pomerium/datasource v0.18.2-0.20260712023818-d0e40970f4c4
+	github.com/pomerium/datasource v0.18.2-0.20261002181303-003db0311b58
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260916000610-36777435573c
 	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-00010101000000-000000000000
 	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-00010101000000-000000000000
-	github.com/pomerium/protoutil v0.0.0-20260903003736-c0c6cb1eb609
-	github.com/pomerium/webauthn v0.0.0-20260903003757-b3d1ace9ea4c
+	github.com/pomerium/protoutil v0.0.0-20261001140155-664fa450ad44
+	github.com/pomerium/webauthn v0.0.0-20261002181427-1f03c85ad0ba
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.3
 	github.com/prometheus/common v0.71.0
@@ -141,7 +141,7 @@ require (
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
 	golang.org/x/time v0.16.0
-	google.golang.org/api v0.298.0
+	google.golang.org/api v0.299.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260921155816-b14227669459
 	google.golang.org/grpc v1.86.0-dev
 	google.golang.org/protobuf v1.36.12
@@ -387,7 +387,7 @@ require (
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
-	github.com/vektah/gqlparser/v2 v2.5.37 // indirect
+	github.com/vektah/gqlparser/v2 v2.5.58 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
