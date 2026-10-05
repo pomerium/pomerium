@@ -12,9 +12,9 @@ import (
 	"net/url"
 	"testing"
 	"time"
-	"uuid"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	oteltrace "go.opentelemetry.io/otel/trace"

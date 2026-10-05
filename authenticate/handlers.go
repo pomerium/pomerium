@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"uuid"
 
 	csrf "filippo.io/csrf/gorilla"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
