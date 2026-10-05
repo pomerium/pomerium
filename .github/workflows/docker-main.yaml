@@ -29,16 +29,25 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
-      - name: Login to DockerHub
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+      - name: gcloud authenticate
+        id: gcloud-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          project_id: ${{ secrets.GCP_PRODUCTION_PROJECT_ID }}
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: gcloud sdk
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+        with:
+          skip_install: true
+
+      - name: gcloud auth configure-docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
       - name: Prepare Image Metadata
         id: metadata
         run: |
-          IMAGE=pomerium/pomerium
+          IMAGE=us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium
           SHA_TAG=git-${GITHUB_SHA::8}
           TAGS="${IMAGE}:main ${IMAGE}:master ${IMAGE}:${SHA_TAG}"
           TS=$(date +%Y%m%d%H%M%S)
@@ -70,7 +79,7 @@ jobs:
           push: true
           platforms: linux/amd64
           provenance: false
-          tags: pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-amd64
+          tags: us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-amd64
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -84,7 +93,7 @@ jobs:
           push: true
           platforms: linux/arm64
           provenance: false
-          tags: pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-arm64v8
+          tags: us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-arm64v8
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -95,8 +104,8 @@ jobs:
           for tag in ${{ steps.metadata.outputs.tags }}
           do
             docker manifest create -a $tag \
-              pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-amd64 \
-              pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-arm64v8
+              us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-amd64 \
+              us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-arm64v8
             docker manifest push $tag
           done
 
@@ -108,7 +117,7 @@ jobs:
           push: true
           platforms: linux/amd64
           provenance: false
-          tags: pomerium/pomerium:debug-amd64-main
+          tags: us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-amd64-main
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -122,7 +131,7 @@ jobs:
           push: true
           platforms: linux/arm64
           provenance: false
-          tags: pomerium/pomerium:debug-arm64v8-main
+          tags: us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-arm64v8-main
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -130,10 +139,10 @@ jobs:
 
       - name: Docker Publish - Debug Main Manifest
         run: |
-          docker manifest create -a pomerium/pomerium:debug-main \
-            pomerium/pomerium:debug-amd64-main \
-            pomerium/pomerium:debug-arm64v8-main
-          docker manifest push pomerium/pomerium:debug-main
+          docker manifest create -a us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-main \
+            us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-amd64-main \
+            us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-arm64v8-main
+          docker manifest push us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-main
 
   deploy:
     runs-on: ubuntu-22.04
