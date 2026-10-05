@@ -6,6 +6,7 @@ on:
     branches:
       - 0-[0-9]+-*
       - experimental/*
+      - cdoxsey/docker-fix
 
 jobs:
   publish:
