@@ -48,6 +48,11 @@ func newSecretWriterForConfig(uri *url.URL, loadConfig func() (*rest.Config, err
 		return nil, fmt.Errorf(`invalid secret uri %q (did you mean "secret:/%s"?)`, uri.String(), uri.Path)
 	}
 
+	_, err := loadConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	return &secretWriter{
 		namespace:  parts[0],
 		name:       parts[1],
