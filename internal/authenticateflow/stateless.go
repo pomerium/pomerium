@@ -8,8 +8,8 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
-	"uuid"
 
+	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"

@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -92,7 +91,7 @@ func (b *bindingManager) DeleteUpstreamIDPSessions(
 	if parent.GetSid() != "" {
 		filter = map[string]any{"sid": parent.GetSid()}
 	}
-	records, sessions, err := b.queryIDPSessions(ctx, filter)
+	records, sessions, err := b.queryIDPSessions(ctx, filter, h.IdentityProviderId, h.UserId)
 	if err != nil {
 		return IDPSessionRevocation{}, errRevoke
 	}
@@ -128,6 +127,8 @@ func (b *bindingManager) getIDPSession(ctx context.Context, id string) (*idpsess
 func (b *bindingManager) queryIDPSessions(
 	ctx context.Context,
 	fields map[string]any,
+	idpID string,
+	userID string,
 ) ([]*databroker.Record, []*idpsession.IDPSession, error) {
 	filter, err := structpb.NewStruct(fields)
 	if err != nil {
@@ -135,62 +136,60 @@ func (b *bindingManager) queryIDPSessions(
 	}
 	const limit = int64(100)
 	var records []*databroker.Record
-	var sessions []*idpsession.IDPSession
+	var idpSessList []*idpsession.IDPSession
 	for offset := int64(0); ; offset += limit {
-		response, err := b.dataBrokerClient.Query(ctx, &databroker.QueryRequest{
+		resp, err := b.dataBrokerClient.Query(ctx, &databroker.QueryRequest{
 			Type: protoutil.GetTypeURL(new(idpsession.IDPSession)), Offset: offset, Limit: limit, Filter: filter,
 		})
 		if err != nil {
 			return nil, nil, err
 		}
-		for _, record := range response.GetRecords() {
-			if record.GetDeletedAt() != nil {
+		for _, rec := range resp.GetRecords() {
+			if rec.GetDeletedAt() != nil {
 				continue
 			}
-			session := new(idpsession.IDPSession)
-			if err := record.GetData().UnmarshalTo(session); err != nil {
-				return nil, nil, err
+			idpSess := new(idpsession.IDPSession)
+			if err := rec.GetData().UnmarshalTo(idpSess); err != nil {
+				log.Ctx(ctx).Err(err).Str("id", rec.GetId()).Str("type-url", rec.GetData().GetTypeUrl()).
+					Msg("incompatible idpsession record")
+				continue
 			}
-			records = append(records, record)
-			sessions = append(sessions, session)
+
+			// just in case : omit idp-id and user_id mismatch
+			if idpSess.GetIdpId() != idpID {
+				log.Ctx(ctx).Debug().Str("id", rec.GetId()).Msg("mismatched idp id on idpsessions for filter")
+				continue
+			}
+			if idpSess.GetUserId() != userID {
+				log.Ctx(ctx).Debug().Str("id", rec.GetId()).Msg("mismatched user id on idpsessions for filter")
+				continue
+			}
+			records = append(records, rec)
+			idpSessList = append(idpSessList, idpSess)
 		}
-		if len(response.GetRecords()) < int(limit) || offset+limit >= response.GetTotalCount() {
+		if len(resp.GetRecords()) < int(limit) || offset+limit >= resp.GetTotalCount() {
 			break
 		}
 	}
-	return records, sessions, nil
+	return records, idpSessList, nil
 }
 
 func (b *bindingManager) GetIDPSessions(ctx context.Context, h *session.Handle) ([]handlers.IDPSessionData, string, error) {
 	currentIDPSessionID := ""
-	if binding, err := idpsession.GetBinding(ctx, b.dataBrokerClient, h.GetId()); err == nil &&
-		binding.GetUserId() == h.GetUserId() {
+	binding, err := idpsession.GetBinding(ctx, b.dataBrokerClient, h.GetId())
+	if err == nil && binding.GetUserId() == h.GetUserId() {
 		currentIDPSessionID = binding.GetIdpSessionId()
 	}
-	filter, err := structpb.NewStruct(map[string]any{
-		"user_id": h.UserId,
-	})
-	if err != nil {
-		return nil, "", httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
-	}
-	resp, err := b.dataBrokerClient.Query(ctx, &databroker.QueryRequest{
-		Type:   protoutil.GetTypeURL(new(idpsession.IDPSession)),
-		Filter: filter,
-		Limit:  100,
-	})
-	if err != nil {
-		return nil, "", httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
-	}
-	ret := make([]handlers.IDPSessionData, 0, len(resp.GetRecords()))
-	for _, rec := range resp.GetRecords() {
-		idpSess := &idpsession.IDPSession{}
-		if err := rec.GetData().UnmarshalTo(idpSess); err != nil {
-			log.Ctx(ctx).Err(err).Str("session-id", h.Id).Str("record-id", rec.GetId()).Msg("processing IDPSession")
-			continue
-		}
+	filter := map[string]any{"user_id": h.UserId}
 
+	_, idpSessList, err := b.queryIDPSessions(ctx, filter, h.IdentityProviderId, h.UserId)
+	if err != nil {
+		return nil, "", err
+	}
+	ret := []handlers.IDPSessionData{}
+	for _, idpSess := range idpSessList {
 		datum := handlers.IDPSessionData{
-			IDPSessionID:  rec.GetId(),
+			IDPSessionID:  idpSess.GetId(),
 			SID:           idpSess.GetSid(),
 			InitiatedAt:   idpSess.GetInitiatedAt().AsTime().Format(time.RFC1123),
 			ClientAddress: "unknown client address",
@@ -268,29 +267,32 @@ func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
 	}
-	otherBindings, err := b.getIDPSessionBindings(ctx, h)
+	idpSessionBindings, err := b.queryBindings(ctx, h.UserId)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
 	}
-	allBindings := map[string][]handlers.SessionBindingData{}
-	maps.Copy(allBindings, sshBindings)
-	for k, incoming := range otherBindings {
-		existing, ok := allBindings[k]
-		if ok {
-			allBindings[k] = append(existing, incoming...)
-		} else {
-			allBindings[k] = incoming
+
+	bindings := sshBindings
+	for _, binding := range idpSessionBindings {
+		if binding.GetTypeUrl() != protoutil.GetTypeURL(new(session.Session)) {
+			continue
 		}
+		// Browser sessions require a sign-out flow and cannot be revoked like
+		// the bindings displayed by this page.
+		if binding.GetProtocol() == idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER {
+			continue
+		}
+
+		datum, err := b.sessionToBindingData(ctx, binding)
+		if err != nil {
+			log.Ctx(ctx).Err(err).Msg("failed to fetch session binding information")
+			continue
+		}
+		datum.IDPSessionID = binding.GetIdpSessionId()
+		bindings = append(bindings, datum)
 	}
 
-	ret := make([]handlers.SessionBindingData, 0)
-	for idpSessionID, bindings := range allBindings {
-		for _, binding := range bindings {
-			binding.IDPSessionID = idpSessionID
-			ret = append(ret, binding)
-		}
-	}
-	slices.SortFunc(ret, func(a, b handlers.SessionBindingData) int {
+	slices.SortFunc(bindings, func(a, b handlers.SessionBindingData) int {
 		if n := cmp.Compare(a.IDPSessionID, b.IDPSessionID); n != 0 {
 			return n
 		}
@@ -300,22 +302,60 @@ func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]
 		return cmp.Compare(a.SessionBindingID, b.SessionBindingID)
 	})
 
-	return ret, nil
+	return bindings, nil
 }
 
-func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, userID string) (map[string][]handlers.SessionBindingData, error) {
+func (b *bindingManager) queryBindings(
+	ctx context.Context,
+	userID string,
+) ([]*idpsession.Binding, error) {
+	filter, err := structpb.NewStruct(map[string]any{
+		"user_id": userID,
+	})
+	if err != nil {
+		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("bad filter"))
+	}
+	const limit = int64(100)
+	var bindings []*idpsession.Binding
+	for offset := int64(0); ; offset += limit {
+		resp, err := b.dataBrokerClient.Query(ctx, &databroker.QueryRequest{
+			Type: protoutil.GetTypeURL(new(idpsession.Binding)), Offset: offset, Limit: limit, Filter: filter,
+		})
+		if err != nil {
+			return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
+		}
+		for _, rec := range resp.GetRecords() {
+			if rec.GetDeletedAt() != nil {
+				continue
+			}
+			binding := &idpsession.Binding{}
+			if err := rec.GetData().UnmarshalTo(binding); err != nil {
+				log.Ctx(ctx).Err(err).Str("id", rec.GetId()).Str("type-url", rec.Data.GetTypeUrl()).
+					Msg("incompatible binding record")
+				continue
+			}
+			if binding.GetUserId() != userID {
+				log.Ctx(ctx).Debug().Str("id", rec.GetId()).Msg("mismatched user id on binding for filter")
+				continue
+			}
+			bindings = append(bindings, binding)
+		}
+
+		if len(resp.GetRecords()) < int(limit) || offset+limit >= resp.GetTotalCount() {
+			break
+		}
+	}
+	return bindings, nil
+}
+
+func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, userID string) ([]handlers.SessionBindingData, error) {
 	pairs, err := b.codeReader.GetSessionBindingsByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch ssh bindings")
 	}
-
-	renderData := map[string][]handlers.SessionBindingData{}
+	bindings := make([]handlers.SessionBindingData, 0, len(pairs))
 	idpSessionIDs := map[string]string{}
-	stableKeys := slices.Collect(maps.Keys(pairs))
-	slices.Sort(stableKeys)
-
-	for _, sessionBindingID := range stableKeys {
-		p := pairs[sessionBindingID]
+	for sessionBindingID, p := range pairs {
 
 		datum := handlers.SessionBindingData{
 			SessionBindingID:   sessionBindingID,
@@ -355,73 +395,10 @@ func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, use
 			idpSessionID = binding.GetIdpSessionId()
 			idpSessionIDs[p.SB.GetSessionId()] = idpSessionID
 		}
-		bindings, ok := renderData[idpSessionID]
-		if !ok {
-			bindings = []handlers.SessionBindingData{}
-			renderData[idpSessionID] = bindings
-		}
-		renderData[idpSessionID] = append(bindings, datum)
+		datum.IDPSessionID = idpSessionID
+		bindings = append(bindings, datum)
 	}
-	return renderData, nil
-}
-
-func (b *bindingManager) getIDPSessionBindings(
-	ctx context.Context,
-	h *session.Handle,
-) (map[string][]handlers.SessionBindingData, error) {
-	filter, err := structpb.NewStruct(map[string]any{
-		"user_id": h.UserId,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("could not build IDP session binding filter: %w", err)
-	}
-	response, err := b.dataBrokerClient.Query(ctx, &databroker.QueryRequest{
-		Type:   protoutil.GetTypeURL(&idpsession.Binding{}),
-		Filter: filter,
-		Limit:  100,
-	})
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("could not fetch IDP session bindings: %w", err)
-	}
-
-	renderData := map[string][]handlers.SessionBindingData{}
-	for _, record := range response.GetRecords() {
-		if record.GetDeletedAt() != nil {
-			continue
-		}
-
-		binding := new(idpsession.Binding)
-		if err := record.GetData().UnmarshalTo(binding); err != nil {
-			return nil, fmt.Errorf("could not decode IDP session binding %q: %w", record.GetId(), err)
-		}
-		bindingType := binding.GetTypeUrl()
-
-		// not user visible session
-		if bindingType != "type.googleapis.com/session.Session" {
-			continue
-		}
-		// ignore browser sessions since they can't be revoked like other bindings -
-		// they require a sign-out flow.
-		if binding.Protocol == idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER {
-			continue
-		}
-
-		datum, err := b.sessionToBindingData(ctx, binding)
-		if err != nil {
-			log.Ctx(ctx).Err(err).Msg("failed to fetch session binding information")
-			continue
-		}
-		bindings, ok := renderData[binding.IdpSessionId]
-		if !ok {
-			bindings = []handlers.SessionBindingData{}
-			renderData[binding.IdpSessionId] = bindings
-		}
-		renderData[binding.IdpSessionId] = append(bindings, datum)
-	}
-	return renderData, nil
+	return bindings, nil
 }
 
 func (b *bindingManager) sessionToBindingData(

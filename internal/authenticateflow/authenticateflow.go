@@ -7,9 +7,9 @@ import (
 	"context"
 	"encoding/hex"
 	"time"
-	"uuid"
 
 	"github.com/cespare/xxhash/v2"
+	"github.com/google/uuid"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/stats"
