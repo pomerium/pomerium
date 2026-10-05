@@ -26,12 +26,11 @@ func init() {
 }
 
 type secretWriter struct {
-	opts         writers.ConfigWriterOptions
-	client       *http.Client
-	apiserverURL *url.URL
-	namespace    string
-	name         string
-	key          string
+	opts       writers.ConfigWriterOptions
+	namespace  string
+	name       string
+	key        string
+	loadConfig func() (*rest.Config, error)
 }
 
 // WithOptions implements writers.ConfigWriter.
@@ -41,20 +40,51 @@ func (w *secretWriter) WithOptions(opts writers.ConfigWriterOptions) writers.Con
 	return &clone
 }
 
-func newSecretWriterForConfig(uri *url.URL, config *rest.Config) (writers.ConfigWriter, error) {
+func newSecretWriterForConfig(uri *url.URL, loadConfig func() (*rest.Config, error)) (writers.ConfigWriter, error) {
 	parts := strings.SplitN(path.Join(uri.Host, uri.Path), "/", 3)
 	if len(parts) != 3 || parts[1] == "" || parts[2] == "" {
 		return nil, fmt.Errorf("invalid secret uri %q, expecting format \"secret://namespace/name/key\"", uri.String())
 	} else if parts[0] == "" {
 		return nil, fmt.Errorf(`invalid secret uri %q (did you mean "secret:/%s"?)`, uri.String(), uri.Path)
 	}
-	u, err := url.Parse(config.Host)
+
+	return &secretWriter{
+		namespace:  parts[0],
+		name:       parts[1],
+		key:        parts[2],
+		loadConfig: loadConfig,
+	}, nil
+}
+
+func newInClusterSecretWriter(uri *url.URL) (writers.ConfigWriter, error) {
+	return newSecretWriterForConfig(uri, rest.InClusterConfig)
+}
+
+// WriteConfig implements ConfigWriter.
+func (w *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.BootstrapConfig) error {
+	config, err := w.loadConfig()
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("error loading in-cluster-config: %w", err)
 	}
+
+	apiServerURL, err := url.Parse(config.Host)
+	if err != nil {
+		return fmt.Errorf("error parsing config host: %w", err)
+	}
+	apiServerURL = apiServerURL.ResolveReference(&url.URL{
+		Path: path.Join("/api/v1/namespaces", w.namespace, "secrets", w.name),
+		RawQuery: url.Values{
+			"fieldManager": {"pomerium-zero"},
+			"force":        {"true"},
+		}.Encode(),
+	})
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = config.TLSClientConfig
+	transport.Dial = nil
+	transport.DialContext = nil
+	transport.DialTLS = nil
+	transport.DialTLSContext = nil
 
 	client := &http.Client{
 		Transport: &roundTripper{
@@ -63,32 +93,6 @@ func newSecretWriterForConfig(uri *url.URL, config *rest.Config) (writers.Config
 		},
 	}
 
-	return &secretWriter{
-		client:       client,
-		apiserverURL: u,
-		namespace:    parts[0],
-		name:         parts[1],
-		key:          parts[2],
-	}, nil
-}
-
-func newInClusterSecretWriter(uri *url.URL) (writers.ConfigWriter, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-	return newSecretWriterForConfig(uri, config)
-}
-
-// WriteConfig implements ConfigWriter.
-func (w *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.BootstrapConfig) error {
-	u := w.apiserverURL.ResolveReference(&url.URL{
-		Path: path.Join("/api/v1/namespaces", w.namespace, "secrets", w.name),
-		RawQuery: url.Values{
-			"fieldManager": {"pomerium-zero"},
-			"force":        {"true"},
-		}.Encode(),
-	})
 	data, err := json.Marshal(src)
 	if err != nil {
 		return err
@@ -111,13 +115,13 @@ func (w *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.Bootstr
 		},
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, u.String(), bytes.NewReader(patch))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, apiServerURL.String(), bytes.NewReader(patch))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/apply-patch+yaml")
 
-	resp, err := w.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
