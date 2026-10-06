@@ -470,48 +470,6 @@ func (s *Stateful) RevokeSessionBinding(
 	})
 }
 
-func formatBrowserUserAgent(userAgent string) string {
-	if strings.TrimSpace(userAgent) == "" {
-		return ""
-	}
-
-	browser := "Unknown browser"
-	switch {
-	case strings.Contains(userAgent, "EdgiOS/"), strings.Contains(userAgent, "EdgA/"), strings.Contains(userAgent, "Edg/"):
-		browser = "Edge"
-	case strings.Contains(userAgent, "OPiOS/"), strings.Contains(userAgent, "OPR/"):
-		browser = "Opera"
-	case strings.Contains(userAgent, "SamsungBrowser/"):
-		browser = "Samsung"
-	case strings.Contains(userAgent, "CriOS/"), strings.Contains(userAgent, "Chrome/"):
-		browser = "Chrome"
-	case strings.Contains(userAgent, "FxiOS/"), strings.Contains(userAgent, "Firefox/"):
-		browser = "Firefox"
-	case strings.Contains(userAgent, "Version/") && strings.Contains(userAgent, "Safari/"):
-		browser = "Safari"
-	}
-
-	operatingSystem := "Unknown OS"
-	switch {
-	case strings.Contains(userAgent, "Android"):
-		operatingSystem = "Android"
-	case strings.Contains(userAgent, "iPad"):
-		operatingSystem = "iPadOS"
-	case strings.Contains(userAgent, "iPhone"), strings.Contains(userAgent, "iPod"):
-		operatingSystem = "iOS"
-	case strings.Contains(userAgent, "Windows"):
-		operatingSystem = "Windows"
-	case strings.Contains(userAgent, "CrOS"):
-		operatingSystem = "ChromeOS"
-	case strings.Contains(userAgent, "Macintosh"), strings.Contains(userAgent, "Mac OS X"):
-		operatingSystem = "macOS"
-	case strings.Contains(userAgent, "Linux"):
-		operatingSystem = "Linux"
-	}
-
-	return browser + " on " + operatingSystem
-}
-
 func (s *Stateful) RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, _ *session.Handle) error {
 	if err := r.ParseForm(); err != nil {
 		return err
@@ -581,7 +539,7 @@ func (s *Stateful) PersistSession(
 	}
 	idpSessID := idpSessionID(browserID, u.GetId())
 	idpSess := idpsession.NewFromSession(idpSessID, sess, idpClaims, idpsession.SIDClaim(claims.Claims))
-	idpSess.InitatedBy = new(formatBrowserUserAgent(r.UserAgent()))
+	idpSess.InitiatedBy = new(formatBrowserUserAgent(r.UserAgent()))
 	idpSess.InitiatedByAddr = new(httputil.GetClientIP(r))
 
 	records := []*databroker.Record{
