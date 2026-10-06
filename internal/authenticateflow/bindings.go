@@ -39,7 +39,7 @@ type BindingManager interface {
 	DeleteUpstreamIDPSessions(ctx context.Context, h *session.Handle) (IDPSessionRevocation, error)
 	RevokeBinding(ctx context.Context, id BindingID) error
 	GetIDPSessions(ctx context.Context, h *session.Handle) ([]handlers.IDPSessionData, string, error)
-	GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingDataV2, error)
+	GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingData, error)
 }
 
 type IDPSessionRevocation struct {
@@ -263,7 +263,7 @@ func (b *bindingManager) RevokeBinding(ctx context.Context, bindingID BindingID)
 	return nil
 }
 
-func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingDataV2, error) {
+func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingData, error) {
 	sshBindings, err := b.getLegacySSHSessionBindingInfo(ctx, h.UserId)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
@@ -293,7 +293,7 @@ func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]
 		bindings = append(bindings, datum)
 	}
 
-	slices.SortFunc(bindings, func(a, b handlers.SessionBindingDataV2) int {
+	slices.SortFunc(bindings, func(a, b handlers.SessionBindingData) int {
 		return cmp.Or(
 			cmp.Compare(a.IDPSessionID, b.IDPSessionID),
 			cmp.Compare(a.Protocol, b.Protocol),
@@ -345,16 +345,16 @@ func (b *bindingManager) queryBindings(
 	return ret, nil
 }
 
-func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, userID string) ([]handlers.SessionBindingDataV2, error) {
+func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, userID string) ([]handlers.SessionBindingData, error) {
 	pairs, err := b.codeReader.GetSessionBindingsByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch ssh bindings")
 	}
-	bindings := make([]handlers.SessionBindingDataV2, 0, len(pairs))
+	bindings := make([]handlers.SessionBindingData, 0, len(pairs))
 	idpSessionIDs := map[string]string{}
 	for sessionBindingID, p := range pairs {
 
-		datum := handlers.SessionBindingDataV2{
+		datum := handlers.SessionBindingData{
 			SessionBindingID:   sessionBindingID,
 			Protocol:           p.SB.Protocol,
 			Resource:           "SSH key",
@@ -401,7 +401,7 @@ func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, use
 func (b *bindingManager) sessionToBindingData(
 	ctx context.Context,
 	binding *idpsession.Binding,
-) (handlers.SessionBindingDataV2, error) {
+) (handlers.SessionBindingData, error) {
 	var expiresAt string
 	var clientAddr string
 	var resource string
@@ -413,7 +413,7 @@ func (b *bindingManager) sessionToBindingData(
 			Id:   binding.GetId(),
 		})
 		if err != nil {
-			return handlers.SessionBindingDataV2{}, err
+			return handlers.SessionBindingData{}, err
 		}
 		switch binding.GetProtocol() {
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_MCP:
@@ -422,7 +422,7 @@ func (b *bindingManager) sessionToBindingData(
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
 			sess := &session.Session{}
 			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
-				return handlers.SessionBindingDataV2{}, err
+				return handlers.SessionBindingData{}, err
 			}
 			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
 			resource = formatBrowserUserAgent(binding.GetDetails()["user-agent"])
@@ -430,7 +430,7 @@ func (b *bindingManager) sessionToBindingData(
 		clientAddr = binding.GetDetails()["client-ip"]
 	}
 
-	datum := handlers.SessionBindingDataV2{
+	datum := handlers.SessionBindingData{
 		SessionBindingID: binding.GetId(),
 		Protocol:         formatProtocol(binding.GetProtocol()),
 		ClientAddress:    clientAddr,
