@@ -11,7 +11,7 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-func NewTestDatabroker(t *testing.T) databrokerpb.DataBrokerServiceClient {
+func NewTestDatabroker(t testing.TB) databrokerpb.DataBrokerServiceClient {
 	t.Helper()
 
 	srv := databroker.NewBackendServer(noop.NewTracerProvider())
