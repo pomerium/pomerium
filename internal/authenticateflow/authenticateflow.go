@@ -5,8 +5,11 @@ package authenticateflow
 
 import (
 	"context"
+	"encoding/hex"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
+	"github.com/google/uuid"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/stats"
@@ -36,4 +39,24 @@ func ignoreNotFoundErrors(ctx context.Context, rs stats.RPCStats) stats.RPCStats
 		}
 	}
 	return rs
+}
+
+type SignOutHints struct {
+	IDTokenHint string
+	LogoutHint  string
+}
+
+func idpSessionID(browserID, userID string) string {
+	var idpSessID string
+	if browserID != "" {
+		hasher := xxhash.New()
+		_, _ = hasher.Write([]byte(browserID))
+		_, _ = hasher.Write([]byte(userID))
+		idBytes := hasher.Sum(nil)
+		idpSessID = hex.EncodeToString(idBytes)
+
+	} else {
+		idpSessID = uuid.New().String()
+	}
+	return idpSessID
 }

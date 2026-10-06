@@ -13,18 +13,16 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
-	databroker_service "github.com/pomerium/pomerium/databroker"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
-	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -54,8 +52,8 @@ import (
 //  5. The MCP route must keep working. Before the fix every request failed
 //     closed with a 502 because the token lookup hit the closed connection.
 //
-// The re-authentication is modeled by writing a session whose refresh token the
-// IdP rejects.
+// The re-authentication is modeled by writing an IDP session, with a bound
+// session, whose refresh token the IdP rejects.
 func TestExtProcSurvivesOutboundReload(t *testing.T) {
 	env := testenv.New(t)
 
@@ -68,10 +66,6 @@ func TestExtProcSurvivesOutboundReload(t *testing.T) {
 	}))
 	const saUserID = "reload-user@example.com"
 	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: saUserID}}))
-	// refresh a session as soon as it is due rather than after the default cool-off
-	env.AddOption(pomerium.WithDataBrokerServerOptions(databroker_service.WithManagerOptions(
-		manager.WithSessionRefreshCoolOffDuration(100 * time.Millisecond),
-	)))
 
 	// two upstream "pods": the route points at A first, then is redeployed to B
 	var hitsA, hitsB atomic.Int32
@@ -92,8 +86,11 @@ func TestExtProcSurvivesOutboundReload(t *testing.T) {
 		Name:     "dashboard-settings",
 		Settings: &configpb.Settings{InstallationId: new("console-installation")},
 	})
-	// the per-config services re-dial for the new installation id
-	settingsRec.WaitForMatch(map[string]any{"message": "outbound client connection has changed meaningfully, reloading"}, 20*time.Second)
+	// the ext_proc handler re-dials for the new installation id
+	settingsRec.WaitForMatch(map[string]any{
+		"message": "outbound client connection has changed meaningfully, reloading",
+		"owner":   "mcp-extproc",
+	}, 20*time.Second)
 
 	// 3: the MCP route works
 	sa := &user.ServiceAccount{Id: "outbound-reload-sa", UserId: saUserID}
@@ -141,17 +138,24 @@ func TestExtProcSurvivesOutboundReload(t *testing.T) {
 	// 4b: a session left behind by an MCP re-authentication; its refresh fails at the IdP.
 	deletionRec := env.NewLogRecorder(testenv.WithSkipCloseDelay())
 	now := time.Now()
-	_, err = session.Put(ctx, dbClient, &session.Session{
-		Id:        "stale-mcp-session",
-		UserId:    saUserID,
-		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-		OauthToken: &session.OAuthToken{
+	staleIDPSession := &idpsession.IDPSession{
+		Id:     "stale-mcp-idp-session",
+		UserId: saUserID,
+		OauthToken: &idpsession.OAuthToken{
 			AccessToken:  "stale-access-token",
 			RefreshToken: "revoked-refresh-token",
 			TokenType:    "Bearer",
 			ExpiresAt:    timestamppb.New(now),
 		},
-	})
+	}
+	records := append([]*databrokerpb.Record{databrokerpb.NewRecord(staleIDPSession)},
+		idpsession.NewBoundRecords(staleIDPSession.GetId(), saUserID, idpsession.BindingProtocol_BINDING_PROTOCOL_MCP, nil,
+			&session.Session{
+				Id:        "stale-mcp-session",
+				UserId:    saUserID,
+				ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+			})...)
+	_, err = dbClient.Put(ctx, &databrokerpb.PutRequest{Records: records})
 	require.NoError(t, err)
 	deletionRec.WaitForMatch(map[string]any{"message": "failed to refresh oauth2 token, deleting session"}, 30*time.Second)
 	// ...and the controlplane persists the resulting LastError event through its

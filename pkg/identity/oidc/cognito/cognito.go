@@ -9,6 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
 )
@@ -54,7 +55,9 @@ func New(ctx context.Context, opts *oauth.Options) (*Provider, error) {
 }
 
 // SignOut implements sign out according to https://docs.aws.amazon.com/cognito/latest/developerguide/logout-endpoint.html.
-func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, _, authenticateSignedOutURL, returnToURL string) error {
+func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, options identity.SignOutOptions) error {
+	authenticateSignedOutURL := options.AuthenticateSignedOutURL
+	returnToURL := options.RedirectToURL
 	oa, err := p.GetOauthConfig()
 	if err != nil {
 		return fmt.Errorf("error getting cognito oauth config: %w", err)

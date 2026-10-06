@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/events"
+	"github.com/pomerium/pomerium/internal/idpsession"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -34,21 +35,22 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity"
-	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // DataBroker represents the databroker service.
 type DataBroker struct {
-	cfg         *databrokerConfig
-	srv         databroker.Server
-	identityMgr *manager.Manager
-	eventsMgr   *events.Manager
+	databrokerCfg *databrokerConfig
+	srv           databroker.Server
+	// identityMgr   *manager.Manager
+	identityMgrV2 *idpsession.IdentityManager
+	eventsMgr     *events.Manager
 
 	localListener       net.Listener
 	localGRPCServer     *grpc.Server
 	localGRPCConnection *grpc.ClientConn
 	sharedKey           atomic.Pointer[[]byte]
+	cfg                 atomic.Pointer[config.Config]
 	tracerProvider      oteltrace.TracerProvider
 	tracer              oteltrace.Tracer
 }
@@ -93,7 +95,7 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 	srv := NewServer(tracerProvider, cfg)
 
 	d := &DataBroker{
-		cfg:             getConfig(options...),
+		databrokerCfg:   getConfig(options...),
 		srv:             srv,
 		localListener:   localListener,
 		localGRPCServer: localGRPCServer,
@@ -188,12 +190,12 @@ func (d *DataBroker) Run(ctx context.Context) error {
 		return grpcutil.ServeWithGracefulStop(ctx, d.localGRPCServer, d.localListener, time.Second*5)
 	})
 	eg.Go(func() error {
-		return d.identityMgr.Run(ctx)
+		return d.identityMgrV2.Run(ctx)
 	})
 	return eg.Wait()
 }
 
-func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
+func (d *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	if err := validate(cfg.Options); err != nil {
 		return fmt.Errorf("databroker: bad option: %w", err)
 	}
@@ -203,28 +205,30 @@ func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
 		return fmt.Errorf("databroker: invalid shared key: %w", err)
 	}
 	d.sharedKey.Store(&sharedKey)
+	d.cfg.Store(cfg)
 
-	dataBrokerClient := databrokerpb.NewDataBrokerServiceClient(d.localGRPCConnection)
+	refreshConfig := *idpsession.DefaultRefreshConfig
+	refreshConfig.RefreshSessionAtIDTokenExpiration = idpsession.RefreshSessionAtIDTokenExpiration(
+		cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])
+	refreshConfig.EventMgr = d.eventsMgr
+	refreshConfig.TracerProvider = d.tracerProvider
 
-	options := append([]manager.Option{
-		manager.WithDataBrokerClient(dataBrokerClient),
-		manager.WithEventManager(d.eventsMgr),
-		manager.WithCachedGetAuthenticator(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
-			if !cfg.Options.SupportsUserRefresh() {
-				return nil, fmt.Errorf("disabling refresh of user sessions")
-			}
-			return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
-		}),
-		manager.WithRefreshSessionAtIDTokenExpiration(manager.RefreshSessionAtIDTokenExpiration(
-			cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration],
-		)),
-		manager.WithTracerProvider(d.tracerProvider),
-	}, d.cfg.managerOptions...)
-
-	if d.identityMgr == nil {
-		d.identityMgr = manager.New(options...)
+	if d.identityMgrV2 == nil {
+		clientB := databrokerpb.ClientGetterFunc(func() databrokerpb.DataBrokerServiceClient {
+			return d.GetLocalDatabrokerServiceClient()
+		})
+		d.identityMgrV2 = idpsession.NewIdentityManagerV2(
+			clientB, func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+				cfg := d.cfg.Load()
+				if !cfg.Options.SupportsUserRefresh() {
+					return nil, fmt.Errorf("disabling refresh of user sessions")
+				}
+				return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
+			},
+			idpsession.WithRefreshConfig(&refreshConfig),
+		)
 	} else {
-		d.identityMgr.UpdateConfig(options...)
+		d.identityMgrV2.UpdateRefreshConfig(ctx, &refreshConfig)
 	}
 
 	return nil
