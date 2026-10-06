@@ -314,17 +314,17 @@ func (c *MockAuthenticatorSignInCall) DoAndReturn(f func(http.ResponseWriter, *h
 }
 
 // SignOut mocks base method.
-func (m *MockAuthenticator) SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error {
+func (m *MockAuthenticator) SignOut(w http.ResponseWriter, r *http.Request, options identity.SignOutOptions) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignOut", w, r, idTokenHint, authenticateSignedOutURL, redirectToURL)
+	ret := m.ctrl.Call(m, "SignOut", w, r, options)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SignOut indicates an expected call of SignOut.
-func (mr *MockAuthenticatorMockRecorder) SignOut(w, r, idTokenHint, authenticateSignedOutURL, redirectToURL any) *MockAuthenticatorSignOutCall {
+func (mr *MockAuthenticatorMockRecorder) SignOut(w, r, options any) *MockAuthenticatorSignOutCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignOut", reflect.TypeOf((*MockAuthenticator)(nil).SignOut), w, r, idTokenHint, authenticateSignedOutURL, redirectToURL)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignOut", reflect.TypeOf((*MockAuthenticator)(nil).SignOut), w, r, options)
 	return &MockAuthenticatorSignOutCall{Call: call}
 }
 
@@ -340,13 +340,13 @@ func (c *MockAuthenticatorSignOutCall) Return(arg0 error) *MockAuthenticatorSign
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockAuthenticatorSignOutCall) Do(f func(http.ResponseWriter, *http.Request, string, string, string) error) *MockAuthenticatorSignOutCall {
+func (c *MockAuthenticatorSignOutCall) Do(f func(http.ResponseWriter, *http.Request, identity.SignOutOptions) error) *MockAuthenticatorSignOutCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthenticatorSignOutCall) DoAndReturn(f func(http.ResponseWriter, *http.Request, string, string, string) error) *MockAuthenticatorSignOutCall {
+func (c *MockAuthenticatorSignOutCall) DoAndReturn(f func(http.ResponseWriter, *http.Request, identity.SignOutOptions) error) *MockAuthenticatorSignOutCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

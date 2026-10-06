@@ -359,7 +359,7 @@ func (p *Provider) GetOauthConfig() (*oauth2.Config, error) {
 
 // SignOut uses the EndSessionURL endpoint to allow a logout session to be initiated.
 // https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
-func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error {
+func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, options identity.SignOutOptions) error {
 	_, err := p.GetProvider()
 	if err != nil {
 		return err
@@ -375,16 +375,20 @@ func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, 
 	}
 
 	params := endSessionURL.Query()
-	if idTokenHint != "" {
-		params.Add("id_token_hint", idTokenHint)
+	if options.LogoutHint != "" {
+		params.Add("logout_hint", options.LogoutHint)
 	}
+	if options.IDTokenHint != "" {
+		params.Add("id_token_hint", options.IDTokenHint)
+	}
+
 	if oa, err := p.GetOauthConfig(); err == nil {
 		params.Add("client_id", oa.ClientID)
 	}
-	if redirectToURL != "" {
-		params.Add("post_logout_redirect_uri", redirectToURL)
-	} else if authenticateSignedOutURL != "" {
-		params.Add("post_logout_redirect_uri", authenticateSignedOutURL)
+	if options.RedirectToURL != "" {
+		params.Add("post_logout_redirect_uri", options.RedirectToURL)
+	} else if options.AuthenticateSignedOutURL != "" {
+		params.Add("post_logout_redirect_uri", options.AuthenticateSignedOutURL)
 	}
 	endSessionURL.RawQuery = params.Encode()
 
