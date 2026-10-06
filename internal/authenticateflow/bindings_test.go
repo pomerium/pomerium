@@ -90,7 +90,7 @@ func TestBindingManager(t *testing.T) {
 
 		got, err := NewBindingManager(client).GetBindings(t.Context(), &session.Handle{Id: "s1", UserId: "u1"})
 		require.NoError(t, err)
-		assert.Equal(t, []handlers.SessionBindingDataV2{
+		assert.Equal(t, []handlers.SessionBindingData{
 			{
 				IDPSessionID:     "ss1",
 				SessionBindingID: "m1",
@@ -131,7 +131,7 @@ func TestBindingManager(t *testing.T) {
 
 		got2, err := NewBindingManager(client).GetBindings(t.Context(), &session.Handle{Id: "s2", UserId: "u2"})
 		require.NoError(t, err)
-		assert.Equal(t, []handlers.SessionBindingDataV2{
+		assert.Equal(t, []handlers.SessionBindingData{
 			{
 				IDPSessionID:       "ss2",
 				SessionBindingID:   "sshkey-SHA256:c",
