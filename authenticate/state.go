@@ -27,16 +27,17 @@ import (
 type flow interface {
 	VerifyAuthenticateSignature(r *http.Request) error
 	SignIn(w http.ResponseWriter, r *http.Request, h *session.Handle) error
-	PersistSession(ctx context.Context, w http.ResponseWriter, h *session.Handle, claims identity.SessionClaims, accessToken *oauth2.Token) error
+	PersistSession(ctx context.Context, w http.ResponseWriter, r *http.Request, h *session.Handle, claims identity.SessionClaims, accessToken *oauth2.Token, browserID string) error
 	VerifySession(ctx context.Context, r *http.Request, h *session.Handle) error
-	RevokeSession(ctx context.Context, r *http.Request, authenticator identity.Authenticator, h *session.Handle) string
+	RevokeSession(ctx context.Context, r *http.Request, authenticator identity.Authenticator, h *session.Handle) authenticateflow.SignOutHints
 	GetUserInfoData(r *http.Request, h *session.Handle) handlers.UserInfoData
 	LogAuthenticateEvent(r *http.Request)
 	GetIdentityProviderIDForURLValues(url.Values) string
 
 	AuthenticatePendingSession(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, h *session.Handle) error
-	RevokeSessionBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
+
+	RevokeSessionBinding(ctx context.Context, h *session.Handle, protocol string, bindingID string) error
 	RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 }
 
