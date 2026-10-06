@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   Container,
   Dialog,
@@ -26,23 +25,24 @@ const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
     }
   }
 
+  function handleClickLogout(evt: React.MouseEvent) {
+    evt.preventDefault();
+    location.href = data.url;
+  }
+
   return (
     <Container>
       <Dialog open={true}>
-        <Box component="form" action={data.url} method="POST">
-          <DialogTitle>Logout?</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to logout?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button type="button" onClick={handleClickCancel}>
-              Cancel
-            </Button>
-            <Button type="submit">Logout</Button>
-          </DialogActions>
-        </Box>
+        <DialogTitle>Logout?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to logout?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClickCancel}>Cancel</Button>
+          <Button onClick={handleClickLogout}>Logout</Button>
+        </DialogActions>
       </Dialog>
     </Container>
   );
