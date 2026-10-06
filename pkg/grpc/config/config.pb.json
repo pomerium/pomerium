@@ -3384,6 +3384,42 @@
           ]
         },
         {
+          "name": "OIDCBridge",
+          "longName": "OIDCBridge",
+          "fullName": "pomerium.config.OIDCBridge",
+          "description": "OIDC bridge settings control whether Pomerium can serve as an OpenID\nprovider for upstream applications.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "enabled",
+              "description": "Whether the OIDC bridge feature should be enabled.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_enabled",
+              "defaultValue": ""
+            },
+            {
+              "name": "client_secret",
+              "description": "Client secret to use for upstream applications that do not support\npublic clients / PKCE.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_client_secret",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "OutlierDetection",
           "longName": "OutlierDetection",
           "fullName": "pomerium.config.OutlierDetection",
@@ -4972,6 +5008,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_session_recording",
+              "defaultValue": ""
+            },
+            {
+              "name": "oidc_bridge",
+              "description": "Configure OIDC bridge support for this route.",
+              "label": "optional",
+              "type": "OIDCBridge",
+              "longType": "OIDCBridge",
+              "fullType": "pomerium.config.OIDCBridge",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_oidc_bridge",
               "defaultValue": ""
             },
             {
@@ -7352,6 +7400,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_headers_with_underscores_action",
+              "defaultValue": ""
+            },
+            {
+              "name": "oidc_bridge",
+              "description": "Configure default OIDC bridge support for all routes.",
+              "label": "optional",
+              "type": "OIDCBridge",
+              "longType": "OIDCBridge",
+              "fullType": "pomerium.config.OIDCBridge",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_oidc_bridge",
               "defaultValue": ""
             },
             {

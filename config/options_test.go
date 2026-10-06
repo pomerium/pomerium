@@ -1243,6 +1243,44 @@ func TestOptions_GetSetResponseHeadersForPolicy(t *testing.T) {
 	})
 }
 
+func TestOptions_GetOIDCBridgeForPolicy(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "config.yaml")
+	loadConfig := func(t *testing.T, s string) *Options {
+		t.Helper()
+		err := os.WriteFile(filePath, []byte(s), 0o644)
+		require.NoError(t, err)
+		o, err := newOptionsFromConfig(filePath)
+		require.NoError(t, err)
+		return o
+	}
+	t.Run("per route", func(t *testing.T) {
+		o := loadConfig(t, `
+        routes:
+          - from: https://on.example.com
+            to: http://localhost:1234
+            oidc_bridge: {}
+          - from: https://off.example.com
+            to: http://localhost:5678
+        `)
+		assert.True(t, o.GetOIDCBridgeForPolicy(&o.Routes[0]).IsEnabled())
+		assert.False(t, o.GetOIDCBridgeForPolicy(&o.Routes[1]).IsEnabled())
+	})
+	t.Run("global default", func(t *testing.T) {
+		o := loadConfig(t, `
+        oidc_bridge: {}
+        routes:
+          - from: https://on.example.com
+            to: http://localhost:1234
+          - from: https://off.example.com
+            to: http://localhost:5678
+            oidc_bridge:
+              enabled: false
+        `)
+		assert.True(t, o.GetOIDCBridgeForPolicy(&o.Routes[0]).IsEnabled())
+		assert.False(t, o.GetOIDCBridgeForPolicy(&o.Routes[1]).IsEnabled())
+	})
+}
+
 func TestOptions_GetSharedKey(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		o := NewDefaultOptions()

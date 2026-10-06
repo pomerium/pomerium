@@ -99,6 +99,7 @@ func sensitive(fd protoreflect.FieldDescriptor) bool {
 var expectedSensitiveFields = map[string]struct{}{
 	"pomerium.config.CreateServiceAccountResponse.jwt":              {},
 	"pomerium.config.KeyPair.key":                                   {},
+	"pomerium.config.OIDCBridge.client_secret":                      {},
 	"pomerium.config.Route.idp_client_secret":                       {},
 	"pomerium.config.Route.kubernetes_service_account_token":        {},
 	"pomerium.config.Route.tls_client_key":                          {},

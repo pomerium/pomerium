@@ -3161,6 +3161,24 @@ components:
       title: OAuth2Endpoint
       additionalProperties: false
       description: Configuration for an OAuth2 server endpoint.
+    pomerium.config.OIDCBridge:
+      type: object
+      properties:
+        enabled:
+          type:
+            - boolean
+            - "null"
+          title: enabled
+        clientSecret:
+          type:
+            - string
+            - "null"
+          title: client_secret
+      title: OIDCBridge
+      additionalProperties: false
+      description: |-
+        OIDC bridge settings control whether Pomerium can serve as an OpenID
+         provider for upstream applications.
     pomerium.config.OutlierDetection:
       type: object
       properties:
@@ -4075,6 +4093,12 @@ components:
           description: |-
             Configures session recording behaviour on this route.
              SSH specific.
+        oidcBridge:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.OIDCBridge'
+            - type: "null"
+          title: oidc_bridge
+          description: Configure OIDC bridge support for this route.
         createdAt:
           title: created_at
           description: When the route was created.
@@ -5450,6 +5474,12 @@ components:
           description: |-
             Action to take when a client request with a header name containing
              underscore characters is received. Defaults to rejecting the request.
+        oidcBridge:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.OIDCBridge'
+            - type: "null"
+          title: oidc_bridge
+          description: Configure default OIDC bridge support for all routes.
         createdAt:
           title: created_at
           description: When the settings were created.
