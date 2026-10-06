@@ -250,7 +250,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	}
 	s.OauthToken = ToOAuthToken(newToken)
 
-	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), newMultiUnmarshaler(newUserUnmarshaler(u), NewSessionUnmarshaler(s)))
+	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), NewMultiUnmarshaler(NewUserUnmarshaler(u), NewSessionUnmarshaler(s)))
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if oidc.IsTemporaryError(err) {
@@ -301,7 +301,7 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 			continue
 		}
 
-		err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.GetOauthToken()), newUserUnmarshaler(u))
+		err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.GetOauthToken()), NewUserUnmarshaler(u))
 		metrics.RecordIdentityManagerUserRefresh(ctx, err)
 		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 		if oidc.IsTemporaryError(err) {
