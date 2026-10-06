@@ -259,8 +259,10 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 		r = r.WithContext(ctx)
 	}
 
-	if err := authenticator.SignIn(w, r, encodedState); err != nil {
-		return fmt.Errorf("failed to sign in: %w", err)
+	err = authenticator.SignIn(w, r, encodedState)
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError,
+			fmt.Errorf("failed to sign in: %w", err))
 	}
 	return nil
 }
