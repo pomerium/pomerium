@@ -262,7 +262,7 @@ func (p *Provider) Name() string {
 // SignIn redirects to the OAuth 2.0 provider's consent page
 // that asks for permissions for the required scopes explicitly.
 func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) error {
-	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
+	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account")}
 	if pkceParams, ok := pkce.FromContext(r.Context()); ok {
 		opts = append(opts, pkce.AuthCodeOptions(pkceParams)...)
 	}
@@ -272,7 +272,7 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 }
 
 // SignOut is not implemented.
-func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _ identity.SignOutOptions) error {
 	return oidc.ErrSignoutNotImplemented
 }
 

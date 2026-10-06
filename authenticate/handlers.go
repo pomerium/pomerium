@@ -10,6 +10,7 @@ import (
 	"time"
 
 	csrf "filippo.io/csrf/gorilla"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -258,10 +259,8 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 		r = r.WithContext(ctx)
 	}
 
-	err = authenticator.SignIn(w, r, encodedState)
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError,
-			fmt.Errorf("failed to sign in: %w", err))
+	if err := authenticator.SignIn(w, r, encodedState); err != nil {
+		return fmt.Errorf("failed to sign in: %w", err)
 	}
 	return nil
 }
@@ -390,8 +389,19 @@ Or contact your administrator.
 		h.Aud = append(h.Aud, nextRedirectURL.Hostname())
 	}
 
+	browserID, err := identity.EnsureBrowserIDCookie(r, w, identity.BrowserIDOptions{
+		CookieName: a.options.Load().CookieName,
+		AuthKey:    []byte(a.options.Load().CookieSecret),
+		BrowserID:  uuid.New().String(),
+		SameSite:   a.options.Load().GetCookieSameSite(),
+	})
+	if err != nil {
+		browserID = uuid.New().String()
+		log.Ctx(ctx).Info().Err(err).Msg("issuing a new browser ID for OAuth callback")
+	}
+
 	// save the session and access token to the databroker/cookie store
-	if err := state.flow.PersistSession(ctx, w, h, claims, accessToken); err != nil {
+	if err := state.flow.PersistSession(ctx, w, r, h, claims, accessToken, browserID); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 
@@ -459,10 +469,36 @@ func (a *Authenticate) revokeSessionBinding(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		h = session.NewHandle("")
 	}
-	if err := state.flow.RevokeSessionBinding(w, r, h); err != nil {
+	if err := r.ParseForm(); err != nil {
 		return err
 	}
+
+	bindingID := r.Form.Get("sessionBindingID")
+	protocol := r.Form.Get("protocol")
+
+	if protocol == "Browser" && bindingID == h.Id {
+		// the requested binding to revoke is actually the browser session this page is being viewed
+		signOutConfirmation := *r.URL
+		signOutConfirmation.Path = "/.pomerium/sign_out"
+		httputil.Redirect(w, r, signOutConfirmation.String(), http.StatusFound)
+		return nil
+	}
+
+	if err := state.flow.RevokeSessionBinding(ctx, h, protocol, bindingID); err != nil {
+		return err
+	}
+	a.redirectToBindingInfo(w, r)
 	return nil
+}
+
+func (a *Authenticate) redirectToBindingInfo(w http.ResponseWriter, r *http.Request) {
+	redirectTo := r.Referer()
+	if redirectTo == "" {
+		redirectURL := *r.URL
+		redirectURL.Path = "/.pomerium/session_binding_info"
+		redirectTo = redirectURL.String()
+	}
+	httputil.Redirect(w, r, redirectTo, http.StatusFound)
 }
 
 func (a *Authenticate) revokeIdentityBinding(w http.ResponseWriter, r *http.Request) error {
