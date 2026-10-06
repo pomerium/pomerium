@@ -41,9 +41,8 @@ import (
 
 // DataBroker represents the databroker service.
 type DataBroker struct {
-	databrokerCfg *databrokerConfig
-	srv           databroker.Server
-	// identityMgr         *manager.Manager
+	databrokerCfg     *databrokerConfig
+	srv               databroker.Server
 	identityMgrV2     *idpsession.IdentityManager
 	eventsMgr         *events.Manager
 	analyticsReporter analytics.Reporter

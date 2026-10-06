@@ -262,7 +262,7 @@ func (p *Provider) Name() string {
 // SignIn redirects to the OAuth 2.0 provider's consent page
 // that asks for permissions for the required scopes explicitly.
 func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) error {
-	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account")}
+	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
 	if pkceParams, ok := pkce.FromContext(r.Context()); ok {
 		opts = append(opts, pkce.AuthCodeOptions(pkceParams)...)
 	}
