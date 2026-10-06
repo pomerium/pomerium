@@ -29,7 +29,7 @@ func TestBindingManager(t *testing.T) {
 		address := "a1"
 		sid := "sid1"
 		put(t, client,
-			databroker.NewRecord(&idpsession.IDPSession{Id: "idp1", UserId: "u1", Sid: &sid, InitiatedAt: timestamppb.New(now), InitatedBy: &resource, InitiatedByAddr: &address}),
+			databroker.NewRecord(&idpsession.IDPSession{Id: "idp1", UserId: "u1", Sid: &sid, InitiatedAt: timestamppb.New(now), InitiatedBy: &resource, InitiatedByAddr: &address}),
 			databroker.NewRecord(&idpsession.IDPSession{Id: "idp2", UserId: "u1", InitiatedAt: timestamppb.New(now)}),
 			databroker.NewRecord(&idpsession.IDPSession{Id: "idp3", UserId: "u2", InitiatedAt: timestamppb.New(now)}),
 			databroker.NewRecord(idpsession.NewBinding("idp1", "u1", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, &session.Session{Id: "s1"}, nil)),
@@ -90,7 +90,7 @@ func TestBindingManager(t *testing.T) {
 
 		got, err := NewBindingManager(client).GetBindings(t.Context(), &session.Handle{Id: "s1", UserId: "u1"})
 		require.NoError(t, err)
-		assert.Equal(t, []handlers.SessionBindingData{
+		assert.Equal(t, []handlers.SessionBindingDataV2{
 			{
 				IDPSessionID:     "ss1",
 				SessionBindingID: "m1",
@@ -131,7 +131,7 @@ func TestBindingManager(t *testing.T) {
 
 		got2, err := NewBindingManager(client).GetBindings(t.Context(), &session.Handle{Id: "s2", UserId: "u2"})
 		require.NoError(t, err)
-		assert.Equal(t, []handlers.SessionBindingData{
+		assert.Equal(t, []handlers.SessionBindingDataV2{
 			{
 				IDPSessionID:       "ss2",
 				SessionBindingID:   "sshkey-SHA256:c",
@@ -195,7 +195,7 @@ func TestBindingManager(t *testing.T) {
 				err := NewBindingManager(client).RevokeBinding(t.Context(), tc.request)
 				if tc.wantStatus == http.StatusOK {
 					require.NoError(t, err)
-					assertBindingRecordDeleted(t, client, new(session.SessionBinding), "b1")
+					assertBindingRecordDeleted(t, client, new(idpsession.Binding), "b1")
 				} else {
 					assertHTTPStatusFromErr(t, err, tc.wantStatus)
 				}
