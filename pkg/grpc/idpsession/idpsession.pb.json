@@ -39,7 +39,7 @@
           "name": "Binding",
           "longName": "Binding",
           "fullName": "idpsession.Binding",
-          "description": "Binding binds a particular client session to a user's centralized IDP session. It\nis used to map (in a concurrently safe way) which Pomerium client sessions\nbelong to a user's IDP session.\nIn particular, a Binding's ID must match its corresponding client session's ID. The\ntype of client it is bound to is represented by its type_url field.\nIt acts an authoritative source about the state of the session (active vs revoked).\nA Binding must point to their parent IDPSession.\nDirect deletion can leave a client session active, so consumers of the Binding\nrecord must mark it revoked instead.\nAfter being revoked, bindings are cleaned up after a grace period to allow for\nclient sessions to be deterministically invalidated.\nThe invalidation of its parent IDPSession invalidates all depedent client\nsessions.\nBinding IDs should be unique to a client session and never re-used on subsequent bindings\nof the same client session type.",
+          "description": "Binding binds a Pomerium client session to a given IDPSession and its set of tokens.\nIt is used to map (in a concurrently safe way) which Pomerium client sessions\nbelong to a user's IDP session.\nPomerium client sessions are always represented by their own databroker record.\nIn particular, a Binding's ID must match its corresponding bound record's ID. The\ntype of client it is bound to is represented by its type_url field.\nIt acts an authoritative source about the state of the session. If the binding exists,\nit is active, if not, the client session is no longer valid.\nThe deletion of a binding is expected to (eventually) delete the client session record.\nA Binding must also point to their parent IDPSession. Deleting an IDPSession is expected\nto (eventually) delete its associated bindings.\nBinding IDs should be unique to a client session and never re-used on subsequent bindings\nof the same client session type.",
           "hasExtensions": false,
           "hasFields": true,
           "hasOneofs": false,
@@ -171,7 +171,7 @@
           "name": "IDPSession",
           "longName": "IDPSession",
           "fullName": "idpsession.IDPSession",
-          "description": "IDPSession represents a single sign-on against an upstream IDP, holding the\none set of tokens that sign-on was issued. Its ID is the ID of the client\nsession handle that created it, so a user with several sign-ons has several\nIDPSession records, each refreshed independently.",
+          "description": "IDPSession represents a set of tokens returned by an upstream IDP\nfor a given user session obtained by sign-on.\nThey do not necessarily correspond one-to-one with a unique upstream IDP session.\nAn IDPSession's ID should be deterministically derived from the\nupstream IDP's user ID and some unique client identifying information (e.g. Browser).\nIDPSession's that share the same SID, correspond to the same upstream\nIDP session for that user. Otherwise, we treat an IDPSession as a unique\nupstream IDP session, although this is likely not the case in practice.",
           "hasExtensions": false,
           "hasFields": true,
           "hasOneofs": true,
@@ -239,7 +239,7 @@
             },
             {
               "name": "sid",
-              "description": "sid is the \"sid\" claim of the ID token, identifying the upstream IDP\nsession this sign-on belongs to. IDPs may not identify sessions using sid.",
+              "description": "sid is the \"sid\" claim of the ID token or the \"session_state\" oauth callback parameter,\nidentifying the upstream IDP session the sign-on belongs to. IDPs may not identify sessions using sid.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -251,7 +251,7 @@
             },
             {
               "name": "idp_id",
-              "description": "user_claims holds the user level claims from the user record, kept here so\nthey can be propagated to the records bound to this session.",
+              "description": "",
               "label": "",
               "type": "string",
               "longType": "string",
@@ -286,7 +286,7 @@
               "defaultValue": ""
             },
             {
-              "name": "initated_by",
+              "name": "initiated_by",
               "description": "",
               "label": "optional",
               "type": "string",
@@ -294,7 +294,7 @@
               "fullType": "string",
               "ismap": false,
               "isoneof": true,
-              "oneofdecl": "_initated_by",
+              "oneofdecl": "_initiated_by",
               "defaultValue": ""
             },
             {

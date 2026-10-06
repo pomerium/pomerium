@@ -15,6 +15,9 @@ func (x *IDPSession) SetRawIDToken(rawIDToken string) {
 	if x == nil {
 		return
 	}
+	if rawIDToken == "" {
+		return
+	}
 	x.RawIdToken = rawIDToken
 	if idToken, err := ParseIDToken(rawIDToken); err == nil && idToken != nil {
 		x.IdToken = idToken
@@ -71,7 +74,7 @@ func (x *IDPSession) Validate() error {
 	now := time.Now()
 
 	if token := x.GetOauthToken(); token != nil {
-		if expiresAt := token.GetExpiresAt(); expiresAt.AsTime().Year() > 1970 && now.After(expiresAt.AsTime()) {
+		if expiresAt := token.GetExpiresAt(); expiresAt.AsTime().Year() > 1970 && now.After(expiresAt.AsTime()) && token.RefreshToken == "" {
 			return fmt.Errorf("%w: access_token expired at %s", ErrSessionExpired, expiresAt.AsTime())
 		}
 	}
