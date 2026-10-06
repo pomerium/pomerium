@@ -42,7 +42,6 @@ import (
 type DataBroker struct {
 	databrokerCfg *databrokerConfig
 	srv           databroker.Server
-	// identityMgr   *manager.Manager
 	identityMgrV2 *idpsession.IdentityManager
 	eventsMgr     *events.Manager
 
