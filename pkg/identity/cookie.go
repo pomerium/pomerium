@@ -41,6 +41,7 @@ func EnsureBrowserIDCookie(
 func GenerateBrowserIDCookie(genOptions BrowserIDOptions) (*http.Cookie, error) {
 	sc := securecookie.New(genOptions.AuthKey, nil)
 	sc.SetSerializer(securecookie.JSONEncoder{})
+	sc.MaxAge(int(browserIDExpiration.Seconds()))
 	encoded, err := sc.Encode(genOptions.CookieName+"_browser_id", genOptions.BrowserID)
 	if err != nil {
 		return nil, err

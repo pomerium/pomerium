@@ -38,7 +38,7 @@ type BindingManager interface {
 	DeleteUpstreamIDPSessions(ctx context.Context, h *session.Handle) (IDPSessionRevocation, error)
 	RevokeBinding(ctx context.Context, id BindingID) error
 	GetIDPSessions(ctx context.Context, h *session.Handle) ([]handlers.IDPSessionData, string, error)
-	GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingData, error)
+	GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingDataV2, error)
 }
 
 type IDPSessionRevocation struct {
@@ -195,8 +195,8 @@ func (b *bindingManager) GetIDPSessions(ctx context.Context, h *session.Handle) 
 			ClientAddress: "unknown client address",
 			Resource:      "Uknown client",
 		}
-		if idpSess.InitatedBy != nil {
-			datum.Resource = *idpSess.InitatedBy
+		if idpSess.InitiatedBy != nil {
+			datum.Resource = *idpSess.InitiatedBy
 		}
 		if idpSess.InitiatedByAddr != nil {
 			datum.ClientAddress = *idpSess.InitiatedByAddr
@@ -262,7 +262,7 @@ func (b *bindingManager) RevokeBinding(ctx context.Context, bindingID BindingID)
 	return nil
 }
 
-func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingData, error) {
+func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingDataV2, error) {
 	sshBindings, err := b.getLegacySSHSessionBindingInfo(ctx, h.UserId)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
@@ -292,7 +292,7 @@ func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]
 		bindings = append(bindings, datum)
 	}
 
-	slices.SortFunc(bindings, func(a, b handlers.SessionBindingData) int {
+	slices.SortFunc(bindings, func(a, b handlers.SessionBindingDataV2) int {
 		if n := cmp.Compare(a.IDPSessionID, b.IDPSessionID); n != 0 {
 			return n
 		}
@@ -348,16 +348,16 @@ func (b *bindingManager) queryBindings(
 	return bindings, nil
 }
 
-func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, userID string) ([]handlers.SessionBindingData, error) {
+func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, userID string) ([]handlers.SessionBindingDataV2, error) {
 	pairs, err := b.codeReader.GetSessionBindingsByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch ssh bindings")
 	}
-	bindings := make([]handlers.SessionBindingData, 0, len(pairs))
+	bindings := make([]handlers.SessionBindingDataV2, 0, len(pairs))
 	idpSessionIDs := map[string]string{}
 	for sessionBindingID, p := range pairs {
 
-		datum := handlers.SessionBindingData{
+		datum := handlers.SessionBindingDataV2{
 			SessionBindingID:   sessionBindingID,
 			Protocol:           p.SB.Protocol,
 			Resource:           "SSH key",
@@ -404,7 +404,7 @@ func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, use
 func (b *bindingManager) sessionToBindingData(
 	ctx context.Context,
 	binding *idpsession.Binding,
-) (handlers.SessionBindingData, error) {
+) (handlers.SessionBindingDataV2, error) {
 	var expiresAt string
 	var clientAddr string
 	var resource string
@@ -416,7 +416,7 @@ func (b *bindingManager) sessionToBindingData(
 			Id:   binding.GetId(),
 		})
 		if err != nil {
-			return handlers.SessionBindingData{}, err
+			return handlers.SessionBindingDataV2{}, err
 		}
 		switch binding.GetProtocol() {
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_MCP:
@@ -425,7 +425,7 @@ func (b *bindingManager) sessionToBindingData(
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
 			sess := &session.Session{}
 			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
-				return handlers.SessionBindingData{}, err
+				return handlers.SessionBindingDataV2{}, err
 			}
 			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
 			resource = formatBrowserUserAgent(binding.GetDetails()["user-agent"])
@@ -433,7 +433,7 @@ func (b *bindingManager) sessionToBindingData(
 		clientAddr = binding.GetDetails()["client-ip"]
 	}
 
-	datum := handlers.SessionBindingData{
+	datum := handlers.SessionBindingDataV2{
 		SessionBindingID: binding.GetId(),
 		Protocol:         formatProtocol(binding.GetProtocol()),
 		ClientAddress:    clientAddr,
@@ -455,4 +455,46 @@ func formatProtocol(protocol idpsession.BindingProtocol) string {
 		return "Browser"
 	}
 	return "Unknown"
+}
+
+func formatBrowserUserAgent(userAgent string) string {
+	if strings.TrimSpace(userAgent) == "" {
+		return ""
+	}
+
+	browser := "Unknown browser"
+	switch {
+	case strings.Contains(userAgent, "EdgiOS/"), strings.Contains(userAgent, "EdgA/"), strings.Contains(userAgent, "Edg/"):
+		browser = "Edge"
+	case strings.Contains(userAgent, "OPiOS/"), strings.Contains(userAgent, "OPR/"):
+		browser = "Opera"
+	case strings.Contains(userAgent, "SamsungBrowser/"):
+		browser = "Samsung"
+	case strings.Contains(userAgent, "CriOS/"), strings.Contains(userAgent, "Chrome/"):
+		browser = "Chrome"
+	case strings.Contains(userAgent, "FxiOS/"), strings.Contains(userAgent, "Firefox/"):
+		browser = "Firefox"
+	case strings.Contains(userAgent, "Version/") && strings.Contains(userAgent, "Safari/"):
+		browser = "Safari"
+	}
+
+	operatingSystem := "Unknown OS"
+	switch {
+	case strings.Contains(userAgent, "Android"):
+		operatingSystem = "Android"
+	case strings.Contains(userAgent, "iPad"):
+		operatingSystem = "iPadOS"
+	case strings.Contains(userAgent, "iPhone"), strings.Contains(userAgent, "iPod"):
+		operatingSystem = "iOS"
+	case strings.Contains(userAgent, "Windows"):
+		operatingSystem = "Windows"
+	case strings.Contains(userAgent, "CrOS"):
+		operatingSystem = "ChromeOS"
+	case strings.Contains(userAgent, "Macintosh"), strings.Contains(userAgent, "Mac OS X"):
+		operatingSystem = "macOS"
+	case strings.Contains(userAgent, "Linux"):
+		operatingSystem = "Linux"
+	}
+
+	return browser + " on " + operatingSystem
 }
