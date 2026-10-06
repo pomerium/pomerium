@@ -52,7 +52,7 @@ func (mp MockProvider) Name() string {
 }
 
 // SignOut is a mocked providers function.
-func (mp MockProvider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+func (mp MockProvider) SignOut(_ http.ResponseWriter, _ *http.Request, _ SignOutOptions) error {
 	return mp.SignOutError
 }
 

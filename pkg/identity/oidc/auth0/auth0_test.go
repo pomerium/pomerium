@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 )
 
@@ -56,7 +57,10 @@ func TestProvider(t *testing.T) {
 	t.Run("SignOut", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "https://authenticate.example.com/.pomerium/sign_out", nil)
-		err := p.SignOut(w, r, "", "https://authenticate.example.com/.pomerium/signed_out", "https://www.example.com?a=b")
+		err := p.SignOut(w, r, identity.SignOutOptions{
+			AuthenticateSignedOutURL: "https://authenticate.example.com/.pomerium/signed_out",
+			RedirectToURL:            "https://www.example.com?a=b",
+		})
 		assert.NoError(t, err)
 		assert.Equal(t, srv.URL+"/v2/logout?client_id=CLIENT_ID&returnTo=https%3A%2F%2Fwww.example.com%3Fa%3Db", w.Header().Get("Location"))
 	})

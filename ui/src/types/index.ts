@@ -183,17 +183,32 @@ export type SignInSuccessPageData = BasePageData &
 export type SessionBindingInfoPageData = BasePageData &
   UserInfoData & {
     page: "SessionBindingInfo";
+    idpSessions: IDPSessionData[];
     sessionBindings: SessionBindingData[];
+    currentIdpSessionId: string;
+    revokeSessionBindingUrl: string;
+    revokeIdentityBindingUrl: string;
   };
+export type IDPSessionData = {
+  IDPSessionID: string;
+  SID: string;
+  ClientAddress: string;
+  Resource: string;
+  InitiatedAt: string;
+};
 export type SessionBindingData = {
+  IDPSessionID: string;
   SessionBindingID: string;
   Protocol: string;
-  IssuedAt: string;
+  Resource: string;
+  ClientAddress: string;
+  InitiatedAt: string;
   ExpiresAt: string;
   RevokeSessionBindingURL: string;
   HasIdentityBinding: boolean;
   RevokeIdentityBindingURL: string;
-  DetailsSSH: DetailsSSH;
+  DetailsSSH?: DetailsSSH;
+  IsCurrentBrowser: boolean;
 };
 
 export type DetailsSSH = {
