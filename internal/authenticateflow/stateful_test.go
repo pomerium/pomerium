@@ -368,7 +368,7 @@ func TestStatefulRevokeSession(t *testing.T) {
 	}{
 		{
 			name:      "no SID",
-			wantHints: SignOutHints{IDTokenHint: "new"},
+			wantHints: SignOutHints{IDTokenHint: "current"},
 		},
 		{
 			name:      "has SID",
@@ -380,7 +380,7 @@ func TestStatefulRevokeSession(t *testing.T) {
 			sessions := []*idpsession.IDPSession{
 				{
 					Id: "one", Sid: tc.sid,
-					IdToken:    &idpsession.IDToken{Raw: "old", IssuedAt: timestamppb.New(time.Unix(1, 0))},
+					IdToken:    &idpsession.IDToken{Raw: "current", IssuedAt: timestamppb.New(time.Unix(1, 0))},
 					OauthToken: &idpsession.OAuthToken{AccessToken: "access", RefreshToken: "refresh"},
 				},
 				{
@@ -545,7 +545,7 @@ func TestPersistSession(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "https://authenticate.example.com/callback", nil)
 	req.Header.Set("User-Agent", "test-browser/1.0")
-	err = flow.PersistSession(ctx, nil, req, h, claims, accessToken, "browser-id")
+	err = flow.PersistSession(ctx, nil, req, h, claims, accessToken, "browser-id", "sid")
 	assert.NoError(t, err)
 	assert.Equal(t, proto.Uint64(1111), h.DatabrokerRecordVersion)
 	assert.Equal(t, proto.Uint64(2222), h.DatabrokerServerVersion)
