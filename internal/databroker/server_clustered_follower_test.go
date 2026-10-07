@@ -5,9 +5,9 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"uuid"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -128,7 +128,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.ErrorIs(t, err, databrokerpb.ErrNodeIsNotLeader)
 	})
 	t.Run("sync", func(t *testing.T) {
-		healthProviderID := health.ProviderID(uuid.New().String())
+		healthProviderID := health.ProviderID(uuid.NewString())
 		healthTracker := new(healthProviderTracker)
 		mgr := health.GetProviderManager()
 		mgr.Register(healthProviderID, healthTracker)
