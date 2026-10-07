@@ -255,13 +255,19 @@ During the authorization code exchange (`POST /.pomerium/mcp/token`), Pomerium:
    - `expires_at` = now + 365 days (RefreshTokenTTL)
    - `refresh_disabled` unset (identity manager propagates tokens on background refresh)
 
-3. **Binds to IdP session**: Atomically stores the session and creates an
-   `idpsession.Binding` with:
+3. **Binds to IdP session**: Stores the session and an `idpsession.Binding` in
+   one write, with:
    - id = the session's id (both records share one random id)
    - `protocol` = MCP
    - `idp_session_id` = that IdP session's id
    - `user_id` = the IdP session's `user_id`
    - Details: `mcp_client_id`, `client-ip`
+
+   It then reads the IdP session again. The user may have signed out since
+   step 1, and the identity manager never deletes a binding written after its
+   IdP session was deleted. If the IdP session is gone, the session and binding
+   are deleted and the exchange responds with `invalid_grant`; if it is still
+   there, a later sign-out reaches the binding.
 
 4. **Mints tokens**:
    - **Access token**: Opaque (`pom_mat_` prefix), encodes session id + databroker

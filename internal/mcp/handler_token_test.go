@@ -696,6 +696,51 @@ func TestAuthorizationCodeGrant(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code, "response body: %s", w.Body.String())
 		assert.Contains(t, w.Body.String(), "invalid_grant")
 	})
+
+	t.Run("sign-out during the exchange leaves no live MCP session", func(t *testing.T) {
+		// The user signs out after the exchange resolved their IdP session but before
+		// the MCP session is written. Sign-out deletes the IdP session, and the
+		// identity manager deletes the bindings it knows about, which cannot include
+		// one written afterwards; it never deletes a binding whose IdP session is
+		// already gone. The exchange must refuse, and leave nothing behind.
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+
+		userID := "sign-out-race-user"
+		signIn(ctx, t, storage, validIDPSession(userID, "test-idp", nil, nil))
+		clientID := registerNoneAuthClient(ctx, t, storage)
+		code, codeVerifier := sealAuthCode(ctx, t, storage, testCipher, clientID, userID, nil)
+
+		var boundSessionID string
+		spy := &tokenTestStorage{
+			Storage: storage,
+			putBoundSessionFunc: func(ctx context.Context, s *session.Session, idpSessionID string, details map[string]string) (uint64, error) {
+				signedOut := databroker_grpc.NewRecord(&idpsession.IDPSession{Id: idpSessionID})
+				signedOut.DeletedAt = timestamppb.Now()
+				_, err := storage.client().Put(ctx, &databroker_grpc.PutRequest{Records: []*databroker_grpc.Record{signedOut}})
+				require.NoError(t, err)
+				boundSessionID = s.GetId()
+				return storage.PutBoundSession(ctx, s, idpSessionID, details)
+			},
+		}
+		srv := newHandlerWithStorage(spy, testCipher, 5*time.Minute)
+
+		w := doTokenRequest(srv, url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code},
+			"client_id":     {clientID},
+			"code_verifier": {codeVerifier},
+		})
+		assert.Equal(t, http.StatusBadRequest, w.Code, "response body: %s", w.Body.String())
+		assert.Contains(t, w.Body.String(), "invalid_grant")
+
+		require.NotEmpty(t, boundSessionID)
+		_, _, err = storage.GetSession(ctx, boundSessionID)
+		assert.Equal(t, codes.NotFound, status.Code(err), "the MCP session outlived the sign-out")
+		_, err = storage.GetActiveBinding(ctx, boundSessionID)
+		assert.Equal(t, codes.NotFound, status.Code(err), "the MCP binding outlived the sign-out")
+	})
 }
 
 func TestRefreshTokenGrant(t *testing.T) {

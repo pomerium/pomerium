@@ -208,6 +208,10 @@ func TestStorage(t *testing.T) {
 			IssuedAt: timestamppb.Now(),
 		}
 		details := map[string]string{"mcp_client_id": "client-1", "client-ip": "203.0.113.9"}
+		_, err := client.Put(ctx, &databroker_grpc.PutRequest{Records: []*databroker_grpc.Record{
+			databroker_grpc.NewRecord(&idpsession.IDPSession{Id: "idp-session-1", UserId: sess.UserId}),
+		}})
+		require.NoError(t, err)
 
 		version, err := storage.PutBoundSession(ctx, sess, "idp-session-1", details)
 		require.NoError(t, err)
@@ -225,6 +229,25 @@ func TestStorage(t *testing.T) {
 		assert.Equal(t, sess.UserId, binding.GetUserId())
 		assert.Equal(t, idpsession.BindingProtocol_BINDING_PROTOCOL_MCP, binding.GetProtocol())
 		assert.Equal(t, details, binding.GetDetails())
+	})
+
+	t.Run("put bound session to an idp session that is gone", func(t *testing.T) {
+		t.Parallel()
+
+		sess := &session.Session{
+			Id:       "bound-session-2",
+			UserId:   "idp-user-2",
+			IdpId:    "test-idp",
+			IssuedAt: timestamppb.Now(),
+		}
+
+		_, err := storage.PutBoundSession(ctx, sess, "signed-out-idp-session", nil)
+		assert.Equal(t, codes.NotFound, status.Code(err), "error: %v", err)
+
+		_, _, err = storage.GetSession(ctx, sess.Id)
+		assert.Equal(t, codes.NotFound, status.Code(err), "the session must be removed again")
+		_, err = storage.GetActiveBinding(ctx, sess.Id)
+		assert.Equal(t, codes.NotFound, status.Code(err), "the binding must be removed again")
 	})
 
 	t.Run("put session leaves the binding untouched", func(t *testing.T) {

@@ -235,7 +235,11 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		"mcp_client_id": clientID,
 		"client-ip":     httputil.GetClientIP(r),
 	})
-	if err != nil {
+	if status.Code(err) == codes.NotFound {
+		// The user signed out while the session was being bound.
+		srv.writeGrantError(ctx, w, fmt.Errorf("%w: %w", errInvalidGrant, err), "mcp/token/auth-code: cannot issue for this user")
+		return
+	} else if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/token/auth-code: failed to store mcp client session")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return

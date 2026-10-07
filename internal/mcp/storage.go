@@ -34,7 +34,8 @@ type HandlerStorage interface {
 	GetActiveBinding(ctx context.Context, id string) (*idpsessionpb.Binding, error)
 	GetSession(ctx context.Context, id string) (*session.Session, uint64, error)
 	// PutBoundSession creates an MCP client session together with its Binding to
-	// an IDPSession. Used once per consent.
+	// an IDPSession. Used once per consent. If the IDPSession no longer exists
+	// once they are written, it removes both and reports codes.NotFound.
 	PutBoundSession(ctx context.Context, s *session.Session, idpSessionID string, details map[string]string) (uint64, error)
 	// PutSession rewrites an MCP client session alone, never its Binding, and
 	// only if the stored session is still at version (as returned by GetSession).
@@ -290,8 +291,17 @@ func (storage *Storage) GetValidIDPSession(ctx context.Context, id string) (*idp
 	return idpsessionpb.GetValidIDPSession(ctx, storage.client(), id)
 }
 
-// PutBoundSession stores an MCP client session and, atomically, its Binding to
-// the given IDPSession. It returns the session record's version.
+// PutBoundSession stores an MCP client session and its Binding to the given
+// IDPSession in one write, and returns the session record's version.
+//
+// The caller read the IDPSession before this write, and the user may have signed
+// out since. Sign-out deletes the IDPSession, after which the identity manager
+// deletes the bindings it has seen: never one written later, and never one whose
+// IDPSession is already gone, so such a binding and its session would outlive
+// the sign-out for good. So once both are written the IDPSession is read again.
+// If it still exists, a later sign-out reaches the binding, as the identity
+// manager applies changes in the order they were made. If it does not, the
+// session and binding are removed again and codes.NotFound is returned.
 func (storage *Storage) PutBoundSession(ctx context.Context, s *session.Session, idpSessionID string, details map[string]string) (uint64, error) {
 	res, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: idpsessionpb.NewBoundRecords(idpSessionID, s.GetUserId(),
@@ -303,12 +313,38 @@ func (storage *Storage) PutBoundSession(ctx context.Context, s *session.Session,
 	if err != nil {
 		return 0, err
 	}
+	version, ok := uint64(0), false
 	for _, record := range res.GetRecords() {
 		if record.GetType() == protoutil.GetTypeURL(s) && record.GetId() == s.GetId() {
-			return record.GetVersion(), nil
+			version, ok = record.GetVersion(), true
 		}
 	}
-	return 0, fmt.Errorf("put session response did not contain session record %q", s.GetId())
+	if !ok {
+		return 0, fmt.Errorf("put session response did not contain session record %q", s.GetId())
+	}
+
+	if _, err := idpsessionpb.GetIDPSession(ctx, storage.client(), idpSessionID); err != nil {
+		if delErr := storage.deleteBoundSession(ctx, s.GetId()); delErr != nil {
+			log.Ctx(ctx).Error().Err(delErr).
+				Str("session-id", s.GetId()).
+				Msg("mcp: failed to remove a session bound to an idp session that is gone")
+		}
+		return 0, fmt.Errorf("idp session %q after binding session %q: %w", idpSessionID, s.GetId(), err)
+	}
+	return version, nil
+}
+
+// deleteBoundSession deletes an MCP client session together with its Binding.
+func (storage *Storage) deleteBoundSession(ctx context.Context, sessionID string) error {
+	records := []*databroker.Record{
+		databroker.NewRecord(&session.Session{Id: sessionID}),
+		databroker.NewRecord(&idpsessionpb.Binding{Id: sessionID}),
+	}
+	for _, record := range records {
+		record.DeletedAt = timestamppb.Now()
+	}
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{Records: records})
+	return err
 }
 
 // PutSession stores an MCP client session on its own, leaving its Binding
