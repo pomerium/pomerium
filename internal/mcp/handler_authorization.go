@@ -286,7 +286,6 @@ func (srv *Handler) AuthorizationResponse(
 		time.Now().Add(time.Minute*10),
 		req.ClientId,
 		srv.cipher,
-		0,
 	)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize-response: failed to create code")

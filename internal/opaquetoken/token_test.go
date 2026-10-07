@@ -102,7 +102,7 @@ func TestSeal(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			token, err := Seal(tc.typ, tc.id, tc.expires, tc.ad, tc.cipher, 0)
+			token, err := Seal(tc.typ, tc.id, tc.expires, tc.ad, tc.cipher)
 
 			if tc.wantErr {
 				assert.Error(t, err)
@@ -133,13 +133,13 @@ func TestOpen(t *testing.T) {
 	future := now.Add(time.Hour)
 	past := now.Add(-time.Hour)
 
-	validToken, err := Seal(TypeAuthorization, "test-id", future, "test-ad", testCipher, 0)
+	validToken, err := Seal(TypeAuthorization, "test-id", future, "test-ad", testCipher)
 	require.NoError(t, err)
 
-	validRefreshToken, err := Seal(TypeRefresh, "refresh-id", future, "test-ad", testCipher, 0)
+	validRefreshToken, err := Seal(TypeRefresh, "refresh-id", future, "test-ad", testCipher)
 	require.NoError(t, err)
 
-	expiredToken, err := Seal(TypeAuthorization, "expired-id", past, "test-ad", testCipher, 0)
+	expiredToken, err := Seal(TypeAuthorization, "expired-id", past, "test-ad", testCipher)
 	require.NoError(t, err)
 
 	payloadNoExpiry := &Payload{
@@ -273,4 +273,87 @@ func TestOpen(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSealOptions(t *testing.T) {
+	key := cryptutil.NewKey()
+	testCipher, err := cryptutil.NewAEADCipher(key)
+	require.NoError(t, err)
+
+	now := time.Now()
+	expires := now.Add(time.Hour)
+
+	tests := []struct {
+		name              string
+		options           []SealOption
+		wantRecordVersion uint64
+		wantIssuedAt      *time.Time
+		wantIssuedAtNilOK bool
+	}{
+		{
+			name:              "with record version",
+			options:           []SealOption{WithRecordVersion(7)},
+			wantRecordVersion: 7,
+			wantIssuedAtNilOK: true,
+		},
+		{
+			name:              "with issued at",
+			options:           []SealOption{WithIssuedAt(now)},
+			wantRecordVersion: 0,
+			wantIssuedAt:      &now,
+		},
+		{
+			name:              "with record version and issued at",
+			options:           []SealOption{WithRecordVersion(42), WithIssuedAt(now)},
+			wantRecordVersion: 42,
+			wantIssuedAt:      &now,
+		},
+		{
+			name:              "without options",
+			options:           []SealOption{},
+			wantRecordVersion: 0,
+			wantIssuedAtNilOK: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			token, err := Seal(TypeAuthorization, "test-id", expires, "test-ad", testCipher, tc.options...)
+			require.NoError(t, err)
+			assert.NotEmpty(t, token)
+
+			payload, err := Open(TypeAuthorization, token, testCipher, "test-ad", now)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.wantRecordVersion, payload.GetRecordVersion())
+
+			if tc.wantIssuedAtNilOK {
+				assert.Nil(t, payload.GetIssuedAt())
+			} else {
+				require.NotNil(t, payload.GetIssuedAt())
+				assert.True(t, payload.GetIssuedAt().AsTime().Equal(*tc.wantIssuedAt),
+					"expected %v, got %v", tc.wantIssuedAt, payload.GetIssuedAt().AsTime())
+			}
+		})
+	}
+}
+
+func TestSealOptionsNanosecondPrecision(t *testing.T) {
+	key := cryptutil.NewKey()
+	testCipher, err := cryptutil.NewAEADCipher(key)
+	require.NoError(t, err)
+
+	now := time.Now()
+	expires := now.Add(time.Hour)
+	issuedAt := time.Date(2026, 9, 11, 12, 30, 45, 123456789, time.UTC)
+
+	token, err := Seal(TypeAuthorization, "test-id", expires, "test-ad", testCipher, WithIssuedAt(issuedAt))
+	require.NoError(t, err)
+
+	payload, err := Open(TypeAuthorization, token, testCipher, "test-ad", now)
+	require.NoError(t, err)
+
+	require.NotNil(t, payload.GetIssuedAt())
+	assert.True(t, payload.GetIssuedAt().AsTime().Equal(issuedAt),
+		"nanosecond precision lost: expected %v, got %v", issuedAt, payload.GetIssuedAt().AsTime())
 }

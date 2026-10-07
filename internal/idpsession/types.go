@@ -8,7 +8,6 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -16,11 +15,10 @@ import (
 )
 
 const (
-	idpSessionTypeURL      = "type.googleapis.com/idpsession.IDPSession"
-	bindingTypeURL         = "type.googleapis.com/idpsession.Binding"
-	sessionTypeURL         = "type.googleapis.com/session.Session"
-	userTypeURL            = "type.googleapis.com/user.User"
-	mcpRefreshTokenTypeURL = "type.googleapis.com/oauth21.MCPRefreshToken"
+	idpSessionTypeURL = "type.googleapis.com/idpsession.IDPSession"
+	bindingTypeURL    = "type.googleapis.com/idpsession.Binding"
+	sessionTypeURL    = "type.googleapis.com/session.Session"
+	userTypeURL       = "type.googleapis.com/user.User"
 )
 
 const maxPatchRequestSize = 1024 * 1024
@@ -163,10 +161,6 @@ func constructPatchedBoundRecord(typeURL string, id string, sess *idpsession.IDP
 		s := &session.Session{Id: id}
 		applier.ApplyToSession(s)
 		return databroker.NewRecord(s), nil
-	case mcpRefreshTokenTypeURL:
-		token := &oauth21.MCPRefreshToken{Id: id}
-		applier.ApplyToMCP(token)
-		return databroker.NewRecord(token), nil
 	default:
 		return nil, fmt.Errorf("%s not yet supported as a binding dependency", typeURL)
 	}
@@ -176,8 +170,6 @@ func newBoundRecord(typeURL string, id string) (*databroker.Record, error) {
 	switch typeURL {
 	case sessionTypeURL:
 		return databroker.NewRecord(&session.Session{Id: id}), nil
-	case mcpRefreshTokenTypeURL:
-		return databroker.NewRecord(&oauth21.MCPRefreshToken{Id: id}), nil
 	default:
 		return nil, fmt.Errorf("%s not yet supported as a binding dependency", typeURL)
 	}

@@ -75,7 +75,7 @@ func TestBindingManager(t *testing.T) {
 			}),
 			databroker.NewRecord(idpsession.NewBinding("ss1", "u1", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, &session.Session{Id: "s1"}, nil)),
 			databroker.NewRecord(idpsession.NewBinding("ss2", "u2", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, &session.Session{Id: "s2"}, nil)),
-			databroker.NewRecord(&session.Session{Id: "m1"}),
+			databroker.NewRecord(&session.Session{Id: "m1", ExpiresAt: timestamppb.New(now.Add(24 * time.Hour))}),
 			databroker.NewRecord(&session.Session{Id: "s2"}),
 			databroker.NewRecord(&idpsession.Binding{
 				Id:           "m1",
@@ -98,7 +98,7 @@ func TestBindingManager(t *testing.T) {
 				Resource:         "c1",
 				ClientAddress:    "a2",
 				InitiatedAt:      now.UTC().Format(time.RFC1123),
-				ExpiresAt:        "Until revoked or IDP expires",
+				ExpiresAt:        now.Add(24 * time.Hour).UTC().Format(time.RFC1123),
 			},
 			{
 				IDPSessionID:       "ss1",
