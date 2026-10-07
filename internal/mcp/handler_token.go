@@ -471,6 +471,10 @@ func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.
 // session that consented at /authorize is bound to. A browser session that is
 // gone, or bound to another user, wraps errInvalidGrant: the user signed out
 // before the code was redeemed, so no MCP credential may be issued.
+//
+// So does a session that is not a browser session. /authorize accepts an MCP
+// access token as the caller's identity, so an MCP client can obtain a code
+// without a browser; redeeming it would mint a second grant nobody consented to.
 func (srv *Handler) resolveConsentIDPSession(ctx context.Context, authReq *oauth21proto.AuthorizationRequest) (*idpsession.IDPSession, error) {
 	sessionID, userID := authReq.GetSessionId(), authReq.GetUserId()
 	binding, err := srv.storage.GetActiveBinding(ctx, sessionID)
@@ -478,6 +482,10 @@ func (srv *Handler) resolveConsentIDPSession(ctx context.Context, authReq *oauth
 		return nil, fmt.Errorf("%w: no binding for browser session %q: %w", errInvalidGrant, sessionID, err)
 	} else if err != nil {
 		return nil, fmt.Errorf("get binding: %w", err)
+	}
+	if binding.GetProtocol() != idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER {
+		return nil, fmt.Errorf("%w: session %q is bound as %s, not as a browser session",
+			errInvalidGrant, sessionID, binding.GetProtocol())
 	}
 	if binding.GetUserId() != userID {
 		return nil, fmt.Errorf("%w: browser session %q is bound to another user", errInvalidGrant, sessionID)

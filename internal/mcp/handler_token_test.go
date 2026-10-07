@@ -642,6 +642,45 @@ func TestAuthorizationCodeGrant(t *testing.T) {
 		w2 := doTokenRequest(srv, form)
 		assert.Equal(t, http.StatusBadRequest, w2.Code, "the same authorization code must not be redeemable twice")
 	})
+
+	t.Run("consent recorded from an MCP client session is refused", func(t *testing.T) {
+		// /authorize under the MCP prefix accepts an MCP access token as the caller's
+		// identity, so an MCP client can reach it without a browser and get a code
+		// whose session_id is its own MCP session. Redeeming that would mint a second,
+		// independently revocable grant with nobody consenting: only a browser
+		// session's consent may be redeemed.
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+		srv := newHandlerWithStorage(storage, testCipher, 5*time.Minute)
+
+		userID := "mcp-consent-user"
+		_, accessToken, _ := issueViaAuthCode(ctx, t, srv, storage, userID)
+		mcpSessionID, _, err := srv.GetSessionAndVersionFromAccessToken(accessToken)
+		require.NoError(t, err)
+
+		otherClientID := registerNoneAuthClient(ctx, t, storage)
+		codeVerifier := "test-code-verifier-that-is-long-enough-for-pkce"
+		authReqID, err := storage.CreateAuthorizationRequest(ctx, &oauth21proto.AuthorizationRequest{
+			ClientId:            otherClientID,
+			SessionId:           mcpSessionID,
+			UserId:              userID,
+			CodeChallenge:       new(computeS256Challenge(codeVerifier)),
+			CodeChallengeMethod: new("S256"),
+		})
+		require.NoError(t, err)
+		code, err := opaquetoken.Seal(opaquetoken.TypeAuthorization, authReqID, time.Now().Add(time.Hour), otherClientID, testCipher)
+		require.NoError(t, err)
+
+		w := doTokenRequest(srv, url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code},
+			"client_id":     {otherClientID},
+			"code_verifier": {codeVerifier},
+		})
+		assert.Equal(t, http.StatusBadRequest, w.Code, "response body: %s", w.Body.String())
+		assert.Contains(t, w.Body.String(), "invalid_grant")
+	})
 }
 
 func TestRefreshTokenGrant(t *testing.T) {

@@ -243,7 +243,10 @@ During the authorization code exchange (`POST /.pomerium/mcp/token`), Pomerium:
    `idpsession.Binding` of the browser session that consented at `/authorize`
    (`AuthorizationRequest.session_id`), then the `idpsession.IDPSession` it
    points to. If either is missing or belongs to another user, responds with
-   `invalid_grant` (the user signed out before the code was redeemed).
+   `invalid_grant` (the user signed out before the code was redeemed). So does
+   a binding that is not a browser binding: `/authorize` accepts an MCP access
+   token as the caller's identity, and a code obtained that way must not mint a
+   second grant nobody consented to.
 
 2. **Issues a client session**: Creates a `session.Session` with:
    - Unique id (UUID)
