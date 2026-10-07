@@ -88,20 +88,162 @@
         }
       },
       {
-        "name": "envoy.filters.http.ext_proc",
-        "disabled": true,
+        "name": "composite-with-matcher",
         "typedConfig": {
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor",
-          "grpcService": {
-            "envoyGrpc": {
-              "clusterName": "pomerium-control-plane-grpc"
-            },
-            "timeout": "10s"
+          "@type": "type.googleapis.com/envoy.extensions.common.matching.v3.ExtensionWithMatcher",
+          "xdsMatcher": {
+            "matcherList": {
+              "matchers": [
+                {
+                  "predicate": {
+                    "singlePredicate": {
+                      "input": {
+                        "name": "envoy.matching.inputs.dynamic_metadata",
+                        "typedConfig": {
+                          "@type": "type.googleapis.com/envoy.extensions.matching.common_inputs.network.v3.DynamicMetadataInput",
+                          "filter": "envoy.filters.http.ext_authz",
+                          "path": [
+                            {
+                              "key": "com.pomerium.use_filter_chain"
+                            }
+                          ]
+                        }
+                      },
+                      "customMatch": {
+                        "name": "envoy.matching.matchers.metadata_matcher",
+                        "typedConfig": {
+                          "@type": "type.googleapis.com/envoy.extensions.matching.input_matchers.metadata.v3.Metadata",
+                          "value": {
+                            "stringMatch": {
+                              "exact": "upstream_tunnel"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "onMatch": {
+                    "action": {
+                      "name": "execute-filters",
+                      "typedConfig": {
+                        "@type": "type.googleapis.com/envoy.extensions.filters.http.composite.v3.ExecuteFilterAction",
+                        "filterChain": {
+                          "typedConfig": [
+                            {
+                              "name": "envoy.filters.http.set_filter_state",
+                              "typedConfig": {
+                                "@type": "type.googleapis.com/envoy.extensions.filters.http.set_filter_state.v3.Config",
+                                "onRequestHeaders": [
+                                  {
+                                    "formatString": {
+                                      "textFormatSource": {
+                                        "inlineString": "%DOWNSTREAM_REMOTE_ADDRESS%"
+                                      }
+                                    },
+                                    "objectKey": "pomerium.extensions.ssh.downstream_source_address",
+                                    "sharedWithUpstream": "ONCE"
+                                  },
+                                  {
+                                    "formatString": {
+                                      "textFormatSource": {
+                                        "inlineString": "%REQUESTED_SERVER_NAME%"
+                                      }
+                                    },
+                                    "objectKey": "pomerium.extensions.ssh.requested_server_name",
+                                    "sharedWithUpstream": "ONCE"
+                                  },
+                                  {
+                                    "formatString": {
+                                      "textFormatSource": {
+                                        "inlineString": "%PATH(NQ)%"
+                                      }
+                                    },
+                                    "objectKey": "pomerium.extensions.ssh.requested_path",
+                                    "sharedWithUpstream": "ONCE"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "predicate": {
+                    "singlePredicate": {
+                      "input": {
+                        "name": "envoy.matching.inputs.dynamic_metadata",
+                        "typedConfig": {
+                          "@type": "type.googleapis.com/envoy.extensions.matching.common_inputs.network.v3.DynamicMetadataInput",
+                          "filter": "envoy.filters.http.ext_authz",
+                          "path": [
+                            {
+                              "key": "com.pomerium.use_filter_chain"
+                            }
+                          ]
+                        }
+                      },
+                      "customMatch": {
+                        "name": "envoy.matching.matchers.metadata_matcher",
+                        "typedConfig": {
+                          "@type": "type.googleapis.com/envoy.extensions.matching.input_matchers.metadata.v3.Metadata",
+                          "value": {
+                            "stringMatch": {
+                              "exact": "mcp"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "onMatch": {
+                    "action": {
+                      "name": "execute-filters",
+                      "typedConfig": {
+                        "@type": "type.googleapis.com/envoy.extensions.filters.http.composite.v3.ExecuteFilterAction",
+                        "filterChain": {
+                          "typedConfig": [
+                            {
+                              "name": "envoy.filters.http.ext_proc",
+                              "typedConfig": {
+                                "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor",
+                                "grpcService": {
+                                  "envoyGrpc": {
+                                    "clusterName": "pomerium-control-plane-grpc"
+                                  },
+                                  "timeout": "10s"
+                                },
+                                "processingMode": {
+                                  "requestHeaderMode": "SEND",
+                                  "responseHeaderMode": "SEND",
+                                  "requestTrailerMode": "SKIP",
+                                  "responseTrailerMode": "SKIP"
+                                },
+                                "messageTimeout": "10s",
+                                "metadataOptions": {
+                                  "forwardingNamespaces": {
+                                    "untyped": [
+                                      "envoy.filters.http.ext_authz"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
           },
-          "messageTimeout": "10s",
-          "metadataOptions": {
-            "forwardingNamespaces": {
-              "untyped": ["envoy.filters.http.ext_authz"]
+          "extensionConfig": {
+            "name": "envoy.filters.http.composite",
+            "typedConfig": {
+              "@type": "type.googleapis.com/envoy.extensions.filters.http.composite.v3.Composite"
             }
           }
         }
@@ -140,41 +282,6 @@
           "defaultSourceCode": {
             "inlineString": "-- This filter interprets the accept header of an incoming request and attempts to map it to\n-- a metadata value of either \"html\", \"json\", \"grpc\" or \"plain\". This metadata value is used to format\n-- local replies in a format the client expects.\n\nlocal function has_prefix(str, prefix)\n    return str ~= nil and str:sub(1, #prefix) == prefix\nend\n\nfunction parse_accept_header(header_value)\n    -- returns a table with a type field, the table is sorted by position and weight\n    if header_value == nil then\n        return {}\n    end\n\n    local content_types = {}\n    local start_idx = 1\n    local position = 1\n    while true do\n        local end_idx = string.find(header_value, \",\", start_idx)\n        local segment\n        if end_idx == nil then\n            segment = string.sub(header_value, start_idx)\n        else\n            segment = string.sub(header_value, start_idx, end_idx-1)\n        end\n\n        local mime_type = segment\n        local q = 1.0\n        local semicolon_idx = string.find(segment, ';')\n        if semicolon_idx ~= nil then\n            mime_type = string.sub(segment, 1, semicolon_idx-1)\n            q_idx = string.find(segment, \"q=\", semicolon_idx+1)\n            if q_idx ~= nil then\n                q_str = string.sub(segment, q_idx+2)\n                q = tonumber(q_str)\n            end\n        end\n\n        table.insert(content_types, { type=mime_type, q=q, position=position })\n        position = position+1\n\n        if end_idx == nil then\n            break\n        else\n            start_idx = end_idx+1\n        end\n    end\n    table.sort(content_types, function(a,b)\n        if a.q == b.q then\n            return a.position < b.position\n        end\n        return a.q > b.q\n    end)\n    return content_types\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local dynamic_meta = request_handle:streamInfo():dynamicMetadata()\n\n    local content_type = headers:get(\"content-type\")\n    if content_type ~= nil and has_prefix(content_type, \"application/grpc\") then\n        dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_local_reply_type\", \"grpc\")\n        return\n    end\n\n    local content_types = parse_accept_header(headers:get(\"accept\"))\n    for _, v in pairs(content_types) do\n        if v.type == \"text/html\" or v.type == \"text/*\"  then\n            dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_local_reply_type\", \"html\")\n            return\n        elseif v.type == \"text/plain\" then\n            dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_local_reply_type\", \"plain\")\n            return\n        elseif v.type == \"application/json\" or v.type == \"application/*\" then\n            dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_local_reply_type\", \"json\")\n            return\n        end\n    end\n    -- if nothing matched, just return html\n    dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_local_reply_type\", \"html\")\nend\n\nfunction envoy_on_response(response_handle)\n    -- unused\nend\n"
           }
-        }
-      },
-      {
-        "name": "envoy.filters.http.set_filter_state",
-        "typedConfig": {
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.set_filter_state.v3.Config",
-          "onRequestHeaders": [
-            {
-              "formatString": {
-                "textFormatSource": {
-                  "inlineString": "%DOWNSTREAM_REMOTE_ADDRESS%"
-                }
-              },
-              "objectKey": "pomerium.extensions.ssh.downstream_source_address",
-              "sharedWithUpstream": "ONCE"
-            },
-            {
-              "formatString": {
-                "textFormatSource": {
-                  "inlineString": "%REQUESTED_SERVER_NAME%"
-                }
-              },
-              "objectKey": "pomerium.extensions.ssh.requested_server_name",
-              "sharedWithUpstream": "ONCE"
-            },
-            {
-              "formatString": {
-                "textFormatSource": {
-                  "inlineString": "%PATH(NQ)%"
-                }
-              },
-              "objectKey": "pomerium.extensions.ssh.requested_path",
-              "sharedWithUpstream": "ONCE"
-            }
-          ]
         }
       },
       {

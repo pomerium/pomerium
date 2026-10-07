@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
-	envoy_extensions_filters_http_ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -79,23 +78,4 @@ func ExtAuthzContextExtensionsRouteChecksum(extAuthzContextExtensions map[string
 	}
 	v, _ := strconv.ParseUint(extAuthzContextExtensions["route_checksum"], 10, 64)
 	return v
-}
-
-// PerFilterConfigExtProcEnabled returns a per-filter config that enables ext_proc for MCP server routes.
-// This enables request header processing (to receive metadata) and response header processing (for 401/403 interception).
-func PerFilterConfigExtProcEnabled() *anypb.Any {
-	return marshalAny(&envoy_extensions_filters_http_ext_proc_v3.ExtProcPerRoute{
-		Override: &envoy_extensions_filters_http_ext_proc_v3.ExtProcPerRoute_Overrides{
-			Overrides: &envoy_extensions_filters_http_ext_proc_v3.ExtProcOverrides{
-				ProcessingMode: &envoy_extensions_filters_http_ext_proc_v3.ProcessingMode{
-					RequestHeaderMode:   envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SEND,
-					RequestBodyMode:     envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_NONE,
-					RequestTrailerMode:  envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SKIP,
-					ResponseHeaderMode:  envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SEND,
-					ResponseBodyMode:    envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_NONE,
-					ResponseTrailerMode: envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SKIP,
-				},
-			},
-		},
-	})
 }
