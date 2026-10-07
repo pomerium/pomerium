@@ -25,6 +25,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -106,6 +108,19 @@ func putBinding(ctx context.Context, t *testing.T, storage *Storage, binding *id
 	_, err := storage.client().Put(ctx, &databroker_grpc.PutRequest{
 		Records: []*databroker_grpc.Record{databroker_grpc.NewRecord(binding)},
 	})
+	require.NoError(t, err)
+}
+
+// propagateToSession does to a bound session what the identity manager's
+// reconciler does whenever the IdP session it is bound to changes: it patches the
+// IdP-derived fields in place. That bumps the session's record version and leaves
+// its issued_at alone.
+func propagateToSession(ctx context.Context, t *testing.T, storage *Storage, sessionID, idpAccessToken string) {
+	t.Helper()
+	patch := &session.Session{Id: sessionID, OauthToken: &session.OAuthToken{AccessToken: idpAccessToken}}
+	mask, err := fieldmaskpb.New(patch, "oauth_token")
+	require.NoError(t, err)
+	_, err = session.Patch(ctx, storage.client(), patch, mask)
 	require.NoError(t, err)
 }
 
@@ -980,6 +995,169 @@ func TestRefreshTokenGrant(t *testing.T) {
 
 		// The winner holds the live generation.
 		assert.Equal(t, http.StatusOK, refresh(winners[0]).Code)
+	})
+
+	t.Run("identity manager propagation during a refresh does not consume the token", func(t *testing.T) {
+		// The identity manager re-applies the IdP session to every session bound to
+		// it whenever the IdP session changes: right after a consent binds a new MCP
+		// session, on every background IdP token refresh, on every userinfo update.
+		// Landing between the refresh's read of the session and its conditional
+		// write, that rewrite does not rotate issued_at: the refresh token is still
+		// the live generation and must be honored.
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+		clientID, _, refreshToken := issueViaAuthCode(ctx, t,
+			newHandlerWithStorage(storage, testCipher, 5*time.Minute), storage, "propagation-race-user")
+
+		var once sync.Once
+		spy := &tokenTestStorage{
+			Storage: storage,
+			getSessionFunc: func(ctx context.Context, id string) (*session.Session, uint64, error) {
+				sess, version, err := storage.GetSession(ctx, id)
+				once.Do(func() { propagateToSession(ctx, t, storage, id, "refreshed-idp-access-token") })
+				return sess, version, err
+			},
+		}
+		srv := newHandlerWithStorage(spy, testCipher, 5*time.Minute)
+
+		w := doTokenRequest(srv, url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		})
+		assert.Equal(t, http.StatusOK, w.Code, "response body: %s", w.Body.String())
+	})
+
+	t.Run("a refresh does not roll back tokens the identity manager propagated", func(t *testing.T) {
+		// The identity manager refreshes the IdP session and propagates the new
+		// upstream tokens to the MCP session while a refresh is in flight, after the
+		// refresh has read the IdP session. The refresh must not write the IdP
+		// session it read back over them.
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+		setupSrv := newHandlerWithStorage(storage, testCipher, 5*time.Minute)
+
+		userID := "propagation-rollback-user"
+		clientID, accessToken, refreshToken := issueViaAuthCode(ctx, t, setupSrv, storage, userID)
+		sessionID, _, err := setupSrv.GetSessionAndVersionFromAccessToken(accessToken)
+		require.NoError(t, err)
+
+		var once sync.Once
+		spy := &tokenTestStorage{
+			Storage: storage,
+			getIDPSessionFunc: func(ctx context.Context, id string) (*idpsession.IDPSession, error) {
+				read, err := storage.GetValidIDPSession(ctx, id)
+				once.Do(func() {
+					refreshed := validIDPSession(userID, "test-idp", &idpsession.OAuthToken{
+						AccessToken: "refreshed-idp-access-token",
+					}, nil)
+					_, err := storage.client().Put(ctx, &databroker_grpc.PutRequest{
+						Records: []*databroker_grpc.Record{databroker_grpc.NewRecord(refreshed)},
+					})
+					require.NoError(t, err)
+					propagateToSession(ctx, t, storage, sessionID, "refreshed-idp-access-token")
+				})
+				return read, err
+			},
+		}
+		srv := newHandlerWithStorage(spy, testCipher, 5*time.Minute)
+
+		w := doTokenRequest(srv, url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		})
+		require.Equal(t, http.StatusOK, w.Code, "response body: %s", w.Body.String())
+
+		sess, _, err := storage.GetSession(ctx, sessionID)
+		require.NoError(t, err)
+		assert.Equal(t, "refreshed-idp-access-token", sess.GetOauthToken().GetAccessToken(),
+			"the refresh wrote an older IdP session over the propagated one")
+	})
+
+	t.Run("a session rewritten on every attempt fails the refresh without consuming the token", func(t *testing.T) {
+		// Retrying is bounded. Running out of attempts is a server-side condition:
+		// the token was never consumed, so the client must not be told to discard it.
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+		clientID, _, refreshToken := issueViaAuthCode(ctx, t,
+			newHandlerWithStorage(storage, testCipher, 5*time.Minute), storage, "propagation-storm-user")
+
+		spy := &tokenTestStorage{
+			Storage: storage,
+			getSessionFunc: func(ctx context.Context, id string) (*session.Session, uint64, error) {
+				sess, version, err := storage.GetSession(ctx, id)
+				propagateToSession(ctx, t, storage, id, "refreshed-idp-access-token")
+				return sess, version, err
+			},
+		}
+		srv := newHandlerWithStorage(spy, testCipher, 5*time.Minute)
+
+		form := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		}
+		w := doTokenRequest(srv, form)
+		assert.Equal(t, http.StatusInternalServerError, w.Code, "response body: %s", w.Body.String())
+		_, putCalls := spy.counts()
+		assert.Equal(t, refreshWriteAttempts, putCalls)
+
+		w = doTokenRequest(newHandlerWithStorage(storage, testCipher, 5*time.Minute), form)
+		assert.Equal(t, http.StatusOK, w.Code, "the token must still be good: %s", w.Body.String())
+	})
+
+	t.Run("revocation while a refresh retries is not undone", func(t *testing.T) {
+		// A rewrite forces a retry, and the MCP client is revoked before the retry
+		// reads the session again: revoking deletes the binding and the identity
+		// manager then deletes the session. The retry must not write it back.
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+		setupSrv := newHandlerWithStorage(storage, testCipher, 5*time.Minute)
+		clientID, accessToken, refreshToken := issueViaAuthCode(ctx, t, setupSrv, storage, "revoked-mid-retry-user")
+		sessionID, _, err := setupSrv.GetSessionAndVersionFromAccessToken(accessToken)
+		require.NoError(t, err)
+
+		var reads atomic.Int32
+		spy := &tokenTestStorage{
+			Storage: storage,
+			getSessionFunc: func(ctx context.Context, id string) (*session.Session, uint64, error) {
+				switch reads.Add(1) {
+				case 1:
+					sess, version, err := storage.GetSession(ctx, id)
+					propagateToSession(ctx, t, storage, id, "refreshed-idp-access-token")
+					return sess, version, err
+				case 2:
+					var revoked []*databroker_grpc.Record
+					for _, msg := range []interface {
+						proto.Message
+						GetId() string
+					}{&idpsession.Binding{Id: id}, &session.Session{Id: id}} {
+						record := databroker_grpc.NewRecord(msg)
+						record.DeletedAt = timestamppb.Now()
+						revoked = append(revoked, record)
+					}
+					_, err := storage.client().Put(ctx, &databroker_grpc.PutRequest{Records: revoked})
+					require.NoError(t, err)
+				}
+				return storage.GetSession(ctx, id)
+			},
+		}
+		srv := newHandlerWithStorage(spy, testCipher, 5*time.Minute)
+
+		w := doTokenRequest(srv, url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		})
+		assert.Equal(t, http.StatusBadRequest, w.Code, "response body: %s", w.Body.String())
+		assert.Contains(t, w.Body.String(), "invalid_grant")
+		_, _, err = storage.GetSession(ctx, sessionID)
+		assert.Equal(t, codes.NotFound, status.Code(err), "the revoked session was written back")
 	})
 }
 
