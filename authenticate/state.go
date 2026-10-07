@@ -27,7 +27,7 @@ import (
 type flow interface {
 	VerifyAuthenticateSignature(r *http.Request) error
 	SignIn(w http.ResponseWriter, r *http.Request, h *session.Handle) error
-	PersistSession(ctx context.Context, w http.ResponseWriter, r *http.Request, h *session.Handle, claims identity.SessionClaims, accessToken *oauth2.Token, browserID string) error
+	PersistSession(ctx context.Context, w http.ResponseWriter, r *http.Request, h *session.Handle, claims identity.SessionClaims, accessToken *oauth2.Token, browserID, SID string) error
 	VerifySession(ctx context.Context, r *http.Request, h *session.Handle) error
 	RevokeSession(ctx context.Context, r *http.Request, authenticator identity.Authenticator, h *session.Handle) authenticateflow.SignOutHints
 	GetUserInfoData(r *http.Request, h *session.Handle) handlers.UserInfoData

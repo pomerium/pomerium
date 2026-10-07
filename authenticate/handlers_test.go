@@ -439,7 +439,6 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			r := httptest.NewRequest(tt.method, u.String(), nil)
 			r.Header.Set("Accept", "application/json")
 			r.AddCookie(csrfCookie)
-			r.AddCookie(newBrowserIDCookieForTest(t, opts))
 			w := httptest.NewRecorder()
 			httputil.HandlerFunc(a.OAuthCallback).ServeHTTP(w, r)
 			if w.Result().StatusCode != tt.wantCode {
@@ -450,7 +449,53 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 	}
 }
 
-func TestAuthenticate_OAuthCallbackIssuesBrowserIDWhenCookieMissing(t *testing.T) {
+func TestAuthenticate_OAuthCallback_SessionState(t *testing.T) {
+	t.Parallel()
+
+	aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
+	require.NoError(t, err)
+	a := testAuthenticate(t)
+	a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+		return identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, nil
+	}))
+	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
+	var sid string
+	authURL, err := url.Parse("https://authenticate.pomerium.io")
+	require.NoError(t, err)
+	a.state.Store(&authenticateState{
+		redirectURL:         authURL,
+		sessionHandleWriter: &mstore.Store{},
+		cookieCipher:        aead,
+		csrf:                csrf,
+		// capture SID after callback runs.
+		flow: &stubFlow{persistSession: func(_, SID string) error {
+			sid = SID
+			return nil
+		}},
+	})
+	a.options.Store(&config.Options{CookieSecret: cryptutil.NewBase64Key()})
+
+	csrfCookie, token := getCSRFCookieAndTokenForTest(t, csrf)
+	state := testOAuthState{
+		Token:       token,
+		Timestamp:   time.Now().Unix(),
+		RedirectURI: "https://corp.pomerium.io",
+	}.Encode(aead)
+	r := httptest.NewRequest(http.MethodGet, "/oauthGet?"+url.Values{
+		"code":          {"code"},
+		"state":         {state},
+		"session_state": {"foo"},
+	}.Encode(), nil)
+	r.AddCookie(csrfCookie)
+	w := httptest.NewRecorder()
+
+	httputil.HandlerFunc(a.OAuthCallback).ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusFound, w.Code)
+	assert.Equal(t, "foo", sid)
+}
+
+func TestAuthenticate_OAuthCallback_BrowserID(t *testing.T) {
 	t.Parallel()
 
 	aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
@@ -469,14 +514,15 @@ func TestAuthenticate_OAuthCallbackIssuesBrowserIDWhenCookieMissing(t *testing.T
 		cookieCipher:        aead,
 		csrf:                csrf,
 		// capture browser ID after callback runs.
-		flow: &stubFlow{persistSession: func(id string) error {
-			browserID = id
+		flow: &stubFlow{persistSession: func(bid, _ string) error {
+			browserID = bid
 			return nil
 		}},
 	})
 	a.options.Store(&config.Options{CookieSecret: cryptutil.NewBase64Key()})
 
 	csrfCookie, token := getCSRFCookieAndTokenForTest(t, csrf)
+	expectedBrowserID, browserIDCookie := newBrowserIDCookieForTest(t, a.options.Load())
 	state := testOAuthState{
 		Token:       token,
 		Timestamp:   time.Now().Unix(),
@@ -487,27 +533,28 @@ func TestAuthenticate_OAuthCallbackIssuesBrowserIDWhenCookieMissing(t *testing.T
 		"state": {state},
 	}.Encode(), nil)
 	r.AddCookie(csrfCookie)
+	r.AddCookie(browserIDCookie)
 	w := httptest.NewRecorder()
 
 	httputil.HandlerFunc(a.OAuthCallback).ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusFound, w.Code)
-	_, err = uuid.Parse(browserID)
-	assert.NoError(t, err)
+	assert.Equal(t, expectedBrowserID, browserID)
 }
 
-func newBrowserIDCookieForTest(t *testing.T, opts *config.Options) *http.Cookie {
+func newBrowserIDCookieForTest(t *testing.T, opts *config.Options) (string, *http.Cookie) {
 	t.Helper()
+	browserID := uuid.New().String()
 	cookie, err := identity.GenerateBrowserIDCookie(
 		identity.BrowserIDOptions{
 			AuthKey:    []byte(opts.CookieSecret),
 			CookieName: opts.CookieName,
-			BrowserID:  uuid.New().String(),
+			BrowserID:  browserID,
 			SameSite:   opts.GetCookieSameSite(),
 		},
 	)
 	require.NoError(t, err)
-	return cookie
+	return browserID, cookie
 }
 
 type testOAuthState struct {
@@ -547,7 +594,6 @@ func TestAuthenticate_OAuthCallback_CSRF(t *testing.T) {
 	a.options.Store(opts)
 
 	csrfCookie, token := getCSRFCookieAndTokenForTest(t, csrf)
-	browserIDCookie := newBrowserIDCookieForTest(t, opts)
 
 	newReq := func(cookie *http.Cookie, token string) *http.Request {
 		encodedState := testOAuthState{
@@ -564,7 +610,6 @@ func TestAuthenticate_OAuthCallback_CSRF(t *testing.T) {
 		if cookie != nil {
 			r.AddCookie(cookie)
 		}
-		r.AddCookie(browserIDCookie)
 		return r
 	}
 
@@ -944,7 +989,7 @@ func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.Put
 // stubFlow is a stub implementation of the flow interface.
 type stubFlow struct {
 	verifySignatureErr error
-	persistSession     func(browserID string) error
+	persistSession     func(browserID, SID string) error
 }
 
 var _ flow = (*stubFlow)(nil)
@@ -974,10 +1019,10 @@ func (*stubFlow) SignIn(http.ResponseWriter, *http.Request, *session.Handle) err
 }
 
 func (f *stubFlow) PersistSession(
-	_ context.Context, _ http.ResponseWriter, _ *http.Request, _ *session.Handle, _ identity.SessionClaims, _ *oauth2.Token, browserID string,
+	_ context.Context, _ http.ResponseWriter, _ *http.Request, _ *session.Handle, _ identity.SessionClaims, _ *oauth2.Token, browserID string, SID string,
 ) error {
 	if f.persistSession != nil {
-		return f.persistSession(browserID)
+		return f.persistSession(browserID, SID)
 	}
 	return nil
 }

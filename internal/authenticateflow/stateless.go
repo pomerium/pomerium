@@ -225,6 +225,7 @@ func (s *Stateless) PersistSession(
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
 	_ /*browserID*/ string,
+	_ /*sid*/ string,
 ) error {
 	idpID := h.IdentityProviderId
 	profile, err := buildIdentityProfile(idpID, claims, accessToken)

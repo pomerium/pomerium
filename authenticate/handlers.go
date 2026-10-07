@@ -403,7 +403,7 @@ Or contact your administrator.
 	}
 
 	// save the session and access token to the databroker/cookie store
-	if err := state.flow.PersistSession(ctx, w, r, h, claims, accessToken, browserID); err != nil {
+	if err := state.flow.PersistSession(ctx, w, r, h, claims, accessToken, browserID, r.FormValue("session_state")); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 
