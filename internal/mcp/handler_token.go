@@ -419,17 +419,28 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 	writeTokenResponse(w, resp)
 }
 
+// refreshWriteAttempts bounds how often a refresh retries its conditional write
+// after losing it to a rewrite of the session that did not rotate it.
+const refreshWriteAttempts = 3
+
 // refreshMCPSession re-issues the MCP client session a refresh token refers to.
 //
 // The refresh token is bound to the session's Binding: revoking the binding (from
-// the user's session page, or by the identity manager when the IdP session dies)
+// the bindings page, or by the identity manager when the IdP session is deleted)
 // stops refresh at the first check, and the binding is never rewritten here. The
 // session record is then re-issued from the IDPSession with a new issued_at,
 // which is what rotates the refresh token: a token still carrying the previous
-// issued_at is a replayed old generation and is refused. The re-issue is
-// conditional on the session version read here, so of several concurrent
-// presentations of one refresh token exactly one rotates the session; the
-// others find it already consumed.
+// issued_at is a replayed old generation and is refused.
+//
+// The re-issue is conditional on the session version read first, and the
+// IDPSession is read after it, so the write is refused if anything rewrote the
+// session in between. That need not be another presentation of the token: the
+// identity manager rewrites every bound session whenever its IdP session
+// changes, leaving issued_at alone. A lost write therefore reads the session
+// again and refuses the token only if its issued_at moved on, which is a
+// concurrent presentation rotating it; otherwise it retries on the fresh state.
+// Of several concurrent presentations of one token, exactly one rotates the
+// session.
 func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.Payload, now time.Time) (*session.Session, uint64, error) {
 	sessionID := payload.GetId()
 
@@ -440,31 +451,40 @@ func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.
 		return nil, 0, fmt.Errorf("get binding: %w", err)
 	}
 
-	idpSess, err := srv.resolveIDPSession(ctx, binding.GetIdpSessionId())
-	if err != nil {
-		return nil, 0, err
-	}
+	for attempt := 1; ; attempt++ {
+		sess, version, err := srv.storage.GetSession(ctx, sessionID)
+		if status.Code(err) == codes.NotFound {
+			// Revoking the binding or deleting the IdP session deletes the
+			// session; this request raced that.
+			return nil, 0, fmt.Errorf("%w: session %q no longer exists", errInvalidGrant, sessionID)
+		} else if err != nil {
+			return nil, 0, fmt.Errorf("get session: %w", err)
+		}
+		if !payload.GetIssuedAt().AsTime().Equal(sess.GetIssuedAt().AsTime()) {
+			if attempt > 1 {
+				return nil, 0, fmt.Errorf("%w: refresh token for session %q was consumed by a concurrent request", errInvalidGrant, sessionID)
+			}
+			return nil, 0, fmt.Errorf("%w: refresh token for session %q was rotated", errInvalidGrant, sessionID)
+		}
 
-	sess, version, err := srv.storage.GetSession(ctx, sessionID)
-	if status.Code(err) == codes.NotFound {
-		// The identity manager deletes expired sessions and then revokes their
-		// binding; a session that is already gone means the grant expired.
-		return nil, 0, fmt.Errorf("%w: session %q no longer exists", errInvalidGrant, sessionID)
-	} else if err != nil {
-		return nil, 0, fmt.Errorf("get session: %w", err)
-	}
-	if !payload.GetIssuedAt().AsTime().Equal(sess.GetIssuedAt().AsTime()) {
-		return nil, 0, fmt.Errorf("%w: refresh token for session %q was rotated", errInvalidGrant, sessionID)
-	}
+		idpSess, err := srv.resolveIDPSession(ctx, binding.GetIdpSessionId())
+		if err != nil {
+			return nil, 0, err
+		}
 
-	sess = newMCPSession(sessionID, idpSess, now)
-	version, err = srv.storage.PutSession(ctx, sess, version)
-	if databroker.IsRecordVersionMismatch(err) {
-		return nil, 0, fmt.Errorf("%w: refresh token for session %q was consumed by a concurrent request", errInvalidGrant, sessionID)
-	} else if err != nil {
-		return nil, 0, fmt.Errorf("store mcp client session: %w", err)
+		sess = newMCPSession(sessionID, idpSess, now)
+		version, err = srv.storage.PutSession(ctx, sess, version)
+		if err == nil {
+			return sess, version, nil
+		}
+		if !databroker.IsRecordVersionMismatch(err) || attempt == refreshWriteAttempts {
+			return nil, 0, fmt.Errorf("store mcp client session: %w", err)
+		}
+		log.Ctx(ctx).Debug().
+			Str("session-id", sessionID).
+			Int("attempt", attempt).
+			Msg("mcp/token/refresh: session was rewritten concurrently, retrying")
 	}
-	return sess, version, nil
 }
 
 // resolveConsentIDPSession loads the centralized IdP session the browser

@@ -285,32 +285,41 @@ When the MCP client's access token expires, it presents the refresh token to
    bindings page, which deletes the binding, or the grant expired and the
    identity manager swept it).
 
-3. **Validate IdP session**: Fetches the `idpsession.IDPSession` from the
-   binding's `idp_session_id`. If missing, responds with `invalid_grant` (user
-   signed out or provider revoked them).
+3. **Detect rotation**: Fetches the current `session.Session`. If it is
+   missing, responds with `invalid_grant` (revoked while this request was in
+   flight). If its `issued_at` differs from the refresh token's `issued_at`,
+   responds with `invalid_grant` (token is from an earlier refresh generation —
+   replay detection).
 
-4. **Detect rotation**: Fetches the current `session.Session`. If `issued_at`
-   differs from the refresh token's `issued_at`, responds with `invalid_grant`
-   (token is from an earlier refresh generation — replay detection).
+4. **Validate IdP session**: Fetches the `idpsession.IDPSession` from the
+   binding's `idp_session_id`, after the session, so that a propagation landing
+   in between is caught by the conditional write in step 5 instead of being
+   overwritten. If missing, responds with `invalid_grant` (user signed out or
+   provider revoked them).
 
 5. **Re-issue session**: Calls `PutSession` (not `PutBoundSession`) to rewrite
-   the session with:
+   the session from the IdP session with:
    - Same id
    - Same `user_id`
    - New `issued_at` = now (advances the generation)
    - New `expires_at` = now + 365 days (slides the deadline)
    - Binding left untouched (critical: revoking the binding must stop refresh)
 
-   The write is conditional on the session record version read in step 4
-   (databroker `if_match_version`). If several requests present the same
-   refresh token at once, exactly one rotates the session; the rest fail the
-   conditional write and respond with `invalid_grant`.
+   The write is conditional on the session record version read in step 3
+   (databroker `if_match_version`). A lost write is not necessarily a lost
+   race for the token: the identity manager rewrites every bound session when
+   its IdP session changes, without touching `issued_at`. So a lost write goes
+   back to step 3. If `issued_at` moved on, a concurrent request presenting the
+   same token rotated it, and this one responds with `invalid_grant`; otherwise
+   it retries, up to three attempts in all, then responds with a server error
+   (the token is still good). Of several requests presenting the same refresh
+   token at once, exactly one rotates the session.
 
 6. **Mint new tokens**:
    - Access token with new version
    - Refresh token with new `issued_at`
    - Old refresh token (carrying old `issued_at`) is implicitly invalidated;
-     reusing it on the next refresh fails at the rotation check (step 4).
+     reusing it on the next refresh fails at the rotation check (step 3).
 
 ### Key Design Points
 
