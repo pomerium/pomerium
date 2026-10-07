@@ -58,7 +58,7 @@ func (a *Authenticate) signOutAndRedirect(w http.ResponseWriter, r *http.Request
 
 	h, _ := a.getSessionHandleFromRequest(r)
 	// clear the user's local session no matter what
-	defer state.sessionHandleWriter.ClearSessionHandle(w)
+	state.sessionHandleWriter.ClearSessionHandle(w)
 
 	authenticateURL, err := options.GetAuthenticateURL()
 	if err != nil {
