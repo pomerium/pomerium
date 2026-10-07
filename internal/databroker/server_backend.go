@@ -797,24 +797,6 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 		return err
 	}
 
-	if err := backend.SetOptions(ctx, "type.googleapis.com/idpsession.Binding", &databrokerpb.Options{
-		IndexableFields: []string{
-			"idp_session_id",
-			"user_id",
-		},
-	}); err != nil {
-		return err
-	}
-
-	if err := backend.SetOptions(ctx, "type.googleapis.com/idpsession.IDPSession", &databrokerpb.Options{
-		IndexableFields: []string{
-			"user_id",
-			"sid",
-		},
-	}); err != nil {
-		return err
-	}
-
 	if err := backend.SetOptions(ctx, "type.googleapis.com/session.IdentityBinding", &databrokerpb.Options{
 		IndexableFields: []string{
 			"user_id",
