@@ -305,7 +305,7 @@ func getAllConfigFilePaths(cfg *Config) []string {
 		fs = append(fs, pair.CertFile, pair.KeyFile)
 	}
 
-	for _, policy := range cfg.Options.Policies {
+	for policy := range cfg.Options.GetAllPolicies() {
 		fs = append(fs,
 			policy.KubernetesServiceAccountTokenFile,
 			policy.TLSClientCertFile,
