@@ -2,10 +2,12 @@ package databroker_test
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -20,14 +22,11 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 func TestClusteredFollowerServer(t *testing.T) {
-	t.Parallel()
-
 	t.Run("default", func(t *testing.T) {
-		t.Parallel()
-
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
 		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
@@ -50,8 +49,6 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.Empty(t, cmp.Diff(res1, res2, protocmp.Transform()))
 	})
 	t.Run("explicit default", func(t *testing.T) {
-		t.Parallel()
-
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
 		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
@@ -74,8 +71,6 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.Empty(t, cmp.Diff(res1, res2, protocmp.Transform()))
 	})
 	t.Run("leader", func(t *testing.T) {
-		t.Parallel()
-
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
 		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
@@ -93,8 +88,6 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.ErrorIs(t, err, databrokerpb.ErrNodeIsNotLeader)
 	})
 	t.Run("local", func(t *testing.T) {
-		t.Parallel()
-
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
 		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
@@ -118,8 +111,6 @@ func TestClusteredFollowerServer(t *testing.T) {
 		}, time.Second*3, time.Millisecond*30)
 	})
 	t.Run("local write", func(t *testing.T) {
-		t.Parallel()
-
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
 		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
@@ -137,7 +128,11 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.ErrorIs(t, err, databrokerpb.ErrNodeIsNotLeader)
 	})
 	t.Run("sync", func(t *testing.T) {
-		t.Parallel()
+		healthProviderID := health.ProviderID(uuid.NewString())
+		healthTracker := new(healthProviderTracker)
+		mgr := health.GetProviderManager()
+		mgr.Register(healthProviderID, healthTracker)
+		defer mgr.Deregister(healthProviderID)
 
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
 		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
@@ -181,6 +176,8 @@ func TestClusteredFollowerServer(t *testing.T) {
 			Id:   "local-1",
 		})
 		assert.Equal(t, codes.NotFound, status.Code(err), "should clear local records during sync")
+
+		assert.Nil(t, healthTracker.GetErrors(health.DatabrokerCluster), "should not report an error during normal operation")
 	})
 	t.Run("checkpoints", func(t *testing.T) {
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
@@ -217,4 +214,56 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.ErrorIs(t, err, databrokerpb.ErrSetCheckpointNotSupported,
 			"should not allow setting checkpoints")
 	})
+}
+
+type healthStatus struct {
+	check      health.Check
+	status     health.Status
+	attributes []health.Attr
+}
+type healthError struct {
+	check      health.Check
+	err        error
+	attributes []health.Attr
+}
+type healthProviderTracker struct {
+	mu       sync.Mutex
+	statuses []healthStatus
+	errors   []healthError
+}
+
+func (t *healthProviderTracker) GetErrors(check health.Check) []healthError {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var s []healthError
+	for _, el := range t.errors {
+		if el.check == check {
+			s = append(s, el)
+		}
+	}
+	return s
+}
+
+func (t *healthProviderTracker) GetStatuses(check health.Check) []healthStatus {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var s []healthStatus
+	for _, el := range t.statuses {
+		if el.check == check {
+			s = append(s, el)
+		}
+	}
+	return s
+}
+
+func (t *healthProviderTracker) ReportError(check health.Check, err error, attributes ...health.Attr) {
+	t.mu.Lock()
+	t.errors = append(t.errors, healthError{check, err, attributes})
+	t.mu.Unlock()
+}
+
+func (t *healthProviderTracker) ReportStatus(check health.Check, status health.Status, attributes ...health.Attr) {
+	t.mu.Lock()
+	t.statuses = append(t.statuses, healthStatus{check, status, attributes})
+	t.mu.Unlock()
 }
