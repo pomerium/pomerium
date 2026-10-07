@@ -3,6 +3,7 @@ package idpsession
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 type synchronizedReconciler struct {
@@ -242,6 +245,9 @@ func (r *synchronizedReconciler) applyRecordOps(ctx context.Context, changeOps r
 	})
 	for typeURL, records := range patches {
 		eg.Go(func() error {
+			if typeURL == sessionTypeURL {
+				r.preserveStoredSessionClaims(eCtx, records)
+			}
 			patched, err := r.patchMulti(eCtx, records, patchFieldMask(typeURL))
 			if err != nil {
 				return err
@@ -251,6 +257,45 @@ func (r *synchronizedReconciler) applyRecordOps(ctx context.Context, changeOps r
 		})
 	}
 	return eg.Wait()
+}
+
+// preserveStoredSessionClaims folds the claims a dependent session already has
+// into the record about to be patched.
+//
+// ApplyToSession merges the IdP's claims into the session it is given, but the
+// record being patched is synthesized from an empty session by
+// constructPatchedBoundRecord, so there is nothing to merge into: with "claims"
+// in the session field mask the patch replaces the stored claim map wholesale,
+// dropping any claim the session owns rather than inherits from the IdP. Reading
+// the stored record back restores the merge the applier intends; the cost is one
+// Get per bound session per propagation.
+//
+// A record that cannot be read is left alone: if it is gone, the patch reports
+// it as missing and its binding is deleted.
+func (r *synchronizedReconciler) preserveStoredSessionClaims(ctx context.Context, records []*databroker.Record) {
+	client := r.clientB.GetDataBrokerServiceClient()
+	for _, record := range records {
+		patched := &session.Session{}
+		if err := record.GetData().UnmarshalTo(patched); err != nil {
+			continue
+		}
+		stored := &session.Session{Id: record.GetId()}
+		if err := databroker.Get(ctx, client, stored); err != nil {
+			if !databroker.IsNotFound(err) {
+				log.Ctx(ctx).Error().Err(err).
+					Str("record-id", record.GetId()).
+					Msg("idpsession/reconciler: cannot read dependent session, claims it owns may be dropped")
+			}
+			continue
+		}
+		if len(stored.GetClaims()) == 0 {
+			continue
+		}
+		claims := maps.Clone(stored.GetClaims())
+		maps.Copy(claims, patched.GetClaims())
+		patched.Claims = claims
+		record.Data = protoutil.NewAny(patched)
+	}
 }
 
 func bindingsToDeleteFromPatched(
