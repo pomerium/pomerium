@@ -2,6 +2,7 @@ package idpsession
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -9,6 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -115,6 +119,91 @@ func TestPropagatePreservesSessionOwnClaims(t *testing.T) {
 
 		// while a claim the IdP also asserts is refreshed from the IdP
 		assert.Equal(collect, "bob@example.com", firstClaim(got, "email"))
+	}, 5*time.Second, 10*time.Millisecond)
+}
+
+// unavailableOnceClient fails the first Get of a session.Session with
+// codes.Unavailable, as a databroker leader change or overloaded backend does, and
+// passes every other call through.
+type unavailableOnceClient struct {
+	databroker.DataBrokerServiceClient
+	failed atomic.Bool
+}
+
+func (c *unavailableOnceClient) Get(ctx context.Context, req *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+	if req.GetType() == sessionTypeURL && c.failed.CompareAndSwap(false, true) {
+		return nil, status.Error(codes.Unavailable, "databroker unavailable")
+	}
+	return c.DataBrokerServiceClient.Get(ctx, req, opts...)
+}
+
+// A claim the session owns must survive propagation even when reading the stored
+// session back fails transiently: the propagation can wait for the databroker,
+// but a claim it replaces is gone for good.
+func TestPropagatePreservesSessionOwnClaimsThroughTransientReadFailure(t *testing.T) {
+	now := time.Now()
+	zerolog.SetGlobalLevel(zerolog.Disabled)
+	client := dtestutil.NewTestDatabroker(t)
+
+	authGetter := func(_ context.Context, _ string) (identity.Authenticator, error) {
+		return &mockAuthenticator{refreshResult: &oauth2.Token{
+			AccessToken:  "access-token",
+			TokenType:    "Bearer",
+			RefreshToken: "refresh-token",
+			Expiry:       now.Add(time.Hour),
+		}}, nil
+	}
+	mgr := NewIdentityManagerV2(
+		databroker.NewStaticClientGetter(&unavailableOnceClient{DataBrokerServiceClient: client}),
+		authGetter,
+		WithReconcileInterval(time.Millisecond*50),
+	)
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+	go mgr.Run(ctx)
+
+	claims, err := structpb.NewStruct(map[string]any{"email": "bob@example.com"})
+	require.NoError(t, err)
+	idpSess := &idpsession.IDPSession{
+		Id: "idp-session-bob",
+		IdToken: &idpsession.IDToken{
+			Issuer:    "https://idp.example.com",
+			Subject:   "bob",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+			IssuedAt:  timestamppb.New(now),
+		},
+		OauthToken: &idpsession.OAuthToken{
+			AccessToken:  "access-token",
+			TokenType:    "Bearer",
+			ExpiresAt:    timestamppb.New(now.Add(time.Hour)),
+			RefreshToken: "refresh-token",
+		},
+		Claims: claims,
+		IdpId:  "idp",
+		UserId: "bob",
+	}
+	sess := &session.Session{
+		Id:        "session-1",
+		UserId:    "bob",
+		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+	}
+	sess.AddClaims(identity.FlattenedClaims{"device_id": {"device-1"}})
+
+	records := append(
+		[]*databroker.Record{databroker.NewRecord(idpSess)},
+		idpsession.NewBoundRecords(idpSess.GetId(), idpSess.GetUserId(),
+			idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, nil, sess)...,
+	)
+	_, err = client.Put(t.Context(), &databroker.PutRequest{Records: records})
+	require.NoError(t, err)
+
+	assert.EventuallyWithT(t, func(collect *assert.CollectT) {
+		got := &session.Session{Id: sess.GetId()}
+		if !assert.NoError(collect, databroker.Get(t.Context(), client, got)) {
+			return
+		}
+		assert.Equal(collect, idpSess.GetOauthToken().GetAccessToken(), got.GetOauthToken().GetAccessToken())
+		assert.Equal(collect, "device-1", firstClaim(got, "device_id"))
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
