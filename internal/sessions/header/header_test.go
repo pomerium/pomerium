@@ -58,7 +58,7 @@ func TestCredentialHeaders(t *testing.T) {
 		{map[string]string{"X-Pomerium-Authorization": ""}, nil},
 		{nil, nil},
 	} {
-		got := CredentialHeaders(func(name string) string { return tc.headers[name] })
+		got := CredentialHeaders(tc.headers)
 		assert.Equal(t, tc.want, got, tc.headers)
 
 		// every header CredentialHeaders reports carries a JWT TokenFromHeaders accepts

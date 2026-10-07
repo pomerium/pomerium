@@ -4,7 +4,6 @@ package header
 
 import (
 	"net/http"
-	"slices"
 
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -74,12 +73,12 @@ func TokenFromHeaders(header http.Header) string {
 }
 
 // CredentialHeaders returns the canonical names of the headers that carry a
-// Pomerium JWT in any form TokenFromHeaders accepts. get returns the value of
-// the header with the given canonical name.
-func CredentialHeaders(get func(name string) string) []string {
+// Pomerium JWT in any form TokenFromHeaders accepts. headers is keyed by
+// canonical header name.
+func CredentialHeaders(headers map[string]string) []string {
 	var names []string
 	for _, f := range credentialForms {
-		if _, ok := f.jwt(get(f.header)); ok && !slices.Contains(names, f.header) {
+		if _, ok := f.jwt(headers[f.header]); ok {
 			names = append(names, f.header)
 		}
 	}
