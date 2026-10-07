@@ -448,7 +448,7 @@ func (srv *clusteredFollowerServer) run(ctx context.Context) {
 		// attempt to sync
 		// the first sync is non-blocking, to ensure startup guarantees
 		err := srv.sync(ctx, b, wait)
-		if !wait && errors.Is(err, io.EOF) {
+		if !wait && (err == nil || errors.Is(err, io.EOF)) {
 			wait = true
 			health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
 			continue
@@ -504,7 +504,7 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff,
 func (srv *clusteredFollowerServer) handleSyncError(err error) {
 	if err == nil || errors.Is(err, errClusteredFollowerServerStopped) {
 		health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
-	} else {
+	} else if !errors.Is(err, io.EOF) && !errors.Is(err, errClusteredFollowerNeedsReset) {
 		health.ReportError(health.DatabrokerCluster, err, srv.healthAttrs()...)
 	}
 }
