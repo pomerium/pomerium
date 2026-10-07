@@ -663,9 +663,12 @@ func (s *Stateful) RevokeSession(
 
 func signOutHints(revocation IDPSessionRevocation) SignOutHints {
 	hints := SignOutHints{}
-	if sid := revocation.Source.GetSid(); sid != "" {
-		hints.LogoutHint = sid
+	hasSid := revocation.Source.GetSid() != ""
+	if !hasSid {
+		hints.IDTokenHint = revocation.Source.IdToken.Raw
+		return hints
 	}
+	hints.LogoutHint = revocation.Source.GetSid()
 	var latestIssuedAt time.Time
 	for _, idpSess := range revocation.Sessions {
 		idToken := idpSess.GetIdToken()
