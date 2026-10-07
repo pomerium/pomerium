@@ -511,6 +511,7 @@ func (s *Stateful) PersistSession(
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
 	browserID string,
+	sid string,
 ) error {
 	now := timeNow()
 	sessionExpiry := timestamppb.New(now.Add(s.sessionDuration))
@@ -538,7 +539,11 @@ func (s *Stateful) PersistSession(
 		return fmt.Errorf("authenticate: error creating IDP session claims: %w", err)
 	}
 	idpSessID := idpSessionID(browserID, u.GetId())
-	idpSess := idpsession.NewFromSession(idpSessID, sess, idpClaims, idpsession.SIDClaim(claims.Claims))
+
+	if sid == "" {
+		sid = idpsession.SIDClaim(claims.Claims)
+	}
+	idpSess := idpsession.NewFromSession(idpSessID, sess, idpClaims, sid)
 	idpSess.InitiatedBy = new(formatBrowserUserAgent(r.UserAgent()))
 	idpSess.InitiatedByAddr = new(httputil.GetClientIP(r))
 
