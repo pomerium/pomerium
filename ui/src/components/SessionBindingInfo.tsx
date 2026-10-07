@@ -28,44 +28,11 @@ import type {
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
 import { SmallTooltip } from "./Tooltips";
+import { groupIdpSess, sortIdpSessGroups } from "./bindings";
 
 type SessionBindingInfoProps = {
   data: SessionBindingInfoPageData;
 };
-
-type SessionGroup = {
-  sid: string | null;
-  idpSessions: IDPSessionData[];
-  bindings: SessionBindingData[];
-};
-
-function groupSessions(
-  data: SessionBindingInfoPageData,
-): Map<string, SessionGroup> {
-  const groups = new Map<string, SessionGroup>();
-
-  const idsToSid = new Map<string, string>();
-  for (const session of data.idpSessions) {
-    const group = groups.get(session.SID) ?? {
-      sid: session.SID,
-      idpSessions: [],
-      bindings: [],
-    };
-    group.idpSessions.push(session);
-    groups.set(session.SID, group);
-
-    idsToSid.set(session.IDPSessionID, session.SID);
-  }
-
-  for (const binding of data.sessionBindings) {
-    const sid: string = idsToSid.get(binding.IDPSessionID) ?? "";
-    const group = groups.get(sid) ?? { sid: "", idpSessions: [], bindings: [] };
-    group.bindings.push(binding);
-    groups.set(sid, group);
-  }
-
-  return groups;
-}
 
 const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({ data }) => (
   <SidebarPage data={data}>
@@ -77,35 +44,11 @@ const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({ data }) => (
 
 function SessionBindingInfoContent(props: SessionBindingInfoProps) {
   const { data } = props;
-  const sessionsBySID = groupSessions(data);
-
-  const sessionGroups = [...sessionsBySID.values()]
-    .map((group) => {
-      group.idpSessions.sort((a, b) => {
-        const aIsCurrent = a.IDPSessionID === data.currentIdpSessionId;
-        const bIsCurrent = b.IDPSessionID === data.currentIdpSessionId;
-        if (aIsCurrent !== bIsCurrent) return aIsCurrent ? -1 : 1;
-        return compareSessionsByMostRecent(a, b);
-      });
-      return {
-        ...group,
-        mostRecentSession: [...group.idpSessions].sort(
-          compareSessionsByMostRecent,
-        )[0],
-        isCurrentBrowserSession: group.idpSessions.some(
-          (session) => session.IDPSessionID === data.currentIdpSessionId,
-        ),
-      };
-    })
-    .sort((a, b) => {
-      if (a.isCurrentBrowserSession !== b.isCurrentBrowserSession) {
-        return a.isCurrentBrowserSession ? -1 : 1;
-      }
-      return compareSessionsByMostRecent(
-        a.mostRecentSession,
-        b.mostRecentSession,
-      );
-    });
+  const { groupsBySID, bindingsWithoutIdpSess } = groupIdpSess(data);
+  const idpSessGroups = sortIdpSessGroups(
+    groupsBySID,
+    data.currentIdpSessionId,
+  );
 
   return (
     <List
@@ -117,7 +60,7 @@ function SessionBindingInfoContent(props: SessionBindingInfoProps) {
         scrollbarGutter: "stable",
       }}
     >
-      {sessionGroups.map((group, index) => (
+      {idpSessGroups.map((group, index) => (
         <Fragment key={group.sid}>
           {index > 0 && <Divider />}
           <IDPSessionListItem
@@ -129,15 +72,20 @@ function SessionBindingInfoContent(props: SessionBindingInfoProps) {
           />
         </Fragment>
       ))}
+      {bindingsWithoutIdpSess.length > 0 && (
+        <>
+          {idpSessGroups.length > 0 && <Divider />}
+          <IDPSessionListItem
+            idpSessions={[]}
+            currentIDPSessionID={data.currentIdpSessionId}
+            bindings={bindingsWithoutIdpSess}
+            revokeURL={data.revokeSessionBindingUrl}
+            showIDPSessionHeaders={false}
+          />
+        </>
+      )}
     </List>
   );
-}
-
-function compareSessionsByMostRecent(a: IDPSessionData, b: IDPSessionData) {
-  const initiatedAtDifference =
-    sessionTimestamp(b.InitiatedAt) - sessionTimestamp(a.InitiatedAt);
-  if (initiatedAtDifference !== 0) return initiatedAtDifference;
-  return a.IDPSessionID.localeCompare(b.IDPSessionID);
 }
 
 type IDPSessionListItemProps = {
@@ -250,11 +198,6 @@ function IDPSessionListItem(props: IDPSessionListItemProps) {
 type RelativeDateProps = {
   timestamp: string;
 };
-
-function sessionTimestamp(value: string) {
-  const timestamp = new Date(value).getTime();
-  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
-}
 
 function RelativeDate({ timestamp }: RelativeDateProps) {
   const [renderedAt] = useState(Date.now);
