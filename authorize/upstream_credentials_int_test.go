@@ -83,6 +83,41 @@ func TestUpstreamCredentials_PomeriumJWT(t *testing.T) {
 	}
 }
 
+// TestUpstreamCredentials_EmptySetRequestHeader asserts that a
+// set_request_headers Authorization that renders empty still replaces the
+// caller's Pomerium JWT, rather than the header being removed.
+func TestUpstreamCredentials_EmptySetRequestHeader(t *testing.T) {
+	env := testenv.New(t)
+	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "user@example.com"}}))
+
+	up := upstreams.HTTP(nil, upstreams.WithDisplayName("Echo"))
+	up.Handle("/", func(w http.ResponseWriter, r *http.Request) {
+		vs, ok := r.Header["Authorization"]
+		fmt.Fprintf(w, "authorization=%q present=%t", vs, ok)
+	})
+	route := up.Route().
+		From(env.SubdomainURL("echo")).
+		Policy(func(p *config.Policy) {
+			p.AllowAnyAuthenticatedUser = true
+			// a service account has no IdP access token, so this renders empty
+			p.SetRequestHeaders = map[string]string{"Authorization": "${pomerium.access_token}"}
+		})
+	env.AddUpstream(up)
+
+	env.Start()
+	snippets.WaitStartupComplete(env)
+
+	sa := &user.ServiceAccount{Id: "upstream-creds-sa", UserId: "user@example.com"}
+	_, err := user.PutServiceAccount(t.Context(), env.NewDataBrokerServiceClient(), sa)
+	require.NoError(t, err)
+	jwt, err := cryptutil.SignServiceAccount(env.SharedSecret(), sa.Id, sa.UserId, time.Now(), null.Time{})
+	require.NoError(t, err)
+
+	status, body := getWithHeaders(t, up, route, map[string]string{"Authorization": "Pomerium " + jwt})
+	require.Equal(t, http.StatusOK, status, "body=%q", body)
+	assert.Equal(t, `authorization=[""] present=true`, body)
+}
+
 // TestUpstreamCredentials_IDPTokens asserts that on routes where Pomerium
 // authenticates the caller from an IdP access or identity token in the
 // Authorization header, that token is not forwarded to the upstream.

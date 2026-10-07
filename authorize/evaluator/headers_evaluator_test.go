@@ -855,6 +855,12 @@ func TestHeadersEvaluator_CallerCredentials(t *testing.T) {
 			wantAuth: "Pomerium upstream-jwt",
 		},
 		{
+			name:    "set_request_headers Authorization rendered empty wins over Authorization: Pomerium",
+			format:  configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
+			policy:  config.Policy{SetRequestHeaders: map[string]string{"Authorization": "${pomerium.access_token}"}},
+			headers: map[string]string{"Authorization": "Pomerium caller-jwt"},
+		},
+		{
 			name:       "X-Pomerium-Authorization is stripped",
 			format:     configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT,
 			headers:    map[string]string{"X-Pomerium-Authorization": "caller-jwt"},

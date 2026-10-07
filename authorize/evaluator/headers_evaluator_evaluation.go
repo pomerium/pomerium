@@ -237,7 +237,7 @@ func (e *headersEvaluatorEvaluation) removeCallerCredentials() {
 		return
 	}
 	headers := e.request.HTTP.Headers
-	for _, name := range header.CredentialHeaders(func(name string) string { return headers[name] }) {
+	for _, name := range header.CredentialHeaders(headers) {
 		e.removeCallerHeader(name)
 	}
 	if _, ok := httputil.BearerToken(headers[httputil.HeaderAuthorization]); ok &&
@@ -247,9 +247,10 @@ func (e *headersEvaluatorEvaluation) removeCallerCredentials() {
 }
 
 // removeCallerHeader removes the caller's value of the canonical header name,
-// unless Pomerium sets or already removes that header.
+// unless Pomerium sets (possibly to an empty value) or already removes that
+// header.
 func (e *headersEvaluatorEvaluation) removeCallerHeader(name string) {
-	if e.response.Headers.Get(name) != "" || slices.Contains(e.response.HeadersToRemove, name) {
+	if _, set := e.response.Headers[name]; set || slices.Contains(e.response.HeadersToRemove, name) {
 		return
 	}
 	e.response.HeadersToRemove = append(e.response.HeadersToRemove, name)
