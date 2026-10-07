@@ -18,7 +18,6 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -175,7 +174,7 @@ func boundRecords(now time.Time, idpSessionID string) []*databroker.Record {
 		"u1",
 		idpsession.BindingProtocol_BINDING_PROTOCOL_MCP,
 		nil,
-		&oauth21.MCPRefreshToken{
+		&session.Session{
 			Id:        "m1",
 			UserId:    "u1",
 			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
@@ -248,11 +247,11 @@ func assertDependentTokensEqual(
 		return
 	}
 	assert.Equal(t, want, browserSession.GetOauthToken().GetAccessToken())
-	mcpToken, ok := assertGetRecord(t, client, &oauth21.MCPRefreshToken{Id: "m1"})
+	mcpSession, ok := assertGetRecord(t, client, &session.Session{Id: "m1"})
 	if !ok {
 		return
 	}
-	assert.Equal(t, want, mcpToken.GetUpstreamRefreshToken())
+	assert.Equal(t, want, mcpSession.GetOauthToken().GetAccessToken())
 }
 
 func assertEventually(t *testing.T, condition func(*assert.CollectT)) {
