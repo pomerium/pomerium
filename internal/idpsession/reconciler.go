@@ -246,7 +246,9 @@ func (r *synchronizedReconciler) applyRecordOps(ctx context.Context, changeOps r
 	for typeURL, records := range patches {
 		eg.Go(func() error {
 			if typeURL == sessionTypeURL {
-				r.preserveStoredSessionClaims(eCtx, records)
+				if err := r.preserveStoredSessionClaims(eCtx, records); err != nil {
+					return err
+				}
 			}
 			patched, err := r.patchMulti(eCtx, records, patchFieldMask(typeURL))
 			if err != nil {
@@ -270,9 +272,10 @@ func (r *synchronizedReconciler) applyRecordOps(ctx context.Context, changeOps r
 // the stored record back restores the merge the applier intends; the cost is one
 // Get per bound session per propagation.
 //
-// A record that cannot be read is left alone: if it is gone, the patch reports
-// it as missing and its binding is deleted.
-func (r *synchronizedReconciler) preserveStoredSessionClaims(ctx context.Context, records []*databroker.Record) {
+// A record that is gone is left alone: the patch reports it as missing and its
+// binding is deleted. Any other failure to read one fails the propagation, which
+// stays queued and is retried, rather than patch claims it could not merge.
+func (r *synchronizedReconciler) preserveStoredSessionClaims(ctx context.Context, records []*databroker.Record) error {
 	client := r.clientB.GetDataBrokerServiceClient()
 	for _, record := range records {
 		patched := &session.Session{}
@@ -280,13 +283,10 @@ func (r *synchronizedReconciler) preserveStoredSessionClaims(ctx context.Context
 			continue
 		}
 		stored := &session.Session{Id: record.GetId()}
-		if err := databroker.Get(ctx, client, stored); err != nil {
-			if !databroker.IsNotFound(err) {
-				log.Ctx(ctx).Error().Err(err).
-					Str("record-id", record.GetId()).
-					Msg("idpsession/reconciler: cannot read dependent session, claims it owns may be dropped")
-			}
+		if err := databroker.Get(ctx, client, stored); databroker.IsNotFound(err) {
 			continue
+		} else if err != nil {
+			return fmt.Errorf("read dependent session %q to preserve its claims: %w", record.GetId(), err)
 		}
 		if len(stored.GetClaims()) == 0 {
 			continue
@@ -296,6 +296,7 @@ func (r *synchronizedReconciler) preserveStoredSessionClaims(ctx context.Context
 		patched.Claims = claims
 		record.Data = protoutil.NewAny(patched)
 	}
+	return nil
 }
 
 func bindingsToDeleteFromPatched(
