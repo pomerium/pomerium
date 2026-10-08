@@ -414,6 +414,7 @@ func (s *configSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, recor
 		}
 
 		s.src.dbConfigs[record.GetId()] = dbConfig{&cfgpb, record.Version}
+		metrics.SetDBConfigInfo(ctx, s.src.computedConfig.Options.Services, record.GetId(), record.GetVersion(), 0)
 	}
 	s.src.standardConfigReady = true
 	s.src.mu.Unlock()
