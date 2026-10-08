@@ -59,11 +59,9 @@ func TestClientLookup(t *testing.T) {
 	setup([]config.Policy{
 		{
 			From: "https://enabled.example.com",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{
-					ClientSecret: nullable.From("secret"),
-				}),
-			},
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("secret"),
+			}),
 		},
 		{
 			From: "https://not-enabled.example.com",
@@ -79,29 +77,23 @@ func TestClientLookup(t *testing.T) {
 		{
 			From: "https://example.com",
 			Path: "/foo",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{
-					ClientSecret: nullable.From("foo"),
-				}),
-			},
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("foo"),
+			}),
 		},
 		{
 			From:   "https://example.com",
 			Prefix: "/bar",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{
-					ClientSecret: nullable.From("bar"),
-				}),
-			},
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("bar"),
+			}),
 		},
 		{
 			From:  "https://example.com",
 			Regex: ".*/baz",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{
-					ClientSecret: nullable.From("baz"),
-				}),
-			},
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("baz"),
+			}),
 		},
 	})
 	assert.False(t, c.Empty())
@@ -117,19 +109,15 @@ func TestClientLookup(t *testing.T) {
 		{
 			From:   "https://non-wildcard.example.com",
 			Prefix: "/path-prefix",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{
-					ClientSecret: nullable.From("non-wildcard"),
-				}),
-			},
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("non-wildcard"),
+			}),
 		},
 		{
 			From: "https://*-wildcard.example.com",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{
-					ClientSecret: nullable.From("wildcard"),
-				}),
-			},
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("wildcard"),
+			}),
 		},
 	})
 	assert.False(t, c.Empty())
@@ -143,37 +131,27 @@ func TestClientLookup_ValidatesRedirectURI(t *testing.T) {
 	var c ClientLookup
 	setupClientLookup(t, &c, []config.Policy{
 		{
-			From: "https://regular.example.com",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{}),
-			},
+			From:       "https://regular.example.com",
+			OidcBridge: nullable.From(config.OIDCBridge{}),
 		},
 		{
-			From:   "https://path-options.example.com",
-			Prefix: "/path-prefix",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{}),
-			},
+			From:       "https://path-options.example.com",
+			Prefix:     "/path-prefix",
+			OidcBridge: nullable.From(config.OIDCBridge{}),
 		},
 		{
-			From: "https://path-options.example.com",
-			Path: "/exact-path",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{}),
-			},
+			From:       "https://path-options.example.com",
+			Path:       "/exact-path",
+			OidcBridge: nullable.From(config.OIDCBridge{}),
 		},
 		{
-			From:  "https://path-options.example.com",
-			Regex: "/foo|/bar",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{}),
-			},
+			From:       "https://path-options.example.com",
+			Regex:      "/foo|/bar",
+			OidcBridge: nullable.From(config.OIDCBridge{}),
 		},
 		{
-			From: "https://*-wildcard.example.com",
-			RouteOptions: config.RouteOptions{
-				OidcBridge: nullable.From(config.OIDCBridge{}),
-			},
+			From:       "https://*-wildcard.example.com",
+			OidcBridge: nullable.From(config.OIDCBridge{}),
 		},
 	})
 

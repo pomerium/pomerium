@@ -699,20 +699,16 @@ func exampleConfig() *config.Options {
 		SharedKey:             base64.StdEncoding.EncodeToString(cryptutil.NewKey()),
 		Routes: []config.Policy{
 			{
-				From: "https://pkce.example.com",
-				To:   config.WeightedURLs{{URL: url.URL{Scheme: "http", Host: "localhost:1234"}}},
-				RouteOptions: config.RouteOptions{
-					OidcBridge: nullable.From(config.OIDCBridge{}),
-				},
+				From:       "https://pkce.example.com",
+				To:         config.WeightedURLs{{URL: url.URL{Scheme: "http", Host: "localhost:1234"}}},
+				OidcBridge: nullable.From(config.OIDCBridge{}),
 			},
 			{
 				From: "https://non-pkce.example.com",
 				To:   config.WeightedURLs{{URL: url.URL{Scheme: "http", Host: "localhost:5678"}}},
-				RouteOptions: config.RouteOptions{
-					OidcBridge: nullable.From(config.OIDCBridge{
-						ClientSecret: nullable.From("explicit-secret"),
-					}),
-				},
+				OidcBridge: nullable.From(config.OIDCBridge{
+					ClientSecret: nullable.From("explicit-secret"),
+				}),
 			},
 		},
 	}

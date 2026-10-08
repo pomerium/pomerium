@@ -127,7 +127,7 @@ func deriveJWKS(sharedSecret []byte) (*jose.JSONWebKeySet, error) {
 func (h *Handlers) HandleOIDCConfiguration(w http.ResponseWriter, r *http.Request) {
 	var rootURL *url.URL
 	rootURL, _ = url.Parse(h.issuerURL)
-	config := map[string]interface{}{
+	config := map[string]any{
 		"issuer":                                h.issuerURL,
 		"authorization_endpoint":                rootURL.ResolveReference(&url.URL{Path: endpoints.PathOIDCAuth}).String(),
 		"token_endpoint":                        rootURL.ResolveReference(&url.URL{Path: endpoints.PathOIDCToken}).String(),
