@@ -1,14 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
-import { groupIdpSess, sortIdpSessGroups } from "../src/components/bindings.ts";
-import type {
-  IDPSessionData,
-  SessionBindingData,
-  SessionBindingInfoPageData,
-} from "../src/types/index.ts";
+import { groupIdpSess, sortIdpSessGroups } from "../src/lib/bindings.ts";
 
-function idpSess(o: Partial<IDPSessionData>): IDPSessionData {
+function idpSess(o) {
   return {
     IDPSessionID: "",
     SID: "",
@@ -19,7 +14,7 @@ function idpSess(o: Partial<IDPSessionData>): IDPSessionData {
   };
 }
 
-function binding(o: Partial<SessionBindingData>): SessionBindingData {
+function binding(o) {
   return {
     IDPSessionID: "",
     SessionBindingID: "",
@@ -36,11 +31,8 @@ function binding(o: Partial<SessionBindingData>): SessionBindingData {
   };
 }
 
-function pageData(
-  idpSessions: IDPSessionData[],
-  sessionBindings: SessionBindingData[],
-) {
-  return { idpSessions, sessionBindings } as SessionBindingInfoPageData;
+function pageData(idpSessions, sessionBindings) {
+  return { idpSessions, sessionBindings };
 }
 
 describe("groupIdpSess", () => {
