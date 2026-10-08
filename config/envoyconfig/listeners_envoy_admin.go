@@ -12,7 +12,7 @@ import (
 )
 
 func (b *Builder) buildEnvoyAdminListener(_ context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
-	filter := b.buildEnvoyAdminHTTPConnectionManagerFilter()
+	filter := b.buildEnvoyAdminHTTPConnectionManagerFilter(cfg)
 
 	filterChain := &envoy_config_listener_v3.FilterChain{
 		Filters: []*envoy_config_listener_v3.Filter{
@@ -30,7 +30,7 @@ func (b *Builder) buildEnvoyAdminListener(_ context.Context, cfg *config.Config)
 	return li, nil
 }
 
-func (b *Builder) buildEnvoyAdminHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
+func (b *Builder) buildEnvoyAdminHTTPConnectionManagerFilter(cfg *config.Config) *envoy_config_listener_v3.Filter {
 	rc := newRouteConfiguration("envoy-admin", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "envoy-admin",
 		Domains: []string{"*"},
@@ -58,7 +58,7 @@ func (b *Builder) buildEnvoyAdminHTTPConnectionManagerFilter() *envoy_config_lis
 			RouteConfig: rc,
 		},
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
-			HTTPRouterFilter(),
+			HTTPRouterFilter(cfg),
 		},
 	})
 }

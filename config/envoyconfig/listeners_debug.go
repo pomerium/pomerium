@@ -11,7 +11,7 @@ import (
 )
 
 func (b *Builder) buildDebugListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
-	filter := b.buildDebugHTTPConnectionManagerFilter()
+	filter := b.buildDebugHTTPConnectionManagerFilter(cfg)
 
 	filterChain := &envoy_config_listener_v3.FilterChain{
 		Filters: []*envoy_config_listener_v3.Filter{
@@ -29,7 +29,7 @@ func (b *Builder) buildDebugListener(cfg *config.Config) (*envoy_config_listener
 	return li, nil
 }
 
-func (b *Builder) buildDebugHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
+func (b *Builder) buildDebugHTTPConnectionManagerFilter(cfg *config.Config) *envoy_config_listener_v3.Filter {
 	rc := newRouteConfiguration("debug", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "debug",
 		Domains: []string{"*"},
@@ -57,7 +57,7 @@ func (b *Builder) buildDebugHTTPConnectionManagerFilter() *envoy_config_listener
 			RouteConfig: rc,
 		},
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
-			HTTPRouterFilter(),
+			HTTPRouterFilter(cfg),
 		},
 	})
 }

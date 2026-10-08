@@ -20,7 +20,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 		return nil, fmt.Errorf("invalid outbound port %v: %w", cfg.OutboundPort, err)
 	}
 
-	filter := b.buildOutboundHTTPConnectionManager()
+	filter := b.buildOutboundHTTPConnectionManager(cfg)
 
 	opts := getTCPListenerSocketOpts()
 	li := newTCPListener("grpc-egress", "grpc-egress", &envoy_config_core_v3.Address{
@@ -40,7 +40,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 	return li, nil
 }
 
-func (b *Builder) buildOutboundHTTPConnectionManager() *envoy_config_listener_v3.Filter {
+func (b *Builder) buildOutboundHTTPConnectionManager(cfg *config.Config) *envoy_config_listener_v3.Filter {
 	rc := b.buildOutboundRouteConfiguration()
 	return b.HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
@@ -53,7 +53,7 @@ func (b *Builder) buildOutboundHTTPConnectionManager() *envoy_config_listener_v3
 			RouteConfig: rc,
 		},
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
-			HTTPRouterFilter(),
+			HTTPRouterFilter(cfg),
 		},
 		Http2ProtocolOptions: http2ProtocolOptionsWithKeepalive,
 	})

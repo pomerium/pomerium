@@ -15,7 +15,7 @@ import (
 )
 
 func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
-	filter := b.buildGRPCHTTPConnectionManagerFilter()
+	filter := b.buildGRPCHTTPConnectionManagerFilter(cfg)
 
 	filterChain := envoy_config_listener_v3.FilterChain{
 		Filters: []*envoy_config_listener_v3.Filter{filter},
@@ -60,7 +60,7 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 	return li, nil
 }
 
-func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
+func (b *Builder) buildGRPCHTTPConnectionManagerFilter(cfg *config.Config) *envoy_config_listener_v3.Filter {
 	allowGRPC := []string{
 		"databroker.CheckpointService",
 		"databroker.DataBrokerService",
@@ -147,7 +147,7 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 			RouteConfig: rc,
 		},
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
-			HTTPRouterFilter(),
+			HTTPRouterFilter(cfg),
 		},
 		Http2ProtocolOptions: http2ProtocolOptionsWithKeepalive,
 	})
