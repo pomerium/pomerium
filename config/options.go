@@ -1282,6 +1282,19 @@ func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy) map[string]stri
 	return hdrs
 }
 
+func (o *Options) GetOIDCBridgeForPolicy(policy *Policy) *OIDCBridge {
+	if policy.OidcBridge.IsSet {
+		return &policy.OidcBridge.Value
+	} else if o.OidcBridge.IsSet {
+		return &o.OidcBridge.Value
+	}
+	return nil
+}
+
+func (o *OIDCBridge) IsEnabled() bool {
+	return o != nil && (!o.Enabled.IsSet || o.Enabled.Value)
+}
+
 // GetCodecType gets a codec type.
 func (o *Options) GetCodecType() configpb.CodecType {
 	if !o.CodecType.IsSet {

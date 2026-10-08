@@ -119,7 +119,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			`+routeString("prefix", "/.well-known/pomerium/")+`,
 			`+routeString("path", "/oauth2/callback")+`,
 			`+routeString("path", "/")+`,
-			`+routeString("path", "/robots.txt")+`
+			`+routeString("path", "/robots.txt")+`,
+			`+routeString("prefix", "/oidc/")+`
 		]`, routes)
 	})
 	t.Run("proxy fronting authenticate", func(t *testing.T) {
@@ -421,14 +422,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		8: "301084c3bd94c1ed",
 	}
 	routeChecksums := []string{
-		1: "2524637274567034193",
-		2: "729003501818011661",
-		3: "3225521651138451045",
-		4: "17056691885217931267",
-		5: "14464137766511675635",
-		6: "3214222712248922575",
-		7: "13493415580958515048",
-		8: "11762862001858534028",
+		1: "17485709624503589777",
+		2: "13386683040007862734",
+		3: "587428840667620042",
+		4: "17651808806254279764",
+		5: "14738351329808195599",
+		6: "9089812245880103350",
+		7: "11422511187762879650",
+		8: "10248448678581619844",
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
@@ -1239,7 +1240,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "11264870615868104872",
+								"route_checksum": "1078947796273078975",
 								"route_id": "98f90d58022ca963"
 							}
 						}
@@ -1317,7 +1318,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "5780766959107148526",
+								"route_checksum": "12705131236089651581",
 								"route_id": "81175a3a9df11dd8"
 							}
 						}
@@ -1416,7 +1417,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "12546583899666298816",
+								"route_checksum": "5961730690217720435",
 								"route_id": "ad0a23467bbdb773"
 							}
 						}
@@ -1520,7 +1521,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "9812482189798413786",
+									"route_checksum": "13948119668715095139",
 									"route_id": "1013c6be524d7fbd"
 								}
 							}
@@ -1637,7 +1638,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "16641217084853056470",
+									"route_checksum": "6313229452269920062",
 									"route_id": "a81e6b1e66c1e2cd"
 								}
 							}
@@ -1773,7 +1774,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "10637148319957687943",
+								"route_checksum": "5645948627064650692",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1850,7 +1851,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "6058512571649213024",
+								"route_checksum": "6953705040649452518",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1932,7 +1933,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "13525083821841858279",
+								"route_checksum": "16232364843823871609",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2009,7 +2010,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "2342466896233688467",
+								"route_checksum": "8919841749343805975",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2086,7 +2087,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "5294477156275550669",
+								"route_checksum": "10724637831932182268",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2168,7 +2169,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "957696973722028225",
+								"route_checksum": "1630469948339367418",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}

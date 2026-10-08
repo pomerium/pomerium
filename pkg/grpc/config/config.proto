@@ -496,6 +496,8 @@ message Route {
   // Configures session recording behaviour on this route.
   // SSH specific.
   optional SessionRecording session_recording = 94;
+  // Configure OIDC bridge support for this route.
+  optional OIDCBridge oidc_bridge = 96;
 
   // computed properties
 
@@ -613,6 +615,16 @@ enum OAuth2AuthStyle {
   // using HTTP Basic Authorization. This is an optional style
   // described in the OAuth2 RFC 6749 section 2.3.1.
   OAUTH2_AUTH_STYLE_IN_HEADER = 2;
+}
+
+// OIDC bridge settings control whether Pomerium can serve as an OpenID
+// provider for upstream applications.
+message OIDCBridge {
+  // Whether the OIDC bridge feature should be enabled.
+  optional bool enabled = 1;
+  // Client secret to use for upstream applications that do not support
+  // public clients / PKCE.
+  optional string client_secret = 2 [(pomerium.config.sensitive) = true];
 }
 
 // A policy expressed in Pomerium Policy Language (PPL).
@@ -1137,6 +1149,8 @@ message Settings {
   // Action to take when a client request with a header name containing
   // underscore characters is received. Defaults to rejecting the request.
   optional HeadersWithUnderscoresAction headers_with_underscores_action = 187;
+  // Configure default OIDC bridge support for all routes.
+  optional OIDCBridge oidc_bridge = 189;
 
   // computed properties
 

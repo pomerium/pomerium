@@ -14,6 +14,11 @@ type BlobStorageSettings struct {
 	ManagedPrefix Value[string] `json:"managed_prefix,omitzero" mapstructure:"managed_prefix" yaml:"managed_prefix,omitempty"`
 }
 
+type OIDCBridge struct {
+	ClientSecret Value[string] `json:"client_secret,omitzero" mapstructure:"client_secret" yaml:"client_secret,omitempty"`
+	Enabled      Value[bool]   `json:"enabled,omitzero" mapstructure:"enabled" yaml:"enabled,omitempty"`
+}
+
 type OutlierDetection struct {
 	AlwaysEjectOneHost                     Value[bool]          `json:"always_eject_one_host,omitzero" mapstructure:"always_eject_one_host" yaml:"always_eject_one_host,omitempty"`
 	BaseEjectionTime                       Value[time.Duration] `json:"base_ejection_time,omitzero" mapstructure:"base_ejection_time" yaml:"base_ejection_time,omitempty"`
@@ -46,6 +51,7 @@ type RouteOptions struct {
 	BearerTokenFormat   Value[configpb.BearerTokenFormat]   `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 	JWTIssuerFormat     Value[configpb.IssuerFormat]        `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 	LoadBalancingPolicy Value[configpb.LoadBalancingPolicy] `json:"load_balancing_policy,omitzero" mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty"`
+	OidcBridge          Value[OIDCBridge]                   `json:"oidc_bridge,omitzero" mapstructure:"oidc_bridge" yaml:"oidc_bridge,omitempty"`
 	OriginatorID        Value[string]                       `json:"originator_id,omitzero" mapstructure:"originator_id" yaml:"originator_id,omitempty"`
 	SessionRecording    Value[SessionRecording]             `json:"session_recording,omitzero" mapstructure:"session_recording" yaml:"session_recording,omitempty"`
 }
@@ -86,6 +92,7 @@ type GlobalOptions struct {
 	JWTIssuerFormat                    Value[configpb.IssuerFormat]                 `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 	MergeSlashes                       Value[bool]                                  `json:"merge_slashes,omitzero" mapstructure:"merge_slashes" yaml:"merge_slashes,omitempty"`
 	NormalizePath                      Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
+	OidcBridge                         Value[OIDCBridge]                            `json:"oidc_bridge,omitzero" mapstructure:"oidc_bridge" yaml:"oidc_bridge,omitempty"`
 	OriginatorID                       Value[string]                                `json:"originator_id,omitzero" mapstructure:"originator_id" yaml:"originator_id,omitempty"`
 	PathWithEscapedSlashesAction       Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
 	SessionRecordingConcurrency        Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
@@ -143,6 +150,44 @@ func setBlobStorageSettingsFromProto(dst *BlobStorageSettings, src *configpb.Blo
 	return errors.Join(
 		setNullableStringFromProto(&dst.BucketURI, src.BucketUri),
 		setNullableStringFromProto(&dst.ManagedPrefix, src.ManagedPrefix),
+	)
+}
+
+func setNullableOIDCBridgeFromProto(dst *Value[OIDCBridge], src *configpb.OIDCBridge) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setOIDCBridgeFromProto(&obj, src)
+	if err != nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfOIDCBridgeFromProto(dst *Value[[]OIDCBridge], src []*configpb.OIDCBridge) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]OIDCBridge, len(src))
+	for i := range src {
+		err := setOIDCBridgeFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setOIDCBridgeFromProto(dst *OIDCBridge, src *configpb.OIDCBridge) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		setNullableStringFromProto(&dst.ClientSecret, src.ClientSecret),
+		setNullableBoolFromProto(&dst.Enabled, src.Enabled),
 	)
 }
 
@@ -243,6 +288,7 @@ func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
 		setNullableLoadBalancingPolicyFromProto(&dst.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullableOIDCBridgeFromProto(&dst.OidcBridge, src.OidcBridge),
 		setNullableStringFromProto(&dst.OriginatorID, src.OriginatorId),
 		setNullableSessionRecordingFromProto(&dst.SessionRecording, src.SessionRecording),
 	)
@@ -448,6 +494,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
 		setNullableBoolFromProto(&dst.MergeSlashes, src.MergeSlashes),
 		setNullableBoolFromProto(&dst.NormalizePath, src.NormalizePath),
+		setNullableOIDCBridgeFromProto(&dst.OidcBridge, src.OidcBridge),
 		setNullableStringFromProto(&dst.OriginatorID, src.OriginatorId),
 		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
@@ -606,6 +653,42 @@ func setBlobStorageSettingsToProto(dst **configpb.BlobStorageSettings, src *Blob
 	)
 }
 
+func setNullableOIDCBridgeToProto(dst **configpb.OIDCBridge, src Value[OIDCBridge]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setOIDCBridgeToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfOIDCBridgeToProto(dst *[]*configpb.OIDCBridge, src Value[[]OIDCBridge]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.OIDCBridge, len(src.Value))
+	for i := range src.Value {
+		err := setOIDCBridgeToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setOIDCBridgeToProto(dst **configpb.OIDCBridge, src *OIDCBridge) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.OIDCBridge)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringToProto(&obj.ClientSecret, src.ClientSecret),
+		setNullableBoolToProto(&obj.Enabled, src.Enabled),
+	)
+}
+
 func setNullableOutlierDetectionToProto(dst **configpb.OutlierDetection, src Value[OutlierDetection]) error {
 	if !src.IsSet {
 		return nil
@@ -699,6 +782,7 @@ func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
 		setNullableLoadBalancingPolicyToProto(&obj.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullableOIDCBridgeToProto(&obj.OidcBridge, src.OidcBridge),
 		setNullableStringToProto(&obj.OriginatorId, src.OriginatorID),
 		setNullableSessionRecordingToProto(&obj.SessionRecording, src.SessionRecording),
 	)
@@ -894,6 +978,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
 		setNullableBoolToProto(&obj.MergeSlashes, src.MergeSlashes),
 		setNullableBoolToProto(&obj.NormalizePath, src.NormalizePath),
+		setNullableOIDCBridgeToProto(&obj.OidcBridge, src.OidcBridge),
 		setNullableStringToProto(&obj.OriginatorId, src.OriginatorID),
 		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
