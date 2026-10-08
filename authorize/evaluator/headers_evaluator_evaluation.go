@@ -164,6 +164,30 @@ func (e *headersEvaluatorEvaluation) fillGoogleCloudServerlessHeaders(ctx contex
 	}
 }
 
+func (e *headersEvaluatorEvaluation) getGCPServerlessToken(ctx context.Context) string {
+	if e.request.Policy == nil || !e.request.Policy.EnableGoogleCloudServerlessAuthentication {
+		return ""
+	}
+
+	var toAudience string
+	for _, wu := range e.request.Policy.To {
+		toAudience = "https://" + wu.URL.Hostname()
+	}
+
+	src, err := getGoogleCloudServerlessTokenSource(e.evaluator.store.GetGoogleCloudServerlessAuthenticationServiceAccount(), toAudience)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error retrieving google cloud serverless token source")
+		return ""
+	}
+
+	tok, err := src.Token()
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error retrieving google cloud serverless token")
+		return ""
+	}
+	return tok.AccessToken
+}
+
 func (e *headersEvaluatorEvaluation) fillRoutingKeyHeaders() {
 	if e.request.Policy == nil {
 		return
@@ -197,6 +221,8 @@ func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) 
 				return s.GetIdToken().GetRaw()
 			case slices.Equal(ref, []string{"pomerium", "jwt"}):
 				return e.getSignedJWT(ctx)
+			case slices.Equal(ref, []string{"pomerium", "google_cloud_serverless_token"}):
+				return e.getGCPServerlessToken(ctx)
 			case len(ref) > 3 && ref[0] == "pomerium" && ref[1] == "request" && ref[2] == "headers":
 				return e.request.HTTP.Headers[httputil.CanonicalHeaderKey(ref[3])]
 			}
