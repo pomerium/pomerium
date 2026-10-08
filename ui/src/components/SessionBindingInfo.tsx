@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import { type FC, Fragment, useState } from "react";
 
+import { groupIdpSess, sortIdpSessGroups } from "../lib/bindings";
 import type {
   IDPSessionData,
   SessionBindingData,
@@ -28,7 +29,6 @@ import type {
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
 import { SmallTooltip } from "./Tooltips";
-import { groupIdpSess, sortIdpSessGroups } from "./bindings";
 
 type SessionBindingInfoProps = {
   data: SessionBindingInfoPageData;
