@@ -61,15 +61,15 @@ func nextSessionRefresh(
 	return tm
 }
 
-// a multiUnmarshaler is used as the target of the json Unmarshal function to
+// a MultiUnmarshaler is used as the target of the json Unmarshal function to
 // unmarshal a single JSON value into multiple destinations.
-type multiUnmarshaler []any
+type MultiUnmarshaler []any
 
-func newMultiUnmarshaler(args ...any) *multiUnmarshaler {
-	return (*multiUnmarshaler)(&args)
+func NewMultiUnmarshaler(args ...any) *MultiUnmarshaler {
+	return (*MultiUnmarshaler)(&args)
 }
 
-func (dst *multiUnmarshaler) UnmarshalJSON(data []byte) error {
+func (dst *MultiUnmarshaler) UnmarshalJSON(data []byte) error {
 	var err error
 	for _, o := range *dst {
 		if o != nil {
@@ -112,15 +112,15 @@ func (dst *SessionUnmarshaler) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type userUnmarshaler struct {
+type UserUnmarshaler struct {
 	*user.User
 }
 
-func newUserUnmarshaler(u *user.User) *userUnmarshaler {
-	return &userUnmarshaler{User: u}
+func NewUserUnmarshaler(u *user.User) *UserUnmarshaler {
+	return &UserUnmarshaler{User: u}
 }
 
-func (dst *userUnmarshaler) UnmarshalJSON(data []byte) error {
+func (dst *UserUnmarshaler) UnmarshalJSON(data []byte) error {
 	if dst.User == nil {
 		return nil
 	}
