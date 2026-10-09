@@ -395,7 +395,7 @@ func (storage *Storage) PutSession(ctx context.Context, s *session.Session, vers
 	if err != nil {
 		return 0, err
 	}
-	return res.GetRecords()[0].GetVersion(), nil
+	return res.GetRecord().GetVersion(), nil
 }
 
 // pendingUpstreamAuthID builds the composite key for a PendingUpstreamAuth record.

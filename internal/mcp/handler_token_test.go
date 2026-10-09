@@ -147,7 +147,7 @@ func computeS256Challenge(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(sha256Hash[:])
 }
 
-// newTestTokenHandler builds a Handler around storage for /token tests.
+// newHandlerWithStorage builds a Handler around storage for /token tests.
 func newHandlerWithStorage(storage HandlerStorage, cipher cipher.AEAD, accessTokenTTL time.Duration) *Handler {
 	return &Handler{
 		cipher:         cipher,
@@ -337,7 +337,7 @@ func TestCreateTokenResponse(t *testing.T) {
 	t.Run("creates token response with scopes", func(t *testing.T) {
 		scopes := []string{"openid", "profile"}
 
-		resp, err := srv.createTokenResponse(sess, 0, clientID, now, scopes)
+		resp, err := srv.createTokenResponse(sess, 0, clientID, scopes)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 
@@ -352,7 +352,7 @@ func TestCreateTokenResponse(t *testing.T) {
 	})
 
 	t.Run("creates token response without scopes", func(t *testing.T) {
-		resp, err := srv.createTokenResponse(sess, 0, clientID, now, nil)
+		resp, err := srv.createTokenResponse(sess, 0, clientID, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 
@@ -364,7 +364,7 @@ func TestCreateTokenResponse(t *testing.T) {
 	})
 
 	t.Run("access token decrypts to the session id and carries the record version", func(t *testing.T) {
-		resp, err := srv.createTokenResponse(sess, 42, clientID, now, nil)
+		resp, err := srv.createTokenResponse(sess, 42, clientID, nil)
 		require.NoError(t, err)
 
 		id, version, err := srv.GetSessionAndVersionFromAccessToken(resp.AccessToken)
@@ -374,7 +374,7 @@ func TestCreateTokenResponse(t *testing.T) {
 	})
 
 	t.Run("refresh token decrypts to the session id and issued_at, bound to the client", func(t *testing.T) {
-		resp, err := srv.createTokenResponse(sess, 0, clientID, now, nil)
+		resp, err := srv.createTokenResponse(sess, 0, clientID, nil)
 		require.NoError(t, err)
 
 		payload, err := srv.DecryptRefreshToken(*resp.RefreshToken, clientID)
