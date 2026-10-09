@@ -654,6 +654,65 @@ func TestHandleUserInfo(t *testing.T) {
 		require.NoError(t, err)
 		assert.JSONEq(t, `{"error": "invalid_token"}`, string(b))
 	})
+	t.Run("missing session", func(t *testing.T) {
+		sh := &session.Handle{
+			Id: "session-id",
+		}
+		getUserInfoData := func(_ *http.Request, handle *session.Handle) handlers.UserInfoData {
+			testutil.AssertProtoEqual(t, sh, handle)
+			return handlers.UserInfoData{} // no session
+		}
+		h, err := NewHandlers(nil, getUserInfoData, exampleConfig())
+		require.NoError(t, err)
+
+		shb, err := proto.Marshal(sh)
+		require.NoError(t, err)
+		token := h.accessTokenEncryptor.Encrypt(base64.StdEncoding.EncodeToString(shb))
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/oidc/userinfo", nil)
+		r.Header.Set("Authorization", "Bearer "+token)
+		h.HandleUserInfo(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"error":"invalid_token"}`, string(b))
+	})
+	t.Run("expired session", func(t *testing.T) {
+		sh := &session.Handle{
+			Id: "session-id",
+		}
+		userData := handlers.UserInfoData{
+			Session: &session.Session{
+				Claims: map[string]*structpb.ListValue{
+					"sub":   {Values: []*structpb.Value{structpb.NewStringValue("idp-user-id")}},
+					"email": {Values: []*structpb.Value{structpb.NewStringValue("user@example.com")}},
+				},
+				ExpiresAt: timestamppb.New(time.Now().Add(-5 * time.Minute)),
+			},
+		}
+		getUserInfoData := func(_ *http.Request, handle *session.Handle) handlers.UserInfoData {
+			testutil.AssertProtoEqual(t, sh, handle)
+			return userData
+		}
+		h, err := NewHandlers(nil, getUserInfoData, exampleConfig())
+		require.NoError(t, err)
+
+		shb, err := proto.Marshal(sh)
+		require.NoError(t, err)
+		token := h.accessTokenEncryptor.Encrypt(base64.StdEncoding.EncodeToString(shb))
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/oidc/userinfo", nil)
+		r.Header.Set("Authorization", "Bearer "+token)
+		h.HandleUserInfo(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"error":"invalid_token"}`, string(b))
+	})
 
 	t.Run("ok", func(t *testing.T) {
 		sh := &session.Handle{

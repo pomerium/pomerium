@@ -507,6 +507,15 @@ func (h *Handlers) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := h.getUserInfoData(r, sh)
+	if data.Session == nil {
+		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request data missing session")
+		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_token"})
+		return
+	} else if err := data.Session.Validate(); err != nil {
+		log.Ctx(r.Context()).Info().Err(err).Msg("oidc: userinfo request data has invalid session")
+		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_token"})
+		return
+	}
 
 	payload := make(map[string]any)
 	identity.CollectCommaSeparatedClaims(payload, data.User)
