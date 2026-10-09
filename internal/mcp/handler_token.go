@@ -444,7 +444,9 @@ const refreshWriteAttempts = 3
 // again and refuses the token only if its issued_at moved on, which is a
 // concurrent presentation rotating it; otherwise it retries on the fresh state.
 // Of several concurrent presentations of one token, exactly one rotates the
-// session.
+// session. A write that fails for any other reason is checked for having landed
+// anyway (see recoverLostRefreshWrite) before it is reported as a server error,
+// which the client takes to mean its token is still good.
 func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.Payload, now time.Time) (*session.Session, uint64, error) {
 	sessionID := payload.GetId()
 
@@ -481,7 +483,10 @@ func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.
 		if err == nil {
 			return sess, version, nil
 		}
-		if !databroker.IsRecordVersionMismatch(err) || attempt == refreshWriteAttempts {
+		if !databroker.IsRecordVersionMismatch(err) {
+			return srv.recoverLostRefreshWrite(ctx, sess, err)
+		}
+		if attempt == refreshWriteAttempts {
 			return nil, 0, fmt.Errorf("store mcp client session: %w", err)
 		}
 		log.Ctx(ctx).Debug().
@@ -489,6 +494,29 @@ func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.
 			Int("attempt", attempt).
 			Msg("mcp/token/refresh: session was rewritten concurrently, retrying")
 	}
+}
+
+// recoverLostRefreshWrite handles a re-issue that failed for any reason other
+// than a version mismatch. Such a write may still have committed with only its
+// reply lost (a deadline, a forwarded call whose connection dropped), and then
+// the stored issued_at has moved on: the token the client holds is dead, and a
+// server error, which tells the client the token is still good, would make its
+// retry fail with invalid_grant and force a re-consent. So the session is read
+// again. An issued_at equal to the one just written means the write landed, and
+// the tokens are minted from the stored record. Otherwise nothing was written,
+// the token is still good, and the server error stands.
+func (srv *Handler) recoverLostRefreshWrite(ctx context.Context, written *session.Session, writeErr error) (*session.Session, uint64, error) {
+	stored, version, err := srv.storage.GetSession(ctx, written.GetId())
+	if err != nil {
+		return nil, 0, fmt.Errorf("store mcp client session: %w (re-reading it: %w)", writeErr, err)
+	}
+	if !stored.GetIssuedAt().AsTime().Equal(written.GetIssuedAt().AsTime()) {
+		return nil, 0, fmt.Errorf("store mcp client session: %w", writeErr)
+	}
+	log.Ctx(ctx).Info().Err(writeErr).
+		Str("session-id", written.GetId()).
+		Msg("mcp/token/refresh: session write reported an error but landed")
+	return stored, version, nil
 }
 
 // resolveConsentIDPSession loads the centralized IdP session the browser
