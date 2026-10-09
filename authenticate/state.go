@@ -160,7 +160,8 @@ func newAuthenticateStateFromConfig(
 		return nil, err
 	} else if handlers != nil {
 		if useStatelessAuthenticationFlow {
-			log.Ctx(ctx).Warn().Msg("oidc_bridge requires an identity provider")
+			log.Ctx(ctx).Warn().Msg("oidc_bridge is not supported with legacy " +
+				"hosted authenticate; set idp_provider to use this feature")
 		} else {
 			state.oidcBridgeHandlers = handlers
 		}
