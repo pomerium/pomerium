@@ -85,9 +85,8 @@ func (s *identitySyncer) UpdateRecords(ctx context.Context, _ uint64, records []
 	s.notifier.Updated()
 }
 
-func (s *identitySyncer) handleUser(ctx context.Context, rec *databroker.Record) error {
+func (s *identitySyncer) handleUser(_ context.Context, rec *databroker.Record) error {
 	if rec.GetDeletedAt() != nil {
-		log.Ctx(ctx).Trace()
 		s.idx.DeleteUser(rec.GetId())
 		return nil
 	}
