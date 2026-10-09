@@ -80,8 +80,16 @@ func TestStorage(t *testing.T) {
 		id, err := storage.CreateAuthorizationRequest(ctx, &oauth21proto.AuthorizationRequest{})
 		require.NoError(t, err)
 
-		_, err = storage.GetAuthorizationRequest(ctx, id)
+		_, version, err := storage.GetAuthorizationRequest(ctx, id)
 		require.NoError(t, err)
+
+		// A code is consumed at the version it was read at: a second
+		// consumer of the same read loses.
+		require.NoError(t, storage.ConsumeAuthorizationRequest(ctx, id, version))
+		err = storage.ConsumeAuthorizationRequest(ctx, id, version)
+		assert.True(t, databroker_grpc.IsRecordVersionMismatch(err), "%v", err)
+		_, _, err = storage.GetAuthorizationRequest(ctx, id)
+		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 
 	t.Run("upstream mcp token", func(t *testing.T) {

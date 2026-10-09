@@ -214,8 +214,12 @@ func (s *testUpstreamAuthStorage) CreateAuthorizationRequest(context.Context, *o
 	panic("unexpected call to CreateAuthorizationRequest")
 }
 
-func (s *testUpstreamAuthStorage) GetAuthorizationRequest(context.Context, string) (*oauth21proto.AuthorizationRequest, error) {
+func (s *testUpstreamAuthStorage) GetAuthorizationRequest(context.Context, string) (*oauth21proto.AuthorizationRequest, uint64, error) {
 	panic("unexpected call to GetAuthorizationRequest")
+}
+
+func (s *testUpstreamAuthStorage) ConsumeAuthorizationRequest(context.Context, string, uint64) error {
+	panic("unexpected call to ConsumeAuthorizationRequest")
 }
 
 func (s *testUpstreamAuthStorage) DeleteAuthorizationRequest(context.Context, string) error {
@@ -808,7 +812,11 @@ func (s *refreshTokenTestStorage) CreateAuthorizationRequest(context.Context, *o
 	panic("unexpected call")
 }
 
-func (s *refreshTokenTestStorage) GetAuthorizationRequest(context.Context, string) (*oauth21proto.AuthorizationRequest, error) {
+func (s *refreshTokenTestStorage) GetAuthorizationRequest(context.Context, string) (*oauth21proto.AuthorizationRequest, uint64, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) ConsumeAuthorizationRequest(context.Context, string, uint64) error {
 	panic("unexpected call")
 }
 

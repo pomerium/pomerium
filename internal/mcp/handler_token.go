@@ -183,7 +183,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		return
 	}
 
-	authReq, err := srv.storage.GetAuthorizationRequest(ctx, code.Id)
+	authReq, authReqVersion, err := srv.storage.GetAuthorizationRequest(ctx, code.Id)
 	if status.Code(err) == codes.NotFound {
 		log.Ctx(ctx).Error().Str("auth-req-id", code.Id).Msg("mcp/token/auth-code: authorization request not found")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
@@ -213,9 +213,16 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 
 	// The authorization server MUST return an access token only once for a given authorization code.
 	// https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.3
-	err = srv.storage.DeleteAuthorizationRequest(ctx, code.Id)
+	// The request is deleted at the version it was read at, so of several
+	// requests redeeming the same code at once exactly one gets past here.
+	err = srv.storage.ConsumeAuthorizationRequest(ctx, code.Id, authReqVersion)
+	if databroker.IsRecordVersionMismatch(err) {
+		log.Ctx(ctx).Info().Str("auth-req-id", code.Id).Msg("mcp/token/auth-code: authorization code was already redeemed")
+		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
+		return
+	}
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/token/auth-code: failed to delete authorization request")
+		log.Ctx(ctx).Error().Err(err).Msg("mcp/token/auth-code: failed to consume authorization request")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

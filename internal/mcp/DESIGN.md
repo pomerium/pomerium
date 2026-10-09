@@ -239,6 +239,11 @@ remains valid. This model is identical to a browser session.
 
 During the authorization code exchange (`POST /.pomerium/mcp/token`), Pomerium:
 
+0. **Consumes the code**: After the client id and PKCE checks, deletes the
+   `AuthorizationRequest` at the record version it was read at (databroker
+   `if_match_version`). Of several requests redeeming the same code at once
+   exactly one gets past this point; the others respond with `invalid_grant`.
+
 1. **Resolves the IdP session the consent came from**: Looks up the
    `idpsession.Binding` of the browser session that consented at `/authorize`
    (`AuthorizationRequest.session_id`), then the `idpsession.IDPSession` it
