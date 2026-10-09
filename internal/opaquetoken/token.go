@@ -3,8 +3,9 @@
 //
 // A token carries no meaning of its own. It is an AEAD-sealed [Payload] holding
 // a record id, an expiration, a [Type] tag saying what the token may be
-// presented for, and optionally the record version observed at issuance time.
-// Only a holder of the sealing key can read or forge one.
+// presented for, optionally the record version observed at issuance time and,
+// for a refresh token, the issued_at of the session generation it was minted
+// with. Only a holder of the sealing key can read or forge one.
 package opaquetoken
 
 import (

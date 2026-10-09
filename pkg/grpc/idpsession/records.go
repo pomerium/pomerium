@@ -115,8 +115,8 @@ func NewBoundRecords(idpSessionID string, userID string, protocol BindingProtoco
 	}
 }
 
-// GetIDPSession reads a centralized upstream IdP session record, keyed by user
-// id. The gRPC error is returned unwrapped so callers can test codes.NotFound.
+// GetIDPSession reads a centralized upstream IdP session record by its id. The
+// gRPC error is returned unwrapped so callers can test codes.NotFound.
 func GetIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string) (*IDPSession, error) {
 	res, err := client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(new(IDPSession)),
@@ -150,12 +150,13 @@ func GetBinding(ctx context.Context, client databroker.DataBrokerServiceClient, 
 }
 
 // GetValidIDPSession reads a centralized upstream IdP session that a new
-// dependent credential may still be issued from. A session that has been
-// invalidated (the user signed out or the provider revoked them) is reported
-// the same way as a missing one, as a codes.NotFound error, so callers keep a
-// single "no usable session" branch. Only the state is checked: an expired
-// copy of the upstream access token does not make the session unusable, since
-// the identity manager refreshes it out of band.
+// dependent credential may still be issued from. Invalidation (the user
+// signed out, the provider revoked them, or the session sat idle with no
+// bindings) deletes the record, so an unusable session is reported the same
+// way as a missing one, as a codes.NotFound error, and callers keep a single
+// "no usable session" branch. An expired copy of the upstream access token
+// does not make the session unusable, since the identity manager refreshes it
+// out of band.
 func GetValidIDPSession(ctx context.Context, client databroker.DataBrokerServiceClient, id string) (*IDPSession, error) {
 	idpSess, err := GetIDPSession(ctx, client, id)
 	if err != nil {
@@ -165,8 +166,9 @@ func GetValidIDPSession(ctx context.Context, client databroker.DataBrokerService
 }
 
 // GetActiveBinding reads a Binding that still ties its dependent to the IdP
-// session. A revoked binding is reported the same way as a missing one, as a
-// codes.NotFound error: either way the dependent may no longer act.
+// session. Revocation deletes the record, so a revoked binding is reported the
+// same way as a missing one, as a codes.NotFound error: either way the
+// dependent may no longer act.
 func GetActiveBinding(ctx context.Context, client databroker.DataBrokerServiceClient, id string) (*Binding, error) {
 	binding, err := GetBinding(ctx, client, id)
 	if err != nil {

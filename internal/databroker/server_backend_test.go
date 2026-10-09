@@ -523,8 +523,10 @@ func TestServer_RetiredTypeCleanup(t *testing.T) {
 	t.Run("the cleaner picks the ttl up", func(t *testing.T) {
 		srv := newServer(t)
 
-		// a record an older version left behind: its type no longer resolves,
-		// so it is stored as a raw Any rather than through protoutil.NewAny.
+		// buildRecordTTLs only sees the types that have records, so put one
+		// first: a record an older version left behind. Its type no longer
+		// resolves, so it is stored as a raw Any rather than through
+		// protoutil.NewAny.
 		_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
 			Records: []*databrokerpb.Record{{
 				Type: mcpRefreshTokenTypeURL,

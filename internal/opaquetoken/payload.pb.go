@@ -98,9 +98,9 @@ type Payload struct {
 	// minimum-version hint when reading that record, providing read-your-writes
 	// across databroker replicas. Zero means no hint.
 	RecordVersion uint64 `protobuf:"varint,4,opt,name=record_version,json=recordVersion,proto3" json:"record_version,omitempty"`
-	// issued_at is when the token was minted. A refresh token carries the issued_at
-	// of the session it was minted together with; the token endpoint compares it
-	// against the session's current issued_at, so a token from an earlier
+	// issued_at is the issued_at of the session generation a refresh token was
+	// minted with (equal to the mint time at issuance). The token endpoint compares
+	// it against the session's current issued_at, so a token from an earlier
 	// generation (one that has since been rotated away) is refused. Unset for
 	// tokens that are not rotated.
 	IssuedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=issued_at,json=issuedAt,proto3" json:"issued_at,omitempty"`

@@ -616,7 +616,9 @@ func (srv *Handler) writeGrantError(ctx context.Context, w http.ResponseWriter, 
 // refresh_disabled is deliberately left unset, as for browser sessions: the
 // legacy per-session refresher is not wired, and with the flag set the identity
 // manager would delete the session whenever the copied upstream access token
-// expired before the next propagation.
+// expired before the next propagation. With an IdP that issues no refresh
+// token the session is deleted at that point regardless, flag or not, as a
+// browser session is.
 func newMCPSession(id string, idpSess *idpsession.IDPSession, now time.Time) *session.Session {
 	return idpsession.IssueSession(id, idpSess, now, RefreshTokenTTL)
 }

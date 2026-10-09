@@ -75,8 +75,8 @@ func TestRefreshTokenPrefix(t *testing.T) {
 
 // TestRefreshTokenIssuedAtRoundTrips verifies that CreateRefreshToken's issuedAt argument
 // round-trips exactly through DecryptRefreshToken: the token endpoint compares this value
-// against the session's current issued_at (byte-for-byte via proto equality upstream, and
-// here via time equality) to detect a rotated-away refresh token, so any lossiness here
+// against the session's current issued_at (time equality of the decoded timestamps, here
+// and in refreshMCPSession) to detect a rotated-away refresh token, so any lossiness here
 // would make every refresh look like a replay.
 func TestRefreshTokenIssuedAtRoundTrips(t *testing.T) {
 	srv := newTokenTestHandler(t)
