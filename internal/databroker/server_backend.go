@@ -827,8 +827,10 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 	// and bound to the client session, so nothing reads or writes these records
 	// and their proto no longer exists. Whatever an older version left behind
 	// still holds an encrypted upstream IdP refresh token, so expire it rather
-	// than leaving it at rest forever. The TTL outlasts a rolling upgrade, so
-	// nodes still running the old code keep working until they are replaced.
+	// than leaving it at rest forever. The TTL counts from a record's last
+	// write, so a token an old node refreshed within the last day survives a
+	// rolling upgrade and older ones are swept on the first pass; this version
+	// refuses all of them regardless.
 	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.MCPRefreshToken", &databrokerpb.Options{
 		Ttl: durationpb.New(24 * time.Hour),
 	}); err != nil {

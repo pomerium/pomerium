@@ -37,13 +37,14 @@ type HandlerStorage interface {
 	// fail with databroker.ErrRecordVersionMismatch.
 	ConsumeAuthorizationRequest(ctx context.Context, id string, version uint64) error
 	// An IdP session or a binding exists only while it is valid: signing out,
-	// revocation and expiry delete it, so both report that as codes.NotFound.
+	// revocation and idle cleanup delete it, so both report that as codes.NotFound.
 	GetValidIDPSession(ctx context.Context, id string) (*idpsessionpb.IDPSession, error)
 	GetActiveBinding(ctx context.Context, id string) (*idpsessionpb.Binding, error)
 	GetSession(ctx context.Context, id string) (*session.Session, uint64, error)
 	// PutBoundSession creates an MCP client session together with its Binding to
 	// an IDPSession. Used once per consent. If the IDPSession no longer exists
-	// once they are written, it removes both and reports codes.NotFound.
+	// once they are written, or cannot be read, it removes both again and
+	// returns the read's error: codes.NotFound when the IDPSession is gone.
 	PutBoundSession(ctx context.Context, s *session.Session, idpSessionID string, details map[string]string) (uint64, error)
 	// PutSession rewrites an MCP client session alone, never its Binding, and
 	// only if the stored session is still at version (as returned by GetSession).
@@ -324,10 +325,12 @@ func (storage *Storage) GetValidIDPSession(ctx context.Context, id string) (*idp
 // out since. Sign-out deletes the IDPSession, after which the identity manager
 // deletes the bindings it has seen: never one written later, and never one whose
 // IDPSession is already gone, so such a binding and its session would outlive
-// the sign-out for good. So once both are written the IDPSession is read again.
-// If it still exists, a later sign-out reaches the binding, as the identity
-// manager applies changes in the order they were made. If it does not, the
-// session and binding are removed again and codes.NotFound is returned.
+// the sign-out until the session expires. So once both are written the
+// IDPSession is read again. If it still exists, a later sign-out reaches the
+// binding, as long as the identity manager observes both changes in order. If
+// it does not, or cannot be read, the session and binding are removed again
+// (on a detached context, since the request may be gone) and the read's error
+// is returned, codes.NotFound when the IDPSession is gone.
 func (storage *Storage) PutBoundSession(ctx context.Context, s *session.Session, idpSessionID string, details map[string]string) (uint64, error) {
 	res, err := storage.client().Put(ctx, &databroker.PutRequest{
 		Records: idpsessionpb.NewBoundRecords(idpSessionID, s.GetUserId(),
