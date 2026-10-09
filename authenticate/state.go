@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/handlers"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oidcbridge"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
@@ -130,7 +131,9 @@ func newAuthenticateStateFromConfig(
 	state.sessionHandleReader = cookieStore
 	state.sessionHandleWriter = cookieStore
 
-	if cfg.Options.UseStatelessAuthenticateFlow() {
+	useStatelessAuthenticationFlow := cfg.Options.UseStatelessAuthenticateFlow()
+
+	if useStatelessAuthenticationFlow {
 		state.flow, err = authenticateflow.NewStateless(ctx,
 			tracerProvider,
 			cfg,
@@ -155,8 +158,13 @@ func newAuthenticateStateFromConfig(
 		cookieStore.ReadSessionHandle, state.flow.GetUserInfoData, cfg.Options)
 	if err != nil {
 		return nil, err
+	} else if handlers != nil {
+		if useStatelessAuthenticationFlow {
+			log.Ctx(ctx).Warn().Msg("oidc_bridge requires an identity provider")
+		} else {
+			state.oidcBridgeHandlers = handlers
+		}
 	}
-	state.oidcBridgeHandlers = handlers
 
 	return state, nil
 }
