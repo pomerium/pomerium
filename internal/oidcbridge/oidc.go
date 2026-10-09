@@ -34,7 +34,7 @@ import (
 
 const nonceSizeLimit = 300 // not part of the OIDC spec
 
-const idTokenValidity = 1 * time.Hour
+const idTokenValiditySeconds = 3600
 
 type Handlers struct {
 	issuerURL string
@@ -456,14 +456,16 @@ func (h *Handlers) issueIDToken(data *handlers.UserInfoData, clientID string, no
 	}
 
 	payload := make(map[string]any)
-	identity.CollectCommaSeparatedClaims(payload, data.User)
-	identity.CollectCommaSeparatedClaims(payload, data.Session)
+	identity.CollectClaims(payload, data.User)
+	identity.CollectClaims(payload, data.Session)
 
-	// Rewrite "aud" and "iss".
+	// Make sure "aud" and "iss" refer to the OIDC flow between Pomerium and the
+	// upstream application, not the underlying IdP and Pomerium.
 	payload["aud"] = clientID
 	payload["iss"] = h.issuerURL
-	payload["iat"] = time.Now().Unix()
-	payload["exp"] = time.Now().Add(idTokenValidity).Unix()
+	iat := time.Now().Unix()
+	payload["iat"] = iat
+	payload["exp"] = iat + idTokenValiditySeconds
 	if nonce != "" {
 		payload["nonce"] = nonce
 	}
@@ -518,8 +520,8 @@ func (h *Handlers) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := make(map[string]any)
-	identity.CollectCommaSeparatedClaims(payload, data.User)
-	identity.CollectCommaSeparatedClaims(payload, data.Session)
+	identity.CollectClaims(payload, data.User)
+	identity.CollectClaims(payload, data.Session)
 	delete(payload, "iss")
 	delete(payload, "aud")
 	delete(payload, "iat")

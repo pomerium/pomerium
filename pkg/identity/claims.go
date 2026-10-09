@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
-	"strings"
 
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // SessionClaims are claims that are attached to a session so we can store the raw id token.
@@ -151,28 +151,16 @@ type ClaimsGetter interface {
 	GetClaims() map[string]*structpb.ListValue
 }
 
-func CollectCommaSeparatedClaims(dst map[string]any, c ClaimsGetter) {
+func CollectClaims(dst map[string]any, c ClaimsGetter) {
 	if c == nil {
 		return
 	}
 
 	for k, lv := range c.GetClaims() {
-		strs := make([]string, 0, len(lv.Values))
-		for _, v := range lv.Values {
-			switch v := v.GetKind().(type) {
-			case *structpb.Value_NumberValue:
-				strs = append(strs, fmt.Sprint(v.NumberValue))
-			case *structpb.Value_StringValue:
-				strs = append(strs, v.StringValue)
-			case *structpb.Value_BoolValue:
-				strs = append(strs, fmt.Sprint(v.BoolValue))
-
-			// just ignore these types
-			case *structpb.Value_NullValue:
-			case *structpb.Value_StructValue:
-			case *structpb.Value_ListValue:
-			}
+		if len(lv.Values) == 1 {
+			dst[k] = lv.Values[0].AsInterface()
+		} else {
+			dst[k] = slices.Map(lv.Values, (*structpb.Value).AsInterface)
 		}
-		dst[k] = strings.Join(strs, ",")
 	}
 }

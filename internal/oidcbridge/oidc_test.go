@@ -721,8 +721,13 @@ func TestHandleUserInfo(t *testing.T) {
 		userData := handlers.UserInfoData{
 			Session: &session.Session{
 				Claims: map[string]*structpb.ListValue{
-					"sub":   {Values: []*structpb.Value{structpb.NewStringValue("idp-user-id")}},
-					"email": {Values: []*structpb.Value{structpb.NewStringValue("user@example.com")}},
+					"sub":            {Values: []*structpb.Value{structpb.NewStringValue("idp-user-id")}},
+					"email":          {Values: []*structpb.Value{structpb.NewStringValue("user@example.com")}},
+					"email_verified": {Values: []*structpb.Value{structpb.NewBoolValue(true)}},
+					"groups": {Values: []*structpb.Value{
+						structpb.NewStringValue("engineering"),
+						structpb.NewStringValue("employees"),
+					}},
 				},
 			},
 		}
@@ -747,7 +752,9 @@ func TestHandleUserInfo(t *testing.T) {
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
 			"sub": "idp-user-id",
-			"email": "user@example.com"
+			"email": "user@example.com",
+			"email_verified": true,
+			"groups": ["engineering", "employees"]
 		}`, string(b))
 	})
 }
