@@ -823,14 +823,8 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 		return err
 	}
 
-	// oauth21.MCPRefreshToken is retired: an MCP refresh token is now stateless
-	// and bound to the client session, so nothing reads or writes these records
-	// and their proto no longer exists. Whatever an older version left behind
-	// still holds an encrypted upstream IdP refresh token, so expire it rather
-	// than leaving it at rest forever. The TTL counts from a record's last
-	// write, so a token an old node refreshed within the last day survives a
-	// rolling upgrade and older ones are swept on the first pass; this version
-	// refuses all of them regardless.
+	// Expire the records of the retired oauth21.MCPRefreshToken type that an
+	// older version left behind: each holds an upstream IdP refresh token.
 	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.MCPRefreshToken", &databrokerpb.Options{
 		Ttl: durationpb.New(24 * time.Hour),
 	}); err != nil {
