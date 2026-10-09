@@ -252,7 +252,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		return
 	}
 
-	resp, err := srv.createTokenResponse(sess, version, clientID, now, authReq.GetScopes())
+	resp, err := srv.createTokenResponse(sess, version, clientID, authReq.GetScopes())
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/token/auth-code: failed to create token response")
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -413,7 +413,7 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 	}
 
 	// The refresh response omits scope: it is unchanged from the grant (RFC 6749 §5.1).
-	resp, err := srv.createTokenResponse(sess, version, clientID, now, nil)
+	resp, err := srv.createTokenResponse(sess, version, clientID, nil)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/token/refresh: failed to create token response")
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -465,19 +465,21 @@ func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.
 	}
 
 	for attempt := 1; ; attempt++ {
-		sess, version, err := srv.storage.GetSession(ctx, sessionID)
+		stored, storedVersion, err := srv.storage.GetSession(ctx, sessionID)
 		if status.Code(err) == codes.NotFound {
 			// Revoking the binding or deleting the IdP session deletes the
 			// session; this request raced that.
-			return nil, 0, fmt.Errorf("%w: session %q no longer exists", errInvalidGrant, sessionID)
+			return nil, 0, fmt.Errorf("%w: session %q no longer exists: %w", errInvalidGrant, sessionID, err)
 		} else if err != nil {
 			return nil, 0, fmt.Errorf("get session: %w", err)
 		}
-		if !payload.GetIssuedAt().AsTime().Equal(sess.GetIssuedAt().AsTime()) {
+		if !payload.GetIssuedAt().AsTime().Equal(stored.GetIssuedAt().AsTime()) {
+			// On a retry, the write this request lost was the rotation.
+			reason := "was rotated"
 			if attempt > 1 {
-				return nil, 0, fmt.Errorf("%w: refresh token for session %q was consumed by a concurrent request", errInvalidGrant, sessionID)
+				reason = "was consumed by a concurrent request"
 			}
-			return nil, 0, fmt.Errorf("%w: refresh token for session %q was rotated", errInvalidGrant, sessionID)
+			return nil, 0, fmt.Errorf("%w: refresh token for session %q %s", errInvalidGrant, sessionID, reason)
 		}
 
 		idpSess, err := srv.resolveIDPSession(ctx, binding.GetIdpSessionId())
@@ -485,8 +487,8 @@ func (srv *Handler) refreshMCPSession(ctx context.Context, payload *opaquetoken.
 			return nil, 0, err
 		}
 
-		sess = newMCPSession(sessionID, idpSess, now)
-		version, err = srv.storage.PutSession(ctx, sess, version)
+		sess := newMCPSession(sessionID, idpSess, now)
+		version, err := srv.storage.PutSession(ctx, sess, storedVersion)
 		if err == nil {
 			return sess, version, nil
 		}
@@ -620,20 +622,20 @@ func newMCPSession(id string, idpSess *idpsession.IDPSession, now time.Time) *se
 }
 
 // createTokenResponse mints the access and refresh tokens for a just-issued MCP
-// client session.
+// client session, as of the session's issued_at.
 func (srv *Handler) createTokenResponse(
 	sess *session.Session,
 	sessionRecordVersion uint64,
 	clientID string,
-	now time.Time,
 	scopes []string,
 ) (*oauth21proto.TokenResponse, error) {
-	accessToken, err := srv.GetAccessTokenForSessionWithVersion(sess.GetId(), sessionRecordVersion, now.Add(srv.accessTokenTTL))
+	issuedAt := sess.GetIssuedAt().AsTime()
+	accessToken, err := srv.GetAccessTokenForSessionWithVersion(sess.GetId(), sessionRecordVersion, issuedAt.Add(srv.accessTokenTTL))
 	if err != nil {
 		return nil, fmt.Errorf("create access token: %w", err)
 	}
 
-	refreshToken, err := srv.CreateRefreshToken(sess.GetId(), clientID, now.Add(RefreshTokenTTL), sess.GetIssuedAt().AsTime())
+	refreshToken, err := srv.CreateRefreshToken(sess.GetId(), clientID, issuedAt.Add(RefreshTokenTTL), issuedAt)
 	if err != nil {
 		return nil, fmt.Errorf("create refresh token: %w", err)
 	}
