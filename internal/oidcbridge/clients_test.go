@@ -66,11 +66,20 @@ func TestClientLookup(t *testing.T) {
 		{
 			From: "https://not-enabled.example.com",
 		},
+		{
+			From: "https://non-default-port.example.com:1234",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("non-default-port-secret"),
+			}),
+		},
 	})
 	assert.False(t, c.Empty())
 
 	t.Run("enabled", testLookupOK("https://enabled.example.com", "secret"))
 	t.Run("not enabled", testLookupNotFound("https://not-enabled.example.com"))
+	t.Run("port matching 1", testLookupOK("https://non-default-port.example.com:1234", "non-default-port-secret"))
+	t.Run("port matching 2", testLookupNotFound("https://non-default-port.example.com"))
+	t.Run("port matching 3", testLookupNotFound("https://enabled.example.com:443"))
 
 	// Route path matching options must be satisfied.
 	setup([]config.Policy{
@@ -153,6 +162,10 @@ func TestClientLookup_ValidatesRedirectURI(t *testing.T) {
 			From:       "https://*-wildcard.example.com",
 			OidcBridge: nullable.From(config.OIDCBridge{}),
 		},
+		{
+			From:       "https://non-default-port.example.com:8200",
+			OidcBridge: nullable.From(config.OIDCBridge{}),
+		},
 	})
 
 	assertValid := func(t *testing.T, clientID, redirectURI string) {
@@ -169,6 +182,13 @@ func TestClientLookup_ValidatesRedirectURI(t *testing.T) {
 	assertNotValid(t, "https://regular.example.com:1234", "https://regular.example.com")
 	assertNotValid(t, "https://regular.example.com", "https://regular.example.com:1234")
 	assertNotValid(t, "https://foo-wildcard.example.com", "https://bar-wildcard.example.com")
+
+	// The port should match strictly as well. (Note this is more conservative
+	// than the default Pomerium route port matching behavior.)
+	assertNotValid(t, "https://regular.example.com", "https://regular.example.com:443")
+	assertNotValid(t, "https://regular.example.com:443", "https://regular.example.com")
+	assertNotValid(t, "https://non-default-port.example.com:8200", "https://non-default-port.example.com")
+	assertNotValid(t, "https://non-default-port.example.com", "https://non-default-port.example.com:8200")
 
 	// For routes without path options (whether wildcard or non-wildcard), the
 	// redirect_uri can be any child of the client_id.

@@ -78,7 +78,7 @@ type ClientLookup struct {
 	// List of all wildcard "From" URL clients.
 	wildcardRoutes []*config.Policy
 
-	// Global options (needed for defaults + runtime flags).
+	// Global options (needed for OIDC bridge defaults).
 	globalOptions *config.Options
 }
 
@@ -143,12 +143,9 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 	} else {
 		routesToScan = c.wildcardRoutes
 	}
-
-	stripPort := c.globalOptions.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)
-
 	for _, r := range routesToScan {
-		clientMatches := r.Matches(parsedClient, stripPort)
-		redirectMatches := r.Matches(parsedRedirect, stripPort)
+		clientMatches := r.Matches(parsedClient, false)
+		redirectMatches := r.Matches(parsedRedirect, false)
 		if clientMatches && redirectMatches {
 			info := ClientInfo{
 				ID:          clientID,
