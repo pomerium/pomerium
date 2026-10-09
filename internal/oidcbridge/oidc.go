@@ -146,6 +146,9 @@ func (h *Handlers) HandleOIDCConfiguration(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *Handlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
 	validated, err := h.validateAuthRequest(r)
 	if err != nil {
 		// If the redirect_uri is not valid, we must not redirect to it.
@@ -274,6 +277,9 @@ func validateCodeChallenge(method, challenge string) (string, error) {
 // code for an access token and ID token. This endpoint is not user-facing, so
 // errors are returned as JSON objects.
 func (h *Handlers) HandleToken(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
 	req, err := h.validateTokenRequest(r, time.Now())
 	if err != nil {
 		log.Ctx(r.Context()).Info().Err(err).Msg("oidc: token request invalid")
@@ -482,6 +488,9 @@ func (h *Handlers) issueIDToken(data *handlers.UserInfoData, clientID string, no
 
 // HandleUserInfo handles a request to the user info endpoint.
 func (h *Handlers) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
 	authz := r.Header.Get("Authorization")
 	if authz == "" {
 		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request missing authorization header")
