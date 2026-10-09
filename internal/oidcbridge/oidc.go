@@ -440,11 +440,11 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 
 func validSession(data *handlers.UserInfoData) error {
 	if data.Session == nil {
-		return fmt.Errorf("no session")
+		return fmt.Errorf("missing session")
+	} else if err := data.Session.Validate(); err != nil {
+		return err
 	} else if _, ok := data.Session.GetClaims()["sub"]; !ok {
 		return fmt.Errorf("missing subject")
-	} else if data.Session.ExpiresAt == nil || data.Session.ExpiresAt.AsTime().Before(time.Now()) {
-		return fmt.Errorf("session expired")
 	}
 	return nil
 }
@@ -463,11 +463,14 @@ func (h *Handlers) issueIDToken(data *handlers.UserInfoData, clientID string, no
 	// upstream application, not the underlying IdP and Pomerium.
 	payload["aud"] = clientID
 	payload["iss"] = h.issuerURL
+	delete(payload, "azp")
 	iat := time.Now().Unix()
 	payload["iat"] = iat
 	payload["exp"] = iat + idTokenValiditySeconds
 	if nonce != "" {
 		payload["nonce"] = nonce
+	} else {
+		delete(payload, "nonce")
 	}
 
 	token, err := jwt.Signed(h.idTokenSigner).Claims(payload).CompactSerialize()
@@ -509,12 +512,8 @@ func (h *Handlers) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := h.getUserInfoData(r, sh)
-	if data.Session == nil {
-		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request data missing session")
-		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_token"})
-		return
-	} else if err := data.Session.Validate(); err != nil {
-		log.Ctx(r.Context()).Info().Err(err).Msg("oidc: userinfo request data has invalid session")
+	if err := validSession(&data); err != nil {
+		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request has invalid session")
 		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_token"})
 		return
 	}
@@ -522,10 +521,9 @@ func (h *Handlers) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	payload := make(map[string]any)
 	identity.CollectClaims(payload, data.User)
 	identity.CollectClaims(payload, data.Session)
-	delete(payload, "iss")
-	delete(payload, "aud")
-	delete(payload, "iat")
-	delete(payload, "exp")
+	for _, k := range []string{"iss", "aud", "azp", "nonce", "iat", "exp"} {
+		delete(payload, k)
+	}
 
 	serveJSON(w, r, payload)
 }

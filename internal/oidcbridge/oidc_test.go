@@ -495,6 +495,7 @@ func TestHandleToken(t *testing.T) {
 		Session: &session.Session{
 			Claims: map[string]*structpb.ListValue{
 				"sub": {Values: []*structpb.Value{structpb.NewStringValue("idp-user-id")}},
+				"azp": {Values: []*structpb.Value{structpb.NewStringValue("pomerium-client-id")}},
 			},
 			ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
 		},
@@ -757,6 +758,16 @@ func TestHandleUserInfo(t *testing.T) {
 			"groups": ["engineering", "employees"]
 		}`, string(b))
 	})
+}
+
+func TestServeJSONError(t *testing.T) {
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/foo", nil)
+	serveJSON(w, r, make(chan struct{}))
+
+	b, err := io.ReadAll(w.Result().Body)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"error": "server_error"}`, string(b))
 }
 
 func exampleConfig() *config.Options {
