@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/cipher"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -38,6 +39,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 type pkceProvider struct {
@@ -852,6 +854,84 @@ func TestSignOutBranding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Contains(t, string(b), `"primaryColor":"red","secondaryColor":"orange"`)
+	})
+}
+
+func TestOIDCHandlers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no oidc_bridge", func(t *testing.T) {
+		t.Parallel()
+
+		// If the oidc_bridge option is not enabled, the handler should not
+		// serve an OIDC metadata document.
+		auth, err := New(t.Context(), config.New(newTestOptions(t)))
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+		auth.Handler().ServeHTTP(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Result().StatusCode)
+	})
+
+	t.Run("stateless flow with oidc_bridge", func(t *testing.T) {
+		t.Parallel()
+
+		// Configure the hosted authenticate URL, to enable the stateless
+		// authenticate flow.
+		opts := newTestOptions(t)
+		opts.AuthenticateURLString = "https://authenticate.pomerium.app"
+		opts.Routes = []config.Policy{
+			{
+				From:       "https://app.example.com",
+				OidcBridge: nullable.From(config.OIDCBridge{}),
+			},
+		}
+
+		var auth *Authenticate
+		var logOutput string
+		ctx := t.Context()
+		logOutput = log.CaptureOutput(ctx, func(ctx context.Context) {
+			var err error
+			auth, err = New(ctx, config.New(opts))
+			require.NoError(t, err)
+		})
+
+		// A warning should be logged.
+		assert.Contains(t, logOutput, "oidc_bridge is not supported with legacy hosted authenticate")
+
+		// The handler should not serve an OIDC metadata document.
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+		auth.Handler().ServeHTTP(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Result().StatusCode)
+	})
+
+	t.Run("oidc_bridge", func(t *testing.T) {
+		t.Parallel()
+
+		opts := newTestOptions(t)
+		opts.Routes = []config.Policy{
+			{
+				From:       "https://app.example.com",
+				OidcBridge: nullable.From(config.OIDCBridge{}),
+			},
+		}
+
+		auth, err := New(t.Context(), config.New(opts))
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+		auth.Handler().ServeHTTP(w, r)
+
+		res := w.Result()
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+
+		// Verify the response is valid JSON.
+		var parsed map[string]any
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&parsed))
+		assert.Equal(t, parsed["issuer"], "https://authenticate.example")
 	})
 }
 

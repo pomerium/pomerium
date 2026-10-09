@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // SessionClaims are claims that are attached to a session so we can store the raw id token.
@@ -144,4 +145,22 @@ func (claims *FlattenedClaims) UnmarshalJSON(data []byte) error {
 	}
 	maps.Copy((*claims), unflattened.Flatten())
 	return nil
+}
+
+type ClaimsGetter interface {
+	GetClaims() map[string]*structpb.ListValue
+}
+
+func CollectClaims(dst map[string]any, c ClaimsGetter) {
+	if c == nil {
+		return
+	}
+
+	for k, lv := range c.GetClaims() {
+		if len(lv.Values) == 1 {
+			dst[k] = lv.Values[0].AsInterface()
+		} else {
+			dst[k] = slices.Map(lv.Values, (*structpb.Value).AsInterface)
+		}
+	}
 }
