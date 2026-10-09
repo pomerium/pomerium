@@ -614,6 +614,61 @@ func runMCPConformance(t *testing.T, mode registrationMode) {
 	//    them as the intended audience"
 	//   "Invalid or expired tokens MUST receive a HTTP 401 response"
 	// ============================================================================
+	// An MCP client holding only its access token must not mint a second grant:
+	// /authorize under the MCP prefix accepts the bearer token as the caller's
+	// identity, so the code it yields names the MCP session as the consenting
+	// session, and the exchange must refuse it.
+	t.Run("mcp_access_token_cannot_consent_for_another_client", func(t *testing.T) {
+		clientA, _ := registerClient(t, "none")
+		verifierA := cryptutil.NewRandomStringN(64)
+		resp, result := doTokenRequest(t, url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {getAuthCode(t, clientA, verifierA)},
+			"redirect_uri":  {redirectURI},
+			"client_id":     {clientA},
+			"code_verifier": {verifierA},
+		}, nil)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		accessToken, _ := result["access_token"].(string)
+		require.NotEmpty(t, accessToken)
+
+		clientB, _ := registerClient(t, "none")
+		verifierB := cryptutil.NewRandomStringN(64)
+		authURL := asMetadata.AuthorizationEndpoint + "?" + url.Values{
+			"response_type":         {"code"},
+			"client_id":             {clientB},
+			"redirect_uri":          {redirectURI},
+			"state":                 {cryptutil.NewRandomStringN(32)},
+			"code_challenge":        {generateS256Challenge(verifierB)},
+			"code_challenge_method": {"S256"},
+		}.Encode()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, authURL, nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		authResp, err := baseHTTPClient().Do(req) // no cookies: no browser session
+		require.NoError(t, err)
+		authResp.Body.Close()
+		location := authResp.Header.Get("Location")
+		t.Logf("/authorize with an MCP bearer token: status=%d location=%s", authResp.StatusCode, location)
+
+		if !strings.HasPrefix(location, redirectURI) {
+			return // no code was issued at all: nothing to redeem
+		}
+		code, _, _ := parseCallbackParams(t, location)
+		require.NotEmpty(t, code)
+		resp, result = doTokenRequest(t, url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code},
+			"redirect_uri":  {redirectURI},
+			"client_id":     {clientB},
+			"code_verifier": {verifierB},
+		}, nil)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		assert.Equal(t, "invalid_grant", result["error"])
+		assert.Empty(t, findMCPBindings(ctx, t, env.NewDataBrokerServiceClient(), clientB),
+			"no grant may exist for the client nobody consented to")
+	})
+
 	t.Run("access_token_validation", func(t *testing.T) {
 		t.Run("missing_token_returns_401_with_www_authenticate", func(t *testing.T) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, mcpServerURL, nil)
