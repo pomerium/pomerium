@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
@@ -349,15 +350,27 @@ func (storage *Storage) PutBoundSession(ctx context.Context, s *session.Session,
 	}
 
 	if _, err := idpsessionpb.GetIDPSession(ctx, storage.client(), idpSessionID); err != nil {
-		if delErr := storage.deleteBoundSession(ctx, s.GetId()); delErr != nil {
+		// The rollback is what keeps a session holding the user's upstream
+		// tokens from staying behind for its whole lifetime, so it runs on its
+		// own deadline: the read may have failed because the client gave up on
+		// the request and its context is cancelled.
+		rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), boundSessionRollbackTimeout)
+		defer cancel()
+		if delErr := storage.deleteBoundSession(rollbackCtx, s.GetId()); delErr != nil {
 			log.Ctx(ctx).Error().Err(delErr).
 				Str("session-id", s.GetId()).
-				Msg("mcp: failed to remove a session bound to an idp session that is gone")
+				Str("idp-session-id", idpSessionID).
+				AnErr("idp-session-read", err).
+				Msg("mcp: failed to roll back a session whose idp session could not be confirmed")
 		}
 		return 0, fmt.Errorf("idp session %q after binding session %q: %w", idpSessionID, s.GetId(), err)
 	}
 	return version, nil
 }
+
+// boundSessionRollbackTimeout bounds the removal of a session and binding that
+// PutBoundSession could not confirm, which runs detached from the request.
+const boundSessionRollbackTimeout = 10 * time.Second
 
 // deleteBoundSession deletes an MCP client session together with its Binding.
 func (storage *Storage) deleteBoundSession(ctx context.Context, sessionID string) error {
