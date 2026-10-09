@@ -263,7 +263,9 @@ During the authorization code exchange (`POST /.pomerium/mcp/token`), Pomerium:
    `idpsession.Binding` of the browser session that consented at `/authorize`
    (`AuthorizationRequest.session_id`), then the `idpsession.IDPSession` it
    points to. If either is missing or belongs to another user, responds with
-   `invalid_grant` (the user signed out before the code was redeemed). So does
+   `invalid_grant` (the user signed out before the code was redeemed), and so
+   if the browser session itself is gone, expired or another user's: the
+   identity manager reaps a dead session's binding only on its next pass. So does
    a binding that is not a browser binding: a code obtained with an MCP access
    token as the caller's identity must not mint a second grant nobody
    consented to. `/authorize` applies the same check before issuing a code
@@ -390,9 +392,9 @@ When the MCP client's access token expires, it presents the refresh token to
 - **IdP session dependency**: MCP client's tokens are only valid while the
   centralized IdP session it is bound to exists. Identity manager propagates
   upstream tokens to the MCP session; when the IdP session is deleted, the MCP
-  binding and session are deleted with it. Propagation keeps the claims the
-  MCP session owns by reading it back first; a session that cannot be read is
-  left out of that propagation and retried on the next reconcile.
+  binding and session are deleted with it. Propagation replaces the session's
+  claims with the IdP session's, so a claim the IdP stops supplying (a group
+  the user was removed from) is dropped as well.
 
 ---
 
