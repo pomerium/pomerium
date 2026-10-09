@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -29,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/hpke"
@@ -218,9 +220,12 @@ func (s *Stateless) SignIn(
 func (s *Stateless) PersistSession(
 	ctx context.Context,
 	w http.ResponseWriter,
+	_ *http.Request,
 	h *session.Handle,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
+	_ /*browserID*/ string,
+	_ /*sid*/ string,
 ) error {
 	idpID := h.IdentityProviderId
 	profile, err := buildIdentityProfile(idpID, claims, accessToken)
@@ -247,10 +252,10 @@ func (s *Stateless) GetUserInfoData(r *http.Request, _ *session.Handle) handlers
 // returning the ID token from the revoked session.
 func (s *Stateless) RevokeSession(
 	ctx context.Context, r *http.Request, authenticator identity.Authenticator, _ *session.Handle,
-) string {
+) SignOutHints {
 	profile, err := loadIdentityProfile(r, s.cookieCipher)
 	if err != nil {
-		return ""
+		return SignOutHints{}
 	}
 
 	oauthToken := new(oauth2.Token)
@@ -259,7 +264,7 @@ func (s *Stateless) RevokeSession(
 		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
 	}
 
-	return string(profile.GetIdToken())
+	return SignOutHints{IDTokenHint: string(profile.GetIdToken())}
 }
 
 // GetIdentityProviderIDForURLValues returns the identity provider ID
@@ -285,7 +290,7 @@ func (s *Stateless) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request
 	return fmt.Errorf("not implemented")
 }
 
-func (s *Stateless) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
+func (s *Stateless) RevokeSessionBinding(_ context.Context, _ *session.Handle, _ string, _ string) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -421,6 +426,17 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 		u = &user.User{Id: h.UserId}
 	}
 	u.PopulateFromClaims(profile.Claims.AsMap())
+	browserID, err := identity.EnsureBrowserIDCookie(r, w, identity.BrowserIDOptions{
+		CookieName: s.options.CookieName,
+		AuthKey:    []byte(s.options.CookieSecret),
+		BrowserID:  uuid.New().String(),
+		SameSite:   s.options.GetCookieSameSite(),
+	})
+	if err != nil {
+		log.Ctx(r.Context()).Info().Err(err).Msg("issuing a new browser ID for OAuth callback")
+	}
+	idpSess := idpsessionpb.NewFromSession(idpSessionID(browserID, u.GetId()), sess, profile.GetClaims(), idpsessionpb.SIDClaim(profile.GetClaims().AsMap()))
+	bindingDetails := browserBindingDetails(r)
 
 	redirectURI, err := getRedirectURIFromValues(values)
 	if err != nil {
@@ -429,10 +445,10 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 
 	// save the records
 	res, err := s.dataBrokerClient.Put(r.Context(), &databroker.PutRequest{
-		Records: []*databroker.Record{
-			databroker.NewRecord(sess),
-			databroker.NewRecord(u),
-		},
+		Records: append(
+			[]*databroker.Record{databroker.NewRecord(idpSess), databroker.NewRecord(u)},
+			idpsessionpb.NewBoundRecords(idpSess.GetId(), idpSess.GetUserId(), idpsessionpb.BindingProtocol_BINDING_PROTOCOL_BROWSER, bindingDetails, sess)...,
+		),
 	})
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving databroker records: %w", err))
