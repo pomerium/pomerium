@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -40,9 +39,6 @@ const (
 	clientOAuthCallbackEndpoint = "/client/oauth/callback"
 )
 
-// AuthenticatorGetter is a function that returns an authenticator for the given IdP ID.
-type AuthenticatorGetter func(ctx context.Context, idpID string) (identity.Authenticator, error)
-
 type Handler struct {
 	prefix  string
 	trace   oteltrace.TracerProvider
@@ -53,9 +49,9 @@ type Handler struct {
 	// prefix: "dcr:" for dynamic client registrations, "mcp:" for upstream token refreshes.
 	singleFlight          singleflight.Group
 	clientMetadataFetcher *ClientMetadataFetcher
-	getAuthenticator      AuthenticatorGetter
-	// accessTokenTTL is the lifetime of the access tokens minted to MCP clients.
-	// It is independent of the MCP client session's own expiry (RefreshTokenTTL).
+	// accessTokenTTL is the lifetime of the access tokens minted to MCP clients,
+	// config.Options.CookieExpire. It is independent of the MCP client session's
+	// own expiry (RefreshTokenTTL).
 	accessTokenTTL time.Duration
 	// httpClient is used for upstream discovery fetches and for the portal-triggered
 	// upstream token refresh. It trusts the CAs configured in the options, the same
@@ -73,23 +69,6 @@ type HandlerOption func(*Handler)
 func WithClientMetadataFetcher(fetcher *ClientMetadataFetcher) HandlerOption {
 	return func(h *Handler) {
 		h.clientMetadataFetcher = fetcher
-	}
-}
-
-// WithAuthenticatorGetter sets the authenticator getter function.
-// This is used to refresh upstream OAuth tokens when recreating sessions.
-func WithAuthenticatorGetter(getter AuthenticatorGetter) HandlerOption {
-	return func(h *Handler) {
-		h.getAuthenticator = getter
-	}
-}
-
-// WithAccessTokenTTL sets the lifetime of the access tokens minted to MCP
-// clients, overriding the default of config.Options.CookieExpire. It does not
-// affect the MCP client session, which lives as long as its refresh token.
-func WithAccessTokenTTL(d time.Duration) HandlerOption {
-	return func(h *Handler) {
-		h.accessTokenTTL = d
 	}
 }
 

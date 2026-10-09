@@ -38,8 +38,6 @@ import (
 	databroker_grpc "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	identitystate "github.com/pomerium/pomerium/pkg/identity/identity"
-	"github.com/pomerium/pomerium/pkg/identity/manager"
 )
 
 // setupTestDatabroker creates a test databroker server and returns a storage instance.
@@ -1319,25 +1317,4 @@ func TestRefreshTokenGrant(t *testing.T) {
 		_, _, err = storage.GetSession(ctx, sessionID)
 		assert.Equal(t, codes.NotFound, status.Code(err), "the revoked session was written back")
 	})
-}
-
-// TestSessionUnmarshalerInRefresh verifies that NewSessionUnmarshaler properly implements
-// identity.State and can receive ID token claims from the upstream IdP during refresh.
-func TestSessionUnmarshalerInRefresh(t *testing.T) {
-	// Verify NewSessionUnmarshaler implements the State interface
-	sess := session.Create("test-idp", "test-session", "test-user", time.Now(), time.Hour)
-	var state identitystate.State = manager.NewSessionUnmarshaler(sess)
-	require.NotNil(t, state)
-
-	// Verify SetRawIDToken doesn't panic (even with invalid token)
-	assert.NotPanics(t, func() {
-		state.SetRawIDToken("some-invalid-token")
-	})
-
-	// Call it multiple times to ensure stability
-	state.SetRawIDToken("")
-	state.SetRawIDToken("another-token")
-
-	// Note: With a valid JWT, the ID token would be parsed and set on the session.
-	// See pkg/identity/manager/data_test.go TestSession_RefreshUpdate for an example with a valid JWT.
 }
