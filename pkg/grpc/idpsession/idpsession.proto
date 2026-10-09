@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package idpsession;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/idpsession";
+
+message IDToken {
+  string                    issuer     = 1;
+  string                    subject    = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  google.protobuf.Timestamp issued_at  = 4;
+  string                    raw        = 5;
+}
+
+message OAuthToken {
+  string                    access_token  = 1;
+  string                    token_type    = 2;
+  google.protobuf.Timestamp expires_at    = 3;
+  string                    refresh_token = 4;
+}
+
+// IDPSession represents a set of tokens returned by an upstream IDP
+// for a given user session obtained by sign-on.
+// They do not necessarily correspond one-to-one with a unique upstream IDP session.
+// An IDPSession's ID should be deterministically derived from the
+// upstream IDP's user ID and some unique client identifying information (e.g. Browser).
+// IDPSession's that share the same SID, correspond to the same upstream
+// IDP session for that user. Otherwise, we treat an IDPSession as a unique
+// upstream IDP session, although this is likely not the case in practice.
+message IDPSession {
+  string id = 1;
+  string raw_id_token = 2;
+  IDToken id_token = 3;
+  OAuthToken oauth_token = 4;
+  google.protobuf.Struct claims = 5;
+  // sid is the "sid" claim of the ID token or the "session_state" oauth callback parameter,
+  // identifying the upstream IDP session the sign-on belongs to. IDPs may not identify sessions using sid.
+  optional string sid = 6;
+  string idp_id = 7;
+  string user_id = 8;
+
+  google.protobuf.Timestamp initiated_at = 9;
+  optional string initiated_by = 10;
+  optional string initiated_by_addr = 11;
+}
+
+enum BindingProtocol {
+  BINDING_PROTOCOL_UNKNOWN = 0;
+  BINDING_PROTOCOL_BROWSER = 1;
+  BINDING_PROTOCOL_MCP = 2;
+}
+
+// Binding binds a Pomerium client session to a given IDPSession and its set of tokens.
+// It is used to map (in a concurrently safe way) which Pomerium client sessions
+// belong to a user's IDP session.
+// Pomerium client sessions are always represented by their own databroker record.
+// In particular, a Binding's ID must match its corresponding bound record's ID. The
+// type of client it is bound to is represented by its type_url field.
+// It acts an authoritative source about the state of the session. If the binding exists,
+// it is active, if not, the client session is no longer valid.
+// The deletion of a binding is expected to (eventually) delete the client session record.
+// A Binding must also point to their parent IDPSession. Deleting an IDPSession is expected
+// to (eventually) delete its associated bindings.
+// Binding IDs should be unique to a client session and never re-used on subsequent bindings
+// of the same client session type.
+message Binding {
+    string id = 1;
+    // type_url is the type_url of the record this binding points to.
+    string type_url = 2;
+    // idp_session_id the parent IDPSession id.
+    string idp_session_id = 3;
+    BindingProtocol protocol = 4;
+    google.protobuf.Timestamp initiated_at = 5;
+    // details holds some user friendly details about
+    // the client of this binding.
+    map<string,string> details = 6;
+    // user_id is the user the parent IDPSession belongs to.
+    string user_id = 7;
+}
