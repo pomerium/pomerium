@@ -321,6 +321,12 @@ When the MCP client's access token expires, it presents the refresh token to
    (the token is still good). Of several requests presenting the same refresh
    token at once, exactly one rotates the session.
 
+   A write that fails for any other reason may still have committed with only
+   its reply lost, in which case the token the client holds is already dead
+   and a server error would send it into `invalid_grant` on retry. So the
+   session is read once more: an `issued_at` equal to the one just written
+   means the write landed, and the tokens are minted from the stored record.
+
 6. **Mint new tokens**:
    - Access token with new version
    - Refresh token with new `issued_at`

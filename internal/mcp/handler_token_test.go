@@ -1155,6 +1155,57 @@ func TestRefreshTokenGrant(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code, "the token must still be good: %s", w.Body.String())
 	})
 
+	t.Run("a write whose reply was lost still hands out the rotated token", func(t *testing.T) {
+		// A conditional write can commit while its reply is lost (a deadline, a
+		// forwarded call whose connection dropped). The stored issued_at has then
+		// moved on, so the token the client holds is already dead. Answering with
+		// a server error, which tells the client its token is still good, makes
+		// the client's retry fail with invalid_grant and forces a re-consent. The
+		// refresh must notice that its write landed and answer with the tokens.
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+		clientID, _, refreshToken := issueViaAuthCode(ctx, t,
+			newHandlerWithStorage(storage, testCipher, 5*time.Minute), storage, "lost-reply-user")
+
+		spy := &tokenTestStorage{
+			Storage: storage,
+			putSessionFunc: func(ctx context.Context, s *session.Session, version uint64) (uint64, error) {
+				if _, err := storage.PutSession(ctx, s, version); err != nil {
+					return 0, err
+				}
+				return 0, status.Error(codes.Unavailable, "transport is closing")
+			},
+		}
+		srv := newHandlerWithStorage(spy, testCipher, 5*time.Minute)
+
+		w := doTokenRequest(srv, url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		})
+		require.Equal(t, http.StatusOK, w.Code, "response body: %s", w.Body.String())
+		var resp map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+
+		// The tokens describe the session as stored: the access token carries
+		// the stored record version and the refresh token is the live generation.
+		accessToken, _ := resp["access_token"].(string)
+		sessionID, tokenVersion, err := srv.GetSessionAndVersionFromAccessToken(accessToken)
+		require.NoError(t, err)
+		_, storedVersion, err := storage.GetSession(ctx, sessionID)
+		require.NoError(t, err)
+		assert.Equal(t, storedVersion, tokenVersion)
+
+		rotated, _ := resp["refresh_token"].(string)
+		w = doTokenRequest(newHandlerWithStorage(storage, testCipher, 5*time.Minute), url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {rotated},
+			"client_id":     {clientID},
+		})
+		assert.Equal(t, http.StatusOK, w.Code, "the rotated token must be live: %s", w.Body.String())
+	})
+
 	t.Run("revocation while a refresh retries is not undone", func(t *testing.T) {
 		// A rewrite forces a retry, and the MCP client is revoked before the retry
 		// reads the session again: revoking deletes the binding and the identity
