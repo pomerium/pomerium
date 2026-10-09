@@ -30,12 +30,9 @@ import (
 // runs many subtests against one shared server and can't tolerate a global TTL
 // short enough to expire mid-test.
 //
-// internal/mcp has no per-handler-instance option hook reachable from the test
-// environment for this (mcp.WithAccessTokenTTL is only ever applied by
-// proxy.go's own call to mcp.New, with no test seam to override it) — but the
-// access token TTL defaults to cfg.Options.CookieExpire (see
-// internal/mcp/handler.go's New), and nothing in the proxy path overrides that
-// default. So this test controls it the same way production does: via config.
+// The access token TTL is cfg.Options.CookieExpire (see internal/mcp/handler.go's
+// New) and nothing else sets it, so this test controls it the same way
+// production does: via config.
 func TestMCPAccessTokenExpiry(t *testing.T) {
 	const accessTokenTTL = 2 * time.Second
 
@@ -48,8 +45,7 @@ func TestMCPAccessTokenExpiry(t *testing.T) {
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCPDynamicClientRegistration] = true
 		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
-		// The MCP access token TTL defaults to CookieExpire; this is what
-		// stands in for mcp.WithAccessTokenTTL here (see comment above).
+		// The MCP access token TTL is CookieExpire (see comment above).
 		cfg.Options.CookieExpire = accessTokenTTL
 	}))
 
