@@ -11,9 +11,9 @@
     "install:browsers": "playwright install chromium"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@playwright/test": "^1.63.0",
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.4",
     "testcontainers": "^12.2.0",
     "typescript": "^7.0.2"
   },
