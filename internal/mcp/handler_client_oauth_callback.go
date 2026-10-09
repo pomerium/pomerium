@@ -194,7 +194,7 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	// If the Authorize endpoint linked an authorization request, complete the MCP OAuth flow
 	// by issuing an authorization code back to the MCP client (via AuthorizationResponse).
 	if pending.AuthReqId != "" {
-		authReq, err := srv.storage.GetAuthorizationRequest(ctx, pending.AuthReqId)
+		authReq, _, err := srv.storage.GetAuthorizationRequest(ctx, pending.AuthReqId)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).
 				Str("auth_req_id", pending.AuthReqId).

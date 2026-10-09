@@ -26,8 +26,15 @@ type HandlerStorage interface {
 	RegisterClient(ctx context.Context, req *rfc7591v1.ClientRegistration) (string, error)
 	GetClient(ctx context.Context, id string) (*rfc7591v1.ClientRegistration, error)
 	CreateAuthorizationRequest(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error)
-	GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
+	// GetAuthorizationRequest returns the request together with its record
+	// version, which ConsumeAuthorizationRequest takes.
+	GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, uint64, error)
 	DeleteAuthorizationRequest(ctx context.Context, id string) error
+	// ConsumeAuthorizationRequest deletes the request behind an authorization
+	// code being redeemed, provided it is still at version. Of several
+	// concurrent redemptions of one code exactly one consumes it; the others
+	// fail with databroker.ErrRecordVersionMismatch.
+	ConsumeAuthorizationRequest(ctx context.Context, id string, version uint64) error
 	// An IdP session or a binding exists only while it is valid: signing out,
 	// revocation and expiry delete it, so both report that as codes.NotFound.
 	GetValidIDPSession(ctx context.Context, id string) (*idpsessionpb.IDPSession, error)
@@ -130,22 +137,40 @@ func (storage *Storage) CreateAuthorizationRequest(
 func (storage *Storage) GetAuthorizationRequest(
 	ctx context.Context,
 	id string,
-) (*oauth21proto.AuthorizationRequest, error) {
+) (*oauth21proto.AuthorizationRequest, uint64, error) {
 	v := new(oauth21proto.AuthorizationRequest)
 	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get authorization request by ID: %w", err)
+		return nil, 0, fmt.Errorf("failed to get authorization request by ID: %w", err)
 	}
 
 	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal authorization request: %w", err)
+		return nil, 0, fmt.Errorf("failed to unmarshal authorization request: %w", err)
 	}
 
-	return v, nil
+	return v, rec.GetRecord().GetVersion(), nil
+}
+
+// ConsumeAuthorizationRequest deletes an authorization request if it is still
+// at version, as returned by GetAuthorizationRequest, so that a code is redeemed
+// at most once however many requests present it at the same time.
+func (storage *Storage) ConsumeAuthorizationRequest(ctx context.Context, id string, version uint64) error {
+	data := protoutil.NewAny(&oauth21proto.AuthorizationRequest{})
+	_, err := databroker.PutIfMatchVersion(ctx, storage.client(), &databroker.Record{
+		Id:        id,
+		Data:      data,
+		Type:      data.TypeUrl,
+		Version:   version,
+		DeletedAt: timestamppb.Now(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to consume authorization request %q: %w", id, err)
+	}
+	return nil
 }
 
 func (storage *Storage) DeleteAuthorizationRequest(

@@ -299,6 +299,25 @@ func (s *tokenTestStorage) counts() (putBoundSessionCalls, putSessionCalls int) 
 	return s.putBoundSessionCalls, s.putSessionCalls
 }
 
+// authReqBarrierStorage holds every authorization-code exchange at its read of
+// the authorization request until n of them have read it, so that all of them
+// go on to redeem a code each saw as unredeemed.
+type authReqBarrierStorage struct {
+	*tokenTestStorage
+	n       int32
+	reads   atomic.Int32
+	allRead chan struct{}
+}
+
+func (s *authReqBarrierStorage) GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, uint64, error) {
+	req, version, err := s.Storage.GetAuthorizationRequest(ctx, id)
+	if s.reads.Add(1) == s.n {
+		close(s.allRead)
+	}
+	<-s.allRead
+	return req, version, err
+}
+
 func TestCreateTokenResponse(t *testing.T) {
 	key := cryptutil.NewKey()
 	testCipher, err := cryptutil.NewAEADCipher(key)
@@ -656,6 +675,51 @@ func TestAuthorizationCodeGrant(t *testing.T) {
 
 		w2 := doTokenRequest(srv, form)
 		assert.Equal(t, http.StatusBadRequest, w2.Code, "the same authorization code must not be redeemable twice")
+	})
+
+	t.Run("concurrent redemption of one code issues one grant", func(t *testing.T) {
+		// Every request is held after reading the authorization request until
+		// all of them have read it, so each sees the code as unredeemed.
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+
+		userID := "concurrent-code-user"
+		signIn(ctx, t, storage, validIDPSession(userID, "test-idp", nil, nil))
+		clientID := registerNoneAuthClient(ctx, t, storage)
+		code, codeVerifier := sealAuthCode(ctx, t, storage, testCipher, clientID, userID, nil)
+
+		const n = 3
+		spy := &authReqBarrierStorage{
+			tokenTestStorage: &tokenTestStorage{Storage: storage},
+			n:                n,
+			allRead:          make(chan struct{}),
+		}
+		srv := newHandlerWithStorage(spy, testCipher, 5*time.Minute)
+
+		form := url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code},
+			"client_id":     {clientID},
+			"code_verifier": {codeVerifier},
+		}
+		results := make(chan *httptest.ResponseRecorder, n)
+		for range n {
+			go func() { results <- doTokenRequest(srv, form) }()
+		}
+		successes := 0
+		for range n {
+			w := <-results
+			if w.Code == http.StatusOK {
+				successes++
+				continue
+			}
+			assert.Equal(t, http.StatusBadRequest, w.Code, "response body: %s", w.Body.String())
+			assert.Contains(t, w.Body.String(), "invalid_grant")
+		}
+		assert.Equal(t, 1, successes, "an authorization code must be redeemed at most once")
+		putBound, _ := spy.counts()
+		assert.Equal(t, 1, putBound, "each redemption minted its own bound MCP session")
 	})
 
 	t.Run("consent recorded from an MCP client session is refused", func(t *testing.T) {

@@ -484,8 +484,12 @@ func (s *testConnectStorage) GetClient(context.Context, string) (*rfc7591v1.Clie
 	panic("unexpected call to GetClient")
 }
 
-func (s *testConnectStorage) GetAuthorizationRequest(context.Context, string) (*oauth21proto.AuthorizationRequest, error) {
+func (s *testConnectStorage) GetAuthorizationRequest(context.Context, string) (*oauth21proto.AuthorizationRequest, uint64, error) {
 	panic("unexpected call to GetAuthorizationRequest")
+}
+
+func (s *testConnectStorage) ConsumeAuthorizationRequest(context.Context, string, uint64) error {
+	panic("unexpected call to ConsumeAuthorizationRequest")
 }
 
 func (s *testConnectStorage) GetSession(context.Context, string) (*session.Session, uint64, error) {
