@@ -25,6 +25,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
@@ -38,6 +39,7 @@ type authorizeTestStorage struct {
 	putUpstreamMCPTokenFunc        func(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
 	deleteUpstreamMCPTokenFunc     func(ctx context.Context, userID, routeID, upstreamServer string) error
 	getPendingUpstreamAuthFunc     func(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
+	getActiveBindingFunc           func(ctx context.Context, id string) (*idpsessionpb.Binding, error)
 }
 
 func (s *authorizeTestStorage) CreateAuthorizationRequest(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error) {
@@ -73,28 +75,24 @@ func (s *authorizeTestStorage) RegisterClient(context.Context, *rfc7591v1.Client
 	panic("unexpected call to RegisterClient")
 }
 
-func (s *authorizeTestStorage) GetAuthorizationRequest(context.Context, string) (*oauth21proto.AuthorizationRequest, error) {
+func (s *authorizeTestStorage) GetAuthorizationRequest(context.Context, string) (*oauth21proto.AuthorizationRequest, uint64, error) {
 	panic("unexpected call to GetAuthorizationRequest")
+}
+
+func (s *authorizeTestStorage) ConsumeAuthorizationRequest(context.Context, string, uint64) error {
+	panic("unexpected call to ConsumeAuthorizationRequest")
 }
 
 func (s *authorizeTestStorage) GetSession(context.Context, string) (*session.Session, uint64, error) {
 	panic("unexpected call to GetSession")
 }
 
-func (s *authorizeTestStorage) PutSession(context.Context, *session.Session) (uint64, error) {
+func (s *authorizeTestStorage) PutSession(context.Context, *session.Session, uint64) (uint64, error) {
 	panic("unexpected call to PutSession")
 }
 
-func (s *authorizeTestStorage) PutMCPRefreshToken(context.Context, *oauth21proto.MCPRefreshToken) error {
-	panic("unexpected call to PutMCPRefreshToken")
-}
-
-func (s *authorizeTestStorage) GetMCPRefreshToken(context.Context, string) (*oauth21proto.MCPRefreshToken, error) {
-	panic("unexpected call to GetMCPRefreshToken")
-}
-
-func (s *authorizeTestStorage) DeleteMCPRefreshToken(context.Context, string) error {
-	panic("unexpected call to DeleteMCPRefreshToken")
+func (s *authorizeTestStorage) PutBoundSession(context.Context, *session.Session, string, map[string]string) (uint64, error) {
+	panic("unexpected call to PutBoundSession")
 }
 
 func (s *authorizeTestStorage) PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error {
@@ -136,6 +134,30 @@ func (s *authorizeTestStorage) GetUpstreamOAuthClient(context.Context, string, s
 
 func (s *authorizeTestStorage) PutUpstreamOAuthClient(context.Context, *oauth21proto.UpstreamOAuthClient) error {
 	panic("unexpected call to PutUpstreamOAuthClient")
+}
+
+func (s *authorizeTestStorage) GetActiveBinding(ctx context.Context, id string) (*idpsessionpb.Binding, error) {
+	if s.getActiveBindingFunc != nil {
+		return s.getActiveBindingFunc(ctx, id)
+	}
+	panic("unexpected call to GetActiveBinding")
+}
+
+// browserBindingFor answers every GetActiveBinding with a browser binding of
+// userID, as a signed-in user's session has.
+func browserBindingFor(userID string) func(context.Context, string) (*idpsessionpb.Binding, error) {
+	return func(_ context.Context, id string) (*idpsessionpb.Binding, error) {
+		return &idpsessionpb.Binding{
+			Id:           id,
+			IdpSessionId: "idp-session",
+			Protocol:     idpsessionpb.BindingProtocol_BINDING_PROTOCOL_BROWSER,
+			UserId:       userID,
+		}, nil
+	}
+}
+
+func (s *authorizeTestStorage) GetValidIDPSession(context.Context, string) (*idpsessionpb.IDPSession, error) {
+	panic("unexpected call to GetIDPSession")
 }
 
 // makeTestJWT creates a minimal JWT with sid and sub claims for testing.
@@ -217,6 +239,7 @@ func TestAuthorize_GetUpstreamMCPToken_StorageError(t *testing.T) {
 	var deletedAuthReqID string
 
 	store := &authorizeTestStorage{
+		getActiveBindingFunc: browserBindingFor(testUserID),
 		createAuthorizationRequestFunc: func(_ context.Context, _ *oauth21proto.AuthorizationRequest) (string, error) {
 			return "test-auth-req-id", nil
 		},
@@ -267,6 +290,7 @@ func TestAuthorize_MissingUpstreamURL_IssuesAuthCode(t *testing.T) {
 	)
 
 	store := &authorizeTestStorage{
+		getActiveBindingFunc: browserBindingFor(testUserID),
 		createAuthorizationRequestFunc: func(_ context.Context, _ *oauth21proto.AuthorizationRequest) (string, error) {
 			return "test-auth-req-id", nil
 		},
@@ -321,6 +345,7 @@ func TestAuthorize_GetUpstreamMCPToken_NotFoundFallsThrough(t *testing.T) {
 	var deleteAuthReqCalled bool
 
 	store := &authorizeTestStorage{
+		getActiveBindingFunc: browserBindingFor(testUserID),
 		createAuthorizationRequestFunc: func(_ context.Context, _ *oauth21proto.AuthorizationRequest) (string, error) {
 			return "test-auth-req-id", nil
 		},
@@ -405,6 +430,7 @@ func TestAuthorize_ExpiredTokenWithRefreshToken_RefreshesSilently(t *testing.T) 
 	var storedToken *oauth21proto.UpstreamMCPToken
 
 	store := &authorizeTestStorage{
+		getActiveBindingFunc: browserBindingFor(testUserID),
 		createAuthorizationRequestFunc: func(_ context.Context, _ *oauth21proto.AuthorizationRequest) (string, error) {
 			return "test-auth-req-id", nil
 		},
@@ -527,6 +553,80 @@ func TestNegotiateTokenEndpointAuthMethod(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			assert.Equal(t, tc.expect, doc.TokenEndpointAuthMethod)
+		})
+	}
+}
+
+// Only a browser session bound to the user's centralized IdP session can
+// consent at /authorize: that binding is what the exchange issues the MCP
+// client's credential from. A session without one (it predates bindings, or
+// is an MCP client presenting its own access token) must get no code at all,
+// rather than a code the token endpoint refuses, which would send the client
+// round the authorization flow again and again.
+func TestAuthorize_RequiresBoundBrowserSession(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	const (
+		testHost        = "test.example.com"
+		testRedirectURI = "https://client.example.com/callback"
+		userID          = "bound-user"
+	)
+	storage := setupTestDatabroker(ctx, t)
+	clientID, err := storage.RegisterClient(ctx, &rfc7591v1.ClientRegistration{
+		ResponseMetadata: &rfc7591v1.Metadata{
+			TokenEndpointAuthMethod: new(rfc7591v1.TokenEndpointAuthMethodNone),
+			RedirectUris:            []string{testRedirectURI},
+		},
+	})
+	require.NoError(t, err)
+	srv := newAuthorizeTestHandler(t, storage, newAutoDiscoveryHosts(testHost, "route-id", ""))
+
+	for i, tc := range []struct {
+		name     string
+		binding  *idpsessionpb.Binding // nil: the session has none
+		consents bool
+	}{
+		{
+			name:     "browser session bound to the user",
+			binding:  &idpsessionpb.Binding{Protocol: idpsessionpb.BindingProtocol_BINDING_PROTOCOL_BROWSER, UserId: userID},
+			consents: true,
+		},
+		{
+			name: "session from before bindings",
+		},
+		{
+			name:    "MCP client session presenting its access token",
+			binding: &idpsessionpb.Binding{Protocol: idpsessionpb.BindingProtocol_BINDING_PROTOCOL_MCP, UserId: userID},
+		},
+		{
+			name:    "browser session bound to another user",
+			binding: &idpsessionpb.Binding{Protocol: idpsessionpb.BindingProtocol_BINDING_PROTOCOL_BROWSER, UserId: "someone-else"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sessionID := fmt.Sprintf("session-%d", i)
+			if tc.binding != nil {
+				tc.binding.Id = sessionID
+				tc.binding.IdpSessionId = "idp-session"
+				putBinding(ctx, t, storage, tc.binding)
+			}
+
+			r := httptest.NewRequest(http.MethodGet, makeAuthorizeURL(t, clientID, testRedirectURI), nil)
+			r.Host = testHost
+			r.Header.Set(httputil.HeaderPomeriumJWTAssertion, makeTestJWT(t, sessionID, userID))
+			w := httptest.NewRecorder()
+			srv.Authorize(w, r)
+
+			if tc.consents {
+				require.Equal(t, http.StatusFound, w.Code, "response body: %s", w.Body.String())
+				loc, err := url.Parse(w.Header().Get("Location"))
+				require.NoError(t, err)
+				assert.NotEmpty(t, loc.Query().Get("code"))
+				return
+			}
+			assert.Equal(t, http.StatusUnauthorized, w.Code, "response body: %s", w.Body.String())
+			assert.Empty(t, w.Header().Get("Location"), "no code may be issued")
 		})
 	}
 }

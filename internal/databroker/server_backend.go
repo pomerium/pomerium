@@ -823,6 +823,14 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 		return err
 	}
 
+	// Expire the records of the retired oauth21.MCPRefreshToken type that an
+	// older version left behind: each holds an upstream IdP refresh token.
+	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.MCPRefreshToken", &databrokerpb.Options{
+		Ttl: durationpb.New(24 * time.Hour),
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 

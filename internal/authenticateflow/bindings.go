@@ -418,15 +418,18 @@ func (b *bindingManager) sessionToBindingData(
 		if err != nil {
 			return handlers.SessionBindingData{}, err
 		}
+		sess := &session.Session{}
+		if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
+			return handlers.SessionBindingData{}, err
+		}
 		switch binding.GetProtocol() {
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_MCP:
-			expiresAt = "Until revoked or IDP expires"
+			// Every refresh re-issues the MCP client session with the lifetime
+			// of the refresh token minted alongside it, so the session's
+			// expires_at is when the client's current refresh token expires.
+			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
 			resource = binding.GetDetails()["mcp_client_id"]
 		case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
-			sess := &session.Session{}
-			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
-				return handlers.SessionBindingData{}, err
-			}
 			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
 			resource = formatBrowserUserAgent(binding.GetDetails()["user-agent"])
 		}

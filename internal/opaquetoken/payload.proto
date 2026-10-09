@@ -44,4 +44,10 @@ message Payload {
   // minimum-version hint when reading that record, providing read-your-writes
   // across databroker replicas. Zero means no hint.
   uint64 record_version = 4;
+  // issued_at is the issued_at of the session generation a refresh token was
+  // minted with (equal to the mint time at issuance). The token endpoint compares
+  // it against the session's current issued_at, so a token from an earlier
+  // generation (one that has since been rotated away) is refused. Unset for
+  // tokens that are not rotated.
+  google.protobuf.Timestamp issued_at = 5;
 }

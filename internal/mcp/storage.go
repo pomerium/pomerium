@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
@@ -14,6 +15,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	idpsessionpb "github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -25,13 +27,31 @@ type HandlerStorage interface {
 	RegisterClient(ctx context.Context, req *rfc7591v1.ClientRegistration) (string, error)
 	GetClient(ctx context.Context, id string) (*rfc7591v1.ClientRegistration, error)
 	CreateAuthorizationRequest(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error)
-	GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
+	// GetAuthorizationRequest returns the request together with its record
+	// version, which ConsumeAuthorizationRequest takes.
+	GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, uint64, error)
 	DeleteAuthorizationRequest(ctx context.Context, id string) error
+	// ConsumeAuthorizationRequest deletes the request behind an authorization
+	// code being redeemed, provided it is still at version. Of several
+	// concurrent redemptions of one code exactly one consumes it; the others
+	// fail with databroker.ErrRecordVersionMismatch.
+	ConsumeAuthorizationRequest(ctx context.Context, id string, version uint64) error
+	// An IdP session or a binding exists only while it is valid: signing out,
+	// revocation and idle cleanup delete it, so both report that as codes.NotFound.
+	GetValidIDPSession(ctx context.Context, id string) (*idpsessionpb.IDPSession, error)
+	GetActiveBinding(ctx context.Context, id string) (*idpsessionpb.Binding, error)
 	GetSession(ctx context.Context, id string) (*session.Session, uint64, error)
-	PutSession(ctx context.Context, s *session.Session) (uint64, error)
-	PutMCPRefreshToken(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
-	GetMCPRefreshToken(ctx context.Context, id string) (*oauth21proto.MCPRefreshToken, error)
-	DeleteMCPRefreshToken(ctx context.Context, id string) error
+	// PutBoundSession creates an MCP client session together with its Binding to
+	// an IDPSession. Used once per consent. If the IDPSession no longer exists
+	// once they are written, or cannot be read, it removes both again and
+	// returns the read's error: codes.NotFound when the IDPSession is gone.
+	PutBoundSession(ctx context.Context, s *session.Session, idpSessionID string, details map[string]string) (uint64, error)
+	// PutSession rewrites an MCP client session alone, never its Binding, and
+	// only if the stored session is still at version (as returned by GetSession).
+	// A concurrent writer that got there first makes it fail with
+	// databroker.ErrRecordVersionMismatch. Used on refresh: rewriting the Binding
+	// could resurrect a revoked client.
+	PutSession(ctx context.Context, s *session.Session, version uint64) (uint64, error)
 	PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
 	GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
 	DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error
@@ -119,22 +139,40 @@ func (storage *Storage) CreateAuthorizationRequest(
 func (storage *Storage) GetAuthorizationRequest(
 	ctx context.Context,
 	id string,
-) (*oauth21proto.AuthorizationRequest, error) {
+) (*oauth21proto.AuthorizationRequest, uint64, error) {
 	v := new(oauth21proto.AuthorizationRequest)
 	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get authorization request by ID: %w", err)
+		return nil, 0, fmt.Errorf("failed to get authorization request by ID: %w", err)
 	}
 
 	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal authorization request: %w", err)
+		return nil, 0, fmt.Errorf("failed to unmarshal authorization request: %w", err)
 	}
 
-	return v, nil
+	return v, rec.GetRecord().GetVersion(), nil
+}
+
+// ConsumeAuthorizationRequest deletes an authorization request if it is still
+// at version, as returned by GetAuthorizationRequest, so that a code is redeemed
+// at most once however many requests present it at the same time.
+func (storage *Storage) ConsumeAuthorizationRequest(ctx context.Context, id string, version uint64) error {
+	data := protoutil.NewAny(&oauth21proto.AuthorizationRequest{})
+	_, err := databroker.PutIfMatchVersion(ctx, storage.client(), &databroker.Record{
+		Id:        id,
+		Data:      data,
+		Type:      data.TypeUrl,
+		Version:   version,
+		DeletedAt: timestamppb.Now(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to consume authorization request %q: %w", id, err)
+	}
+	return nil
 }
 
 func (storage *Storage) DeleteAuthorizationRequest(
@@ -172,84 +210,6 @@ func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Ses
 	}
 
 	return v, rec.GetRecord().GetVersion(), nil
-}
-
-// PutMCPRefreshToken stores an MCP refresh token record.
-func (storage *Storage) PutMCPRefreshToken(
-	ctx context.Context,
-	token *oauth21proto.MCPRefreshToken,
-) error {
-	data := protoutil.NewAny(token)
-	_, err := storage.client().Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{{
-			Id:   token.Id,
-			Data: data,
-			Type: data.TypeUrl,
-		}},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to store MCP refresh token: %w", err)
-	}
-	event := log.Ctx(ctx).Info().
-		Str("record-type", data.TypeUrl).
-		Str("record-id", token.Id).
-		Str("client-id", token.ClientId).
-		Str("user-id", token.UserId).
-		Bool("revoked", token.Revoked).
-		Bool("has-upstream-refresh-token", token.UpstreamRefreshToken != "")
-	if token.IssuedAt != nil {
-		event.Time("issued-at", token.IssuedAt.AsTime())
-	}
-	if token.ExpiresAt != nil {
-		event.Time("expires-at", token.ExpiresAt.AsTime())
-	}
-	event.Msg("stored mcp refresh token")
-	return nil
-}
-
-// GetMCPRefreshToken retrieves an MCP refresh token record by ID.
-func (storage *Storage) GetMCPRefreshToken(
-	ctx context.Context,
-	id string,
-) (*oauth21proto.MCPRefreshToken, error) {
-	v := new(oauth21proto.MCPRefreshToken)
-	rec, err := storage.client().Get(ctx, &databroker.GetRequest{
-		Type: protoutil.GetTypeURL(v),
-		Id:   id,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get MCP refresh token by ID: %w", err)
-	}
-
-	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal MCP refresh token: %w", err)
-	}
-
-	return v, nil
-}
-
-// DeleteMCPRefreshToken removes an MCP refresh token record.
-func (storage *Storage) DeleteMCPRefreshToken(
-	ctx context.Context,
-	id string,
-) error {
-	data := protoutil.NewAny(&oauth21proto.MCPRefreshToken{})
-	_, err := storage.client().Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{{
-			Id:        id,
-			Data:      data,
-			Type:      data.TypeUrl,
-			DeletedAt: timestamppb.Now(),
-		}},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to delete MCP refresh token: %w", err)
-	}
-	log.Ctx(ctx).Info().
-		Str("record-id", id).
-		Msg("deleted mcp refresh token")
-	return nil
 }
 
 // upstreamMCPTokenID builds the composite key for an UpstreamMCPToken record.
@@ -347,9 +307,94 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 	return nil
 }
 
-// PutSession stores a session in the databroker.
-func (storage *Storage) PutSession(ctx context.Context, s *session.Session) (uint64, error) {
-	res, err := session.Put(ctx, storage.client(), s)
+// GetActiveBinding reads a binding; see idpsessionpb.GetActiveBinding.
+func (storage *Storage) GetActiveBinding(ctx context.Context, id string) (*idpsessionpb.Binding, error) {
+	return idpsessionpb.GetActiveBinding(ctx, storage.client(), id)
+}
+
+// GetValidIDPSession reads a centralized IdP session; see
+// idpsessionpb.GetValidIDPSession.
+func (storage *Storage) GetValidIDPSession(ctx context.Context, id string) (*idpsessionpb.IDPSession, error) {
+	return idpsessionpb.GetValidIDPSession(ctx, storage.client(), id)
+}
+
+// PutBoundSession stores an MCP client session and its Binding to the given
+// IDPSession in one write, and returns the session record's version.
+//
+// The caller read the IDPSession before this write, and the user may have signed
+// out since. Sign-out deletes the IDPSession, after which the identity manager
+// deletes the bindings it has seen: never one written later, and never one whose
+// IDPSession is already gone, so such a binding and its session would outlive
+// the sign-out until the session expires. So once both are written the
+// IDPSession is read again. If it still exists, a later sign-out reaches the
+// binding, as long as the identity manager observes both changes in order. If
+// it does not, or cannot be read, the session and binding are removed again
+// (on a detached context, since the request may be gone) and the read's error
+// is returned, codes.NotFound when the IDPSession is gone.
+func (storage *Storage) PutBoundSession(ctx context.Context, s *session.Session, idpSessionID string, details map[string]string) (uint64, error) {
+	res, err := storage.client().Put(ctx, &databroker.PutRequest{
+		Records: idpsessionpb.NewBoundRecords(idpSessionID, s.GetUserId(),
+			idpsessionpb.BindingProtocol_BINDING_PROTOCOL_MCP,
+			details,
+			s,
+		),
+	})
+	if err != nil {
+		return 0, err
+	}
+	version, ok := uint64(0), false
+	for _, record := range res.GetRecords() {
+		if record.GetType() == protoutil.GetTypeURL(s) && record.GetId() == s.GetId() {
+			version, ok = record.GetVersion(), true
+		}
+	}
+	if !ok {
+		return 0, fmt.Errorf("put session response did not contain session record %q", s.GetId())
+	}
+
+	if _, err := idpsessionpb.GetIDPSession(ctx, storage.client(), idpSessionID); err != nil {
+		// The rollback is what keeps a session holding the user's upstream
+		// tokens from staying behind for its whole lifetime, so it runs on its
+		// own deadline: the read may have failed because the client gave up on
+		// the request and its context is cancelled.
+		rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), boundSessionRollbackTimeout)
+		defer cancel()
+		if delErr := storage.deleteBoundSession(rollbackCtx, s.GetId()); delErr != nil {
+			log.Ctx(ctx).Error().Err(delErr).
+				Str("session-id", s.GetId()).
+				Str("idp-session-id", idpSessionID).
+				AnErr("idp-session-read", err).
+				Msg("mcp: failed to roll back a session whose idp session could not be confirmed")
+		}
+		return 0, fmt.Errorf("idp session %q after binding session %q: %w", idpSessionID, s.GetId(), err)
+	}
+	return version, nil
+}
+
+// boundSessionRollbackTimeout bounds the removal of a session and binding that
+// PutBoundSession could not confirm, which runs detached from the request.
+const boundSessionRollbackTimeout = 10 * time.Second
+
+// deleteBoundSession deletes an MCP client session together with its Binding.
+func (storage *Storage) deleteBoundSession(ctx context.Context, sessionID string) error {
+	records := []*databroker.Record{
+		databroker.NewRecord(&session.Session{Id: sessionID}),
+		databroker.NewRecord(&idpsessionpb.Binding{Id: sessionID}),
+	}
+	for _, record := range records {
+		record.DeletedAt = timestamppb.Now()
+	}
+	_, err := storage.client().Put(ctx, &databroker.PutRequest{Records: records})
+	return err
+}
+
+// PutSession stores an MCP client session on its own, leaving its Binding
+// untouched, provided the stored session is still at version. It returns the
+// session record's new version.
+func (storage *Storage) PutSession(ctx context.Context, s *session.Session, version uint64) (uint64, error) {
+	record := databroker.NewRecord(s)
+	record.Version = version
+	res, err := databroker.PutIfMatchVersion(ctx, storage.client(), record)
 	if err != nil {
 		return 0, err
 	}

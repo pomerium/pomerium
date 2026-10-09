@@ -17,7 +17,6 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	dtestutil "github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
@@ -107,8 +106,8 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 
 	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
 		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_MCP, nil,
-		&oauth21.MCPRefreshToken{
-			Id:        "token",
+		&session.Session{
+			Id:        "mcp-session",
 			UserId:    "bob",
 			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
 		},
@@ -165,9 +164,14 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 			}
 		}
 
-		mcp := &oauth21.MCPRefreshToken{Id: "token"}
-		if get(mcp) {
-			assert.Equal(collect, idpSess.GetOauthToken().GetRefreshToken(), mcp.GetUpstreamRefreshToken())
+		mcpSess := &session.Session{Id: "mcp-session"}
+		if get(mcpSess) {
+			assert.Equal(collect, idpSess.GetIdToken().GetIssuer(), mcpSess.GetIdToken().GetIssuer())
+			assert.Equal(collect, idpSess.GetOauthToken().GetAccessToken(), mcpSess.GetOauthToken().GetAccessToken())
+			email := mcpSess.GetClaims()["email"].GetValues()
+			if assert.NotEmpty(collect, email) {
+				assert.Equal(collect, "bob@example.com", email[0].GetStringValue())
+			}
 		}
 	}, 5*time.Second, 10*time.Millisecond)
 
@@ -215,10 +219,10 @@ func TestIdentityManagerHappyPath(t *testing.T) {
 		assert.Equal(collect, codes.NotFound, status.Code(errSess), "session should be deleted after idpsession is deleted")
 
 		_, errTok := client.Get(t.Context(), &databroker.GetRequest{
-			Type: "type.googleapis.com/oauth21.MCPRefreshToken",
-			Id:   "token",
+			Type: "type.googleapis.com/session.Session",
+			Id:   "mcp-session",
 		})
-		assert.Equal(collect, codes.NotFound, status.Code(errTok), "mcp token should be deleted after idpsession is deleted")
+		assert.Equal(collect, codes.NotFound, status.Code(errTok), "mcp session should be deleted after idpsession is deleted")
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
@@ -306,8 +310,8 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 
 	bindingsAndRecords = append(bindingsAndRecords, idpsession.NewBoundRecords(
 		idpSess.Id, "bob", idpsession.BindingProtocol_BINDING_PROTOCOL_MCP, nil,
-		&oauth21.MCPRefreshToken{
-			Id:        "token",
+		&session.Session{
+			Id:        "mcp-session",
 			UserId:    "bob",
 			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
 		},

@@ -23,7 +23,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy/portal"
@@ -83,11 +82,7 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	p.currentConfig.Store(config.New(config.NewDefaultOptions()))
 	p.currentRouter.Store(httputil.NewRouter())
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p,
-			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
-				return cfg.Options.GetAuthenticator(ctx, tracerProvider, idpID)
-			}),
-		)
+		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p)
 		if err != nil {
 			return nil, fmt.Errorf("proxy: failed to create mcp handler: %w", err)
 		}
@@ -131,11 +126,7 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	p.state.Store(state)
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p,
-			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
-				return cfg.Options.GetAuthenticator(ctx, p.tracerProvider, idpID)
-			}),
-		)
+		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update mcp handler from configuration settings")
 		} else {
