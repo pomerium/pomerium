@@ -27,6 +27,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
+func (r *synchronizedReconciler) isReady() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.ready
+}
+
 func TestIdentityManagerHappyPath(t *testing.T) {
 	now := time.Now()
 	zerolog.SetGlobalLevel(zerolog.Disabled)
@@ -249,12 +255,19 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 	ctxca, ca := context.WithCancel(t.Context())
 	t.Cleanup(ca)
 	go mgr.Run(ctxca)
+
+	// there is a chance that while the SyncLatest stream is running that a create+delete operation
+	// ends up missing the delete tombstone, which means depedent records of a deleted binding could
+	// never be cleaned up. This could lead to legitimate bugs.
+	assert.Eventually(t, func() bool {
+		return mgr.identReconciler.isReady()
+	}, time.Second*5, time.Millisecond)
+
 	claims, err := structpb.NewStruct(map[string]any{
 		"email":  "bob@example.com",
 		"groups": []any{"engineering", "developers"},
 	})
 	require.NoError(t, err)
-
 	idpSess := &idpsession.IDPSession{
 		Id:         "foo",
 		UserId:     "bob",
@@ -331,10 +344,9 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 			Id:   "sessionB",
 		})
 		assert.Equal(collect, codes.NotFound, status.Code(err2), "expect binding to be deleted")
-	}, 5*time.Second, 10*time.Millisecond, "revoking binding should delete dependent records")
+	}, 5*time.Second, 100*time.Millisecond, "revoking binding should delete dependent records")
 
-	// deleting the idpsession revokes everything bound to it, and leaves the
-	// user record alone.
+	// deleting the idpsession revokes everything bound to it
 
 	_, revokeErr := storage.DeleteDataBrokerRecord(t.Context(), client, idpSessionTypeURL, "foo")
 	require.NoError(t, revokeErr)
@@ -348,5 +360,5 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 			assert.Equal(collect, codes.NotFound, status.Code(err),
 				fmt.Sprintf("expected %s-%s to be deleted", rec.GetData().GetTypeUrl(), rec.GetId()))
 		}
-	}, 5*time.Second, 10*time.Millisecond)
+	}, 5*time.Second, 100*time.Millisecond)
 }

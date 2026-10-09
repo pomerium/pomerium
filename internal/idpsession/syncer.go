@@ -43,7 +43,7 @@ func newIdentitySyncer(
 }
 
 func (s *identitySyncer) Run(ctx context.Context) error {
-	syncer := databrokerutil.NewSyncer(ctx, "identity-manager-v2", s, databrokerutil.WithFastForward())
+	syncer := databrokerutil.NewSyncer(ctx, "identity-manager-v2", s)
 	defer syncer.Close()
 	return syncer.Run(ctx)
 }
