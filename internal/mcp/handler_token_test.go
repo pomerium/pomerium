@@ -82,18 +82,23 @@ func testIDPSessionID(userID string) string { return "idp-session-" + userID }
 // on userID's behalf.
 func testBrowserSessionID(userID string) string { return "browser-session-" + userID }
 
-// signIn seeds what a browser sign-in leaves behind: the centralized IDPSession and
-// the browser session's Binding to it, which the auth-code exchange resolves the
-// IDPSession through.
+// signIn seeds what a browser sign-in leaves behind: the centralized IDPSession,
+// a live browser session, and that session's Binding to the IDPSession, which
+// the auth-code exchange resolves the IDPSession through.
 func signIn(ctx context.Context, t *testing.T, storage *Storage, idpSess *idpsession.IDPSession) {
 	t.Helper()
+	now := time.Now()
+	browser := &session.Session{
+		Id:        testBrowserSessionID(idpSess.GetUserId()),
+		UserId:    idpSess.GetUserId(),
+		IdpId:     idpSess.GetIdpId(),
+		IssuedAt:  timestamppb.New(now),
+		ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+	}
 	_, err := storage.client().Put(ctx, &databroker_grpc.PutRequest{
-		Records: []*databroker_grpc.Record{
-			databroker_grpc.NewRecord(idpSess),
-			databroker_grpc.NewRecord(idpsession.NewBinding(idpSess.GetId(), idpSess.GetUserId(),
-				idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER,
-				&session.Session{Id: testBrowserSessionID(idpSess.GetUserId())}, nil)),
-		},
+		Records: append([]*databroker_grpc.Record{databroker_grpc.NewRecord(idpSess)},
+			idpsession.NewBoundRecords(idpSess.GetId(), idpSess.GetUserId(),
+				idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, nil, browser)...),
 	})
 	require.NoError(t, err)
 }
@@ -526,6 +531,56 @@ func TestAuthorizationCodeGrant(t *testing.T) {
 			"code_verifier": {codeVerifier},
 		})
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "invalid_grant")
+	})
+
+	t.Run("browser session that expired after consent returns invalid_grant", func(t *testing.T) {
+		// The binding outlives the session until the identity manager reaps
+		// it; in that window the code must not mint a year-long grant from a
+		// consent whose session is no longer valid.
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+		srv := newHandlerWithStorage(storage, testCipher, 5*time.Minute)
+
+		userID := "expired-browser-user"
+		signIn(ctx, t, storage, validIDPSession(userID, "test-idp", nil, nil))
+		_, err = session.Put(ctx, storage.client(), session.Create("test-idp", testBrowserSessionID(userID), userID,
+			time.Now().Add(-2*time.Hour), time.Hour))
+		require.NoError(t, err)
+		clientID := registerNoneAuthClient(ctx, t, storage)
+		code, codeVerifier := sealAuthCode(ctx, t, storage, testCipher, clientID, userID, nil)
+
+		w := doTokenRequest(srv, url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code},
+			"client_id":     {clientID},
+			"code_verifier": {codeVerifier},
+		})
+		assert.Equal(t, http.StatusBadRequest, w.Code, "response body: %s", w.Body.String())
+		assert.Contains(t, w.Body.String(), "invalid_grant")
+	})
+
+	t.Run("browser session deleted before redemption returns invalid_grant", func(t *testing.T) {
+		storage := setupTestDatabroker(ctx, t)
+		testCipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+		srv := newHandlerWithStorage(storage, testCipher, 5*time.Minute)
+
+		userID := "deleted-browser-user"
+		signIn(ctx, t, storage, validIDPSession(userID, "test-idp", nil, nil))
+		err = session.Delete(ctx, storage.client(), testBrowserSessionID(userID))
+		require.NoError(t, err)
+		clientID := registerNoneAuthClient(ctx, t, storage)
+		code, codeVerifier := sealAuthCode(ctx, t, storage, testCipher, clientID, userID, nil)
+
+		w := doTokenRequest(srv, url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code},
+			"client_id":     {clientID},
+			"code_verifier": {codeVerifier},
+		})
+		assert.Equal(t, http.StatusBadRequest, w.Code, "response body: %s", w.Body.String())
 		assert.Contains(t, w.Body.String(), "invalid_grant")
 	})
 

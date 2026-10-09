@@ -560,6 +560,10 @@ func (srv *Handler) resolveBrowserBinding(ctx context.Context, sessionID, userID
 // before the code was redeemed, so no MCP credential may be issued. /authorize
 // refuses such a session before issuing a code, so this is a second line of
 // defense for codes issued by an older build.
+//
+// The browser session itself must still be live, too. A session the identity
+// manager has not yet reaped keeps its binding for a while after it expired
+// or was deleted, and a consent from it must not mint a year-long grant.
 func (srv *Handler) resolveConsentIDPSession(ctx context.Context, authReq *oauth21proto.AuthorizationRequest) (*idpsession.IDPSession, error) {
 	sessionID, userID := authReq.GetSessionId(), authReq.GetUserId()
 	binding, err := srv.resolveBrowserBinding(ctx, sessionID, userID)
@@ -567,6 +571,19 @@ func (srv *Handler) resolveConsentIDPSession(ctx context.Context, authReq *oauth
 		return nil, fmt.Errorf("%w: %w", errInvalidGrant, err)
 	} else if err != nil {
 		return nil, err
+	}
+
+	browser, _, err := srv.storage.GetSession(ctx, sessionID)
+	if status.Code(err) == codes.NotFound {
+		return nil, fmt.Errorf("%w: browser session %q is gone: %w", errInvalidGrant, sessionID, err)
+	} else if err != nil {
+		return nil, fmt.Errorf("get browser session: %w", err)
+	}
+	if browser.GetUserId() != userID {
+		return nil, fmt.Errorf("%w: browser session %q belongs to another user", errInvalidGrant, sessionID)
+	}
+	if expiresAt := browser.GetExpiresAt(); expiresAt != nil && !expiresAt.AsTime().After(time.Now()) {
+		return nil, fmt.Errorf("%w: browser session %q expired at %s", errInvalidGrant, sessionID, expiresAt.AsTime())
 	}
 
 	idpSess, err := srv.resolveIDPSession(ctx, binding.GetIdpSessionId())
