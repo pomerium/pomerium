@@ -526,28 +526,45 @@ func (srv *Handler) recoverLostRefreshWrite(ctx context.Context, written *sessio
 	return stored, version, nil
 }
 
-// resolveConsentIDPSession loads the centralized IdP session the browser
-// session that consented at /authorize is bound to. A browser session that is
-// gone, or bound to another user, wraps errInvalidGrant: the user signed out
-// before the code was redeemed, so no MCP credential may be issued.
-//
-// So does a session that is not a browser session. /authorize accepts an MCP
-// access token as the caller's identity, so an MCP client can obtain a code
-// without a browser; redeeming it would mint a second grant nobody consented to.
-func (srv *Handler) resolveConsentIDPSession(ctx context.Context, authReq *oauth21proto.AuthorizationRequest) (*idpsession.IDPSession, error) {
-	sessionID, userID := authReq.GetSessionId(), authReq.GetUserId()
+// errUnboundSession marks a session a user acts from that is not their browser
+// session bound to a centralized IdP session, which is the only kind that can
+// consent to an MCP client: it has no binding (it predates bindings, or the
+// user signed out), is bound under another protocol (an MCP client presenting
+// its own access token), or is bound to another user.
+var errUnboundSession = errors.New("not a bound browser session")
+
+// resolveBrowserBinding loads the binding of the session a user acts from and
+// checks that it is a browser session of that user. Anything else wraps
+// errUnboundSession; a failure to read the binding is returned as is.
+func (srv *Handler) resolveBrowserBinding(ctx context.Context, sessionID, userID string) (*idpsession.Binding, error) {
 	binding, err := srv.storage.GetActiveBinding(ctx, sessionID)
 	if status.Code(err) == codes.NotFound {
-		return nil, fmt.Errorf("%w: no binding for browser session %q: %w", errInvalidGrant, sessionID, err)
+		return nil, fmt.Errorf("%w: no binding for session %q: %w", errUnboundSession, sessionID, err)
 	} else if err != nil {
 		return nil, fmt.Errorf("get binding: %w", err)
 	}
 	if binding.GetProtocol() != idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER {
-		return nil, fmt.Errorf("%w: session %q is bound as %s, not as a browser session",
-			errInvalidGrant, sessionID, binding.GetProtocol())
+		return nil, fmt.Errorf("%w: session %q is bound as %s", errUnboundSession, sessionID, binding.GetProtocol())
 	}
 	if binding.GetUserId() != userID {
-		return nil, fmt.Errorf("%w: browser session %q is bound to another user", errInvalidGrant, sessionID)
+		return nil, fmt.Errorf("%w: session %q is bound to another user", errUnboundSession, sessionID)
+	}
+	return binding, nil
+}
+
+// resolveConsentIDPSession loads the centralized IdP session the browser
+// session that consented at /authorize is bound to. A session that is not the
+// user's bound browser session wraps errInvalidGrant: the user signed out
+// before the code was redeemed, so no MCP credential may be issued. /authorize
+// refuses such a session before issuing a code, so this is a second line of
+// defense for codes issued by an older build.
+func (srv *Handler) resolveConsentIDPSession(ctx context.Context, authReq *oauth21proto.AuthorizationRequest) (*idpsession.IDPSession, error) {
+	sessionID, userID := authReq.GetSessionId(), authReq.GetUserId()
+	binding, err := srv.resolveBrowserBinding(ctx, sessionID, userID)
+	if errors.Is(err, errUnboundSession) {
+		return nil, fmt.Errorf("%w: %w", errInvalidGrant, err)
+	} else if err != nil {
+		return nil, err
 	}
 
 	idpSess, err := srv.resolveIDPSession(ctx, binding.GetIdpSessionId())

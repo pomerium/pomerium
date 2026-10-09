@@ -235,6 +235,17 @@ bound to the user's centralized `idpsession.IDPSession`, enabling the identity
 manager to keep the client's tokens fresh as long as the user's IdP session
 remains valid. This model is identical to a browser session.
 
+### Consent
+
+Only the user's browser session bound to their centralized IdP session can
+consent at `GET /.pomerium/mcp/authorize`: the exchange issues the MCP
+client's credential from that binding. A session without one is answered with
+`401` and an error page asking the user to sign in again, never with a code:
+the session predates bindings (it was signed in before the upgrade), or the
+caller is an MCP client presenting its own access token, or the binding
+belongs to another user. A code the token endpoint would refuse only sends the
+client round the flow again.
+
 ### Token Issuance
 
 During the authorization code exchange (`POST /.pomerium/mcp/token`), Pomerium:
@@ -249,9 +260,10 @@ During the authorization code exchange (`POST /.pomerium/mcp/token`), Pomerium:
    (`AuthorizationRequest.session_id`), then the `idpsession.IDPSession` it
    points to. If either is missing or belongs to another user, responds with
    `invalid_grant` (the user signed out before the code was redeemed). So does
-   a binding that is not a browser binding: `/authorize` accepts an MCP access
-   token as the caller's identity, and a code obtained that way must not mint a
-   second grant nobody consented to.
+   a binding that is not a browser binding: a code obtained with an MCP access
+   token as the caller's identity must not mint a second grant nobody
+   consented to. `/authorize` applies the same check before issuing a code
+   (see below), so this is a second line of defense.
 
 2. **Issues a client session**: Creates a `session.Session` with:
    - Unique id (UUID)
