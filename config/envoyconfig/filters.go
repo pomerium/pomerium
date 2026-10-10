@@ -111,11 +111,13 @@ func HTTPHeaderMutationsFilter(mutation *envoy_extensions_filters_http_header_mu
 }
 
 // HTTPRouterFilter creates a new HTTP router filter.
-func HTTPRouterFilter() *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
+func HTTPRouterFilter(cfg *config.Config) *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
 	return &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
 		Name: "envoy.filters.http.router",
 		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
-			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_http_router_v3.Router{}),
+			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_http_router_v3.Router{
+				SuppressEnvoyHeaders: cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSuppressEnvoyHeaders),
+			}),
 		},
 	}
 }

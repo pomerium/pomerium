@@ -62,6 +62,9 @@ var (
 
 	// RuntimeFlagSSHUpstreamTunnel enables SSH upstream tunnel support
 	RuntimeFlagSSHUpstreamTunnel = runtimeFlag("ssh_upstream_tunnel", false)
+
+	// RuntimeFlagSuppressEnvoyHeaders suppresses headers added by envoy
+	RuntimeFlagSuppressEnvoyHeaders = runtimeFlag("suppress_envoy_headers", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

@@ -18,7 +18,7 @@ import (
 )
 
 func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
-	filter := b.buildMetricsHTTPConnectionManagerFilter()
+	filter := b.buildMetricsHTTPConnectionManagerFilter(cfg)
 
 	filterChain := &envoy_config_listener_v3.FilterChain{
 		Filters: []*envoy_config_listener_v3.Filter{
@@ -86,7 +86,7 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 	return li, nil
 }
 
-func (b *Builder) buildMetricsHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
+func (b *Builder) buildMetricsHTTPConnectionManagerFilter(cfg *config.Config) *envoy_config_listener_v3.Filter {
 	rc := newRouteConfiguration("metrics", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "metrics",
 		Domains: []string{"*"},
@@ -128,7 +128,7 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() *envoy_config_listen
 			RouteConfig: rc,
 		},
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
-			HTTPRouterFilter(),
+			HTTPRouterFilter(cfg),
 		},
 	})
 }
