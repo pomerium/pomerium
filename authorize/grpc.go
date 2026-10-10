@@ -77,7 +77,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	// on pass-through routes the Authorization header belongs to the
 	// upstream, so neither may be rejected here.
 	cfg := a.currentConfig.Load()
-	if cfg.GetBearerTokenFormatForPolicy(req.Policy) == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT &&
+	req.BearerTokenFormat = cfg.GetBearerTokenFormatForPolicy(req.Policy)
+	if req.BearerTokenFormat == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT &&
 		hasCookieAndBearer(hreq, cfg.Options.CookieName) {
 		log.Ctx(ctx).Info().
 			Str("request-id", requestID).
@@ -194,12 +195,10 @@ func (a *Authorize) getMCPSession(
 		return nil, fmt.Errorf("no authorization header was provided: %w", sessions.ErrNoSessionFound)
 	}
 
-	prefix := "Bearer "
-	if !strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-		return nil, fmt.Errorf("authorization header does not start with %q: %w", prefix, sessions.ErrNoSessionFound)
+	accessToken, ok := httputil.BearerToken(auth)
+	if !ok {
+		return nil, fmt.Errorf("authorization header does not use the Bearer scheme: %w", sessions.ErrNoSessionFound)
 	}
-
-	accessToken := auth[len(prefix):]
 	sessionID, sessionRecordVersion, err := a.state.Load().mcp.GetSessionAndVersionFromAccessToken(accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("no session found for access token: %w: %w", err, sessions.ErrNoSessionFound)
@@ -330,9 +329,7 @@ func hasCookieAndBearer(r *http.Request, cookieName string) bool {
 	// Check the (cheap) Authorization header before parsing cookies: the
 	// common authenticated browser case carries a cookie but no bearer, so
 	// short-circuiting here skips cookie parsing on the hot path.
-	const prefix = "Bearer "
-	auth := r.Header.Get(httputil.HeaderAuthorization)
-	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+	if _, ok := httputil.BearerToken(r.Header.Get(httputil.HeaderAuthorization)); !ok {
 		return false
 	}
 	_, err := r.Cookie(cookieName)
