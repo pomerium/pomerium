@@ -99,46 +99,9 @@ func TestDeleteDeadlock(t *testing.T) {
 func TestPutIfMatchVersionCoordinatesWithOrdinaryCreate(t *testing.T) {
 	t.Parallel()
 
-	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
-		t.Skip("Github action can not run docker on MacOS")
-	}
-
 	ctx := t.Context()
-	backend := New(ctx, testutil.StartPostgres(t))
-	t.Cleanup(func() { _ = backend.Close() })
-
-	_, pool, err := backend.init(ctx)
-	require.NoError(t, err)
-
 	const recordType = "if-match-race-test"
-	const gateKey int64 = 2147483000
-	gate, err := pool.Acquire(ctx)
-	require.NoError(t, err)
-	defer gate.Release()
-	_, err = gate.Exec(ctx, `SELECT pg_advisory_lock($1)`, gateKey)
-	require.NoError(t, err)
-	unlockGate := sync.OnceFunc(func() {
-		_, err := gate.Exec(ctx, `SELECT pg_advisory_unlock($1)`, gateKey)
-		assert.NoError(t, err)
-	})
-	defer unlockGate()
-
-	// an AFTER INSERT trigger parks any insert of recordType on the gate,
-	// keeping the ordinary insert uncommitted until the gate is released
-	_, err = pool.Exec(ctx, `
-		CREATE FUNCTION `+schemaName+`.block_ordinary_create()
-		RETURNS trigger LANGUAGE plpgsql AS $$
-		BEGIN
-			IF NEW.type = '`+recordType+`' THEN
-				PERFORM pg_advisory_xact_lock(`+strconv.FormatInt(gateKey, 10)+`);
-			END IF;
-			RETURN NEW;
-		END $$;
-		CREATE TRIGGER block_ordinary_create
-		AFTER INSERT ON `+schemaName+`.`+recordsTableName+`
-		FOR EACH ROW EXECUTE FUNCTION `+schemaName+`.block_ordinary_create();
-	`)
-	require.NoError(t, err)
+	backend, blockedSessions, unlockGate := startGatedBackend(t, "INSERT", recordType)
 
 	newRecord := func(value string) *databroker.Record {
 		return &databroker.Record{
@@ -148,15 +111,6 @@ func TestPutIfMatchVersionCoordinatesWithOrdinaryCreate(t *testing.T) {
 				"value": protoutil.NewStructString(value),
 			})),
 		}
-	}
-	blockedSessions := func() int {
-		var count int
-		err := pool.QueryRow(ctx, `
-			SELECT count(*) FROM pg_stat_activity
-			WHERE datname = current_database() AND wait_event_type = 'Lock'
-		`).Scan(&count)
-		require.NoError(t, err)
-		return count
 	}
 
 	ordinaryDone := make(chan error, 1)
@@ -188,4 +142,109 @@ func TestPutIfMatchVersionCoordinatesWithOrdinaryCreate(t *testing.T) {
 	require.NoError(t, record.GetData().UnmarshalTo(&value))
 	assert.Equal(t, "ordinary", value.GetStructValue().GetFields()["value"].GetStringValue(),
 		"the committed ordinary value must not be overwritten by a create-if-absent")
+}
+
+// TestPutIfMatchVersionLosesToConcurrentDelete forces an ordinary delete to
+// hold an uncommitted delete while a conditional update at the version last
+// read waits on the same row. Once the delete commits, the conditional write
+// must fail as a mismatch rather than re-create the record.
+func TestPutIfMatchVersionLosesToConcurrentDelete(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	const recordType = "if-match-delete-race-test"
+	backend, blockedSessions, unlockGate := startGatedBackend(t, "DELETE", recordType)
+
+	records := []*databroker.Record{{Type: recordType, Id: "1", Data: protoutil.NewAnyString("v1")}}
+	_, err := backend.Put(ctx, records)
+	require.NoError(t, err)
+	read := records[0].GetVersion()
+
+	deleteDone := make(chan error, 1)
+	go func() {
+		_, err := backend.Put(ctx, []*databroker.Record{
+			{Type: recordType, Id: "1", DeletedAt: timestamppb.Now()},
+		})
+		deleteDone <- err
+	}()
+	require.Eventually(t, func() bool { return blockedSessions() >= 1 }, 10*time.Second, 10*time.Millisecond)
+
+	conditionalDone := make(chan error, 1)
+	go func() {
+		_, err := backend.Put(ctx, []*databroker.Record{
+			{Type: recordType, Id: "1", Version: read, Data: protoutil.NewAnyString("v2")},
+		}, storage.WithIfMatchVersion())
+		conditionalDone <- err
+	}()
+	require.Eventually(t, func() bool { return blockedSessions() >= 2 }, 10*time.Second, 10*time.Millisecond)
+
+	unlockGate()
+	require.NoError(t, <-deleteDone)
+	assert.ErrorIs(t, <-conditionalDone, databroker.ErrRecordVersionMismatch)
+
+	_, err = backend.Get(ctx, recordType, "1")
+	assert.ErrorIs(t, err, storage.ErrNotFound,
+		"a conditional update that lost to a delete must not re-create the record")
+}
+
+// startGatedBackend starts a backend whose records table has an AFTER event
+// ("INSERT" or "DELETE") trigger that parks every such write of recordType on
+// a gate, keeping it uncommitted until unlockGate is called. blockedSessions
+// counts the sessions waiting on a lock.
+func startGatedBackend(t *testing.T, event, recordType string) (backend *Backend, blockedSessions func() int, unlockGate func()) {
+	t.Helper()
+
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
+	ctx := t.Context()
+	backend = New(ctx, testutil.StartPostgres(t))
+	t.Cleanup(func() { _ = backend.Close() })
+
+	_, pool, err := backend.init(ctx)
+	require.NoError(t, err)
+
+	const gateKey int64 = 2147483000
+	gate, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	// if a test fails before unlocking the gate, cancelling the test context
+	// unparks the waiting writes and closing the backend drops the gate
+	t.Cleanup(gate.Release)
+	_, err = gate.Exec(ctx, `SELECT pg_advisory_lock($1)`, gateKey)
+	require.NoError(t, err)
+	unlockGate = sync.OnceFunc(func() {
+		_, err := gate.Exec(ctx, `SELECT pg_advisory_unlock($1)`, gateKey)
+		assert.NoError(t, err)
+	})
+
+	row := "NEW"
+	if event == "DELETE" {
+		row = "OLD"
+	}
+	_, err = pool.Exec(ctx, `
+		CREATE FUNCTION `+schemaName+`.block_write()
+		RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN
+			IF `+row+`.type = '`+recordType+`' THEN
+				PERFORM pg_advisory_xact_lock(`+strconv.FormatInt(gateKey, 10)+`);
+			END IF;
+			RETURN `+row+`;
+		END $$;
+		CREATE TRIGGER block_write
+		AFTER `+event+` ON `+schemaName+`.`+recordsTableName+`
+		FOR EACH ROW EXECUTE FUNCTION `+schemaName+`.block_write();
+	`)
+	require.NoError(t, err)
+
+	blockedSessions = func() int {
+		var count int
+		err := pool.QueryRow(ctx, `
+			SELECT count(*) FROM pg_stat_activity
+			WHERE datname = current_database() AND wait_event_type = 'Lock'
+		`).Scan(&count)
+		require.NoError(t, err)
+		return count
+	}
+	return backend, blockedSessions, unlockGate
 }
