@@ -3169,11 +3169,15 @@ components:
             - boolean
             - "null"
           title: enabled
+          description: Whether the OIDC bridge feature should be enabled.
         clientSecret:
           type:
             - string
             - "null"
           title: client_secret
+          description: |-
+            Client secret to use for upstream applications that do not support
+             public clients / PKCE.
       title: OIDCBridge
       additionalProperties: false
       description: |-
