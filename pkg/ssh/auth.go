@@ -230,7 +230,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	if err != nil {
 		return AuthMethodResponse{}, err
 	}
-	_, session, err := a.resolveSessionV2(ctx, sessionBindingID)
+	_, session, err := a.resolveSession(ctx, sessionBindingID)
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			// No session, and one is required
@@ -683,7 +683,7 @@ func (a *Auth) handleLogin(
 		var binding *idpsession.Binding
 		var lastError error
 		err := backoff.Retry(func() error {
-			binding, _, lastError = a.resolveSessionV2(ctxca, bindingKey)
+			binding, _, lastError = a.resolveSession(ctxca, bindingKey)
 			if lastError != nil {
 				if databroker.IsNotFound(lastError) {
 					return lastError
@@ -839,7 +839,7 @@ func buildSSHRecordingConfig(sessionID, userID string) *corev3.TypedExtensionCon
 }
 
 func (a *Auth) GetSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) (*session.Session, error) {
-	_, session, err := a.resolveSessionV2(ctx, authInfo.GetSessionBindingId())
+	_, session, err := a.resolveSession(ctx, authInfo.GetSessionBindingId())
 	if err != nil {
 		return nil, err
 	}
@@ -847,7 +847,7 @@ func (a *Auth) GetSession(ctx context.Context, _ StreamInfo, authInfo StreamAuth
 }
 
 func (a *Auth) DeleteSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) error {
-	binding, sess, err := a.resolveSessionV2(ctx, authInfo.GetSessionBindingId())
+	binding, sess, err := a.resolveSession(ctx, authInfo.GetSessionBindingId())
 	if err != nil {
 		return err
 	}
@@ -898,7 +898,7 @@ var _ AuthInterface = (*Auth)(nil)
 
 var errInvalidFingerprint = errors.New("invalid public key fingerprint")
 
-func (a *Auth) resolveSessionV2(ctx context.Context, id string) (*idpsession.Binding, *session.Session, error) {
+func (a *Auth) resolveSession(ctx context.Context, id string) (*idpsession.Binding, *session.Session, error) {
 	binding := &idpsession.Binding{}
 	sess := &session.Session{}
 	bindResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{

@@ -384,8 +384,6 @@ func (s *Stateful) handleSignIn(
 	}).ServeHTTP(w, r)
 }
 
-func sshSessionDetails(sbr *session.SessionBindingRequest) {}
-
 func (s *Stateful) constructSSHSession(
 	ctx context.Context,
 	h *session.Handle,
@@ -476,16 +474,6 @@ func (s *Stateful) GetSessionBindingInfo(
 		BindingData:             bindings,
 	}).ServeHTTP(w, r)
 	return nil
-}
-
-func (s *Stateful) redirectToSessionBindingInfo(w http.ResponseWriter, r *http.Request) {
-	redirectTo := r.Referer()
-	if redirectTo == "" {
-		redirectURL := *r.URL
-		redirectURL.Path = "/.pomerium/session_binding_info"
-		redirectTo = redirectURL.String()
-	}
-	httputil.Redirect(w, r, redirectTo, http.StatusFound)
 }
 
 func (s *Stateful) RevokeSessionBinding(
@@ -739,23 +727,6 @@ func (s *Stateful) VerifySession(
 		return fmt.Errorf("session not found in databroker: %w", err)
 	}
 	return sess.Validate()
-}
-
-func (s *Stateful) sessionExpiresAt(ctx context.Context, h *session.Handle) (*time.Time, error) {
-	sess, err := session.Get(ctx, s.dataBrokerClient, h.Id)
-	if err != nil {
-		return nil, fmt.Errorf("session not found in databroker: %w", err)
-	}
-
-	if expiresAt := sess.GetExpiresAt(); expiresAt != nil {
-		t := expiresAt.AsTime()
-		return &t, nil
-	}
-	if expiresAt := sess.GetOauthToken().GetExpiresAt(); expiresAt != nil {
-		t := expiresAt.AsTime()
-		return &t, nil
-	}
-	return nil, nil
 }
 
 // LogAuthenticateEvent is a no-op for the stateful authentication flow.
