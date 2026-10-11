@@ -13,7 +13,6 @@ import (
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	nooptrace "go.opentelemetry.io/otel/trace/noop"
@@ -30,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
@@ -355,24 +355,22 @@ func TestInitialPublicKeyRequestWithNoSession(t *testing.T) {
 func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 	user := mustNewUserRequest(t, "username", "hostname")
 	sshKey1 := newPublicKey(t, newSSHKey(t).Public())
-	sessionID := uuid.NewString()
 	userID := "user"
 
 	sessionBindingID := sessionBindingIDFromPublicKey(sshKey1)
+	sessionID := sessionBindingID
 	databrokerClient := fakeDataBrokerServiceClient{
 		get: func(_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 			switch in.Type {
-			case "type.googleapis.com/session.SessionBinding":
+			case "type.googleapis.com/idpsession.Binding":
 				assert.Equal(t, sessionBindingID, in.Id)
 				return &databroker.GetResponse{
 					Record: &databroker.Record{
-						Type: "type.googleapis.com/session.SessionBinding",
-						Data: protoutil.NewAny(&session.SessionBinding{
-							Protocol:  session.ProtocolSSH,
-							IssuedAt:  timestamppb.New(time.Now().Add(-1 * time.Minute)),
-							ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 1000)),
-							SessionId: sessionID,
-							UserId:    userID,
+						Type: "type.googleapis.com/idpsession.Binding",
+						Data: protoutil.NewAny(&idpsession.Binding{
+							Id:       sessionBindingID,
+							Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
+							UserId:   userID,
 						}),
 					},
 				}, nil
@@ -382,8 +380,9 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 					Record: &databroker.Record{
 						Type: "type.googleapis.com/session.Session",
 						Data: protoutil.NewAny(&session.Session{
-							Id:     sessionID,
-							UserId: userID,
+							Id:        sessionID,
+							UserId:    userID,
+							ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 1000)),
 						}),
 					},
 				}, nil
@@ -637,66 +636,52 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 			expectedErrorContains string
 		}
 
+		bindingRecord := func(protocol idpsession.BindingProtocol) *databroker.Record {
+			return &databroker.Record{
+				Type: "type.googleapis.com/idpsession.Binding",
+				Data: protoutil.NewAny(&idpsession.Binding{Protocol: protocol}),
+			}
+		}
+		sessionRecord := func(expiresAt time.Time) *databroker.Record {
+			return &databroker.Record{
+				Type: "type.googleapis.com/session.Session",
+				Data: protoutil.NewAny(&session.Session{ExpiresAt: timestamppb.New(expiresAt)}),
+			}
+		}
 		tcs := []testcase{
 			// both not found
 			{
 				retSessionBinding: nil,
 				retSession:        nil,
 			},
-			// binding expired
+			// session expired
 			{
-				retSessionBinding: &databroker.Record{
-					Type: "type.googleapis.com/session.SessionBinding",
-					Data: protoutil.NewAny(&session.SessionBinding{
-						ExpiresAt: timestamppb.New(time.Now().Add(-time.Minute)),
-					}),
-				},
-				retSession: nil,
+				retSessionBinding: bindingRecord(idpsession.BindingProtocol_BINDING_PROTOCOL_SSH),
+				retSession:        sessionRecord(time.Now().Add(-time.Minute)),
 			},
 			// binding valid, but no such session
 			{
-				retSessionBinding: &databroker.Record{
-					Type: "type.googleapis.com/session.SessionBinding",
-					Data: protoutil.NewAny(&session.SessionBinding{
-						Protocol:  session.ProtocolSSH,
-						ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
-					}),
-				},
-				retSession: nil,
+				retSessionBinding: bindingRecord(idpsession.BindingProtocol_BINDING_PROTOCOL_SSH),
+				retSession:        nil,
 			},
 			// binding valid, but wrong protocol
 			{
-				retSessionBinding: &databroker.Record{
-					Type: "type.googleapis.com/session.SessionBinding",
-					Data: protoutil.NewAny(&session.SessionBinding{
-						Protocol:  "not-ssh",
-						ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
-					}),
-				},
-				retSession:            nil,
+				retSessionBinding:     bindingRecord(idpsession.BindingProtocol_BINDING_PROTOCOL_MCP),
+				retSession:            sessionRecord(time.Now().Add(time.Hour)),
 				expectedErrorContains: "invalid protocol",
 			},
 			// binding deleted
 			{
 				retSessionBinding: &databroker.Record{
-					Type: "type.googleapis.com/session.SessionBinding",
-					Data: protoutil.NewAny(&session.SessionBinding{
-						Protocol:  session.ProtocolSSH,
-						ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
-					}),
+					Type:      "type.googleapis.com/idpsession.Binding",
+					Data:      protoutil.NewAny(&idpsession.Binding{Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH}),
 					DeletedAt: timestamppb.Now(),
 				},
 				retSession: nil,
 			},
 			// binding valid, but session deleted
 			{
-				retSessionBinding: &databroker.Record{
-					Type: "type.googleapis.com/session.SessionBinding",
-					Data: protoutil.NewAny(&session.SessionBinding{
-						Protocol:  session.ProtocolSSH,
-						ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
-					}),
-				},
+				retSessionBinding: bindingRecord(idpsession.BindingProtocol_BINDING_PROTOCOL_SSH),
 				retSession: &databroker.Record{
 					Type: "type.googleapis.com/session.Session",
 					Data: protoutil.NewAny(&session.Session{
@@ -707,38 +692,21 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 			},
 			// binding valid, but session expired
 			{
-				retSessionBinding: &databroker.Record{
-					Type: "type.googleapis.com/session.SessionBinding",
-					Data: protoutil.NewAny(&session.SessionBinding{
-						Protocol:  session.ProtocolSSH,
-						ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
-					}),
-				},
-				retSession: &databroker.Record{
-					Type: "type.googleapis.com/session.Session",
-					Data: protoutil.NewAny(&session.Session{
-						ExpiresAt: timestamppb.New(time.Now().Add(-time.Hour)),
-					}),
-				},
+				retSessionBinding: bindingRecord(idpsession.BindingProtocol_BINDING_PROTOCOL_SSH),
+				retSession:        sessionRecord(time.Now().Add(-time.Hour)),
 			},
 			// binding has wrong data type
 			{
 				retSessionBinding: &databroker.Record{
-					Type: "type.googleapis.com/session.SessionBinding",
+					Type: "type.googleapis.com/idpsession.Binding",
 					Data: protoutil.NewAny(&wrapperspb.StringValue{Value: "not a session binding"}),
 				},
-				retSession:            nil,
+				retSession:            sessionRecord(time.Now().Add(time.Hour)),
 				expectedErrorContains: "mismatched message type",
 			},
 			// binding valid, but session has wrong data type
 			{
-				retSessionBinding: &databroker.Record{
-					Type: "type.googleapis.com/session.SessionBinding",
-					Data: protoutil.NewAny(&session.SessionBinding{
-						Protocol:  session.ProtocolSSH,
-						ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
-					}),
-				},
+				retSessionBinding: bindingRecord(idpsession.BindingProtocol_BINDING_PROTOCOL_SSH),
 				retSession: &databroker.Record{
 					Type: "type.googleapis.com/session.Session",
 					Data: protoutil.NewAny(&wrapperspb.StringValue{Value: "not a session"}),
@@ -751,7 +719,7 @@ func TestInitialPublicKeyRequestWithExistingValidSession(t *testing.T) {
 			client := fakeDataBrokerServiceClient{
 				get: func(_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 					switch in.Type {
-					case "type.googleapis.com/session.SessionBinding":
+					case "type.googleapis.com/idpsession.Binding":
 						if tc.retSessionBinding == nil {
 							return nil, status.Error(codes.NotFound, "not found")
 						}
@@ -895,23 +863,22 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		assert.ErrorContains(t, err, "url does not contain a valid scheme")
 	})
 
-	validRecordsClient := func(sessionID string) fakeDataBrokerServiceClient {
+	validRecordsClient := func(_ string) fakeDataBrokerServiceClient {
 		return fakeDataBrokerServiceClient{
 			get: func(
 				_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption,
 			) (*databroker.GetResponse, error) {
 				switch r.Type {
-				case "type.googleapis.com/session.SessionBinding":
+				case "type.googleapis.com/idpsession.Binding":
 					if r.Id == sessionBindingID {
 						return &databroker.GetResponse{
 								Record: &databroker.Record{
 									Id:   sessionBindingID,
-									Type: "type.googleapis.com/session.SessionBinding",
-									Data: protoutil.NewAny(&session.SessionBinding{
-										Protocol:  session.ProtocolSSH,
-										UserId:    "fake.user@example.com",
-										SessionId: sessionID,
-										ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 100000)),
+									Type: "type.googleapis.com/idpsession.Binding",
+									Data: protoutil.NewAny(&idpsession.Binding{
+										Id:       sessionBindingID,
+										Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
+										UserId:   "fake.user@example.com",
 									}),
 								},
 							},
@@ -919,10 +886,10 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 					}
 					return nil, fmt.Errorf("not found")
 				case "type.googleapis.com/session.Session":
-					if r.Id == sessionID {
+					if r.Id == sessionBindingID {
 						return &databroker.GetResponse{
 							Record: &databroker.Record{
-								Id:   sessionID,
+								Id:   sessionBindingID,
 								Type: "type.googleapis.com/session.Session",
 								Data: protoutil.NewAny(&session.Session{
 									UserId:    "fake.user@example.com",
@@ -942,7 +909,7 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 		}
 	}
 	t.Run("ok", func(t *testing.T) {
-		sessionID := "some-opaque-id-set-by-idp"
+		sessionID := sessionBindingID
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
 		a := ssh.NewAuth(staticFakePolicyEvaluator(evalResultAlwaysAllow, validRecordsClient(sessionID)), minimalConfig(idpURL), &nooptrace.TracerProvider{}, &fakeIssuer{
@@ -1173,24 +1140,22 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 	})
 
 	t.Run("denied : error retrieving parent session", func(t *testing.T) {
-		sessionID := "some-opaque-id-set-by-idp"
 		// var putRecords []*databroker.Record
 		client := fakeDataBrokerServiceClient{
 			get: func(
 				_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption,
 			) (*databroker.GetResponse, error) {
 				switch r.Type {
-				case "type.googleapis.com/session.SessionBinding":
+				case "type.googleapis.com/idpsession.Binding":
 					if r.Id == sessionBindingID {
 						return &databroker.GetResponse{
 								Record: &databroker.Record{
 									Id:   sessionBindingID,
-									Type: "type.googleapis.com/session.SessionBinding",
-									Data: protoutil.NewAny(&session.SessionBinding{
-										Protocol:  session.ProtocolSSH,
-										UserId:    "fake.user@example.com",
-										SessionId: sessionID,
-										ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 100000)),
+									Type: "type.googleapis.com/idpsession.Binding",
+									Data: protoutil.NewAny(&idpsession.Binding{
+										Id:       sessionBindingID,
+										Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
+										UserId:   "fake.user@example.com",
 									}),
 								},
 							},
@@ -1228,23 +1193,21 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 	})
 
 	t.Run("denied : session record lookup timeout", func(t *testing.T) {
-		sessionID := "some-opaque-id-set-by-idp"
 		client := fakeDataBrokerServiceClient{
 			get: func(
 				_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption,
 			) (*databroker.GetResponse, error) {
 				switch r.Type {
-				case "type.googleapis.com/session.SessionBinding":
+				case "type.googleapis.com/idpsession.Binding":
 					if r.Id == sessionBindingID {
 						return &databroker.GetResponse{
 								Record: &databroker.Record{
 									Id:   sessionBindingID,
-									Type: "type.googleapis.com/session.SessionBinding",
-									Data: protoutil.NewAny(&session.SessionBinding{
-										Protocol:  session.ProtocolSSH,
-										UserId:    "fake.user@example.com",
-										SessionId: sessionID,
-										ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 1000)),
+									Type: "type.googleapis.com/idpsession.Binding",
+									Data: protoutil.NewAny(&idpsession.Binding{
+										Id:       sessionBindingID,
+										Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
+										UserId:   "fake.user@example.com",
 									}),
 								},
 							},
@@ -1286,16 +1249,15 @@ func TestKeyboardInteractiveLoginRequest(t *testing.T) {
 				_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption,
 			) (*databroker.GetResponse, error) {
 				switch r.Type {
-				case "type.googleapis.com/session.SessionBinding":
+				case "type.googleapis.com/idpsession.Binding":
 					return &databroker.GetResponse{
 						Record: &databroker.Record{
-							Type: "type.googleapis.com/session.SessionBinding",
+							Type: "type.googleapis.com/idpsession.Binding",
 							Id:   sessionBindingID,
-							Data: protoutil.NewAny(&session.SessionBinding{
-								Protocol:  session.ProtocolSSH,
-								ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 1000)),
-								SessionId: "fake-session-id",
-								UserId:    "fake-user-id",
+							Data: protoutil.NewAny(&idpsession.Binding{
+								Id:       sessionBindingID,
+								Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
+								UserId:   "fake-user-id",
 							}),
 						},
 					}, nil
@@ -1346,13 +1308,13 @@ func TestFormatSession(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		// TODO : this also has to lookup session binding -> session
 		exp := time.Now().Add(1 * time.Minute)
-		sessionID := "some-opaque-id"
+		const bindingID = "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
+		sessionID := bindingID
 		userID := "USER-ID"
 		claims := identity.FlattenedClaims{
 			"foo":  []any{"bar", "baz"},
 			"quux": []any{42},
 		}
-		const bindingID = "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
 		client := fakeDataBrokerServiceClient{
 			get: func(_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 				switch r.Type {
@@ -1370,16 +1332,15 @@ func TestFormatSession(t *testing.T) {
 							}),
 						},
 					}, nil
-				case "type.googleapis.com/session.SessionBinding":
+				case "type.googleapis.com/idpsession.Binding":
 					assert.Equal(t, bindingID, r.Id)
 					return &databroker.GetResponse{
 						Record: &databroker.Record{
 							Id:   bindingID,
-							Type: "type.googleapis.com/session.SessionBinding",
-							Data: protoutil.NewAny(&session.SessionBinding{
-								Protocol:  session.ProtocolSSH,
-								SessionId: sessionID,
-								ExpiresAt: timestamppb.New(exp),
+							Type: "type.googleapis.com/idpsession.Binding",
+							Data: protoutil.NewAny(&idpsession.Binding{
+								Id:       bindingID,
+								Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
 							}),
 						},
 					}, nil
@@ -1409,7 +1370,7 @@ func TestDeleteSession(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		putError := errors.New("sentinel")
 		const bindingID = "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
-		const sessionID = "session-id-1"
+		const sessionID = bindingID
 		client := fakeDataBrokerServiceClient{
 			get: func(_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 				switch r.Type {
@@ -1425,16 +1386,15 @@ func TestDeleteSession(t *testing.T) {
 							}),
 						},
 					}, nil
-				case "type.googleapis.com/session.SessionBinding":
+				case "type.googleapis.com/idpsession.Binding":
 					assert.Equal(t, bindingID, r.Id)
 					return &databroker.GetResponse{
 						Record: &databroker.Record{
 							Id:   bindingID,
-							Type: "type.googleapis.com/session.SessionBinding",
-							Data: protoutil.NewAny(&session.SessionBinding{
-								Protocol:  session.ProtocolSSH,
-								SessionId: sessionID,
-								ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+							Type: "type.googleapis.com/idpsession.Binding",
+							Data: protoutil.NewAny(&idpsession.Binding{
+								Id:       bindingID,
+								Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
 							}),
 						},
 					}, nil
@@ -1445,9 +1405,11 @@ func TestDeleteSession(t *testing.T) {
 			put: func(
 				_ context.Context, in *databroker.PutRequest, _ ...grpc.CallOption,
 			) (*databroker.PutResponse, error) {
-				require.Len(t, in.Records, 1)
-				assert.Equal(t, in.Records[0].Id, sessionID)
-				assert.NotNil(t, in.Records[0].DeletedAt)
+				require.Len(t, in.Records, 2)
+				for _, record := range in.Records {
+					assert.Equal(t, sessionID, record.Id)
+					assert.NotNil(t, record.DeletedAt)
+				}
 				return nil, putError
 			},
 		}
@@ -1501,13 +1463,12 @@ func newValidGetClient() databroker.DataBrokerServiceClient {
 						Data: protoutil.NewAny(&session.Session{}),
 					},
 				}, nil
-			case "type.googleapis.com/session.SessionBinding":
+			case "type.googleapis.com/idpsession.Binding":
 				return &databroker.GetResponse{
 					Record: &databroker.Record{
-						Type: "type.googleapis.com/session.SessionBinding",
-						Data: protoutil.NewAny(&session.SessionBinding{
-							Protocol:  session.ProtocolSSH,
-							ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 1000)),
+						Type: "type.googleapis.com/idpsession.Binding",
+						Data: protoutil.NewAny(&idpsession.Binding{
+							Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
 						}),
 					},
 				}, nil

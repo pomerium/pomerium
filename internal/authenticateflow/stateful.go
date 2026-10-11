@@ -65,9 +65,8 @@ type Stateful struct {
 
 	defaultIdentityProviderID string
 
-	codeReader  code.Reader
-	codeRevoker code.Revoker
-	bindingMgr  BindingManager
+	codeReader code.Reader
+	bindingMgr BindingManager
 
 	signInHandler SSHSignInHandler
 }
@@ -153,7 +152,6 @@ func NewStateful(
 	s.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
 	s.bindingMgr = NewBindingManager(s.dataBrokerClient)
 	s.codeReader = code.NewReader(databroker.NewStaticClientGetter(s.dataBrokerClient))
-	s.codeRevoker = code.NewRevoker(databroker.NewStaticClientGetter(s.dataBrokerClient))
 	return s, nil
 }
 
@@ -279,7 +277,7 @@ func (s *Stateful) AuthenticatePendingSession(
 		sbr.State = session.SessionBindingRequestState_Revoked
 		_, err := s.dataBrokerClient.Put(r.Context(), &databroker.PutRequest{
 			Records: []*databroker.Record{
-				&databroker.Record{
+				{
 					Type: protoutil.GetTypeURL(sbr),
 					Id:   sbr.Key,
 					Data: protoutil.NewAny(sbr),

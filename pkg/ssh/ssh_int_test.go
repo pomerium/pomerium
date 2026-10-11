@@ -1728,7 +1728,7 @@ allow:
 	_, err = dbClient.Put(s.env.Context(), &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
-				Type:       "type.googleapis.com/session.SessionBinding",
+				Type:       "type.googleapis.com/idpsession.Binding",
 				Id:         sessionBindingID,
 				ModifiedAt: timestamppb.Now(),
 				DeletedAt:  timestamppb.Now(),
