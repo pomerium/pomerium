@@ -252,7 +252,6 @@ func (b *bindingManager) RevokeBinding(ctx context.Context, bindingID BindingID)
 }
 
 func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingData, error) {
-
 	idpSessionBindings, err := b.queryBindings(ctx, h.UserId)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
