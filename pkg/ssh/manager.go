@@ -427,7 +427,7 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 			eCtx,
 			"ssh-auth-session-binding-sync",
 			sm.bindingSyncer,
-			databrokerutil.WithTypeURL("type.googleapis.com/session.SessionBinding"),
+			databrokerutil.WithTypeURL("type.googleapis.com/idpsession.Binding"),
 		)
 		return syncer.Run(eCtx)
 	})
