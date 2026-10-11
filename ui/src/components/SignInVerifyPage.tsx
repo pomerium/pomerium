@@ -148,8 +148,8 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
           <FormControlLabel
             control={
               <Checkbox
-                id="create-id-binding"
-                name="create_id_binding"
+                id="remember-me"
+                name="remember_me"
                 value="true"
                 size="small"
                 slotProps={{ input: { form: "authorize-form" } }}

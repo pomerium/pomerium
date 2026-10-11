@@ -122,7 +122,7 @@ func (x StreamAccessRequest_State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StreamAccessRequest_State.Descriptor instead.
 func (StreamAccessRequest_State) EnumDescriptor() ([]byte, []int) {
-	return file_session_proto_rawDescGZIP(), []int{6, 0}
+	return file_session_proto_rawDescGZIP(), []int{4, 0}
 }
 
 type IDToken struct {
@@ -513,164 +513,6 @@ func (x *SessionBindingRequest) GetDetails() map[string]string {
 	return nil
 }
 
-// A SessionBinding represents an association between a protocol-specific key
-// and a session record, authorized by the user associated with the session.
-type SessionBinding struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	Protocol  string                 `protobuf:"bytes,1,opt,name=protocol,proto3" json:"protocol,omitempty"`
-	SessionId string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	UserId    string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	IssuedAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=issued_at,json=issuedAt,proto3" json:"issued_at,omitempty"`
-	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	// Protocol level details associated with session creation.
-	Details       map[string]string `protobuf:"bytes,6,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SessionBinding) Reset() {
-	*x = SessionBinding{}
-	mi := &file_session_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SessionBinding) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SessionBinding) ProtoMessage() {}
-
-func (x *SessionBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SessionBinding.ProtoReflect.Descriptor instead.
-func (*SessionBinding) Descriptor() ([]byte, []int) {
-	return file_session_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *SessionBinding) GetProtocol() string {
-	if x != nil {
-		return x.Protocol
-	}
-	return ""
-}
-
-func (x *SessionBinding) GetSessionId() string {
-	if x != nil {
-		return x.SessionId
-	}
-	return ""
-}
-
-func (x *SessionBinding) GetUserId() string {
-	if x != nil {
-		return x.UserId
-	}
-	return ""
-}
-
-func (x *SessionBinding) GetIssuedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.IssuedAt
-	}
-	return nil
-}
-
-func (x *SessionBinding) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
-}
-
-func (x *SessionBinding) GetDetails() map[string]string {
-	if x != nil {
-		return x.Details
-	}
-	return nil
-}
-
-// An IdentityBinding represents an association between a protocol-specific key
-// and a user ID, authorized by the user.
-type IdentityBinding struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Protocol string                 `protobuf:"bytes,1,opt,name=protocol,proto3" json:"protocol,omitempty"`
-	UserId   string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	IdpId    string                 `protobuf:"bytes,3,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
-	// Protocol level details associated with session creation.
-	Details       map[string]string `protobuf:"bytes,4,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *IdentityBinding) Reset() {
-	*x = IdentityBinding{}
-	mi := &file_session_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *IdentityBinding) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*IdentityBinding) ProtoMessage() {}
-
-func (x *IdentityBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use IdentityBinding.ProtoReflect.Descriptor instead.
-func (*IdentityBinding) Descriptor() ([]byte, []int) {
-	return file_session_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *IdentityBinding) GetProtocol() string {
-	if x != nil {
-		return x.Protocol
-	}
-	return ""
-}
-
-func (x *IdentityBinding) GetUserId() string {
-	if x != nil {
-		return x.UserId
-	}
-	return ""
-}
-
-func (x *IdentityBinding) GetIdpId() string {
-	if x != nil {
-		return x.IdpId
-	}
-	return ""
-}
-
-func (x *IdentityBinding) GetDetails() map[string]string {
-	if x != nil {
-		return x.Details
-	}
-	return nil
-}
-
 // A StreamAccessRequest represents a pending access request for an SSH client
 // to access a protected route.
 type StreamAccessRequest struct {
@@ -686,7 +528,7 @@ type StreamAccessRequest struct {
 
 func (x *StreamAccessRequest) Reset() {
 	*x = StreamAccessRequest{}
-	mi := &file_session_proto_msgTypes[6]
+	mi := &file_session_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -698,7 +540,7 @@ func (x *StreamAccessRequest) String() string {
 func (*StreamAccessRequest) ProtoMessage() {}
 
 func (x *StreamAccessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[6]
+	mi := &file_session_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -711,7 +553,7 @@ func (x *StreamAccessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamAccessRequest.ProtoReflect.Descriptor instead.
 func (*StreamAccessRequest) Descriptor() ([]byte, []int) {
-	return file_session_proto_rawDescGZIP(), []int{6}
+	return file_session_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *StreamAccessRequest) GetParams() *StreamAccessRequestParams {
@@ -763,7 +605,7 @@ type StreamAccessRequestParams struct {
 
 func (x *StreamAccessRequestParams) Reset() {
 	*x = StreamAccessRequestParams{}
-	mi := &file_session_proto_msgTypes[7]
+	mi := &file_session_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -775,7 +617,7 @@ func (x *StreamAccessRequestParams) String() string {
 func (*StreamAccessRequestParams) ProtoMessage() {}
 
 func (x *StreamAccessRequestParams) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[7]
+	mi := &file_session_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -788,7 +630,7 @@ func (x *StreamAccessRequestParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamAccessRequestParams.ProtoReflect.Descriptor instead.
 func (*StreamAccessRequestParams) Descriptor() ([]byte, []int) {
-	return file_session_proto_rawDescGZIP(), []int{7}
+	return file_session_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StreamAccessRequestParams) GetProtocol() string {
@@ -852,7 +694,7 @@ type Handle struct {
 
 func (x *Handle) Reset() {
 	*x = Handle{}
-	mi := &file_session_proto_msgTypes[8]
+	mi := &file_session_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -864,7 +706,7 @@ func (x *Handle) String() string {
 func (*Handle) ProtoMessage() {}
 
 func (x *Handle) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[8]
+	mi := &file_session_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -877,7 +719,7 @@ func (x *Handle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Handle.ProtoReflect.Descriptor instead.
 func (*Handle) Descriptor() ([]byte, []int) {
-	return file_session_proto_rawDescGZIP(), []int{8}
+	return file_session_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Handle) GetId() string {
@@ -964,7 +806,7 @@ type Session_DeviceCredential struct {
 
 func (x *Session_DeviceCredential) Reset() {
 	*x = Session_DeviceCredential{}
-	mi := &file_session_proto_msgTypes[9]
+	mi := &file_session_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -976,7 +818,7 @@ func (x *Session_DeviceCredential) String() string {
 func (*Session_DeviceCredential) ProtoMessage() {}
 
 func (x *Session_DeviceCredential) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[9]
+	mi := &file_session_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1101,26 +943,6 @@ const file_session_proto_rawDesc = "" +
 	"\adetails\x18\a \x03(\v2+.session.SessionBindingRequest.DetailsEntryR\adetails\x1a:\n" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd4\x02\n" +
-	"\x0eSessionBinding\x12\x1a\n" +
-	"\bprotocol\x18\x01 \x01(\tR\bprotocol\x12\x1d\n" +
-	"\n" +
-	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\tR\x06userId\x127\n" +
-	"\tissued_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bissuedAt\x129\n" +
-	"\n" +
-	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12>\n" +
-	"\adetails\x18\x06 \x03(\v2$.session.SessionBinding.DetailsEntryR\adetails\x1a:\n" +
-	"\fDetailsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xda\x01\n" +
-	"\x0fIdentityBinding\x12\x1a\n" +
-	"\bprotocol\x18\x01 \x01(\tR\bprotocol\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x15\n" +
-	"\x06idp_id\x18\x03 \x01(\tR\x05idpId\x12?\n" +
-	"\adetails\x18\x04 \x03(\v2%.session.IdentityBinding.DetailsEntryR\adetails\x1a:\n" +
-	"\fDetailsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc0\x03\n" +
 	"\x13StreamAccessRequest\x12:\n" +
 	"\x06params\x18\x01 \x01(\v2\".session.StreamAccessRequestParamsR\x06params\x129\n" +
@@ -1184,7 +1006,7 @@ func file_session_proto_rawDescGZIP() []byte {
 }
 
 var file_session_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_session_proto_goTypes = []any{
 	(SessionBindingRequestState)(0),   // 0: session.SessionBindingRequestState
 	(StreamAccessRequest_State)(0),    // 1: session.StreamAccessRequest.State
@@ -1192,55 +1014,47 @@ var file_session_proto_goTypes = []any{
 	(*OAuthToken)(nil),                // 3: session.OAuthToken
 	(*Session)(nil),                   // 4: session.Session
 	(*SessionBindingRequest)(nil),     // 5: session.SessionBindingRequest
-	(*SessionBinding)(nil),            // 6: session.SessionBinding
-	(*IdentityBinding)(nil),           // 7: session.IdentityBinding
-	(*StreamAccessRequest)(nil),       // 8: session.StreamAccessRequest
-	(*StreamAccessRequestParams)(nil), // 9: session.StreamAccessRequestParams
-	(*Handle)(nil),                    // 10: session.Handle
-	(*Session_DeviceCredential)(nil),  // 11: session.Session.DeviceCredential
-	nil,                               // 12: session.Session.ClaimsEntry
-	nil,                               // 13: session.SessionBindingRequest.DetailsEntry
-	nil,                               // 14: session.SessionBinding.DetailsEntry
-	nil,                               // 15: session.IdentityBinding.DetailsEntry
-	nil,                               // 16: session.StreamAccessRequest.MetadataEntry
-	(*timestamppb.Timestamp)(nil),     // 17: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),             // 18: google.protobuf.Empty
-	(*structpb.ListValue)(nil),        // 19: google.protobuf.ListValue
+	(*StreamAccessRequest)(nil),       // 6: session.StreamAccessRequest
+	(*StreamAccessRequestParams)(nil), // 7: session.StreamAccessRequestParams
+	(*Handle)(nil),                    // 8: session.Handle
+	(*Session_DeviceCredential)(nil),  // 9: session.Session.DeviceCredential
+	nil,                               // 10: session.Session.ClaimsEntry
+	nil,                               // 11: session.SessionBindingRequest.DetailsEntry
+	nil,                               // 12: session.StreamAccessRequest.MetadataEntry
+	(*timestamppb.Timestamp)(nil),     // 13: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),             // 14: google.protobuf.Empty
+	(*structpb.ListValue)(nil),        // 15: google.protobuf.ListValue
 }
 var file_session_proto_depIdxs = []int32{
-	17, // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
-	17, // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
-	17, // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
-	11, // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
-	17, // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
-	17, // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
-	17, // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
+	13, // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
+	13, // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	9,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
+	13, // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
+	13, // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
 	2,  // 7: session.Session.id_token:type_name -> session.IDToken
 	3,  // 8: session.Session.oauth_token:type_name -> session.OAuthToken
-	12, // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
-	17, // 10: session.SessionBindingRequest.created_at:type_name -> google.protobuf.Timestamp
-	17, // 11: session.SessionBindingRequest.expires_at:type_name -> google.protobuf.Timestamp
+	10, // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
+	13, // 10: session.SessionBindingRequest.created_at:type_name -> google.protobuf.Timestamp
+	13, // 11: session.SessionBindingRequest.expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 12: session.SessionBindingRequest.state:type_name -> session.SessionBindingRequestState
-	13, // 13: session.SessionBindingRequest.details:type_name -> session.SessionBindingRequest.DetailsEntry
-	17, // 14: session.SessionBinding.issued_at:type_name -> google.protobuf.Timestamp
-	17, // 15: session.SessionBinding.expires_at:type_name -> google.protobuf.Timestamp
-	14, // 16: session.SessionBinding.details:type_name -> session.SessionBinding.DetailsEntry
-	15, // 17: session.IdentityBinding.details:type_name -> session.IdentityBinding.DetailsEntry
-	9,  // 18: session.StreamAccessRequest.params:type_name -> session.StreamAccessRequestParams
-	17, // 19: session.StreamAccessRequest.created_at:type_name -> google.protobuf.Timestamp
-	17, // 20: session.StreamAccessRequest.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 21: session.StreamAccessRequest.state:type_name -> session.StreamAccessRequest.State
-	16, // 22: session.StreamAccessRequest.metadata:type_name -> session.StreamAccessRequest.MetadataEntry
-	17, // 23: session.Handle.exp:type_name -> google.protobuf.Timestamp
-	17, // 24: session.Handle.nbf:type_name -> google.protobuf.Timestamp
-	17, // 25: session.Handle.iat:type_name -> google.protobuf.Timestamp
-	18, // 26: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
-	19, // 27: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
-	28, // [28:28] is the sub-list for method output_type
-	28, // [28:28] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	11, // 13: session.SessionBindingRequest.details:type_name -> session.SessionBindingRequest.DetailsEntry
+	7,  // 14: session.StreamAccessRequest.params:type_name -> session.StreamAccessRequestParams
+	13, // 15: session.StreamAccessRequest.created_at:type_name -> google.protobuf.Timestamp
+	13, // 16: session.StreamAccessRequest.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 17: session.StreamAccessRequest.state:type_name -> session.StreamAccessRequest.State
+	12, // 18: session.StreamAccessRequest.metadata:type_name -> session.StreamAccessRequest.MetadataEntry
+	13, // 19: session.Handle.exp:type_name -> google.protobuf.Timestamp
+	13, // 20: session.Handle.nbf:type_name -> google.protobuf.Timestamp
+	13, // 21: session.Handle.iat:type_name -> google.protobuf.Timestamp
+	14, // 22: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
+	15, // 23: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
+	24, // [24:24] is the sub-list for method output_type
+	24, // [24:24] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_session_proto_init() }
@@ -1249,8 +1063,8 @@ func file_session_proto_init() {
 		return
 	}
 	file_session_proto_msgTypes[2].OneofWrappers = []any{}
-	file_session_proto_msgTypes[8].OneofWrappers = []any{}
-	file_session_proto_msgTypes[9].OneofWrappers = []any{
+	file_session_proto_msgTypes[6].OneofWrappers = []any{}
+	file_session_proto_msgTypes[7].OneofWrappers = []any{
 		(*Session_DeviceCredential_Unavailable)(nil),
 		(*Session_DeviceCredential_Id)(nil),
 	}
@@ -1260,7 +1074,7 @@ func file_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_session_proto_rawDesc), len(file_session_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   15,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
