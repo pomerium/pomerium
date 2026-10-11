@@ -32,9 +32,7 @@ type SessionBindingData struct {
 	ClientAddress    string
 	InitiatedAt      string
 	ExpiresAt        string
-	// IsCurrentBrowser   bool
-	HasIdentityBinding bool
-	DetailsSSH         *ProtocolDetailsSSH
+	DetailsSSH       *ProtocolDetailsSSH
 }
 
 type ProtocolDetailsSSH struct {

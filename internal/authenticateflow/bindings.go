@@ -21,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
-	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
 
 type BindingID struct {
@@ -49,15 +48,11 @@ type IDPSessionRevocation struct {
 func NewBindingManager(client databroker.DataBrokerServiceClient) BindingManager {
 	return &bindingManager{
 		dataBrokerClient: client,
-		codeRevoker:      code.NewRevoker(databroker.NewStaticClientGetter(client)),
-		codeReader:       code.NewReader(databroker.NewStaticClientGetter(client)),
 	}
 }
 
 type bindingManager struct {
 	dataBrokerClient databroker.DataBrokerServiceClient
-	codeRevoker      code.Revoker
-	codeReader       code.Reader
 }
 
 var errRevoke = httputil.NewError(http.StatusInternalServerError, fmt.Errorf("failed to revoke session binding"))
@@ -216,12 +211,6 @@ func (b *bindingManager) RevokeBinding(ctx context.Context, bindingID BindingID)
 	userID := bindingID.UserID
 	log.Ctx(ctx).Debug().Str("binding-id", id).Str("protocol", protocol).Msg("revoking binding")
 
-	if bindingID.Protocol == session.ProtocolSSH {
-		if err := b.codeRevoker.RevokeSessionBinding(ctx, code.BindingID(id)); err != nil {
-			return errRevoke
-		}
-		return nil
-	}
 	if protocol == "Browser" {
 		return httputil.NewError(http.StatusBadRequest, fmt.Errorf("bad request"))
 	}
@@ -263,16 +252,13 @@ func (b *bindingManager) RevokeBinding(ctx context.Context, bindingID BindingID)
 }
 
 func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]handlers.SessionBindingData, error) {
-	sshBindings, err := b.getLegacySSHSessionBindingInfo(ctx, h.UserId)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
-	}
+
 	idpSessionBindings, err := b.queryBindings(ctx, h.UserId)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
 	}
 
-	bindings := sshBindings
+	bindings := []handlers.SessionBindingData{}
 	for _, binding := range idpSessionBindings {
 		if binding.GetTypeUrl() != protoutil.GetTypeURL(new(session.Session)) {
 			continue
@@ -348,59 +334,6 @@ func (b *bindingManager) queryBindings(
 	return bindings, nil
 }
 
-func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, userID string) ([]handlers.SessionBindingData, error) {
-	pairs, err := b.codeReader.GetSessionBindingsByUserID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("could not fetch ssh bindings")
-	}
-	bindings := make([]handlers.SessionBindingData, 0, len(pairs))
-	idpSessionIDs := map[string]string{}
-	for sessionBindingID, p := range pairs {
-
-		datum := handlers.SessionBindingData{
-			SessionBindingID:   sessionBindingID,
-			Protocol:           p.SB.Protocol,
-			Resource:           "SSH key",
-			InitiatedAt:        p.SB.IssuedAt.AsTime().Format(time.RFC1123),
-			ExpiresAt:          p.SB.ExpiresAt.AsTime().Format(time.RFC1123),
-			HasIdentityBinding: p.IB != nil,
-		}
-		if p.SB.Protocol == session.ProtocolSSH {
-			sshDetails := &handlers.ProtocolDetailsSSH{
-				FingerprintID: strings.TrimPrefix(sessionBindingID, "sshkey-SHA256:"),
-			}
-			if p.SB.Details != nil && p.SB.Details[session.DetailSourceAddr] != "" {
-				sshDetails.SourceAddress = p.SB.Details[session.DetailSourceAddr]
-			} else {
-				sshDetails.SourceAddress = "Not recorded"
-			}
-			datum.DetailsSSH = sshDetails
-			datum.ClientAddress = sshDetails.SourceAddress
-		}
-
-		if p.IB != nil {
-			datum.ExpiresAt = "Until revoked"
-		} else {
-			datum.ExpiresAt = p.SB.ExpiresAt.AsTime().Format(time.RFC1123)
-		}
-		idpSessionID, ok := idpSessionIDs[p.SB.GetSessionId()]
-		if !ok {
-			binding, err := idpsession.GetBinding(ctx, b.dataBrokerClient, p.SB.GetSessionId())
-			if err != nil || binding.GetUserId() != userID {
-				log.Ctx(ctx).Debug().Err(err).
-					Str("session-id", p.SB.GetSessionId()).
-					Msg("could not associate SSH binding with IDP session")
-				continue
-			}
-			idpSessionID = binding.GetIdpSessionId()
-			idpSessionIDs[p.SB.GetSessionId()] = idpSessionID
-		}
-		datum.IDPSessionID = idpSessionID
-		bindings = append(bindings, datum)
-	}
-	return bindings, nil
-}
-
 func (b *bindingManager) sessionToBindingData(
 	ctx context.Context,
 	binding *idpsession.Binding,
@@ -408,6 +341,7 @@ func (b *bindingManager) sessionToBindingData(
 	var expiresAt string
 	var clientAddr string
 	var resource string
+	var sshDetails *handlers.ProtocolDetailsSSH
 
 	switch binding.GetTypeUrl() {
 	case protoutil.GetTypeURL(&session.Session{}):
@@ -429,8 +363,21 @@ func (b *bindingManager) sessionToBindingData(
 			}
 			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
 			resource = formatBrowserUserAgent(binding.GetDetails()["user-agent"])
+		case idpsession.BindingProtocol_BINDING_PROTOCOL_SSH:
+			sess := &session.Session{}
+			if err := rec.GetRecord().GetData().UnmarshalTo(sess); err != nil {
+				return handlers.SessionBindingData{}, err
+			}
+			expiresAt = sess.GetExpiresAt().AsTime().Format(time.RFC1123)
+			sshDetails = &handlers.ProtocolDetailsSSH{
+				FingerprintID: strings.TrimPrefix(binding.GetId(), "sshkey-SHA256:"),
+				SourceAddress: binding.GetDetails()[session.DetailSourceAddr],
+			}
+			clientAddr = binding.GetDetails()[session.DetailSourceAddr]
 		}
-		clientAddr = binding.GetDetails()["client-ip"]
+		if clientAddr != "" {
+			clientAddr = binding.GetDetails()["client-ip"]
+		}
 	}
 
 	datum := handlers.SessionBindingData{
@@ -439,6 +386,7 @@ func (b *bindingManager) sessionToBindingData(
 		ClientAddress:    clientAddr,
 		ExpiresAt:        expiresAt,
 		Resource:         resource,
+		DetailsSSH:       sshDetails,
 	}
 
 	if binding.GetInitiatedAt() != nil {
@@ -453,6 +401,8 @@ func formatProtocol(protocol idpsession.BindingProtocol) string {
 		return "MCP"
 	case idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER:
 		return "Browser"
+	case idpsession.BindingProtocol_BINDING_PROTOCOL_SSH:
+		return session.ProtocolSSH
 	}
 	return "Unknown"
 }

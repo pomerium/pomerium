@@ -205,7 +205,6 @@ export type SessionBindingData = {
   InitiatedAt: string;
   ExpiresAt: string;
   RevokeSessionBindingURL: string;
-  HasIdentityBinding: boolean;
   RevokeIdentityBindingURL: string;
   DetailsSSH?: DetailsSSH;
   IsCurrentBrowser: boolean;

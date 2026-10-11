@@ -32,6 +32,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
@@ -229,7 +230,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	if err != nil {
 		return AuthMethodResponse{}, err
 	}
-	sessionBinding, _, err := a.resolveSession(ctx, sessionBindingID)
+	_, session, err := a.resolveSessionV2(ctx, sessionBindingID)
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			// No session, and one is required
@@ -250,7 +251,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		PublicKey:     string(req.PublicKey),
 		SourceAddress: streamInfo.SourceAddress,
 
-		SessionID:        sessionBinding.SessionId,
+		SessionID:        session.GetId(),
 		SessionBindingID: sessionBindingID,
 		// Keep AccessRequestState unset
 	}, streamInfo.InitialAuthComplete)
@@ -269,8 +270,8 @@ func (a *Auth) handlePublicKeyMethodRequest(
 
 	return processSessionEvaluateResult(sessionIDs{
 		SessionBindingID: sessionBindingID,
-		SessionID:        sessionBinding.SessionId,
-		UserID:           sessionBinding.UserId,
+		SessionID:        session.GetId(),
+		UserID:           session.GetUserId(),
 	}, res, pendingAuthContextUpdates)
 }
 
@@ -390,12 +391,12 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 
 		// Initiate the IdP login flow.
 		var err error
-		sessionBinding, sbID, err := a.handleLogin(ctx, cfg, policy, streamInfo.SourceAddress, authInfo.GetPublicKeyFingerprintSha256(), querier)
+		binding, sbID, err := a.handleLogin(ctx, cfg, policy, streamInfo.SourceAddress, authInfo.GetPublicKeyFingerprintSha256(), querier)
 		if err != nil {
 			return AuthMethodResponse{}, err
 		}
-		sessionID = sessionBinding.SessionId
-		userID = sessionBinding.UserId
+		sessionID = binding.GetId()
+		userID = binding.UserId
 		sessionBindingID = sbID
 	} else {
 		// There is already a valid session, so keyboard-interactive is requested
@@ -576,7 +577,7 @@ func (a *Auth) handleLogin(
 	sourceAddr string,
 	publicKeyFingerprint []byte,
 	querier KeyboardInteractiveQuerier,
-) (*session.SessionBinding, string /*sessionBindingID*/, error) {
+) (*idpsession.Binding, string /*sessionBindingID*/, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleLogin")
 	defer span.End()
 
@@ -667,6 +668,7 @@ func (a *Auth) handleLogin(
 			return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.PermissionDenied, "user has denied this code")
 		case session.SessionBindingRequestState_Accepted:
 		default:
+			// TODO : not sure we should panic here, if this invariant changes, I'm not sure this would catch it deterministically, and we would end up pushing a severe bug to prod
 			// the code issuer must not send a status reply here with state=InFlight
 			panic(fmt.Sprintf("bug: invalid session binding request state in code.Status: %v", st.State))
 		}
@@ -678,10 +680,10 @@ func (a *Auth) handleLogin(
 		ctxca, ca := context.WithTimeout(ctxT, 30*time.Second)
 		defer ca()
 		b := backoff.WithContext(backoff.NewExponentialBackOff(), ctxca)
-		var sessionBinding *session.SessionBinding
+		var binding *idpsession.Binding
 		var lastError error
 		err := backoff.Retry(func() error {
-			sessionBinding, _, lastError = a.resolveSession(ctxca, bindingKey)
+			binding, _, lastError = a.resolveSessionV2(ctxca, bindingKey)
 			if lastError != nil {
 				if databroker.IsNotFound(lastError) {
 					return lastError
@@ -689,7 +691,7 @@ func (a *Auth) handleLogin(
 				return backoff.Permanent(lastError)
 			}
 			a.evaluator.InvalidateCacheForRecords(ctxca, &databroker.Record{
-				Type: "type.googleapis.com/session.SessionBinding",
+				Type: protoutil.GetTypeURL(binding),
 				Id:   bindingKey,
 			})
 			return nil
@@ -704,7 +706,7 @@ func (a *Auth) handleLogin(
 		}
 		l.Info().Msg("successfully authenticated")
 		span.SetStatus(otelcode.Ok, "successfully authenticated")
-		return sessionBinding, bindingKey, nil
+		return binding, bindingKey, nil
 	}
 }
 
@@ -837,7 +839,7 @@ func buildSSHRecordingConfig(sessionID, userID string) *corev3.TypedExtensionCon
 }
 
 func (a *Auth) GetSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) (*session.Session, error) {
-	_, session, err := a.resolveSession(ctx, authInfo.GetSessionBindingId())
+	_, session, err := a.resolveSessionV2(ctx, authInfo.GetSessionBindingId())
 	if err != nil {
 		return nil, err
 	}
@@ -845,30 +847,27 @@ func (a *Auth) GetSession(ctx context.Context, _ StreamInfo, authInfo StreamAuth
 }
 
 func (a *Auth) DeleteSession(ctx context.Context, _ StreamInfo, authInfo StreamAuthInfo) error {
-	binding, _, err := a.resolveSession(ctx, authInfo.GetSessionBindingId())
+	binding, sess, err := a.resolveSessionV2(ctx, authInfo.GetSessionBindingId())
 	if err != nil {
 		return err
 	}
-	toInvalidate := []*databroker.Record{}
-	sessionErr := session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), binding.SessionId)
+	now := time.Now()
+	bindingRec, sessionRec := databroker.NewRecord(binding), databroker.NewRecord(sess)
+	bindingRec.DeletedAt = timestamppb.New(now)
+	sessionRec.DeletedAt = timestamppb.New(now)
+
+	_, deleteErr := a.evaluator.GetDataBrokerServiceClient().Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{
+			bindingRec,
+			sessionRec,
+		},
+	})
 	a.evaluator.InvalidateCacheForRecords(
 		ctx,
-		&databroker.Record{
-			Type: "type.googleapis.com/session.Session",
-			Id:   binding.SessionId,
-		},
+		bindingRec,
+		sessionRec,
 	)
-	toInvalidate = append(toInvalidate, &databroker.Record{
-		Type: "type.googleapis.com/session.Session",
-		Id:   binding.SessionId,
-	})
-
-	bindingRecs, bindingErr := a.codeIssuer.RevokeSessionBindingBySession(ctx, binding.SessionId)
-	if bindingErr == nil && len(bindingRecs) > 0 {
-		toInvalidate = append(toInvalidate, bindingRecs...)
-	}
-	a.evaluator.InvalidateCacheForRecords(ctx, toInvalidate...)
-	return errors.Join(sessionErr, bindingErr)
+	return deleteErr
 }
 
 func (a *Auth) getAuthenticator(
@@ -899,47 +898,87 @@ var _ AuthInterface = (*Auth)(nil)
 
 var errInvalidFingerprint = errors.New("invalid public key fingerprint")
 
-func (a *Auth) resolveSession(ctx context.Context, sessionBindingID string) (*session.SessionBinding, *session.Session, error) {
-	resp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
-		Type: "type.googleapis.com/session.SessionBinding",
-		Id:   sessionBindingID,
+func (a *Auth) resolveSessionV2(ctx context.Context, id string) (*idpsession.Binding, *session.Session, error) {
+	binding := &idpsession.Binding{}
+	sess := &session.Session{}
+	bindResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(binding),
+		Id:   id,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	if resp.Record.DeletedAt != nil {
-		return nil, nil, status.Error(codes.NotFound, "session binding deleted")
+
+	sessResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(sess),
+		Id:   id,
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 
-	var binding session.SessionBinding
-	if err := resp.Record.Data.UnmarshalTo(&binding); err != nil {
-		return nil, nil, status.Error(codes.Internal, err.Error())
+	if bindResp.GetRecord().GetDeletedAt() != nil || sessResp.GetRecord().GetDeletedAt() != nil {
+		return nil, nil, status.Error(codes.NotFound, "session not found")
 	}
-	now := time.Now()
-	if binding.ExpiresAt.AsTime().Before(now) {
-		return nil, nil, status.Error(codes.NotFound, "session binding no longer valid")
+
+	if err := bindResp.GetRecord().GetData().UnmarshalTo(binding); err != nil {
+		return nil, nil, fmt.Errorf("incompatible binding format : %w", err)
 	}
-	if binding.Protocol != session.ProtocolSSH {
+	if err := sessResp.GetRecord().GetData().UnmarshalTo(sess); err != nil {
+		return nil, nil, fmt.Errorf("incompatible session format : %w", err)
+	}
+
+	if binding.Protocol != idpsession.BindingProtocol_BINDING_PROTOCOL_SSH {
 		return nil, nil, status.Error(codes.Internal, "invalid protocol")
 	}
-	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
-		Type: "type.googleapis.com/session.Session",
-		Id:   binding.SessionId,
-	})
-	if err != nil {
-		return nil, nil, err
+	now := time.Now()
+	if sess.GetExpiresAt().AsTime().Before(now) {
+		return nil, nil, status.Error(codes.NotFound, "session expired")
 	}
-	if sessionResp.GetRecord().DeletedAt != nil {
-		return nil, nil, status.Error(codes.NotFound, "session deleted")
-	}
-
-	var session session.Session
-	if err := sessionResp.GetRecord().GetData().UnmarshalTo(&session); err != nil {
-		return nil, nil, err
-	}
-
-	return &binding, &session, nil
+	return binding, sess, nil
 }
+
+// func (a *Auth) resolveSession(ctx context.Context, sessionBindingID string) (*session.SessionBinding, *session.Session, error) {
+// 	resp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+// 		Type: "type.googleapis.com/session.SessionBinding",
+// 		Id:   sessionBindingID,
+// 	})
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+// 	if resp.Record.DeletedAt != nil {
+// 		return nil, nil, status.Error(codes.NotFound, "session binding deleted")
+// 	}
+
+// 	var binding session.SessionBinding
+// 	if err := resp.Record.Data.UnmarshalTo(&binding); err != nil {
+// 		return nil, nil, status.Error(codes.Internal, err.Error())
+// 	}
+// 	now := time.Now()
+// 	if binding.ExpiresAt.AsTime().Before(now) {
+// 		return nil, nil, status.Error(codes.NotFound, "session binding no longer valid")
+// 	}
+// 	if binding.Protocol != session.ProtocolSSH {
+// 		return nil, nil, status.Error(codes.Internal, "invalid protocol")
+// 	}
+// 	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+// 		Type: "type.googleapis.com/session.Session",
+// 		Id:   binding.SessionId,
+// 	})
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+// 	if sessionResp.GetRecord().DeletedAt != nil {
+// 		return nil, nil, status.Error(codes.NotFound, "session deleted")
+// 	}
+
+// 	var session session.Session
+// 	if err := sessionResp.GetRecord().GetData().UnmarshalTo(&session); err != nil {
+// 		return nil, nil, err
+// 	}
+
+// 	return &binding, &session, nil
+// }
 
 func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	if len(sha256fingerprint) != sha256.Size {
