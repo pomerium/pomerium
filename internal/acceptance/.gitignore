@@ -17,3 +17,6 @@ test-results/
 
 # Debug/temporary files
 *.log
+
+# hosted-IdP test account for the hosted e2e suite (never commit)
+browser/.env.hosted
