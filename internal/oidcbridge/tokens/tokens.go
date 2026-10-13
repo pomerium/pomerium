@@ -5,6 +5,7 @@ package tokens
 import (
 	"crypto/cipher"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -88,6 +89,14 @@ func (e CodeEncryptor) Decrypt(code, clientID string) (*CodePayload, error) {
 	}, nil
 }
 
+// AccessTokenPayload represents the data stored in an access token.
+type AccessTokenPayload struct {
+	// CodeID identifies the authorization code the token was issued for, so
+	// that the token can be revoked if the code is replayed.
+	CodeID       string
+	SessionToken string
+}
+
 type AccessTokenEncryptor struct {
 	aead randomNonceAEAD
 }
@@ -96,21 +105,31 @@ func NewAccessTokenEncryptor(aead cipher.AEAD) *AccessTokenEncryptor {
 	return &AccessTokenEncryptor{randomNonceAEAD{aead}}
 }
 
-// Encrypt encrypts an access token, returning a base64-encoded string.
-func (e AccessTokenEncryptor) Encrypt(token string) string {
-	ciphertext := e.aead.Encrypt([]byte(token), []byte(adAccessToken))
+// Encrypt encrypts an [AccessTokenPayload], returning a base64-encoded string.
+func (e AccessTokenEncryptor) Encrypt(p *AccessTokenPayload) string {
+	plaintext := url.QueryEscape(p.CodeID) + ":" + p.SessionToken
+	ciphertext := e.aead.Encrypt([]byte(plaintext), []byte(adAccessToken))
 	return base64.RawStdEncoding.EncodeToString(ciphertext)
 }
 
-// Decrypt decrypts an access token, returning the token or an error.
-func (e AccessTokenEncryptor) Decrypt(token string) (string, error) {
+// Decrypt decrypts an access token, returning an [AccessTokenPayload] or an
+// error.
+func (e AccessTokenEncryptor) Decrypt(token string) (*AccessTokenPayload, error) {
 	ciphertext, err := base64.RawStdEncoding.DecodeString(token)
 	if err != nil {
-		return "", fmt.Errorf("base64 decode: %w", err)
+		return nil, fmt.Errorf("base64 decode: %w", err)
 	}
 	decrypted, err := e.aead.Decrypt(ciphertext, []byte(adAccessToken))
 	if err != nil {
-		return "", fmt.Errorf("decrypt: %w", err)
+		return nil, fmt.Errorf("decrypt: %w", err)
 	}
-	return string(decrypted), nil
+	codeID, sessionToken, ok := strings.Cut(string(decrypted), ":")
+	if !ok {
+		return nil, errors.New("format error: missing code ID")
+	}
+	codeID, err = url.QueryUnescape(codeID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid code ID: %w", err)
+	}
+	return &AccessTokenPayload{CodeID: codeID, SessionToken: sessionToken}, nil
 }

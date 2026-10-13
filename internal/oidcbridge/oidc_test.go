@@ -40,6 +40,7 @@ func TestConfiguration(t *testing.T) {
 	b, _ := io.ReadAll(res.Body)
 	assert.JSONEq(t, `{
 		"authorization_endpoint": "https://authenticate.example.com/oidc/auth",
+		"claims_supported": ["sub", "iss", "aud", "exp", "iat", "auth_time", "nonce"],
 		"code_challenge_methods_supported": [
 			"S256"
 		],
@@ -52,6 +53,10 @@ func TestConfiguration(t *testing.T) {
 		],
 		"issuer": "https://authenticate.example.com",
 		"jwks_uri": "https://authenticate.example.com/oidc/jwks.json",
+		"prompt_values_supported": ["none", "login"],
+		"request_parameter_supported": false,
+		"request_uri_parameter_supported": false,
+		"response_modes_supported": ["query"],
 		"response_types_supported": [
 			"code"
 		],
@@ -99,20 +104,37 @@ func TestJWKSEndpoint(t *testing.T) {
 	}`, string(b))
 }
 
-func mockGetSessionHandle(sh *session.Handle, err error) func(*http.Request) (*session.Handle, error) {
-	return func(*http.Request) (*session.Handle, error) {
-		return sh, err
-	}
+// fakeSessions implements [SessionAuthenticator] and records reauthentication.
+type fakeSessions struct {
+	handle *session.Handle
+	err    error
+
+	// reauthURL is the request to continue with after reauthentication, if
+	// there was one.
+	reauthURL    *url.URL
+	reauthParams url.Values
+}
+
+func (f *fakeSessions) VerifiedSessionHandle(*http.Request) (*session.Handle, error) {
+	return f.handle, f.err
+}
+
+func (f *fakeSessions) Reauthenticate(w http.ResponseWriter, r *http.Request, idpParams url.Values) error {
+	f.reauthURL = r.URL
+	f.reauthParams = idpParams
+	http.Redirect(w, r, "https://idp.example.com/sign-in", http.StatusFound)
+	return nil
 }
 
 func TestHandleAuth(t *testing.T) {
 	h, err := NewHandlers(nil, nil, exampleConfig())
 	require.NoError(t, err)
+	noSession := &fakeSessions{err: errors.New("no session")}
 
 	t.Run("no client_id", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth", nil)
-		h.HandleAuth(w, r)
+		h.HandleAuth(w, r, noSession)
 		res := w.Result()
 		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 		b, _ := io.ReadAll(res.Body)
@@ -122,7 +144,7 @@ func TestHandleAuth(t *testing.T) {
 	t.Run("no redirect_uri", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?client_id=foobar", nil)
-		h.HandleAuth(w, r)
+		h.HandleAuth(w, r, noSession)
 		res := w.Result()
 		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 		b, _ := io.ReadAll(res.Body)
@@ -136,7 +158,7 @@ func TestHandleAuth(t *testing.T) {
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
-		h.HandleAuth(w, r)
+		h.HandleAuth(w, r, noSession)
 		res := w.Result()
 		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 		b, _ := io.ReadAll(res.Body)
@@ -145,93 +167,97 @@ func TestHandleAuth(t *testing.T) {
 
 	t.Run("invalid code_challenge_method", func(t *testing.T) {
 		q := url.Values{
+			"response_type":         {"code"},
 			"client_id":             {"https://pkce.example.com"},
-			"redirect_uri":          {"https://pkce.example.com/callback"},
+			"redirect_uri":          {"https://pkce.example.com"},
 			"code_challenge_method": {"plain"},
 			"state":                 {"example-state"}, // should be propagated even for an error response
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
-		h.HandleAuth(w, r)
+		h.HandleAuth(w, r, noSession)
 		res := w.Result()
 		assert.Equal(t, http.StatusFound, res.StatusCode)
 		require.NoError(t, err)
-		assert.Equal(t, "https://pkce.example.com/callback?error=invalid_request&error_description=unsupported+code_challenge_method+%22plain%22&state=example-state", res.Header.Get("Location"))
+		assert.Equal(t, "https://pkce.example.com?error=invalid_request&error_description=unsupported+code_challenge_method+%22plain%22&state=example-state", res.Header.Get("Location"))
 	})
 
 	t.Run("invalid code_challenge", func(t *testing.T) {
 		q := url.Values{
+			"response_type":         {"code"},
 			"client_id":             {"https://pkce.example.com"},
-			"redirect_uri":          {"https://pkce.example.com/callback"},
+			"redirect_uri":          {"https://pkce.example.com"},
 			"code_challenge":        {"foobar"},
 			"code_challenge_method": {"S256"},
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
-		h.HandleAuth(w, r)
+		h.HandleAuth(w, r, noSession)
 		res := w.Result()
 		assert.Equal(t, http.StatusFound, res.StatusCode)
 		require.NoError(t, err)
-		assert.Equal(t, "https://pkce.example.com/callback?error=invalid_request&error_description=invalid+code_challenge", res.Header.Get("Location"))
+		assert.Equal(t, "https://pkce.example.com?error=invalid_request&error_description=invalid+code_challenge", res.Header.Get("Location"))
 	})
 
 	t.Run("nonce too large", func(t *testing.T) {
 		q := url.Values{
-			"client_id":    {"https://non-pkce.example.com"},
-			"redirect_uri": {"https://non-pkce.example.com/callback"},
-			"nonce":        {strings.Repeat("A", 2000)},
+			"response_type": {"code"},
+			"client_id":     {"https://non-pkce.example.com"},
+			"redirect_uri":  {"https://non-pkce.example.com"},
+			"nonce":         {strings.Repeat("A", 2000)},
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
-		h.HandleAuth(w, r)
+		h.HandleAuth(w, r, noSession)
 		res := w.Result()
 		assert.Equal(t, http.StatusFound, res.StatusCode)
 		require.NoError(t, err)
-		assert.Equal(t, "https://non-pkce.example.com/callback?error=invalid_request&error_description=nonce+too+large", res.Header.Get("Location"))
+		assert.Equal(t, "https://non-pkce.example.com?error=invalid_request&error_description=nonce+too+large", res.Header.Get("Location"))
 	})
 
-	t.Run("internal error", func(t *testing.T) {
-		getSessionHandler := mockGetSessionHandle(nil, errors.New("internal error message"))
-		h, err := NewHandlers(getSessionHandler, nil, exampleConfig())
-		require.NoError(t, err)
-
+	t.Run("no session", func(t *testing.T) {
+		sessions := &fakeSessions{err: errors.New("no session")}
 		q := url.Values{
-			"client_id":    {"https://non-pkce.example.com"},
-			"redirect_uri": {"https://non-pkce.example.com/callback"},
+			"client_id":     {"https://non-pkce.example.com"},
+			"redirect_uri":  {"https://non-pkce.example.com"},
+			"response_type": {"code"},
+			"scope":         {"openid"},
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
-		h.HandleAuth(w, r)
+		h.HandleAuth(w, r, sessions)
 		res := w.Result()
 		assert.Equal(t, http.StatusFound, res.StatusCode)
-		require.NoError(t, err)
-		assert.Equal(t, "https://non-pkce.example.com/callback?error=server_error&error_description=could+not+retrieve+session", res.Header.Get("Location"))
+		assert.Equal(t, "https://idp.example.com/sign-in", res.Header.Get("Location"))
+		require.NotNil(t, sessions.reauthURL)
+		assert.Equal(t, q, sessions.reauthURL.Query())
+		assert.Empty(t, sessions.reauthParams)
 	})
 
 	t.Run("ok", func(t *testing.T) {
 		sh := &session.Handle{
 			Id: "session-id",
 		}
-		getSessionHandler := mockGetSessionHandle(sh, nil)
-		h, err := NewHandlers(getSessionHandler, nil, exampleConfig())
+		h, err := NewHandlers(nil, nil, exampleConfig())
 		require.NoError(t, err)
 
 		q := url.Values{
+			"response_type":         {"code"},
 			"client_id":             {"https://pkce.example.com"},
 			"nonce":                 {"example-nonce"},
 			"code_challenge_method": {"S256"},
 			"code_challenge":        {"QTytuADJyhDFCbcVU_m4Vkdbpy36C9a-6i0Yo25m0-s"},
-			"redirect_uri":          {"https://pkce.example.com/callback"},
+			"redirect_uri":          {"https://pkce.example.com"},
 			"state":                 {"example-state"},
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
-		h.HandleAuth(w, r)
+		h.HandleAuth(w, r, &fakeSessions{handle: sh})
 		res := w.Result()
 		assert.Equal(t, http.StatusFound, res.StatusCode)
 
 		location := res.Header.Get("Location")
-		assert.True(t, strings.HasPrefix(location, "https://pkce.example.com/callback"))
+		assert.True(t, strings.HasPrefix(location, "https://pkce.example.com"))
 		assert.False(t, strings.Contains(location, "error"))
 
 		u, err := url.Parse(res.Header.Get("Location"))
@@ -245,7 +271,7 @@ func TestHandleAuth(t *testing.T) {
 		code := redirectParams.Get("code")
 		p, err := h.codeEncryptor.Decrypt(code, "https://pkce.example.com")
 		require.NoError(t, err)
-		assert.Equal(t, "https://pkce.example.com/callback", p.RedirectURI)
+		assert.Equal(t, "https://pkce.example.com", p.RedirectURI)
 		assert.True(t, p.Expiration.After(time.Now()), "expiration should be in the future")
 		assert.Equal(t, "example-nonce", p.Nonce)
 		assert.Equal(t, "QTytuADJyhDFCbcVU_m4Vkdbpy36C9a-6i0Yo25m0-s", p.S256CodeChallenge)
@@ -260,24 +286,24 @@ func TestHandleAuth(t *testing.T) {
 		sh := &session.Handle{
 			Id: "session-id",
 		}
-		getSessionHandler := mockGetSessionHandle(sh, nil)
-		h, err := NewHandlers(getSessionHandler, nil, exampleConfig())
+		h, err := NewHandlers(nil, nil, exampleConfig())
 		require.NoError(t, err)
 
 		q := url.Values{
-			"client_id":    {"https://non-pkce.example.com"},
-			"redirect_uri": {"https://non-pkce.example.com/callback"},
-			"state":        {"abcdef"},
+			"response_type": {"code"},
+			"client_id":     {"https://non-pkce.example.com"},
+			"redirect_uri":  {"https://non-pkce.example.com"},
+			"state":         {"abcdef"},
 			// no code_challenge or code_challenge_method
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
-		h.HandleAuth(w, r)
+		h.HandleAuth(w, r, &fakeSessions{handle: sh})
 		res := w.Result()
 		assert.Equal(t, http.StatusFound, res.StatusCode)
 
 		location := res.Header.Get("Location")
-		assert.True(t, strings.HasPrefix(location, "https://non-pkce.example.com/callback"))
+		assert.True(t, strings.HasPrefix(location, "https://non-pkce.example.com"))
 
 		u, err := url.Parse(res.Header.Get("Location"))
 		require.NoError(t, err)
@@ -296,25 +322,25 @@ func TestHandleToken(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/oidc/token", nil)
 		h.HandleToken(w, r)
 		res := w.Result()
-		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_client",
 			"error_description": "missing client_id"
 		}`, string(b))
 	})
 
 	t.Run("incorrect client_secret", func(t *testing.T) {
 		code := h.codeEncryptor.Encrypt(&tokens.CodePayload{
-			RedirectURI:  "https://non-pkce.example.com/callback",
+			RedirectURI:  "https://non-pkce.example.com",
 			Expiration:   time.Now().Add(5 * time.Minute),
 			SessionToken: "foobar",
 		}, "https://non-pkce.example.com")
 		body := url.Values{
 			"client_id":     {"https://non-pkce.example.com"},
 			"client_secret": {"BOGUS"},
-			"redirect_uri":  {"https://non-pkce.example.com/callback"},
+			"redirect_uri":  {"https://non-pkce.example.com"},
 			"grant_type":    {"authorization_code"},
 			"code":          {code},
 		}.Encode()
@@ -324,11 +350,11 @@ func TestHandleToken(t *testing.T) {
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		h.HandleToken(w, r)
 		res := w.Result()
-		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_client",
 			"error_description": "incorrect client_secret"
 		}`, string(b))
 	})
@@ -337,7 +363,7 @@ func TestHandleToken(t *testing.T) {
 		// The 'implicit' grant is not supported.
 		body := url.Values{
 			"client_id":    {"https://pkce.example.com"},
-			"redirect_uri": {"https://pkce.example.com/callback"},
+			"redirect_uri": {"https://pkce.example.com"},
 			"grant_type":   {"implicit"},
 		}.Encode()
 
@@ -358,7 +384,7 @@ func TestHandleToken(t *testing.T) {
 	t.Run("invalid code", func(t *testing.T) {
 		body := url.Values{
 			"client_id":    {"https://pkce.example.com"},
-			"redirect_uri": {"https://pkce.example.com/callback"},
+			"redirect_uri": {"https://pkce.example.com"},
 			"grant_type":   {"authorization_code"},
 			"code":         {"BOGUS"},
 		}.Encode()
@@ -372,20 +398,20 @@ func TestHandleToken(t *testing.T) {
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_grant",
 			"error_description": "invalid authorization code"
 		}`, string(b))
 	})
 
 	t.Run("code expired", func(t *testing.T) {
 		code := h.codeEncryptor.Encrypt(&tokens.CodePayload{
-			RedirectURI:  "https://pkce.example.com/callback",
+			RedirectURI:  "https://pkce.example.com",
 			Expiration:   time.Unix(1791411804, 0),
 			SessionToken: "foobar",
 		}, "https://pkce.example.com")
 		body := url.Values{
 			"client_id":    {"https://pkce.example.com"},
-			"redirect_uri": {"https://pkce.example.com/callback"},
+			"redirect_uri": {"https://pkce.example.com"},
 			"grant_type":   {"authorization_code"},
 			"code":         {code},
 		}.Encode()
@@ -399,7 +425,7 @@ func TestHandleToken(t *testing.T) {
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_grant",
 			"error_description": "authorization code expired at 2026-10-07 22:23:24 UTC"
 		}`, string(b))
 	})
@@ -426,21 +452,21 @@ func TestHandleToken(t *testing.T) {
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_grant",
 			"error_description": "incorrect or missing redirect_uri"
 		}`, string(b))
 	})
 
 	t.Run("code_verifier incorrect", func(t *testing.T) {
 		code := h.codeEncryptor.Encrypt(&tokens.CodePayload{
-			RedirectURI:       "https://pkce.example.com/callback",
+			RedirectURI:       "https://pkce.example.com",
 			Expiration:        time.Now().Add(5 * time.Minute),
 			S256CodeChallenge: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 			SessionToken:      "foobar",
 		}, "https://pkce.example.com")
 		body := url.Values{
 			"client_id":     {"https://pkce.example.com"},
-			"redirect_uri":  {"https://pkce.example.com/callback"},
+			"redirect_uri":  {"https://pkce.example.com"},
 			"code_verifier": {"example-code-verifier"},
 			"grant_type":    {"authorization_code"},
 			"code":          {code},
@@ -455,7 +481,7 @@ func TestHandleToken(t *testing.T) {
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_grant",
 			"error_description": "incorrect code_verifier"
 		}`, string(b))
 	})
@@ -465,13 +491,13 @@ func TestHandleToken(t *testing.T) {
 		require.NoError(t, err)
 
 		code := h.codeEncryptor.Encrypt(&tokens.CodePayload{
-			RedirectURI:  "https://pkce.example.com/callback",
+			RedirectURI:  "https://pkce.example.com",
 			Expiration:   time.Now().Add(5 * time.Minute),
 			SessionToken: "foobar",
 		}, "https://pkce.example.com")
 		body := url.Values{
 			"client_id":    {"https://pkce.example.com"},
-			"redirect_uri": {"https://pkce.example.com/callback"},
+			"redirect_uri": {"https://pkce.example.com"},
 			"grant_type":   {"authorization_code"},
 			"code":         {code},
 		}.Encode()
@@ -506,7 +532,7 @@ func TestHandleToken(t *testing.T) {
 		}
 		return handlers.UserInfoData{}
 	}
-	h, err = NewHandlers(nil, getUserInfoData, exampleConfig())
+	h, err = NewHandlers(getUserInfoData, nil, exampleConfig())
 	require.NoError(t, err)
 
 	shb, err := proto.Marshal(sh)
@@ -530,7 +556,8 @@ func TestHandleToken(t *testing.T) {
 		require.True(t, ok, "expected an access_token string")
 		accessToken, err := h.accessTokenEncryptor.Decrypt(accessTokenString)
 		require.NoError(t, err)
-		assert.Equal(t, "CgpzZXNzaW9uLWlk", accessToken)
+		assert.Equal(t, "CgpzZXNzaW9uLWlk", accessToken.SessionToken)
+		assert.NotEmpty(t, accessToken.CodeID)
 
 		// Verify that the ID token is valid.
 		idToken, ok := result["id_token"].(string)
@@ -547,14 +574,14 @@ func TestHandleToken(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		code := h.codeEncryptor.Encrypt(&tokens.CodePayload{
-			RedirectURI:       "https://pkce.example.com/callback",
+			RedirectURI:       "https://pkce.example.com",
 			S256CodeChallenge: "oluiRWwwc_ynHVbpB3MNDlNq1zV8-vWyT20AsK-_fj4",
 			Expiration:        time.Now().Add(5 * time.Minute),
 			SessionToken:      validSessionToken,
 		}, "https://pkce.example.com")
 		body := url.Values{
 			"client_id":     {"https://pkce.example.com"},
-			"redirect_uri":  {"https://pkce.example.com/callback"},
+			"redirect_uri":  {"https://pkce.example.com"},
 			"code_verifier": {"example-code-verifier"},
 			"grant_type":    {"authorization_code"},
 			"code":          {code},
@@ -569,13 +596,13 @@ func TestHandleToken(t *testing.T) {
 
 	t.Run("client_secret_basic", func(t *testing.T) {
 		code := h.codeEncryptor.Encrypt(&tokens.CodePayload{
-			RedirectURI:       "https://non-pkce.example.com/callback",
+			RedirectURI:       "https://non-pkce.example.com",
 			S256CodeChallenge: "oluiRWwwc_ynHVbpB3MNDlNq1zV8-vWyT20AsK-_fj4",
 			Expiration:        time.Now().Add(5 * time.Minute),
 			SessionToken:      validSessionToken,
 		}, "https://non-pkce.example.com")
 		body := url.Values{
-			"redirect_uri":  {"https://non-pkce.example.com/callback"},
+			"redirect_uri":  {"https://non-pkce.example.com"},
 			"code_verifier": {"example-code-verifier"},
 			"grant_type":    {"authorization_code"},
 			"code":          {code},
@@ -591,7 +618,7 @@ func TestHandleToken(t *testing.T) {
 
 	t.Run("client_secret_post", func(t *testing.T) {
 		code := h.codeEncryptor.Encrypt(&tokens.CodePayload{
-			RedirectURI:       "https://non-pkce.example.com/callback",
+			RedirectURI:       "https://non-pkce.example.com",
 			S256CodeChallenge: "oluiRWwwc_ynHVbpB3MNDlNq1zV8-vWyT20AsK-_fj4",
 			Expiration:        time.Now().Add(5 * time.Minute),
 			SessionToken:      validSessionToken,
@@ -599,7 +626,7 @@ func TestHandleToken(t *testing.T) {
 		body := url.Values{
 			"client_id":     {"https://non-pkce.example.com"},
 			"client_secret": {"explicit-secret"},
-			"redirect_uri":  {"https://non-pkce.example.com/callback"},
+			"redirect_uri":  {"https://non-pkce.example.com"},
 			"code_verifier": {"example-code-verifier"},
 			"grant_type":    {"authorization_code"},
 			"code":          {code},
@@ -610,6 +637,51 @@ func TestHandleToken(t *testing.T) {
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		h.HandleToken(w, r)
 		verifyTokenResponse(t, w.Result(), "https://non-pkce.example.com")
+	})
+
+	// Found by the OpenID conformance suite (oidcc-server: "Invalid at_hash in
+	// token"). The session claims come from the upstream IdP's ID token, so
+	// claims bound to that token (its access token hash, its ID, its session)
+	// must not be copied into an ID token we sign: they describe a token the
+	// relying party never sees and fail its validation.
+	t.Run("upstream token-bound claims", func(t *testing.T) {
+		upstreamClaims := map[string]*structpb.ListValue{
+			"sub":           {Values: []*structpb.Value{structpb.NewStringValue("idp-user-id")}},
+			"email":         {Values: []*structpb.Value{structpb.NewStringValue("user@example.com")}},
+			"auth_time":     {Values: []*structpb.Value{structpb.NewNumberValue(1700000000)}},
+			"at_hash":       {Values: []*structpb.Value{structpb.NewStringValue("upstream-at-hash")}},
+			"c_hash":        {Values: []*structpb.Value{structpb.NewStringValue("upstream-c-hash")}},
+			"s_hash":        {Values: []*structpb.Value{structpb.NewStringValue("upstream-s-hash")}},
+			"jti":           {Values: []*structpb.Value{structpb.NewStringValue("upstream-jti")}},
+			"nbf":           {Values: []*structpb.Value{structpb.NewNumberValue(1700000000)}},
+			"typ":           {Values: []*structpb.Value{structpb.NewStringValue("ID")}},
+			"sid":           {Values: []*structpb.Value{structpb.NewStringValue("upstream-session")}},
+			"session_state": {Values: []*structpb.Value{structpb.NewStringValue("upstream-session")}},
+		}
+		getUserInfoData := func(*http.Request, *session.Handle) handlers.UserInfoData {
+			return handlers.UserInfoData{Session: &session.Session{
+				Claims:    upstreamClaims,
+				ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+			}}
+		}
+		h, err := NewHandlers(getUserInfoData, nil, exampleConfig())
+		require.NoError(t, err)
+
+		code := h.codeEncryptor.Encrypt(&tokens.CodePayload{
+			RedirectURI:  "https://non-pkce.example.com",
+			Expiration:   time.Now().Add(5 * time.Minute),
+			SessionToken: validSessionToken,
+		}, "https://non-pkce.example.com")
+		res, tokenResponse := exchangeCode(t, h, code, "explicit-secret")
+		require.Equal(t, http.StatusOK, res.StatusCode, tokenResponse)
+		claims := idTokenClaims(t, h, tokenResponse)
+
+		for _, k := range []string{"at_hash", "c_hash", "s_hash", "jti", "nbf", "typ", "sid", "session_state"} {
+			assert.NotContains(t, claims, k)
+		}
+		// Claims about the end user and their authentication are kept.
+		assert.Equal(t, "user@example.com", claims["email"])
+		assert.Equal(t, float64(1700000000), claims["auth_time"])
 	})
 }
 
@@ -663,12 +735,12 @@ func TestHandleUserInfo(t *testing.T) {
 			testutil.AssertProtoEqual(t, sh, handle)
 			return handlers.UserInfoData{} // no session
 		}
-		h, err := NewHandlers(nil, getUserInfoData, exampleConfig())
+		h, err := NewHandlers(getUserInfoData, nil, exampleConfig())
 		require.NoError(t, err)
 
 		shb, err := proto.Marshal(sh)
 		require.NoError(t, err)
-		token := h.accessTokenEncryptor.Encrypt(base64.StdEncoding.EncodeToString(shb))
+		token := h.accessTokenEncryptor.Encrypt(&tokens.AccessTokenPayload{SessionToken: base64.StdEncoding.EncodeToString(shb)})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/userinfo", nil)
@@ -697,12 +769,12 @@ func TestHandleUserInfo(t *testing.T) {
 			testutil.AssertProtoEqual(t, sh, handle)
 			return userData
 		}
-		h, err := NewHandlers(nil, getUserInfoData, exampleConfig())
+		h, err := NewHandlers(getUserInfoData, nil, exampleConfig())
 		require.NoError(t, err)
 
 		shb, err := proto.Marshal(sh)
 		require.NoError(t, err)
-		token := h.accessTokenEncryptor.Encrypt(base64.StdEncoding.EncodeToString(shb))
+		token := h.accessTokenEncryptor.Encrypt(&tokens.AccessTokenPayload{SessionToken: base64.StdEncoding.EncodeToString(shb)})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/userinfo", nil)
@@ -736,12 +808,12 @@ func TestHandleUserInfo(t *testing.T) {
 			testutil.AssertProtoEqual(t, sh, handle)
 			return userData
 		}
-		h, err := NewHandlers(nil, getUserInfoData, exampleConfig())
+		h, err := NewHandlers(getUserInfoData, nil, exampleConfig())
 		require.NoError(t, err)
 
 		shb, err := proto.Marshal(sh)
 		require.NoError(t, err)
-		token := h.accessTokenEncryptor.Encrypt(base64.StdEncoding.EncodeToString(shb))
+		token := h.accessTokenEncryptor.Encrypt(&tokens.AccessTokenPayload{SessionToken: base64.StdEncoding.EncodeToString(shb)})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/userinfo", nil)

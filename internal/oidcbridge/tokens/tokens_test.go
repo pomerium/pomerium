@@ -60,7 +60,7 @@ func TestAccessTokenEncryptor(t *testing.T) {
 	e := NewAccessTokenEncryptor(aead)
 
 	t.Run("round trip", func(t *testing.T) {
-		exampleToken := "foo-bar-baz"
+		exampleToken := &AccessTokenPayload{CodeID: "code-id", SessionToken: "foo-bar-baz"}
 		encrypted := e.Encrypt(exampleToken)
 
 		decrypted, err := e.Decrypt(encrypted)

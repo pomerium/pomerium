@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+// RedeemedAuthorizationCode records that a self-contained (encrypted)
+// authorization code was exchanged at the token endpoint, so that it cannot be
+// exchanged again (RFC 6749 §4.1.2). The record ID is derived from the code.
+message RedeemedAuthorizationCode {
+  // The client the code was issued to.
+  string client_id = 1;
+
+  // When the code expires.
+  google.protobuf.Timestamp expires_at = 2;
+
+  // Set when the code was presented again: the tokens issued for it are
+  // revoked, since whoever replayed the code may hold them too.
+  bool revoked = 3;
+}

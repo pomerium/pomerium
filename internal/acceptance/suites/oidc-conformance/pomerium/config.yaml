@@ -1,0 +1,49 @@
+# Pomerium configuration for the OIDC conformance e2e suite.
+#
+# Topology: Keycloak is Pomerium's IdP; Pomerium's OIDC bridge is the OpenID
+# Provider under test; the OpenID Foundation conformance suite is both an
+# ordinary upstream behind Pomerium AND the relying party of the bridge.
+#
+# Hostnames are *.localhost.pomerium.io (public DNS -> 127.0.0.1) and are ALSO
+# Docker network aliases of the Pomerium container, so the issuer URL and the
+# conformance suite's base URL are byte-identical from the host browser and from
+# inside the containers. Ports are fixed and identical on host and container.
+
+address: :8443
+authenticate_service_url: https://authenticate.localhost.pomerium.io:8443
+
+# Keycloak, reusing the shared acceptance realm.
+idp_provider: oidc
+idp_provider_url: http://keycloak.localhost.pomerium.io:8080/realms/pomerium-e2e
+idp_client_id: pomerium
+idp_client_secret: pomerium-e2e-secret
+idp_scopes:
+  - openid
+  - profile
+  - email
+
+certificate_file: /certs/pomerium.crt
+certificate_key_file: /certs/pomerium.key
+
+# Test-only secrets (NEVER use in production).
+cookie_secret: dj5y7E03ULP9YebCgHNIXmxWnWfYlVXCgwbm9IEdysI=
+shared_secret: 0CdEkgO02jgxmgSC2AdkqIbFELAN4CGw0v0RY85xNr4=
+
+log_level: debug
+
+routes:
+  # The conformance suite. Its base URL is this route's "from", so its
+  # redirect_uri (https://conformance.localhost.pomerium.io:8443/test/a/<alias>/callback)
+  # falls under this route, which makes the route an OIDC bridge client.
+  #
+  # The route is public: the suite's own UI/API and the browser callback must
+  # not be gated by Pomerium. The OIDC bridge authorization endpoint (on the
+  # authenticate host) is what requires a Pomerium session.
+  - from: https://conformance.localhost.pomerium.io:8443
+    to: http://conformance-server:8080
+    allow_public_unauthenticated_access: true
+    preserve_host_header: true
+    # The suite holds some requests open while it waits for a callback.
+    timeout: 120s
+    oidc_bridge:
+      client_secret: conformance-client-secret

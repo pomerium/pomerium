@@ -1,6 +1,6 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed deps-upstream-tls test-upstream-tls test-upstream-tls-headed
+.PHONY: help deps up down test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean deps-mcp test-mcp test-mcp-headed deps-downstream-mtls test-downstream-mtls test-downstream-mtls-headed deps-upstream-tls test-upstream-tls test-upstream-tls-headed deps-oidc-conformance test-oidc-conformance test-oidc-conformance-headed
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
@@ -8,6 +8,7 @@ BROWSER_DIR ?= browser
 MCP_DIR ?= suites/mcp
 DOWNSTREAM_MTLS_DIR ?= suites/downstream-mtls
 UPSTREAM_TLS_DIR ?= suites/upstream-tls
+OIDC_CONFORMANCE_DIR ?= suites/oidc-conformance
 ARTIFACTS_DIR ?= artifacts
 
 COMPOSE := docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT)
@@ -45,6 +46,12 @@ help:
 	@echo "  make deps-upstream-tls        - Install suite deps + Chromium, refresh pomerium image"
 	@echo "  make test-upstream-tls        - Run the upstream TLS/mTLS e2e suite (headless)"
 	@echo "  make test-upstream-tls-headed - Run it with a visible browser"
+	@echo ""
+	@echo "OIDC conformance suite (testcontainers, self-contained - does NOT use the compose stack):"
+	@echo "  make deps-oidc-conformance        - Install suite deps + Chromium"
+	@echo "  make test-oidc-conformance        - Build Pomerium from source, run the OpenID Foundation"
+	@echo "                                      conformance plans against the OIDC bridge (headless)"
+	@echo "  make test-oidc-conformance-headed - Run it with a visible browser"
 	@echo ""
 	@echo "Aliases: test-headed, test-debug, test-authn, test-authz, test-headers"
 
@@ -125,6 +132,22 @@ test-upstream-tls:
 
 test-upstream-tls-headed:
 	$(MAKE) -C $(UPSTREAM_TLS_DIR) test-headed
+
+# ---------------------------------------------------------------------------
+# OIDC conformance e2e suite (internal/acceptance/suites/oidc-conformance):
+# testcontainers-based and entirely self-contained - it boots Keycloak, a
+# Pomerium image built from this source tree, and the OpenID Foundation
+# conformance suite (as Pomerium's upstream and the OIDC bridge's relying
+# party). Do not run `make up` at the same time: both bind host ports 8443/8080.
+# ---------------------------------------------------------------------------
+deps-oidc-conformance:
+	$(MAKE) -C $(OIDC_CONFORMANCE_DIR) deps
+
+test-oidc-conformance:
+	$(MAKE) -C $(OIDC_CONFORMANCE_DIR) test
+
+test-oidc-conformance-headed:
+	$(MAKE) -C $(OIDC_CONFORMANCE_DIR) test-headed
 
 # View container logs
 logs:

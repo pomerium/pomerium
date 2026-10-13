@@ -151,6 +151,47 @@ func TestSignInWithPKCE(t *testing.T) {
 	assert.True(t, oauth21.VerifyPKCES256(verifier, query.Get("code_challenge")))
 }
 
+func TestSignInWithSignInParams(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
+	t.Cleanup(clearTimeout)
+
+	redirectURL, _ := url.Parse("https://localhost/oauth2/callback")
+
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"issuer":                 srv.URL,
+			"authorization_endpoint": srv.URL + "/login",
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	p, err := oidc.New(ctx, &oauth.Options{
+		ProviderURL:     srv.URL,
+		RedirectURL:     redirectURL,
+		ClientID:        "CLIENT_ID",
+		ClientSecret:    "CLIENT_SECRET",
+		AuthCodeOptions: map[string]string{"prompt": "select_account", "hd": "example.com"},
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(oidc.WithSignInParams(req.Context(), url.Values{
+		"prompt":  {"login"},
+		"max_age": {"0"},
+	}))
+	rec := httptest.NewRecorder()
+	require.NoError(t, p.SignIn(rec, req, "STATE"))
+
+	location, _ := url.Parse(rec.Result().Header.Get("Location"))
+	query := location.Query()
+	// Per-request params take precedence over the configured ones.
+	assert.Equal(t, "login", query.Get("prompt"))
+	assert.Equal(t, "0", query.Get("max_age"))
+	assert.Equal(t, "example.com", query.Get("hd"))
+}
+
 func TestSignOut(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)

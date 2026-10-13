@@ -1,0 +1,23 @@
+{
+  "name": "pomerium-oidc-conformance-e2e",
+  "version": "1.0.0",
+  "description": "Runs the OpenID Foundation conformance suite (OIDC Basic OP + Config OP plans) against Pomerium's OIDC bridge: testcontainers + real Keycloak IdP in front of Pomerium + the conformance suite as Pomerium's upstream/relying party, driven by Playwright.",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "typecheck": "tsc --noEmit",
+    "install:browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "testcontainers": "^12.2.0",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "npm@10.9.4"
+}

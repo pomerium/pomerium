@@ -158,6 +158,11 @@ func NewStateful(
 	return s, nil
 }
 
+// DataBrokerClient returns the databroker client the flow uses.
+func (s *Stateful) DataBrokerClient() databroker.DataBrokerServiceClient {
+	return s.dataBrokerClient
+}
+
 // SignIn redirects to a route callback URL, if the provided request and
 // session handle are valid.
 func (s *Stateful) SignIn(

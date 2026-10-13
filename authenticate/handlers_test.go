@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -1006,3 +1007,101 @@ func (*stubFlow) GetUserInfoData(*http.Request, *session.Handle) handlers.UserIn
 }
 
 func (*stubFlow) LogAuthenticateEvent(*http.Request) {}
+
+// signInRecorder is an identity provider that records the parameters SignIn
+// was asked to add to the authentication request.
+type signInRecorder struct {
+	identity.MockProvider
+	params url.Values
+}
+
+func (p *signInRecorder) SignIn(w http.ResponseWriter, r *http.Request, _ string) error {
+	p.params = oidc.SignInParamsFromContext(r.Context())
+	http.Redirect(w, r, "https://idp.example.com/auth", http.StatusFound)
+	return nil
+}
+
+// Found by the OpenID conformance suite (internal/acceptance/suites/oidc-conformance).
+func TestOIDCBridgeRoutes(t *testing.T) {
+	t.Parallel()
+
+	const clientID = "https://app.example.com/callback"
+	newAuth := func(t *testing.T, idp identity.Authenticator) *Authenticate {
+		opts := newTestOptions(t)
+		opts.Routes = []config.Policy{{
+			From: "https://app.example.com",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("secret"),
+			}),
+		}}
+		auth, err := New(t.Context(), config.New(opts), WithGetIdentityProvider(
+			func(context.Context, oteltrace.TracerProvider, *config.Options, string) (identity.Authenticator, error) {
+				return idp, nil
+			}))
+		require.NoError(t, err)
+		return auth
+	}
+	authParams := func(extra ...string) url.Values {
+		q := url.Values{
+			"client_id":     {clientID},
+			"redirect_uri":  {clientID},
+			"response_type": {"code"},
+			"scope":         {"openid"},
+			"state":         {"xyz"},
+		}
+		for i := 0; i+1 < len(extra); i += 2 {
+			q.Set(extra[i], extra[i+1])
+		}
+		return q
+	}
+
+	// oidcc-ensure-post-request-succeeds: the authorization endpoint must
+	// accept POST, which browsers send cross-site from the client's page.
+	t.Run("cross-site POST authorization request", func(t *testing.T) {
+		t.Parallel()
+		auth := newAuth(t, identity.MockProvider{})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "https://authenticate.example/oidc/auth",
+			strings.NewReader(authParams("prompt", "none").Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r.Header.Set("Origin", "https://app.example.com")
+		r.Header.Set("Sec-Fetch-Site", "cross-site")
+		auth.Handler().ServeHTTP(w, r)
+
+		res := w.Result()
+		assert.Equal(t, http.StatusFound, res.StatusCode)
+		assert.Equal(t, clientID+"?error=login_required&state=xyz", res.Header.Get("Location"))
+	})
+
+	// oidcc-userinfo-post-header: the UserInfo endpoint must accept POST.
+	t.Run("POST userinfo request", func(t *testing.T) {
+		t.Parallel()
+		auth := newAuth(t, identity.MockProvider{})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "https://authenticate.example/oidc/userinfo", nil)
+		r.Header.Set("Authorization", "Bearer bogus")
+		auth.Handler().ServeHTTP(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Result().StatusCode)
+	})
+
+	// oidcc-prompt-login and oidcc-max-age-1: signing in again must ask the
+	// identity provider to re-authenticate the user too, or it may just
+	// return its existing session.
+	t.Run("prompt=login and max_age reach the identity provider", func(t *testing.T) {
+		t.Parallel()
+		idp := &signInRecorder{}
+		auth := newAuth(t, idp)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "https://authenticate.example/oidc/auth?"+
+			authParams("prompt", "login", "max_age", "1").Encode(), nil)
+		auth.Handler().ServeHTTP(w, r)
+
+		res := w.Result()
+		assert.Equal(t, http.StatusFound, res.StatusCode)
+		assert.Equal(t, "https://idp.example.com/auth", res.Header.Get("Location"))
+		assert.Equal(t, url.Values{"prompt": {"login"}, "max_age": {"1"}}, idp.params)
+	})
+}

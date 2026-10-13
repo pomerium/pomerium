@@ -125,16 +125,36 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 		return nil, errors.New("missing redirect_uri")
 	}
 
+	if _, err := parseURL(clientID); err != nil {
+		return nil, fmt.Errorf("invalid client_id: %w", err)
+	}
+	if _, err := parseURL(redirectURI); err != nil {
+		return nil, fmt.Errorf("invalid redirect_uri: %w", err)
+	}
+	info, err := c.LookupClient(clientID)
+	if err != nil {
+		return nil, err
+	}
+	// The client_id URL is the client's one registered redirect URI, and
+	// redirect URIs must match exactly (OIDC Core §3.1.2.1, RFC 9700 §4.1.3):
+	// a code sent to any other URL, even one below it, could be captured there.
+	// (Both URLs are in canonical form, as parseURL checked.)
+	if redirectURI != clientID {
+		return nil, fmt.Errorf("redirect_uri %q does not match client_id %q", redirectURI, clientID)
+	}
+	info.RedirectURI = redirectURI
+	return info, nil
+}
+
+// LookupClient returns the ClientInfo (without a RedirectURI) for the given
+// clientID, or an error if there is no such client.
+func (c *ClientLookup) LookupClient(clientID string) (*ClientInfo, error) {
+	if clientID == "" {
+		return nil, errors.New("missing client_id")
+	}
 	parsedClient, err := parseURL(clientID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid client_id: %w", err)
-	}
-	parsedRedirect, err := parseURL(redirectURI)
-	if err != nil {
-		return nil, fmt.Errorf("invalid redirect_uri: %w", err)
-	}
-	if !redirectURIMatches(parsedClient, parsedRedirect) {
-		return nil, fmt.Errorf("redirect_uri %q does not match client_id %q", redirectURI, clientID)
 	}
 
 	var routesToScan []*config.Policy
@@ -144,38 +164,18 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 		routesToScan = c.wildcardRoutes
 	}
 	for _, r := range routesToScan {
-		clientMatches := r.Matches(parsedClient, false)
-		redirectMatches := r.Matches(parsedRedirect, false)
-		if clientMatches && redirectMatches {
-			info := ClientInfo{
-				ID:          clientID,
-				RedirectURI: redirectURI,
-			}
-			oidcBridge := c.globalOptions.GetOIDCBridgeForPolicy(r)
-			if oidcBridge.ClientSecret.IsSet {
-				// Store a hash of the explicit client_secret, so we can perform
-				// a constant-time string comparison during verification.
-				hash := sha256.Sum256([]byte(oidcBridge.ClientSecret.Value))
-				info.SecretHash = hash[:]
-			}
-			return &info, nil
-		} else if clientMatches || redirectMatches {
-			return nil, fmt.Errorf("redirect_uri %q does not match client_id route", redirectURI)
+		if !r.Matches(parsedClient, false) {
+			continue
 		}
+		info := ClientInfo{ID: clientID}
+		oidcBridge := c.globalOptions.GetOIDCBridgeForPolicy(r)
+		if oidcBridge.ClientSecret.IsSet {
+			// Store a hash of the explicit client_secret, so we can perform
+			// a constant-time string comparison during verification.
+			hash := sha256.Sum256([]byte(oidcBridge.ClientSecret.Value))
+			info.SecretHash = hash[:]
+		}
+		return &info, nil
 	}
 	return nil, errors.New("unknown client_id")
-}
-
-// redirectURIMatches returns whether redirect is equal to or a "child" path of client.
-func redirectURIMatches(client, redirect *url.URL) bool {
-	// The host must match exactly.
-	if redirect.Host != client.Host {
-		return false
-	}
-	// The path must either match exactly, or the redirect_uri must be a sub-path.
-	if redirect.Path == client.Path {
-		return true
-	}
-	remainder, ok := strings.CutPrefix(redirect.Path, client.Path)
-	return ok && (strings.HasSuffix(client.Path, "/") || strings.HasPrefix(remainder, "/"))
 }

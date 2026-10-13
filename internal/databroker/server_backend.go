@@ -806,6 +806,18 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 		return err
 	}
 
+	// OIDC bridge authorization codes are valid for minutes, so an evicted
+	// record could only allow a code replay if this many other codes were
+	// redeemed within one code's lifetime. Eviction also ends the revocation
+	// of the tokens issued for a replayed code. (A TTL long enough to cover
+	// those tokens would leave the record count unbounded.)
+	redeemedCodeCap := uint64(100_000)
+	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.RedeemedAuthorizationCode", &databrokerpb.Options{
+		Capacity: &redeemedCodeCap,
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
@@ -154,8 +155,11 @@ func newAuthenticateStateFromConfig(
 		return nil, err
 	}
 
-	handlers, err := oidcbridge.NewHandlers(
-		cookieStore.ReadSessionHandle, state.flow.GetUserInfoData, cfg.Options)
+	var dataBrokerClient databroker.DataBrokerServiceClient
+	if stateful, ok := state.flow.(*authenticateflow.Stateful); ok {
+		dataBrokerClient = stateful.DataBrokerClient()
+	}
+	handlers, err := oidcbridge.NewHandlers(state.flow.GetUserInfoData, dataBrokerClient, cfg.Options)
 	if err != nil {
 		return nil, err
 	} else if handlers != nil {

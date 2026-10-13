@@ -3,6 +3,7 @@ package authenticate
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -48,7 +49,14 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == endpoints.PathPomeriumVerifyAccessToken ||
 				r.URL.Path == endpoints.PathPomeriumVerifyIdentityToken ||
-				r.URL.Path == endpoints.PathAuthenticateCallback { // protected by separate CSRF token
+				r.URL.Path == endpoints.PathAuthenticateCallback || // protected by separate CSRF token
+				// OIDC bridge: the authorization endpoint is meant to be
+				// POSTed to cross-site by clients (the client protects its own
+				// flow with state/nonce/PKCE), and the token and UserInfo
+				// endpoints are authenticated by credentials, not cookies.
+				r.URL.Path == endpoints.PathOIDCAuth ||
+				r.URL.Path == endpoints.PathOIDCToken ||
+				r.URL.Path == endpoints.PathOIDCUserInfo {
 				r = csrf.UnsafeSkipCheck(r)
 			}
 			h.ServeHTTP(w, r)
@@ -133,42 +141,53 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		defer span.End()
 		r = r.WithContext(ctx)
 
-		state := a.state.Load()
-		idpID := a.getIdentityProviderIDForRequest(r)
-
-		h, err := a.getSessionHandleFromRequest(r)
-		if err != nil {
-			log.FromRequest(r).Info().
-				Err(err).
-				Str("idp-id", idpID).
-				Msg("authenticate: session load error")
-			span.AddEvent("session load error",
-				oteltrace.WithAttributes(attribute.String("error", err.Error())))
+		if _, err := a.verifiedSessionHandle(r); err != nil {
 			return a.reauthenticateOrFail(w, r, err)
 		}
-
-		if h.IdentityProviderId != idpID {
-			log.FromRequest(r).Info().
-				Str("idp-id", idpID).
-				Str("session-idp-id", h.IdentityProviderId).
-				Str("id", h.Id).
-				Msg("authenticate: session not associated with identity provider")
-			span.AddEvent("session not associated with identity provider")
-			return a.reauthenticateOrFail(w, r, err)
-		}
-
-		if err := state.flow.VerifySession(ctx, r, h); err != nil {
-			log.FromRequest(r).Info().
-				Err(err).
-				Str("idp-id", idpID).
-				Msg("authenticate: couldn't verify session")
-			span.AddEvent("couldn't verify session",
-				oteltrace.WithAttributes(attribute.String("error", err.Error())))
-			return a.reauthenticateOrFail(w, r, err)
-		}
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, r)
 		return nil
 	})
+}
+
+var errSessionIdentityProviderMismatch = errors.New("session not associated with identity provider")
+
+// verifiedSessionHandle returns the handle of the request's session, or an
+// error if the request has no valid session for its identity provider.
+func (a *Authenticate) verifiedSessionHandle(r *http.Request) (*session.Handle, error) {
+	span := oteltrace.SpanFromContext(r.Context())
+	idpID := a.getIdentityProviderIDForRequest(r)
+
+	h, err := a.getSessionHandleFromRequest(r)
+	if err != nil {
+		log.FromRequest(r).Info().
+			Err(err).
+			Str("idp-id", idpID).
+			Msg("authenticate: session load error")
+		span.AddEvent("session load error",
+			oteltrace.WithAttributes(attribute.String("error", err.Error())))
+		return nil, err
+	}
+
+	if h.IdentityProviderId != idpID {
+		log.FromRequest(r).Info().
+			Str("idp-id", idpID).
+			Str("session-idp-id", h.IdentityProviderId).
+			Str("id", h.Id).
+			Msg("authenticate: session not associated with identity provider")
+		span.AddEvent("session not associated with identity provider")
+		return nil, errSessionIdentityProviderMismatch
+	}
+
+	if err := a.state.Load().flow.VerifySession(r.Context(), r, h); err != nil {
+		log.FromRequest(r).Info().
+			Err(err).
+			Str("idp-id", idpID).
+			Msg("authenticate: couldn't verify session")
+		span.AddEvent("couldn't verify session",
+			oteltrace.WithAttributes(attribute.String("error", err.Error())))
+		return nil, err
+	}
+	return h, nil
 }
 
 // RobotsTxt handles the /robots.txt route.

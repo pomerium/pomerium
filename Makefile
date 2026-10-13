@@ -168,6 +168,11 @@ test-e2e-k3s: get-envoy ## Runs the k3s external-JWT e2e test (requires Docker).
 	@echo "==> $@"
 	RUN_TestExternalJWTBearer_K3s=1 $(GO) test -timeout=15m -run '^TestExternalJWTBearer_K3s$$' ./authorize/...
 
+.PHONY: test-oidc-conformance
+test-oidc-conformance: ## Runs the OpenID Foundation conformance suite against the OIDC bridge (requires Docker, Node, mkcert).
+	@echo "==> $@"
+	$(MAKE) -C internal/acceptance test-oidc-conformance
+
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage
 	@echo "==> $@"

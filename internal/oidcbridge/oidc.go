@@ -10,8 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/internal/oauth21"
 	"github.com/pomerium/pomerium/internal/oidcbridge/tokens"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
@@ -35,6 +39,30 @@ import (
 const nonceSizeLimit = 300 // not part of the OIDC spec
 
 const idTokenValiditySeconds = 3600
+
+// upstreamTokenClaims are claims that the upstream IdP's ID token carries about
+// that token itself (its ID, validity, hashes of artifacts issued alongside it,
+// the IdP session it belongs to). They do not describe the end user, and are
+// meaningless or wrong in a token we issue.
+var upstreamTokenClaims = []string{
+	// Defined by JWT (RFC 7519) and OIDC Core.
+	"aud", "azp", "exp", "iat", "iss", "jti", "nbf", "nonce",
+	"at_hash", "c_hash", "s_hash", "sid",
+	// IdP-specific, seen from Keycloak. Other IdPs have their own.
+	"session_state", "typ",
+}
+
+// collectUserClaims returns the claims about the end user from the session and
+// user records.
+func collectUserClaims(data *handlers.UserInfoData) map[string]any {
+	claims := make(map[string]any)
+	identity.CollectClaims(claims, data.User)
+	identity.CollectClaims(claims, data.Session)
+	for _, k := range upstreamTokenClaims {
+		delete(claims, k)
+	}
+	return claims
+}
 
 type Handlers struct {
 	issuerURL string
@@ -48,20 +76,36 @@ type Handlers struct {
 	// key set for ID tokens that we sign
 	publicJWKS jose.JSONWebKeySet
 
-	idTokenSigner    jose.Signer
-	getSessionHandle func(*http.Request) (*session.Handle, error)
-	getUserInfoData  func(*http.Request, *session.Handle) handlers.UserInfoData
+	idTokenSigner   jose.Signer
+	getUserInfoData func(*http.Request, *session.Handle) handlers.UserInfoData
+
+	// records redeemed authorization codes, which makes codes single-use
+	dataBrokerClient databroker.DataBrokerServiceClient
 }
 
+// SessionAuthenticator gives the authorization endpoint access to the end
+// user's Pomerium session. The authenticate service implements it.
+type SessionAuthenticator interface {
+	// VerifiedSessionHandle returns the handle of the request's Pomerium
+	// session, or an error if the request has no valid session.
+	VerifiedSessionHandle(r *http.Request) (*session.Handle, error)
+	// Reauthenticate signs the user in with the identity provider again and
+	// then returns them to r.URL. idpParams are added to the identity
+	// provider's authorization request.
+	Reauthenticate(w http.ResponseWriter, r *http.Request, idpParams url.Values) error
+}
+
+// NewHandlers returns the bridge's handlers, or nil if no route enables it.
+// Authorization codes are single-use only with a dataBrokerClient.
 func NewHandlers(
-	getSessionHandle func(*http.Request) (*session.Handle, error),
 	getUserInfoData func(*http.Request, *session.Handle) handlers.UserInfoData,
+	dataBrokerClient databroker.DataBrokerServiceClient,
 	o *config.Options,
 ) (*Handlers, error) {
 	h := &Handlers{
 		issuerURL:        o.AuthenticateURLString,
-		getSessionHandle: getSessionHandle,
 		getUserInfoData:  getUserInfoData,
+		dataBrokerClient: dataBrokerClient,
 	}
 	h.clients.buildForConfig(o)
 	if h.clients.Empty() {
@@ -140,12 +184,22 @@ func (h *Handlers) HandleOIDCConfiguration(w http.ResponseWriter, r *http.Reques
 		"id_token_signing_alg_values_supported": []string{"RS256"},
 		"token_endpoint_auth_methods_supported": []string{"client_secret_basic", "client_secret_post"},
 		"response_types_supported":              []string{"code"},
+		"response_modes_supported":              []string{"query"},
 		"scopes_supported":                      []string{"openid"},
+		"prompt_values_supported":               []string{"none", "login"},
+		// Not exhaustive (which the spec allows): the remaining claims are
+		// whatever the identity provider supplies.
+		"claims_supported": []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce"},
+		// Request objects are not supported. The default for
+		// request_uri_parameter_supported is true, so say so explicitly.
+		"request_parameter_supported":     false,
+		"request_uri_parameter_supported": false,
 	}
 	serveJSON(w, r, config)
 }
 
-func (h *Handlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
+// HandleAuth handles an authorization endpoint request (GET or POST).
+func (h *Handlers) HandleAuth(w http.ResponseWriter, r *http.Request, sessions SessionAuthenticator) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
 
@@ -162,17 +216,19 @@ func (h *Handlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Any other error should be redirected.
-		e := &errorResponse{
-			ErrorCode:   "invalid_request",
-			Description: err.Error(),
-		}
-		http.Redirect(w, r, validated.ErrorRedirectURL(e), http.StatusFound)
+		http.Redirect(w, r, validated.ErrorRedirectURL(asErrorResponse(err)), http.StatusFound)
 		return
 	}
 
-	s, err := h.getSessionToken(r)
+	sh := h.authenticatedSession(r, validated, sessions)
+	if sh == nil {
+		signIn(w, r, validated, sessions)
+		return
+	}
+
+	s, err := encodeSessionHandle(sh)
 	if err != nil {
-		log.Ctx(r.Context()).Error().Err(err).Msg("oidcbridge: could not retrieve session for auth request")
+		log.Ctx(r.Context()).Error().Err(err).Msg("oidcbridge: could not encode session for auth request")
 		e := &errorResponse{
 			ErrorCode:   "server_error",
 			Description: "could not retrieve session",
@@ -186,18 +242,80 @@ func (h *Handlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		RedirectURI:       validated.RedirectURI,
 		Expiration:        time.Now().Add(5 * time.Minute),
 		S256CodeChallenge: validated.S256CodeChallenge,
-		Nonce:             r.FormValue("nonce"),
+		Nonce:             validated.Nonce,
 		SessionToken:      s,
 	}, validated.ClientID))
-	q.Set("state", r.FormValue("state"))
+	q.Set("state", validated.State)
 	http.Redirect(w, r, validated.RedirectURI+"?"+q.Encode(), http.StatusFound)
 }
 
-func (h *Handlers) getSessionToken(r *http.Request) (string, error) {
-	s, err := h.getSessionHandle(r)
-	if err != nil {
-		return "", err
+// authenticatedSession returns the session to issue an authorization code for,
+// or nil if the user must sign in (again) first.
+func (h *Handlers) authenticatedSession(
+	r *http.Request, validated *validatedAuthRequest, sessions SessionAuthenticator,
+) *session.Handle {
+	if validated.PromptLogin {
+		return nil
 	}
+	sh, err := sessions.VerifiedSessionHandle(r)
+	if err != nil {
+		return nil
+	}
+	if validated.MaxAge != nil {
+		data := h.getUserInfoData(r, sh)
+		if time.Since(authTime(&data)) > *validated.MaxAge {
+			return nil
+		}
+	}
+	return sh
+}
+
+// signIn sends the user to sign in with the identity provider, after which the
+// authorization request continues. With prompt=none the client gets
+// login_required instead (OIDC Core §3.1.2.6).
+func signIn(w http.ResponseWriter, r *http.Request, validated *validatedAuthRequest, sessions SessionAuthenticator) {
+	if validated.PromptNone {
+		http.Redirect(w, r, validated.ErrorRedirectURL(&errorResponse{ErrorCode: "login_required"}), http.StatusFound)
+		return
+	}
+
+	// Continue with the same request (as a GET, in case this one was a POST),
+	// minus what signing in satisfies (prompt=login and max_age), so that it
+	// is not requested again.
+	continueParams := maps.Clone(r.Form)
+	continueParams.Del("max_age")
+	prompt := slices.DeleteFunc(strings.Fields(continueParams.Get("prompt")), func(v string) bool {
+		return v == "login"
+	})
+	if len(prompt) > 0 {
+		continueParams.Set("prompt", strings.Join(prompt, " "))
+	} else {
+		continueParams.Del("prompt")
+	}
+	continueURL := *r.URL
+	continueURL.RawQuery = continueParams.Encode()
+	r = r.Clone(r.Context())
+	r.Method = http.MethodGet
+	r.URL = &continueURL
+	r.Body = http.NoBody
+
+	httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		return sessions.Reauthenticate(w, r, validated.idpParams())
+	}).ServeHTTP(w, r)
+}
+
+// authTime returns when the user last authenticated: the identity provider's
+// auth_time if it reported one, otherwise when the Pomerium session started.
+func authTime(data *handlers.UserInfoData) time.Time {
+	if lv := data.Session.GetClaims()["auth_time"]; len(lv.GetValues()) == 1 {
+		if v, ok := lv.GetValues()[0].AsInterface().(float64); ok {
+			return time.Unix(int64(v), 0)
+		}
+	}
+	return data.Session.GetIssuedAt().AsTime()
+}
+
+func encodeSessionHandle(s *session.Handle) (string, error) {
 	sessionBytes, err := proto.Marshal(s)
 	if err != nil {
 		return "", err
@@ -211,6 +329,11 @@ type validatedAuthRequest struct {
 	State             string
 	Nonce             string
 	S256CodeChallenge string
+
+	PromptNone  bool
+	PromptLogin bool
+	// MaxAge is the max_age parameter, if present.
+	MaxAge *time.Duration
 }
 
 func (h *Handlers) validateAuthRequest(r *http.Request) (*validatedAuthRequest, error) {
@@ -223,6 +346,29 @@ func (h *Handlers) validateAuthRequest(r *http.Request) (*validatedAuthRequest, 
 		ClientID:    client.ID,
 		RedirectURI: client.RedirectURI,
 		State:       r.FormValue("state"),
+	}
+
+	switch responseType := r.FormValue("response_type"); responseType {
+	case "code":
+	case "":
+		return validated, errors.New("missing response_type")
+	default:
+		return validated, &errorResponse{
+			ErrorCode:   "unsupported_response_type",
+			Description: fmt.Sprintf("response_type %q is not supported", responseType),
+		}
+	}
+	if m := r.FormValue("response_mode"); m != "" && m != "query" {
+		return validated, fmt.Errorf("unsupported response_mode %q", m)
+	}
+
+	// Request objects are not supported (OIDC Core §6). Ignoring them would
+	// ignore the parameters inside them.
+	if r.Form.Has("request") {
+		return validated, &errorResponse{ErrorCode: "request_not_supported"}
+	}
+	if r.Form.Has("request_uri") {
+		return validated, &errorResponse{ErrorCode: "request_uri_not_supported"}
 	}
 
 	validated.S256CodeChallenge, err = validateCodeChallenge(
@@ -242,7 +388,36 @@ func (h *Handlers) validateAuthRequest(r *http.Request) (*validatedAuthRequest, 
 	}
 	validated.Nonce = nonce
 
+	// prompt is a space-delimited list (OIDC Core §3.1.2.1).
+	prompt := strings.Fields(r.FormValue("prompt"))
+	validated.PromptNone = slices.Contains(prompt, "none")
+	validated.PromptLogin = slices.Contains(prompt, "login")
+	if validated.PromptNone && len(prompt) > 1 {
+		return validated, errors.New(`prompt "none" cannot be combined with other values`)
+	}
+
+	if v := r.FormValue("max_age"); v != "" {
+		seconds, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return validated, fmt.Errorf("invalid max_age %q", v)
+		}
+		validated.MaxAge = new(time.Duration(seconds) * time.Second)
+	}
+
 	return validated, nil
+}
+
+// idpParams returns the parameters to pass on to the identity provider when
+// the user signs in, so that it also re-authenticates them as requested.
+func (v *validatedAuthRequest) idpParams() url.Values {
+	params := url.Values{}
+	if v.PromptLogin {
+		params.Set("prompt", "login")
+	}
+	if v.MaxAge != nil {
+		params.Set("max_age", strconv.FormatInt(int64(v.MaxAge.Seconds()), 10))
+	}
+	return params
 }
 
 func (v *validatedAuthRequest) ErrorRedirectURL(e *errorResponse) string {
@@ -281,9 +456,19 @@ func (h *Handlers) HandleToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 
 	req, err := h.validateTokenRequest(r, time.Now())
-	if err != nil {
+	if err == nil {
+		// Only now, with the request otherwise valid, use up the code: a
+		// request that fails validation must not burn it.
+		err = h.redeemCode(r.Context(), req)
+	}
+	var errResp *errorResponse
+	if errors.As(err, &errResp) {
 		log.Ctx(r.Context()).Info().Err(err).Msg("oidc: token request invalid")
-		serveJSON(w, r, err)
+		serveJSON(w, r, errResp)
+		return
+	} else if err != nil {
+		log.Ctx(r.Context()).Error().Err(err).Msg("oidc: couldn't validate token request")
+		serveJSON(w, r, &errorResponse{ErrorCode: "server_error"})
 		return
 	}
 
@@ -303,10 +488,13 @@ func (h *Handlers) HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := map[string]any{
-		"access_token": h.accessTokenEncryptor.Encrypt(req.SessionHandle),
-		"token_type":   "Bearer",
-		"id_token":     idToken,
-		"expires_in":   max(int(time.Until(data.Session.ExpiresAt.AsTime()).Seconds()), 0),
+		"access_token": h.accessTokenEncryptor.Encrypt(&tokens.AccessTokenPayload{
+			CodeID:       req.CodeID,
+			SessionToken: req.SessionHandle,
+		}),
+		"token_type": "Bearer",
+		"id_token":   idToken,
+		"expires_in": max(int(time.Until(data.Session.ExpiresAt.AsTime()).Seconds()), 0),
 	}
 	serveJSON(w, r, resp)
 }
@@ -324,9 +512,11 @@ func (h *Handlers) parseSessionHandle(s string) (*session.Handle, error) {
 }
 
 type ValidatedTokenRequest struct {
-	ClientID      string
-	Nonce         string
-	SessionHandle string
+	ClientID       string
+	CodeID         string
+	CodeExpiration time.Time
+	Nonce          string
+	SessionHandle  string
 }
 
 const timestampFormat = "2006-01-02 15:04:05 MST"
@@ -353,10 +543,13 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 	//     returned from the Token Endpoint).
 	//
 	// Implementation notes:
-	//  - We do not currently implement (4).
+	//  - (4) needs the databroker; HandleToken calls redeemCode afterwards.
+	//  - Error codes follow RFC 6749 §5.2: failed client authentication is
+	//    invalid_client, and any problem with the code is invalid_grant.
 
 	var clientID, clientSecret string
-	if u, p, ok := r.BasicAuth(); ok {
+	u, p, usedBasicAuth := r.BasicAuth()
+	if usedBasicAuth {
 		var err error
 		clientID, err = url.QueryUnescape(u)
 		if err != nil {
@@ -376,12 +569,17 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 		clientID = r.FormValue("client_id")
 		clientSecret = r.FormValue("client_secret")
 	}
-	redirectURI := r.FormValue("redirect_uri")
-	clientInfo, err := h.clients.Lookup(clientID, redirectURI)
+	clientInfo, err := h.clients.LookupClient(clientID)
 	if err != nil {
-		return nil, &errorResponse{
-			ErrorCode:   "invalid_request",
-			Description: err.Error(),
+		return nil, invalidClient(usedBasicAuth, err.Error())
+	}
+
+	// If the client has a registered client_secret, the incoming request must
+	// present it.
+	if clientInfo.SecretHash != nil {
+		hash := sha256.Sum256([]byte(clientSecret))
+		if subtle.ConstantTimeCompare(hash[:], clientInfo.SecretHash) != 1 {
+			return nil, invalidClient(usedBasicAuth, "incorrect client_secret")
 		}
 	}
 
@@ -394,34 +592,23 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 		}
 	}
 
-	payload, err := h.codeEncryptor.Decrypt(r.FormValue("code"), clientID)
+	code := r.FormValue("code")
+	payload, err := h.codeEncryptor.Decrypt(code, clientID)
 	if err != nil {
 		return nil, &errorResponse{
-			ErrorCode:   "invalid_request",
+			ErrorCode:   "invalid_grant",
 			Description: "invalid authorization code",
 		}
 	} else if payload.Expiration.Before(now) {
 		return nil, &errorResponse{
-			ErrorCode: "invalid_request",
+			ErrorCode: "invalid_grant",
 			Description: fmt.Sprintf("authorization code expired at %s",
 				payload.Expiration.UTC().Format(timestampFormat)),
 		}
 	} else if u := r.FormValue("redirect_uri"); u != payload.RedirectURI {
 		return nil, &errorResponse{
-			ErrorCode:   "invalid_request",
+			ErrorCode:   "invalid_grant",
 			Description: "incorrect or missing redirect_uri",
-		}
-	}
-
-	// If the client has a registered client_secret, the incoming request must
-	// present it.
-	if clientInfo.SecretHash != nil {
-		hash := sha256.Sum256([]byte(clientSecret))
-		if subtle.ConstantTimeCompare(hash[:], clientInfo.SecretHash) != 1 {
-			return nil, &errorResponse{
-				ErrorCode:   "invalid_request",
-				Description: "incorrect client_secret",
-			}
 		}
 	}
 
@@ -431,17 +618,32 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 	if verifier != "" || challenge != "" {
 		if !oauth21.VerifyPKCES256(verifier, challenge) {
 			return nil, &errorResponse{
-				ErrorCode:   "invalid_request",
+				ErrorCode:   "invalid_grant",
 				Description: "incorrect code_verifier",
 			}
 		}
 	}
 
 	return &ValidatedTokenRequest{
-		ClientID:      clientID,
-		Nonce:         payload.Nonce,
-		SessionHandle: payload.SessionToken,
+		ClientID:       clientID,
+		CodeID:         codeID(code),
+		CodeExpiration: payload.Expiration,
+		Nonce:          payload.Nonce,
+		SessionHandle:  payload.SessionToken,
 	}, nil
+}
+
+// invalidClient returns the error for failed client authentication. A client
+// that authenticated with HTTP Basic gets a matching challenge (RFC 6749 §5.2).
+func invalidClient(usedBasicAuth bool, description string) *errorResponse {
+	e := &errorResponse{
+		ErrorCode:   "invalid_client",
+		Description: description,
+	}
+	if usedBasicAuth {
+		e.Challenge = `Basic realm="token"`
+	}
+	return e
 }
 
 func validSession(data *handlers.UserInfoData) error {
@@ -461,22 +663,22 @@ func (h *Handlers) issueIDToken(data *handlers.UserInfoData, clientID string, no
 		return "", fmt.Errorf("can't issue ID token: %w", err)
 	}
 
-	payload := make(map[string]any)
-	identity.CollectClaims(payload, data.User)
-	identity.CollectClaims(payload, data.Session)
+	payload := collectUserClaims(data)
 
 	// Make sure "aud" and "iss" refer to the OIDC flow between Pomerium and the
 	// upstream application, not the underlying IdP and Pomerium.
 	payload["aud"] = clientID
 	payload["iss"] = h.issuerURL
-	delete(payload, "azp")
 	iat := time.Now().Unix()
 	payload["iat"] = iat
 	payload["exp"] = iat + idTokenValiditySeconds
 	if nonce != "" {
 		payload["nonce"] = nonce
-	} else {
-		delete(payload, "nonce")
+	}
+	// Required when the request had max_age (OIDC Core §2), which the client
+	// may not repeat at the token endpoint, so always include it.
+	if t := authTime(data); t.Unix() > 0 {
+		payload["auth_time"] = t.Unix()
 	}
 
 	token, err := jwt.Signed(h.idTokenSigner).Claims(payload).CompactSerialize()
@@ -486,34 +688,36 @@ func (h *Handlers) issueIDToken(data *handlers.UserInfoData, clientID string, no
 	return token, nil
 }
 
-// HandleUserInfo handles a request to the user info endpoint.
+// HandleUserInfo handles a request to the user info endpoint (GET or POST).
 func (h *Handlers) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
 
-	authz := r.Header.Get("Authorization")
-	if authz == "" {
-		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request missing authorization header")
+	token, err := requestAccessToken(r)
+	if err != nil {
+		log.Ctx(r.Context()).Info().Err(err).Msg("oidc: userinfo request has no usable access token")
 		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_request"})
 		return
 	}
 
-	if strings.HasPrefix(authz, "Bearer ") {
-		authz = authz[len("Bearer "):]
-	} else {
-		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request missing bearer token")
-		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_request"})
-		return
-	}
-
-	accessToken, err := h.accessTokenEncryptor.Decrypt(authz)
+	accessToken, err := h.accessTokenEncryptor.Decrypt(token)
 	if err != nil {
 		log.Ctx(r.Context()).Info().Err(err).Msg("oidc: userinfo request has invalid access token")
-		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_token"})
+		serveJSON(w, r, invalidToken())
 		return
 	}
 
-	sh, err := h.parseSessionHandle(accessToken)
+	if revoked, err := h.codeRevoked(r.Context(), accessToken.CodeID); err != nil {
+		log.Ctx(r.Context()).Error().Err(err).Msg("oidc: userinfo request couldn't check token revocation")
+		serveJSON(w, r, &errorResponse{ErrorCode: "server_error"})
+		return
+	} else if revoked {
+		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request has a revoked access token")
+		serveJSON(w, r, invalidToken())
+		return
+	}
+
+	sh, err := h.parseSessionHandle(accessToken.SessionToken)
 	if err != nil {
 		log.Ctx(r.Context()).Info().Err(err).Msg("oidc: userinfo request couldn't parse session handle")
 		serveJSON(w, r, &errorResponse{ErrorCode: "server_error"})
@@ -523,18 +727,44 @@ func (h *Handlers) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	data := h.getUserInfoData(r, sh)
 	if err := validSession(&data); err != nil {
 		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request has invalid session")
-		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_token"})
+		serveJSON(w, r, invalidToken())
 		return
 	}
 
-	payload := make(map[string]any)
-	identity.CollectClaims(payload, data.User)
-	identity.CollectClaims(payload, data.Session)
-	for _, k := range []string{"iss", "aud", "azp", "nonce", "iat", "exp"} {
-		delete(payload, k)
-	}
+	serveJSON(w, r, collectUserClaims(&data))
+}
 
-	serveJSON(w, r, payload)
+// requestAccessToken returns the access token from the Authorization header
+// or, with POST, from a form-encoded body, but not both (RFC 6750 §2).
+func requestAccessToken(r *http.Request) (string, error) {
+	authz := r.Header.Get("Authorization")
+	var bodyToken string
+	if r.Method == http.MethodPost {
+		bodyToken = r.PostFormValue("access_token")
+	}
+	switch {
+	case authz != "" && bodyToken != "":
+		return "", errors.New("more than one access token")
+	case authz != "":
+		token, ok := strings.CutPrefix(authz, "Bearer ")
+		if !ok {
+			return "", errors.New("authorization header is not a bearer token")
+		}
+		return token, nil
+	case bodyToken != "":
+		return bodyToken, nil
+	default:
+		return "", errors.New("missing access token")
+	}
+}
+
+// invalidToken returns the error for an unusable access token, with the
+// challenge that RFC 6750 §3 requires.
+func invalidToken() *errorResponse {
+	return &errorResponse{
+		ErrorCode: "invalid_token",
+		Challenge: `Bearer error="invalid_token"`,
+	}
 }
 
 func (h *Handlers) HandleJWKS(w http.ResponseWriter, r *http.Request) {
@@ -552,6 +782,9 @@ func serveJSON(w http.ResponseWriter, r *http.Request, obj any) {
 		return
 	}
 
+	if e, ok := obj.(*errorResponse); ok && e.Challenge != "" {
+		w.Header().Set("WWW-Authenticate", e.Challenge)
+	}
 	if s, ok := obj.(interface{ GetHTTPStatus() int }); ok {
 		if status := s.GetHTTPStatus(); status != 0 {
 			w.WriteHeader(status)
@@ -564,6 +797,18 @@ type errorResponse struct {
 	Status      int    `json:"-"`
 	ErrorCode   string `json:"error"`
 	Description string `json:"error_description,omitempty"`
+	// Challenge is the WWW-Authenticate header value, if any.
+	Challenge string `json:"-"`
+}
+
+// asErrorResponse returns err as an errorResponse: as is if it is one, and as
+// invalid_request otherwise.
+func asErrorResponse(err error) *errorResponse {
+	var e *errorResponse
+	if errors.As(err, &e) {
+		return e
+	}
+	return &errorResponse{ErrorCode: "invalid_request", Description: err.Error()}
 }
 
 func (e errorResponse) Error() string {
@@ -578,9 +823,9 @@ func (e *errorResponse) GetHTTPStatus() int {
 		return e.Status
 	}
 	switch e.ErrorCode {
-	case "invalid_client", "invalid_grant", "invalid_request", "unsupported_grant_type":
+	case "invalid_grant", "invalid_request", "unsupported_grant_type":
 		return http.StatusBadRequest
-	case "invalid_token":
+	case "invalid_client", "invalid_token":
 		return http.StatusUnauthorized
 	default:
 		return http.StatusInternalServerError

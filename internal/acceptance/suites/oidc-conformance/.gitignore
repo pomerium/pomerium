@@ -1,0 +1,6 @@
+node_modules/
+.certs/
+test-results/
+playwright-report/
+results.json
+oidc-conformance-report.md

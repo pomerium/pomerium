@@ -190,38 +190,27 @@ func TestClientLookup_ValidatesRedirectURI(t *testing.T) {
 	assertNotValid(t, "https://non-default-port.example.com:8200", "https://non-default-port.example.com")
 	assertNotValid(t, "https://non-default-port.example.com", "https://non-default-port.example.com:8200")
 
-	// For routes without path options (whether wildcard or non-wildcard), the
-	// redirect_uri can be any child of the client_id.
+	// The redirect_uri must be exactly the client_id: not a child path of it
+	// (OIDC Core §3.1.2.1, RFC 9700 §4.1.3).
 	assertValid(t, "https://regular.example.com", "https://regular.example.com")
-	assertValid(t, "https://regular.example.com", "https://regular.example.com/oidc/callback")
-	assertValid(t, "https://regular.example.com/app-1", "https://regular.example.com/app-1")
-	assertValid(t, "https://regular.example.com/app-1", "https://regular.example.com/app-1/callback")
+	assertNotValid(t, "https://regular.example.com", "https://regular.example.com/oidc/callback")
+	assertValid(t, "https://regular.example.com/app-1/callback", "https://regular.example.com/app-1/callback")
+	assertNotValid(t, "https://regular.example.com/app-1", "https://regular.example.com/app-1/callback")
+	assertNotValid(t, "https://regular.example.com/app-1/callback", "https://regular.example.com/app-1/callback/extra")
 	assertNotValid(t, "https://regular.example.com/app-1", "https://regular.example.com/app-2")
-	assertNotValid(t, "https://regular.example.com/app-1", "https://regular.example.com/app-123")
 	assertNotValid(t, "https://regular.example.com/app/something", "https://regular.example.com/app")
-	assertValid(t, "https://foo-wildcard.example.com", "https://foo-wildcard.example.com/callback")
-	assertValid(t, "https://bar-wildcard.example.com", "https://bar-wildcard.example.com/callback")
-
-	// The client_id can end in a '/' character so as long as the redirect_uri
-	// has a matching '/' (just be consistent).
-	assertValid(t, "https://regular.example.com/", "https://regular.example.com/")
-	assertValid(t, "https://regular.example.com/", "https://regular.example.com/oidc/callback")
-	assertValid(t, "https://regular.example.com/app-1/", "https://regular.example.com/app-1/")
-	assertValid(t, "https://regular.example.com/app-1/", "https://regular.example.com/app-1/callback")
+	assertValid(t, "https://foo-wildcard.example.com/callback", "https://foo-wildcard.example.com/callback")
+	assertValid(t, "https://bar-wildcard.example.com/callback", "https://bar-wildcard.example.com/callback")
 	assertNotValid(t, "https://regular.example.com/", "https://regular.example.com")
 	assertNotValid(t, "https://regular.example.com/app-1/", "https://regular.example.com/app-1")
 
-	// Any route path matching options must be met by both URLs.
+	// Any route path matching options must be met.
 	assertValid(t, "https://path-options.example.com/exact-path", "https://path-options.example.com/exact-path")
-	assertNotValid(t, "https://path-options.example.com/exact-path", "https://path-options.example.com/exact")
-	assertNotValid(t, "https://path-options.example.com/exact-path", "https://path-options.example.com/exact-path/callback")
-	assertValid(t, "https://path-options.example.com/path-prefix", "https://path-options.example.com/path-prefix")
-	assertValid(t, "https://path-options.example.com/path-prefix", "https://path-options.example.com/path-prefix/callback")
+	assertNotValid(t, "https://path-options.example.com/exact", "https://path-options.example.com/exact")
+	assertValid(t, "https://path-options.example.com/path-prefix/callback", "https://path-options.example.com/path-prefix/callback")
 	assertValid(t, "https://path-options.example.com/foo", "https://path-options.example.com/foo")
-	assertNotValid(t, "https://path-options.example.com/foo", "https://path-options.example.com/foo/callback")
-	assertNotValid(t, "https://path-options.example.com/foo", "https://path-options.example.com/bar")
+	assertNotValid(t, "https://path-options.example.com/foo/callback", "https://path-options.example.com/foo/callback")
 	assertValid(t, "https://path-options.example.com/bar", "https://path-options.example.com/bar")
-	assertNotValid(t, "https://path-options.example.com/bar", "https://path-options.example.com/foo")
 
 	// Both the client_id and redirect_uri must be valid URLs.
 	_, err := c.Lookup("foobar", "foobar")

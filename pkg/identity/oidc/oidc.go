@@ -139,6 +139,10 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 	if hasPKCE {
 		opts = append(opts, pkce.AuthCodeOptions(pkceParams)...)
 	}
+	signInParams := SignInParamsFromContext(r.Context())
+	for k := range signInParams {
+		opts = append(opts, oauth2.SetAuthURLParam(k, signInParams.Get(k)))
+	}
 	signInURL := oa.AuthCodeURL(state, opts...)
 	httputil.Redirect(w, r, signInURL, http.StatusFound)
 	return nil
