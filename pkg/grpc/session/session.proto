@@ -32,9 +32,9 @@ message Session {
     }
   }
 
-  string                                 version            = 1;
-  string                                 id                 = 2;
-  string                                 user_id            = 3;
+  string version = 1;
+  string id      = 2;
+  string user_id = 3;
   repeated DeviceCredential              device_credentials = 17;
   google.protobuf.Timestamp              issued_at          = 14;
   google.protobuf.Timestamp              expires_at         = 4;
@@ -113,6 +113,7 @@ message StreamAccessRequestParams {
   string user_id    = 3;
   uint64 stream_id  = 4;
   string cluster_id = 5;
+  string route_id   = 6;
 }
 
 // A Handle is a reference to a session or a service account.
