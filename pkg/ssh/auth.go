@@ -668,9 +668,7 @@ func (a *Auth) handleLogin(
 			return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.PermissionDenied, "user has denied this code")
 		case session.SessionBindingRequestState_Accepted:
 		default:
-			// TODO : not sure we should panic here, if this invariant changes, I'm not sure this would catch it deterministically, and we would end up pushing a severe bug to prod
-			// the code issuer must not send a status reply here with state=InFlight
-			panic(fmt.Sprintf("bug: invalid session binding request state in code.Status: %v", st.State))
+			return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, "internal error")
 		}
 		if st.BindingKey != bindingKey {
 			return nil, "", a.reportLoginCodeFailure(ctx, l, span, codes.Internal, "mismatched binding keys")
@@ -937,48 +935,6 @@ func (a *Auth) resolveSession(ctx context.Context, id string) (*idpsession.Bindi
 	}
 	return binding, sess, nil
 }
-
-// func (a *Auth) resolveSession(ctx context.Context, sessionBindingID string) (*session.SessionBinding, *session.Session, error) {
-// 	resp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
-// 		Type: "type.googleapis.com/session.SessionBinding",
-// 		Id:   sessionBindingID,
-// 	})
-// 	if err != nil {
-// 		return nil, nil, err
-// 	}
-// 	if resp.Record.DeletedAt != nil {
-// 		return nil, nil, status.Error(codes.NotFound, "session binding deleted")
-// 	}
-
-// 	var binding session.SessionBinding
-// 	if err := resp.Record.Data.UnmarshalTo(&binding); err != nil {
-// 		return nil, nil, status.Error(codes.Internal, err.Error())
-// 	}
-// 	now := time.Now()
-// 	if binding.ExpiresAt.AsTime().Before(now) {
-// 		return nil, nil, status.Error(codes.NotFound, "session binding no longer valid")
-// 	}
-// 	if binding.Protocol != session.ProtocolSSH {
-// 		return nil, nil, status.Error(codes.Internal, "invalid protocol")
-// 	}
-// 	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
-// 		Type: "type.googleapis.com/session.Session",
-// 		Id:   binding.SessionId,
-// 	})
-// 	if err != nil {
-// 		return nil, nil, err
-// 	}
-// 	if sessionResp.GetRecord().DeletedAt != nil {
-// 		return nil, nil, status.Error(codes.NotFound, "session deleted")
-// 	}
-
-// 	var session session.Session
-// 	if err := sessionResp.GetRecord().GetData().UnmarshalTo(&session); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	return &binding, &session, nil
-// }
 
 func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	if len(sha256fingerprint) != sha256.Size {

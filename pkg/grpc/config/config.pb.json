@@ -7415,6 +7415,18 @@
               "defaultValue": ""
             },
             {
+              "name": "ssh_expire",
+              "description": "How long SSH sessions remain active until they are forced to re-authenticate.\nWhen unset, defaults to the value of `cookie_expire` config option.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_ssh_expire",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the settings were created.",
               "label": "",

@@ -69,9 +69,17 @@ func (s *identitySyncer) ClearRecords(ctx context.Context) {
 }
 
 func (s *identitySyncer) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
+	toDelete := []*databroker.Record{}
+	now := s.now()
 	for _, rec := range records {
 		s.updateDanglingTracker(ctx, rec)
-		switch rec.GetData().GetTypeUrl() {
+		switch rec.GetType() {
+		// handle deprecated record
+		case "type.googleapis.com/session.SessionBinding":
+			if rec.GetDeletedAt() == nil {
+				rec.DeletedAt = timestamppb.New(now)
+				toDelete = append(toDelete, rec)
+			}
 		case "type.googleapis.com/idpsession.Binding":
 			if err := s.handleBinding(ctx, rec); err != nil {
 				log.Ctx(ctx).Err(err).Msg("failed to handle binding update")
@@ -91,6 +99,14 @@ func (s *identitySyncer) UpdateRecords(ctx context.Context, _ uint64, records []
 		}
 	}
 	s.scheduleDanglingDelete(ctx)
+	if len(toDelete) > 0 {
+		_, err := s.GetDataBrokerServiceClient().Put(ctx, &databroker.PutRequest{
+			Records: toDelete,
+		})
+		if err != nil {
+			log.Ctx(ctx).Err(err).Int("num-records", len(toDelete)).Msg("error cleaning up deprecated records")
+		}
+	}
 	s.notifier.Updated()
 }
 

@@ -148,16 +148,16 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
           <FormControlLabel
             control={
               <Checkbox
-                id="remember-me"
-                name="remember_me"
+                id="create-id-binding"
+                name="create_id_binding"
                 value="true"
                 size="small"
                 slotProps={{ input: { form: "authorize-form" } }}
               />
             }
-            label="Remember me"
+            label="Do not prompt again on this device"
           />
-          <SmallTooltip description="When enabled, your client is persistently bound to your user. This can be undone later" />
+          <SmallTooltip description="When checked, this client will be automatically approved until you logout, or your session is otherwise no longer vaid." />
         </Box>
 
         <Stack

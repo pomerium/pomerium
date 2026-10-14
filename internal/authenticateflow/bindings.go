@@ -374,7 +374,7 @@ func (b *bindingManager) sessionToBindingData(
 			}
 			clientAddr = binding.GetDetails()[session.DetailSourceAddr]
 		}
-		if clientAddr != "" {
+		if clientAddr == "" {
 			clientAddr = binding.GetDetails()["client-ip"]
 		}
 	}

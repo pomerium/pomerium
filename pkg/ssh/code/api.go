@@ -36,9 +36,6 @@ type Reader interface {
 
 type Revoker interface {
 	RevokeCode(context.Context, CodeID) error
-	// RevokeSessionBinding(context.Context, BindingID) error
-	// RevokeIdentityBinding(context.Context, BindingID) error
-	// RevokeSessionBindingBySession(ctx context.Context, sessionID string) ([]*databroker.Record, error)
 }
 
 type ReaderRevoker interface {

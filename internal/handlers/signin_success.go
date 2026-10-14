@@ -17,7 +17,6 @@ type SignInSuccessData struct {
 func (data SignInSuccessData) ToJSON() map[string]any {
 	m := data.UserInfoData.ToJSON()
 	m["expiresAt"] = data.ExpiresAt.Format(time.RFC1123)
-	m["expiresAt"] = "Until revoked"
 	m["protocol"] = data.Protocol
 	return m
 }
