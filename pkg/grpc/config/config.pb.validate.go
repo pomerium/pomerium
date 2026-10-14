@@ -3605,6 +3605,40 @@ func (m *Settings) validate(all bool) error {
 		}
 	}
 
+	for idx, item := range m.GetTailscaleFunnels() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  fmt.Sprintf("TailscaleFunnels[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  fmt.Sprintf("TailscaleFunnels[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  fmt.Sprintf("TailscaleFunnels[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if all {
 		switch v := interface{}(m.GetCreatedAt()).(type) {
 		case interface{ ValidateAll() error }:
@@ -5100,6 +5134,136 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = SettingsValidationError{}
+
+// Validate checks the field values on TailscaleFunnelSettings with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *TailscaleFunnelSettings) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TailscaleFunnelSettings with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// TailscaleFunnelSettingsMultiError, or nil if none found.
+func (m *TailscaleFunnelSettings) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TailscaleFunnelSettings) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Hostname
+
+	// no validation rules for Ephemeral
+
+	if m.AuthKey != nil {
+		// no validation rules for AuthKey
+	}
+
+	if m.OauthClientId != nil {
+		// no validation rules for OauthClientId
+	}
+
+	if m.OauthClientSecret != nil {
+		// no validation rules for OauthClientSecret
+	}
+
+	if m.IdToken != nil {
+		// no validation rules for IdToken
+	}
+
+	if m.IdTokenAudience != nil {
+		// no validation rules for IdTokenAudience
+	}
+
+	if m.ControlUrl != nil {
+		// no validation rules for ControlUrl
+	}
+
+	if len(errors) > 0 {
+		return TailscaleFunnelSettingsMultiError(errors)
+	}
+
+	return nil
+}
+
+// TailscaleFunnelSettingsMultiError is an error wrapping multiple validation
+// errors returned by TailscaleFunnelSettings.ValidateAll() if the designated
+// constraints aren't met.
+type TailscaleFunnelSettingsMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TailscaleFunnelSettingsMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TailscaleFunnelSettingsMultiError) AllErrors() []error { return m }
+
+// TailscaleFunnelSettingsValidationError is the validation error returned by
+// TailscaleFunnelSettings.Validate if the designated constraints aren't met.
+type TailscaleFunnelSettingsValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TailscaleFunnelSettingsValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TailscaleFunnelSettingsValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TailscaleFunnelSettingsValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TailscaleFunnelSettingsValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TailscaleFunnelSettingsValidationError) ErrorName() string {
+	return "TailscaleFunnelSettingsValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e TailscaleFunnelSettingsValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTailscaleFunnelSettings.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TailscaleFunnelSettingsValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TailscaleFunnelSettingsValidationError{}
 
 // Validate checks the field values on BlobStorageSettings with the rules
 // defined in the proto definition for this message. If any rules are

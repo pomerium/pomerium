@@ -1151,6 +1151,8 @@ message Settings {
   optional HeadersWithUnderscoresAction headers_with_underscores_action = 187;
   // Configure default OIDC bridge support for all routes.
   optional OIDCBridge oidc_bridge = 189;
+  // Configure Tailscale Funnels.
+  repeated TailscaleFunnelSettings tailscale_funnels = 192;
 
   // computed properties
 
@@ -1178,6 +1180,32 @@ message Settings {
       read_only: true,
     }
   ];
+}
+
+// TailscaleFunnelSettings are the settings for a tailscale funnel. A Tailscale
+// Funnel is used to route traffic from the public internet to the local
+// Pomerium server over via a tailnet.
+message TailscaleFunnelSettings {
+  // Use a pre-authentication key to register the node on the tailnet.
+  optional string auth_key = 1;
+  // Use an oauth client to create a pre-authentication key for the device.
+  optional string oauth_client_id = 2;
+  // Client secret for the oauth client id.
+  optional string oauth_client_secret = 3;
+  // Use an identity provider token to authenticate via workload identity
+  // federation.
+  optional string id_token = 4;
+  // Audience for the id_token.
+  optional string id_token_audience = 5;
+  // Hostname is the name of the device on the tailnet. Used as the subdomain
+  // of the Tailscale Funnel.
+  string hostname = 6;
+  // Ephemeral nodes are automatically removed when shut down.
+  bool ephemeral = 7;
+  // The coordination server URL.
+  optional string control_url = 8;
+  // Tags that should be applied to this node.
+  repeated string tags = 9;
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses

@@ -5484,6 +5484,12 @@ components:
             - type: "null"
           title: oidc_bridge
           description: Configure default OIDC bridge support for all routes.
+        tailscaleFunnels:
+          type: array
+          items:
+            $ref: '#/components/schemas/pomerium.config.TailscaleFunnelSettings'
+          title: tailscale_funnels
+          description: Configure Tailscale Funnels.
         createdAt:
           title: created_at
           description: When the settings were created.
@@ -5638,6 +5644,69 @@ components:
       description: |-
         Wrapper for a list of strings, used so map-valued Settings fields can
          hold repeated string values.
+    pomerium.config.TailscaleFunnelSettings:
+      type: object
+      properties:
+        authKey:
+          type:
+            - string
+            - "null"
+          title: auth_key
+          description: Use a pre-authentication key to register the node on the tailnet.
+        oauthClientId:
+          type:
+            - string
+            - "null"
+          title: oauth_client_id
+          description: Use an oauth client to create a pre-authentication key for the device.
+        oauthClientSecret:
+          type:
+            - string
+            - "null"
+          title: oauth_client_secret
+          description: Client secret for the oauth client id.
+        idToken:
+          type:
+            - string
+            - "null"
+          title: id_token
+          description: |-
+            Use an identity provider token to authenticate via workload identity
+             federation.
+        idTokenAudience:
+          type:
+            - string
+            - "null"
+          title: id_token_audience
+          description: Audience for the id_token.
+        hostname:
+          type: string
+          title: hostname
+          description: |-
+            Hostname is the name of the device on the tailnet. Used as the subdomain
+             of the Tailscale Funnel.
+        ephemeral:
+          type: boolean
+          title: ephemeral
+          description: Ephemeral nodes are automatically removed when shut down.
+        controlUrl:
+          type:
+            - string
+            - "null"
+          title: control_url
+          description: The coordination server URL.
+        tags:
+          type: array
+          items:
+            type: string
+          title: tags
+          description: Tags that should be applied to this node.
+      title: TailscaleFunnelSettings
+      additionalProperties: false
+      description: |-
+        TailscaleFunnelSettings are the settings for a tailscale funnel. A Tailscale
+         Funnel is used to route traffic from the public internet to the local
+         Pomerium server over via a tailnet.
     pomerium.config.UpdateKeyPairRequest:
       type: object
       properties:

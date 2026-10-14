@@ -7415,6 +7415,18 @@
               "defaultValue": ""
             },
             {
+              "name": "tailscale_funnels",
+              "description": "Configure Tailscale Funnels.",
+              "label": "repeated",
+              "type": "TailscaleFunnelSettings",
+              "longType": "TailscaleFunnelSettings",
+              "fullType": "pomerium.config.TailscaleFunnelSettings",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the settings were created.",
               "label": "",
@@ -7765,6 +7777,126 @@
             {
               "name": "values",
               "description": "The string values held by this list.",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "TailscaleFunnelSettings",
+          "longName": "TailscaleFunnelSettings",
+          "fullName": "pomerium.config.TailscaleFunnelSettings",
+          "description": "TailscaleFunnelSettings are the settings for a tailscale funnel. A Tailscale\nFunnel is used to route traffic from the public internet to the local\nPomerium server over via a tailnet.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "auth_key",
+              "description": "Use a pre-authentication key to register the node on the tailnet.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_auth_key",
+              "defaultValue": ""
+            },
+            {
+              "name": "oauth_client_id",
+              "description": "Use an oauth client to create a pre-authentication key for the device.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_oauth_client_id",
+              "defaultValue": ""
+            },
+            {
+              "name": "oauth_client_secret",
+              "description": "Client secret for the oauth client id.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_oauth_client_secret",
+              "defaultValue": ""
+            },
+            {
+              "name": "id_token",
+              "description": "Use an identity provider token to authenticate via workload identity\nfederation.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_id_token",
+              "defaultValue": ""
+            },
+            {
+              "name": "id_token_audience",
+              "description": "Audience for the id_token.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_id_token_audience",
+              "defaultValue": ""
+            },
+            {
+              "name": "hostname",
+              "description": "Hostname is the name of the device on the tailnet. Used as the subdomain\nof the Tailscale Funnel.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "ephemeral",
+              "description": "Ephemeral nodes are automatically removed when shut down.",
+              "label": "",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "control_url",
+              "description": "The coordination server URL.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_control_url",
+              "defaultValue": ""
+            },
+            {
+              "name": "tags",
+              "description": "Tags that should be applied to this node.",
               "label": "repeated",
               "type": "string",
               "longType": "string",
