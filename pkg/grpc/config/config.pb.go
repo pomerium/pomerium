@@ -3551,8 +3551,8 @@ type Settings struct {
 	HeadersWithUnderscoresAction *HeadersWithUnderscoresAction `protobuf:"varint,187,opt,name=headers_with_underscores_action,json=headersWithUnderscoresAction,proto3,enum=pomerium.config.HeadersWithUnderscoresAction,oneof" json:"headers_with_underscores_action,omitempty"`
 	// Configure default OIDC bridge support for all routes.
 	OidcBridge *OIDCBridge `protobuf:"bytes,189,opt,name=oidc_bridge,json=oidcBridge,proto3,oneof" json:"oidc_bridge,omitempty"`
-	// Configure Tailscale Funnels.
-	TailscaleFunnels []*TailscaleFunnelSettings `protobuf:"bytes,192,rep,name=tailscale_funnels,json=tailscaleFunnels,proto3" json:"tailscale_funnels,omitempty"`
+	// Configure Tailscale listeners.
+	TailscaleListeners []*TailscaleListenerSettings `protobuf:"bytes,192,rep,name=tailscale_listeners,json=tailscaleListeners,proto3" json:"tailscale_listeners,omitempty"`
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.
@@ -4635,9 +4635,9 @@ func (x *Settings) GetOidcBridge() *OIDCBridge {
 	return nil
 }
 
-func (x *Settings) GetTailscaleFunnels() []*TailscaleFunnelSettings {
+func (x *Settings) GetTailscaleListeners() []*TailscaleListenerSettings {
 	if x != nil {
-		return x.TailscaleFunnels
+		return x.TailscaleListeners
 	}
 	return nil
 }
@@ -4663,10 +4663,8 @@ func (x *Settings) GetReadonlyConsoleAudiences() *Settings_StringList {
 	return nil
 }
 
-// TailscaleFunnelSettings are the settings for a tailscale funnel. A Tailscale
-// Funnel is used to route traffic from the public internet to the local
-// Pomerium server over via a tailnet.
-type TailscaleFunnelSettings struct {
+// TailscaleListenerSettings are the settings for a tailscale listener.
+type TailscaleListenerSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Use a pre-authentication key to register the node on the tailnet.
 	AuthKey *string `protobuf:"bytes,1,opt,name=auth_key,json=authKey,proto3,oneof" json:"auth_key,omitempty"`
@@ -4687,25 +4685,33 @@ type TailscaleFunnelSettings struct {
 	// The coordination server URL.
 	ControlUrl *string `protobuf:"bytes,8,opt,name=control_url,json=controlUrl,proto3,oneof" json:"control_url,omitempty"`
 	// Tags that should be applied to this node.
-	Tags          []string `protobuf:"bytes,9,rep,name=tags,proto3" json:"tags,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Tags []string `protobuf:"bytes,9,rep,name=tags,proto3" json:"tags,omitempty"`
+	// Start a listener only on the tailscale network.
+	ListenAddr *string `protobuf:"bytes,10,opt,name=listen_addr,json=listenAddr,proto3,oneof" json:"listen_addr,omitempty"`
+	// Start a Tailscale Funnel listener.
+	ListenFunnelAddr *string `protobuf:"bytes,11,opt,name=listen_funnel_addr,json=listenFunnelAddr,proto3,oneof" json:"listen_funnel_addr,omitempty"`
+	// Start a listener for the service name.
+	ListenServiceName *string `protobuf:"bytes,12,opt,name=listen_service_name,json=listenServiceName,proto3,oneof" json:"listen_service_name,omitempty"`
+	// Start a listener for the service port.
+	ListenServicePort *uint32 `protobuf:"varint,13,opt,name=listen_service_port,json=listenServicePort,proto3,oneof" json:"listen_service_port,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
-func (x *TailscaleFunnelSettings) Reset() {
-	*x = TailscaleFunnelSettings{}
+func (x *TailscaleListenerSettings) Reset() {
+	*x = TailscaleListenerSettings{}
 	mi := &file_config_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *TailscaleFunnelSettings) String() string {
+func (x *TailscaleListenerSettings) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TailscaleFunnelSettings) ProtoMessage() {}
+func (*TailscaleListenerSettings) ProtoMessage() {}
 
-func (x *TailscaleFunnelSettings) ProtoReflect() protoreflect.Message {
+func (x *TailscaleListenerSettings) ProtoReflect() protoreflect.Message {
 	mi := &file_config_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4717,72 +4723,100 @@ func (x *TailscaleFunnelSettings) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use TailscaleFunnelSettings.ProtoReflect.Descriptor instead.
-func (*TailscaleFunnelSettings) Descriptor() ([]byte, []int) {
+// Deprecated: Use TailscaleListenerSettings.ProtoReflect.Descriptor instead.
+func (*TailscaleListenerSettings) Descriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *TailscaleFunnelSettings) GetAuthKey() string {
+func (x *TailscaleListenerSettings) GetAuthKey() string {
 	if x != nil && x.AuthKey != nil {
 		return *x.AuthKey
 	}
 	return ""
 }
 
-func (x *TailscaleFunnelSettings) GetOauthClientId() string {
+func (x *TailscaleListenerSettings) GetOauthClientId() string {
 	if x != nil && x.OauthClientId != nil {
 		return *x.OauthClientId
 	}
 	return ""
 }
 
-func (x *TailscaleFunnelSettings) GetOauthClientSecret() string {
+func (x *TailscaleListenerSettings) GetOauthClientSecret() string {
 	if x != nil && x.OauthClientSecret != nil {
 		return *x.OauthClientSecret
 	}
 	return ""
 }
 
-func (x *TailscaleFunnelSettings) GetIdToken() string {
+func (x *TailscaleListenerSettings) GetIdToken() string {
 	if x != nil && x.IdToken != nil {
 		return *x.IdToken
 	}
 	return ""
 }
 
-func (x *TailscaleFunnelSettings) GetIdTokenAudience() string {
+func (x *TailscaleListenerSettings) GetIdTokenAudience() string {
 	if x != nil && x.IdTokenAudience != nil {
 		return *x.IdTokenAudience
 	}
 	return ""
 }
 
-func (x *TailscaleFunnelSettings) GetHostname() string {
+func (x *TailscaleListenerSettings) GetHostname() string {
 	if x != nil {
 		return x.Hostname
 	}
 	return ""
 }
 
-func (x *TailscaleFunnelSettings) GetEphemeral() bool {
+func (x *TailscaleListenerSettings) GetEphemeral() bool {
 	if x != nil {
 		return x.Ephemeral
 	}
 	return false
 }
 
-func (x *TailscaleFunnelSettings) GetControlUrl() string {
+func (x *TailscaleListenerSettings) GetControlUrl() string {
 	if x != nil && x.ControlUrl != nil {
 		return *x.ControlUrl
 	}
 	return ""
 }
 
-func (x *TailscaleFunnelSettings) GetTags() []string {
+func (x *TailscaleListenerSettings) GetTags() []string {
 	if x != nil {
 		return x.Tags
 	}
 	return nil
+}
+
+func (x *TailscaleListenerSettings) GetListenAddr() string {
+	if x != nil && x.ListenAddr != nil {
+		return *x.ListenAddr
+	}
+	return ""
+}
+
+func (x *TailscaleListenerSettings) GetListenFunnelAddr() string {
+	if x != nil && x.ListenFunnelAddr != nil {
+		return *x.ListenFunnelAddr
+	}
+	return ""
+}
+
+func (x *TailscaleListenerSettings) GetListenServiceName() string {
+	if x != nil && x.ListenServiceName != nil {
+		return *x.ListenServiceName
+	}
+	return ""
+}
+
+func (x *TailscaleListenerSettings) GetListenServicePort() uint32 {
+	if x != nil && x.ListenServicePort != nil {
+		return *x.ListenServicePort
+	}
+	return 0
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses
@@ -10031,7 +10065,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\x9fm\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xa5m\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -10191,8 +10225,8 @@ const file_config_proto_rawDesc = "" +
 	" path_with_escaped_slashes_action\x18\xba\x01 \x01(\x0e2-.pomerium.config.PathWithEscapedSlashesActionH~R\x1cpathWithEscapedSlashesAction\x88\x01\x01\x12z\n" +
 	"\x1fheaders_with_underscores_action\x18\xbb\x01 \x01(\x0e2-.pomerium.config.HeadersWithUnderscoresActionH\x7fR\x1cheadersWithUnderscoresAction\x88\x01\x01\x12C\n" +
 	"\voidc_bridge\x18\xbd\x01 \x01(\v2\x1b.pomerium.config.OIDCBridgeH\x80\x01R\n" +
-	"oidcBridge\x88\x01\x01\x12V\n" +
-	"\x11tailscale_funnels\x18\xc0\x01 \x03(\v2(.pomerium.config.TailscaleFunnelSettingsR\x10tailscaleFunnels\x12A\n" +
+	"oidcBridge\x88\x01\x01\x12\\\n" +
+	"\x13tailscale_listeners\x18\xc0\x01 \x03(\v2*.pomerium.config.TailscaleListenerSettingsR\x12tailscaleListeners\x12A\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12C\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\n" +
@@ -10359,8 +10393,8 @@ const file_config_proto_rawDesc = "" +
 	"!_path_with_escaped_slashes_actionB\"\n" +
 	" _headers_with_underscores_actionB\x0e\n" +
 	"\f_oidc_bridgeB\x1d\n" +
-	"\x1b_readonly_console_audiencesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\xcc\x03\n" +
-	"\x17TailscaleFunnelSettings\x12\x1e\n" +
+	"\x1b_readonly_console_audiencesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\xe8\x05\n" +
+	"\x19TailscaleListenerSettings\x12\x1e\n" +
 	"\bauth_key\x18\x01 \x01(\tH\x00R\aauthKey\x88\x01\x01\x12+\n" +
 	"\x0foauth_client_id\x18\x02 \x01(\tH\x01R\roauthClientId\x88\x01\x01\x123\n" +
 	"\x13oauth_client_secret\x18\x03 \x01(\tH\x02R\x11oauthClientSecret\x88\x01\x01\x12\x1e\n" +
@@ -10370,13 +10404,23 @@ const file_config_proto_rawDesc = "" +
 	"\tephemeral\x18\a \x01(\bR\tephemeral\x12$\n" +
 	"\vcontrol_url\x18\b \x01(\tH\x05R\n" +
 	"controlUrl\x88\x01\x01\x12\x12\n" +
-	"\x04tags\x18\t \x03(\tR\x04tagsB\v\n" +
+	"\x04tags\x18\t \x03(\tR\x04tags\x12$\n" +
+	"\vlisten_addr\x18\n" +
+	" \x01(\tH\x06R\n" +
+	"listenAddr\x88\x01\x01\x121\n" +
+	"\x12listen_funnel_addr\x18\v \x01(\tH\aR\x10listenFunnelAddr\x88\x01\x01\x123\n" +
+	"\x13listen_service_name\x18\f \x01(\tH\bR\x11listenServiceName\x88\x01\x01\x123\n" +
+	"\x13listen_service_port\x18\r \x01(\rH\tR\x11listenServicePort\x88\x01\x01B\v\n" +
 	"\t_auth_keyB\x12\n" +
 	"\x10_oauth_client_idB\x16\n" +
 	"\x14_oauth_client_secretB\v\n" +
 	"\t_id_tokenB\x14\n" +
 	"\x12_id_token_audienceB\x0e\n" +
-	"\f_control_url\"\x87\x01\n" +
+	"\f_control_urlB\x0e\n" +
+	"\f_listen_addrB\x15\n" +
+	"\x13_listen_funnel_addrB\x16\n" +
+	"\x14_listen_service_nameB\x16\n" +
+	"\x14_listen_service_port\"\x87\x01\n" +
 	"\x13BlobStorageSettings\x12\"\n" +
 	"\n" +
 	"bucket_uri\x18\x01 \x01(\tH\x00R\tbucketUri\x88\x01\x01\x12*\n" +
@@ -10915,7 +10959,7 @@ var file_config_proto_goTypes = []any{
 	(*PPLPolicy)(nil),                       // 31: pomerium.config.PPLPolicy
 	(*Policy)(nil),                          // 32: pomerium.config.Policy
 	(*Settings)(nil),                        // 33: pomerium.config.Settings
-	(*TailscaleFunnelSettings)(nil),         // 34: pomerium.config.TailscaleFunnelSettings
+	(*TailscaleListenerSettings)(nil),       // 34: pomerium.config.TailscaleListenerSettings
 	(*BlobStorageSettings)(nil),             // 35: pomerium.config.BlobStorageSettings
 	(*DownstreamMtlsSettings)(nil),          // 36: pomerium.config.DownstreamMtlsSettings
 	(*SANMatcher)(nil),                      // 37: pomerium.config.SANMatcher
@@ -11091,7 +11135,7 @@ var file_config_proto_depIdxs = []int32{
 	3,   // 80: pomerium.config.Settings.path_with_escaped_slashes_action:type_name -> pomerium.config.PathWithEscapedSlashesAction
 	2,   // 81: pomerium.config.Settings.headers_with_underscores_action:type_name -> pomerium.config.HeadersWithUnderscoresAction
 	30,  // 82: pomerium.config.Settings.oidc_bridge:type_name -> pomerium.config.OIDCBridge
-	34,  // 83: pomerium.config.Settings.tailscale_funnels:type_name -> pomerium.config.TailscaleFunnelSettings
+	34,  // 83: pomerium.config.Settings.tailscale_listeners:type_name -> pomerium.config.TailscaleListenerSettings
 	117, // 84: pomerium.config.Settings.created_at:type_name -> google.protobuf.Timestamp
 	117, // 85: pomerium.config.Settings.modified_at:type_name -> google.protobuf.Timestamp
 	105, // 86: pomerium.config.Settings.readonly_console_audiences:type_name -> pomerium.config.Settings.StringList

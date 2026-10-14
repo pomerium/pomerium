@@ -7415,12 +7415,12 @@
               "defaultValue": ""
             },
             {
-              "name": "tailscale_funnels",
-              "description": "Configure Tailscale Funnels.",
+              "name": "tailscale_listeners",
+              "description": "Configure Tailscale listeners.",
               "label": "repeated",
-              "type": "TailscaleFunnelSettings",
-              "longType": "TailscaleFunnelSettings",
-              "fullType": "pomerium.config.TailscaleFunnelSettings",
+              "type": "TailscaleListenerSettings",
+              "longType": "TailscaleListenerSettings",
+              "fullType": "pomerium.config.TailscaleListenerSettings",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
@@ -7789,10 +7789,10 @@
           ]
         },
         {
-          "name": "TailscaleFunnelSettings",
-          "longName": "TailscaleFunnelSettings",
-          "fullName": "pomerium.config.TailscaleFunnelSettings",
-          "description": "TailscaleFunnelSettings are the settings for a tailscale funnel. A Tailscale\nFunnel is used to route traffic from the public internet to the local\nPomerium server over via a tailnet.",
+          "name": "TailscaleListenerSettings",
+          "longName": "TailscaleListenerSettings",
+          "fullName": "pomerium.config.TailscaleListenerSettings",
+          "description": "TailscaleListenerSettings are the settings for a tailscale listener.",
           "hasExtensions": false,
           "hasFields": true,
           "hasOneofs": true,
@@ -7904,6 +7904,54 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_addr",
+              "description": "Start a listener only on the tailscale network.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_addr",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_funnel_addr",
+              "description": "Start a Tailscale Funnel listener.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_funnel_addr",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_service_name",
+              "description": "Start a listener for the service name.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_service_name",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_service_port",
+              "description": "Start a listener for the service port.",
+              "label": "optional",
+              "type": "uint32",
+              "longType": "uint32",
+              "fullType": "uint32",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_service_port",
               "defaultValue": ""
             }
           ]

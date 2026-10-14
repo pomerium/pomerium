@@ -98,7 +98,7 @@ type GlobalOptions struct {
 	ReadonlyConsoleAudiences           Value[[]string]                              `json:"readonly_console_audiences,omitzero" mapstructure:"readonly_console_audiences" yaml:"readonly_console_audiences,omitempty"`
 	SessionRecordingConcurrency        Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
 	SSHTwoPersonApprovalRequestTimeout Value[time.Duration]                         `json:"ssh_two_person_approval_request_timeout,omitzero" mapstructure:"ssh_two_person_approval_request_timeout" yaml:"ssh_two_person_approval_request_timeout,omitempty"`
-	TailscaleFunnels                   Value[[]TailscaleFunnelSettings]             `json:"tailscale_funnels,omitzero" mapstructure:"tailscale_funnels" yaml:"tailscale_funnels,omitempty"`
+	TailscaleListeners                 Value[[]TailscaleListenerSettings]           `json:"tailscale_listeners,omitzero" mapstructure:"tailscale_listeners" yaml:"tailscale_listeners,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -117,13 +117,17 @@ type Settings_DataBrokerClusterNodes struct {
 	Nodes Value[[]Settings_DataBrokerClusterNode] `json:"nodes,omitzero" mapstructure:"nodes" yaml:"nodes,omitempty"`
 }
 
-type TailscaleFunnelSettings struct {
+type TailscaleListenerSettings struct {
 	AuthKey           Value[string]   `json:"auth_key,omitzero" mapstructure:"auth_key" yaml:"auth_key,omitempty"`
 	ControlURL        Value[string]   `json:"control_url,omitzero" mapstructure:"control_url" yaml:"control_url,omitempty"`
 	Ephemeral         Value[bool]     `json:"ephemeral,omitzero" mapstructure:"ephemeral" yaml:"ephemeral,omitempty"`
 	Hostname          Value[string]   `json:"hostname,omitzero" mapstructure:"hostname" yaml:"hostname,omitempty"`
 	IDToken           Value[string]   `json:"id_token,omitzero" mapstructure:"id_token" yaml:"id_token,omitempty"`
 	IDTokenAudience   Value[string]   `json:"id_token_audience,omitzero" mapstructure:"id_token_audience" yaml:"id_token_audience,omitempty"`
+	ListenAddr        Value[string]   `json:"listen_addr,omitzero" mapstructure:"listen_addr" yaml:"listen_addr,omitempty"`
+	ListenFunnelAddr  Value[string]   `json:"listen_funnel_addr,omitzero" mapstructure:"listen_funnel_addr" yaml:"listen_funnel_addr,omitempty"`
+	ListenServiceName Value[string]   `json:"listen_service_name,omitzero" mapstructure:"listen_service_name" yaml:"listen_service_name,omitempty"`
+	ListenServicePort Value[uint32]   `json:"listen_service_port,omitzero" mapstructure:"listen_service_port" yaml:"listen_service_port,omitempty"`
 	OauthClientID     Value[string]   `json:"oauth_client_id,omitzero" mapstructure:"oauth_client_id" yaml:"oauth_client_id,omitempty"`
 	OauthClientSecret Value[string]   `json:"oauth_client_secret,omitzero" mapstructure:"oauth_client_secret" yaml:"oauth_client_secret,omitempty"`
 	Tags              Value[[]string] `json:"tags,omitzero" mapstructure:"tags" yaml:"tags,omitempty"`
@@ -514,7 +518,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableStringListFromProto(&dst.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 		setNullableDurationFromProto(&dst.SSHTwoPersonApprovalRequestTimeout, src.SshTwoPersonApprovalRequestTimeout),
-		setNullableSliceOfTailscaleFunnelSettingsFromProto(&dst.TailscaleFunnels, src.TailscaleFunnels),
+		setNullableSliceOfTailscaleListenerSettingsFromProto(&dst.TailscaleListeners, src.TailscaleListeners),
 	)
 }
 
@@ -633,12 +637,12 @@ func setSettings_DataBrokerClusterNodesFromProto(dst *Settings_DataBrokerCluster
 	)
 }
 
-func setNullableTailscaleFunnelSettingsFromProto(dst *Value[TailscaleFunnelSettings], src *configpb.TailscaleFunnelSettings) error {
+func setNullableTailscaleListenerSettingsFromProto(dst *Value[TailscaleListenerSettings], src *configpb.TailscaleListenerSettings) error {
 	if src == nil {
 		return nil
 	}
 	obj := dst.Value
-	err := setTailscaleFunnelSettingsFromProto(&obj, src)
+	err := setTailscaleListenerSettingsFromProto(&obj, src)
 	if err != nil {
 		return err
 	}
@@ -646,13 +650,13 @@ func setNullableTailscaleFunnelSettingsFromProto(dst *Value[TailscaleFunnelSetti
 	return nil
 }
 
-func setNullableSliceOfTailscaleFunnelSettingsFromProto(dst *Value[[]TailscaleFunnelSettings], src []*configpb.TailscaleFunnelSettings) error {
+func setNullableSliceOfTailscaleListenerSettingsFromProto(dst *Value[[]TailscaleListenerSettings], src []*configpb.TailscaleListenerSettings) error {
 	if src == nil {
 		return nil
 	}
-	obj := make([]TailscaleFunnelSettings, len(src))
+	obj := make([]TailscaleListenerSettings, len(src))
 	for i := range src {
-		err := setTailscaleFunnelSettingsFromProto(&obj[i], src[i])
+		err := setTailscaleListenerSettingsFromProto(&obj[i], src[i])
 		if err != nil {
 			return err
 		}
@@ -661,7 +665,7 @@ func setNullableSliceOfTailscaleFunnelSettingsFromProto(dst *Value[[]TailscaleFu
 	return nil
 }
 
-func setTailscaleFunnelSettingsFromProto(dst *TailscaleFunnelSettings, src *configpb.TailscaleFunnelSettings) error {
+func setTailscaleListenerSettingsFromProto(dst *TailscaleListenerSettings, src *configpb.TailscaleListenerSettings) error {
 	if src == nil {
 		return nil
 	}
@@ -672,6 +676,10 @@ func setTailscaleFunnelSettingsFromProto(dst *TailscaleFunnelSettings, src *conf
 		setNullableStringFromProto(&dst.Hostname, &src.Hostname),
 		setNullableStringFromProto(&dst.IDToken, src.IdToken),
 		setNullableStringFromProto(&dst.IDTokenAudience, src.IdTokenAudience),
+		setNullableStringFromProto(&dst.ListenAddr, src.ListenAddr),
+		setNullableStringFromProto(&dst.ListenFunnelAddr, src.ListenFunnelAddr),
+		setNullableStringFromProto(&dst.ListenServiceName, src.ListenServiceName),
+		setNullableUInt32FromProto(&dst.ListenServicePort, src.ListenServicePort),
 		setNullableStringFromProto(&dst.OauthClientID, src.OauthClientId),
 		setNullableStringFromProto(&dst.OauthClientSecret, src.OauthClientSecret),
 		setNullableSliceOfStringFromProto(&dst.Tags, &src.Tags),
@@ -1045,7 +1053,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableStringListToProto(&obj.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 		setNullableDurationToProto(&obj.SshTwoPersonApprovalRequestTimeout, src.SSHTwoPersonApprovalRequestTimeout),
-		setNullableSliceOfTailscaleFunnelSettingsToProto(&obj.TailscaleFunnels, src.TailscaleFunnels),
+		setNullableSliceOfTailscaleListenerSettingsToProto(&obj.TailscaleListeners, src.TailscaleListeners),
 	)
 }
 
@@ -1158,20 +1166,20 @@ func setSettings_DataBrokerClusterNodesToProto(dst **configpb.Settings_DataBroke
 	)
 }
 
-func setNullableTailscaleFunnelSettingsToProto(dst **configpb.TailscaleFunnelSettings, src Value[TailscaleFunnelSettings]) error {
+func setNullableTailscaleListenerSettingsToProto(dst **configpb.TailscaleListenerSettings, src Value[TailscaleListenerSettings]) error {
 	if !src.IsSet {
 		return nil
 	}
-	return setTailscaleFunnelSettingsToProto(dst, new(src.Value))
+	return setTailscaleListenerSettingsToProto(dst, new(src.Value))
 }
 
-func setNullableSliceOfTailscaleFunnelSettingsToProto(dst *[]*configpb.TailscaleFunnelSettings, src Value[[]TailscaleFunnelSettings]) error {
+func setNullableSliceOfTailscaleListenerSettingsToProto(dst *[]*configpb.TailscaleListenerSettings, src Value[[]TailscaleListenerSettings]) error {
 	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.TailscaleFunnelSettings, len(src.Value))
+	obj := make([]*configpb.TailscaleListenerSettings, len(src.Value))
 	for i := range src.Value {
-		err := setTailscaleFunnelSettingsToProto(&obj[i], new(src.Value[i]))
+		err := setTailscaleListenerSettingsToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1180,12 +1188,12 @@ func setNullableSliceOfTailscaleFunnelSettingsToProto(dst *[]*configpb.Tailscale
 	return nil
 }
 
-func setTailscaleFunnelSettingsToProto(dst **configpb.TailscaleFunnelSettings, src *TailscaleFunnelSettings) error {
+func setTailscaleListenerSettingsToProto(dst **configpb.TailscaleListenerSettings, src *TailscaleListenerSettings) error {
 	if src == nil {
 		return nil
 	}
 	if *dst == nil {
-		*dst = new(configpb.TailscaleFunnelSettings)
+		*dst = new(configpb.TailscaleListenerSettings)
 	}
 	obj := *dst
 	return errors.Join(
@@ -1195,6 +1203,10 @@ func setTailscaleFunnelSettingsToProto(dst **configpb.TailscaleFunnelSettings, s
 		setStringToProto(&obj.Hostname, src.Hostname),
 		setNullableStringToProto(&obj.IdToken, src.IDToken),
 		setNullableStringToProto(&obj.IdTokenAudience, src.IDTokenAudience),
+		setNullableStringToProto(&obj.ListenAddr, src.ListenAddr),
+		setNullableStringToProto(&obj.ListenFunnelAddr, src.ListenFunnelAddr),
+		setNullableStringToProto(&obj.ListenServiceName, src.ListenServiceName),
+		setNullableUInt32ToProto(&obj.ListenServicePort, src.ListenServicePort),
 		setNullableStringToProto(&obj.OauthClientId, src.OauthClientID),
 		setNullableStringToProto(&obj.OauthClientSecret, src.OauthClientSecret),
 		setSliceOfStringToProto(&obj.Tags, src.Tags),

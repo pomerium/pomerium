@@ -34,3 +34,28 @@ func ValidateAddress(addr string) error {
 
 	return nil
 }
+
+// Validate validates the tailscale listener settings.
+func (s *TailscaleListenerSettings) Validate() error {
+	if !s.AuthKey.IsSet && !s.OauthClientID.IsSet && !s.IDToken.IsSet {
+		return fmt.Errorf("tailscale_listener: auth_key, oauth_client_id or id_token must be set")
+	} else if s.AuthKey.IsSet && (s.OauthClientID.IsSet || s.IDToken.IsSet) {
+		return fmt.Errorf("tailscale_listener: if auth_key is set, oauth_client_id and id_token should not be set")
+	} else if s.OauthClientID.IsSet && (s.AuthKey.IsSet || s.IDToken.IsSet) {
+		return fmt.Errorf("tailscale_listener: if oauth_client_id is set, auth_key and id_token should not be set")
+	} else if s.IDToken.IsSet && (s.AuthKey.IsSet || s.OauthClientID.IsSet) {
+		return fmt.Errorf("tailscale_listener: if id_token is set, auth_key and oidc_client_id should not be set")
+	}
+
+	if s.OauthClientID.IsSet && !s.OauthClientSecret.IsSet {
+		return fmt.Errorf("tailscale_listener: if oauth_client_id is set, oauth_client_secret must also be set")
+	} else if s.OauthClientSecret.IsSet && !s.OauthClientID.IsSet {
+		return fmt.Errorf("tailscale_listener: if oauth_client_secret is set, oauth_client_id must also be set")
+	}
+
+	if s.Hostname.Or("") == "" {
+		return fmt.Errorf("tailscale_listener: hostname must be non-empty")
+	}
+
+	return nil
+}
