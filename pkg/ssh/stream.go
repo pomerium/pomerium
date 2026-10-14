@@ -769,6 +769,13 @@ func (sh *StreamHandler) reauth(ctx context.Context, state *StreamState) error {
 	}
 	err := sh.auth.EvaluateDelayed(ctx, state.StreamInfo, state.AuthContext, state.CurrentUser)
 	if err != nil {
+		if cause := context.Cause(ctx); cause != nil {
+			log.Ctx(ctx).Debug().Err(err).
+				Uint64("stream-id", sh.downstream.StreamId).
+				AnErr("cause", cause).
+				Msg("terminating stream: cancelled")
+			return cause
+		}
 		if status.Code(err) == codes.NotFound {
 			log.Ctx(ctx).Debug().Err(err).
 				Uint64("stream-id", sh.downstream.StreamId).

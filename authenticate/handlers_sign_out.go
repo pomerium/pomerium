@@ -59,6 +59,8 @@ func (a *Authenticate) signOutAndRedirect(w http.ResponseWriter, r *http.Request
 	h, _ := a.getSessionHandleFromRequest(r)
 	// clear the user's local session no matter what
 	state.sessionHandleWriter.ClearSessionHandle(w)
+	// clear this so that we issue a new idpsession ID on every explicit login.
+	identity.ClearBrowserIDCookie(w, a.options.Load().CookieName)
 
 	authenticateURL, err := options.GetAuthenticateURL()
 	if err != nil {

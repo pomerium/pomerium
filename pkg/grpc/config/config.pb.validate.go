@@ -4991,6 +4991,39 @@ func (m *Settings) validate(all bool) error {
 
 	}
 
+	if m.SshExpire != nil {
+
+		if all {
+			switch v := interface{}(m.GetSshExpire()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "SshExpire",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "SshExpire",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetSshExpire()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  "SshExpire",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if m.Enterprise != nil {
 
 		if all {

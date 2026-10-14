@@ -2,6 +2,7 @@ package authenticateflow
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -15,9 +16,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -25,12 +29,14 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/testutil/matchers"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	dtestutil "github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
@@ -39,6 +45,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/ssh/code"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func TestStatefulSignIn(t *testing.T) {
@@ -436,7 +444,7 @@ func TestPersistSession(t *testing.T) {
 
 	opts := config.NewDefaultOptions()
 	opts.CookieExpire = 4 * time.Hour
-	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), config.New(opts), nil, &pom_grpc.CachedOutboundGRPClientConn{})
+	flow, err := NewStateful(t.Context(), noop.NewTracerProvider(), config.New(opts), nil, &pom_grpc.CachedOutboundGRPClientConn{})
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)
@@ -549,6 +557,342 @@ func TestPersistSession(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, proto.Uint64(1111), h.DatabrokerRecordVersion)
 	assert.Equal(t, proto.Uint64(2222), h.DatabrokerServerVersion)
+}
+
+func TestStatefulAuthenticatePendingSession(t *testing.T) {
+	t.Parallel()
+
+	opts := config.NewDefaultOptions()
+	client := dtestutil.NewTestDatabroker(t)
+	flow, err := NewStateful(
+		t.Context(), noop.NewTracerProvider(), config.New(opts), nil, &pom_grpc.CachedOutboundGRPClientConn{})
+	require.NoError(t, err)
+	flow.dataBrokerClient = client
+	flow.codeReader = code.NewReader(databroker.NewStaticClientGetter(client))
+
+	t.Run("code denied", func(t *testing.T) {
+		t.Parallel()
+		code := [16]byte{}
+		_, _ = rand.Read(code[:])
+		codeStr := base64.RawURLEncoding.EncodeToString(code[:])
+
+		setupRecords := newPendingSessionRecords(
+			pendingAuthInfo{
+				idpSessionID: "is1",
+				sessionID:    "s1",
+				userID:       "u1",
+				idpID:        "idp1",
+				code:         codeStr,
+				sshKey:       "foo",
+			},
+		)
+
+		_, err := client.Put(t.Context(), &databroker.PutRequest{
+			Records: setupRecords,
+		})
+
+		require.NoError(t, err)
+
+		uri := &url.URL{
+			Host: "https://authenticate.example.com",
+			Path: "/.pomerium/sign",
+		}
+		// the lack of confirm=true means the user submitted deny for the code from the UI
+		v := uri.Query()
+		v.Add("user_code", codeStr)
+		uri.RawQuery = v.Encode()
+
+		r := httptest.NewRequest(http.MethodPost, uri.String(), nil)
+
+		w := httptest.NewRecorder()
+		h := &session.Handle{
+			Id:                 "s1",
+			UserId:             "u1",
+			IdentityProviderId: "idp1",
+		}
+		err = flow.AuthenticatePendingSession(w, r, h)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode, "unexpected http status code from user code denial")
+
+		sbr := &session.SessionBindingRequest{}
+		resp, err := client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(sbr),
+			Id:   codeStr,
+		})
+		require.NoError(t, err)
+		require.NoError(t, resp.GetRecord().GetData().UnmarshalTo(sbr))
+		assert.Equal(t, session.SessionBindingRequestState_Revoked, sbr.State)
+
+		// assert the projected session / idpsession binding were not created
+		_, err = client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(new(session.Session)),
+			Id:   "foo", // matches the ssh key
+		})
+		assert.Error(t, err)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+
+		_, err = client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(new(idpsession.Binding)),
+			Id:   "foo", // matches the ssh key
+		})
+		assert.Error(t, err)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+
+		// replaying a code where a decision has been made returns an error
+		w2 := httptest.NewRecorder()
+		r2 := httptest.NewRequest(http.MethodPost, uri.String(), nil)
+		err = flow.AuthenticatePendingSession(w2, r2, h)
+		assert.Error(t, err)
+		var httpErr *httputil.HTTPError
+		require.True(t, errors.As(err, &httpErr))
+		assert.Equal(t, http.StatusConflict, httpErr.Status)
+	})
+
+	t.Run("code success", func(t *testing.T) {
+		t.Parallel()
+		code := [16]byte{}
+		_, _ = rand.Read(code[:])
+		codeStr := base64.RawURLEncoding.EncodeToString(code[:])
+
+		setupRecords := newPendingSessionRecords(
+			pendingAuthInfo{
+				idpSessionID: "is2",
+				sessionID:    "s2",
+				userID:       "u2",
+				idpID:        "idp1",
+				code:         codeStr,
+				sshKey:       "bar",
+			},
+		)
+
+		_, err := client.Put(t.Context(), &databroker.PutRequest{
+			Records: setupRecords,
+		})
+
+		require.NoError(t, err)
+
+		uri := &url.URL{
+			Host: "https://authenticate.example.com",
+			Path: "/.pomerium/sign",
+		}
+		v := uri.Query()
+		v.Add("user_code", codeStr)
+		v.Add("confirm", "true")
+		uri.RawQuery = v.Encode()
+
+		r := httptest.NewRequest(http.MethodPost, uri.String(), nil)
+		w := httptest.NewRecorder()
+		h := &session.Handle{
+			Id:                 "s2",
+			UserId:             "u2",
+			IdentityProviderId: "idp1",
+		}
+		err = flow.AuthenticatePendingSession(w, r, h)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode, "unexpected http status code from user code approval")
+
+		sbr := &session.SessionBindingRequest{}
+		resp, err := client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(sbr),
+			Id:   codeStr,
+		})
+		require.NoError(t, err)
+		require.NoError(t, resp.GetRecord().GetData().UnmarshalTo(sbr))
+		assert.Equal(t, session.SessionBindingRequestState_Accepted, sbr.State)
+
+		// assert the new project session and idpsession binding are created.
+
+		_, err = client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(new(session.Session)),
+			Id:   "bar", // matches ssh key
+		})
+		assert.NoError(t, err, "expected new session to be created")
+
+		_, err = client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(new(idpsession.Binding)),
+			Id:   "bar", // matches ssh key
+		})
+		assert.NoError(t, err, "expected new idp session binding to be created")
+
+		// replaying a code where a decision has been made returns an error
+		w2 := httptest.NewRecorder()
+		r2 := httptest.NewRequest(http.MethodPost, uri.String(), nil)
+		err = flow.AuthenticatePendingSession(w2, r2, h)
+		assert.Error(t, err)
+		var httpErr *httputil.HTTPError
+		assert.True(t, errors.As(err, &httpErr))
+		assert.Equal(t, http.StatusConflict, httpErr.Status)
+	})
+
+	t.Run("do not prompt again", func(t *testing.T) {
+		t.Parallel()
+		code := [16]byte{}
+		_, _ = rand.Read(code[:])
+		codeStr := base64.RawURLEncoding.EncodeToString(code[:])
+
+		setupRecords := newPendingSessionRecords(
+			pendingAuthInfo{
+				idpSessionID: "is3",
+				sessionID:    "s3",
+				userID:       "u3",
+				idpID:        "idp1",
+				code:         codeStr,
+				sshKey:       "baz",
+			},
+		)
+
+		_, err := client.Put(t.Context(), &databroker.PutRequest{
+			Records: setupRecords,
+		})
+
+		require.NoError(t, err)
+
+		uri := &url.URL{
+			Host: "https://authenticate.example.com",
+			Path: "/.pomerium/sign",
+		}
+		v := uri.Query()
+		v.Add("user_code", codeStr)
+		v.Add("confirm", "true")
+		v.Add("create_id_binding", "true")
+		uri.RawQuery = v.Encode()
+
+		r := httptest.NewRequest(http.MethodPost, uri.String(), nil)
+		w := httptest.NewRecorder()
+		h := &session.Handle{
+			Id:                 "s3",
+			UserId:             "u3",
+			IdentityProviderId: "idp1",
+		}
+		err = flow.AuthenticatePendingSession(w, r, h)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode, "unexpected http status code from user code approval")
+
+		sbr := &session.SessionBindingRequest{}
+		resp, err := client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(sbr),
+			Id:   codeStr,
+		})
+		require.NoError(t, err)
+		require.NoError(t, resp.GetRecord().GetData().UnmarshalTo(sbr))
+		assert.Equal(t, session.SessionBindingRequestState_Accepted, sbr.State)
+
+		// assert the new project session and idpsession binding are created.
+
+		_, err = client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(new(session.Session)),
+			Id:   "baz", // matches ssh key
+		})
+		assert.NoError(t, err, "expected new session to be created")
+
+		_, err = client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(new(idpsession.Binding)),
+			Id:   "baz", // matches ssh key
+		})
+		assert.NoError(t, err, "expected new idp session binding to be created")
+
+		// delete the ssh session (simulating a revocation/expiration)
+		_, err = storage.DeleteDataBrokerRecord(t.Context(), client, protoutil.GetTypeURL(new(session.Session)), "baz")
+		require.NoError(t, err)
+		_, err = storage.DeleteDataBrokerRecord(t.Context(), client, protoutil.GetTypeURL(new(idpsession.Binding)), "baz")
+		require.NoError(t, err)
+
+		// issue new code
+
+		newCode := [16]byte{}
+		_, _ = rand.Read(code[:])
+		newCodeStr := base64.RawURLEncoding.EncodeToString(newCode[:])
+
+		newSbr := &session.SessionBindingRequest{
+			Protocol:  "ssh",
+			Key:       "baz",
+			IdpId:     "idp1",
+			CreatedAt: timestamppb.Now(),
+			ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+			State:     session.SessionBindingRequestState_InFlight,
+		}
+
+		_, err = client.Put(t.Context(), &databroker.PutRequest{
+			Records: []*databroker.Record{
+				{
+					Type: protoutil.GetTypeURL(newSbr),
+					Id:   newCodeStr,
+					Data: protoutil.NewAny(newSbr),
+				},
+			},
+		})
+		require.NoError(t, err)
+		signInVerifyURI := &url.URL{
+			Host: "https://authenticate.example.com",
+			Path: "/.pomerium/sign",
+		}
+		v2 := signInVerifyURI.Query()
+		v2.Add("user_code", newCodeStr)
+		signInVerifyURI.RawQuery = v2.Encode()
+
+		w2 := httptest.NewRecorder()
+		// GET normally displays the confirmation prompt without the identity binding
+		// but when the identity binding exists, we expect it to recreate a valid ssh session.
+		r2 := httptest.NewRequest(http.MethodGet, signInVerifyURI.String(), nil)
+		require.NoError(t, flow.AuthenticatePendingSession(w2, r2, h))
+
+		assert.Equal(t, http.StatusOK, w2.Result().StatusCode)
+		_, err = client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(new(session.Session)),
+			Id:   "baz",
+		})
+		assert.NoError(t, err, "expect session to be recreated without confirmation prompt")
+
+		_, err = client.Get(t.Context(), &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(new(idpsession.Binding)),
+			Id:   "baz",
+		})
+		assert.NoError(t, err, "expect binding to be recreated without confirmation prompt")
+	})
+}
+
+type pendingAuthInfo struct {
+	idpSessionID string
+	sessionID    string
+	userID       string
+	idpID        string
+	code         string
+	sshKey       string
+}
+
+func newPendingSessionRecords(info pendingAuthInfo) []*databroker.Record {
+	setupRecords := []*databroker.Record{}
+	idpSess := &idpsession.IDPSession{
+		Id:     info.idpSessionID,
+		UserId: info.userID,
+		IdpId:  info.idpID,
+	}
+	sess := &session.Session{
+		Id: info.sessionID,
+	}
+	codeRequest := &session.SessionBindingRequest{
+		Protocol:  "ssh",
+		Key:       info.sshKey,
+		IdpId:     info.idpID,
+		CreatedAt: timestamppb.Now(),
+		ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+		State:     session.SessionBindingRequestState_InFlight,
+	}
+	setupRecords = append(setupRecords, &databroker.Record{
+		Type: protoutil.GetTypeURL(codeRequest),
+		Id:   info.code,
+		Data: protoutil.NewAny(codeRequest),
+	})
+	setupRecords = append(setupRecords, databroker.NewRecord(idpSess))
+	setupRecords = append(setupRecords, idpsession.NewBoundRecords(
+		idpSess.Id,
+		info.userID,
+		idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER,
+		map[string]string{},
+		sess,
+	)...)
+
+	return setupRecords
 }
 
 type mockAuthenticator struct {

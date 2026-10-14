@@ -94,6 +94,7 @@ func TestBindingManager(t *testing.T) {
 				SessionBindingID: "m1",
 				Protocol:         "MCP",
 				Resource:         "c1",
+				ClientAddress:    "a2",
 				InitiatedAt:      now.UTC().Format(time.RFC1123),
 				ExpiresAt:        "Until revoked or IDP expires",
 			},
@@ -113,6 +114,7 @@ func TestBindingManager(t *testing.T) {
 				Protocol:         session.ProtocolSSH,
 				InitiatedAt:      now.UTC().Format(time.RFC1123),
 				ExpiresAt:        now.Add(time.Hour).UTC().Format(time.RFC1123),
+				ClientAddress:    "a1",
 				DetailsSSH: &handlers.ProtocolDetailsSSH{
 					FingerprintID: "b",
 					SourceAddress: "a1",
