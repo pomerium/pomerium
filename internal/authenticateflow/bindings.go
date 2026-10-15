@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/medama-io/go-useragent"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -293,13 +294,11 @@ func (b *bindingManager) GetBindings(ctx context.Context, h *session.Handle) ([]
 	}
 
 	slices.SortFunc(bindings, func(a, b handlers.SessionBindingDataV2) int {
-		if n := cmp.Compare(a.IDPSessionID, b.IDPSessionID); n != 0 {
-			return n
-		}
-		if n := cmp.Compare(a.Protocol, b.Protocol); n != 0 {
-			return n
-		}
-		return cmp.Compare(a.SessionBindingID, b.SessionBindingID)
+		return cmp.Or(
+			cmp.Compare(a.IDPSessionID, b.IDPSessionID),
+			cmp.Compare(a.Protocol, b.Protocol),
+			cmp.Compare(a.SessionBindingID, b.SessionBindingID),
+		)
 	})
 
 	return bindings, nil
@@ -315,37 +314,35 @@ func (b *bindingManager) queryBindings(
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("bad filter"))
 	}
-	const limit = int64(100)
-	var bindings []*idpsession.Binding
-	for offset := int64(0); ; offset += limit {
-		resp, err := b.dataBrokerClient.Query(ctx, &databroker.QueryRequest{
-			Type: protoutil.GetTypeURL(new(idpsession.Binding)), Offset: offset, Limit: limit, Filter: filter,
-		})
+	ret := make([]*idpsession.Binding, 0)
+	for page, err := range databroker.QueryAll(
+		ctx, b.dataBrokerClient, protoutil.GetTypeURL(new(idpsession.Binding)), filter,
+	) {
 		if err != nil {
-			return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("internal error"))
+			return nil, err
 		}
-		for _, rec := range resp.GetRecords() {
+		if numRecords := int(page.TotalCount); cap(ret) < numRecords {
+			ret = slices.Grow(ret, numRecords-cap(ret))
+		}
+
+		for _, rec := range page.Records {
 			if rec.GetDeletedAt() != nil {
 				continue
 			}
-			binding := &idpsession.Binding{}
-			if err := rec.GetData().UnmarshalTo(binding); err != nil {
-				log.Ctx(ctx).Err(err).Str("id", rec.GetId()).Str("type-url", rec.Data.GetTypeUrl()).
-					Msg("incompatible binding record")
+			bind := &idpsession.Binding{}
+			if err := rec.GetData().UnmarshalTo(bind); err != nil {
+				log.Ctx(ctx).Err(err).Msg("incompatible idpsession binding format")
 				continue
 			}
-			if binding.GetUserId() != userID {
+			if bind.GetUserId() != userID {
 				log.Ctx(ctx).Debug().Str("id", rec.GetId()).Msg("mismatched user id on binding for filter")
 				continue
 			}
-			bindings = append(bindings, binding)
-		}
-
-		if len(resp.GetRecords()) < int(limit) || offset+limit >= resp.GetTotalCount() {
-			break
+			ret = append(ret, bind)
 		}
 	}
-	return bindings, nil
+	ret = slices.Clip(ret)
+	return ret, nil
 }
 
 func (b *bindingManager) getLegacySSHSessionBindingInfo(ctx context.Context, userID string) ([]handlers.SessionBindingDataV2, error) {
@@ -458,43 +455,10 @@ func formatProtocol(protocol idpsession.BindingProtocol) string {
 }
 
 func formatBrowserUserAgent(userAgent string) string {
+	ua := useragent.NewParser()
+	agent := ua.Parse(userAgent)
 	if strings.TrimSpace(userAgent) == "" {
 		return ""
 	}
-
-	browser := "Unknown browser"
-	switch {
-	case strings.Contains(userAgent, "EdgiOS/"), strings.Contains(userAgent, "EdgA/"), strings.Contains(userAgent, "Edg/"):
-		browser = "Edge"
-	case strings.Contains(userAgent, "OPiOS/"), strings.Contains(userAgent, "OPR/"):
-		browser = "Opera"
-	case strings.Contains(userAgent, "SamsungBrowser/"):
-		browser = "Samsung"
-	case strings.Contains(userAgent, "CriOS/"), strings.Contains(userAgent, "Chrome/"):
-		browser = "Chrome"
-	case strings.Contains(userAgent, "FxiOS/"), strings.Contains(userAgent, "Firefox/"):
-		browser = "Firefox"
-	case strings.Contains(userAgent, "Version/") && strings.Contains(userAgent, "Safari/"):
-		browser = "Safari"
-	}
-
-	operatingSystem := "Unknown OS"
-	switch {
-	case strings.Contains(userAgent, "Android"):
-		operatingSystem = "Android"
-	case strings.Contains(userAgent, "iPad"):
-		operatingSystem = "iPadOS"
-	case strings.Contains(userAgent, "iPhone"), strings.Contains(userAgent, "iPod"):
-		operatingSystem = "iOS"
-	case strings.Contains(userAgent, "Windows"):
-		operatingSystem = "Windows"
-	case strings.Contains(userAgent, "CrOS"):
-		operatingSystem = "ChromeOS"
-	case strings.Contains(userAgent, "Macintosh"), strings.Contains(userAgent, "Mac OS X"):
-		operatingSystem = "macOS"
-	case strings.Contains(userAgent, "Linux"):
-		operatingSystem = "Linux"
-	}
-
-	return browser + " on " + operatingSystem
+	return agent.Browser().String() + " on " + agent.OS().String()
 }
