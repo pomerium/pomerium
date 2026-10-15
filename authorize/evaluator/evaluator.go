@@ -37,6 +37,7 @@ import (
 // Request contains the inputs needed for evaluation.
 type Request struct {
 	IsInternal         bool
+	IsConsole          bool
 	Policy             *config.Policy
 	HTTP               RequestHTTP
 	SSH                RequestSSH

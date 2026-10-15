@@ -12,10 +12,12 @@ import (
 	envoy_extensions_filters_http_header_mutation_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_mutation/v3"
 	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
 	envoy_extensions_filters_http_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
+	envoy_extensions_stateful_session_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/stateful_session/v3"
 	envoy_extensions_filters_listener_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/proxy_protocol/v3"
 	envoy_extensions_filters_listener_tls_inspector_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_filters_network_tcp_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
+	envoy_extensions_stateful_session_envelope_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/http/stateful_session/envelope/v3"
 	envoy_extensions_matching_common_inputs_network_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/matching/common_inputs/network/v3"
 	envoy_extensions_matching_input_matchers_metadata_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/matching/input_matchers/metadata/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
@@ -123,6 +125,7 @@ func HTTPRouterFilter() *envoy_extensions_filters_network_http_connection_manage
 const (
 	UseFilterChainMetadataKey          = "com.pomerium.use_filter_chain"
 	CompositeFilterChainUpstreamTunnel = "upstream_tunnel"
+	CompositeFilterChainConsole        = "console"
 	CompositeFilterChainMCP            = "mcp"
 )
 
@@ -135,6 +138,12 @@ func CompositeFilter(cfg *config.Config) *envoy_extensions_filters_network_http_
 			name: CompositeFilterChainUpstreamTunnel,
 			filterChain: []*envoy_config_core_v3.TypedExtensionConfig{
 				UpstreamTunnelSetFilterStateFilter(),
+			},
+		},
+		{
+			name: CompositeFilterChainConsole,
+			filterChain: []*envoy_config_core_v3.TypedExtensionConfig{
+				StatefulSessionFilter(),
 			},
 		},
 		{
@@ -266,5 +275,24 @@ func TLSInspectorFilter() *envoy_config_listener_v3.ListenerFilter {
 		ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
 			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_listener_tls_inspector_v3.TlsInspector{}),
 		},
+	}
+}
+
+// StatefulSessionFilter returns a filter which enables stateful session processing.
+// This is used for enterprise console routes.
+func StatefulSessionFilter() *envoy_config_core_v3.TypedExtensionConfig {
+	return &envoy_config_core_v3.TypedExtensionConfig{
+		Name: "envoy.filters.http.stateful_session",
+		TypedConfig: marshalAny(&envoy_extensions_stateful_session_v3.StatefulSession{
+			Strict: true,
+			SessionState: &envoy_config_core_v3.TypedExtensionConfig{
+				Name: "envoy.http.stateful_session.envelope",
+				TypedConfig: marshalAny(&envoy_extensions_stateful_session_envelope_v3.EnvelopeSessionState{
+					Header: &envoy_extensions_stateful_session_envelope_v3.EnvelopeSessionState_Header{
+						Name: "x-pomerium-stateful-session-id",
+					},
+				}),
+			},
+		}),
 	}
 }
