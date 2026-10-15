@@ -126,10 +126,9 @@ func NewStateless(
 	}
 
 	dataBrokerConn, err := outboundGrpcConn.Get(ctx, &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
-		InstallationID: cfg.Options.InstallationID,
-		ServiceName:    cfg.Options.Services,
-		SignedJWTKey:   sharedKey,
+		OutboundPort: cfg.OutboundPort,
+		ServiceName:  cfg.Options.Services,
+		SignedJWTKey: sharedKey,
 	}, googlegrpc.WithStatsHandler(trace.NewClientStatsHandler(
 		otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider)),
 		outboundDatabrokerTraceClientOpts...,

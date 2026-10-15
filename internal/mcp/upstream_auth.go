@@ -165,10 +165,9 @@ func (h *UpstreamAuthHandler) updateDataBrokerClient(ctx context.Context, cfg *c
 		return fmt.Errorf("mcp_upstream_auth: shared key: %w", err)
 	}
 	cc, err := h.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
-		InstallationID: cfg.Options.InstallationID,
-		ServiceName:    cfg.Options.Services,
-		SignedJWTKey:   sharedKey,
+		OutboundPort: cfg.OutboundPort,
+		ServiceName:  cfg.Options.Services,
+		SignedJWTKey: sharedKey,
 	}, googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(h.tracerProvider))))
 	if err != nil {
 		return fmt.Errorf("mcp_upstream_auth: databroker connection: %w", err)

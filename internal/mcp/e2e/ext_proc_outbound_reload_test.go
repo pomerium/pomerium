@@ -32,13 +32,14 @@ import (
 // https://github.com/pomerium/pomerium/issues/6730 end to end, in the order the
 // deployment there goes through it:
 //
-//  1. Pomerium starts from the ingress controller's bootstrap config, which has
-//     no installation_id. The controlplane builds the MCP ext_proc handler
-//     right away, so the handler's databroker connection is dialed with the
-//     bootstrap outbound options.
-//  2. The console's "dashboard-settings" record arrives through the databroker
-//     and the running config gains installation_id. Proxy and authorize rebuild
-//     per config and re-dial; the controlplane keeps its startup connection.
+//  1. Pomerium starts from its bootstrap config. The controlplane builds the
+//     MCP ext_proc handler right away, so the handler's databroker connection
+//     is dialed with the bootstrap outbound options.
+//  2. A settings record arrives through the databroker and changes an option
+//     the outbound connection depends on. Here services is rewritten from "all"
+//     to the equivalent explicit list, which changes the service name. Proxy
+//     and authorize rebuild per config and re-dial; the controlplane keeps its
+//     startup connection.
 //  3. The MCP route, with no upstream OAuth, serves requests: every request
 //     looks up an upstream token in the databroker and gets "not found".
 //  4. The upstream is redeployed. The ingress controller rewrites its record
@@ -83,16 +84,17 @@ func TestExtProcSurvivesOutboundReload(t *testing.T) {
 	ctx := env.Context()
 	dbClient := env.NewDataBrokerServiceClient()
 
-	// 1+2: the ingress-controller route and the console settings arrive through the databroker.
+	// 1+2: the ingress-controller route and the settings arrive through the databroker.
 	const routeID = "mcp-outbound-reload-route"
 	fromURL := env.SubdomainURL("mcp-outbound-reload").Value()
 	pushMCPRouteViaDatabroker(t, env, routeID, fromURL, upstreamA)
 	settingsRec := env.NewLogRecorder(testenv.WithSkipCloseDelay())
+	// still runs every service, but changes the outbound service name
 	putConfigRecord(ctx, t, dbClient, "dashboard-settings", &configpb.Config{
 		Name:     "dashboard-settings",
-		Settings: &configpb.Settings{InstallationId: new("console-installation")},
+		Settings: &configpb.Settings{Services: new("authenticate,authorize,databroker,proxy")},
 	})
-	// the per-config services re-dial for the new installation id
+	// the per-config services re-dial for the new service name
 	settingsRec.WaitForMatch(map[string]any{"message": "outbound client connection has changed meaningfully, reloading"}, 20*time.Second)
 
 	// 3: the MCP route works
