@@ -48,7 +48,7 @@ func TestCachedOutboundGRPClientConn_GetWithSameContext(t *testing.T) {
 
 	// Call Get() a second time with different options but the SAME context.
 	// The context is still alive (not cancelled). This must not deadlock.
-	opts2 := &OutboundOptions{OutboundPort: "1234"}
+	opts2 := &OutboundOptions{OutboundPort: "1234", ServiceName: "test"}
 
 	done := make(chan struct{})
 	go func() {
@@ -91,7 +91,7 @@ func TestCachedOutboundGRPClientConn_GetWithCancelledContext(t *testing.T) {
 
 	// Now call Get() with a new context and different options.
 	ctx2 := t.Context()
-	opts2 := &OutboundOptions{OutboundPort: "1234"}
+	opts2 := &OutboundOptions{OutboundPort: "1234", ServiceName: "test"}
 
 	done := make(chan struct{})
 	go func() {
