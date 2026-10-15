@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -173,4 +174,85 @@ func newAny(src proto.Message) *anypb.Any {
 		panic(err)
 	}
 	return a
+}
+
+const (
+	defaultPageSize = 100
+)
+
+type paginationOptions struct {
+	pageSize int64
+}
+
+func (o *paginationOptions) Apply(opts ...PaginationOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type PaginationOption func(o *paginationOptions)
+
+func WithPageSize(size int) PaginationOption {
+	return func(o *paginationOptions) {
+		o.pageSize = int64(size)
+	}
+}
+
+func defaultPaginationOptions() *paginationOptions {
+	return &paginationOptions{
+		pageSize: defaultPageSize,
+	}
+}
+
+// QueryAllIter queries all records of the given type matching filter,
+// yielding one QueryPage per request. Default page size is 100.
+// Deleted records are not filtered out and iteration stops after the first error.
+func QueryAll(
+	ctx context.Context,
+	client DataBrokerServiceClient,
+	typeURL string,
+	filter *structpb.Struct,
+	opts ...PaginationOption,
+) iterutil.ErrorSeq[*QueryPage] {
+	options := defaultPaginationOptions()
+	options.Apply(opts...)
+	return func(yield func(*QueryPage, error) bool) {
+		limit := options.pageSize
+		for offset := int64(0); ; offset += limit {
+			resp, err := client.Query(ctx, &QueryRequest{
+				Type:   typeURL,
+				Offset: offset,
+				Limit:  limit,
+				Filter: filter,
+			})
+			if err != nil {
+				_ = yield(nil, err)
+				return
+			}
+			if !yield(&QueryPage{
+				Offset:        offset,
+				Limit:         limit,
+				TotalCount:    resp.GetTotalCount(),
+				Records:       resp.GetRecords(),
+				ServerVersion: resp.ServerVersion,
+				RecordVersion: resp.RecordVersion,
+			}, nil) {
+				return
+			}
+
+			if len(resp.GetRecords()) < int(limit) || offset+limit >= resp.GetTotalCount() {
+				return
+			}
+		}
+	}
+}
+
+// QueryPage is one page of results from a paginated QueryRequest.
+type QueryPage struct {
+	Offset        int64
+	Limit         int64
+	TotalCount    int64
+	Records       []*Record
+	ServerVersion uint64
+	RecordVersion uint64
 }
