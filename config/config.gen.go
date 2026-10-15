@@ -131,6 +131,7 @@ type TailscaleListenerSettings struct {
 	OauthClientID     Value[string]   `json:"oauth_client_id,omitzero" mapstructure:"oauth_client_id" yaml:"oauth_client_id,omitempty"`
 	OauthClientSecret Value[string]   `json:"oauth_client_secret,omitzero" mapstructure:"oauth_client_secret" yaml:"oauth_client_secret,omitempty"`
 	Tags              Value[[]string] `json:"tags,omitzero" mapstructure:"tags" yaml:"tags,omitempty"`
+	TerminateTLS      Value[bool]     `json:"terminate_tls,omitzero" mapstructure:"terminate_tls" yaml:"terminate_tls,omitempty"`
 }
 
 func setNullableBlobStorageSettingsFromProto(dst *Value[BlobStorageSettings], src *configpb.BlobStorageSettings) error {
@@ -683,6 +684,7 @@ func setTailscaleListenerSettingsFromProto(dst *TailscaleListenerSettings, src *
 		setNullableStringFromProto(&dst.OauthClientID, src.OauthClientId),
 		setNullableStringFromProto(&dst.OauthClientSecret, src.OauthClientSecret),
 		setNullableSliceOfStringFromProto(&dst.Tags, &src.Tags),
+		setNullableBoolFromProto(&dst.TerminateTLS, src.TerminateTls),
 	)
 }
 
@@ -1210,6 +1212,7 @@ func setTailscaleListenerSettingsToProto(dst **configpb.TailscaleListenerSetting
 		setNullableStringToProto(&obj.OauthClientId, src.OauthClientID),
 		setNullableStringToProto(&obj.OauthClientSecret, src.OauthClientSecret),
 		setSliceOfStringToProto(&obj.Tags, src.Tags),
+		setNullableBoolToProto(&obj.TerminateTls, src.TerminateTLS),
 	)
 }
 

@@ -4694,8 +4694,10 @@ type TailscaleListenerSettings struct {
 	ListenServiceName *string `protobuf:"bytes,12,opt,name=listen_service_name,json=listenServiceName,proto3,oneof" json:"listen_service_name,omitempty"`
 	// Start a listener for the service port.
 	ListenServicePort *uint32 `protobuf:"varint,13,opt,name=listen_service_port,json=listenServicePort,proto3,oneof" json:"listen_service_port,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// If set to true, terminate TLS before proxying data to envoy.
+	TerminateTls  *bool `protobuf:"varint,14,opt,name=terminate_tls,json=terminateTls,proto3,oneof" json:"terminate_tls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TailscaleListenerSettings) Reset() {
@@ -4817,6 +4819,13 @@ func (x *TailscaleListenerSettings) GetListenServicePort() uint32 {
 		return *x.ListenServicePort
 	}
 	return 0
+}
+
+func (x *TailscaleListenerSettings) GetTerminateTls() bool {
+	if x != nil && x.TerminateTls != nil {
+		return *x.TerminateTls
+	}
+	return false
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses
@@ -10393,7 +10402,7 @@ const file_config_proto_rawDesc = "" +
 	"!_path_with_escaped_slashes_actionB\"\n" +
 	" _headers_with_underscores_actionB\x0e\n" +
 	"\f_oidc_bridgeB\x1d\n" +
-	"\x1b_readonly_console_audiencesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\xe8\x05\n" +
+	"\x1b_readonly_console_audiencesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\xa4\x06\n" +
 	"\x19TailscaleListenerSettings\x12\x1e\n" +
 	"\bauth_key\x18\x01 \x01(\tH\x00R\aauthKey\x88\x01\x01\x12+\n" +
 	"\x0foauth_client_id\x18\x02 \x01(\tH\x01R\roauthClientId\x88\x01\x01\x123\n" +
@@ -10410,7 +10419,9 @@ const file_config_proto_rawDesc = "" +
 	"listenAddr\x88\x01\x01\x121\n" +
 	"\x12listen_funnel_addr\x18\v \x01(\tH\aR\x10listenFunnelAddr\x88\x01\x01\x123\n" +
 	"\x13listen_service_name\x18\f \x01(\tH\bR\x11listenServiceName\x88\x01\x01\x123\n" +
-	"\x13listen_service_port\x18\r \x01(\rH\tR\x11listenServicePort\x88\x01\x01B\v\n" +
+	"\x13listen_service_port\x18\r \x01(\rH\tR\x11listenServicePort\x88\x01\x01\x12(\n" +
+	"\rterminate_tls\x18\x0e \x01(\bH\n" +
+	"R\fterminateTls\x88\x01\x01B\v\n" +
 	"\t_auth_keyB\x12\n" +
 	"\x10_oauth_client_idB\x16\n" +
 	"\x14_oauth_client_secretB\v\n" +
@@ -10420,7 +10431,8 @@ const file_config_proto_rawDesc = "" +
 	"\f_listen_addrB\x15\n" +
 	"\x13_listen_funnel_addrB\x16\n" +
 	"\x14_listen_service_nameB\x16\n" +
-	"\x14_listen_service_port\"\x87\x01\n" +
+	"\x14_listen_service_portB\x10\n" +
+	"\x0e_terminate_tls\"\x87\x01\n" +
 	"\x13BlobStorageSettings\x12\"\n" +
 	"\n" +
 	"bucket_uri\x18\x01 \x01(\tH\x00R\tbucketUri\x88\x01\x01\x12*\n" +

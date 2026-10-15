@@ -1212,6 +1212,8 @@ message TailscaleListenerSettings {
   optional string listen_service_name = 12;
   // Start a listener for the service port.
   optional uint32 listen_service_port = 13;
+  // If set to true, terminate TLS before proxying data to envoy.
+  optional bool terminate_tls = 14;
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses

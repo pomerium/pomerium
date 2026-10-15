@@ -81,8 +81,8 @@ type OutboundOptions struct {
 	SignedJWTKey []byte
 }
 
-// newOutboundGRPCClientConn gets a new outbound gRPC client.
-func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other ...grpc.DialOption) (*grpc.ClientConn, error) {
+// NewOutboundGRPCClientConn gets a new outbound gRPC client.
+func NewOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return NewGRPCClientConn(ctx, &Options{
 		Address:        net.JoinHostPort("127.0.0.1", opts.OutboundPort),
 		InstallationID: opts.InstallationID,
@@ -129,7 +129,7 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	}
 
 	var err error
-	cache.current, err = newOutboundGRPCClientConn(ctx, opts, other...)
+	cache.current, err = NewOutboundGRPCClientConn(ctx, opts, other...)
 	if err != nil {
 		return nil, err
 	}

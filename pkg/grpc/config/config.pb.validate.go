@@ -5201,6 +5201,10 @@ func (m *TailscaleListenerSettings) validate(all bool) error {
 		// no validation rules for ListenServicePort
 	}
 
+	if m.TerminateTls != nil {
+		// no validation rules for TerminateTls
+	}
+
 	if len(errors) > 0 {
 		return TailscaleListenerSettingsMultiError(errors)
 	}

@@ -792,6 +792,7 @@ func toGoPascalCase(str string) string {
 		"Grpc", "GRPC",
 		"Dns", "DNS",
 		"5xx", "_5xx",
+		"Tls", "TLS",
 	)
 	return r.Replace(strcase.ToPascal(str))
 }

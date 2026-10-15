@@ -5725,6 +5725,12 @@ components:
             - "null"
           title: listen_service_port
           description: Start a listener for the service port.
+        terminateTls:
+          type:
+            - boolean
+            - "null"
+          title: terminate_tls
+          description: If set to true, terminate TLS before proxying data to envoy.
       title: TailscaleListenerSettings
       additionalProperties: false
       description: TailscaleListenerSettings are the settings for a tailscale listener.

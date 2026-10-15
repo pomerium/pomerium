@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
+	"github.com/pomerium/pomerium/internal/tsrouter"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
@@ -290,6 +291,19 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 			return dataBrokerServer.Run(ctx)
 		})
 	}
+
+	tsRouter := tsrouter.New()
+	src.OnConfigChange(ctx, func(_ context.Context, cfg *config.Config) {
+		tsRouter.OnConfigChange(cfg)
+	})
+	tsRouter.OnConfigChange(src.GetConfig())
+	go func() {
+		err := tsRouter.Run(ctx)
+		if err != nil {
+			log.Ctx(ctx).Fatal().Err(err).Msg("error running tsrouter")
+		}
+	}()
+
 	return nil
 }
 

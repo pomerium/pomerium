@@ -823,10 +823,8 @@ func (o *Options) Validate() error {
 		}
 	}
 
-	for i, t := range o.TailscaleListeners.Value {
-		if err := t.Validate(); err != nil {
-			return fmt.Errorf("config: tailscale_listeners[%d]: %w", i, err)
-		}
+	if err := o.ValidateTailscaleListenerSettings(); err != nil {
+		return err
 	}
 
 	return nil

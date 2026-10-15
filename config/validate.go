@@ -5,6 +5,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	goset "github.com/hashicorp/go-set/v3"
 )
 
 // ValidateCookieSameSite validates the cookie same site option.
@@ -30,6 +32,28 @@ func ValidateAddress(addr string) error {
 	}
 	if p <= 0 {
 		return fmt.Errorf("expected positive port number")
+	}
+
+	return nil
+}
+
+func (o *Options) ValidateTailscaleListenerSettings() error {
+	if len(o.TailscaleListeners.Value) == 0 {
+		return nil
+	}
+
+	if o.InsecureServer {
+		return fmt.Errorf("config: tailscale_listeners: insecure_server is not supported when using tailscale listeners")
+	}
+
+	seen := goset.New[string](0)
+	for i, t := range o.TailscaleListeners.Value {
+		if err := t.Validate(); err != nil {
+			return fmt.Errorf("config: tailscale_listeners[%d]: %w", i, err)
+		}
+		if !seen.Insert(t.Hostname.Value) {
+			return fmt.Errorf("config: tailscale_listeners[%d]: hostname must be unique across listeners", i)
+		}
 	}
 
 	return nil

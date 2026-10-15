@@ -7953,6 +7953,18 @@
               "isoneof": true,
               "oneofdecl": "_listen_service_port",
               "defaultValue": ""
+            },
+            {
+              "name": "terminate_tls",
+              "description": "If set to true, terminate TLS before proxying data to envoy.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_terminate_tls",
+              "defaultValue": ""
             }
           ]
         },
