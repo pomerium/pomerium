@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	dtestutil "github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
@@ -104,7 +103,7 @@ func TestIDPSessionReconciler(t *testing.T) {
 		h.put(records...)
 		h.reconcile()
 		assertRecordExists(t, h.client, sessionTypeURL, "s1")
-		assertRecordExists(t, h.client, mcpRefreshTokenTypeURL, "m1")
+		assertRecordExists(t, h.client, sessionTypeURL, "m1")
 
 		h.put(deletedRecord(idpSession, now))
 		h.reconcile()
@@ -112,7 +111,7 @@ func TestIDPSessionReconciler(t *testing.T) {
 			assertRecordDeleted(t, h.client, bindingTypeURL, id)
 		}
 		assertRecordDeleted(t, h.client, sessionTypeURL, "s1")
-		assertRecordDeleted(t, h.client, mcpRefreshTokenTypeURL, "m1")
+		assertRecordDeleted(t, h.client, sessionTypeURL, "m1")
 	})
 
 	t.Run("idle cleanup", func(t *testing.T) {
@@ -160,19 +159,19 @@ func TestBindingReconciler(t *testing.T) {
 				},
 			},
 			{
-				name: "MCP token",
-				dependent: &oauth21.MCPRefreshToken{
+				name: "MCP session",
+				dependent: &session.Session{
 					Id:        "m1",
 					UserId:    "u1",
 					ExpiresAt: timestamppb.New(now.Add(time.Hour)),
 				},
 				protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_MCP,
 				assert: func(t assert.TestingT, client databroker.DataBrokerServiceClient, token string) {
-					got, ok := assertGetRecord(t, client, &oauth21.MCPRefreshToken{Id: "m1"})
+					got, ok := assertGetRecord(t, client, &session.Session{Id: "m1"})
 					if !ok {
 						return
 					}
-					assert.Equal(t, token, got.GetUpstreamRefreshToken())
+					assert.Equal(t, token, got.GetOauthToken().GetAccessToken())
 				},
 			},
 		} {

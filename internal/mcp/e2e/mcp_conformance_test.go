@@ -22,7 +22,36 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
+	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
+
+// findMCPBindings scans every idpsession.Binding record and returns the ones
+// stamped with the given MCP client id, matching what PutBoundSession records
+// under the "mcp_client_id" detail on each consent. There is no direct key
+// from client id to binding id, so this always does a full scan; the test
+// databroker instance only ever holds the handful of bindings created by the
+// current test, so that's cheap here.
+func findMCPBindings(ctx context.Context, t *testing.T, dbClient databroker.DataBrokerServiceClient, clientID string) []*idpsession.Binding {
+	t.Helper()
+	res, err := dbClient.Query(ctx, &databroker.QueryRequest{
+		Type:  protoutil.GetTypeURL(new(idpsession.Binding)),
+		Limit: 1000,
+	})
+	require.NoError(t, err)
+
+	var matches []*idpsession.Binding
+	for _, rec := range res.GetRecords() {
+		b := new(idpsession.Binding)
+		require.NoError(t, rec.GetData().UnmarshalTo(b))
+		if b.GetProtocol() == idpsession.BindingProtocol_BINDING_PROTOCOL_MCP && b.GetDetails()["mcp_client_id"] == clientID {
+			matches = append(matches, b)
+		}
+	}
+	return matches
+}
 
 // TestMCPConformance tests OAuth 2.1 conformance for MCP authorization server.
 // These tests verify security-critical behavior that maps to the MCP conformance suite:
@@ -493,6 +522,88 @@ func runMCPConformance(t *testing.T, mode registrationMode) {
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 			assert.Equal(t, "invalid_grant", result["error"])
 		})
+
+		// revoked_binding_refresh_fails: revoking the idpsession.Binding that ties
+		// the MCP client session to the user's centralized IdP session must stop
+		// refresh immediately, independent of whether the refresh token itself was
+		// ever rotated.
+		t.Run("revoked_binding_refresh_fails", func(t *testing.T) {
+			clientID, _ := registerClient(t, "none")
+			verifier := cryptutil.NewRandomStringN(64)
+			code := getAuthCode(t, clientID, verifier)
+			params := url.Values{
+				"grant_type":    {"authorization_code"},
+				"code":          {code},
+				"redirect_uri":  {redirectURI},
+				"client_id":     {clientID},
+				"code_verifier": {verifier},
+			}
+			resp, result := doTokenRequest(t, params, nil)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			refreshToken, _ := result["refresh_token"].(string)
+			require.NotEmpty(t, refreshToken)
+
+			dbClient := env.NewDataBrokerServiceClient()
+			bindings := findMCPBindings(ctx, t, dbClient, clientID)
+			require.Len(t, bindings, 1, "expected exactly one MCP binding for this client's single consent")
+			// Revoking a binding deletes it.
+			_, err := storage.DeleteDataBrokerRecord(ctx, dbClient, protoutil.GetTypeURL(bindings[0]), bindings[0].GetId())
+			require.NoError(t, err)
+
+			refreshParams := url.Values{
+				"grant_type":    {"refresh_token"},
+				"refresh_token": {refreshToken},
+				"client_id":     {clientID},
+			}
+			resp2, result2 := doTokenRequest(t, refreshParams, nil)
+			assert.Equal(t, http.StatusBadRequest, resp2.StatusCode)
+			assert.Equal(t, "invalid_grant", result2["error"])
+		})
+
+		// one_binding_per_consent: each consent (authorization_code grant) creates
+		// its own session+Binding pair, so two consents for the same client id
+		// produce two distinct bindings; refreshing one of them must not create a
+		// third.
+		t.Run("one_binding_per_consent", func(t *testing.T) {
+			clientID, _ := registerClient(t, "none")
+
+			consent := func() string {
+				verifier := cryptutil.NewRandomStringN(64)
+				code := getAuthCode(t, clientID, verifier)
+				params := url.Values{
+					"grant_type":    {"authorization_code"},
+					"code":          {code},
+					"redirect_uri":  {redirectURI},
+					"client_id":     {clientID},
+					"code_verifier": {verifier},
+				}
+				resp, result := doTokenRequest(t, params, nil)
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+				refreshToken, _ := result["refresh_token"].(string)
+				require.NotEmpty(t, refreshToken)
+				return refreshToken
+			}
+
+			firstRefreshToken := consent()
+			consent() // second, independent consent for the same client id
+
+			dbClient := env.NewDataBrokerServiceClient()
+			bindings := findMCPBindings(ctx, t, dbClient, clientID)
+			require.Len(t, bindings, 2, "expected one binding per consent")
+			assert.NotEqual(t, bindings[0].GetId(), bindings[1].GetId())
+
+			refreshParams := url.Values{
+				"grant_type":    {"refresh_token"},
+				"refresh_token": {firstRefreshToken},
+				"client_id":     {clientID},
+			}
+			resp, result := doTokenRequest(t, refreshParams, nil)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.NotEmpty(t, result["refresh_token"])
+
+			bindingsAfterRefresh := findMCPBindings(ctx, t, dbClient, clientID)
+			assert.Len(t, bindingsAfterRefresh, 2, "refresh must not create a new binding")
+		})
 	})
 
 	// ============================================================================
@@ -503,6 +614,61 @@ func runMCPConformance(t *testing.T, mode registrationMode) {
 	//    them as the intended audience"
 	//   "Invalid or expired tokens MUST receive a HTTP 401 response"
 	// ============================================================================
+	// An MCP client holding only its access token must not mint a second grant:
+	// /authorize under the MCP prefix accepts the bearer token as the caller's
+	// identity, so the code it yields names the MCP session as the consenting
+	// session, and the exchange must refuse it.
+	t.Run("mcp_access_token_cannot_consent_for_another_client", func(t *testing.T) {
+		clientA, _ := registerClient(t, "none")
+		verifierA := cryptutil.NewRandomStringN(64)
+		resp, result := doTokenRequest(t, url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {getAuthCode(t, clientA, verifierA)},
+			"redirect_uri":  {redirectURI},
+			"client_id":     {clientA},
+			"code_verifier": {verifierA},
+		}, nil)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		accessToken, _ := result["access_token"].(string)
+		require.NotEmpty(t, accessToken)
+
+		clientB, _ := registerClient(t, "none")
+		verifierB := cryptutil.NewRandomStringN(64)
+		authURL := asMetadata.AuthorizationEndpoint + "?" + url.Values{
+			"response_type":         {"code"},
+			"client_id":             {clientB},
+			"redirect_uri":          {redirectURI},
+			"state":                 {cryptutil.NewRandomStringN(32)},
+			"code_challenge":        {generateS256Challenge(verifierB)},
+			"code_challenge_method": {"S256"},
+		}.Encode()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, authURL, nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		authResp, err := baseHTTPClient().Do(req) // no cookies: no browser session
+		require.NoError(t, err)
+		authResp.Body.Close()
+		location := authResp.Header.Get("Location")
+		t.Logf("/authorize with an MCP bearer token: status=%d location=%s", authResp.StatusCode, location)
+
+		if !strings.HasPrefix(location, redirectURI) {
+			return // no code was issued at all: nothing to redeem
+		}
+		code, _, _ := parseCallbackParams(t, location)
+		require.NotEmpty(t, code)
+		resp, result = doTokenRequest(t, url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code},
+			"redirect_uri":  {redirectURI},
+			"client_id":     {clientB},
+			"code_verifier": {verifierB},
+		}, nil)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		assert.Equal(t, "invalid_grant", result["error"])
+		assert.Empty(t, findMCPBindings(ctx, t, env.NewDataBrokerServiceClient(), clientB),
+			"no grant may exist for the client nobody consented to")
+	})
+
 	t.Run("access_token_validation", func(t *testing.T) {
 		t.Run("missing_token_returns_401_with_www_authenticate", func(t *testing.T) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, mcpServerURL, nil)

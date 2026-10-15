@@ -71,6 +71,24 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Only the user's browser session bound to their centralized IdP session
+	// can consent: the exchange issues the MCP client's credential from that
+	// binding. A session without one (it predates bindings, or is an MCP
+	// client presenting its own access token) gets no code, rather than a code
+	// the token endpoint would refuse and send the client round the flow again.
+	if _, err := srv.resolveBrowserBinding(ctx, sessionID, userID); err != nil {
+		if !errors.Is(err, errUnboundSession) {
+			log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to get session binding")
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		log.Ctx(ctx).Info().Err(err).Str("session-id", sessionID).Msg("mcp/authorize: session cannot consent to an MCP client")
+		httputil.NewError(http.StatusUnauthorized, err).
+			WithDescription("This session cannot authorize an MCP client. Sign out, sign in again and retry.").
+			ErrorResponse(ctx, w, r)
+		return
+	}
+
 	v, err := oauth21.ParseCodeGrantAuthorizeRequest(r)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to parse authorization request")
@@ -286,7 +304,6 @@ func (srv *Handler) AuthorizationResponse(
 		time.Now().Add(time.Minute*10),
 		req.ClientId,
 		srv.cipher,
-		0,
 	)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize-response: failed to create code")
