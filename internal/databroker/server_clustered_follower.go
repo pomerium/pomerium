@@ -499,10 +499,8 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff,
 	return srv.handleSyncError(ctx, eg.Wait())
 }
 
-// handleSyncError reports the result of a sync pipeline to the health check
-// and returns it. Once ctx is canceled its cause is reported, since a step
-// blocked on the leader fails with a gRPC Canceled error that lacks it.
 func (srv *clusteredFollowerServer) handleSyncError(ctx context.Context, err error) error {
+	// gRPC drops the cancellation cause, so take it from ctx
 	if err != nil && ctx.Err() != nil {
 		err = context.Cause(ctx)
 	}
