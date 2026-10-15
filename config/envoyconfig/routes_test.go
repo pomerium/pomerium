@@ -8,6 +8,7 @@ import (
 	"time"
 
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -2582,7 +2583,10 @@ func Test_statefulSessionFilterEnabledForConsoleRoutes(t *testing.T) {
 			},
 		}), "console.example.com")
 		require.NoError(t, err)
-		assert.NotContains(t, routes[0].TypedPerFilterConfig, PerFilterConfigStatefulSessionName)
+
+		var extAuthzConfig envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute
+		require.NoError(t, routes[0].TypedPerFilterConfig[PerFilterConfigExtAuthzName].UnmarshalTo(&extAuthzConfig))
+		assert.NotContains(t, extAuthzConfig.GetCheckSettings().GetContextExtensions(), "console")
 		for _, h := range routes[0].RequestHeadersToAdd {
 			assert.NotEqual(t, "x-pomerium-upstream-cluster", h.Header.Key)
 		}
@@ -2605,23 +2609,10 @@ func Test_statefulSessionFilterEnabledForConsoleRoutes(t *testing.T) {
 		}), "console.example.com")
 		require.NoError(t, err)
 
-		assert.Contains(t, routes[0].TypedPerFilterConfig, PerFilterConfigStatefulSessionName)
-		testutil.AssertProtoJSONEqual(t, `
-{
-  "@type": "type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSessionPerRoute",
-  "statefulSession": {
-    "sessionState": {
-      "name": "envoy.http.stateful_session.envelope",
-      "typedConfig": {
-        "@type":  "type.googleapis.com/envoy.extensions.http.stateful_session.envelope.v3.EnvelopeSessionState",
-        "header": {
-          "name": "x-pomerium-stateful-session-id"
-        }
-      }
-    },
-    "strict": true
-  }
-}`, routes[0].TypedPerFilterConfig[PerFilterConfigStatefulSessionName])
+		var extAuthzConfig envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute
+		require.NoError(t, routes[0].TypedPerFilterConfig[PerFilterConfigExtAuthzName].UnmarshalTo(&extAuthzConfig))
+		assert.Equal(t, "true", extAuthzConfig.GetCheckSettings().GetContextExtensions()["console"])
+
 		found := false
 		for _, h := range routes[0].RequestHeadersToAdd {
 			if h.Header.Key == "x-pomerium-upstream-cluster" {
@@ -2648,7 +2639,11 @@ func Test_statefulSessionFilterEnabledForConsoleRoutes(t *testing.T) {
 			ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
 		}), "not-console.example.com")
 		require.NoError(t, err)
-		assert.NotContains(t, routes[0].TypedPerFilterConfig, PerFilterConfigStatefulSessionName)
+
+		var extAuthzConfig envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute
+		require.NoError(t, routes[0].TypedPerFilterConfig[PerFilterConfigExtAuthzName].UnmarshalTo(&extAuthzConfig))
+		assert.NotContains(t, extAuthzConfig.GetCheckSettings().GetContextExtensions(), "console")
+
 		for _, h := range routes[0].RequestHeadersToAdd {
 			assert.NotEqual(t, "x-pomerium-upstream-cluster", h.Header.Key)
 		}

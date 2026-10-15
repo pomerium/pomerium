@@ -191,6 +191,63 @@
                           "@type": "type.googleapis.com/envoy.extensions.matching.input_matchers.metadata.v3.Metadata",
                           "value": {
                             "stringMatch": {
+                              "exact": "console"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "onMatch": {
+                    "action": {
+                      "name": "execute-filters",
+                      "typedConfig": {
+                        "@type": "type.googleapis.com/envoy.extensions.filters.http.composite.v3.ExecuteFilterAction",
+                        "filterChain": {
+                          "typedConfig": [
+                            {
+                              "name": "envoy.filters.http.stateful_session",
+                              "typedConfig": {
+                                "@type": "type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSession",
+                                "strict": true,
+                                "sessionState": {
+                                  "name": "envoy.http.stateful_session.envelope",
+                                  "typedConfig": {
+                                    "@type": "type.googleapis.com/envoy.extensions.http.stateful_session.envelope.v3.EnvelopeSessionState",
+                                    "header": {
+                                      "name": "x-pomerium-stateful-session-id"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "predicate": {
+                    "singlePredicate": {
+                      "input": {
+                        "name": "envoy.matching.inputs.dynamic_metadata",
+                        "typedConfig": {
+                          "@type": "type.googleapis.com/envoy.extensions.matching.common_inputs.network.v3.DynamicMetadataInput",
+                          "filter": "envoy.filters.http.ext_authz",
+                          "path": [
+                            {
+                              "key": "com.pomerium.use_filter_chain"
+                            }
+                          ]
+                        }
+                      },
+                      "customMatch": {
+                        "name": "envoy.matching.matchers.metadata_matcher",
+                        "typedConfig": {
+                          "@type": "type.googleapis.com/envoy.extensions.matching.input_matchers.metadata.v3.Metadata",
+                          "value": {
+                            "stringMatch": {
                               "exact": "mcp"
                             }
                           }

@@ -329,12 +329,16 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	if err != nil {
 		return nil, err
 	}
+	isConsoleRoute := policy.IsConsoleRoute(cfg.Options)
 	if isFrontingAuthenticate {
 		route.TypedPerFilterConfig = map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
 		}
 	} else {
 		extAuthzOpts := MakeExtAuthzContextExtensions(false, routeID, routeChecksum)
+		if isConsoleRoute {
+			extAuthzOpts["console"] = "true"
+		}
 		extAuthzCfg := PerFilterConfigExtAuthzContextExtensions(extAuthzOpts)
 		if policy.IsMCPServer() {
 			extAuthzCfg = PerFilterConfigExtAuthzContextExtensionsWithBody(policy.MCP.Server.GetMaxRequestBytes(), extAuthzOpts)
@@ -376,12 +380,9 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		"envoy.filters.http.lua": {Fields: luaMetadata},
 	}
 
-	if policy.IsBootstrapConsoleRoute(cfg.Options) {
-		if route.TypedPerFilterConfig == nil {
-			route.TypedPerFilterConfig = map[string]*anypb.Any{}
-		}
-		route.TypedPerFilterConfig[PerFilterConfigStatefulSessionName] = PerFilterConfigStatefulSessionEnabled()
-		route.RequestHeadersToAdd = append(route.RequestHeadersToAdd,
+	if isConsoleRoute {
+		route.RequestHeadersToAdd = append(
+			route.RequestHeadersToAdd,
 			&envoy_config_core_v3.HeaderValueOption{
 				Header: &envoy_config_core_v3.HeaderValue{
 					Key:   "x-pomerium-upstream-cluster",
@@ -658,11 +659,11 @@ func shouldDisableStreamIdleTimeout(options *config.Options, policy *config.Poli
 		policy.IsUDP() ||
 		policy.IsForKubernetes() || // disable for kubernetes so that tailing logs works (#2182)
 		policy.IsMCPServer() || // MCP Streamable-HTTP uses long-lived SSE streams that must not be cut
-		policy.IsBootstrapConsoleRoute(options)
+		policy.IsConsoleRoute(options)
 }
 
 func shouldDisableMaxStreamDuration(options *config.Options, policy *config.Policy) bool {
-	return policy.IsBootstrapConsoleRoute(options)
+	return policy.IsConsoleRoute(options)
 }
 
 func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrite *envoy_type_matcher_v3.RegexMatchAndSubstitute) {
