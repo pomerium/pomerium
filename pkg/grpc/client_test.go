@@ -48,7 +48,7 @@ func TestCachedOutboundGRPClientConn_GetWithSameContext(t *testing.T) {
 
 	// Call Get() a second time with different options but the SAME context.
 	// The context is still alive (not cancelled). This must not deadlock.
-	opts2 := &OutboundOptions{OutboundPort: "1234", ServiceName: "test"}
+	opts2 := &OutboundOptions{OutboundPort: "12345"}
 
 	done := make(chan struct{})
 	go func() {
@@ -91,7 +91,7 @@ func TestCachedOutboundGRPClientConn_GetWithCancelledContext(t *testing.T) {
 
 	// Now call Get() with a new context and different options.
 	ctx2 := t.Context()
-	opts2 := &OutboundOptions{OutboundPort: "1234", ServiceName: "test"}
+	opts2 := &OutboundOptions{OutboundPort: "12345"}
 
 	done := make(chan struct{})
 	go func() {
@@ -132,11 +132,10 @@ func TestCachedOutboundGRPClientConn_GetSameOptions(t *testing.T) {
 func TestChangedOutboundOptions(t *testing.T) {
 	t.Parallel()
 
-	prev := &OutboundOptions{OutboundPort: "1", ServiceName: "all", SignedJWTKey: []byte("k1")}
+	prev := &OutboundOptions{OutboundPort: "1", SignedJWTKey: []byte("k1")}
 	assert.Empty(t, changedOutboundOptions(prev, prev))
 	assert.Equal(t, []string{
 		`outbound_port: "1" -> "2"`,
-		`service_name: "all" -> "proxy"`,
 		"signed_jwt_key: changed",
-	}, changedOutboundOptions(prev, &OutboundOptions{OutboundPort: "2", ServiceName: "proxy", SignedJWTKey: []byte("k2")}))
+	}, changedOutboundOptions(prev, &OutboundOptions{OutboundPort: "2", SignedJWTKey: []byte("k2")}))
 }

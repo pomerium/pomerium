@@ -64,7 +64,6 @@ func newProxyStateFromConfig(ctx context.Context, previousState *proxyState, tra
 		ctx,
 		&grpc.OutboundOptions{
 			OutboundPort: cfg.OutboundPort,
-			ServiceName:  cfg.Options.Services,
 			SignedJWTKey: state.sharedKey,
 		},
 		googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),

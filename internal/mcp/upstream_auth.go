@@ -166,7 +166,6 @@ func (h *UpstreamAuthHandler) updateDataBrokerClient(ctx context.Context, cfg *c
 	}
 	cc, err := h.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort: cfg.OutboundPort,
-		ServiceName:  cfg.Options.Services,
 		SignedJWTKey: sharedKey,
 	}, googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(h.tracerProvider))))
 	if err != nil {

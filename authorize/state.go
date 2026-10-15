@@ -79,7 +79,6 @@ func newAuthorizeStateFromConfig(
 		ctx,
 		&grpc.OutboundOptions{
 			OutboundPort: cfg.OutboundPort,
-			ServiceName:  cfg.Options.Services,
 			SignedJWTKey: sharedKey,
 		},
 		googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),

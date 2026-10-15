@@ -23,9 +23,6 @@ type Options struct {
 	// Address is the location of the service.  e.g. "service.corp.example:8443"
 	Address string
 
-	// ServiceName specifies the service name for telemetry exposition
-	ServiceName string
-
 	// SignedJWTKey is the JWT key to use for signing a JWT attached to metadata.
 	SignedJWTKey []byte
 }
@@ -68,9 +65,6 @@ type OutboundOptions struct {
 	// OutboundPort is the port for the outbound gRPC listener.
 	OutboundPort string
 
-	// ServiceName specifies the service name for telemetry exposition
-	ServiceName string
-
 	// SignedJWTKey is the JWT key to use for signing a JWT attached to metadata.
 	SignedJWTKey []byte
 }
@@ -79,7 +73,6 @@ type OutboundOptions struct {
 func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return NewGRPCClientConn(ctx, &Options{
 		Address:      net.JoinHostPort("127.0.0.1", opts.OutboundPort),
-		ServiceName:  opts.ServiceName,
 		SignedJWTKey: opts.SignedJWTKey,
 	}, other...)
 }
@@ -152,7 +145,6 @@ func changedOutboundOptions(prev, next *OutboundOptions) []string {
 		}
 	}
 	diff("outbound_port", prev.OutboundPort, next.OutboundPort)
-	diff("service_name", prev.ServiceName, next.ServiceName)
 	if !bytes.Equal(prev.SignedJWTKey, next.SignedJWTKey) {
 		changed = append(changed, "signed_jwt_key: changed")
 	}

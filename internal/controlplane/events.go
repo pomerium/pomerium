@@ -73,7 +73,6 @@ func (srv *Server) getDataBrokerClient(ctx context.Context) (databrokerpb.DataBr
 
 	cc, err := srv.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort: cfg.OutboundPort,
-		ServiceName:  cfg.Options.Services,
 		SignedJWTKey: sharedKey,
 	}, googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(srv.tracerProvider))))
 	if err != nil {

@@ -313,7 +313,6 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 	sharedKey, _ := cfg.Options.GetSharedKey()
 	connectionOptions := &grpc.OutboundOptions{
 		OutboundPort: cfg.OutboundPort,
-		ServiceName:  cfg.Options.Services,
 		SignedJWTKey: sharedKey,
 	}
 	h, err := hashutil.Hash(connectionOptions)
