@@ -492,21 +492,26 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff,
 	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, b, ch1, wait) })
-	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
-	eg.Go(func() error { return srv.putStep(ctx, ch2) })
-	err := eg.Wait()
-	srv.handleSyncError(err)
-	return err
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.Go(func() error { defer close(ch1); return srv.syncStep(egCtx, b, ch1, wait) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(egCtx, ch1, ch2) })
+	eg.Go(func() error { return srv.putStep(egCtx, ch2) })
+	return srv.handleSyncError(ctx, eg.Wait())
 }
 
-func (srv *clusteredFollowerServer) handleSyncError(err error) {
+// handleSyncError reports the result of a sync pipeline to the health check
+// and returns it. Once ctx is canceled its cause is reported, since a step
+// blocked on the leader fails with a gRPC Canceled error that lacks it.
+func (srv *clusteredFollowerServer) handleSyncError(ctx context.Context, err error) error {
+	if err != nil && ctx.Err() != nil {
+		err = context.Cause(ctx)
+	}
 	if err == nil || errors.Is(err, errClusteredFollowerServerStopped) {
 		health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
 	} else if !errors.Is(err, io.EOF) && !errors.Is(err, errClusteredFollowerNeedsReset) {
 		health.ReportError(health.DatabrokerCluster, err, srv.healthAttrs()...)
 	}
+	return err
 }
 
 // syncLatest resets the local store, syncs the latest records from the leader,
@@ -520,13 +525,11 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context, b backoff.Ba
 	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(ctx, b, ch1) })
-	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
-	eg.Go(func() error { return srv.putStep(ctx, ch2) })
-	err := eg.Wait()
-	srv.handleSyncError(err)
-	return err
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(egCtx, b, ch1) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(egCtx, ch1, ch2) })
+	eg.Go(func() error { return srv.putStep(egCtx, ch2) })
+	return srv.handleSyncError(ctx, eg.Wait())
 }
 
 // syncStep starts a sync stream and sends records and checkpoints to the
