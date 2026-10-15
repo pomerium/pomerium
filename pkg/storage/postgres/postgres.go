@@ -425,13 +425,22 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 	if record.GetDeletedAt() == nil {
 		args = append(args, indexCIDR)
 		cidrArg := `$` + strconv.Itoa(len(args))
-		query += `
-			INSERT INTO ` + tbl + ` (type, id, version, data, modified_at, index_cidr)
-			VALUES ($1, $2, (SELECT version FROM t1), $3, $4, ` + cidrArg + `)
-			ON CONFLICT (type, id) DO UPDATE
+		set := `
 			SET version=(SELECT version FROM t1), data=$3, modified_at=$4, index_cidr=` + cidrArg
-		if ifMatchVersion {
-			query += ` WHERE` + versionMatches
+		if ifMatchVersion && record.GetVersion() > 0 {
+			// a record read at version > 0 must still exist to be written.
+			// Deletes remove the row, so an upsert would re-create it
+			query += `
+				UPDATE ` + tbl + set + `
+				WHERE type=$1 AND id=$2 AND` + versionMatches
+		} else {
+			query += `
+				INSERT INTO ` + tbl + ` (type, id, version, data, modified_at, index_cidr)
+				VALUES ($1, $2, (SELECT version FROM t1), $3, $4, ` + cidrArg + `)
+				ON CONFLICT (type, id) DO UPDATE` + set
+			if ifMatchVersion {
+				query += ` WHERE` + versionMatches
+			}
 		}
 	} else {
 		query += `
@@ -458,9 +467,9 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 
 	// the conditional write matched nothing. Read the stored version for the
 	// error message only: a concurrent delete may already have taken it back
-	// to 0, but the write did not happen, so an upsert is a mismatch
-	// regardless. A delete of an absent record at version 0 is a no-op,
-	// which is the one case CheckRecordVersion accepts.
+	// to 0, but the write did not happen, so a create or update is a
+	// mismatch regardless. A delete of an absent record at version 0 is a
+	// no-op, which is the one case CheckRecordVersion accepts.
 	current, err := getRecordVersion(ctx, q, record.GetType(), record.GetId())
 	if err != nil {
 		return err
