@@ -8,9 +8,12 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/events"
+	oauth21 "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 type IdentityManager struct {
@@ -76,6 +79,11 @@ var DefaultRefreshConfig = &RefreshConfig{
 	Now:                               time.Now,
 }
 
+var boundRecordTypes = []string{
+	protoutil.GetTypeURL(new(session.Session)),
+	protoutil.GetTypeURL(new(oauth21.MCPRefreshToken)),
+}
+
 func NewIdentityManagerV2(
 	clientB databroker.ClientGetter,
 	authenticateGetter func(ctx context.Context, idpID string) (identity.Authenticator, error),
@@ -108,7 +116,7 @@ func NewIdentityManagerV2(
 		identReconciler: synchronizedReconciler,
 		clientB:         clientB,
 		refreshManager:  refreshMgr,
-		identitySyncer:  newIdentitySyncer(clientB, idx, refreshMgr, synchronizedReconciler, opts.now),
+		identitySyncer:  newIdentitySyncer(clientB, idx, refreshMgr, synchronizedReconciler, newDanglingTracker(q, opts.now, boundRecordTypes), opts.now),
 		leaseTTL:        opts.leaseTTL,
 		idx:             idx,
 		idle:            idle,

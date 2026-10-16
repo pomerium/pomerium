@@ -142,6 +142,18 @@ func (r *synchronizedReconciler) computeChangeSet(
 	change ChangeSet,
 	at time.Time,
 ) {
+	if change.changeType == changeDelete {
+		record, err := newRecord(change.RecordTypeURL, change.RecordID)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).
+				Str("record-type", change.RecordTypeURL).
+				Str("record-id", change.RecordID).
+				Msg("idpsession/reconciler: cannot delete dangling record")
+			return
+		}
+		changeOps.delete(recordKey{change.RecordTypeURL, change.RecordID}, record, at)
+		return
+	}
 	switch change.RecordTypeURL {
 	case idpSessionTypeURL:
 		session, ok := r.idx.idpSessionLocked(change.RecordID)
@@ -237,6 +249,7 @@ func (r *synchronizedReconciler) applyRecordOps(ctx context.Context, changeOps r
 	}
 
 	eg, eCtx := errgroup.WithContext(ctx)
+
 	eg.Go(func() error {
 		return databroker.PutMulti(eCtx, r.clientB.GetDataBrokerServiceClient(), puts...)
 	})
