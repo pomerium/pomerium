@@ -71,7 +71,6 @@ func (r *tsRouter) updateLocked() {
 		nl := &tsListener{
 			ServerAddr:   r.cfg.Options.Addr,
 			OutboundPort: r.cfg.OutboundPort,
-			ServiceName:  r.cfg.Options.Services,
 			SignedJWTKey: sharedKey,
 			Settings:     r.cfg.Options.TailscaleListeners.Value[i],
 		}

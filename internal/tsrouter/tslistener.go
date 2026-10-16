@@ -27,7 +27,6 @@ var errStopped = errors.New("stopped")
 type tsListener struct {
 	ServerAddr   string
 	OutboundPort string
-	ServiceName  string
 	SignedJWTKey []byte
 	Settings     config.TailscaleListenerSettings
 
@@ -42,7 +41,6 @@ func (l *tsListener) Equal(other *tsListener) bool {
 	}
 	return l.ServerAddr == other.ServerAddr &&
 		l.OutboundPort == other.OutboundPort &&
-		l.ServiceName == other.ServiceName &&
 		bytes.Equal(l.SignedJWTKey, other.SignedJWTKey) &&
 		reflect.DeepEqual(l.Settings, other.Settings)
 }
@@ -55,7 +53,6 @@ func (l *tsListener) Start(ctx context.Context) {
 
 	cc, err := grpc.NewOutboundGRPCClientConn(ctx, &grpc.OutboundOptions{
 		OutboundPort: l.OutboundPort,
-		ServiceName:  l.ServiceName,
 		SignedJWTKey: l.SignedJWTKey,
 	})
 	if errors.Is(err, errStopped) {
