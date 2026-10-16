@@ -9,12 +9,13 @@ import (
 	"io"
 	"net"
 	"reflect"
+	"slices"
+	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
 	"tailscale.com/tsnet"
-
-	"github.com/cenkalti/backoff/v4"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -30,7 +31,38 @@ type tsListener struct {
 	SignedJWTKey []byte
 	Settings     config.TailscaleListenerSettings
 
+	// The config is not included in the equality check.
+	certificates atomic.Pointer[[]tls.Certificate]
+
 	stop context.CancelCauseFunc
+}
+
+func newTSListener(cfg *config.Config, settings config.TailscaleListenerSettings) (*tsListener, error) {
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		return nil, fmt.Errorf("tsrouter: error getting shared key: %w", err)
+	}
+
+	l := &tsListener{
+		ServerAddr:   cfg.Options.Addr,
+		OutboundPort: cfg.OutboundPort,
+		SignedJWTKey: sharedKey,
+		Settings:     settings,
+	}
+
+	certs, err := cfg.AllCertificates()
+	if err != nil {
+		return nil, fmt.Errorf("tsrouter: error loading certificates: %w", err)
+	}
+
+	catchAll, err := cfg.GenerateCatchAllCertificate()
+	if err != nil {
+		return nil, fmt.Errorf("tsrouter: error generating catch-all certificate: %w", err)
+	}
+
+	l.certificates.Store(new(append(slices.Clone(certs), *catchAll)))
+
+	return l, nil
 }
 
 func (l *tsListener) Equal(other *tsListener) bool {
@@ -99,7 +131,7 @@ func (l *tsListener) Start(ctx context.Context) {
 				Msg("tsrouter: error starting tailnet listener")
 			return
 		} else {
-			go l.handleListener(ctx, li)
+			go l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value)
 		}
 	}
 
@@ -110,9 +142,7 @@ func (l *tsListener) Start(ctx context.Context) {
 		funnelOptions := []tsnet.FunnelOption{tsnet.FunnelOnly()}
 		if !l.Settings.TerminateTLS.Value {
 			funnelOptions = append(funnelOptions, tsnet.FunnelTLSConfig(&tls.Config{
-				GetConfigForClient: func(chi *tls.ClientHelloInfo) (*tls.Config, error) {
-					return nil, fmt.Errorf("not implemented")
-				},
+				GetCertificate: l.getCertificate,
 			}))
 		}
 		li, err := srv.ListenFunnel("tcp", l.Settings.ListenFunnelAddr.Value, funnelOptions...)
@@ -122,7 +152,7 @@ func (l *tsListener) Start(ctx context.Context) {
 				Str("addr", l.Settings.ListenFunnelAddr.Value).
 				Msg("tsrouter: error starting funnel listener")
 		} else {
-			go l.handleListener(ctx, li)
+			go l.handleListener(ctx, li, false)
 		}
 	}
 
@@ -142,19 +172,19 @@ func (l *tsListener) Start(ctx context.Context) {
 				Uint32("service-port", l.Settings.ListenServicePort.Value).
 				Msg("tsrouter: error starting service listener")
 		} else {
-			go l.handleListener(ctx, li)
+			go l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value)
 		}
 	}
 }
 
 func (l *tsListener) Stop() {
-	log.Info().Msg("tsrouter: stopping listener")
 	if l.stop != nil {
+		log.Info().Msg("tsrouter: stopping listener")
 		l.stop(errStopped)
 	}
 }
 
-func (l *tsListener) handleListener(ctx context.Context, li net.Listener) {
+func (l *tsListener) handleListener(ctx context.Context, li net.Listener, rawTCP bool) {
 	cleanup := context.AfterFunc(ctx, func() { _ = li.Close() })
 	defer cleanup()
 
@@ -163,7 +193,7 @@ func (l *tsListener) handleListener(ctx context.Context, li net.Listener) {
 		conn, err := li.Accept()
 		if err == nil {
 			b.Reset()
-			go l.handleConn(ctx, conn)
+			go l.handleConn(ctx, conn, rawTCP)
 		} else {
 			log.Ctx(ctx).Error().
 				Err(err).
@@ -177,7 +207,7 @@ func (l *tsListener) handleListener(ctx context.Context, li net.Listener) {
 	}
 }
 
-func (l *tsListener) handleConn(ctx context.Context, remote net.Conn) {
+func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP bool) {
 	log.Ctx(ctx).Info().
 		Str("local-addr", remote.LocalAddr().String()).
 		Str("remote-addr", remote.RemoteAddr().String()).
@@ -189,7 +219,7 @@ func (l *tsListener) handleConn(ctx context.Context, remote net.Conn) {
 
 	var local net.Conn
 	var err error
-	if !l.Settings.TerminateTLS.Value {
+	if rawTCP {
 		var d net.Dialer
 		local, err = d.DialContext(ctx, "tcp", l.ServerAddr)
 	} else {
@@ -216,5 +246,27 @@ func (l *tsListener) handleConn(ctx context.Context, remote net.Conn) {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { _, err := io.Copy(local, remote); return err })
 	eg.Go(func() error { _, err := io.Copy(remote, local); return err })
-	_ = eg.Wait()
+	err = eg.Wait()
+	if err != nil {
+		log.Ctx(ctx).Error().
+			Str("server-addr", l.ServerAddr).
+			Msg("tsrouter: error proxying data to and from server")
+	}
+}
+
+func (l *tsListener) getCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	certs := *l.certificates.Load()
+
+	for _, cert := range certs {
+		if chi.SupportsCertificate(&cert) == nil {
+			return &cert, nil
+		}
+	}
+
+	// fallback to the last cert
+	if len(certs) > 0 {
+		return &certs[len(certs)-1], nil
+	}
+
+	return nil, nil // certificate not found
 }

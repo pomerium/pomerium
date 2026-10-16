@@ -60,31 +60,30 @@ func (r *tsRouter) updateLocked() {
 		return
 	}
 
-	sharedKey, err := r.cfg.Options.GetSharedKey()
-	if err != nil {
-		log.Ctx(r.runCtx).Error().Err(err).Msg("tsrouter: error getting shared key")
-		return
-	}
-
-	n := max(len(r.listeners), len(r.cfg.Options.TailscaleListeners.Value))
-	for i := range n {
-		nl := &tsListener{
-			ServerAddr:   r.cfg.Options.Addr,
-			OutboundPort: r.cfg.OutboundPort,
-			SignedJWTKey: sharedKey,
-			Settings:     r.cfg.Options.TailscaleListeners.Value[i],
+	// start new or updated listeners
+	for i, s := range r.cfg.Options.TailscaleListeners.Value {
+		nl, err := newTSListener(r.cfg, s)
+		if err != nil {
+			log.Ctx(r.runCtx).Error().Err(err).Msg("tsrouter: error constructing listener")
+			continue
 		}
 		if i >= len(r.listeners) {
 			r.listeners = append(r.listeners, nl)
 			nl.Start(r.runCtx)
-		} else if i >= len(r.cfg.Options.TailscaleListeners.Value) {
-			r.listeners[i].Stop()
-			r.listeners[i] = nil
 		} else if !r.listeners[i].Equal(nl) {
 			r.listeners[i].Stop()
 			r.listeners[i] = nl
 			nl.Start(r.runCtx)
+		} else {
+			r.listeners[i].certificates.Store(nl.certificates.Load())
 		}
 	}
+
+	// stop any old listeners
+	for i := len(r.cfg.Options.TailscaleListeners.Value); i < len(r.listeners); i++ {
+		r.listeners[i].Stop()
+		r.listeners[i] = nil
+	}
+
 	r.listeners = slices.DeleteFunc(r.listeners, func(l *tsListener) bool { return l == nil })
 }
