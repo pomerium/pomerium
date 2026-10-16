@@ -49,13 +49,15 @@ func newSyncerReconcilerForTest(t *testing.T, now time.Time, authenticator ident
 	refreshMgr := newRefreshManager(refreshConfig, idx, clientB, func(context.Context, string) (identity.Authenticator, error) {
 		return authenticator, nil
 	})
+	dangling := newDanglingTracker(q, clock.Now, boundRecordTypes)
+
 	t.Cleanup(refreshMgr.Close)
 
 	return &testSyncerReconciler{
 		t:          t,
 		client:     client,
 		clock:      clock,
-		syncer:     newIdentitySyncer(clientB, idx, refreshMgr, reconciler, clock.Now),
+		syncer:     newIdentitySyncer(clientB, idx, refreshMgr, reconciler, dangling, clock.Now),
 		reconciler: reconciler,
 	}
 }

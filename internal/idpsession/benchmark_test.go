@@ -131,7 +131,8 @@ func newBenchmarker(b *testing.B, numSessions int, numBindings int) *benchmarker
 		f.order[i] = i
 	}
 
-	f.syncer = newIdentitySyncer(clientB, idx, refreshMgr, nopNotifier{}, time.Now)
+	dangling := newDanglingTracker(q, time.Now, boundRecordTypes)
+	f.syncer = newIdentitySyncer(clientB, idx, refreshMgr, nopNotifier{}, dangling, time.Now)
 	f.reconciler = newSynchronizedReconciler(clientB, idx, q, idle, time.Hour, time.Now)
 	f.q = q
 	return f

@@ -3,6 +3,7 @@ package idpsession
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -32,12 +33,14 @@ type boundRef struct {
 
 type ChangeSetType = uint8
 
-// there's an implicit ordering here representing priority of operations (revoke > propagate)
+// there's an implicit ordering here representing priority of operations
+// (delete > revoke > propagate)
 const (
 	// changePropagate copies idpsession state onto the dependent records bound to it
 	changePropagate ChangeSetType = iota + 1
 	// changeRevoke deletes a binding and the record bound to it
 	changeRevoke
+	changeDelete
 )
 
 func ChangeSetTypeStr(cst ChangeSetType) string {
@@ -46,6 +49,8 @@ func ChangeSetTypeStr(cst ChangeSetType) string {
 		return "propagate"
 	case changeRevoke:
 		return "revoke"
+	case changeDelete:
+		return "delete"
 	}
 	return "UNKNOWN"
 }
@@ -156,6 +161,15 @@ type IdleTracker interface {
 	Reset()
 }
 
+// DanglingTracker is used to schedule deletes for dangling (binding, bound)
+// record pairs.
+type DanglingTracker interface {
+	UpdateBindings(context.Context, *idpsession.Binding)
+	CheckRecord(context.Context, *databroker.Record)
+	ScheduleDangling(context.Context)
+	Clear(context.Context)
+}
+
 func constructPatchedBoundRecord(typeURL string, id string, sess *idpsession.IDPSession) (*databroker.Record, error) {
 	applier := idpSessionApplier{IDPSession: sess}
 	switch typeURL {
@@ -173,14 +187,20 @@ func constructPatchedBoundRecord(typeURL string, id string, sess *idpsession.IDP
 }
 
 func newBoundRecord(typeURL string, id string) (*databroker.Record, error) {
-	switch typeURL {
-	case sessionTypeURL:
-		return databroker.NewRecord(&session.Session{Id: id}), nil
-	case mcpRefreshTokenTypeURL:
-		return databroker.NewRecord(&oauth21.MCPRefreshToken{Id: id}), nil
-	default:
+	if !slices.Contains(boundRecordTypes, typeURL) {
 		return nil, fmt.Errorf("%s not yet supported as a binding dependency", typeURL)
 	}
+	return &databroker.Record{
+		Id:   id,
+		Type: typeURL,
+	}, nil
+}
+
+func newRecord(typeURL string, id string) (*databroker.Record, error) {
+	if typeURL == bindingTypeURL {
+		return databroker.NewRecord(&idpsession.Binding{Id: id}), nil
+	}
+	return newBoundRecord(typeURL, id)
 }
 
 func fastForward(change []ChangeSet) []ChangeSet {

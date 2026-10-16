@@ -256,13 +256,6 @@ func TestIdentityManagerRevokedCleanUp(t *testing.T) {
 	t.Cleanup(ca)
 	go mgr.Run(ctxca)
 
-	// there is a chance that while the SyncLatest stream is running that a create+delete operation
-	// ends up missing the delete tombstone, which means depedent records of a deleted binding could
-	// never be cleaned up. This could lead to legitimate bugs.
-	assert.Eventually(t, func() bool {
-		return mgr.identReconciler.isReady()
-	}, time.Second*5, time.Millisecond)
-
 	claims, err := structpb.NewStruct(map[string]any{
 		"email":  "bob@example.com",
 		"groups": []any{"engineering", "developers"},

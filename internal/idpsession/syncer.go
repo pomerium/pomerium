@@ -20,10 +20,12 @@ type identitySyncer struct {
 	now     func() time.Time
 
 	notifier SyncNotifier
-
-	idx IdentityIndex
+	idx      IdentityIndex
 
 	refreshManager *refreshManager
+	initialSync    bool
+
+	initialDangling DanglingTracker
 }
 
 func newIdentitySyncer(
@@ -31,14 +33,17 @@ func newIdentitySyncer(
 	idx IdentityIndex,
 	refreshManager *refreshManager,
 	notifier SyncNotifier,
+	danglingeTracker DanglingTracker,
 	now func() time.Time,
 ) *identitySyncer {
 	return &identitySyncer{
-		clientB:        clientB,
-		idx:            idx,
-		now:            now,
-		notifier:       notifier,
-		refreshManager: refreshManager,
+		clientB:         clientB,
+		idx:             idx,
+		now:             now,
+		notifier:        notifier,
+		refreshManager:  refreshManager,
+		initialDangling: danglingeTracker,
+		initialSync:     true,
 	}
 }
 
@@ -59,10 +64,13 @@ func (s *identitySyncer) ClearRecords(ctx context.Context) {
 	s.notifier.Reset()
 	s.refreshManager.Close()
 	s.idx.Reset()
+	s.initialDangling.Clear(ctx)
+	s.initialSync = true
 }
 
 func (s *identitySyncer) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
 	for _, rec := range records {
+		s.updateDanglingTracker(ctx, rec)
 		switch rec.GetData().GetTypeUrl() {
 		case "type.googleapis.com/idpsession.Binding":
 			if err := s.handleBinding(ctx, rec); err != nil {
@@ -82,7 +90,34 @@ func (s *identitySyncer) UpdateRecords(ctx context.Context, _ uint64, records []
 			}
 		}
 	}
+	s.scheduleDanglingDelete(ctx)
 	s.notifier.Updated()
+}
+
+func (s *identitySyncer) updateDanglingTracker(ctx context.Context, rec *databroker.Record) {
+	if !s.initialSync || rec.GetDeletedAt() != nil {
+		return
+	}
+	if rec.GetData().GetTypeUrl() == bindingTypeURL {
+		binding := &idpsession.Binding{}
+		if err := rec.GetData().UnmarshalTo(binding); err != nil {
+			log.Ctx(ctx).Err(err).Msg("incompatible record data")
+			return
+		}
+		s.initialDangling.UpdateBindings(ctx, binding)
+		return
+	}
+	s.initialDangling.CheckRecord(ctx, rec)
+}
+
+func (s *identitySyncer) scheduleDanglingDelete(ctx context.Context) {
+	if !s.initialSync {
+		return
+	}
+	s.initialDangling.ScheduleDangling(ctx)
+	// can now free up memory until next initial sync.
+	s.initialDangling.Clear(ctx)
+	s.initialSync = false
 }
 
 func (s *identitySyncer) handleUser(_ context.Context, rec *databroker.Record) error {
