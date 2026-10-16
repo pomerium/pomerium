@@ -5,3 +5,10 @@ package identity
 type State interface {
 	SetRawIDToken(rawIDToken string)
 }
+
+type SignOutOptions struct {
+	IDTokenHint              string
+	LogoutHint               string
+	AuthenticateSignedOutURL string
+	RedirectToURL            string
+}
