@@ -27,6 +27,74 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type File struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Mode          uint32                 `protobuf:"varint,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *File) Reset() {
+	*x = File{}
+	mi := &file_databroker_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *File) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*File) ProtoMessage() {}
+
+func (x *File) ProtoReflect() protoreflect.Message {
+	mi := &file_databroker_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use File.ProtoReflect.Descriptor instead.
+func (*File) Descriptor() ([]byte, []int) {
+	return file_databroker_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *File) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *File) GetMode() uint32 {
+	if x != nil {
+		return x.Mode
+	}
+	return 0
+}
+
+func (x *File) GetModifiedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ModifiedAt
+	}
+	return nil
+}
+
+func (x *File) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
 type Record struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Version       uint64                 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
@@ -41,7 +109,7 @@ type Record struct {
 
 func (x *Record) Reset() {
 	*x = Record{}
-	mi := &file_databroker_proto_msgTypes[0]
+	mi := &file_databroker_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -53,7 +121,7 @@ func (x *Record) String() string {
 func (*Record) ProtoMessage() {}
 
 func (x *Record) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[0]
+	mi := &file_databroker_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -66,7 +134,7 @@ func (x *Record) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Record.ProtoReflect.Descriptor instead.
 func (*Record) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{0}
+	return file_databroker_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Record) GetVersion() uint64 {
@@ -122,7 +190,7 @@ type Versions struct {
 
 func (x *Versions) Reset() {
 	*x = Versions{}
-	mi := &file_databroker_proto_msgTypes[1]
+	mi := &file_databroker_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -134,7 +202,7 @@ func (x *Versions) String() string {
 func (*Versions) ProtoMessage() {}
 
 func (x *Versions) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[1]
+	mi := &file_databroker_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -147,7 +215,7 @@ func (x *Versions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Versions.ProtoReflect.Descriptor instead.
 func (*Versions) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{1}
+	return file_databroker_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Versions) GetServerVersion() uint64 {
@@ -197,7 +265,7 @@ type Options struct {
 
 func (x *Options) Reset() {
 	*x = Options{}
-	mi := &file_databroker_proto_msgTypes[2]
+	mi := &file_databroker_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -209,7 +277,7 @@ func (x *Options) String() string {
 func (*Options) ProtoMessage() {}
 
 func (x *Options) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[2]
+	mi := &file_databroker_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -222,7 +290,7 @@ func (x *Options) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Options.ProtoReflect.Descriptor instead.
 func (*Options) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{2}
+	return file_databroker_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Options) GetCapacity() uint64 {
@@ -256,7 +324,7 @@ type TypedOptions struct {
 
 func (x *TypedOptions) Reset() {
 	*x = TypedOptions{}
-	mi := &file_databroker_proto_msgTypes[3]
+	mi := &file_databroker_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -268,7 +336,7 @@ func (x *TypedOptions) String() string {
 func (*TypedOptions) ProtoMessage() {}
 
 func (x *TypedOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[3]
+	mi := &file_databroker_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -281,7 +349,7 @@ func (x *TypedOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TypedOptions.ProtoReflect.Descriptor instead.
 func (*TypedOptions) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{3}
+	return file_databroker_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TypedOptions) GetTypeURL() string {
@@ -308,7 +376,7 @@ type ClearResponse struct {
 
 func (x *ClearResponse) Reset() {
 	*x = ClearResponse{}
-	mi := &file_databroker_proto_msgTypes[4]
+	mi := &file_databroker_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +388,7 @@ func (x *ClearResponse) String() string {
 func (*ClearResponse) ProtoMessage() {}
 
 func (x *ClearResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[4]
+	mi := &file_databroker_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +401,7 @@ func (x *ClearResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearResponse.ProtoReflect.Descriptor instead.
 func (*ClearResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{4}
+	return file_databroker_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ClearResponse) GetOldServerVersion() uint64 {
@@ -360,7 +428,7 @@ type GetRequest struct {
 
 func (x *GetRequest) Reset() {
 	*x = GetRequest{}
-	mi := &file_databroker_proto_msgTypes[5]
+	mi := &file_databroker_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -372,7 +440,7 @@ func (x *GetRequest) String() string {
 func (*GetRequest) ProtoMessage() {}
 
 func (x *GetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[5]
+	mi := &file_databroker_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -385,7 +453,7 @@ func (x *GetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRequest.ProtoReflect.Descriptor instead.
 func (*GetRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{5}
+	return file_databroker_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetRequest) GetType() string {
@@ -411,7 +479,7 @@ type GetResponse struct {
 
 func (x *GetResponse) Reset() {
 	*x = GetResponse{}
-	mi := &file_databroker_proto_msgTypes[6]
+	mi := &file_databroker_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -423,7 +491,7 @@ func (x *GetResponse) String() string {
 func (*GetResponse) ProtoMessage() {}
 
 func (x *GetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[6]
+	mi := &file_databroker_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -436,7 +504,7 @@ func (x *GetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResponse.ProtoReflect.Descriptor instead.
 func (*GetResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{6}
+	return file_databroker_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetResponse) GetRecord() *Record {
@@ -455,7 +523,7 @@ type ListTypesResponse struct {
 
 func (x *ListTypesResponse) Reset() {
 	*x = ListTypesResponse{}
-	mi := &file_databroker_proto_msgTypes[7]
+	mi := &file_databroker_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -467,7 +535,7 @@ func (x *ListTypesResponse) String() string {
 func (*ListTypesResponse) ProtoMessage() {}
 
 func (x *ListTypesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[7]
+	mi := &file_databroker_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -480,7 +548,7 @@ func (x *ListTypesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTypesResponse.ProtoReflect.Descriptor instead.
 func (*ListTypesResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{7}
+	return file_databroker_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListTypesResponse) GetTypes() []string {
@@ -504,7 +572,7 @@ type QueryRequest struct {
 
 func (x *QueryRequest) Reset() {
 	*x = QueryRequest{}
-	mi := &file_databroker_proto_msgTypes[8]
+	mi := &file_databroker_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -516,7 +584,7 @@ func (x *QueryRequest) String() string {
 func (*QueryRequest) ProtoMessage() {}
 
 func (x *QueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[8]
+	mi := &file_databroker_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -529,7 +597,7 @@ func (x *QueryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryRequest.ProtoReflect.Descriptor instead.
 func (*QueryRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{8}
+	return file_databroker_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *QueryRequest) GetType() string {
@@ -586,7 +654,7 @@ type QueryResponse struct {
 
 func (x *QueryResponse) Reset() {
 	*x = QueryResponse{}
-	mi := &file_databroker_proto_msgTypes[9]
+	mi := &file_databroker_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -598,7 +666,7 @@ func (x *QueryResponse) String() string {
 func (*QueryResponse) ProtoMessage() {}
 
 func (x *QueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[9]
+	mi := &file_databroker_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -611,7 +679,7 @@ func (x *QueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryResponse.ProtoReflect.Descriptor instead.
 func (*QueryResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{9}
+	return file_databroker_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *QueryResponse) GetRecords() []*Record {
@@ -655,7 +723,7 @@ type PutRequest struct {
 
 func (x *PutRequest) Reset() {
 	*x = PutRequest{}
-	mi := &file_databroker_proto_msgTypes[10]
+	mi := &file_databroker_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -667,7 +735,7 @@ func (x *PutRequest) String() string {
 func (*PutRequest) ProtoMessage() {}
 
 func (x *PutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[10]
+	mi := &file_databroker_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -680,7 +748,7 @@ func (x *PutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutRequest.ProtoReflect.Descriptor instead.
 func (*PutRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{10}
+	return file_databroker_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PutRequest) GetRecords() []*Record {
@@ -707,7 +775,7 @@ type PutResponse struct {
 
 func (x *PutResponse) Reset() {
 	*x = PutResponse{}
-	mi := &file_databroker_proto_msgTypes[11]
+	mi := &file_databroker_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -719,7 +787,7 @@ func (x *PutResponse) String() string {
 func (*PutResponse) ProtoMessage() {}
 
 func (x *PutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[11]
+	mi := &file_databroker_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -732,7 +800,7 @@ func (x *PutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutResponse.ProtoReflect.Descriptor instead.
 func (*PutResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{11}
+	return file_databroker_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PutResponse) GetServerVersion() uint64 {
@@ -759,7 +827,7 @@ type PatchRequest struct {
 
 func (x *PatchRequest) Reset() {
 	*x = PatchRequest{}
-	mi := &file_databroker_proto_msgTypes[12]
+	mi := &file_databroker_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -771,7 +839,7 @@ func (x *PatchRequest) String() string {
 func (*PatchRequest) ProtoMessage() {}
 
 func (x *PatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[12]
+	mi := &file_databroker_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -784,7 +852,7 @@ func (x *PatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PatchRequest.ProtoReflect.Descriptor instead.
 func (*PatchRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{12}
+	return file_databroker_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PatchRequest) GetRecords() []*Record {
@@ -811,7 +879,7 @@ type PatchResponse struct {
 
 func (x *PatchResponse) Reset() {
 	*x = PatchResponse{}
-	mi := &file_databroker_proto_msgTypes[13]
+	mi := &file_databroker_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -823,7 +891,7 @@ func (x *PatchResponse) String() string {
 func (*PatchResponse) ProtoMessage() {}
 
 func (x *PatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[13]
+	mi := &file_databroker_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -836,7 +904,7 @@ func (x *PatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PatchResponse.ProtoReflect.Descriptor instead.
 func (*PatchResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{13}
+	return file_databroker_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *PatchResponse) GetServerVersion() uint64 {
@@ -864,7 +932,7 @@ type ServerInfoResponse struct {
 
 func (x *ServerInfoResponse) Reset() {
 	*x = ServerInfoResponse{}
-	mi := &file_databroker_proto_msgTypes[14]
+	mi := &file_databroker_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -876,7 +944,7 @@ func (x *ServerInfoResponse) String() string {
 func (*ServerInfoResponse) ProtoMessage() {}
 
 func (x *ServerInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[14]
+	mi := &file_databroker_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -889,7 +957,7 @@ func (x *ServerInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerInfoResponse.ProtoReflect.Descriptor instead.
 func (*ServerInfoResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{14}
+	return file_databroker_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ServerInfoResponse) GetServerVersion() uint64 {
@@ -922,7 +990,7 @@ type GetOptionsRequest struct {
 
 func (x *GetOptionsRequest) Reset() {
 	*x = GetOptionsRequest{}
-	mi := &file_databroker_proto_msgTypes[15]
+	mi := &file_databroker_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -934,7 +1002,7 @@ func (x *GetOptionsRequest) String() string {
 func (*GetOptionsRequest) ProtoMessage() {}
 
 func (x *GetOptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[15]
+	mi := &file_databroker_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -947,7 +1015,7 @@ func (x *GetOptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOptionsRequest.ProtoReflect.Descriptor instead.
 func (*GetOptionsRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{15}
+	return file_databroker_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetOptionsRequest) GetType() string {
@@ -966,7 +1034,7 @@ type GetOptionsResponse struct {
 
 func (x *GetOptionsResponse) Reset() {
 	*x = GetOptionsResponse{}
-	mi := &file_databroker_proto_msgTypes[16]
+	mi := &file_databroker_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -978,7 +1046,7 @@ func (x *GetOptionsResponse) String() string {
 func (*GetOptionsResponse) ProtoMessage() {}
 
 func (x *GetOptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[16]
+	mi := &file_databroker_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +1059,7 @@ func (x *GetOptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOptionsResponse.ProtoReflect.Descriptor instead.
 func (*GetOptionsResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{16}
+	return file_databroker_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetOptionsResponse) GetOptions() *Options {
@@ -1011,7 +1079,7 @@ type SetOptionsRequest struct {
 
 func (x *SetOptionsRequest) Reset() {
 	*x = SetOptionsRequest{}
-	mi := &file_databroker_proto_msgTypes[17]
+	mi := &file_databroker_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1023,7 +1091,7 @@ func (x *SetOptionsRequest) String() string {
 func (*SetOptionsRequest) ProtoMessage() {}
 
 func (x *SetOptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[17]
+	mi := &file_databroker_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1036,7 +1104,7 @@ func (x *SetOptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetOptionsRequest.ProtoReflect.Descriptor instead.
 func (*SetOptionsRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{17}
+	return file_databroker_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SetOptionsRequest) GetType() string {
@@ -1062,7 +1130,7 @@ type SetOptionsResponse struct {
 
 func (x *SetOptionsResponse) Reset() {
 	*x = SetOptionsResponse{}
-	mi := &file_databroker_proto_msgTypes[18]
+	mi := &file_databroker_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1074,7 +1142,7 @@ func (x *SetOptionsResponse) String() string {
 func (*SetOptionsResponse) ProtoMessage() {}
 
 func (x *SetOptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[18]
+	mi := &file_databroker_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1087,7 +1155,7 @@ func (x *SetOptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetOptionsResponse.ProtoReflect.Descriptor instead.
 func (*SetOptionsResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{18}
+	return file_databroker_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SetOptionsResponse) GetOptions() *Options {
@@ -1111,7 +1179,7 @@ type SyncRequest struct {
 
 func (x *SyncRequest) Reset() {
 	*x = SyncRequest{}
-	mi := &file_databroker_proto_msgTypes[19]
+	mi := &file_databroker_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1123,7 +1191,7 @@ func (x *SyncRequest) String() string {
 func (*SyncRequest) ProtoMessage() {}
 
 func (x *SyncRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[19]
+	mi := &file_databroker_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1136,7 +1204,7 @@ func (x *SyncRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
 func (*SyncRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{19}
+	return file_databroker_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SyncRequest) GetServerVersion() uint64 {
@@ -1180,7 +1248,7 @@ type SyncResponse struct {
 
 func (x *SyncResponse) Reset() {
 	*x = SyncResponse{}
-	mi := &file_databroker_proto_msgTypes[20]
+	mi := &file_databroker_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1192,7 +1260,7 @@ func (x *SyncResponse) String() string {
 func (*SyncResponse) ProtoMessage() {}
 
 func (x *SyncResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[20]
+	mi := &file_databroker_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1205,7 +1273,7 @@ func (x *SyncResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncResponse.ProtoReflect.Descriptor instead.
 func (*SyncResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{20}
+	return file_databroker_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SyncResponse) GetResponse() isSyncResponse_Response {
@@ -1258,7 +1326,7 @@ type SyncLatestRequest struct {
 
 func (x *SyncLatestRequest) Reset() {
 	*x = SyncLatestRequest{}
-	mi := &file_databroker_proto_msgTypes[21]
+	mi := &file_databroker_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1270,7 +1338,7 @@ func (x *SyncLatestRequest) String() string {
 func (*SyncLatestRequest) ProtoMessage() {}
 
 func (x *SyncLatestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[21]
+	mi := &file_databroker_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1283,7 +1351,7 @@ func (x *SyncLatestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncLatestRequest.ProtoReflect.Descriptor instead.
 func (*SyncLatestRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{21}
+	return file_databroker_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SyncLatestRequest) GetType() string {
@@ -1307,7 +1375,7 @@ type SyncLatestResponse struct {
 
 func (x *SyncLatestResponse) Reset() {
 	*x = SyncLatestResponse{}
-	mi := &file_databroker_proto_msgTypes[22]
+	mi := &file_databroker_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1319,7 +1387,7 @@ func (x *SyncLatestResponse) String() string {
 func (*SyncLatestResponse) ProtoMessage() {}
 
 func (x *SyncLatestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[22]
+	mi := &file_databroker_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1332,7 +1400,7 @@ func (x *SyncLatestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncLatestResponse.ProtoReflect.Descriptor instead.
 func (*SyncLatestResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{22}
+	return file_databroker_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *SyncLatestResponse) GetResponse() isSyncLatestResponse_Response {
@@ -1405,7 +1473,7 @@ type AcquireLeaseRequest struct {
 
 func (x *AcquireLeaseRequest) Reset() {
 	*x = AcquireLeaseRequest{}
-	mi := &file_databroker_proto_msgTypes[23]
+	mi := &file_databroker_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1417,7 +1485,7 @@ func (x *AcquireLeaseRequest) String() string {
 func (*AcquireLeaseRequest) ProtoMessage() {}
 
 func (x *AcquireLeaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[23]
+	mi := &file_databroker_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1430,7 +1498,7 @@ func (x *AcquireLeaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcquireLeaseRequest.ProtoReflect.Descriptor instead.
 func (*AcquireLeaseRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{23}
+	return file_databroker_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *AcquireLeaseRequest) GetName() string {
@@ -1458,7 +1526,7 @@ type AcquireLeaseResponse struct {
 
 func (x *AcquireLeaseResponse) Reset() {
 	*x = AcquireLeaseResponse{}
-	mi := &file_databroker_proto_msgTypes[24]
+	mi := &file_databroker_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1470,7 +1538,7 @@ func (x *AcquireLeaseResponse) String() string {
 func (*AcquireLeaseResponse) ProtoMessage() {}
 
 func (x *AcquireLeaseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[24]
+	mi := &file_databroker_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1483,7 +1551,7 @@ func (x *AcquireLeaseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcquireLeaseResponse.ProtoReflect.Descriptor instead.
 func (*AcquireLeaseResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{24}
+	return file_databroker_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *AcquireLeaseResponse) GetId() string {
@@ -1503,7 +1571,7 @@ type ReleaseLeaseRequest struct {
 
 func (x *ReleaseLeaseRequest) Reset() {
 	*x = ReleaseLeaseRequest{}
-	mi := &file_databroker_proto_msgTypes[25]
+	mi := &file_databroker_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1515,7 +1583,7 @@ func (x *ReleaseLeaseRequest) String() string {
 func (*ReleaseLeaseRequest) ProtoMessage() {}
 
 func (x *ReleaseLeaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[25]
+	mi := &file_databroker_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1528,7 +1596,7 @@ func (x *ReleaseLeaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseLeaseRequest.ProtoReflect.Descriptor instead.
 func (*ReleaseLeaseRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{25}
+	return file_databroker_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ReleaseLeaseRequest) GetName() string {
@@ -1556,7 +1624,7 @@ type RenewLeaseRequest struct {
 
 func (x *RenewLeaseRequest) Reset() {
 	*x = RenewLeaseRequest{}
-	mi := &file_databroker_proto_msgTypes[26]
+	mi := &file_databroker_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1568,7 +1636,7 @@ func (x *RenewLeaseRequest) String() string {
 func (*RenewLeaseRequest) ProtoMessage() {}
 
 func (x *RenewLeaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[26]
+	mi := &file_databroker_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1581,7 +1649,7 @@ func (x *RenewLeaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenewLeaseRequest.ProtoReflect.Descriptor instead.
 func (*RenewLeaseRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{26}
+	return file_databroker_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RenewLeaseRequest) GetName() string {
@@ -1615,7 +1683,7 @@ type Checkpoint struct {
 
 func (x *Checkpoint) Reset() {
 	*x = Checkpoint{}
-	mi := &file_databroker_proto_msgTypes[27]
+	mi := &file_databroker_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1627,7 +1695,7 @@ func (x *Checkpoint) String() string {
 func (*Checkpoint) ProtoMessage() {}
 
 func (x *Checkpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[27]
+	mi := &file_databroker_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1640,7 +1708,7 @@ func (x *Checkpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Checkpoint.ProtoReflect.Descriptor instead.
 func (*Checkpoint) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{27}
+	return file_databroker_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *Checkpoint) GetServerVersion() uint64 {
@@ -1665,7 +1733,7 @@ type GetCheckpointRequest struct {
 
 func (x *GetCheckpointRequest) Reset() {
 	*x = GetCheckpointRequest{}
-	mi := &file_databroker_proto_msgTypes[28]
+	mi := &file_databroker_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1677,7 +1745,7 @@ func (x *GetCheckpointRequest) String() string {
 func (*GetCheckpointRequest) ProtoMessage() {}
 
 func (x *GetCheckpointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[28]
+	mi := &file_databroker_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1690,7 +1758,7 @@ func (x *GetCheckpointRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCheckpointRequest.ProtoReflect.Descriptor instead.
 func (*GetCheckpointRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{28}
+	return file_databroker_proto_rawDescGZIP(), []int{29}
 }
 
 type GetCheckpointResponse struct {
@@ -1703,7 +1771,7 @@ type GetCheckpointResponse struct {
 
 func (x *GetCheckpointResponse) Reset() {
 	*x = GetCheckpointResponse{}
-	mi := &file_databroker_proto_msgTypes[29]
+	mi := &file_databroker_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1715,7 +1783,7 @@ func (x *GetCheckpointResponse) String() string {
 func (*GetCheckpointResponse) ProtoMessage() {}
 
 func (x *GetCheckpointResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[29]
+	mi := &file_databroker_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1728,7 +1796,7 @@ func (x *GetCheckpointResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCheckpointResponse.ProtoReflect.Descriptor instead.
 func (*GetCheckpointResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{29}
+	return file_databroker_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetCheckpointResponse) GetCheckpoint() *Checkpoint {
@@ -1754,7 +1822,7 @@ type SetCheckpointRequest struct {
 
 func (x *SetCheckpointRequest) Reset() {
 	*x = SetCheckpointRequest{}
-	mi := &file_databroker_proto_msgTypes[30]
+	mi := &file_databroker_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1766,7 +1834,7 @@ func (x *SetCheckpointRequest) String() string {
 func (*SetCheckpointRequest) ProtoMessage() {}
 
 func (x *SetCheckpointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[30]
+	mi := &file_databroker_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1779,7 +1847,7 @@ func (x *SetCheckpointRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCheckpointRequest.ProtoReflect.Descriptor instead.
 func (*SetCheckpointRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{30}
+	return file_databroker_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *SetCheckpointRequest) GetCheckpoint() *Checkpoint {
@@ -1797,7 +1865,7 @@ type SetCheckpointResponse struct {
 
 func (x *SetCheckpointResponse) Reset() {
 	*x = SetCheckpointResponse{}
-	mi := &file_databroker_proto_msgTypes[31]
+	mi := &file_databroker_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1809,7 +1877,7 @@ func (x *SetCheckpointResponse) String() string {
 func (*SetCheckpointResponse) ProtoMessage() {}
 
 func (x *SetCheckpointResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[31]
+	mi := &file_databroker_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1822,7 +1890,7 @@ func (x *SetCheckpointResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCheckpointResponse.ProtoReflect.Descriptor instead.
 func (*SetCheckpointResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{31}
+	return file_databroker_proto_rawDescGZIP(), []int{32}
 }
 
 var File_databroker_proto protoreflect.FileDescriptor
@@ -1830,7 +1898,13 @@ var File_databroker_proto protoreflect.FileDescriptor
 const file_databroker_proto_rawDesc = "" +
 	"\n" +
 	"\x10databroker.proto\x12\n" +
-	"databroker\x1a\x19google/protobuf/any.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe8\x01\n" +
+	"databroker\x1a\x19google/protobuf/any.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x7f\n" +
+	"\x04File\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04mode\x18\x02 \x01(\rR\x04mode\x12;\n" +
+	"\vmodified_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"modifiedAt\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\"\xe8\x01\n" +
 	"\x06Record\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x04R\aversion\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x0e\n" +
@@ -1987,110 +2061,112 @@ func file_databroker_proto_rawDescGZIP() []byte {
 	return file_databroker_proto_rawDescData
 }
 
-var file_databroker_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_databroker_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_databroker_proto_goTypes = []any{
-	(*Record)(nil),                // 0: databroker.Record
-	(*Versions)(nil),              // 1: databroker.Versions
-	(*Options)(nil),               // 2: databroker.Options
-	(*TypedOptions)(nil),          // 3: databroker.TypedOptions
-	(*ClearResponse)(nil),         // 4: databroker.ClearResponse
-	(*GetRequest)(nil),            // 5: databroker.GetRequest
-	(*GetResponse)(nil),           // 6: databroker.GetResponse
-	(*ListTypesResponse)(nil),     // 7: databroker.ListTypesResponse
-	(*QueryRequest)(nil),          // 8: databroker.QueryRequest
-	(*QueryResponse)(nil),         // 9: databroker.QueryResponse
-	(*PutRequest)(nil),            // 10: databroker.PutRequest
-	(*PutResponse)(nil),           // 11: databroker.PutResponse
-	(*PatchRequest)(nil),          // 12: databroker.PatchRequest
-	(*PatchResponse)(nil),         // 13: databroker.PatchResponse
-	(*ServerInfoResponse)(nil),    // 14: databroker.ServerInfoResponse
-	(*GetOptionsRequest)(nil),     // 15: databroker.GetOptionsRequest
-	(*GetOptionsResponse)(nil),    // 16: databroker.GetOptionsResponse
-	(*SetOptionsRequest)(nil),     // 17: databroker.SetOptionsRequest
-	(*SetOptionsResponse)(nil),    // 18: databroker.SetOptionsResponse
-	(*SyncRequest)(nil),           // 19: databroker.SyncRequest
-	(*SyncResponse)(nil),          // 20: databroker.SyncResponse
-	(*SyncLatestRequest)(nil),     // 21: databroker.SyncLatestRequest
-	(*SyncLatestResponse)(nil),    // 22: databroker.SyncLatestResponse
-	(*AcquireLeaseRequest)(nil),   // 23: databroker.AcquireLeaseRequest
-	(*AcquireLeaseResponse)(nil),  // 24: databroker.AcquireLeaseResponse
-	(*ReleaseLeaseRequest)(nil),   // 25: databroker.ReleaseLeaseRequest
-	(*RenewLeaseRequest)(nil),     // 26: databroker.RenewLeaseRequest
-	(*Checkpoint)(nil),            // 27: databroker.Checkpoint
-	(*GetCheckpointRequest)(nil),  // 28: databroker.GetCheckpointRequest
-	(*GetCheckpointResponse)(nil), // 29: databroker.GetCheckpointResponse
-	(*SetCheckpointRequest)(nil),  // 30: databroker.SetCheckpointRequest
-	(*SetCheckpointResponse)(nil), // 31: databroker.SetCheckpointResponse
-	(*anypb.Any)(nil),             // 32: google.protobuf.Any
+	(*File)(nil),                  // 0: databroker.File
+	(*Record)(nil),                // 1: databroker.Record
+	(*Versions)(nil),              // 2: databroker.Versions
+	(*Options)(nil),               // 3: databroker.Options
+	(*TypedOptions)(nil),          // 4: databroker.TypedOptions
+	(*ClearResponse)(nil),         // 5: databroker.ClearResponse
+	(*GetRequest)(nil),            // 6: databroker.GetRequest
+	(*GetResponse)(nil),           // 7: databroker.GetResponse
+	(*ListTypesResponse)(nil),     // 8: databroker.ListTypesResponse
+	(*QueryRequest)(nil),          // 9: databroker.QueryRequest
+	(*QueryResponse)(nil),         // 10: databroker.QueryResponse
+	(*PutRequest)(nil),            // 11: databroker.PutRequest
+	(*PutResponse)(nil),           // 12: databroker.PutResponse
+	(*PatchRequest)(nil),          // 13: databroker.PatchRequest
+	(*PatchResponse)(nil),         // 14: databroker.PatchResponse
+	(*ServerInfoResponse)(nil),    // 15: databroker.ServerInfoResponse
+	(*GetOptionsRequest)(nil),     // 16: databroker.GetOptionsRequest
+	(*GetOptionsResponse)(nil),    // 17: databroker.GetOptionsResponse
+	(*SetOptionsRequest)(nil),     // 18: databroker.SetOptionsRequest
+	(*SetOptionsResponse)(nil),    // 19: databroker.SetOptionsResponse
+	(*SyncRequest)(nil),           // 20: databroker.SyncRequest
+	(*SyncResponse)(nil),          // 21: databroker.SyncResponse
+	(*SyncLatestRequest)(nil),     // 22: databroker.SyncLatestRequest
+	(*SyncLatestResponse)(nil),    // 23: databroker.SyncLatestResponse
+	(*AcquireLeaseRequest)(nil),   // 24: databroker.AcquireLeaseRequest
+	(*AcquireLeaseResponse)(nil),  // 25: databroker.AcquireLeaseResponse
+	(*ReleaseLeaseRequest)(nil),   // 26: databroker.ReleaseLeaseRequest
+	(*RenewLeaseRequest)(nil),     // 27: databroker.RenewLeaseRequest
+	(*Checkpoint)(nil),            // 28: databroker.Checkpoint
+	(*GetCheckpointRequest)(nil),  // 29: databroker.GetCheckpointRequest
+	(*GetCheckpointResponse)(nil), // 30: databroker.GetCheckpointResponse
+	(*SetCheckpointRequest)(nil),  // 31: databroker.SetCheckpointRequest
+	(*SetCheckpointResponse)(nil), // 32: databroker.SetCheckpointResponse
 	(*timestamppb.Timestamp)(nil), // 33: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 34: google.protobuf.Duration
-	(*structpb.Struct)(nil),       // 35: google.protobuf.Struct
-	(*fieldmaskpb.FieldMask)(nil), // 36: google.protobuf.FieldMask
-	(*emptypb.Empty)(nil),         // 37: google.protobuf.Empty
+	(*anypb.Any)(nil),             // 34: google.protobuf.Any
+	(*durationpb.Duration)(nil),   // 35: google.protobuf.Duration
+	(*structpb.Struct)(nil),       // 36: google.protobuf.Struct
+	(*fieldmaskpb.FieldMask)(nil), // 37: google.protobuf.FieldMask
+	(*emptypb.Empty)(nil),         // 38: google.protobuf.Empty
 }
 var file_databroker_proto_depIdxs = []int32{
-	32, // 0: databroker.Record.data:type_name -> google.protobuf.Any
-	33, // 1: databroker.Record.modified_at:type_name -> google.protobuf.Timestamp
-	33, // 2: databroker.Record.deleted_at:type_name -> google.protobuf.Timestamp
-	34, // 3: databroker.Options.ttl:type_name -> google.protobuf.Duration
-	2,  // 4: databroker.TypedOptions.options:type_name -> databroker.Options
-	0,  // 5: databroker.GetResponse.record:type_name -> databroker.Record
-	35, // 6: databroker.QueryRequest.filter:type_name -> google.protobuf.Struct
-	0,  // 7: databroker.QueryResponse.records:type_name -> databroker.Record
-	0,  // 8: databroker.PutRequest.records:type_name -> databroker.Record
-	0,  // 9: databroker.PutResponse.records:type_name -> databroker.Record
-	0,  // 10: databroker.PatchRequest.records:type_name -> databroker.Record
-	36, // 11: databroker.PatchRequest.field_mask:type_name -> google.protobuf.FieldMask
-	0,  // 12: databroker.PatchResponse.records:type_name -> databroker.Record
-	2,  // 13: databroker.GetOptionsResponse.options:type_name -> databroker.Options
-	2,  // 14: databroker.SetOptionsRequest.options:type_name -> databroker.Options
-	2,  // 15: databroker.SetOptionsResponse.options:type_name -> databroker.Options
-	0,  // 16: databroker.SyncResponse.record:type_name -> databroker.Record
-	3,  // 17: databroker.SyncResponse.options:type_name -> databroker.TypedOptions
-	0,  // 18: databroker.SyncLatestResponse.record:type_name -> databroker.Record
-	1,  // 19: databroker.SyncLatestResponse.versions:type_name -> databroker.Versions
-	3,  // 20: databroker.SyncLatestResponse.options:type_name -> databroker.TypedOptions
-	34, // 21: databroker.AcquireLeaseRequest.duration:type_name -> google.protobuf.Duration
-	34, // 22: databroker.RenewLeaseRequest.duration:type_name -> google.protobuf.Duration
-	27, // 23: databroker.GetCheckpointResponse.checkpoint:type_name -> databroker.Checkpoint
-	27, // 24: databroker.SetCheckpointRequest.checkpoint:type_name -> databroker.Checkpoint
-	23, // 25: databroker.DataBrokerService.AcquireLease:input_type -> databroker.AcquireLeaseRequest
-	37, // 26: databroker.DataBrokerService.Clear:input_type -> google.protobuf.Empty
-	5,  // 27: databroker.DataBrokerService.Get:input_type -> databroker.GetRequest
-	15, // 28: databroker.DataBrokerService.GetOptions:input_type -> databroker.GetOptionsRequest
-	37, // 29: databroker.DataBrokerService.ListTypes:input_type -> google.protobuf.Empty
-	10, // 30: databroker.DataBrokerService.Put:input_type -> databroker.PutRequest
-	12, // 31: databroker.DataBrokerService.Patch:input_type -> databroker.PatchRequest
-	8,  // 32: databroker.DataBrokerService.Query:input_type -> databroker.QueryRequest
-	25, // 33: databroker.DataBrokerService.ReleaseLease:input_type -> databroker.ReleaseLeaseRequest
-	26, // 34: databroker.DataBrokerService.RenewLease:input_type -> databroker.RenewLeaseRequest
-	37, // 35: databroker.DataBrokerService.ServerInfo:input_type -> google.protobuf.Empty
-	17, // 36: databroker.DataBrokerService.SetOptions:input_type -> databroker.SetOptionsRequest
-	19, // 37: databroker.DataBrokerService.Sync:input_type -> databroker.SyncRequest
-	21, // 38: databroker.DataBrokerService.SyncLatest:input_type -> databroker.SyncLatestRequest
-	28, // 39: databroker.CheckpointService.GetCheckpoint:input_type -> databroker.GetCheckpointRequest
-	30, // 40: databroker.CheckpointService.SetCheckpoint:input_type -> databroker.SetCheckpointRequest
-	24, // 41: databroker.DataBrokerService.AcquireLease:output_type -> databroker.AcquireLeaseResponse
-	4,  // 42: databroker.DataBrokerService.Clear:output_type -> databroker.ClearResponse
-	6,  // 43: databroker.DataBrokerService.Get:output_type -> databroker.GetResponse
-	16, // 44: databroker.DataBrokerService.GetOptions:output_type -> databroker.GetOptionsResponse
-	7,  // 45: databroker.DataBrokerService.ListTypes:output_type -> databroker.ListTypesResponse
-	11, // 46: databroker.DataBrokerService.Put:output_type -> databroker.PutResponse
-	13, // 47: databroker.DataBrokerService.Patch:output_type -> databroker.PatchResponse
-	9,  // 48: databroker.DataBrokerService.Query:output_type -> databroker.QueryResponse
-	37, // 49: databroker.DataBrokerService.ReleaseLease:output_type -> google.protobuf.Empty
-	37, // 50: databroker.DataBrokerService.RenewLease:output_type -> google.protobuf.Empty
-	14, // 51: databroker.DataBrokerService.ServerInfo:output_type -> databroker.ServerInfoResponse
-	18, // 52: databroker.DataBrokerService.SetOptions:output_type -> databroker.SetOptionsResponse
-	20, // 53: databroker.DataBrokerService.Sync:output_type -> databroker.SyncResponse
-	22, // 54: databroker.DataBrokerService.SyncLatest:output_type -> databroker.SyncLatestResponse
-	29, // 55: databroker.CheckpointService.GetCheckpoint:output_type -> databroker.GetCheckpointResponse
-	31, // 56: databroker.CheckpointService.SetCheckpoint:output_type -> databroker.SetCheckpointResponse
-	41, // [41:57] is the sub-list for method output_type
-	25, // [25:41] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	33, // 0: databroker.File.modified_at:type_name -> google.protobuf.Timestamp
+	34, // 1: databroker.Record.data:type_name -> google.protobuf.Any
+	33, // 2: databroker.Record.modified_at:type_name -> google.protobuf.Timestamp
+	33, // 3: databroker.Record.deleted_at:type_name -> google.protobuf.Timestamp
+	35, // 4: databroker.Options.ttl:type_name -> google.protobuf.Duration
+	3,  // 5: databroker.TypedOptions.options:type_name -> databroker.Options
+	1,  // 6: databroker.GetResponse.record:type_name -> databroker.Record
+	36, // 7: databroker.QueryRequest.filter:type_name -> google.protobuf.Struct
+	1,  // 8: databroker.QueryResponse.records:type_name -> databroker.Record
+	1,  // 9: databroker.PutRequest.records:type_name -> databroker.Record
+	1,  // 10: databroker.PutResponse.records:type_name -> databroker.Record
+	1,  // 11: databroker.PatchRequest.records:type_name -> databroker.Record
+	37, // 12: databroker.PatchRequest.field_mask:type_name -> google.protobuf.FieldMask
+	1,  // 13: databroker.PatchResponse.records:type_name -> databroker.Record
+	3,  // 14: databroker.GetOptionsResponse.options:type_name -> databroker.Options
+	3,  // 15: databroker.SetOptionsRequest.options:type_name -> databroker.Options
+	3,  // 16: databroker.SetOptionsResponse.options:type_name -> databroker.Options
+	1,  // 17: databroker.SyncResponse.record:type_name -> databroker.Record
+	4,  // 18: databroker.SyncResponse.options:type_name -> databroker.TypedOptions
+	1,  // 19: databroker.SyncLatestResponse.record:type_name -> databroker.Record
+	2,  // 20: databroker.SyncLatestResponse.versions:type_name -> databroker.Versions
+	4,  // 21: databroker.SyncLatestResponse.options:type_name -> databroker.TypedOptions
+	35, // 22: databroker.AcquireLeaseRequest.duration:type_name -> google.protobuf.Duration
+	35, // 23: databroker.RenewLeaseRequest.duration:type_name -> google.protobuf.Duration
+	28, // 24: databroker.GetCheckpointResponse.checkpoint:type_name -> databroker.Checkpoint
+	28, // 25: databroker.SetCheckpointRequest.checkpoint:type_name -> databroker.Checkpoint
+	24, // 26: databroker.DataBrokerService.AcquireLease:input_type -> databroker.AcquireLeaseRequest
+	38, // 27: databroker.DataBrokerService.Clear:input_type -> google.protobuf.Empty
+	6,  // 28: databroker.DataBrokerService.Get:input_type -> databroker.GetRequest
+	16, // 29: databroker.DataBrokerService.GetOptions:input_type -> databroker.GetOptionsRequest
+	38, // 30: databroker.DataBrokerService.ListTypes:input_type -> google.protobuf.Empty
+	11, // 31: databroker.DataBrokerService.Put:input_type -> databroker.PutRequest
+	13, // 32: databroker.DataBrokerService.Patch:input_type -> databroker.PatchRequest
+	9,  // 33: databroker.DataBrokerService.Query:input_type -> databroker.QueryRequest
+	26, // 34: databroker.DataBrokerService.ReleaseLease:input_type -> databroker.ReleaseLeaseRequest
+	27, // 35: databroker.DataBrokerService.RenewLease:input_type -> databroker.RenewLeaseRequest
+	38, // 36: databroker.DataBrokerService.ServerInfo:input_type -> google.protobuf.Empty
+	18, // 37: databroker.DataBrokerService.SetOptions:input_type -> databroker.SetOptionsRequest
+	20, // 38: databroker.DataBrokerService.Sync:input_type -> databroker.SyncRequest
+	22, // 39: databroker.DataBrokerService.SyncLatest:input_type -> databroker.SyncLatestRequest
+	29, // 40: databroker.CheckpointService.GetCheckpoint:input_type -> databroker.GetCheckpointRequest
+	31, // 41: databroker.CheckpointService.SetCheckpoint:input_type -> databroker.SetCheckpointRequest
+	25, // 42: databroker.DataBrokerService.AcquireLease:output_type -> databroker.AcquireLeaseResponse
+	5,  // 43: databroker.DataBrokerService.Clear:output_type -> databroker.ClearResponse
+	7,  // 44: databroker.DataBrokerService.Get:output_type -> databroker.GetResponse
+	17, // 45: databroker.DataBrokerService.GetOptions:output_type -> databroker.GetOptionsResponse
+	8,  // 46: databroker.DataBrokerService.ListTypes:output_type -> databroker.ListTypesResponse
+	12, // 47: databroker.DataBrokerService.Put:output_type -> databroker.PutResponse
+	14, // 48: databroker.DataBrokerService.Patch:output_type -> databroker.PatchResponse
+	10, // 49: databroker.DataBrokerService.Query:output_type -> databroker.QueryResponse
+	38, // 50: databroker.DataBrokerService.ReleaseLease:output_type -> google.protobuf.Empty
+	38, // 51: databroker.DataBrokerService.RenewLease:output_type -> google.protobuf.Empty
+	15, // 52: databroker.DataBrokerService.ServerInfo:output_type -> databroker.ServerInfoResponse
+	19, // 53: databroker.DataBrokerService.SetOptions:output_type -> databroker.SetOptionsResponse
+	21, // 54: databroker.DataBrokerService.Sync:output_type -> databroker.SyncResponse
+	23, // 55: databroker.DataBrokerService.SyncLatest:output_type -> databroker.SyncLatestResponse
+	30, // 56: databroker.CheckpointService.GetCheckpoint:output_type -> databroker.GetCheckpointResponse
+	32, // 57: databroker.CheckpointService.SetCheckpoint:output_type -> databroker.SetCheckpointResponse
+	42, // [42:58] is the sub-list for method output_type
+	26, // [26:42] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_databroker_proto_init() }
@@ -2098,15 +2174,15 @@ func file_databroker_proto_init() {
 	if File_databroker_proto != nil {
 		return
 	}
-	file_databroker_proto_msgTypes[2].OneofWrappers = []any{}
-	file_databroker_proto_msgTypes[8].OneofWrappers = []any{}
-	file_databroker_proto_msgTypes[10].OneofWrappers = []any{}
-	file_databroker_proto_msgTypes[19].OneofWrappers = []any{}
-	file_databroker_proto_msgTypes[20].OneofWrappers = []any{
+	file_databroker_proto_msgTypes[3].OneofWrappers = []any{}
+	file_databroker_proto_msgTypes[9].OneofWrappers = []any{}
+	file_databroker_proto_msgTypes[11].OneofWrappers = []any{}
+	file_databroker_proto_msgTypes[20].OneofWrappers = []any{}
+	file_databroker_proto_msgTypes[21].OneofWrappers = []any{
 		(*SyncResponse_Record)(nil),
 		(*SyncResponse_Options)(nil),
 	}
-	file_databroker_proto_msgTypes[22].OneofWrappers = []any{
+	file_databroker_proto_msgTypes[23].OneofWrappers = []any{
 		(*SyncLatestResponse_Record)(nil),
 		(*SyncLatestResponse_Versions)(nil),
 		(*SyncLatestResponse_Options)(nil),
@@ -2117,7 +2193,7 @@ func file_databroker_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_databroker_proto_rawDesc), len(file_databroker_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   32,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
