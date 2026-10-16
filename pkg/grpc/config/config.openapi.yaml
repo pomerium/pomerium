@@ -5484,6 +5484,14 @@ components:
             - type: "null"
           title: oidc_bridge
           description: Configure default OIDC bridge support for all routes.
+        sshExpire:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: ssh_expire
+          description: |-
+            How long SSH sessions remain active until they are forced to re-authenticate.
+             When unset, defaults to the value of `cookie_expire` config option.
         createdAt:
           title: created_at
           description: When the settings were created.

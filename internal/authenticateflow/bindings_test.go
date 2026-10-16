@@ -58,21 +58,18 @@ func TestBindingManager(t *testing.T) {
 	t.Run("get bindings", func(t *testing.T) {
 		client := dtestutil.NewTestDatabroker(t)
 		now := time.Now()
-		put(t, client,
-			sshSessionBinding("sshkey-SHA256:b", &session.SessionBinding{
-				Protocol: session.ProtocolSSH, SessionId: "s1", UserId: "u1",
-				IssuedAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-				Details: map[string]string{session.DetailSourceAddr: "a1"},
-			}),
-			sshSessionBinding("sshkey-SHA256:a", &session.SessionBinding{
-				Protocol: session.ProtocolSSH, SessionId: "s1", UserId: "u1",
-				IssuedAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-			}),
-			sshSessionBinding("sshkey-SHA256:a", &session.IdentityBinding{UserId: "u1"}),
-			sshSessionBinding("sshkey-SHA256:c", &session.SessionBinding{
-				Protocol: session.ProtocolSSH, SessionId: "s2", UserId: "u2",
-				IssuedAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
-			}),
+		records := []*databroker.Record{}
+		records = append(records, sshSessionBinding(
+			"sshkey-SHA256:b", "ss1", "u1", now, now.Add(time.Hour),
+			map[string]string{session.DetailSourceAddr: "a1"},
+		)...)
+		records = append(records, sshSessionBinding(
+			"sshkey-SHA256:a", "ss1", "u1", now, now.Add(time.Hour), nil,
+		)...)
+		records = append(records, sshSessionBinding(
+			"sshkey-SHA256:c", "ss2", "u2", now, now.Add(time.Hour), nil,
+		)...)
+		records = append(records,
 			databroker.NewRecord(idpsession.NewBinding("ss1", "u1", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, &session.Session{Id: "s1"}, nil)),
 			databroker.NewRecord(idpsession.NewBinding("ss2", "u2", idpsession.BindingProtocol_BINDING_PROTOCOL_BROWSER, &session.Session{Id: "s2"}, nil)),
 			databroker.NewRecord(&session.Session{Id: "m1"}),
@@ -87,6 +84,7 @@ func TestBindingManager(t *testing.T) {
 				Details:      map[string]string{"client-ip": "a2", "mcp_client_id": "c1"},
 			}),
 		)
+		put(t, client, records...)
 
 		got, err := NewBindingManager(client).GetBindings(t.Context(), &session.Handle{Id: "s1", UserId: "u1"})
 		require.NoError(t, err)
@@ -101,27 +99,22 @@ func TestBindingManager(t *testing.T) {
 				ExpiresAt:        "Until revoked or IDP expires",
 			},
 			{
-				IDPSessionID:       "ss1",
-				SessionBindingID:   "sshkey-SHA256:a",
-				Protocol:           session.ProtocolSSH,
-				Resource:           "SSH key",
-				ClientAddress:      "Not recorded",
-				InitiatedAt:        now.UTC().Format(time.RFC1123),
-				ExpiresAt:          "Until revoked",
-				HasIdentityBinding: true,
+				IDPSessionID:     "ss1",
+				SessionBindingID: "sshkey-SHA256:a",
+				Protocol:         session.ProtocolSSH,
+				InitiatedAt:      now.UTC().Format(time.RFC1123),
+				ExpiresAt:        now.Add(time.Hour).UTC().Format(time.RFC1123),
 				DetailsSSH: &handlers.ProtocolDetailsSSH{
 					FingerprintID: "a",
-					SourceAddress: "Not recorded",
 				},
 			},
 			{
 				IDPSessionID:     "ss1",
 				SessionBindingID: "sshkey-SHA256:b",
 				Protocol:         session.ProtocolSSH,
-				Resource:         "SSH key",
-				ClientAddress:    "a1",
 				InitiatedAt:      now.UTC().Format(time.RFC1123),
 				ExpiresAt:        now.Add(time.Hour).UTC().Format(time.RFC1123),
+				ClientAddress:    "a1",
 				DetailsSSH: &handlers.ProtocolDetailsSSH{
 					FingerprintID: "b",
 					SourceAddress: "a1",
@@ -133,17 +126,13 @@ func TestBindingManager(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, []handlers.SessionBindingData{
 			{
-				IDPSessionID:       "ss2",
-				SessionBindingID:   "sshkey-SHA256:c",
-				Protocol:           session.ProtocolSSH,
-				Resource:           "SSH key",
-				ClientAddress:      "Not recorded",
-				InitiatedAt:        now.UTC().Format(time.RFC1123),
-				ExpiresAt:          now.Add(time.Hour).UTC().Format(time.RFC1123),
-				HasIdentityBinding: false,
+				IDPSessionID:     "ss2",
+				SessionBindingID: "sshkey-SHA256:c",
+				Protocol:         session.ProtocolSSH,
+				InitiatedAt:      now.UTC().Format(time.RFC1123),
+				ExpiresAt:        now.Add(time.Hour).UTC().Format(time.RFC1123),
 				DetailsSSH: &handlers.ProtocolDetailsSSH{
 					FingerprintID: "c",
-					SourceAddress: "Not recorded",
 				},
 			},
 		}, got2)
@@ -151,7 +140,7 @@ func TestBindingManager(t *testing.T) {
 	t.Run("revoke binding", func(t *testing.T) {
 		t.Run("SSH", func(t *testing.T) {
 			client := dtestutil.NewTestDatabroker(t)
-			put(t, client, sshSessionBinding("b1", &session.SessionBinding{UserId: "u1"}))
+			put(t, client, sshSessionBinding("b1", "idp1", "u1", time.Now(), time.Now().Add(time.Hour), nil)...)
 
 			err := NewBindingManager(client).RevokeBinding(t.Context(), BindingID{
 				Protocol:  session.ProtocolSSH,
@@ -159,7 +148,8 @@ func TestBindingManager(t *testing.T) {
 				BindingID: "b1",
 			})
 			require.NoError(t, err)
-			assertBindingRecordDeleted(t, client, new(session.SessionBinding), "b1")
+			assertBindingRecordDeleted(t, client, new(idpsession.Binding), "b1")
+			assertBindingRecordExists(t, client, new(session.Session), "b1")
 		})
 
 		for _, tc := range []struct {
@@ -293,8 +283,20 @@ func put(t *testing.T, client databroker.DataBrokerServiceClient, records ...*da
 	require.NoError(t, err)
 }
 
-func sshSessionBinding(id string, message proto.Message) *databroker.Record {
-	return &databroker.Record{Id: id, Type: protoutil.GetTypeURL(message), Data: protoutil.NewAny(message)}
+func sshSessionBinding(id, idpSessionID, userID string, issuedAt, expiresAt time.Time, details map[string]string) []*databroker.Record {
+	sess := &session.Session{
+		Id: id, UserId: userID, IssuedAt: timestamppb.New(issuedAt), ExpiresAt: timestamppb.New(expiresAt),
+	}
+	records := idpsession.NewBoundRecords(
+		idpSessionID, userID, idpsession.BindingProtocol_BINDING_PROTOCOL_SSH, details, sess,
+	)
+	binding := new(idpsession.Binding)
+	if err := records[1].GetData().UnmarshalTo(binding); err != nil {
+		panic(err)
+	}
+	binding.InitiatedAt = timestamppb.New(issuedAt)
+	records[1].Data = protoutil.NewAny(binding)
+	return records
 }
 
 func assertBindingRecordDeleted(t *testing.T, client databroker.DataBrokerServiceClient, message proto.Message, id string) {

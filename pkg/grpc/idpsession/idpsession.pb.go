@@ -29,6 +29,7 @@ const (
 	BindingProtocol_BINDING_PROTOCOL_UNKNOWN BindingProtocol = 0
 	BindingProtocol_BINDING_PROTOCOL_BROWSER BindingProtocol = 1
 	BindingProtocol_BINDING_PROTOCOL_MCP     BindingProtocol = 2
+	BindingProtocol_BINDING_PROTOCOL_SSH     BindingProtocol = 3
 )
 
 // Enum value maps for BindingProtocol.
@@ -37,11 +38,13 @@ var (
 		0: "BINDING_PROTOCOL_UNKNOWN",
 		1: "BINDING_PROTOCOL_BROWSER",
 		2: "BINDING_PROTOCOL_MCP",
+		3: "BINDING_PROTOCOL_SSH",
 	}
 	BindingProtocol_value = map[string]int32{
 		"BINDING_PROTOCOL_UNKNOWN": 0,
 		"BINDING_PROTOCOL_BROWSER": 1,
 		"BINDING_PROTOCOL_MCP":     2,
+		"BINDING_PROTOCOL_SSH":     3,
 	}
 )
 
@@ -510,11 +513,12 @@ const file_idpsession_proto_rawDesc = "" +
 	"\auser_id\x18\a \x01(\tR\x06userId\x1a:\n" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*g\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\x81\x01\n" +
 	"\x0fBindingProtocol\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_UNKNOWN\x10\x00\x12\x1c\n" +
 	"\x18BINDING_PROTOCOL_BROWSER\x10\x01\x12\x18\n" +
-	"\x14BINDING_PROTOCOL_MCP\x10\x02B2Z0github.com/pomerium/pomerium/pkg/grpc/idpsessionb\x06proto3"
+	"\x14BINDING_PROTOCOL_MCP\x10\x02\x12\x18\n" +
+	"\x14BINDING_PROTOCOL_SSH\x10\x03B2Z0github.com/pomerium/pomerium/pkg/grpc/idpsessionb\x06proto3"
 
 var (
 	file_idpsession_proto_rawDescOnce sync.Once

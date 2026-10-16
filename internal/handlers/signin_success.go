@@ -11,16 +11,12 @@ import (
 type SignInSuccessData struct {
 	UserInfoData
 	Protocol  string
-	ExpiresAt *time.Time
+	ExpiresAt time.Time
 }
 
 func (data SignInSuccessData) ToJSON() map[string]any {
 	m := data.UserInfoData.ToJSON()
-	if data.ExpiresAt != nil {
-		m["expiresAt"] = data.ExpiresAt.Format(time.RFC1123)
-	} else {
-		m["expiresAt"] = "Until revoked"
-	}
+	m["expiresAt"] = data.ExpiresAt.Format(time.RFC1123)
 	m["protocol"] = data.Protocol
 	return m
 }

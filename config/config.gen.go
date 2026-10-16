@@ -97,6 +97,7 @@ type GlobalOptions struct {
 	PathWithEscapedSlashesAction       Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
 	ReadonlyConsoleAudiences           Value[[]string]                              `json:"readonly_console_audiences,omitzero" mapstructure:"readonly_console_audiences" yaml:"readonly_console_audiences,omitempty"`
 	SessionRecordingConcurrency        Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
+	SSHExpire                          Value[time.Duration]                         `json:"ssh_expire,omitzero" mapstructure:"ssh_expire" yaml:"ssh_expire,omitempty"`
 	SSHTwoPersonApprovalRequestTimeout Value[time.Duration]                         `json:"ssh_two_person_approval_request_timeout,omitzero" mapstructure:"ssh_two_person_approval_request_timeout" yaml:"ssh_two_person_approval_request_timeout,omitempty"`
 }
 
@@ -500,6 +501,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableStringListFromProto(&dst.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
+		setNullableDurationFromProto(&dst.SSHExpire, src.SshExpire),
 		setNullableDurationFromProto(&dst.SSHTwoPersonApprovalRequestTimeout, src.SshTwoPersonApprovalRequestTimeout),
 	)
 }
@@ -985,6 +987,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableStringListToProto(&obj.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
+		setNullableDurationToProto(&obj.SshExpire, src.SSHExpire),
 		setNullableDurationToProto(&obj.SshTwoPersonApprovalRequestTimeout, src.SSHTwoPersonApprovalRequestTimeout),
 	)
 }

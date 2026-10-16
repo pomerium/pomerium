@@ -100,7 +100,6 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 
 	sr.Path("/session_binding_info").Handler(httputil.HandlerFunc(a.sessionBindingInfo)).Methods(http.MethodGet)
 	sr.Path("/session_binding/revoke").Handler(httputil.HandlerFunc(a.revokeSessionBinding)).Methods(http.MethodPost)
-	sr.Path("/identity_binding/revoke").Handler(httputil.HandlerFunc(a.revokeIdentityBinding)).Methods(http.MethodPost)
 
 	sr.Path("/sign_in").
 		Queries("user_code", "{user_code:[a-zA-Z0-9-_]+}").
@@ -501,21 +500,6 @@ func (a *Authenticate) redirectToBindingInfo(w http.ResponseWriter, r *http.Requ
 		redirectTo = redirectURL.String()
 	}
 	httputil.Redirect(w, r, redirectTo, http.StatusFound)
-}
-
-func (a *Authenticate) revokeIdentityBinding(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := a.tracer.Start(r.Context(), "authenticate.revokeIdentityBinding")
-	defer span.End()
-	r = r.WithContext(ctx)
-	state := a.state.Load()
-	h, err := a.getSessionHandleFromRequest(r)
-	if err != nil {
-		h = session.NewHandle("")
-	}
-	if err := state.flow.RevokeIdentityBinding(w, r, h); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (a *Authenticate) getUserInfoData(r *http.Request) handlers.UserInfoData {
