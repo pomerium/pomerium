@@ -1152,7 +1152,7 @@ message Settings {
   // Configure default OIDC bridge support for all routes.
   optional OIDCBridge oidc_bridge = 189;
   // Embedded enterprise options.
-  optional google.protobuf.Struct enterprise = 192;
+  optional google.protobuf.Struct enterprise = 192 [(sensitive) = true];
 
   // computed properties
 
