@@ -1151,6 +1151,8 @@ message Settings {
   optional HeadersWithUnderscoresAction headers_with_underscores_action = 187;
   // Configure default OIDC bridge support for all routes.
   optional OIDCBridge oidc_bridge = 189;
+  // Embedded enterprise options.
+  optional google.protobuf.Struct enterprise = 192;
 
   // computed properties
 

@@ -166,7 +166,7 @@ func (mgr *Manager) watchStartedCommand(cmd *exec.Cmd) {
 }
 
 func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err error) {
-	options = maps.Clone(cfg.Options.Enterprise)
+	options = maps.Clone(cfg.Options.Enterprise.Or(make(map[string]any)))
 	if options == nil {
 		options = make(map[string]any)
 	}

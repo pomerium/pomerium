@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -331,5 +332,25 @@ func setNullableStringListToProto[T any, TPtr interface {
 	if obj, ok := any(*dst).(*configpb.Route_StringList); ok {
 		obj.Values = slices.Clone(src.Value)
 	}
+	return nil
+}
+
+func setNullableStructFromProto(dst *nullable.Value[map[string]any], src *structpb.Struct) error {
+	if src == nil {
+		return nil
+	}
+	*dst = nullable.NewValue(true, src.AsMap())
+	return nil
+}
+
+func setNullableStructToProto(dst **structpb.Struct, src nullable.Value[map[string]any]) error {
+	if !src.IsSet {
+		return nil
+	}
+	v, err := structpb.NewValue(src.Value)
+	if err != nil {
+		return err
+	}
+	*dst = v.GetStructValue()
 	return nil
 }
