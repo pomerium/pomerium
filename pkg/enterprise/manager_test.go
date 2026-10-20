@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/fileutil"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func TestBuildOptions(t *testing.T) {
@@ -28,9 +29,9 @@ func TestBuildOptions(t *testing.T) {
 	t.Run("enabled", func(t *testing.T) {
 		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0xA0}, 32))
-		cfg.Options.Enterprise = map[string]any{
+		cfg.Options.Enterprise = nullable.From(map[string]any{
 			"url": "https://example.com",
-		}
+		})
 		options, enabled, err := buildOptions(cfg)
 		assert.NoError(t, err)
 		assert.True(t, enabled)

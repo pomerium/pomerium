@@ -637,7 +637,7 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
 		case "google.protobuf.Int64Value":
 			s = jen.Int64()
 		case "google.protobuf.Struct":
-			s = jen.Op("*").Qual("google.golang.org/protobuf/types/known/structpb", "Struct")
+			s = jen.Map(jen.String()).Any()
 		case "google.protobuf.Timestamp":
 			s = jen.Qual("time", "Time")
 		case "google.protobuf.UInt16Value":

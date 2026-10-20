@@ -87,6 +87,7 @@ type GlobalOptions struct {
 	AutoApplyChangesets                Value[bool]                                  `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
 	BearerTokenFormat                  Value[configpb.BearerTokenFormat]            `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 	CodecType                          Value[configpb.CodecType]                    `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
+	Enterprise                         Value[map[string]any]                        `json:"enterprise,omitzero" mapstructure:"enterprise" yaml:"enterprise,omitempty"`
 	EnvoyDynamicExtensions             Value[[]string]                              `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
 	HeadersWithUnderscoresAction       Value[configpb.HeadersWithUnderscoresAction] `json:"headers_with_underscores_action,omitzero" mapstructure:"headers_with_underscores_action" yaml:"headers_with_underscores_action,omitempty"`
 	JWTIssuerFormat                    Value[configpb.IssuerFormat]                 `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
@@ -490,6 +491,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeFromProto(&dst.CodecType, src.CodecType),
+		setNullableStructFromProto(&dst.Enterprise, src.Enterprise),
 		setNullableStringListFromProto(&dst.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableHeadersWithUnderscoresActionFromProto(&dst.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
@@ -975,6 +977,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeToProto(&obj.CodecType, src.CodecType),
+		setNullableStructToProto(&obj.Enterprise, src.Enterprise),
 		setNullableStringListToProto(&obj.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableHeadersWithUnderscoresActionToProto(&obj.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
