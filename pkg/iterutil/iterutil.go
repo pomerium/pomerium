@@ -82,6 +82,15 @@ func Keys[K, V any](seq Seq2[K, V]) Seq[K] {
 	}
 }
 
+// Length returns the length of an iterator.
+func Length[T any](seq Seq[T]) int {
+	n := 0
+	for range seq {
+		n++
+	}
+	return n
+}
+
 // Repeat endlessly repeats an element as an iterator.
 func Repeat[E any](e E) Seq[E] {
 	return func(yield func(E) bool) {

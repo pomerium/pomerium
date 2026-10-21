@@ -8,8 +8,10 @@ import (
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 
+	"github.com/pomerium/pomerium/internal/analytics"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -71,6 +73,15 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		Int("listener-count", len(listenerResources)).
 		Int("route-configuration-count", len(routeConfigurationResources)).
 		Msg("controlplane: built discovery resources")
+
+	certificates, _ := cfg.AllCertificates()
+	cfg.AnalyticsProvider().SendEvent(ctx, analytics.EventNameBuiltEnvoyConfig, cfg.Options.InstallationID,
+		map[string]any{
+			"certificate_count": len(certificates),
+			"cluster_count":     len(clusterResources),
+			"listener_count":    len(listenerResources),
+			"route_count":       iterutil.Length(cfg.Options.GetAllPolicies()),
+		})
 
 	resources := map[string][]*envoy_service_discovery_v3.Resource{
 		clusterTypeURL:  clusterResources,

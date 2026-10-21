@@ -43,6 +43,9 @@ var (
 	// opt-out from the deprecation.
 	RuntimeFlagPomeriumJWTEndpoint = runtimeFlag("pomerium_jwt_endpoint", false)
 
+	// RuntimeFlagProductAnalytics enables product analytic collection
+	RuntimeFlagProductAnalytics = runtimeFlag("product_analytics", true)
+
 	// RuntimeFlagRefreshSessionAtIDTokenExpiration changes the identity manager session refresh
 	// timing to also take into account the ID token expiration time.
 	RuntimeFlagRefreshSessionAtIDTokenExpiration = runtimeFlag("refresh_session_at_id_token_expiration", true)
