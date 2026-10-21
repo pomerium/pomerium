@@ -1,4 +1,4 @@
-FROM golang:1.26.8-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS build-env
+FROM golang:1.26.10-bookworm@sha256:632dff7351799a5a9954a48dc06670ade72ee44e8c351cdc0e5a57af2fea21af AS build-env
 
 WORKDIR /go/src/app
 ADD . /go/src/app
@@ -6,6 +6,6 @@ ADD . /go/src/app
 RUN go get -d -v ./...
 RUN go install -v ./...
 
-FROM gcr.io/distroless/base:latest@sha256:b0216a38315e7d4e14a70338f4bcfdf622bcd2ca2f3fcb48de446c4bb51f7243
+FROM gcr.io/distroless/base:latest@sha256:44a80dc28b49f47396e72ab2dc644b3f849880335de09625762faed207bb891d
 COPY --from=build-env /go/bin/app /
 CMD ["/app"]
