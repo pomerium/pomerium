@@ -23,7 +23,7 @@ import (
 )
 
 type Reporter interface {
-	GetProperties(ctx context.Context, cfg *config.Config, sessionCount, userCount int) posthog.Properties
+	CreatePosthogEvent(ctx context.Context, cfg *config.Config, sessionCount, userCount int) posthog.Capture
 	Run(ctx context.Context)
 	UpdateUserInfo(sessionCount, userCount int)
 	UpdateConfig(cfg *config.Config)
@@ -47,57 +47,16 @@ func New(options ...ReporterOption) Reporter {
 	}
 }
 
-func (r *reporter) GetProperties(ctx context.Context, cfg *config.Config, sessionCount, userCount int) posthog.Properties {
-	p := posthog.NewProperties()
-	p.Set("session_count", sessionCount).
-		Set("user_count", userCount)
-	p.Merge(r.getPropertiesForRoutes(cfg))
-
-	// add entity counts
-	certificates, _ := cfg.AllCertificates()
-	p.
-		Set("certificate_count", len(certificates))
-
-	// add cpu info
-	if infos, err := cpu.InfoWithContext(ctx); err == nil {
-		var cpuCount, coreCount int
-		for _, info := range infos {
-			cpuCount += int(info.CPU)
-			coreCount += int(info.Cores)
-			p.
-				Set("cpu_vendor_id", info.VendorID).
-				Set("cpu_family", info.Family).
-				Set("cpu_model", info.Model).
-				Set("cpu_model_name", info.ModelName)
-		}
-		p.
-			Set("cpu_count", cpuCount).
-			Set("cpu_core_count", coreCount)
+func (r *reporter) CreatePosthogEvent(ctx context.Context, cfg *config.Config, sessionCount, userCount int) posthog.Capture {
+	evt := posthog.Capture{
+		DistinctId: r.getDistinctID(cfg),
+		Event:      "core_periodic_analytics",
+		Properties: r.createPosthogProperties(ctx, cfg, sessionCount, userCount),
 	}
-
-	// add host info
-	if info, err := host.InfoWithContext(ctx); err == nil {
-		p.
-			Set("host_id", info.HostID).
-			Set("hostname", info.Hostname).
-			Set("os", info.OS).
-			Set("platform", info.Platform).
-			Set("platform_family", info.PlatformFamily).
-			Set("platform_version", info.PlatformVersion).
-			Set("kernel_arch", info.KernelArch).
-			Set("kernel_version", info.KernelVersion).
-			Set("virtualization_system", info.VirtualizationSystem)
+	if cfg.Options.InstallationID != "" {
+		evt.Groups = posthog.NewGroups().Set("installation_id", cfg.Options.InstallationID)
 	}
-
-	// add memory info
-	if info, err := mem.VirtualMemoryWithContext(ctx); err == nil {
-		p.
-			Set("mem_total", info.Total).
-			Set("mem_available", info.Available).
-			Set("mem_used", info.Used)
-	}
-
-	return p
+	return evt
 }
 
 func (r *reporter) Run(ctx context.Context) {
@@ -152,22 +111,60 @@ func (r *reporter) UpdateUserInfo(sessionCount, userCount int) {
 	sendOrReplace(r.userCount, userCount)
 }
 
-func (r *reporter) getDistinctID(cfg *config.Config) string {
-	if cfg.Options.InstallationID != "" {
-		return cfg.Options.InstallationID
+func (r *reporter) createPosthogProperties(ctx context.Context, cfg *config.Config, sessionCount, userCount int) posthog.Properties {
+	p := posthog.NewProperties()
+	p.Set("session_count", sessionCount).
+		Set("user_count", userCount)
+	p.Merge(r.createPosthogPropertiesForRoutes(cfg))
+
+	// add entity counts
+	certificates, _ := cfg.AllCertificates()
+	p.
+		Set("certificate_count", len(certificates))
+
+	// add cpu info
+	if infos, err := cpu.InfoWithContext(ctx); err == nil {
+		var cpuCount, coreCount int
+		for _, info := range infos {
+			cpuCount += int(info.CPU)
+			coreCount += int(info.Cores)
+			p.
+				Set("cpu_vendor_id", info.VendorID).
+				Set("cpu_family", info.Family).
+				Set("cpu_model", info.Model).
+				Set("cpu_model_name", info.ModelName)
+		}
+		p.
+			Set("cpu_count", cpuCount).
+			Set("cpu_core_count", coreCount)
 	}
 
-	sharedKey, err := cfg.Options.GetSharedKey()
-	if err != nil {
-		return uuid.New().String()
+	// add host info
+	if info, err := host.InfoWithContext(ctx); err == nil {
+		p.
+			Set("host_id", info.HostID).
+			Set("hostname", info.Hostname).
+			Set("os", info.OS).
+			Set("platform", info.Platform).
+			Set("platform_family", info.PlatformFamily).
+			Set("platform_version", info.PlatformVersion).
+			Set("kernel_arch", info.KernelArch).
+			Set("kernel_version", info.KernelVersion).
+			Set("virtualization_system", info.VirtualizationSystem)
 	}
 
-	h := hmac.New(sha256.New, sharedKey)
-	h.Write([]byte("posthog-distinct-id"))
-	return fmt.Sprintf("%x", h.Sum(nil))
+	// add memory info
+	if info, err := mem.VirtualMemoryWithContext(ctx); err == nil {
+		p.
+			Set("mem_total", info.Total).
+			Set("mem_available", info.Available).
+			Set("mem_used", info.Used)
+	}
+
+	return p
 }
 
-func (r *reporter) getPropertiesForRoutes(cfg *config.Config) posthog.Properties {
+func (r *reporter) createPosthogPropertiesForRoutes(cfg *config.Config) posthog.Properties {
 	domains := set.NewTreeSet(func(x, y string) int {
 		return cmp.Or(
 			cmp.Compare(strings.Count(x, "."), strings.Count(y, ".")),
@@ -208,6 +205,21 @@ func (r *reporter) getPropertiesForRoutes(cfg *config.Config) posthog.Properties
 	}
 }
 
+func (r *reporter) getDistinctID(cfg *config.Config) string {
+	if cfg.Options.InstallationID != "" {
+		return cfg.Options.InstallationID
+	}
+
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		return uuid.New().String()
+	}
+
+	h := hmac.New(sha256.New, sharedKey)
+	h.Write([]byte("posthog-distinct-id"))
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
 func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount, userCount int) error {
 	if cfg == nil || !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) {
 		return nil
@@ -216,7 +228,7 @@ func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount,
 	msg := posthog.Capture{
 		DistinctId: r.getDistinctID(cfg),
 		Event:      "core_periodic_analytics",
-		Properties: r.GetProperties(ctx, cfg, sessionCount, userCount),
+		Properties: r.createPosthogProperties(ctx, cfg, sessionCount, userCount),
 	}
 	if cfg.Options.InstallationID != "" {
 		msg.Groups = posthog.NewGroups().Set("installation_id", cfg.Options.InstallationID)
