@@ -208,7 +208,7 @@ func (r *reporter) getPropertiesForRoutes(cfg *config.Config) posthog.Properties
 }
 
 func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount, userCount int) error {
-	if !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) {
+	if cfg == nil || !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) {
 		return nil
 	}
 
