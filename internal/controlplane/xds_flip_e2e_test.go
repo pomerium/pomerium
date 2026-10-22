@@ -2,7 +2,9 @@ package controlplane_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,6 +86,11 @@ func TestXDSRouteSurvivesRemoveAndRestore(t *testing.T) {
 
 	deadline := time.Now().Add(60 * time.Second)
 	for i := 0; time.Now().Before(deadline); i++ {
+		// the xDS exchange for this flip, shown if the route stays unreachable
+		xdsLog := env.NewLogRecorder(testenv.WithSkipCloseDelay(), testenv.WithFilters(func(entry map[string]any) bool {
+			message, _ := entry["message"].(string)
+			return strings.HasPrefix(message, "xdsmgr: ") || message == "controlplane: built discovery resources"
+		}))
 		put(true)
 		put(false)
 
@@ -92,10 +99,27 @@ func TestXDSRouteSurvivesRemoveAndRestore(t *testing.T) {
 			last = status()
 			return last == http.StatusOK
 		}, 30*time.Second, 25*time.Millisecond)
+		entries := xdsLog.Logs()
 		require.Truef(t, ok,
-			"flip %d: the record carrying the route was restored, but the route still returns %d after 30s",
-			i, last)
+			"flip %d: the record carrying the route was restored, but the route still returns %d after 30s\nxDS log for this flip:%s",
+			i, last, formatXDSLog(entries))
 	}
+}
+
+func formatXDSLog(entries []map[string]any) string {
+	var b strings.Builder
+	for _, entry := range entries {
+		fmt.Fprintf(&b, "\n  %v", entry["message"])
+		if typeURL, ok := entry["type-url"].(string); ok {
+			fmt.Fprintf(&b, " %s", typeURL[strings.LastIndex(typeURL, ".")+1:])
+		}
+		for _, key := range []string{"nonce", "latest-nonce", "resources", "removed-resources", "cluster-count", "route-configuration-count"} {
+			if value, ok := entry[key]; ok {
+				fmt.Fprintf(&b, " %s=%v", key, value)
+			}
+		}
+	}
+	return b.String()
 }
 
 func assertEventually(condition func() bool, waitFor, tick time.Duration) bool {

@@ -3,6 +3,7 @@ package xdsmgr
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
@@ -23,6 +24,7 @@ var (
 func logNACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
 	log.Ctx(ctx).Debug().
 		Str("type-url", req.GetTypeUrl()).
+		Str("nonce", req.GetResponseNonce()).
 		Any("error-detail", req.GetErrorDetail()).
 		Msg("xdsmgr: nack")
 
@@ -32,9 +34,30 @@ func logNACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscovery
 func logACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
 	log.Ctx(ctx).Debug().
 		Str("type-url", req.GetTypeUrl()).
+		Str("nonce", req.GetResponseNonce()).
 		Msg("xdsmgr: ack")
 
 	health.ReportRunning(getHealthCheck(req.GetTypeUrl()))
+}
+
+// maxLoggedNames limits how many resource names a single log line lists.
+const maxLoggedNames = 20
+
+// resourceRefs returns "name@version" for each resource, with the version
+// shortened, so a log line shows which resources changed.
+func resourceRefs(resources []*envoy_service_discovery_v3.Resource) []string {
+	refs := make([]string, 0, len(resources))
+	for _, resource := range resources {
+		refs = append(refs, resource.GetName()+"@"+resource.GetVersion()[:min(len(resource.GetVersion()), 8)])
+	}
+	return limitNames(refs)
+}
+
+func limitNames(names []string) []string {
+	if len(names) <= maxLoggedNames {
+		return names
+	}
+	return append(names[:maxLoggedNames:maxLoggedNames], fmt.Sprintf("(%d more)", len(names)-maxLoggedNames))
 }
 
 func getHealthCheck(typeURL string) health.Check {

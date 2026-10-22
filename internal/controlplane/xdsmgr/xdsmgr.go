@@ -130,7 +130,9 @@ func (mgr *Manager) DeltaAggregatedResources(
 			log.Ctx(ctx).
 				Debug().
 				Str("type-url", req.GetTypeUrl()).
-				Msg("xdsmgr: ack")
+				Str("nonce", req.GetResponseNonce()).
+				Str("latest-nonce", mgr.nonce).
+				Msg("xdsmgr: ack of an earlier response")
 		}
 
 		// update subscriptions
@@ -218,8 +220,11 @@ func (mgr *Manager) DeltaAggregatedResources(
 				log.Ctx(ctx).
 					Debug().
 					Str("type-url", res.GetTypeUrl()).
+					Str("nonce", res.GetNonce()).
 					Int("resource-count", len(res.GetResources())).
+					Strs("resources", resourceRefs(res.GetResources())).
 					Int("removed-resource-count", len(res.GetRemovedResources())).
+					Strs("removed-resources", limitNames(res.GetRemovedResources())).
 					Msg("xdsmgr: sending resources")
 				err := stream.Send(res)
 				if err != nil {
