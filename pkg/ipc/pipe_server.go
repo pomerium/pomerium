@@ -29,8 +29,8 @@ func (srv *ProtoPipeServer[Recv, Send]) Serve(ctx context.Context) error {
 	}()
 	select {
 	case <-ctx.Done():
-		<-serveC
-		return fmt.Errorf("server done : %w", ctx.Err())
+		err := errors.Join(<-serveC, context.Cause(ctx))
+		return fmt.Errorf("server done : %w", err)
 	case err := <-serveC:
 		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, io.EOF) {
 			return fmt.Errorf("unexpected serve error : %w", err)
