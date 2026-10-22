@@ -259,7 +259,8 @@ func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount,
 	}
 
 	client, err := posthog.NewWithConfig(PostHogProductionProjectID, posthog.Config{
-		Logger: posthogLogger{},
+		Endpoint: PostHogEndpoint,
+		Logger:   posthogLogger{},
 	})
 	if err != nil {
 		return fmt.Errorf("error creating posthog client: %w", err)
