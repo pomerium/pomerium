@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 	"uuid"
@@ -116,13 +117,13 @@ func (r *reporter) createPosthogProperties(ctx context.Context, cfg *config.Conf
 	p := posthog.NewProperties()
 	p.Set("session_count", sessionCount).
 		Set("user_count", userCount)
-	p["build_version"] = version.FullVersion()
 	p.Merge(r.createPosthogPropertiesForCertificates(cfg))
-	p.Merge(r.createPosthogPropertiesForRoutes(cfg))
-	p.Merge(r.createPosthogPropertiesForSettings(cfg))
 	p.Merge(r.createPosthogPropertiesForCPU(ctx))
 	p.Merge(r.createPosthogPropertiesForHost(ctx))
 	p.Merge(r.createPosthogPropertiesForMemory(ctx))
+	p.Merge(r.createPosthogPropertiesForProduct(cfg))
+	p.Merge(r.createPosthogPropertiesForRoutes(cfg))
+	p.Merge(r.createPosthogPropertiesForSettings(cfg))
 	return p
 }
 
@@ -176,6 +177,22 @@ func (r *reporter) createPosthogPropertiesForMemory(ctx context.Context) posthog
 			Set("kernel_arch", info.KernelArch).
 			Set("kernel_version", info.KernelVersion).
 			Set("virtualization_system", info.VirtualizationSystem)
+	}
+	return p
+}
+
+func (r *reporter) createPosthogPropertiesForProduct(cfg *config.Config) posthog.Properties {
+	p := posthog.NewProperties()
+	p["build_version"] = version.FullVersion()
+	p["envoy_version"] = cfg.EnvoyVersion
+	if cfg.ZeroClusterID != "" {
+		p["product"] = "zero"
+		p["zero_cluster_id"] = cfg.ZeroClusterID
+		p["zero_organization_id"] = cfg.ZeroOrganizationID
+	} else if len(os.Args) > 0 && os.Args[0] == "manager" {
+		p["product"] = "ingress-controller"
+	} else {
+		p["product"] = "core"
 	}
 	return p
 }
