@@ -26,7 +26,7 @@ func (srv *Server) shouldCreateRecordingServer() bool {
 		return true
 	}
 	select {
-	case <-srv.recordingServerErrC:
+	case <-srv.recordingServerDone:
 		return true
 	default:
 	}
@@ -49,7 +49,9 @@ func (srv *Server) enableOrUpdateSessionRecording(
 			panic(err)
 		}
 		go func() {
-			srv.recordingServerErrC <- newSrv.Serve(ctx)
+			err := newSrv.Serve(ctx)
+			log.Ctx(ctx).Error().Err(err).Msg("error serving recording server")
+			srv.recordingServerDone <- struct{}{}
 		}()
 		srv.recordingServer.Store(&newSrv)
 	} else {
