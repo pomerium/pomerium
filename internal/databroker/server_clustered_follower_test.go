@@ -2,10 +2,8 @@ package databroker_test
 
 import (
 	"fmt"
-	"sync"
 	"testing"
 	"time"
-	"uuid"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +17,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/testutil/healthtest"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -128,12 +127,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.ErrorIs(t, err, databrokerpb.ErrNodeIsNotLeader)
 	})
 	t.Run("sync", func(t *testing.T) {
-		healthProviderID := health.ProviderID(uuid.New().String())
-		healthTracker := new(healthProviderTracker)
-		mgr := health.GetProviderManager()
-		mgr.Register(healthProviderID, healthTracker)
-		defer mgr.Deregister(healthProviderID)
-
+		testHealthTr := healthtest.NewTrackerForTest(t)
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
 		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
@@ -149,7 +143,9 @@ func TestClusteredFollowerServer(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC, databroker.WithFollowerHealthAttrs(
+			healthtest.HealhAttrTest(testHealthTr.GetUUID()),
+		))
 		t.Cleanup(follower.Stop)
 
 		for i := range 100 {
@@ -177,7 +173,17 @@ func TestClusteredFollowerServer(t *testing.T) {
 		})
 		assert.Equal(t, codes.NotFound, status.Code(err), "should clear local records during sync")
 
-		assert.Nil(t, healthTracker.GetErrors(health.DatabrokerCluster), "should not report an error during normal operation")
+		assert.EventuallyWithT(t, func(collect *assert.CollectT) {
+			assert.Equal(collect, []healthtest.HealthStatus{
+				{
+					Check:      health.DatabrokerCluster,
+					Status:     health.StatusRunning,
+					Attributes: []health.Attr{healthtest.HealhAttrTest(testHealthTr.GetUUID()), health.StrAttr("member", "follower")},
+				},
+			}, testHealthTr.GetStatuses(health.DatabrokerCluster))
+		}, time.Second, time.Millisecond)
+
+		assert.Nil(t, testHealthTr.GetErrors(health.DatabrokerCluster), "should not report an error during normal operation")
 	})
 	t.Run("checkpoints", func(t *testing.T) {
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
@@ -214,56 +220,4 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.ErrorIs(t, err, databrokerpb.ErrSetCheckpointNotSupported,
 			"should not allow setting checkpoints")
 	})
-}
-
-type healthStatus struct {
-	check      health.Check
-	status     health.Status
-	attributes []health.Attr
-}
-type healthError struct {
-	check      health.Check
-	err        error
-	attributes []health.Attr
-}
-type healthProviderTracker struct {
-	mu       sync.Mutex
-	statuses []healthStatus
-	errors   []healthError
-}
-
-func (t *healthProviderTracker) GetErrors(check health.Check) []healthError {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	var s []healthError
-	for _, el := range t.errors {
-		if el.check == check {
-			s = append(s, el)
-		}
-	}
-	return s
-}
-
-func (t *healthProviderTracker) GetStatuses(check health.Check) []healthStatus {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	var s []healthStatus
-	for _, el := range t.statuses {
-		if el.check == check {
-			s = append(s, el)
-		}
-	}
-	return s
-}
-
-func (t *healthProviderTracker) ReportError(check health.Check, err error, attributes ...health.Attr) {
-	t.mu.Lock()
-	t.errors = append(t.errors, healthError{check, err, attributes})
-	t.mu.Unlock()
-}
-
-func (t *healthProviderTracker) ReportStatus(check health.Check, status health.Status, attributes ...health.Attr) {
-	t.mu.Lock()
-	t.statuses = append(t.statuses, healthStatus{check, status, attributes})
-	t.mu.Unlock()
 }

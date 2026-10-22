@@ -38,20 +38,42 @@ type clusteredFollowerServer struct {
 	leader    Server
 	local     Server
 
-	cancel context.CancelCauseFunc
-	done   chan struct{}
+	cancel           context.CancelCauseFunc
+	done             chan struct{}
+	extraHealthAttrs []health.Attr
+}
+
+type FollowerOptions struct {
+	extraHealthAttrs []health.Attr
+}
+
+func (o *FollowerOptions) Apply(opts ...FollowerOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type FollowerOption func(o *FollowerOptions)
+
+func WithFollowerHealthAttrs(attrs ...health.Attr) FollowerOption {
+	return func(o *FollowerOptions) {
+		o.extraHealthAttrs = attrs
+	}
 }
 
 // NewClusteredFollowerServer creates a new clustered follower databroker
 // server. A clustered follower server forwards all requests to a leader
 // databroker via the passed client connection.
-func NewClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local Server, leaderCC grpc.ClientConnInterface) Server {
+func NewClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local Server, leaderCC grpc.ClientConnInterface, opts ...FollowerOption) Server {
+	options := &FollowerOptions{}
+	options.Apply(opts...)
 	srv := &clusteredFollowerServer{
-		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-clustered-follower-server"),
-		leaderCC:  leaderCC,
-		leader:    NewForwardingServer(leaderCC),
-		local:     local,
-		done:      make(chan struct{}, 1),
+		telemetry:        *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-clustered-follower-server"),
+		leaderCC:         leaderCC,
+		leader:           NewForwardingServer(leaderCC),
+		local:            local,
+		done:             make(chan struct{}, 1),
+		extraHealthAttrs: options.extraHealthAttrs,
 	}
 	ctx := context.Background()
 	ctx, srv.cancel = context.WithCancelCause(ctx)
@@ -477,9 +499,9 @@ func (srv *clusteredFollowerServer) run(ctx context.Context) {
 }
 
 func (srv *clusteredFollowerServer) healthAttrs() []health.Attr {
-	return []health.Attr{
-		health.StrAttr("member", "follower"),
-	}
+	attrs := make([]health.Attr, 0, len(srv.extraHealthAttrs)+1)
+	attrs = append(attrs, srv.extraHealthAttrs...)
+	return append(attrs, health.StrAttr("member", "follower"))
 }
 
 // sync syncs records from the leader and stores them in the local store.
