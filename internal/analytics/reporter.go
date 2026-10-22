@@ -241,6 +241,7 @@ func (r *reporter) createPosthogPropertiesForSettings(cfg *config.Config) postho
 	return posthog.Properties{
 		"identity_provider":     cfg.Options.Provider,
 		"identity_provider_url": cfg.Options.ProviderURL,
+		"originator_id":         cfg.Options.OriginatorID.Value,
 	}
 }
 
