@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
 )
@@ -43,7 +44,6 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		return nil, fmt.Errorf("%s: failed creating oidc provider: %w", Name, err)
 	}
 	p.Provider = genericOidc
-
 	return &p, nil
 }
 
@@ -53,7 +53,10 @@ func (p *Provider) Name() string {
 }
 
 // SignOut implements logout as described in https://auth0.com/docs/api/authentication#logout.
-func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, _, authenticateSignedOutURL, redirectToURL string) error {
+
+func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, options identity.SignOutOptions) error {
+	authenticateSignedOutURL := options.AuthenticateSignedOutURL
+	redirectToURL := options.RedirectToURL
 	oa, err := p.GetOauthConfig()
 	if err != nil {
 		return fmt.Errorf("error getting auth0 oauth config: %w", err)

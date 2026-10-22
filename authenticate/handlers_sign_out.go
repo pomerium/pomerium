@@ -1,17 +1,18 @@
 package authenticate
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 
+	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 )
@@ -23,6 +24,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	// except if we are using the hosted-authenticate OIDC flow (in which
 	// case the hosted-authenticate service will show its own prompt).
 	isHostedAuthenticateOIDC := a.options.Load().Provider == hosted.Name
+
 	err := a.state.Load().flow.VerifyAuthenticateSignature(r)
 	if err != nil && !isHostedAuthenticateOIDC {
 		authenticateURL, err := a.options.Load().GetAuthenticateURL()
@@ -46,6 +48,7 @@ func (a *Authenticate) signOutAndRedirect(w http.ResponseWriter, r *http.Request
 	defer span.End()
 
 	options := a.options.Load()
+	state := a.state.Load()
 	idpID := a.getIdentityProviderIDForRequest(r)
 
 	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
@@ -53,7 +56,9 @@ func (a *Authenticate) signOutAndRedirect(w http.ResponseWriter, r *http.Request
 		return err
 	}
 
-	rawIDToken := a.revokeSession(ctx, w, r)
+	h, _ := a.getSessionHandleFromRequest(r)
+	// clear the user's local session no matter what
+	state.sessionHandleWriter.ClearSessionHandle(w)
 
 	authenticateURL, err := options.GetAuthenticateURL()
 	if err != nil {
@@ -76,39 +81,35 @@ func (a *Authenticate) signOutAndRedirect(w http.ResponseWriter, r *http.Request
 		Path: endpoints.PathPomeriumSignedOut,
 	}).String()
 
-	if err := authenticator.SignOut(w, r, rawIDToken, authenticateSignedOutURL, signOutURL); err == nil {
+	logoutHints := state.flow.RevokeSession(ctx, r, authenticator, h)
+
+	if err := a.fullLogout(w, r, logoutHints, authenticator, authenticateSignedOutURL, signOutURL); err == nil {
 		return nil
 	} else if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
 		log.Ctx(r.Context()).Error().Err(err).Msg("authenticate: failed to get sign out url for authenticator")
 	}
 
-	// if the authenticator failed to sign out, and no sign out url is defined, just go to the signed out page
 	if signOutURL == "" {
-		signOutURL = authenticateSignedOutURL
+		httputil.Redirect(w, r, authenticateSignedOutURL, http.StatusFound)
+		return nil
 	}
 
 	httputil.Redirect(w, r, signOutURL, http.StatusFound)
 	return nil
 }
 
-// revokeSession always clears the local session and tries to revoke the associated session stored in the
-// databroker. If successful, it returns the original `id_token` of the session, if failed, returns
-// and empty string.
-func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter, r *http.Request) string {
-	state := a.state.Load()
-	options := a.options.Load()
-
-	// clear the user's local session no matter what
-	defer state.sessionHandleWriter.ClearSessionHandle(w)
-
-	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
-
-	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
-	if err != nil {
-		return ""
-	}
-
-	h, _ := a.getSessionHandleFromRequest(r)
-
-	return state.flow.RevokeSession(ctx, r, authenticator, h)
+func (a *Authenticate) fullLogout(
+	w http.ResponseWriter,
+	r *http.Request,
+	hints authenticateflow.SignOutHints,
+	authenticator identity.Authenticator,
+	authenticateSignedOutURL, signOutURL string,
+) error {
+	err := authenticator.SignOut(w, r, identity.SignOutOptions{
+		IDTokenHint:              hints.IDTokenHint,
+		LogoutHint:               hints.LogoutHint,
+		AuthenticateSignedOutURL: authenticateSignedOutURL,
+		RedirectToURL:            signOutURL,
+	})
+	return err
 }

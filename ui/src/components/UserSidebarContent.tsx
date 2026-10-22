@@ -1,4 +1,4 @@
-import { Devices } from "@mui/icons-material";
+import { BadgeOutlined, Devices } from "@mui/icons-material";
 import {
   List,
   ListItemButton,
@@ -7,7 +7,7 @@ import {
 } from "@mui/material";
 import type { FC, JSX, ReactNode } from "react";
 import { use } from "react";
-import { Link, Lock, User, Users } from "react-feather";
+import { Link, User, Users } from "react-feather";
 
 import { SubpageContext } from "../context/Subpage";
 import type { SidebarData } from "../types";
@@ -40,8 +40,8 @@ const baseSectionList: Subpage[] = [
     pathname: "/.pomerium/routes",
   },
   {
-    title: "Client Bindings",
-    icon: <Lock />,
+    title: "Sessions",
+    icon: <BadgeOutlined />,
     pathname: "/.pomerium/session_binding_info",
   },
 ];

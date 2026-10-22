@@ -52,12 +52,12 @@ func TestRouteSessions(t *testing.T) {
 			assert.Equal(t, claims1.ID, claims2.ID)
 
 			// The only cookies set on the authenticate service domain should be
-			// "_pomerium_authenticate" and "_pomerium_csrf". (No identity profile
-			// cookies should be present.)
+			// "_pomerium_authenticate","_pomerium_csrf" and "_pomerium_browser_id".
+			// (No identity profile cookies should be present.)
 			c := client.Jar.Cookies(mustParseURL("https://authenticate.localhost.pomerium.io"))
-			assert.Equal(t, 2, len(c))
+			assert.Equal(t, 3, len(c))
 			cookieNames := slices.Map(c, func(c *http.Cookie) string { return c.Name })
-			assert.ElementsMatch(t, []string{"_pomerium_authenticate", "_pomerium_csrf"}, cookieNames)
+			assert.ElementsMatch(t, []string{"_pomerium_authenticate", "_pomerium_csrf", "_pomerium_browser_id"}, cookieNames)
 		}
 	})
 }
