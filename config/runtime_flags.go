@@ -1,6 +1,10 @@
 package config
 
-import "maps"
+import (
+	"maps"
+
+	"github.com/pomerium/pomerium/internal/version"
+)
 
 var (
 	// RuntimeFlagAddExtraMetricsLabels enables adding extra labels to metrics (host and installation id)
@@ -44,7 +48,7 @@ var (
 	RuntimeFlagPomeriumJWTEndpoint = runtimeFlag("pomerium_jwt_endpoint", false)
 
 	// RuntimeFlagProductAnalytics enables product analytic collection
-	RuntimeFlagProductAnalytics = runtimeFlag("product_analytics", true)
+	RuntimeFlagProductAnalytics = runtimeFlag("product_analytics", version.GitCommit != "")
 
 	// RuntimeFlagRefreshSessionAtIDTokenExpiration changes the identity manager session refresh
 	// timing to also take into account the ID token expiration time.
