@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/internal/version"
 )
 
 type Reporter interface {
@@ -115,6 +116,7 @@ func (r *reporter) createPosthogProperties(ctx context.Context, cfg *config.Conf
 	p := posthog.NewProperties()
 	p.Set("session_count", sessionCount).
 		Set("user_count", userCount)
+	p["build_version"] = version.FullVersion()
 	p.Merge(r.createPosthogPropertiesForCertificates(cfg))
 	p.Merge(r.createPosthogPropertiesForRoutes(cfg))
 	p.Merge(r.createPosthogPropertiesForSettings(cfg))

@@ -64,6 +64,7 @@ func TestCreatePosthogEvent(t *testing.T) {
 	assert.Equal(t, 100, evt.Properties["tcp_route_count"])
 	assert.Equal(t, 100, evt.Properties["udp_route_count"])
 	assert.Equal(t, []string{"accept", "authenticated_user"}, evt.Properties["ppl_criteria"])
+	assert.Contains(t, evt.Properties, "build_version")
 }
 
 func mustParsePPL(t testing.TB, raw string) *config.PPLPolicy {
