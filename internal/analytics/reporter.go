@@ -172,6 +172,7 @@ func (r *reporter) createPosthogPropertiesForRoutes(cfg *config.Config) posthog.
 			strings.Compare(x, y),
 		)
 	})
+	criteria := set.NewTreeSet(strings.Compare)
 	var routeCount, kubernetesCount, mcpCount, sshCount, tcpCount, udpCount int
 	for route := range cfg.Options.GetAllPolicies() {
 		routeCount++
@@ -193,9 +194,25 @@ func (r *reporter) createPosthogPropertiesForRoutes(cfg *config.Config) posthog.
 				}
 			}
 		}
+		ppl := route.ToPPL()
+		for _, rule := range ppl.Rules {
+			for _, criterion := range rule.And {
+				criteria.Insert(criterion.Name)
+			}
+			for _, criterion := range rule.Or {
+				criteria.Insert(criterion.Name)
+			}
+			for _, criterion := range rule.Nor {
+				criteria.Insert(criterion.Name)
+			}
+			for _, criterion := range rule.Not {
+				criteria.Insert(criterion.Name)
+			}
+		}
 	}
 	return posthog.Properties{
 		"domains":                domains.Slice(),
+		"ppl_criteria":           criteria.Slice(),
 		"route_count":            routeCount,
 		"kubernetes_route_count": kubernetesCount,
 		"mcp_route_count":        mcpCount,

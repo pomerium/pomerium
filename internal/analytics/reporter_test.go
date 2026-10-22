@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/analytics"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 func TestCreatePosthogEvent(t *testing.T) {
@@ -20,11 +23,13 @@ func TestCreatePosthogEvent(t *testing.T) {
 	for i := range 100 {
 		options.Routes = append(options.Routes,
 			config.Policy{
-				From: fmt.Sprintf("https://a.b.c.d.route-%02d.com", i),
+				From:   fmt.Sprintf("https://a.b.c.d.route-%02d.com", i),
+				Policy: mustParsePPL(t, `{"allow": {"or": [{"authenticated_user": 1}]}}`),
 			},
 			config.Policy{
-				From: fmt.Sprintf("https://a.b.c.route-%02d.com", i),
-				MCP:  &config.MCP{Server: &config.MCPServer{}},
+				From:   fmt.Sprintf("https://a.b.c.route-%02d.com", i),
+				MCP:    &config.MCP{Server: &config.MCPServer{}},
+				Policy: mustParsePPL(t, `{"allow": {"and": [{"accept": 1}]}}`),
 			},
 			config.Policy{
 				From: fmt.Sprintf("ssh://a.b.c.route-%02d.com", i),
@@ -58,4 +63,11 @@ func TestCreatePosthogEvent(t *testing.T) {
 	assert.Equal(t, 100, evt.Properties["ssh_route_count"])
 	assert.Equal(t, 100, evt.Properties["tcp_route_count"])
 	assert.Equal(t, 100, evt.Properties["udp_route_count"])
+	assert.Equal(t, []string{"accept", "authenticated_user"}, evt.Properties["ppl_criteria"])
+}
+
+func mustParsePPL(t testing.TB, raw string) *config.PPLPolicy {
+	ppl, err := parser.New().ParseJSON(strings.NewReader(raw))
+	require.NoError(t, err)
+	return &config.PPLPolicy{Policy: ppl}
 }
