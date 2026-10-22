@@ -115,32 +115,54 @@ func (r *reporter) createPosthogProperties(ctx context.Context, cfg *config.Conf
 	p := posthog.NewProperties()
 	p.Set("session_count", sessionCount).
 		Set("user_count", userCount)
+	p.Merge(r.createPosthogPropertiesForCertificates(cfg))
 	p.Merge(r.createPosthogPropertiesForRoutes(cfg))
 	p.Merge(r.createPosthogPropertiesForSettings(cfg))
+	p.Merge(r.createPosthogPropertiesForCPU(ctx))
+	p.Merge(r.createPosthogPropertiesForHost(ctx))
+	p.Merge(r.createPosthogPropertiesForMemory(ctx))
+	return p
+}
 
+func (r *reporter) createPosthogPropertiesForCertificates(cfg *config.Config) posthog.Properties {
+	p := posthog.NewProperties()
 	// add entity counts
 	certificates, _ := cfg.AllCertificates()
-	p.
-		Set("certificate_count", len(certificates))
+	p["certificate_count"] = len(certificates)
+	return p
+}
 
+func (r *reporter) createPosthogPropertiesForCPU(ctx context.Context) posthog.Properties {
+	p := posthog.NewProperties()
 	// add cpu info
 	if infos, err := cpu.InfoWithContext(ctx); err == nil {
-		var cpuCount, coreCount int
+		p["cpu_count"] = len(infos)
+		var coreCount int
 		for _, info := range infos {
-			cpuCount += int(info.CPU)
 			coreCount += int(info.Cores)
-			p.
-				Set("cpu_vendor_id", info.VendorID).
-				Set("cpu_family", info.Family).
-				Set("cpu_model", info.Model).
-				Set("cpu_model_name", info.ModelName)
+			p["cpu_vendor_id"] = info.VendorID
+			p["cpu_family"] = info.Family
+			p["cpu_model"] = info.Model
+			p["cpu_model_name"] = info.ModelName
 		}
-		p.
-			Set("cpu_count", cpuCount).
-			Set("cpu_core_count", coreCount)
+		p["cpu_core_count"] = coreCount
 	}
+	return p
+}
 
-	// add host info
+func (r *reporter) createPosthogPropertiesForHost(ctx context.Context) posthog.Properties {
+	p := posthog.NewProperties()
+	if info, err := mem.VirtualMemoryWithContext(ctx); err == nil {
+		p.
+			Set("mem_total", info.Total).
+			Set("mem_available", info.Available).
+			Set("mem_used", info.Used)
+	}
+	return p
+}
+
+func (r *reporter) createPosthogPropertiesForMemory(ctx context.Context) posthog.Properties {
+	p := posthog.NewProperties()
 	if info, err := host.InfoWithContext(ctx); err == nil {
 		p.
 			Set("host_id", info.HostID).
@@ -153,15 +175,6 @@ func (r *reporter) createPosthogProperties(ctx context.Context, cfg *config.Conf
 			Set("kernel_version", info.KernelVersion).
 			Set("virtualization_system", info.VirtualizationSystem)
 	}
-
-	// add memory info
-	if info, err := mem.VirtualMemoryWithContext(ctx); err == nil {
-		p.
-			Set("mem_total", info.Total).
-			Set("mem_available", info.Available).
-			Set("mem_used", info.Used)
-	}
-
 	return p
 }
 
