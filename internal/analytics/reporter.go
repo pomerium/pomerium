@@ -133,6 +133,7 @@ func (r *reporter) Run(ctx context.Context) {
 			err := r.report(ctx, cfg, sessionCount, userCount)
 			if err == nil {
 				bo.Reset()
+				backoffTimer = nil
 			} else {
 				log.Ctx(ctx).Err(err).Msg("analytics: failed to report analytics")
 				backoffTimer = time.After(bo.NextBackOff())
