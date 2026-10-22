@@ -161,7 +161,9 @@ func (r *reporter) getDistinctID(cfg *config.Config) string {
 		return uuid.New().String()
 	}
 
-	return fmt.Sprintf("%x", hmac.New(sha256.New, sharedKey).Sum([]byte("posthog-distinct-id")))
+	h := hmac.New(sha256.New, sharedKey)
+	h.Write([]byte("posthog-distinct-id"))
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func (r *reporter) getPropertiesForRoutes(cfg *config.Config) posthog.Properties {
