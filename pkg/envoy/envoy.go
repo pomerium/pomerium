@@ -64,7 +64,7 @@ type Server struct {
 	dynamicExtensionHealthProbeCancel context.CancelFunc
 
 	recordingServer     stdatomic.Pointer[recording.Server]
-	recordingServerErrC chan error
+	recordingServerDone chan struct{}
 }
 type ServerOptions struct {
 	extraEnvVars          []string
@@ -134,7 +134,7 @@ func NewServer(
 		shutdownC:            shutdown,
 		monitorProcessCancel: func() {},
 		recordingServer:      stdatomic.Pointer[recording.Server]{},
-		recordingServerErrC:  make(chan error, 1),
+		recordingServerDone:  make(chan struct{}, 1),
 	}
 	go srv.runProcessCollector(ctx)
 
