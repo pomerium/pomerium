@@ -60,12 +60,11 @@ func newProxyStateFromConfig(ctx context.Context, previousState *proxyState, tra
 	}
 
 	cacheInvalidator := databroker.NewCacheInvalidator(storage.GlobalCache)
-	dataBrokerConn, err := outboundGrpcConn.Get(ctx,
+	dataBrokerConn, err := outboundGrpcConn.Get(
+		ctx,
 		&grpc.OutboundOptions{
-			OutboundPort:   cfg.OutboundPort,
-			InstallationID: cfg.Options.InstallationID,
-			ServiceName:    cfg.Options.Services,
-			SignedJWTKey:   state.sharedKey,
+			OutboundPort: cfg.OutboundPort,
+			SignedJWTKey: state.sharedKey,
 		},
 		googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 		googlegrpc.WithChainUnaryInterceptor(cacheInvalidator.UnaryClientInterceptor),

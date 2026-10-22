@@ -75,12 +75,11 @@ func newAuthorizeStateFromConfig(
 	}
 
 	cacheInvalidator := databroker.NewCacheInvalidator(storage.GlobalCache)
-	cc, err := outboundGrpcConn.Get(ctx,
+	cc, err := outboundGrpcConn.Get(
+		ctx,
 		&grpc.OutboundOptions{
-			OutboundPort:   cfg.OutboundPort,
-			InstallationID: cfg.Options.InstallationID,
-			ServiceName:    cfg.Options.Services,
-			SignedJWTKey:   sharedKey,
+			OutboundPort: cfg.OutboundPort,
+			SignedJWTKey: sharedKey,
 		},
 		googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 		googlegrpc.WithChainUnaryInterceptor(cacheInvalidator.UnaryClientInterceptor),

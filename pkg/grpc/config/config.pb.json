@@ -7415,6 +7415,18 @@
               "defaultValue": ""
             },
             {
+              "name": "enterprise",
+              "description": "Embedded enterprise options.",
+              "label": "optional",
+              "type": "Struct",
+              "longType": "google.protobuf.Struct",
+              "fullType": "google.protobuf.Struct",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_enterprise",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the settings were created.",
               "label": "",

@@ -5484,6 +5484,12 @@ components:
             - type: "null"
           title: oidc_bridge
           description: Configure default OIDC bridge support for all routes.
+        enterprise:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+            - type: "null"
+          title: enterprise
+          description: Embedded enterprise options.
         createdAt:
           title: created_at
           description: When the settings were created.
