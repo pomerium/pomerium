@@ -139,11 +139,21 @@ jobs:
     runs-on: ubuntu-22.04
     needs: publish
     steps:
+      - name: Create CI token
+        id: ci-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
+          owner: pomerium
+          repositories: gitops-argocd
+          permission-contents: write
+
       - name: Checkout Gitops Repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           repository: pomerium/gitops-argocd
-          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+          token: ${{ steps.ci-token.outputs.token }}
 
       - name: Bump psql environment
         uses: mikefarah/yq@1b9b4ac5187171d2e5e3129be0cfa827c7f9d53d
