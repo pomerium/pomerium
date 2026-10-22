@@ -30,20 +30,31 @@ jobs:
       - name: Check for Changes
         id: git-diff
         run: |
-          git config --global user.email "apparitor@users.noreply.github.com"
-          git config --global user.name "GitHub Actions"
+          git config --global user.email "346165314+pomerium-ci-bot[bot]@users.noreply.github.com"
+          git config --global user.name "pomerium-ci-bot[bot]"
           git add .
           git diff --cached --exit-code || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Create CI token
+        id: ci-token
+        if: ${{ steps.git-diff.outputs.changed }} == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
 
       - name: Create Pull Request
         if: ${{ steps.git-diff.outputs.changed }} == 'true'
         uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725
         with:
-          author: GitHub Actions <apparitor@users.noreply.github.com>
+          author: pomerium-ci-bot[bot] <346165314+pomerium-ci-bot[bot]@users.noreply.github.com>
           body: "This PR updates dependencies not managed by dependabot."
           branch: ci/update-core
           commit-message: "ci: update dependencies"
           delete-branch: true
           labels: ci
           title: "ci: update dependencies"
-          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+          token: ${{ steps.ci-token.outputs.token }}
