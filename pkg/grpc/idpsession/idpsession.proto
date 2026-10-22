@@ -51,6 +51,7 @@ enum BindingProtocol {
   BINDING_PROTOCOL_UNKNOWN = 0;
   BINDING_PROTOCOL_BROWSER = 1;
   BINDING_PROTOCOL_MCP = 2;
+  BINDING_PROTOCOL_SSH = 3;
 }
 
 // Binding binds a Pomerium client session to a given IDPSession and its set of tokens.

@@ -1151,6 +1151,9 @@ message Settings {
   optional HeadersWithUnderscoresAction headers_with_underscores_action = 187;
   // Configure default OIDC bridge support for all routes.
   optional OIDCBridge oidc_bridge = 189;
+  // How long SSH sessions remain active until they are forced to re-authenticate.
+  // When unset, defaults to the value of `cookie_expire` config option.
+  optional google.protobuf.Duration ssh_expire = 193;
   // Embedded enterprise options.
   optional google.protobuf.Struct enterprise = 192 [(sensitive) = true];
 

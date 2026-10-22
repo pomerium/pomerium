@@ -257,22 +257,6 @@ func (f *fakeIssuer) GetBindingRequest(context.Context, code.CodeID) (*session.S
 	return nil, false
 }
 
-func (f *fakeIssuer) GetSessionBindingsByUserID(context.Context, string) (map[string]*code.IdentitySessionPair, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
 func (f *fakeIssuer) RevokeCode(context.Context, code.CodeID) error {
-	return fmt.Errorf("not implemented")
-}
-
-func (f *fakeIssuer) RevokeSessionBinding(context.Context, code.BindingID) error {
-	return fmt.Errorf("not implemented")
-}
-
-func (f *fakeIssuer) RevokeSessionBindingBySession(context.Context, string) ([]*databroker.Record, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (f *fakeIssuer) RevokeIdentityBinding(context.Context, code.BindingID) error {
 	return fmt.Errorf("not implemented")
 }

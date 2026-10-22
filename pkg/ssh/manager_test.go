@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/testutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/idpsession"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
@@ -595,12 +596,12 @@ func TestReverseTunnelEDS(t *testing.T) {
 					}),
 				},
 				{
-					Type: "type.googleapis.com/session.SessionBinding",
+					Type: "type.googleapis.com/idpsession.Binding",
 					Id:   resp.GetAllow().AuthContext.SessionBindingId,
-					Data: marshalAny(&session.SessionBinding{
-						Protocol:  "ssh",
-						SessionId: resp.GetAllow().AuthContext.SessionId,
-						UserId:    resp.GetAllow().AuthContext.UserId,
+					Data: marshalAny(&idpsession.Binding{
+						Id:       resp.GetAllow().AuthContext.SessionBindingId,
+						Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
+						UserId:   resp.GetAllow().AuthContext.UserId,
 					}),
 				},
 			},
@@ -793,12 +794,12 @@ func TestReverseTunnelEDS(t *testing.T) {
 					}),
 				},
 				{
-					Type: "type.googleapis.com/session.SessionBinding",
+					Type: "type.googleapis.com/idpsession.Binding",
 					Id:   resp1.GetAllow().AuthContext.SessionBindingId,
-					Data: marshalAny(&session.SessionBinding{
-						Protocol:  "ssh",
-						SessionId: resp1.GetAllow().AuthContext.SessionId,
-						UserId:    resp1.GetAllow().AuthContext.UserId,
+					Data: marshalAny(&idpsession.Binding{
+						Id:       resp1.GetAllow().AuthContext.SessionBindingId,
+						Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
+						UserId:   resp1.GetAllow().AuthContext.UserId,
 					}),
 				},
 				{
@@ -809,12 +810,12 @@ func TestReverseTunnelEDS(t *testing.T) {
 					}),
 				},
 				{
-					Type: "type.googleapis.com/session.SessionBinding",
+					Type: "type.googleapis.com/idpsession.Binding",
 					Id:   resp2.GetAllow().AuthContext.SessionBindingId,
-					Data: marshalAny(&session.SessionBinding{
-						Protocol:  "ssh",
-						SessionId: resp2.GetAllow().AuthContext.SessionId,
-						UserId:    resp2.GetAllow().AuthContext.UserId,
+					Data: marshalAny(&idpsession.Binding{
+						Id:       resp2.GetAllow().AuthContext.SessionBindingId,
+						Protocol: idpsession.BindingProtocol_BINDING_PROTOCOL_SSH,
+						UserId:   resp2.GetAllow().AuthContext.UserId,
 					}),
 				},
 			},

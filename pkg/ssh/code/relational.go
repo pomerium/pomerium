@@ -41,15 +41,6 @@ func getSbrByFingerprintBuilder(fingerprintID string) *databroker.QueryRequest {
 	}
 }
 
-func getSbBySessionBuilder(sessionID string) *databroker.QueryRequest {
-	filter := indexedFieldFilter("session_id", sessionID)
-	return &databroker.QueryRequest{
-		Type:   "type.googleapis.com/session.SessionBinding",
-		Filter: filter,
-		Limit:  queryLimit,
-	}
-}
-
 func getCodeByBindingKey(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
@@ -93,12 +84,4 @@ func getCodeByBindingKey(
 
 	n := len(ret) - 1
 	return ret[n].A, nil
-}
-
-func getSessionBindingBySession(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) ([]*databroker.Record, error) {
-	qr, err := client.Query(ctx, getSbBySessionBuilder(sessionID))
-	if err != nil {
-		return nil, err
-	}
-	return qr.GetRecords(), nil
 }

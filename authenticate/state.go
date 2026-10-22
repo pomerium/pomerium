@@ -38,7 +38,6 @@ type flow interface {
 	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 
 	RevokeSessionBinding(ctx context.Context, h *session.Handle, protocol string, bindingID string) error
-	RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, h *session.Handle) error
 }
 
 type authenticateState struct {

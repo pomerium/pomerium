@@ -21,6 +21,16 @@ import { SmallTooltip } from "./Tooltips";
 type SignInVerifyPageProps = {
   data: SignInVerifyPageData;
 };
+
+function protocolToUserFriendlyClient(protocol: string): string {
+  switch (protocol) {
+    case "ssh":
+      return "SSH key";
+    default:
+      return "client";
+  }
+}
+
 const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
   const parseToDate = (v: unknown): Date => {
     if (v instanceof Date && !isNaN(v.getTime())) return v;
@@ -155,9 +165,11 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
                 slotProps={{ input: { form: "authorize-form" } }}
               />
             }
-            label="Remember me"
+            label={`Do not ask again for this ${protocolToUserFriendlyClient(data.protocol)}`}
           />
-          <SmallTooltip description="When enabled, your client is persistently bound to your user. This can be undone later" />
+          <SmallTooltip
+            description={`This ${protocolToUserFriendlyClient(data.protocol)} will automatically be approved until you log out or your session ends`}
+          />
         </Box>
 
         <Stack

@@ -78,3 +78,15 @@ func getBrowserIDFromCookie(name string, authKey []byte, r *http.Request) (strin
 
 	return browserID, nil
 }
+
+func ClearBrowserIDCookie(w http.ResponseWriter, cookieName string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     browserIDCookieName(cookieName),
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		MaxAge:   -1,
+		Expires:  time.Now().Add(-time.Hour),
+	})
+}
