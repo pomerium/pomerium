@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/pomerium/pomerium/internal/signal"
@@ -123,6 +124,125 @@ func TestManager(t *testing.T) {
 			return assert.ObjectsAreEqual([]string{"r1"}, msg.GetRemovedResources())
 		}, time.Second*5, time.Millisecond)
 	})
+}
+
+// TestManager_LateACKOfRevertedUpdate covers an update that is reverted
+// before envoy acknowledges it. Envoy applies the intermediate update, so the
+// manager must re-send the reverted resources even though they are identical
+// to the ones envoy acknowledged before.
+//
+// It does not run in parallel because it replaces onHandleDeltaRequest.
+func TestManager_LateACKOfRevertedUpdate(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
+	defer clearTimeout()
+
+	typeURL := "example.com/example"
+	full := map[string][]*envoy_service_discovery_v3.Resource{
+		typeURL: {
+			{Name: "r1", Version: "1"},
+			{Name: "r2", Version: "1"},
+		},
+	}
+	partial := map[string][]*envoy_service_discovery_v3.Resource{
+		typeURL: {
+			{Name: "r1", Version: "1"},
+		},
+	}
+
+	stateChanged := signal.New()
+	origOnHandleDeltaRequest := onHandleDeltaRequest
+	defer func() { onHandleDeltaRequest = origOnHandleDeltaRequest }()
+	onHandleDeltaRequest = func(_ *streamState) {
+		stateChanged.Broadcast(ctx)
+	}
+
+	srv := grpc.NewServer()
+	mgr := NewManager(full)
+	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv, mgr)
+
+	li := bufconn.Listen(bufSize)
+	go func() { _ = srv.Serve(li) }()
+	defer srv.Stop()
+
+	cc, err := grpc.NewClient("passthrough:///test",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
+			return li.Dial()
+		}))
+	require.NoError(t, err)
+	defer func() { _ = cc.Close() }()
+
+	client := envoy_service_discovery_v3.NewAggregatedDiscoveryServiceClient(cc)
+	stream, err := client.DeltaAggregatedResources(ctx)
+	require.NoError(t, err)
+
+	ch := stateChanged.Bind()
+	defer stateChanged.Unbind(ch)
+	ack := func(nonce string) {
+		t.Helper()
+		require.NoError(t, stream.Send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{
+			TypeUrl:       typeURL,
+			ResponseNonce: nonce,
+		}))
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-ch:
+		}
+	}
+
+	responses := make(chan *envoy_service_discovery_v3.DeltaDiscoveryResponse)
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err != nil {
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case responses <- msg:
+			}
+		}
+	}()
+	recv := func(timeout time.Duration) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
+		t.Helper()
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case msg := <-responses:
+			return msg
+		case <-time.After(timeout):
+		}
+		return nil
+	}
+
+	// envoy subscribes, receives the full set and acknowledges it
+	ack("")
+	msg := recv(time.Second * 5)
+	require.NotNil(t, msg)
+	assert.ElementsMatch(t, full[typeURL], msg.GetResources())
+	ack(msg.GetNonce())
+
+	// an update removes r2; envoy applies it but has not acknowledged it yet
+	mgr.Update(ctx, partial)
+	msg = recv(time.Second * 5)
+	require.NotNil(t, msg)
+	assert.Equal(t, []string{"r2"}, msg.GetRemovedResources())
+	partialNonce := msg.GetNonce()
+
+	// the next update restores r2 with the same version envoy acknowledged before
+	mgr.Update(ctx, full)
+
+	// envoy acknowledges the partial update after the manager has moved on
+	ack(partialNonce)
+
+	// envoy no longer has r2, so the manager must send it again
+	msg = recv(time.Second * 2)
+	require.NotNil(t, msg, "r2 was never re-sent after envoy applied its removal")
+	assert.Equal(t, []*envoy_service_discovery_v3.Resource{
+		{Name: "r2", Version: "1"},
+	}, msg.GetResources())
 }
 
 func TestBuildDiscoveryResponsesForConsistentUpdates(t *testing.T) {
