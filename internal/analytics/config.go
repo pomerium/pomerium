@@ -3,8 +3,11 @@ package analytics
 import "time"
 
 var (
-	DefaultInitialDelay      = 5 * time.Minute
-	DefaultMaxDomains        = 20
+	// DefaultInitialDelay is the default initial delay before reporting analytics.
+	DefaultInitialDelay = 5 * time.Minute
+	// DefaultMaxDomains is the default maximum number of domains to send in analytics.
+	DefaultMaxDomains = 20
+	// DefaultReportingInterval is the default reporting interval.
 	DefaultReportingInterval = 12 * time.Hour
 )
 

@@ -116,6 +116,7 @@ func (r *reporter) createPosthogProperties(ctx context.Context, cfg *config.Conf
 	p.Set("session_count", sessionCount).
 		Set("user_count", userCount)
 	p.Merge(r.createPosthogPropertiesForRoutes(cfg))
+	p.Merge(r.createPosthogPropertiesForSettings(cfg))
 
 	// add entity counts
 	certificates, _ := cfg.AllCertificates()
@@ -185,9 +186,8 @@ func (r *reporter) createPosthogPropertiesForRoutes(cfg *config.Config) posthog.
 		} else if route.IsUDP() || route.IsUDPUpstream() {
 			udpCount++
 		}
-
 		if fromURL, err := urlutil.ParseAndValidateURL(route.From); err == nil {
-			for _, domain := range urlutil.GetDomainsForURL(fromURL, !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)) {
+			for _, domain := range urlutil.GetServerNamesForURL(fromURL) {
 				if domains.Insert(domain) && domains.Size() > r.cfg.maxDomains {
 					domains.Remove(domains.Max())
 				}
@@ -202,6 +202,13 @@ func (r *reporter) createPosthogPropertiesForRoutes(cfg *config.Config) posthog.
 		"ssh_route_count":        sshCount,
 		"tcp_route_count":        tcpCount,
 		"udp_route_count":        udpCount,
+	}
+}
+
+func (r *reporter) createPosthogPropertiesForSettings(cfg *config.Config) posthog.Properties {
+	return posthog.Properties{
+		"identity_provider":     cfg.Options.Provider,
+		"identity_provider_url": cfg.Options.ProviderURL,
 	}
 }
 
