@@ -262,9 +262,11 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	controlPlane.RegisterAdditionalExpectedChecks(ctx, cfg, p.envoyServer)
 
 	// run everything
-	go analyticsReporter.Run(ctx)
-
 	p.errGroup, ctx = errgroup.WithContext(ctx)
+	p.errGroup.Go(func() error {
+		analyticsReporter.Run(ctx)
+		return nil
+	})
 	if authorizeServer != nil {
 		p.errGroup.Go(func() error {
 			health.ReportRunning(health.AuthorizationService)
