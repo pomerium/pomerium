@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -448,4 +450,74 @@ func (m *xdsModel) InvariantEnvoyHoldsLatest(_ hegel.TestCase) {
 			m.ht.Fatalf("envoy holds %v of %s, the manager serves %v", m.envoy[typeURL], typeURL, m.latest[typeURL])
 		}
 	}
+}
+
+// TestManager_ListenerReplacedOnItsAddress covers an update that replaces a
+// listener with one of another name on the same address. Envoy rejects a
+// listener whose address another listener holds and applies the removals of
+// each response before its additions. Once the manager has nothing more to
+// send, envoy must hold the new listener.
+func TestManager_ListenerReplacedOnItsAddress(t *testing.T) {
+	t.Parallel()
+
+	listener := func(name string) *envoy_service_discovery_v3.Resource {
+		return &envoy_service_discovery_v3.Resource{
+			Name:    name,
+			Version: "1",
+			Resource: protoutil.NewAny(&envoy_config_listener_v3.Listener{
+				Name: name,
+				Address: &envoy_config_core_v3.Address{Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Address:       "127.0.0.1",
+						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: 443},
+					},
+				}},
+			}),
+		}
+	}
+	s := newTestStream(t, NewManager(map[string][]*envoy_service_discovery_v3.Resource{
+		listenerTypeURL: {listener("http-ingress")},
+	}))
+
+	// held is the name of the listener envoy holds on each address
+	held := map[string]string{}
+	heldNames := func() []string { return slices.Sorted(maps.Values(held)) }
+	// apply applies the responses as envoy does, acknowledging or rejecting
+	// each, until the manager sends nothing more
+	apply := func(pending []*envoy_service_discovery_v3.DeltaDiscoveryResponse) {
+		for len(pending) > 0 {
+			res := pending[0]
+			pending = pending[1:]
+			for _, name := range res.GetRemovedResources() {
+				maps.DeleteFunc(held, func(_, heldName string) bool { return heldName == name })
+			}
+			var rejected string
+			for _, resource := range res.GetResources() {
+				var li envoy_config_listener_v3.Listener
+				require.NoError(t, resource.GetResource().UnmarshalTo(&li))
+				address := li.GetAddress().GetSocketAddress().String()
+				if other, taken := held[address]; taken && other != resource.GetName() {
+					rejected = "error adding listener: '" + resource.GetName() + "' has duplicate address as existing listener"
+					continue
+				}
+				held[address] = resource.GetName()
+			}
+			t.Logf("envoy applied nonce %s: added %v, removed %v, rejected %q, holds %v",
+				res.GetNonce(), resourceRefs(res), res.GetRemovedResources(), rejected, heldNames())
+			if rejected != "" {
+				pending = append(pending, s.nack(res.GetTypeUrl(), res.GetNonce(), rejected)...)
+			} else {
+				pending = append(pending, s.ack(res.GetTypeUrl(), res.GetNonce())...)
+			}
+		}
+	}
+
+	apply(s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL}))
+	require.Equal(t, []string{"http-ingress"}, heldNames())
+
+	apply(s.update(map[string][]*envoy_service_discovery_v3.Resource{
+		listenerTypeURL: {listener("https-ingress")},
+	}))
+	assert.Equal(t, []string{"https-ingress"}, heldNames(),
+		"envoy must hold the listener that replaced the one on its address")
 }
