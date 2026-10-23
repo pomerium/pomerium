@@ -322,10 +322,15 @@ func (OAuth2AuthStyle) EnumDescriptor() ([]byte, []int) {
 type LicenseType int32
 
 const (
-	LicenseType_LICENSE_TYPE_UNKNOWN     LicenseType = 0
+	LicenseType_LICENSE_TYPE_UNKNOWN LicenseType = 0
+	// Open Source Edition
 	LicenseType_LICENSE_TYPE_OPEN_SOURCE LicenseType = 1
-	LicenseType_LICENSE_TYPE_COMMUNITY   LicenseType = 2
-	LicenseType_LICENSE_TYPE_COMMERCIAL  LicenseType = 3
+	// Community Edition
+	LicenseType_LICENSE_TYPE_COMMUNITY LicenseType = 2
+	// Commercial Edition
+	LicenseType_LICENSE_TYPE_COMMERCIAL LicenseType = 3
+	// Commercial Trial Edition
+	LicenseType_LICENSE_TYPE_COMMERCIAL_TRIAL LicenseType = 4
 )
 
 // Enum value maps for LicenseType.
@@ -335,12 +340,14 @@ var (
 		1: "LICENSE_TYPE_OPEN_SOURCE",
 		2: "LICENSE_TYPE_COMMUNITY",
 		3: "LICENSE_TYPE_COMMERCIAL",
+		4: "LICENSE_TYPE_COMMERCIAL_TRIAL",
 	}
 	LicenseType_value = map[string]int32{
-		"LICENSE_TYPE_UNKNOWN":     0,
-		"LICENSE_TYPE_OPEN_SOURCE": 1,
-		"LICENSE_TYPE_COMMUNITY":   2,
-		"LICENSE_TYPE_COMMERCIAL":  3,
+		"LICENSE_TYPE_UNKNOWN":          0,
+		"LICENSE_TYPE_OPEN_SOURCE":      1,
+		"LICENSE_TYPE_COMMUNITY":        2,
+		"LICENSE_TYPE_COMMERCIAL":       3,
+		"LICENSE_TYPE_COMMERCIAL_TRIAL": 4,
 	}
 )
 
@@ -10703,12 +10710,13 @@ const file_config_proto_rawDesc = "" +
 	"\x0fOAuth2AuthStyle\x12!\n" +
 	"\x1dOAUTH2_AUTH_STYLE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bOAUTH2_AUTH_STYLE_IN_PARAMS\x10\x01\x12\x1f\n" +
-	"\x1bOAUTH2_AUTH_STYLE_IN_HEADER\x10\x02*~\n" +
+	"\x1bOAUTH2_AUTH_STYLE_IN_HEADER\x10\x02*\xa1\x01\n" +
 	"\vLicenseType\x12\x18\n" +
 	"\x14LICENSE_TYPE_UNKNOWN\x10\x00\x12\x1c\n" +
 	"\x18LICENSE_TYPE_OPEN_SOURCE\x10\x01\x12\x1a\n" +
 	"\x16LICENSE_TYPE_COMMUNITY\x10\x02\x12\x1b\n" +
-	"\x17LICENSE_TYPE_COMMERCIAL\x10\x03*c\n" +
+	"\x17LICENSE_TYPE_COMMERCIAL\x10\x03\x12!\n" +
+	"\x1dLICENSE_TYPE_COMMERCIAL_TRIAL\x10\x04*c\n" +
 	"\x13MtlsEnforcementMode\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\n" +
 	"\n" +

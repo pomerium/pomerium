@@ -237,17 +237,22 @@
             {
               "name": "LICENSE_TYPE_OPEN_SOURCE",
               "number": "1",
-              "description": ""
+              "description": "Open Source Edition"
             },
             {
               "name": "LICENSE_TYPE_COMMUNITY",
               "number": "2",
-              "description": ""
+              "description": "Community Edition"
             },
             {
               "name": "LICENSE_TYPE_COMMERCIAL",
               "number": "3",
-              "description": ""
+              "description": "Commercial Edition"
+            },
+            {
+              "name": "LICENSE_TYPE_COMMERCIAL_TRIAL",
+              "number": "4",
+              "description": "Commercial Trial Edition"
             }
           ]
         },

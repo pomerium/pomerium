@@ -2684,6 +2684,7 @@ components:
         - LICENSE_TYPE_OPEN_SOURCE
         - LICENSE_TYPE_COMMUNITY
         - LICENSE_TYPE_COMMERCIAL
+        - LICENSE_TYPE_COMMERCIAL_TRIAL
       description: LicenseType is the license type for Pomerium.
     pomerium.config.ListAvailableLogFieldsRequest:
       type: object

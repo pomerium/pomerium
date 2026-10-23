@@ -269,7 +269,7 @@ func (r *reporter) createPosthogPropertiesForSettings(cfg *config.Config) postho
 
 func (r *reporter) getDistinctID(cfg *config.Config) string {
 	if cfg.Options.InstallationID != "" {
-		if cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL {
+		if r.shouldPseudonymize(cfg) {
 			return cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), cfg.Options.InstallationID)
 		}
 		return cfg.Options.InstallationID
@@ -319,7 +319,7 @@ func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount,
 }
 
 func (r *reporter) setPII[M interface{ ~map[string]any }](cfg *config.Config, dst M, key, value string) {
-	if cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL {
+	if r.shouldPseudonymize(cfg) {
 		dst["pseudonymous_"+key] = cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), value)
 	} else {
 		dst[key] = value
@@ -327,7 +327,7 @@ func (r *reporter) setPII[M interface{ ~map[string]any }](cfg *config.Config, ds
 }
 
 func (r *reporter) setPIISlice[M interface{ ~map[string]any }](cfg *config.Config, dst M, key string, values []string) {
-	if cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL {
+	if r.shouldPseudonymize(cfg) {
 		pseudonymizationKey := r.getPseudonymizationKey(cfg)
 		pseudonymized := make([]string, len(values))
 		for i, value := range values {
@@ -337,6 +337,11 @@ func (r *reporter) setPIISlice[M interface{ ~map[string]any }](cfg *config.Confi
 	} else {
 		dst[key] = values
 	}
+}
+
+func (r *reporter) shouldPseudonymize(cfg *config.Config) bool {
+	return cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL &&
+		cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL_TRIAL
 }
 
 func sendOrReplace[T any](ch chan T, value T) {

@@ -635,10 +635,15 @@ message PPLPolicy {
 
 // LicenseType is the license type for Pomerium.
 enum LicenseType {
-  LICENSE_TYPE_UNKNOWN     = 0;
+  LICENSE_TYPE_UNKNOWN = 0;
+  // Open Source Edition
   LICENSE_TYPE_OPEN_SOURCE = 1;
-  LICENSE_TYPE_COMMUNITY   = 2;
-  LICENSE_TYPE_COMMERCIAL  = 3;
+  // Community Edition
+  LICENSE_TYPE_COMMUNITY = 2;
+  // Commercial Edition
+  LICENSE_TYPE_COMMERCIAL = 3;
+  // Commercial Trial Edition
+  LICENSE_TYPE_COMMERCIAL_TRIAL = 4;
 }
 
 // Configuration for a policy.
