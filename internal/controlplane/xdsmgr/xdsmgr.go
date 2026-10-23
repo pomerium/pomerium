@@ -13,7 +13,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -260,50 +259,53 @@ func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_se
 	mgr.signal.Broadcast(ctx)
 }
 
+// buildDiscoveryResponsesForConsistentUpdates orders the responses of one
+// change so that envoy applies it make before break. From the docs:
+//
+// In general, to avoid traffic drop, sequencing of updates should follow a make before break model, wherein:
+//
+// CDS updates (if any) must always be pushed first.
+// EDS updates (if any) must arrive after CDS updates for the respective clusters.
+// LDS updates must arrive after corresponding CDS/EDS updates.
+// RDS updates related to the newly added listeners must arrive after CDS/EDS/LDS updates.
+// VHDS updates (if any) related to the newly added RouteConfigurations must arrive after RDS updates.
+// Stale CDS clusters and related EDS endpoints (ones no longer being referenced) can then be removed.
+//
+// Each type is sent whole, in that order, and only the removed clusters follow
+// in a response of their own. Envoy applies the removals of a listener
+// response before its additions, so a listener that replaces another on its
+// address must travel with that removal, or envoy rejects it as a duplicate.
+// Envoy ignores route configuration removals.
 func buildDiscoveryResponsesForConsistentUpdates(in []*envoy_service_discovery_v3.DeltaDiscoveryResponse) (out []*envoy_service_discovery_v3.DeltaDiscoveryResponse) {
-	var updates, removals []*envoy_service_discovery_v3.DeltaDiscoveryResponse
+	var removedClusters *envoy_service_discovery_v3.DeltaDiscoveryResponse
 	for _, r := range in {
-		if len(r.Resources) > 0 {
-			rr := proto.Clone(r).(*envoy_service_discovery_v3.DeltaDiscoveryResponse)
-			rr.RemovedResources = nil
-			updates = append(updates, rr)
+		if r.TypeUrl == clusterTypeURL && len(r.RemovedResources) > 0 {
+			removedClusters = &envoy_service_discovery_v3.DeltaDiscoveryResponse{
+				TypeUrl:          r.TypeUrl,
+				RemovedResources: r.RemovedResources,
+			}
+			if len(r.Resources) == 0 {
+				continue
+			}
+			r = &envoy_service_discovery_v3.DeltaDiscoveryResponse{
+				TypeUrl:   r.TypeUrl,
+				Resources: r.Resources,
+			}
 		}
-		if len(r.RemovedResources) > 0 {
-			rr := proto.Clone(r).(*envoy_service_discovery_v3.DeltaDiscoveryResponse)
-			rr.Resources = nil
-			removals = append(removals, rr)
-		}
+		out = append(out, r)
 	}
 
-	// from the docs:
-	//
-	// In general, to avoid traffic drop, sequencing of updates should follow a make before break model, wherein:
-	//
-	// CDS updates (if any) must always be pushed first.
-	// EDS updates (if any) must arrive after CDS updates for the respective clusters.
-	// LDS updates must arrive after corresponding CDS/EDS updates.
-	// RDS updates related to the newly added listeners must arrive after CDS/EDS/LDS updates.
-	// VHDS updates (if any) related to the newly added RouteConfigurations must arrive after RDS updates.
-	// Stale CDS clusters and related EDS endpoints (ones no longer being referenced) can then be removed.
-
-	updateOrder := map[string]int{
+	order := map[string]int{
 		clusterTypeURL:            1,
 		listenerTypeURL:           2,
 		routeConfigurationTypeURL: 3,
 	}
-	slices.SortFunc(updates, func(a, b *envoy_service_discovery_v3.DeltaDiscoveryResponse) int {
-		return cmp.Compare(updateOrder[a.TypeUrl], updateOrder[b.TypeUrl])
+	slices.SortStableFunc(out, func(a, b *envoy_service_discovery_v3.DeltaDiscoveryResponse) int {
+		return cmp.Compare(order[a.TypeUrl], order[b.TypeUrl])
 	})
 
-	removeOrder := map[string]int{
-		routeConfigurationTypeURL: 1,
-		listenerTypeURL:           2,
-		clusterTypeURL:            3,
+	if removedClusters != nil {
+		out = append(out, removedClusters)
 	}
-	slices.SortFunc(removals, func(a, b *envoy_service_discovery_v3.DeltaDiscoveryResponse) int {
-		return cmp.Compare(removeOrder[a.TypeUrl], removeOrder[b.TypeUrl])
-	})
-
-	out = append(updates, removals...)
 	return out
 }

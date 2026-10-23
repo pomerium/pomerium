@@ -294,20 +294,14 @@ func TestBuildDiscoveryResponsesForConsistentUpdates(t *testing.T) {
 			Resources: []*envoy_service_discovery_v3.Resource{{Name: "c1", Resource: c1}},
 		},
 		{
-			TypeUrl:   listenerTypeURL,
-			Resources: []*envoy_service_discovery_v3.Resource{{Name: "l1", Resource: l1}},
-		},
-		{
-			TypeUrl:   routeConfigurationTypeURL,
-			Resources: []*envoy_service_discovery_v3.Resource{{Name: "rc1", Resource: rc1}},
+			TypeUrl:          listenerTypeURL,
+			Resources:        []*envoy_service_discovery_v3.Resource{{Name: "l1", Resource: l1}},
+			RemovedResources: []string{"l2"},
 		},
 		{
 			TypeUrl:          routeConfigurationTypeURL,
+			Resources:        []*envoy_service_discovery_v3.Resource{{Name: "rc1", Resource: rc1}},
 			RemovedResources: []string{"rc2"},
-		},
-		{
-			TypeUrl:          listenerTypeURL,
-			RemovedResources: []string{"l2"},
 		},
 		{
 			TypeUrl:          clusterTypeURL,
