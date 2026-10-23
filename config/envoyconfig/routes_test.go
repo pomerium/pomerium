@@ -438,6 +438,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		DefaultUpstreamTimeout: time.Second * 3,
 		SharedKey:              cryptutil.NewBase64Key(),
 		Policies:               policies,
+		RuntimeFlags:           config.DefaultRuntimeFlags(),
 	}), "example.com")
 	require.NoError(t, err)
 
@@ -488,7 +489,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
-					"x-pomerium-reproxy-policy-hmac"
+					"x-pomerium-reproxy-policy-hmac",
+					"x-envoy-internal"
 				],
 				"responseHeadersToAdd": [
 					{
@@ -564,7 +566,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
-					"x-pomerium-reproxy-policy-hmac"
+					"x-pomerium-reproxy-policy-hmac",
+					"x-envoy-internal"
 				],
 				"responseHeadersToAdd": [
 					{
@@ -640,7 +643,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
-					"x-pomerium-reproxy-policy-hmac"
+					"x-pomerium-reproxy-policy-hmac",
+					"x-envoy-internal"
 				],
 				"responseHeadersToAdd": [
 					{
@@ -718,7 +722,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
-					"x-pomerium-reproxy-policy-hmac"
+					"x-pomerium-reproxy-policy-hmac",
+					"x-envoy-internal"
 				],
 				"responseHeadersToAdd": [
 					{
@@ -795,7 +800,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"HEADER-KEY",
 					"x-pomerium-reproxy-policy",
-					"x-pomerium-reproxy-policy-hmac"
+					"x-pomerium-reproxy-policy-hmac",
+					"x-envoy-internal"
 				],
 				"responseHeadersToAdd": [
 					{
@@ -870,7 +876,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
-					"x-pomerium-reproxy-policy-hmac"
+					"x-pomerium-reproxy-policy-hmac",
+					"x-envoy-internal"
 				],
 				"responseHeadersToAdd": [
 					{
@@ -946,7 +953,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
-					"x-pomerium-reproxy-policy-hmac"
+					"x-pomerium-reproxy-policy-hmac",
+					"x-envoy-internal"
 				],
 				"responseHeadersToAdd": [
 					{
@@ -1022,7 +1030,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
-					"x-pomerium-reproxy-policy-hmac"
+					"x-pomerium-reproxy-policy-hmac",
+					"x-envoy-internal"
 				],
 				"responseHeadersToAdd": [
 					{

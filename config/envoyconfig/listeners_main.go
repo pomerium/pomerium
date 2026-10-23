@@ -163,7 +163,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	if !useQUIC && cfg.Options.CodecType.Value == configpb.CodecType_CODEC_TYPE_HTTP3 {
 		filters = append(filters, newQUICAltSvcHeaderFilter(cfg))
 	}
-	filters = append(filters, HTTPRouterFilter())
+	filters = append(filters, HTTPRouterFilter(cfg))
 
 	var maxStreamDuration *durationpb.Duration
 	if cfg.Options.WriteTimeout > 0 {

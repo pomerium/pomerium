@@ -578,7 +578,7 @@ func mkRouteMatchForHost(
 }
 
 func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) []string {
-	requestHeadersToRemove := policy.RemoveRequestHeaders
+	requestHeadersToRemove := slices.Clone(policy.RemoveRequestHeaders)
 	if !policy.GetPassIdentityHeaders(options) {
 		requestHeadersToRemove = append(requestHeadersToRemove,
 			httputil.HeaderPomeriumJWTAssertion,
@@ -593,6 +593,9 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 		httputil.HeaderPomeriumReproxyPolicy,
 		httputil.HeaderPomeriumReproxyPolicyHMAC,
 	)
+	if options.IsRuntimeFlagSet(config.RuntimeFlagSuppressEnvoyHeaders) {
+		requestHeadersToRemove = append(requestHeadersToRemove, "x-envoy-internal")
+	}
 	return requestHeadersToRemove
 }
 
