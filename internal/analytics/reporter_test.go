@@ -85,10 +85,13 @@ func TestCreatePosthogEvent(t *testing.T) {
 		cfg := config.New(options)
 		evt := analytics.New().CreatePosthogEvent(t.Context(), cfg, 0, 0)
 		assert.Equal(t, "bdS/DkMVmpzBR865YlvhMXucXSO3tfcDFySXu0nAtIo=", evt.DistinctId)
+		assert.NotContains(t, evt.Groups, "installation_id")
 		assert.Equal(t, []string{"n4dU0B+ujBEZxQfDfIcLA1s7fcFqhHIZ6nvu9Mp9/48="}, evt.Properties["pseudonymous_domains"])
 		assert.NotContains(t, evt.Properties, "domains")
 		assert.Contains(t, evt.Properties, "pseudonymous_hostname")
 		assert.NotContains(t, evt.Properties, "hostname")
+		assert.Contains(t, evt.Properties, "pseudonymous_identity_provider_url")
+		assert.NotContains(t, evt.Properties, "identity_provider_url")
 	})
 }
 

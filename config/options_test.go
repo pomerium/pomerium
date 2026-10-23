@@ -435,7 +435,7 @@ func Test_Checksum(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags", "LicenseType"),
 		cmpopts.IgnoreFields(DataBrokerOptions{}, "ServiceURL", "ServiceURLs"),
 		cmpOptIgnoreUnexported,
 	}
@@ -1413,7 +1413,8 @@ LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IUUNBUUVFSUdHaDZGbEJlOHl5OWRSSmdtKzM1
 		t.Parallel()
 		o := NewDefaultOptions()
 		o.SharedKey = base64.StdEncoding.EncodeToString(
-			[]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890+/AAAA="))
+			[]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890+/AAAA="),
+		)
 		require.NoError(t, o.Validate())
 		key, err := o.GetSigningKey()
 		assert.NoError(t, err)

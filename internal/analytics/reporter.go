@@ -259,11 +259,12 @@ func (r *reporter) createPosthogPropertiesForRoutes(cfg *config.Config) posthog.
 }
 
 func (r *reporter) createPosthogPropertiesForSettings(cfg *config.Config) posthog.Properties {
-	return posthog.Properties{
-		"identity_provider":     cfg.Options.Provider,
-		"identity_provider_url": cfg.Options.ProviderURL,
-		"originator_id":         cfg.Options.OriginatorID.Value,
+	p := posthog.Properties{
+		"identity_provider": cfg.Options.Provider,
+		"originator_id":     cfg.Options.OriginatorID.Value,
 	}
+	r.setPII(cfg, p, "identity_provider_url", cfg.Options.ProviderURL)
+	return p
 }
 
 func (r *reporter) getDistinctID(cfg *config.Config) string {
