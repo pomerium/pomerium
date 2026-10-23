@@ -315,7 +315,7 @@ func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount,
 }
 
 func (r *reporter) setPII[M interface{ ~map[string]any }](cfg *config.Config, dst M, key, value string) {
-	if cfg.Options.LicenseType.Value == configpb.LicenseType_LICENSE_TYPE_COMMUNITY {
+	if cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL {
 		dst["pseudonymous_"+key] = cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), value)
 	} else {
 		dst[key] = value
@@ -323,7 +323,7 @@ func (r *reporter) setPII[M interface{ ~map[string]any }](cfg *config.Config, ds
 }
 
 func (r *reporter) setPIISlice[M interface{ ~map[string]any }](cfg *config.Config, dst M, key string, values []string) {
-	if cfg.Options.LicenseType.Value == configpb.LicenseType_LICENSE_TYPE_COMMUNITY {
+	if cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL {
 		pseudonymizationKey := r.getPseudonymizationKey(cfg)
 		pseudonymized := make([]string, len(values))
 		for i, value := range values {
