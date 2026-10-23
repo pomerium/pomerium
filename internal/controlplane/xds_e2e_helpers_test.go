@@ -106,19 +106,16 @@ func (e *xdsEnv) status(url string) string {
 	return res.Status
 }
 
-// reachable reports whether every URL answers 200 within wait, and the last
-// status of each.
+// reachable reports whether every URL answers 200 on the same attempt within
+// wait, and the status of each on the last attempt.
 func (e *xdsEnv) reachable(wait time.Duration, urls ...string) (bool, map[string]string) {
 	e.t.Helper()
-	ok := "200 OK"
 	last := map[string]string{}
 	all := assertEventually(func() bool {
 		for _, url := range urls {
-			if last[url] != ok {
-				last[url] = e.status(url)
-			}
+			last[url] = e.status(url)
 		}
-		return !slices.ContainsFunc(urls, func(url string) bool { return last[url] != ok })
+		return !slices.ContainsFunc(urls, func(url string) bool { return last[url] != "200 OK" })
 	}, wait, 25*time.Millisecond)
 	return all, last
 }
