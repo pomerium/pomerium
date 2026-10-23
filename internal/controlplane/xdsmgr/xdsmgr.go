@@ -20,9 +20,11 @@ import (
 
 // streamState is what one stream has sent to envoy for one resource type.
 type streamState struct {
-	lastNonce              string
+	lastNonce string
+	// clientResourceVersions is the version of each resource sent to envoy
 	clientResourceVersions map[string]string
-	unsubscribedResources  map[string]struct{}
+	// unsubscribedResources are the resources envoy asked not to be sent
+	unsubscribedResources map[string]struct{}
 }
 
 // recordSent records the resources of a response as held by envoy. Envoy
@@ -93,6 +95,9 @@ func (mgr *Manager) DeltaAggregatedResources(
 		}
 		seen := make(map[string]struct{}, len(resources))
 		for _, resource := range resources {
+			if _, ok := state.unsubscribedResources[resource.Name]; ok {
+				continue
+			}
 			seen[resource.Name] = struct{}{}
 			if resource.Version != state.clientResourceVersions[resource.Name] {
 				res.Resources = append(res.Resources, resource)
@@ -143,19 +148,23 @@ func (mgr *Manager) DeltaAggregatedResources(
 		}
 
 		// update subscriptions
-		for _, name := range req.GetResourceNamesSubscribe() {
-			delete(state.unsubscribedResources, name)
-		}
 		for _, name := range req.GetResourceNamesUnsubscribe() {
 			state.unsubscribedResources[name] = struct{}{}
-			// from the docs:
-			//   NOTE: the server must respond with all resources listed in
-			//   resource_names_subscribe, even if it believes the client has
-			//   the most recent version of them. The reason: the client may
-			//   have dropped them, but then regained interest before it had
-			//   a chance to send the unsubscribe message.
-			// so we reset the version to treat it like a new version
 			delete(state.clientResourceVersions, name)
+		}
+		// from the docs:
+		//   NOTE: the server must respond with all resources listed in
+		//   resource_names_subscribe, even if it believes the client has
+		//   the most recent version of them. The reason: the client may
+		//   have dropped them, but then regained interest before it had
+		//   a chance to send the unsubscribe message.
+		// so the version sent is forgotten, unless the request states the
+		// version the client holds, as the first request of a stream does
+		for _, name := range req.GetResourceNamesSubscribe() {
+			delete(state.unsubscribedResources, name)
+			if _, ok := req.GetInitialResourceVersions()[name]; !ok {
+				delete(state.clientResourceVersions, name)
+			}
 		}
 	}
 
