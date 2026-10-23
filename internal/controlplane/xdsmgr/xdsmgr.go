@@ -5,10 +5,10 @@ import (
 	"cmp"
 	"context"
 	"slices"
+	"strconv"
 	"sync"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -18,7 +18,9 @@ import (
 )
 
 type streamState struct {
-	typeURL                string
+	typeURL string
+	// lastNonce is the nonce of the last response sent for the type.
+	lastNonce              string
 	clientResourceVersions map[string]string
 	unsubscribedResources  map[string]struct{}
 }
@@ -30,7 +32,6 @@ type Manager struct {
 	signal *signal.Signal
 
 	mu        sync.Mutex
-	nonce     string
 	resources map[string][]*envoy_service_discovery_v3.Resource
 
 	// onResponsesQueued, if set, is called once a request or a resource
@@ -44,7 +45,6 @@ func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Ma
 	return &Manager{
 		signal: signal.New(),
 
-		nonce:     uuid.New().String(),
 		resources: resources,
 	}
 }
@@ -56,7 +56,10 @@ func (mgr *Manager) DeltaAggregatedResources(
 	ch := mgr.signal.Bind()
 	defer mgr.signal.Unbind(ch)
 
+	// stateByTypeURL and nonce are only used by the goroutine that handles
+	// requests and sends responses, so they need no lock.
 	stateByTypeURL := map[string]*streamState{}
+	var nonce uint64
 
 	getDeltaResponse := func(_ context.Context, typeURL string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
 		mgr.mu.Lock()
@@ -69,7 +72,6 @@ func (mgr *Manager) DeltaAggregatedResources(
 
 		res := &envoy_service_discovery_v3.DeltaDiscoveryResponse{
 			TypeUrl: typeURL,
-			Nonce:   mgr.nonce,
 		}
 		seen := map[string]struct{}{}
 		for _, resource := range mgr.resources[typeURL] {
@@ -126,12 +128,12 @@ func (mgr *Manager) DeltaAggregatedResources(
 		case req.GetErrorDetail() != nil:
 			// a NACK
 			logNACK(ctx, req)
-		case req.GetResponseNonce() == mgr.nonce:
+		case req.GetResponseNonce() == state.lastNonce:
 			// an ACK for the last response
 			logACK(ctx, req)
 		default:
 			// an ACK for a response that's not the last response
-			logEarlierACK(ctx, req, mgr.nonce)
+			logEarlierACK(ctx, req, state.lastNonce)
 		}
 
 		// update subscriptions
@@ -201,6 +203,12 @@ func (mgr *Manager) DeltaAggregatedResources(
 
 			responses = buildDiscoveryResponsesForConsistentUpdates(responses)
 			for _, res := range responses {
+				// every response has its own nonce, so that an ACK identifies
+				// the response it acknowledges
+				nonce++
+				res.Nonce = strconv.FormatUint(nonce, 10)
+				stateByTypeURL[res.GetTypeUrl()].lastNonce = res.Nonce
+
 				select {
 				case <-ctx.Done():
 					return context.Cause(ctx)
@@ -240,10 +248,7 @@ func (mgr *Manager) StreamAggregatedResources(
 // Update updates the state of resources. If any changes are made they will be pushed to any listening
 // streams. For each TypeURL the list of resources should be the complete list of resources.
 func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_service_discovery_v3.Resource) {
-	nonce := uuid.New().String()
-
 	mgr.mu.Lock()
-	mgr.nonce = nonce
 	mgr.resources = resources
 	mgr.mu.Unlock()
 
