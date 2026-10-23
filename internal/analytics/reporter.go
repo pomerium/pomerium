@@ -160,8 +160,8 @@ func (r *reporter) createPosthogPropertiesForHost(ctx context.Context, cfg *conf
 	p := posthog.NewProperties()
 	if info, err := host.InfoWithContext(ctx); err == nil {
 		r.setPII(cfg, p, "hostname", info.Hostname)
+		r.setPII(cfg, p, "host_id", info.HostID)
 		p.
-			Set("host_id", info.HostID).
 			Set("os", info.OS).
 			Set("platform", info.Platform).
 			Set("platform_family", info.PlatformFamily).

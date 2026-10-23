@@ -90,6 +90,8 @@ func TestCreatePosthogEvent(t *testing.T) {
 		assert.NotContains(t, evt.Properties, "domains")
 		assert.Contains(t, evt.Properties, "pseudonymous_hostname")
 		assert.NotContains(t, evt.Properties, "hostname")
+		assert.Contains(t, evt.Properties, "pseudonymous_host_id")
+		assert.NotContains(t, evt.Properties, "host_id")
 		assert.Contains(t, evt.Properties, "pseudonymous_identity_provider_url")
 		assert.NotContains(t, evt.Properties, "identity_provider_url")
 	})
