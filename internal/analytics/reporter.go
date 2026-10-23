@@ -58,7 +58,8 @@ func (r *reporter) CreatePosthogEvent(ctx context.Context, cfg *config.Config, s
 		Properties: r.createPosthogProperties(ctx, cfg, sessionCount, userCount),
 	}
 	if cfg.Options.InstallationID != "" {
-		evt.Groups = posthog.NewGroups().Set("installation_id", cfg.Options.InstallationID)
+		evt.Groups = make(posthog.Groups)
+		r.setPII(cfg, evt.Groups, "installation_id", cfg.Options.InstallationID)
 	}
 	return evt
 }
@@ -293,15 +294,7 @@ func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount,
 		return nil
 	}
 
-	msg := posthog.Capture{
-		DistinctId: r.getDistinctID(cfg),
-		Event:      "core_periodic_analytics",
-		Properties: r.createPosthogProperties(ctx, cfg, sessionCount, userCount),
-	}
-	if cfg.Options.InstallationID != "" {
-		msg.Groups = make(posthog.Groups)
-		r.setPII(cfg, msg.Groups, "installation_id", cfg.Options.InstallationID)
-	}
+	msg := r.CreatePosthogEvent(ctx, cfg, sessionCount, userCount)
 
 	client, err := posthog.NewWithConfig(PostHogProductionProjectID, posthog.Config{
 		Endpoint: PostHogEndpoint,
