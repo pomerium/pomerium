@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/analytics"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -36,7 +37,8 @@ type Authenticator interface {
 
 // A Manager refreshes identity information using session and user data.
 type Manager struct {
-	cfg atomic.Pointer[config]
+	cfg               atomic.Pointer[config]
+	analyticsReporter analytics.Reporter
 
 	mu                       sync.Mutex
 	dataStore                *dataStore
@@ -46,9 +48,11 @@ type Manager struct {
 
 // New creates a new identity manager.
 func New(
+	analyticsReporter analytics.Reporter,
 	options ...Option,
 ) *Manager {
 	mgr := &Manager{
+		analyticsReporter:        analyticsReporter,
 		dataStore:                newDataStore(),
 		refreshSessionSchedulers: make(map[string]*refreshSessionScheduler),
 		updateUserInfoSchedulers: make(map[string]*updateUserInfoScheduler),
@@ -101,6 +105,7 @@ func (mgr *Manager) onDeleteAllSessions(ctx context.Context) {
 		rss.Stop()
 		delete(mgr.refreshSessionSchedulers, sID)
 	}
+	mgr.analyticsReporter.UpdateUserInfo(len(mgr.dataStore.sessions), len(mgr.dataStore.users))
 	mgr.mu.Unlock()
 }
 
@@ -113,6 +118,7 @@ func (mgr *Manager) onDeleteAllUsers(ctx context.Context) {
 		uuis.Stop()
 		delete(mgr.updateUserInfoSchedulers, uID)
 	}
+	mgr.analyticsReporter.UpdateUserInfo(len(mgr.dataStore.sessions), len(mgr.dataStore.users))
 	mgr.mu.Unlock()
 }
 
@@ -125,6 +131,7 @@ func (mgr *Manager) onDeleteSession(ctx context.Context, sessionID string) {
 		rss.Stop()
 		delete(mgr.refreshSessionSchedulers, sessionID)
 	}
+	mgr.analyticsReporter.UpdateUserInfo(len(mgr.dataStore.sessions), len(mgr.dataStore.users))
 	mgr.mu.Unlock()
 }
 
@@ -137,6 +144,7 @@ func (mgr *Manager) onDeleteUser(ctx context.Context, userID string) {
 		uuis.Stop()
 		delete(mgr.updateUserInfoSchedulers, userID)
 	}
+	mgr.analyticsReporter.UpdateUserInfo(len(mgr.dataStore.sessions), len(mgr.dataStore.users))
 	mgr.mu.Unlock()
 }
 
@@ -159,6 +167,7 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, s *session.Session) {
 		mgr.refreshSessionSchedulers[s.GetId()] = rss
 	}
 	rss.Update(s)
+	mgr.analyticsReporter.UpdateUserInfo(len(mgr.dataStore.sessions), len(mgr.dataStore.users))
 	mgr.mu.Unlock()
 }
 
@@ -177,6 +186,7 @@ func (mgr *Manager) onUpdateUser(ctx context.Context, u *user.User) {
 		)
 		mgr.updateUserInfoSchedulers[u.GetId()] = uuis
 	}
+	mgr.analyticsReporter.UpdateUserInfo(len(mgr.dataStore.sessions), len(mgr.dataStore.users))
 	mgr.mu.Unlock()
 }
 

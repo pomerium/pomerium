@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	databroker_service "github.com/pomerium/pomerium/databroker"
+	"github.com/pomerium/pomerium/internal/analytics"
 	"github.com/pomerium/pomerium/internal/autocert"
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/databroker"
@@ -175,6 +176,12 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	cfg := src.GetConfig()
 	src.OnConfigChange(ctx, p.updateTraceClient)
 
+	analyticsReporter := analytics.New()
+	src.OnConfigChange(ctx, func(_ context.Context, cfg *config.Config) {
+		analyticsReporter.UpdateConfig(cfg)
+	})
+	analyticsReporter.UpdateConfig(cfg)
+
 	// setup the control plane
 	cpOpts := append([]controlplane.Option{controlplane.WithStartTime(startTime)}, p.controlPlaneServerOptions...)
 	controlPlane, err := controlplane.NewServer(
@@ -235,7 +242,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	}
 	var dataBrokerServer *databroker_service.DataBroker
 	if config.IsDataBroker(src.GetConfig().Options.Services) {
-		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane, eventsMgr, p.databrokerServerOptions...)
+		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane, eventsMgr, analyticsReporter, p.databrokerServerOptions...)
 		if err != nil {
 			return fmt.Errorf("setting up databroker: %w", err)
 		}
@@ -256,6 +263,10 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 
 	// run everything
 	p.errGroup, ctx = errgroup.WithContext(ctx)
+	p.errGroup.Go(func() error {
+		analyticsReporter.Run(ctx)
+		return nil
+	})
 	if authorizeServer != nil {
 		p.errGroup.Go(func() error {
 			health.ReportRunning(health.AuthorizationService)
@@ -349,9 +360,10 @@ func setupDataBroker(ctx context.Context,
 	src config.Source,
 	controlPlane *controlplane.Server,
 	eventsMgr *events.Manager,
+	analyticsReporter analytics.Reporter,
 	opts ...databroker_service.Option,
 ) (*databroker_service.DataBroker, error) {
-	svc, err := databroker_service.New(ctx, src.GetConfig(), eventsMgr, opts...)
+	svc, err := databroker_service.New(ctx, src.GetConfig(), eventsMgr, analyticsReporter, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
