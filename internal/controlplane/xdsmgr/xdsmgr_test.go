@@ -515,3 +515,77 @@ func TestManager_ListenerReplacedOnItsAddress(t *testing.T) {
 	assert.Equal(t, []string{"https-ingress"}, heldNames(),
 		"envoy must hold the listener that replaced the one on its address")
 }
+
+// TestManager_SubscribeIsAnswered covers requests that list a resource in
+// resource_names_subscribe or resource_names_unsubscribe. The manager must
+// send a subscribed resource, whether or not it was sent before, unless the
+// request states the version envoy holds, and must not send an unsubscribed
+// one.
+func TestManager_SubscribeIsAnswered(t *testing.T) {
+	t.Parallel()
+
+	typeURL := "example.com/route-configuration"
+	resources := map[string][]*envoy_service_discovery_v3.Resource{
+		typeURL: {{Name: "main", Version: "1"}},
+	}
+	subscribe := &envoy_service_discovery_v3.DeltaDiscoveryRequest{
+		TypeUrl:                typeURL,
+		ResourceNamesSubscribe: []string{"main"},
+	}
+	unsubscribe := &envoy_service_discovery_v3.DeltaDiscoveryRequest{
+		TypeUrl:                  typeURL,
+		ResourceNamesUnsubscribe: []string{"main"},
+	}
+	// subscribed returns a stream on which envoy subscribed to main and
+	// acknowledged it
+	subscribed := func(t *testing.T) *testStream {
+		s := newTestStream(t, NewManager(resources))
+		responses := s.send(subscribe)
+		require.Equal(t, []string{"main@1"}, resourceRefs(responses...))
+		s.ack(typeURL, responses[0].GetNonce())
+		return s
+	}
+
+	t.Run("subscribe again", func(t *testing.T) {
+		t.Parallel()
+		s := subscribed(t)
+
+		assert.Equal(t, []string{"main@1"}, resourceRefs(s.send(subscribe)...),
+			"a resource listed in resource_names_subscribe must be sent")
+	})
+
+	t.Run("unsubscribe then subscribe", func(t *testing.T) {
+		t.Parallel()
+		s := subscribed(t)
+
+		assert.Empty(t, s.send(unsubscribe), "an unsubscribed resource must not be sent")
+		assert.Empty(t, s.update(map[string][]*envoy_service_discovery_v3.Resource{
+			typeURL: {{Name: "main", Version: "2"}},
+		}), "an unsubscribed resource must not be sent when it changes")
+
+		assert.Equal(t, []string{"main@2"}, resourceRefs(s.send(subscribe)...),
+			"a resource listed in resource_names_subscribe must be sent")
+	})
+
+	t.Run("subscribe with the version held", func(t *testing.T) {
+		t.Parallel()
+		s := newTestStream(t, NewManager(resources))
+
+		assert.Empty(t, s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{
+			TypeUrl:                 typeURL,
+			ResourceNamesSubscribe:  []string{"main"},
+			InitialResourceVersions: map[string]string{"main": "1"},
+		}), "a resource envoy holds at the latest version must not be sent")
+	})
+
+	t.Run("subscribe with an older version held", func(t *testing.T) {
+		t.Parallel()
+		s := newTestStream(t, NewManager(resources))
+
+		assert.Equal(t, []string{"main@1"}, resourceRefs(s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{
+			TypeUrl:                 typeURL,
+			ResourceNamesSubscribe:  []string{"main"},
+			InitialResourceVersions: map[string]string{"main": "0"},
+		})...), "a resource envoy holds at an older version must be sent")
+	})
+}
