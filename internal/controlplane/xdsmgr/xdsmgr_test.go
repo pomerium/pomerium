@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -16,118 +15,179 @@ import (
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/test/bufconn"
+	grpcstatus "google.golang.org/grpc/status"
 	"hegel.dev/go/hegel"
 
-	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-const bufSize = 1024 * 1024
+// testStream drives a manager over a gRPC stream as envoy would.
+type testStream struct {
+	t      testing.TB
+	ctx    context.Context
+	mgr    *Manager
+	client envoy_service_discovery_v3.AggregatedDiscoveryServiceClient
+	stream envoy_service_discovery_v3.AggregatedDiscoveryService_DeltaAggregatedResourcesClient
+	queued chan int
+}
+
+// newTestStream serves the manager and opens a stream to it, with a deadline.
+func newTestStream(t testing.TB, mgr *Manager) *testStream {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	t.Cleanup(cancel)
+	return newTestStreamContext(ctx, t, mgr)
+}
+
+// newTestStreamContext serves the manager and opens a stream to it.
+func newTestStreamContext(ctx context.Context, t testing.TB, mgr *Manager) *testStream {
+	t.Helper()
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(s, mgr)
+	})
+	return openTestStream(ctx, t, mgr, envoy_service_discovery_v3.NewAggregatedDiscoveryServiceClient(cc))
+}
+
+// openTestStream opens a stream to a manager the client already reaches.
+func openTestStream(
+	ctx context.Context,
+	t testing.TB,
+	mgr *Manager,
+	client envoy_service_discovery_v3.AggregatedDiscoveryServiceClient,
+) *testStream {
+	t.Helper()
+	queued := make(chan int, 16)
+	mgr.onResponsesQueued = func(n int) { queued <- n }
+	stream, err := client.DeltaAggregatedResources(ctx)
+	require.NoError(t, err)
+	return &testStream{t: t, ctx: ctx, mgr: mgr, client: client, stream: stream, queued: queued}
+}
+
+// settle returns the responses the manager queued in reaction to the last
+// request or update.
+func (s *testStream) settle() []*envoy_service_discovery_v3.DeltaDiscoveryResponse {
+	s.t.Helper()
+	var n int
+	select {
+	case <-s.ctx.Done():
+		s.t.Fatal("the manager did not react")
+	case n = <-s.queued:
+	}
+	responses := make([]*envoy_service_discovery_v3.DeltaDiscoveryResponse, 0, n)
+	for range n {
+		res, err := s.stream.Recv()
+		require.NoError(s.t, err)
+		responses = append(responses, res)
+	}
+	return responses
+}
+
+func (s *testStream) send(req *envoy_service_discovery_v3.DeltaDiscoveryRequest) []*envoy_service_discovery_v3.DeltaDiscoveryResponse {
+	s.t.Helper()
+	require.NoError(s.t, s.stream.Send(req))
+	return s.settle()
+}
+
+func (s *testStream) update(resources map[string][]*envoy_service_discovery_v3.Resource) []*envoy_service_discovery_v3.DeltaDiscoveryResponse {
+	s.t.Helper()
+	s.mgr.Update(s.ctx, resources)
+	return s.settle()
+}
+
+func (s *testStream) ack(typeURL, nonce string) []*envoy_service_discovery_v3.DeltaDiscoveryResponse {
+	s.t.Helper()
+	return s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: typeURL, ResponseNonce: nonce})
+}
+
+func (s *testStream) nack(typeURL, nonce, message string) []*envoy_service_discovery_v3.DeltaDiscoveryResponse {
+	s.t.Helper()
+	return s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{
+		TypeUrl:       typeURL,
+		ResponseNonce: nonce,
+		ErrorDetail:   &status.Status{Code: int32(codes.Internal), Message: message},
+	})
+}
+
+// resourceRefs lists the resources of the responses as name@version.
+func resourceRefs(responses ...*envoy_service_discovery_v3.DeltaDiscoveryResponse) []string {
+	var refs []string
+	for _, res := range responses {
+		for _, resource := range res.GetResources() {
+			refs = append(refs, resource.GetName()+"@"+resource.GetVersion())
+		}
+	}
+	return refs
+}
+
+// recordingHealthProvider records whether each check was last reported
+// running.
+type recordingHealthProvider struct {
+	mu     sync.Mutex
+	checks map[health.Check]bool
+}
+
+func newRecordingHealthProvider() *recordingHealthProvider {
+	return &recordingHealthProvider{checks: map[health.Check]bool{}}
+}
+
+func (p *recordingHealthProvider) ReportStatus(check health.Check, status health.Status, _ ...health.Attr) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.checks[check] = status == health.StatusRunning
+}
+
+func (p *recordingHealthProvider) ReportError(check health.Check, _ error, _ ...health.Attr) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.checks[check] = false
+}
+
+func (p *recordingHealthProvider) running(check health.Check) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.checks[check]
+}
 
 func TestManager(t *testing.T) {
 	t.Parallel()
 
-	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
-	defer clearTimeout()
-
 	typeURL := "example.com/example"
+	s := newTestStream(t, NewManager(map[string][]*envoy_service_discovery_v3.Resource{
+		typeURL: {{Name: "r1", Version: "1"}},
+	}))
 
-	stateChanged := signal.New()
-	origOnHandleDeltaRequest := onHandleDeltaRequest
-	defer func() { onHandleDeltaRequest = origOnHandleDeltaRequest }()
-	onHandleDeltaRequest = func(_ *streamState) {
-		stateChanged.Broadcast(ctx)
-	}
-
-	srv := grpc.NewServer()
-	mgr := NewManager(map[string][]*envoy_service_discovery_v3.Resource{
-		typeURL: {
-			{Name: "r1", Version: "1"},
-		},
-	})
-	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv, mgr)
-
-	li := bufconn.Listen(bufSize)
-	go func() { _ = srv.Serve(li) }()
-
-	cc, err := grpc.Dial("test",
-		grpc.WithInsecure(),
-		grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
-			return li.Dial()
-		}))
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer func() { _ = cc.Close() }()
-
-	client := envoy_service_discovery_v3.NewAggregatedDiscoveryServiceClient(cc)
 	t.Run("stream is disabled", func(t *testing.T) {
-		stream, err := client.StreamAggregatedResources(ctx)
-		if !assert.NoError(t, err) {
-			return
-		}
+		stream, err := s.client.StreamAggregatedResources(s.ctx)
+		require.NoError(t, err)
 		_, err = stream.Recv()
 		assert.Error(t, err, "only delta should be implemented")
-		assert.Equal(t, codes.Unimplemented, grpc.Code(err))
+		assert.Equal(t, codes.Unimplemented, grpcstatus.Code(err))
 	})
 
 	t.Run("updates", func(t *testing.T) {
-		stream, err := client.DeltaAggregatedResources(ctx)
-		if !assert.NoError(t, err) {
-			return
-		}
+		responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: typeURL})
+		require.Len(t, responses, 1)
+		assert.NotEmpty(t, responses[0].GetNonce(), "nonce should not be empty")
+		assert.Equal(t, []string{"r1@1"}, resourceRefs(responses...))
+		s.ack(typeURL, responses[0].GetNonce())
 
-		ch := stateChanged.Bind()
-		defer stateChanged.Unbind(ch)
-		ack := func(nonce string) {
-			err = stream.Send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{
-				TypeUrl:       typeURL,
-				ResponseNonce: nonce,
-			})
-			assert.NoError(t, err)
-			select {
-			case <-ctx.Done():
-				t.Fatal(ctx.Err())
-			case <-ch:
-			}
-		}
-
-		ack("")
-
-		msg, err := stream.Recv()
-		assert.NoError(t, err)
-		assert.NotEmpty(t, msg.GetNonce(), "nonce should not be empty")
-		assert.Equal(t, []*envoy_service_discovery_v3.Resource{
-			{Name: "r1", Version: "1"},
-		}, msg.GetResources())
-		ack(msg.Nonce)
-
-		mgr.Update(ctx, map[string][]*envoy_service_discovery_v3.Resource{
+		responses = s.update(map[string][]*envoy_service_discovery_v3.Resource{
 			typeURL: {{Name: "r1", Version: "2"}},
 		})
+		require.Len(t, responses, 1)
+		assert.Equal(t, []string{"r1@2"}, resourceRefs(responses...))
+		s.ack(typeURL, responses[0].GetNonce())
 
-		msg, err = stream.Recv()
-		assert.NoError(t, err)
-		assert.Equal(t, []*envoy_service_discovery_v3.Resource{
-			{Name: "r1", Version: "2"},
-		}, msg.GetResources())
-		ack(msg.Nonce)
-
-		mgr.Update(ctx, map[string][]*envoy_service_discovery_v3.Resource{
+		responses = s.update(map[string][]*envoy_service_discovery_v3.Resource{
 			typeURL: nil,
 		})
-
-		assert.Eventually(t, func() bool {
-			msg, err = stream.Recv()
-			require.NoError(t, err)
-			ack(msg.Nonce)
-			return assert.ObjectsAreEqual([]string{"r1"}, msg.GetRemovedResources())
-		}, time.Second*5, time.Millisecond)
+		require.Len(t, responses, 1)
+		assert.Equal(t, []string{"r1"}, responses[0].GetRemovedResources())
 	})
 }
 
@@ -135,11 +195,8 @@ func TestManager(t *testing.T) {
 // before envoy acknowledges it. Envoy applies the intermediate update, so the
 // manager must re-send the reverted resources even though they are identical
 // to the ones envoy acknowledged before.
-//
-// It does not run in parallel because it replaces onHandleDeltaRequest.
 func TestManager_LateACKOfRevertedUpdate(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
-	defer clearTimeout()
+	t.Parallel()
 
 	typeURL := "example.com/example"
 	full := map[string][]*envoy_service_discovery_v3.Resource{
@@ -153,183 +210,55 @@ func TestManager_LateACKOfRevertedUpdate(t *testing.T) {
 			{Name: "r1", Version: "1"},
 		},
 	}
-
-	stateChanged := signal.New()
-	origOnHandleDeltaRequest := onHandleDeltaRequest
-	defer func() { onHandleDeltaRequest = origOnHandleDeltaRequest }()
-	onHandleDeltaRequest = func(_ *streamState) {
-		stateChanged.Broadcast(ctx)
-	}
-
-	mgr := NewManager(full)
-	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
-		envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(s, mgr)
-	})
-
-	client := envoy_service_discovery_v3.NewAggregatedDiscoveryServiceClient(cc)
-	stream, err := client.DeltaAggregatedResources(ctx)
-	require.NoError(t, err)
-
-	ch := stateChanged.Bind()
-	defer stateChanged.Unbind(ch)
-	ack := func(nonce string) {
-		t.Helper()
-		require.NoError(t, stream.Send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{
-			TypeUrl:       typeURL,
-			ResponseNonce: nonce,
-		}))
-		select {
-		case <-ctx.Done():
-			t.Fatal(ctx.Err())
-		case <-ch:
-		}
-	}
-
-	responses := make(chan *envoy_service_discovery_v3.DeltaDiscoveryResponse)
-	go func() {
-		for {
-			msg, err := stream.Recv()
-			if err != nil {
-				return
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case responses <- msg:
-			}
-		}
-	}()
-	recv := func(timeout time.Duration, failure string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
-		t.Helper()
-		select {
-		case <-ctx.Done():
-			t.Fatal(ctx.Err())
-		case msg := <-responses:
-			return msg
-		case <-time.After(timeout):
-			t.Fatal(failure)
-		}
-		return nil
-	}
+	s := newTestStream(t, NewManager(full))
 
 	// envoy subscribes, receives the full set and acknowledges it
-	ack("")
-	msg := recv(time.Second*5, "the initial resources were never sent")
-	assert.ElementsMatch(t, full[typeURL], msg.GetResources())
-	ack(msg.GetNonce())
+	responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: typeURL})
+	require.Len(t, responses, 1)
+	assert.ElementsMatch(t, []string{"r1@1", "r2@1"}, resourceRefs(responses...))
+	s.ack(typeURL, responses[0].GetNonce())
 
 	// an update removes r2; envoy applies it but has not acknowledged it yet
-	mgr.Update(ctx, partial)
-	msg = recv(time.Second*5, "the removal of r2 was never sent")
-	assert.Equal(t, []string{"r2"}, msg.GetRemovedResources())
-	partialNonce := msg.GetNonce()
+	responses = s.update(partial)
+	require.Len(t, responses, 1)
+	assert.Equal(t, []string{"r2"}, responses[0].GetRemovedResources())
+	partialNonce := responses[0].GetNonce()
 
-	// the next update restores r2 with the same version envoy acknowledged before
-	mgr.Update(ctx, full)
-
-	// envoy acknowledges the partial update after the manager has moved on
-	ack(partialNonce)
+	// the next update restores r2 with the same version envoy acknowledged
+	// before, and envoy acknowledges the partial update after the manager has
+	// moved on
+	responses = s.update(full)
+	responses = append(responses, s.ack(typeURL, partialNonce)...)
 
 	// envoy no longer has r2, so the manager must send it again
-	msg = recv(time.Second*2, "r2 was never re-sent after envoy applied its removal")
-	assert.Equal(t, []*envoy_service_discovery_v3.Resource{
-		{Name: "r2", Version: "1"},
-	}, msg.GetResources())
-}
-
-// recordingHealthProvider records the status reported for each check.
-type recordingHealthProvider struct {
-	mu       sync.Mutex
-	statuses map[health.Check]health.Status
-}
-
-func (p *recordingHealthProvider) ReportStatus(check health.Check, status health.Status, _ ...health.Attr) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.statuses[check] = status
-}
-
-func (p *recordingHealthProvider) ReportError(check health.Check, _ error, _ ...health.Attr) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.statuses[check] = health.StatusUnknown
-}
-
-func (p *recordingHealthProvider) status(check health.Check) health.Status {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.statuses[check]
+	assert.Equal(t, []string{"r2@1"}, resourceRefs(responses...),
+		"r2 was never re-sent after envoy applied its removal")
 }
 
 // TestManager_ACKOfLastResponseReportsRunning covers an update that changes
 // nothing for a type. The manager sends no response for it, so the last
 // response for the type is the only one envoy can acknowledge. Acknowledging
 // it must report the type as running.
-//
-// It does not run in parallel because it replaces onHandleDeltaRequest and
-// registers a health provider.
 func TestManager_ACKOfLastResponseReportsRunning(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
-	defer clearTimeout()
+	t.Parallel()
 
 	resources := map[string][]*envoy_service_discovery_v3.Resource{
 		listenerTypeURL: {{Name: "r1", Version: "1"}},
 	}
-
-	stateChanged := signal.New()
-	origOnHandleDeltaRequest := onHandleDeltaRequest
-	defer func() { onHandleDeltaRequest = origOnHandleDeltaRequest }()
-	onHandleDeltaRequest = func(_ *streamState) {
-		stateChanged.Broadcast(ctx)
-	}
-
-	provider := &recordingHealthProvider{statuses: map[health.Check]health.Status{}}
-	health.GetProviderManager().Register("xdsmgr-test", provider)
-	defer health.GetProviderManager().Deregister("xdsmgr-test")
-
+	provider := newRecordingHealthProvider()
 	mgr := NewManager(resources)
-	queued := make(chan int, 1)
-	mgr.onResponsesQueued = func(n int) { queued <- n }
-	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
-		envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(s, mgr)
-	})
+	mgr.health = provider
+	s := newTestStream(t, mgr)
 
-	client := envoy_service_discovery_v3.NewAggregatedDiscoveryServiceClient(cc)
-	stream, err := client.DeltaAggregatedResources(ctx)
-	require.NoError(t, err)
-
-	ch := stateChanged.Bind()
-	defer stateChanged.Unbind(ch)
-	ack := func(nonce string) {
-		t.Helper()
-		require.NoError(t, stream.Send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{
-			TypeUrl:       listenerTypeURL,
-			ResponseNonce: nonce,
-		}))
-		select {
-		case <-ctx.Done():
-			t.Fatal(ctx.Err())
-		case <-ch:
-		}
-	}
-
-	ack("")
-	<-queued
-	msg, err := stream.Recv()
-	require.NoError(t, err)
-	assert.Equal(t, health.StatusUnknown, provider.status(health.XDSListener))
+	responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+	require.Len(t, responses, 1)
+	assert.False(t, provider.running(health.XDSListener))
 
 	// an update that changes nothing for the type sends no response
-	mgr.Update(ctx, resources)
-	select {
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	case n := <-queued:
-		require.Zero(t, n, "an unchanged type should not be re-sent")
-	}
+	require.Empty(t, s.update(resources), "an unchanged type should not be re-sent")
 
-	ack(msg.GetNonce())
-	assert.Equal(t, health.StatusRunning, provider.status(health.XDSListener),
+	s.ack(listenerTypeURL, responses[0].GetNonce())
+	assert.True(t, provider.running(health.XDSListener),
 		"acknowledging the last response for the type should report it running")
 }
 
@@ -392,11 +321,11 @@ func TestBuildDiscoveryResponsesForConsistentUpdates(t *testing.T) {
 // change, envoy must hold exactly the latest resources.
 //
 // Every update lists every resource type, even with no resources, as
-// Pomerium's own updates do: the manager only diffs the types an update lists.
-//
-// It does not run in parallel, because TestManager replaces
-// onHandleDeltaRequest, which every manager reads.
+// Pomerium's own updates do for the types envoy subscribes to: the manager
+// only diffs the types an update lists.
 func TestManager_EnvoyHoldsLatestResources(t *testing.T) {
+	t.Parallel()
+
 	// each test case gets its own manager, so the stream of an earlier case
 	// cannot react to a later case's changes
 	srv := &caseManager{}
@@ -409,27 +338,18 @@ func TestManager_EnvoyHoldsLatestResources(t *testing.T) {
 		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
 
-		queued := make(chan int, 1)
 		mgr := NewManager(nil)
-		mgr.onResponsesQueued = func(n int) { queued <- n }
 		srv.current.Store(mgr)
-		stream, err := client.DeltaAggregatedResources(ctx)
-		require.NoError(ht, err)
-
 		m := &xdsModel{
 			ht:      ht,
-			ctx:     ctx,
-			mgr:     mgr,
-			stream:  stream,
-			queued:  queued,
+			stream:  openTestStream(ctx, ht, mgr, client),
 			latest:  map[string]map[string]string{},
 			envoy:   map[string]map[string]string{},
 			unacked: map[string][]string{},
 		}
 		for _, typeURL := range xdsModelTypes {
 			m.envoy[typeURL] = map[string]string{}
-			require.NoError(ht, stream.Send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: typeURL}))
-			m.settle()
+			m.apply(m.stream.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: typeURL}))
 		}
 		hegel.RunStateful(ht, m)
 	})
@@ -452,10 +372,7 @@ var xdsModelTypes = []string{"example.com/a", "example.com/b"}
 // xdsModel is a simulated envoy on a stream to a manager.
 type xdsModel struct {
 	ht     *hegel.T
-	ctx    context.Context
-	mgr    *Manager
-	stream envoy_service_discovery_v3.AggregatedDiscoveryService_DeltaAggregatedResourcesClient
-	queued <-chan int
+	stream *testStream
 
 	// the versions the manager serves, by type and name
 	latest map[string]map[string]string
@@ -471,29 +388,10 @@ func (m *xdsModel) notef(format string, args ...any) {
 	m.ht.Note(fmt.Sprintf(format, args...))
 }
 
-func resourceRefsForNote(res *envoy_service_discovery_v3.DeltaDiscoveryResponse) []string {
-	var refs []string
-	for _, resource := range res.GetResources() {
-		refs = append(refs, resource.GetName()+"@"+resource.GetVersion())
-	}
-	return refs
-}
-
-// settle receives the responses the manager queued for the last change or
-// request, and applies them as envoy does.
-func (m *xdsModel) settle() {
-	var n int
-	select {
-	case n = <-m.queued:
-	case <-m.ctx.Done():
-		m.ht.Fatalf("the manager did not handle the change")
-	}
-	for range n {
-		res, err := m.stream.Recv()
-		if err != nil {
-			m.ht.Fatalf("receiving a response: %v", err)
-		}
-		m.notef("envoy applies %s: %v, removes %v", res.GetTypeUrl(), resourceRefsForNote(res), res.GetRemovedResources())
+// apply applies the responses as envoy does.
+func (m *xdsModel) apply(responses []*envoy_service_discovery_v3.DeltaDiscoveryResponse) {
+	for _, res := range responses {
+		m.notef("envoy applies %s: %v, removes %v", res.GetTypeUrl(), resourceRefs(res), res.GetRemovedResources())
 		held := m.envoy[res.GetTypeUrl()]
 		for _, resource := range res.GetResources() {
 			held[resource.GetName()] = resource.GetVersion()
@@ -521,8 +419,7 @@ func (m *xdsModel) RuleUpdate(tc hegel.TestCase) {
 		m.latest[typeURL] = latest
 	}
 	m.notef("update: %v", m.latest)
-	m.mgr.Update(m.ctx, resources)
-	m.settle()
+	m.apply(m.stream.update(resources))
 }
 
 // RuleACK has envoy acknowledge its oldest unacknowledged response of one
@@ -541,11 +438,7 @@ func (m *xdsModel) RuleACK(tc hegel.TestCase) {
 	nonce := m.unacked[typeURL][0]
 	m.unacked[typeURL] = m.unacked[typeURL][1:]
 	m.notef("envoy acknowledges its oldest response of %s", typeURL)
-	err := m.stream.Send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: typeURL, ResponseNonce: nonce})
-	if err != nil {
-		m.ht.Fatalf("sending an ACK: %v", err)
-	}
-	m.settle()
+	m.apply(m.stream.ack(typeURL, nonce))
 }
 
 // InvariantEnvoyHoldsLatest checks that envoy holds what the manager serves.

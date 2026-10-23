@@ -2,7 +2,6 @@ package xdsmgr
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -28,8 +27,6 @@ func logNACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscovery
 		Str("nonce", req.GetResponseNonce()).
 		Any("error-detail", req.GetErrorDetail()).
 		Msg("xdsmgr: nack")
-
-	health.ReportError(getHealthCheck(req.GetTypeUrl()), errors.New(req.GetErrorDetail().GetMessage()))
 }
 
 func logACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
@@ -37,8 +34,6 @@ func logACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryR
 		Str("type-url", req.GetTypeUrl()).
 		Str("nonce", req.GetResponseNonce()).
 		Msg("xdsmgr: ack")
-
-	health.ReportRunning(getHealthCheck(req.GetTypeUrl()))
 }
 
 func logEarlierACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest, latestNonce string) {
@@ -59,13 +54,15 @@ func logSend(ctx context.Context, res *envoy_service_discovery_v3.DeltaDiscovery
 		Str("nonce", res.GetNonce()).
 		Int("resource-count", len(resources)).
 		Int("removed-resource-count", len(removed))
-	// naming the resources costs allocations, so only trace level does it
+	// naming the resources costs allocations, so only trace level does it.
+	// The global level decides, because testenv pins its context loggers at
+	// debug while the e2e tests raise the global level to trace.
 	if log.GetLevel() <= zerolog.TraceLevel {
-		e = e.Strs("resources", loggedNames(len(resources), func(i int) string {
-			version := resources[i].GetVersion()
-			return resources[i].GetName() + "@" + version[:min(len(version), 8)]
+		e = e.Strs("resources", loggedNames(resources, func(r *envoy_service_discovery_v3.Resource) string {
+			version := r.GetVersion()
+			return r.GetName() + "@" + version[:min(len(version), 8)]
 		})).
-			Strs("removed-resources", loggedNames(len(removed), func(i int) string { return removed[i] }))
+			Strs("removed-resources", loggedNames(removed, func(name string) string { return name }))
 	}
 	e.Msg("xdsmgr: sending resources")
 }
@@ -73,15 +70,16 @@ func logSend(ctx context.Context, res *envoy_service_discovery_v3.DeltaDiscovery
 // maxLoggedNames limits how many resource names a single log line lists.
 const maxLoggedNames = 20
 
-// loggedNames returns up to maxLoggedNames of count names, followed by how
-// many were left out.
-func loggedNames(count int, name func(i int) string) []string {
-	names := make([]string, 0, min(count, maxLoggedNames)+1)
-	for i := range min(count, maxLoggedNames) {
-		names = append(names, name(i))
+// loggedNames names up to maxLoggedNames of the items, followed by how many
+// were left out.
+func loggedNames[T any](items []T, name func(T) string) []string {
+	shown := items[:min(len(items), maxLoggedNames)]
+	names := make([]string, 0, len(shown)+1)
+	for _, item := range shown {
+		names = append(names, name(item))
 	}
-	if count > maxLoggedNames {
-		names = append(names, fmt.Sprintf("(%d more)", count-maxLoggedNames))
+	if len(items) > len(shown) {
+		names = append(names, fmt.Sprintf("(%d more)", len(items)-len(shown)))
 	}
 	return names
 }
