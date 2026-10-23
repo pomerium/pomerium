@@ -270,7 +270,7 @@ func (r *reporter) createPosthogPropertiesForSettings(cfg *config.Config) postho
 func (r *reporter) getDistinctID(cfg *config.Config) string {
 	if cfg.Options.InstallationID != "" {
 		if cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL {
-			cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), cfg.Options.InstallationID)
+			return cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), cfg.Options.InstallationID)
 		}
 		return cfg.Options.InstallationID
 	}
