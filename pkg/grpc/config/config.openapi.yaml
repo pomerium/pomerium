@@ -2676,6 +2676,16 @@ components:
       description: |-
         KeyUsage specifies the usage flags set on a signed TLS certificate.
          Each field maps to one bit of the X.509 KeyUsage / ExtKeyUsage extensions.
+    pomerium.config.LicenseType:
+      type: string
+      title: LicenseType
+      enum:
+        - LICENSE_TYPE_UNKNOWN
+        - LICENSE_TYPE_OPEN_SOURCE
+        - LICENSE_TYPE_COMMUNITY
+        - LICENSE_TYPE_COMMERCIAL
+        - LICENSE_TYPE_COMMERCIAL_TRIAL
+      description: LicenseType is the license type for Pomerium.
     pomerium.config.ListAvailableLogFieldsRequest:
       type: object
       title: ListAvailableLogFieldsRequest
@@ -5490,6 +5500,12 @@ components:
             - type: "null"
           title: enterprise
           description: Embedded enterprise options.
+        licenseType:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.LicenseType'
+            - type: "null"
+          title: license_type
+          description: License type for Pomerium.
         createdAt:
           title: created_at
           description: When the settings were created.

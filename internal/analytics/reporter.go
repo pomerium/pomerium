@@ -3,13 +3,12 @@ package analytics
 import (
 	"cmp"
 	"context"
-	"crypto/hmac"
+	"crypto/hkdf"
 	"crypto/sha256"
 	"fmt"
 	"os"
 	"strings"
 	"time"
-	"uuid"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/hashicorp/go-set/v3"
@@ -22,7 +21,11 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
+
+var fallbackKey = cryptutil.NewKey()
 
 type Reporter interface {
 	CreatePosthogEvent(ctx context.Context, cfg *config.Config, sessionCount, userCount int) posthog.Capture
@@ -56,7 +59,8 @@ func (r *reporter) CreatePosthogEvent(ctx context.Context, cfg *config.Config, s
 		Properties: r.createPosthogProperties(ctx, cfg, sessionCount, userCount),
 	}
 	if cfg.Options.InstallationID != "" {
-		evt.Groups = posthog.NewGroups().Set("installation_id", cfg.Options.InstallationID)
+		evt.Groups = make(posthog.Groups)
+		r.setPII(cfg, evt.Groups, "installation_id", cfg.Options.InstallationID)
 	}
 	return evt
 }
@@ -119,7 +123,7 @@ func (r *reporter) createPosthogProperties(ctx context.Context, cfg *config.Conf
 		Set("user_count", userCount)
 	p.Merge(r.createPosthogPropertiesForCertificates(cfg))
 	p.Merge(r.createPosthogPropertiesForCPU(ctx))
-	p.Merge(r.createPosthogPropertiesForHost(ctx))
+	p.Merge(r.createPosthogPropertiesForHost(ctx, cfg))
 	p.Merge(r.createPosthogPropertiesForMemory(ctx))
 	p.Merge(r.createPosthogPropertiesForProduct(cfg))
 	p.Merge(r.createPosthogPropertiesForRoutes(cfg))
@@ -153,23 +157,12 @@ func (r *reporter) createPosthogPropertiesForCPU(ctx context.Context) posthog.Pr
 	return p
 }
 
-func (r *reporter) createPosthogPropertiesForHost(ctx context.Context) posthog.Properties {
-	p := posthog.NewProperties()
-	if info, err := mem.VirtualMemoryWithContext(ctx); err == nil {
-		p.
-			Set("mem_total", info.Total).
-			Set("mem_available", info.Available).
-			Set("mem_used", info.Used)
-	}
-	return p
-}
-
-func (r *reporter) createPosthogPropertiesForMemory(ctx context.Context) posthog.Properties {
+func (r *reporter) createPosthogPropertiesForHost(ctx context.Context, cfg *config.Config) posthog.Properties {
 	p := posthog.NewProperties()
 	if info, err := host.InfoWithContext(ctx); err == nil {
+		r.setPII(cfg, p, "hostname", info.Hostname)
+		r.setPII(cfg, p, "host_id", info.HostID)
 		p.
-			Set("host_id", info.HostID).
-			Set("hostname", info.Hostname).
 			Set("os", info.OS).
 			Set("platform", info.Platform).
 			Set("platform_family", info.PlatformFamily).
@@ -177,6 +170,17 @@ func (r *reporter) createPosthogPropertiesForMemory(ctx context.Context) posthog
 			Set("kernel_arch", info.KernelArch).
 			Set("kernel_version", info.KernelVersion).
 			Set("virtualization_system", info.VirtualizationSystem)
+	}
+	return p
+}
+
+func (r *reporter) createPosthogPropertiesForMemory(ctx context.Context) posthog.Properties {
+	p := posthog.NewProperties()
+	if info, err := mem.VirtualMemoryWithContext(ctx); err == nil {
+		p.
+			Set("mem_total", info.Total).
+			Set("mem_available", info.Available).
+			Set("mem_used", info.Used)
 	}
 	return p
 }
@@ -242,8 +246,7 @@ func (r *reporter) createPosthogPropertiesForRoutes(cfg *config.Config) posthog.
 			}
 		}
 	}
-	return posthog.Properties{
-		"domains":                domains.Slice(),
+	p := posthog.Properties{
 		"ppl_criteria":           criteria.Slice(),
 		"route_count":            routeCount,
 		"kubernetes_route_count": kubernetesCount,
@@ -252,44 +255,51 @@ func (r *reporter) createPosthogPropertiesForRoutes(cfg *config.Config) posthog.
 		"tcp_route_count":        tcpCount,
 		"udp_route_count":        udpCount,
 	}
+	r.setPIISlice(cfg, p, "domains", domains.Slice())
+	return p
 }
 
 func (r *reporter) createPosthogPropertiesForSettings(cfg *config.Config) posthog.Properties {
-	return posthog.Properties{
-		"identity_provider":     cfg.Options.Provider,
-		"identity_provider_url": cfg.Options.ProviderURL,
-		"originator_id":         cfg.Options.OriginatorID.Value,
+	p := posthog.Properties{
+		"identity_provider": cfg.Options.Provider,
+		"originator_id":     cfg.Options.OriginatorID.Value,
 	}
+	r.setPII(cfg, p, "identity_provider_url", cfg.Options.ProviderURL)
+	return p
 }
 
 func (r *reporter) getDistinctID(cfg *config.Config) string {
 	if cfg.Options.InstallationID != "" {
+		if r.shouldPseudonymize(cfg) {
+			return cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), cfg.Options.InstallationID)
+		}
 		return cfg.Options.InstallationID
 	}
+	return cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), "posthog_distinct_id")
+}
 
+func (r *reporter) getPseudonymizationKey(cfg *config.Config) []byte {
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
-		return uuid.New().String()
+		sharedKey = fallbackKey
 	}
 
-	h := hmac.New(sha256.New, sharedKey)
-	h.Write([]byte("posthog-distinct-id"))
-	return fmt.Sprintf("%x", h.Sum(nil))
+	pseudonymizationKey, err := hkdf.Key(sha256.New, sharedKey, nil, "core_periodic_analytics", 32)
+	if err != nil {
+		pseudonymizationKey = fallbackKey
+	}
+
+	return pseudonymizationKey
 }
 
 func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount, userCount int) error {
-	if cfg == nil || !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) {
+	if cfg == nil ||
+		cfg.Options.LicenseType.Value == configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE ||
+		!cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) {
 		return nil
 	}
 
-	msg := posthog.Capture{
-		DistinctId: r.getDistinctID(cfg),
-		Event:      "core_periodic_analytics",
-		Properties: r.createPosthogProperties(ctx, cfg, sessionCount, userCount),
-	}
-	if cfg.Options.InstallationID != "" {
-		msg.Groups = posthog.NewGroups().Set("installation_id", cfg.Options.InstallationID)
-	}
+	msg := r.CreatePosthogEvent(ctx, cfg, sessionCount, userCount)
 
 	client, err := posthog.NewWithConfig(PostHogProductionProjectID, posthog.Config{
 		Endpoint: PostHogEndpoint,
@@ -307,6 +317,32 @@ func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount,
 		return fmt.Errorf("error closing posthog client: %w", err)
 	}
 	return nil
+}
+
+func (r *reporter) setPII[M interface{ ~map[string]any }](cfg *config.Config, dst M, key, value string) {
+	if r.shouldPseudonymize(cfg) {
+		dst["pseudonymous_"+key] = cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), value)
+	} else {
+		dst[key] = value
+	}
+}
+
+func (r *reporter) setPIISlice[M interface{ ~map[string]any }](cfg *config.Config, dst M, key string, values []string) {
+	if r.shouldPseudonymize(cfg) {
+		pseudonymizationKey := r.getPseudonymizationKey(cfg)
+		pseudonymized := make([]string, len(values))
+		for i, value := range values {
+			pseudonymized[i] = cryptutil.Pseudonymize(pseudonymizationKey, value)
+		}
+		dst["pseudonymous_"+key] = pseudonymized
+	} else {
+		dst[key] = values
+	}
+}
+
+func (r *reporter) shouldPseudonymize(cfg *config.Config) bool {
+	return cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL &&
+		cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL_TRIAL
 }
 
 func sendOrReplace[T any](ch chan T, value T) {
