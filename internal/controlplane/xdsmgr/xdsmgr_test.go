@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -233,6 +235,102 @@ func TestManager_LateACKOfRevertedUpdate(t *testing.T) {
 	assert.Equal(t, []*envoy_service_discovery_v3.Resource{
 		{Name: "r2", Version: "1"},
 	}, msg.GetResources())
+}
+
+// recordingHealthProvider records the status reported for each check.
+type recordingHealthProvider struct {
+	mu       sync.Mutex
+	statuses map[health.Check]health.Status
+}
+
+func (p *recordingHealthProvider) ReportStatus(check health.Check, status health.Status, _ ...health.Attr) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.statuses[check] = status
+}
+
+func (p *recordingHealthProvider) ReportError(check health.Check, _ error, _ ...health.Attr) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.statuses[check] = health.StatusUnknown
+}
+
+func (p *recordingHealthProvider) status(check health.Check) health.Status {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.statuses[check]
+}
+
+// TestManager_ACKOfLastResponseReportsRunning covers an update that changes
+// nothing for a type. The manager sends no response for it, so the last
+// response for the type is the only one envoy can acknowledge. Acknowledging
+// it must report the type as running.
+//
+// It does not run in parallel because it replaces onHandleDeltaRequest and
+// registers a health provider.
+func TestManager_ACKOfLastResponseReportsRunning(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
+	defer clearTimeout()
+
+	resources := map[string][]*envoy_service_discovery_v3.Resource{
+		listenerTypeURL: {{Name: "r1", Version: "1"}},
+	}
+
+	stateChanged := signal.New()
+	origOnHandleDeltaRequest := onHandleDeltaRequest
+	defer func() { onHandleDeltaRequest = origOnHandleDeltaRequest }()
+	onHandleDeltaRequest = func(_ *streamState) {
+		stateChanged.Broadcast(ctx)
+	}
+
+	provider := &recordingHealthProvider{statuses: map[health.Check]health.Status{}}
+	health.GetProviderManager().Register("xdsmgr-test", provider)
+	defer health.GetProviderManager().Deregister("xdsmgr-test")
+
+	mgr := NewManager(resources)
+	queued := make(chan int, 1)
+	mgr.onResponsesQueued = func(n int) { queued <- n }
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(s, mgr)
+	})
+
+	client := envoy_service_discovery_v3.NewAggregatedDiscoveryServiceClient(cc)
+	stream, err := client.DeltaAggregatedResources(ctx)
+	require.NoError(t, err)
+
+	ch := stateChanged.Bind()
+	defer stateChanged.Unbind(ch)
+	ack := func(nonce string) {
+		t.Helper()
+		require.NoError(t, stream.Send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{
+			TypeUrl:       listenerTypeURL,
+			ResponseNonce: nonce,
+		}))
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-ch:
+		}
+	}
+
+	ack("")
+	<-queued
+	msg, err := stream.Recv()
+	require.NoError(t, err)
+	assert.Equal(t, health.StatusUnknown, provider.status(health.XDSListener))
+
+	// an update that changes nothing for the type sends no response
+	mgr.Update(ctx, resources)
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case n := <-queued:
+		require.Zero(t, n, "an unchanged type should not be re-sent")
+	}
+
+	ack(msg.GetNonce())
+	assert.Equal(t, health.StatusRunning, provider.status(health.XDSListener),
+		"acknowledging the last response for the type should report it running")
 }
 
 func TestBuildDiscoveryResponsesForConsistentUpdates(t *testing.T) {
