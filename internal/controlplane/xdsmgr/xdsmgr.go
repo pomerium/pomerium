@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 )
 
@@ -33,6 +32,11 @@ type Manager struct {
 	mu        sync.Mutex
 	nonce     string
 	resources map[string][]*envoy_service_discovery_v3.Resource
+
+	// onResponsesQueued, if set, is called once a request or a resource
+	// change has been handled, with the number of responses it queued for the
+	// stream. Tests use it to know when the manager is done reacting.
+	onResponsesQueued func(n int)
 }
 
 // NewManager creates a new Manager.
@@ -85,6 +89,16 @@ func (mgr *Manager) DeltaAggregatedResources(
 			return nil
 		}
 
+		// Envoy applies each response before acknowledging it and may
+		// acknowledge late, so it holds what was sent, whatever the ACKs say.
+		// A NACKed resource is therefore not re-sent until it changes.
+		for _, resource := range res.Resources {
+			state.clientResourceVersions[resource.Name] = resource.Version
+		}
+		for _, name := range res.RemovedResources {
+			delete(state.clientResourceVersions, name)
+		}
+
 		return res
 	}
 
@@ -111,28 +125,13 @@ func (mgr *Manager) DeltaAggregatedResources(
 			// neither an ACK or a NACK
 		case req.GetErrorDetail() != nil:
 			// a NACK
-			// - set the client resource versions to the current resource versions
-			state.clientResourceVersions = make(map[string]string)
-			for _, resource := range mgr.resources[req.GetTypeUrl()] {
-				state.clientResourceVersions[resource.Name] = resource.Version
-			}
 			logNACK(ctx, req)
 		case req.GetResponseNonce() == mgr.nonce:
 			// an ACK for the last response
-			// - set the client resource versions to the current resource versions
-			state.clientResourceVersions = make(map[string]string)
-			for _, resource := range mgr.resources[req.GetTypeUrl()] {
-				state.clientResourceVersions[resource.Name] = resource.Version
-			}
 			logACK(ctx, req)
 		default:
 			// an ACK for a response that's not the last response
-			log.Ctx(ctx).
-				Debug().
-				Str("type-url", req.GetTypeUrl()).
-				Str("nonce", req.GetResponseNonce()).
-				Str("latest-nonce", mgr.nonce).
-				Msg("xdsmgr: ack of an earlier response")
+			logEarlierACK(ctx, req, mgr.nonce)
 		}
 
 		// update subscriptions
@@ -208,6 +207,9 @@ func (mgr *Manager) DeltaAggregatedResources(
 				case outgoing <- res:
 				}
 			}
+			if mgr.onResponsesQueued != nil {
+				mgr.onResponsesQueued(len(responses))
+			}
 		}
 	})
 	// 3. send all outgoing messages
@@ -217,15 +219,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 			case <-ctx.Done():
 				return context.Cause(ctx)
 			case res := <-outgoing:
-				log.Ctx(ctx).
-					Debug().
-					Str("type-url", res.GetTypeUrl()).
-					Str("nonce", res.GetNonce()).
-					Int("resource-count", len(res.GetResources())).
-					Strs("resources", resourceRefs(res.GetResources())).
-					Int("removed-resource-count", len(res.GetRemovedResources())).
-					Strs("removed-resources", limitNames(res.GetRemovedResources())).
-					Msg("xdsmgr: sending resources")
+				logSend(ctx, res)
 				err := stream.Send(res)
 				if err != nil {
 					return err

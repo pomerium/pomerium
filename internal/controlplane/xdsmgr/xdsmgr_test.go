@@ -2,7 +2,10 @@ package xdsmgr
 
 import (
 	"context"
+	"fmt"
+	"maps"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,8 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+	"hegel.dev/go/hegel"
 
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -156,21 +159,10 @@ func TestManager_LateACKOfRevertedUpdate(t *testing.T) {
 		stateChanged.Broadcast(ctx)
 	}
 
-	srv := grpc.NewServer()
 	mgr := NewManager(full)
-	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv, mgr)
-
-	li := bufconn.Listen(bufSize)
-	go func() { _ = srv.Serve(li) }()
-	defer srv.Stop()
-
-	cc, err := grpc.NewClient("passthrough:///test",
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
-			return li.Dial()
-		}))
-	require.NoError(t, err)
-	defer func() { _ = cc.Close() }()
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(s, mgr)
+	})
 
 	client := envoy_service_discovery_v3.NewAggregatedDiscoveryServiceClient(cc)
 	stream, err := client.DeltaAggregatedResources(ctx)
@@ -205,7 +197,7 @@ func TestManager_LateACKOfRevertedUpdate(t *testing.T) {
 			}
 		}
 	}()
-	recv := func(timeout time.Duration) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
+	recv := func(timeout time.Duration, failure string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
 		t.Helper()
 		select {
 		case <-ctx.Done():
@@ -213,21 +205,20 @@ func TestManager_LateACKOfRevertedUpdate(t *testing.T) {
 		case msg := <-responses:
 			return msg
 		case <-time.After(timeout):
+			t.Fatal(failure)
 		}
 		return nil
 	}
 
 	// envoy subscribes, receives the full set and acknowledges it
 	ack("")
-	msg := recv(time.Second * 5)
-	require.NotNil(t, msg)
+	msg := recv(time.Second*5, "the initial resources were never sent")
 	assert.ElementsMatch(t, full[typeURL], msg.GetResources())
 	ack(msg.GetNonce())
 
 	// an update removes r2; envoy applies it but has not acknowledged it yet
 	mgr.Update(ctx, partial)
-	msg = recv(time.Second * 5)
-	require.NotNil(t, msg)
+	msg = recv(time.Second*5, "the removal of r2 was never sent")
 	assert.Equal(t, []string{"r2"}, msg.GetRemovedResources())
 	partialNonce := msg.GetNonce()
 
@@ -238,8 +229,7 @@ func TestManager_LateACKOfRevertedUpdate(t *testing.T) {
 	ack(partialNonce)
 
 	// envoy no longer has r2, so the manager must send it again
-	msg = recv(time.Second * 2)
-	require.NotNil(t, msg, "r2 was never re-sent after envoy applied its removal")
+	msg = recv(time.Second*2, "r2 was never re-sent after envoy applied its removal")
 	assert.Equal(t, []*envoy_service_discovery_v3.Resource{
 		{Name: "r2", Version: "1"},
 	}, msg.GetResources())
@@ -295,4 +285,176 @@ func TestBuildDiscoveryResponsesForConsistentUpdates(t *testing.T) {
 			RemovedResources: []string{"c2"},
 		},
 	}, responses)
+}
+
+// TestManager_EnvoyHoldsLatestResources drives a manager with a simulated
+// envoy. The envoy applies every response it receives, in order, and
+// acknowledges each one, possibly much later and in any order across resource
+// types. Whatever the order, once the manager has sent its responses to a
+// change, envoy must hold exactly the latest resources.
+//
+// Every update lists every resource type, even with no resources, as
+// Pomerium's own updates do: the manager only diffs the types an update lists.
+//
+// It does not run in parallel, because TestManager replaces
+// onHandleDeltaRequest, which every manager reads.
+func TestManager_EnvoyHoldsLatestResources(t *testing.T) {
+	// each test case gets its own manager, so the stream of an earlier case
+	// cannot react to a later case's changes
+	srv := &caseManager{}
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(s, srv)
+	})
+	client := envoy_service_discovery_v3.NewAggregatedDiscoveryServiceClient(cc)
+
+	hegel.Test(t, func(ht *hegel.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+
+		queued := make(chan int, 1)
+		mgr := NewManager(nil)
+		mgr.onResponsesQueued = func(n int) { queued <- n }
+		srv.current.Store(mgr)
+		stream, err := client.DeltaAggregatedResources(ctx)
+		require.NoError(ht, err)
+
+		m := &xdsModel{
+			ht:      ht,
+			ctx:     ctx,
+			mgr:     mgr,
+			stream:  stream,
+			queued:  queued,
+			latest:  map[string]map[string]string{},
+			envoy:   map[string]map[string]string{},
+			unacked: map[string][]string{},
+		}
+		for _, typeURL := range xdsModelTypes {
+			m.envoy[typeURL] = map[string]string{}
+			require.NoError(ht, stream.Send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: typeURL}))
+			m.settle()
+		}
+		hegel.RunStateful(ht, m)
+	})
+}
+
+// caseManager serves the manager of the current test case.
+type caseManager struct {
+	envoy_service_discovery_v3.UnimplementedAggregatedDiscoveryServiceServer
+	current atomic.Pointer[Manager]
+}
+
+func (c *caseManager) DeltaAggregatedResources(
+	stream envoy_service_discovery_v3.AggregatedDiscoveryService_DeltaAggregatedResourcesServer,
+) error {
+	return c.current.Load().DeltaAggregatedResources(stream)
+}
+
+var xdsModelTypes = []string{"example.com/a", "example.com/b"}
+
+// xdsModel is a simulated envoy on a stream to a manager.
+type xdsModel struct {
+	ht     *hegel.T
+	ctx    context.Context
+	mgr    *Manager
+	stream envoy_service_discovery_v3.AggregatedDiscoveryService_DeltaAggregatedResourcesClient
+	queued <-chan int
+
+	// the versions the manager serves, by type and name
+	latest map[string]map[string]string
+	// the versions envoy holds, by type and name
+	envoy map[string]map[string]string
+	// the nonces of the responses envoy applied but has not acknowledged,
+	// oldest first, by type
+	unacked map[string][]string
+}
+
+// notef shows what happened in a failing test case.
+func (m *xdsModel) notef(format string, args ...any) {
+	m.ht.Note(fmt.Sprintf(format, args...))
+}
+
+func resourceRefsForNote(res *envoy_service_discovery_v3.DeltaDiscoveryResponse) []string {
+	var refs []string
+	for _, resource := range res.GetResources() {
+		refs = append(refs, resource.GetName()+"@"+resource.GetVersion())
+	}
+	return refs
+}
+
+// settle receives the responses the manager queued for the last change or
+// request, and applies them as envoy does.
+func (m *xdsModel) settle() {
+	var n int
+	select {
+	case n = <-m.queued:
+	case <-m.ctx.Done():
+		m.ht.Fatalf("the manager did not handle the change")
+	}
+	for range n {
+		res, err := m.stream.Recv()
+		if err != nil {
+			m.ht.Fatalf("receiving a response: %v", err)
+		}
+		m.notef("envoy applies %s: %v, removes %v", res.GetTypeUrl(), resourceRefsForNote(res), res.GetRemovedResources())
+		held := m.envoy[res.GetTypeUrl()]
+		for _, resource := range res.GetResources() {
+			held[resource.GetName()] = resource.GetVersion()
+		}
+		for _, name := range res.GetRemovedResources() {
+			delete(held, name)
+		}
+		m.unacked[res.GetTypeUrl()] = append(m.unacked[res.GetTypeUrl()], res.GetNonce())
+	}
+}
+
+// RuleUpdate changes the resources the manager serves.
+func (m *xdsModel) RuleUpdate(tc hegel.TestCase) {
+	resources := map[string][]*envoy_service_discovery_v3.Resource{}
+	for _, typeURL := range xdsModelTypes {
+		latest := map[string]string{}
+		resources[typeURL] = nil
+		for _, name := range []string{"r1", "r2", "r3"} {
+			if hegel.Draw(tc, hegel.Booleans()) {
+				version := hegel.Draw(tc, hegel.SampledFrom([]string{"1", "2"}))
+				latest[name] = version
+				resources[typeURL] = append(resources[typeURL], &envoy_service_discovery_v3.Resource{Name: name, Version: version})
+			}
+		}
+		m.latest[typeURL] = latest
+	}
+	m.notef("update: %v", m.latest)
+	m.mgr.Update(m.ctx, resources)
+	m.settle()
+}
+
+// RuleACK has envoy acknowledge its oldest unacknowledged response of one
+// type.
+func (m *xdsModel) RuleACK(tc hegel.TestCase) {
+	var pending []string
+	for _, typeURL := range xdsModelTypes {
+		if len(m.unacked[typeURL]) > 0 {
+			pending = append(pending, typeURL)
+		}
+	}
+	if len(pending) == 0 {
+		return
+	}
+	typeURL := hegel.Draw(tc, hegel.SampledFrom(pending))
+	nonce := m.unacked[typeURL][0]
+	m.unacked[typeURL] = m.unacked[typeURL][1:]
+	m.notef("envoy acknowledges its oldest response of %s", typeURL)
+	err := m.stream.Send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: typeURL, ResponseNonce: nonce})
+	if err != nil {
+		m.ht.Fatalf("sending an ACK: %v", err)
+	}
+	m.settle()
+}
+
+// InvariantEnvoyHoldsLatest checks that envoy holds what the manager serves.
+func (m *xdsModel) InvariantEnvoyHoldsLatest(_ hegel.TestCase) {
+	for _, typeURL := range xdsModelTypes {
+		if !maps.Equal(m.envoy[typeURL], m.latest[typeURL]) {
+			m.ht.Fatalf("envoy holds %v of %s, the manager serves %v", m.envoy[typeURL], typeURL, m.latest[typeURL])
+		}
+	}
 }

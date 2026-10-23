@@ -9,6 +9,7 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -40,24 +41,49 @@ func logACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryR
 	health.ReportRunning(getHealthCheck(req.GetTypeUrl()))
 }
 
+func logEarlierACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest, latestNonce string) {
+	log.Ctx(ctx).Debug().
+		Str("type-url", req.GetTypeUrl()).
+		Str("nonce", req.GetResponseNonce()).
+		Str("latest-nonce", latestNonce).
+		Msg("xdsmgr: ack of an earlier response")
+}
+
+func logSend(ctx context.Context, res *envoy_service_discovery_v3.DeltaDiscoveryResponse) {
+	e := log.Ctx(ctx).Debug()
+	if !e.Enabled() {
+		return
+	}
+	resources, removed := res.GetResources(), res.GetRemovedResources()
+	e = e.Str("type-url", res.GetTypeUrl()).
+		Str("nonce", res.GetNonce()).
+		Int("resource-count", len(resources)).
+		Int("removed-resource-count", len(removed))
+	// naming the resources costs allocations, so only trace level does it
+	if log.GetLevel() <= zerolog.TraceLevel {
+		e = e.Strs("resources", loggedNames(len(resources), func(i int) string {
+			version := resources[i].GetVersion()
+			return resources[i].GetName() + "@" + version[:min(len(version), 8)]
+		})).
+			Strs("removed-resources", loggedNames(len(removed), func(i int) string { return removed[i] }))
+	}
+	e.Msg("xdsmgr: sending resources")
+}
+
 // maxLoggedNames limits how many resource names a single log line lists.
 const maxLoggedNames = 20
 
-// resourceRefs returns "name@version" for each resource, with the version
-// shortened, so a log line shows which resources changed.
-func resourceRefs(resources []*envoy_service_discovery_v3.Resource) []string {
-	refs := make([]string, 0, len(resources))
-	for _, resource := range resources {
-		refs = append(refs, resource.GetName()+"@"+resource.GetVersion()[:min(len(resource.GetVersion()), 8)])
+// loggedNames returns up to maxLoggedNames of count names, followed by how
+// many were left out.
+func loggedNames(count int, name func(i int) string) []string {
+	names := make([]string, 0, min(count, maxLoggedNames)+1)
+	for i := range min(count, maxLoggedNames) {
+		names = append(names, name(i))
 	}
-	return limitNames(refs)
-}
-
-func limitNames(names []string) []string {
-	if len(names) <= maxLoggedNames {
-		return names
+	if count > maxLoggedNames {
+		names = append(names, fmt.Sprintf("(%d more)", count-maxLoggedNames))
 	}
-	return append(names[:maxLoggedNames:maxLoggedNames], fmt.Sprintf("(%d more)", len(names)-maxLoggedNames))
+	return names
 }
 
 func getHealthCheck(typeURL string) health.Check {
