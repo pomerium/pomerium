@@ -224,6 +224,34 @@
           ]
         },
         {
+          "name": "LicenseType",
+          "longName": "LicenseType",
+          "fullName": "pomerium.config.LicenseType",
+          "description": "LicenseType is the license type for Pomerium.",
+          "values": [
+            {
+              "name": "LICENSE_TYPE_UNKNOWN",
+              "number": "0",
+              "description": ""
+            },
+            {
+              "name": "LICENSE_TYPE_OPEN_SOURCE",
+              "number": "1",
+              "description": ""
+            },
+            {
+              "name": "LICENSE_TYPE_COMMUNITY",
+              "number": "2",
+              "description": ""
+            },
+            {
+              "name": "LICENSE_TYPE_COMMERCIAL",
+              "number": "3",
+              "description": ""
+            }
+          ]
+        },
+        {
           "name": "LoadBalancingPolicy",
           "longName": "LoadBalancingPolicy",
           "fullName": "pomerium.config.LoadBalancingPolicy",
@@ -7424,6 +7452,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_enterprise",
+              "defaultValue": ""
+            },
+            {
+              "name": "license_type",
+              "description": "License type for Pomerium.",
+              "label": "optional",
+              "type": "LicenseType",
+              "longType": "LicenseType",
+              "fullType": "pomerium.config.LicenseType",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_license_type",
               "defaultValue": ""
             },
             {

@@ -2,8 +2,6 @@ package config
 
 import (
 	"maps"
-
-	"github.com/pomerium/pomerium/internal/version"
 )
 
 var (
@@ -48,7 +46,7 @@ var (
 	RuntimeFlagPomeriumJWTEndpoint = runtimeFlag("pomerium_jwt_endpoint", false)
 
 	// RuntimeFlagProductAnalytics enables product analytic collection
-	RuntimeFlagProductAnalytics = runtimeFlag("product_analytics", version.GitCommit != "")
+	RuntimeFlagProductAnalytics = runtimeFlag("product_analytics", true)
 
 	// RuntimeFlagRefreshSessionAtIDTokenExpiration changes the identity manager session refresh
 	// timing to also take into account the ID token expiration time.

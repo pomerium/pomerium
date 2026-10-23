@@ -5024,6 +5024,10 @@ func (m *Settings) validate(all bool) error {
 
 	}
 
+	if m.LicenseType != nil {
+		// no validation rules for LicenseType
+	}
+
 	if m.ReadonlyConsoleAudiences != nil {
 
 		if all {
