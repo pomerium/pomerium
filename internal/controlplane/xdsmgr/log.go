@@ -21,8 +21,11 @@ var (
 	routeConfigurationTypeURL = protoutil.GetTypeURL((*envoy_config_route_v3.RouteConfiguration)(nil))
 )
 
+// logNACK logs a response envoy rejected. Envoy keeps serving the resources
+// it last accepted, and the rejected ones are not sent again until they
+// change.
 func logNACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	log.Ctx(ctx).Debug().
+	log.Ctx(ctx).Error().
 		Str("type-url", req.GetTypeUrl()).
 		Str("nonce", req.GetResponseNonce()).
 		Any("error-detail", req.GetErrorDetail()).
