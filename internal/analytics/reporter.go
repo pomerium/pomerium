@@ -1,7 +1,6 @@
 package analytics
 
 import (
-	"bytes"
 	"cmp"
 	"context"
 	"crypto/hkdf"
@@ -25,6 +24,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
+
+var fallbackKey = cryptutil.NewKey()
 
 type Reporter interface {
 	CreatePosthogEvent(ctx context.Context, cfg *config.Config, sessionCount, userCount int) posthog.Capture
@@ -280,12 +281,12 @@ func (r *reporter) getDistinctID(cfg *config.Config) string {
 func (r *reporter) getPseudonymizationKey(cfg *config.Config) []byte {
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
-		sharedKey = bytes.Repeat([]byte{0xAA}, 32)
+		sharedKey = fallbackKey
 	}
 
 	pseudonymizationKey, err := hkdf.Key(sha256.New, sharedKey, nil, "core_periodic_analytics", 32)
 	if err != nil {
-		pseudonymizationKey = sharedKey
+		pseudonymizationKey = fallbackKey
 	}
 
 	return pseudonymizationKey
