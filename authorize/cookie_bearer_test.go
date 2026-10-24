@@ -87,6 +87,8 @@ func TestCookieAndBearer_NonJWTRoutePassthrough(t *testing.T) {
 		"a cookie-authenticated request on a non-JWT route must not be rejected "+
 			"for also carrying an Authorization header (got %d, body=%q)",
 		resp2.StatusCode, string(body))
+	assert.Equal(t, `upstream-auth="Bearer upstream-app-token"`, string(body),
+		"the Authorization header must reach the upstream on a non-JWT route")
 }
 
 // jwtBearerAudience is the audience the mock identity providers accept and the
