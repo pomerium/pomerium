@@ -4,43 +4,62 @@ package xdsmgr
 import (
 	"cmp"
 	"context"
+	"errors"
 	"slices"
+	"strconv"
 	"sync"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
+// streamState is what one stream has sent to envoy for one resource type.
 type streamState struct {
-	typeURL                string
+	lastNonce              string
 	clientResourceVersions map[string]string
 	unsubscribedResources  map[string]struct{}
 }
 
-var onHandleDeltaRequest = func(_ *streamState) {}
+// recordSent records the resources of a response as held by envoy. Envoy
+// applies a response before it acknowledges it, so the ACKs do not tell what
+// envoy holds. The record stays after a NACK, so a rejected resource is not
+// re-sent until it changes.
+func (s *streamState) recordSent(res *envoy_service_discovery_v3.DeltaDiscoveryResponse) {
+	for _, resource := range res.GetResources() {
+		s.clientResourceVersions[resource.GetName()] = resource.GetVersion()
+	}
+	for _, name := range res.GetRemovedResources() {
+		delete(s.clientResourceVersions, name)
+	}
+}
 
 // A Manager manages xDS resources.
 type Manager struct {
 	signal *signal.Signal
+	health health.Provider
 
 	mu        sync.Mutex
-	nonce     string
 	resources map[string][]*envoy_service_discovery_v3.Resource
+
+	// onResponsesQueued, if set, is called once a request or a resource
+	// change has been handled, with the number of responses handed to the
+	// sender, 0 included. Tests use it to know when the manager is done
+	// reacting.
+	onResponsesQueued func(n int)
 }
 
 // NewManager creates a new Manager.
 func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Manager {
 	return &Manager{
 		signal: signal.New(),
+		health: health.GetProviderManager(),
 
-		nonce:     uuid.New().String(),
 		resources: resources,
 	}
 }
@@ -52,23 +71,29 @@ func (mgr *Manager) DeltaAggregatedResources(
 	ch := mgr.signal.Bind()
 	defer mgr.signal.Unbind(ch)
 
+	// stateByTypeURL and nonce belong to the goroutine that handles requests
+	// and resource changes and queues the responses, so they need no lock.
+	// mgr.mu only guards mgr.resources.
 	stateByTypeURL := map[string]*streamState{}
+	var nonce uint64
 
-	getDeltaResponse := func(_ context.Context, typeURL string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
-		mgr.mu.Lock()
-		defer mgr.mu.Unlock()
-
+	// getDeltaResponse diffs the resources of a type against what was sent
+	// to envoy.
+	getDeltaResponse := func(typeURL string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
 		state, ok := stateByTypeURL[typeURL]
 		if !ok {
 			return nil
 		}
 
+		mgr.mu.Lock()
+		defer mgr.mu.Unlock()
+
+		resources := mgr.resources[typeURL]
 		res := &envoy_service_discovery_v3.DeltaDiscoveryResponse{
 			TypeUrl: typeURL,
-			Nonce:   mgr.nonce,
 		}
-		seen := map[string]struct{}{}
-		for _, resource := range mgr.resources[typeURL] {
+		seen := make(map[string]struct{}, len(resources))
+		for _, resource := range resources {
 			seen[resource.Name] = struct{}{}
 			if resource.Version != state.clientResourceVersions[resource.Name] {
 				res.Resources = append(res.Resources, resource)
@@ -84,19 +109,14 @@ func (mgr *Manager) DeltaAggregatedResources(
 		if len(res.Resources) == 0 && len(res.RemovedResources) == 0 {
 			return nil
 		}
-
 		return res
 	}
 
 	handleDeltaRequest := func(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-		mgr.mu.Lock()
-		defer mgr.mu.Unlock()
-
 		state, ok := stateByTypeURL[req.GetTypeUrl()]
 		if !ok {
 			// first time we've seen a message for this type URL.
 			state = &streamState{
-				typeURL:                req.GetTypeUrl(),
 				clientResourceVersions: req.GetInitialResourceVersions(),
 				unsubscribedResources:  make(map[string]struct{}),
 			}
@@ -106,31 +126,21 @@ func (mgr *Manager) DeltaAggregatedResources(
 			stateByTypeURL[req.GetTypeUrl()] = state
 		}
 
+		check := getHealthCheck(req.GetTypeUrl())
 		switch {
 		case req.GetResponseNonce() == "":
 			// neither an ACK or a NACK
 		case req.GetErrorDetail() != nil:
 			// a NACK
-			// - set the client resource versions to the current resource versions
-			state.clientResourceVersions = make(map[string]string)
-			for _, resource := range mgr.resources[req.GetTypeUrl()] {
-				state.clientResourceVersions[resource.Name] = resource.Version
-			}
 			logNACK(ctx, req)
-		case req.GetResponseNonce() == mgr.nonce:
+			mgr.health.ReportError(check, errors.New(req.GetErrorDetail().GetMessage()))
+		case req.GetResponseNonce() == state.lastNonce:
 			// an ACK for the last response
-			// - set the client resource versions to the current resource versions
-			state.clientResourceVersions = make(map[string]string)
-			for _, resource := range mgr.resources[req.GetTypeUrl()] {
-				state.clientResourceVersions[resource.Name] = resource.Version
-			}
 			logACK(ctx, req)
+			mgr.health.ReportStatus(check, health.StatusRunning)
 		default:
 			// an ACK for a response that's not the last response
-			log.Ctx(ctx).
-				Debug().
-				Str("type-url", req.GetTypeUrl()).
-				Msg("xdsmgr: ack")
+			logEarlierACK(ctx, req, state.lastNonce)
 		}
 
 		// update subscriptions
@@ -148,8 +158,6 @@ func (mgr *Manager) DeltaAggregatedResources(
 			// so we reset the version to treat it like a new version
 			delete(state.clientResourceVersions, name)
 		}
-
-		onHandleDeltaRequest(state)
 	}
 
 	incoming := make(chan *envoy_service_discovery_v3.DeltaDiscoveryRequest)
@@ -191,20 +199,29 @@ func (mgr *Manager) DeltaAggregatedResources(
 
 			var responses []*envoy_service_discovery_v3.DeltaDiscoveryResponse
 			for _, typeURL := range typeURLs {
-				res := getDeltaResponse(changeCtx, typeURL)
-				if res == nil {
-					continue
+				if res := getDeltaResponse(typeURL); res != nil {
+					responses = append(responses, res)
 				}
-				responses = append(responses, res)
 			}
 
 			responses = buildDiscoveryResponsesForConsistentUpdates(responses)
 			for _, res := range responses {
+				// every response has its own nonce, so that an ACK identifies
+				// the response it acknowledges
+				nonce++
+				res.Nonce = strconv.FormatUint(nonce, 10)
+				state := stateByTypeURL[res.GetTypeUrl()]
+				state.lastNonce = res.Nonce
+				state.recordSent(res)
+
 				select {
 				case <-ctx.Done():
 					return context.Cause(ctx)
 				case outgoing <- res:
 				}
+			}
+			if mgr.onResponsesQueued != nil {
+				mgr.onResponsesQueued(len(responses))
 			}
 		}
 	})
@@ -215,12 +232,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 			case <-ctx.Done():
 				return context.Cause(ctx)
 			case res := <-outgoing:
-				log.Ctx(ctx).
-					Debug().
-					Str("type-url", res.GetTypeUrl()).
-					Int("resource-count", len(res.GetResources())).
-					Int("removed-resource-count", len(res.GetRemovedResources())).
-					Msg("xdsmgr: sending resources")
+				logSend(ctx, res)
 				err := stream.Send(res)
 				if err != nil {
 					return err
@@ -241,10 +253,7 @@ func (mgr *Manager) StreamAggregatedResources(
 // Update updates the state of resources. If any changes are made they will be pushed to any listening
 // streams. For each TypeURL the list of resources should be the complete list of resources.
 func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_service_discovery_v3.Resource) {
-	nonce := uuid.New().String()
-
 	mgr.mu.Lock()
-	mgr.nonce = nonce
 	mgr.resources = resources
 	mgr.mu.Unlock()
 
