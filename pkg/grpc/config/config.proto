@@ -704,6 +704,81 @@ message Policy {
   ];
 }
 
+// EnterpriseValidationMode indicates the level of validation the enterprise console will perform.
+enum EnterpriseValidationMode {
+  ENTERPRISE_VALIDATION_MODE_UNKNOWN = 0;
+  // Disables validation.
+  ENTERPRISE_VALIDATION_MODE_DISABLED = 1;
+  // Only does static validation.
+  ENTERPRISE_VALIDATION_MODE_STATIC = 2;
+  // Does full validation using envoy.
+  ENTERPRISE_VALIDATION_MODE_FULL = 3;
+}
+
+// EnterpriseSettings are the embedded enterprise configuration settings.
+message EnterpriseSettings {
+  // Wrapper for a list of strings.
+  message StringList {
+    // The string values held by this list.
+    repeated string values = 1;
+  }
+
+  optional StringList               administrators                           = 1;
+  optional google.protobuf.Duration analytics_collect_interval               = 2;
+  optional string                   analytics_url                            = 3;
+  optional StringList               audience                                 = 4;
+  optional string                   authenticate_service_url                 = 5;
+  optional string                   bind_address                             = 6;
+  optional string                   cache_dir                                = 7;
+  optional uint32                   changes_required_approval_count          = 8;
+  optional string                   customer_id                              = 9;
+  optional bool                     dangerously_disable_all_namespace_checks = 10;
+  optional bytes                    database_encryption_key                  = 11;
+  optional string                   database_encryption_key_file             = 12;
+  optional string                   database_encryption_key_raw_file         = 13;
+  optional string                   database_url                             = 14;
+  optional StringList               databroker_service_urls                  = 15;
+  optional string                   debug_address                            = 16;
+  optional bool                     debug_config_dump                        = 17;
+  optional string                   directory_provider                       = 18;
+  optional google.protobuf.Struct   directory_provider_options               = 19;
+  optional google.protobuf.Duration directory_provider_refresh_interval      = 20;
+  optional google.protobuf.Duration directory_provider_timeout               = 21;
+  optional bool                     disable_feedback_widget                  = 22;
+  optional bool                     disable_remote_diagnostics               = 23;
+  optional bool                     enable_session_recording_querier_cache   = 24;
+  optional bool                     enable_bootstrap_service_account         = 25;
+  optional string                   grpc_address                             = 26;
+  optional string                   license_key                              = 27;
+  optional bool                     license_key_validate_offline             = 28;
+  optional string                   log_level                                = 29;
+  optional string                   metrics_address                          = 30;
+  optional string                   override_certificate_name                = 31;
+  optional string                   prometheus_data_dir                      = 32;
+  optional string                   prometheus_listen_address                = 33;
+  optional google.protobuf.Duration prometheus_scrape_interval               = 34;
+  optional string                   prometheus_url                           = 35;
+  optional string                   public_address                           = 36;
+  optional google.protobuf.Struct   session_recording_options                = 37;
+  optional bytes                    shared_secret                            = 38;
+  optional string                   shared_secret_file                       = 39;
+  optional string                   shared_secret_raw_file                   = 40;
+  optional bytes                    signing_key                              = 41;
+  optional string                   signing_key_file                         = 42;
+  optional string                   signing_key_raw_file                     = 43;
+  optional string                   tls_derive                               = 44;
+  optional bytes                    tls_certificate                          = 45;
+  optional bytes                    tls_certificate_authority                = 46;
+  optional string                   tls_certificate_authority_file           = 47;
+  optional string                   tls_certificate_file                     = 48;
+  optional bool                     tls_insecure_skip_verify                 = 49;
+  optional bytes                    tls_key                                  = 50;
+  optional string                   tls_key_file                             = 51;
+  optional string                   url                                      = 52;
+  optional bool                     use_static_assets                        = 53;
+  optional EnterpriseValidationMode validation_mode                          = 54;
+}
+
 // Global Pomerium configuration settings.
 message Settings {
   // An inline TLS certificate/key pair Pomerium serves for matching SNI
@@ -1152,7 +1227,7 @@ message Settings {
   // Configure default OIDC bridge support for all routes.
   optional OIDCBridge oidc_bridge = 189;
   // Embedded enterprise options.
-  optional google.protobuf.Struct enterprise = 192 [(sensitive) = true];
+  optional EnterpriseSettings enterprise = 192 [(sensitive) = true];
 
   // computed properties
 
