@@ -875,8 +875,8 @@ github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRI
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pomerium/datasource v0.18.2-0.20260615144725-aec349b682d9 h1:UzjIqtOECMMmGDixLmsiq+dR96hjXdNveRyPzGaANPM=
 github.com/pomerium/datasource v0.18.2-0.20260615144725-aec349b682d9/go.mod h1:uM2aJ6QOkKZn+ugldQnQG4/ANRRk4WFVtsxNWnppzpg=
-github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261001211751-8b998d0f6ff3 h1:iXObd5YlY7UYmqtPLmo+aH/ClYxnJ2GGQNehUrZUVjY=
-github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261001211751-8b998d0f6ff3/go.mod h1:7Svo/CaRt9vfJ22sEC+T/q/y2WNi/cZTlugNYUS7xwI=
+github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261026222654-30d955cf07bd h1:stt5MD1qeLOFT80isPbDqNtJqifT2A2EPxxImhPxW30=
+github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261026222654-30d955cf07bd/go.mod h1:7Svo/CaRt9vfJ22sEC+T/q/y2WNi/cZTlugNYUS7xwI=
 github.com/pomerium/protoutil v0.0.0-20260603235917-a733aa3acfed h1:YgWR/CzmJECdfnKbT4sVG9/zwePCPuu4cd/w4/A7SSQ=
 github.com/pomerium/protoutil v0.0.0-20260603235917-a733aa3acfed/go.mod h1:ww0KkWtfEssTaZMhPiSi3F3zKzdreypmAOhh6QcNP1A=
 github.com/pomerium/webauthn v0.0.0-20260603151519-07401bebfe9c h1:6c3y1iRTa8Od7c9i9P55z4xHRc2zf03KG+c892mx/tM=
@@ -1269,8 +1269,8 @@ golang.org/x/net v0.0.0-20220225172249-27dd8689420f/go.mod h1:CfG3xpIq0wQ8r1q4Su
 golang.org/x/net v0.0.0-20220722155237-a158d28d115b/go.mod h1:XRhObCWvk6IyKnWLug+ECip1KBveYUHfp+8e9klMJ9c=
 golang.org/x/net v0.6.0/go.mod h1:2Tu9+aMcznHK/AK1HMvgo6xiTLG5rD5rZLDS+rp2Bjs=
 golang.org/x/net v0.10.0/go.mod h1:0qNGK6F8kojg2nk9dLZ2mShWaEBan6FAoqfSigmmuDg=
-golang.org/x/net v0.58.0 h1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=
-golang.org/x/net v0.58.0/go.mod h1:YwCddHnFlT7eLQqVprV19OnhLGtc5xOKgE0RyqgfWAU=
+golang.org/x/net v0.60.0 h1:79p50tfZlm0J9YfoDsSi639qSXNGVwEzOPLCxM2FsYU=
+golang.org/x/net v0.60.0/go.mod h1:2DA/G1UfVbCpQPeWTmMPGY7Cs2PkBkwu743bVX5PIVg=
 golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
 golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421/go.mod h1:gOpvHmFTYa4IltrdGE7lF6nIHvwfUNPOp7c8zoXwtLw=
 golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45/go.mod h1:gOpvHmFTYa4IltrdGE7lF6nIHvwfUNPOp7c8zoXwtLw=

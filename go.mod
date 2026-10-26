@@ -1,6 +1,6 @@
 module github.com/pomerium/pomerium
 
-go 1.26.8
+go 1.26.10
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1
@@ -86,7 +86,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.11.0
 	github.com/pomerium/datasource v0.18.2-0.20260615144725-aec349b682d9
-	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261001211751-8b998d0f6ff3
+	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261026222654-30d955cf07bd
 	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-00010101000000-000000000000
 	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-00010101000000-000000000000
 	github.com/pomerium/protoutil v0.0.0-20260603235917-a733aa3acfed
@@ -134,7 +134,7 @@ require (
 	golang.org/x/crypto v0.57.0
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
 	golang.org/x/mod v0.41.0
-	golang.org/x/net v0.58.0
+	golang.org/x/net v0.60.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.23.0
 	golang.org/x/sys v0.48.0
