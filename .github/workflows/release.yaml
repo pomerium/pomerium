@@ -25,6 +25,7 @@ jobs:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
     outputs:
       tag: ${{ steps.tagName.outputs.tag }}
+      version: ${{ steps.tagName.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -78,26 +79,6 @@ jobs:
             --config .github/goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create CI token
-        id: ci-token
-        if: github.event_name == 'release' && !github.event.release.prerelease
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
-        with:
-          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
-          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
-          owner: pomerium
-          repositories: mac-builds
-          permission-contents: write
-
-      - name: trigger mac build
-        if: github.event_name == 'release' && !github.event.release.prerelease
-        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697
-        with:
-          repository: pomerium/mac-builds
-          token: ${{ steps.ci-token.outputs.token }}
-          event-type: pomerium-proxy-release
-          client-payload: '{ "release": "${{ github.event.release.tag_name }}", "push": "true" }'
 
       - name: Get tag name
         if: github.event_name == 'release'
@@ -153,6 +134,81 @@ jobs:
 
           docker manifest create -a pomerium/pomerium:debug-nonroot pomerium/pomerium:debug-nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:debug-nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
           docker manifest push pomerium/pomerium:debug-nonroot
+
+  darwin:
+    if: ${{ !cancelled() && needs.goreleaser.outputs.tag != '' }}
+    needs: goreleaser
+    runs-on: ubuntu-22.04
+    environment: apple-signing
+    permissions:
+      contents: write
+    steps:
+      - name: Check signing secrets
+        env:
+          SECRETS_SET: ${{ secrets.MACOS_SIGN_P12 && secrets.MACOS_SIGN_PASSWORD && secrets.MACOS_NOTARY_KEY && secrets.MACOS_NOTARY_KEY_ID && secrets.MACOS_NOTARY_ISSUER_ID && 'true' }}
+        run: test "$SECRETS_SET" = true
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .tool-versions
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: .tool-versions
+          cache: false
+
+      - name: Build dependencies without signing secrets
+        run: make deps-build build-ui
+
+      - name: Get GoReleaser version
+        id: goreleaser-version
+        run: echo "version=v$(grep '^goreleaser ' .tool-versions | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94
+        with:
+          version: ${{ steps.goreleaser-version.outputs.version }}
+          args: release --clean --skip=before --config .github/goreleaser-mac.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+
+      - name: Find latest tag
+        id: latestTag
+        run: |
+          tags=$(git ls-remote --tags --refs origin)
+          echo "tag=$(grep -oE 'refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$' <<<"$tags" | cut -d/ -f3 | sort --version-sort | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Create CI token
+        id: ci-token
+        if: steps.latestTag.outputs.tag == needs.goreleaser.outputs.tag
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
+          owner: pomerium
+          repositories: homebrew-tap
+          permission-contents: write
+
+      - name: Update Homebrew tap
+        if: steps.latestTag.outputs.tag == needs.goreleaser.outputs.tag
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697
+        with:
+          repository: pomerium/homebrew-tap
+          token: ${{ steps.ci-token.outputs.token }}
+          event-type: pomerium-release
+          client-payload: '{ "version": "${{ needs.goreleaser.outputs.version }}" }'
 
   tag-sub-packages:
     runs-on: ubuntu-22.04
