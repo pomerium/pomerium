@@ -17,8 +17,6 @@ concurrency:
 jobs:
   plan:
     runs-on: ubuntu-22.04
-    outputs:
-      version: ${{ steps.plan.outputs.version }}
     steps:
       - name: Check release environment
         env:
@@ -27,6 +25,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Create CI token
         id: ci-token
@@ -39,11 +39,10 @@ jobs:
           permission-contents: write
 
       - name: Plan
-        id: plan
         env:
           GH_TOKEN: ${{ steps.ci-token.outputs.token }}
           VERSION: ${{ inputs.version }}
-        run: ./scripts/release plan "$VERSION" "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+        run: ./scripts/release plan "$VERSION" "$GITHUB_REF_NAME"
 
   core:
     needs: plan
@@ -51,6 +50,8 @@ jobs:
       contents: write
     runs-on: ubuntu-22.04
     environment: apple-signing
+    outputs:
+      state: ${{ steps.release.outputs.state }}
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
     steps:
@@ -69,13 +70,14 @@ jobs:
 
       - name: Tag
         env:
-          VERSION: ${{ needs.plan.outputs.version }}
+          VERSION: ${{ inputs.version }}
         run: git tag "$VERSION"
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .tool-versions
+          package-manager-cache: false
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -87,7 +89,7 @@ jobs:
         run: make deps-build build-ui
 
       - name: Set up Docker
-        run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+        run: docker run --rm --privileged multiarch/qemu-user-static:7.2.0-1@sha256:fe60359c92e86a43cc87b3d906006245f77bfc0565676b80004cc666e4feb9f0 --reset -p yes
 
       - name: gcloud authenticate
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
@@ -103,7 +105,7 @@ jobs:
       - name: Release notes
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.plan.outputs.version }}
+          VERSION: ${{ inputs.version }}
         run: |
           previous=()
           if [[ $VERSION =~ ^v([0-9]+)\.([1-9][0-9]*)\.0$ ]]; then
@@ -114,7 +116,7 @@ jobs:
       - name: Delete drafts
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.plan.outputs.version }}
+          VERSION: ${{ inputs.version }}
         run: |
           drafts=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | select(.draft and .tag_name == env.VERSION) | .id')
           for id in $drafts; do
@@ -132,19 +134,32 @@ jobs:
           args: release --clean --skip=before --config .github/goreleaser.yaml --release-notes ${{ runner.temp }}/notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_CURRENT_TAG: ${{ needs.plan.outputs.version }}
+          GORELEASER_CURRENT_TAG: ${{ inputs.version }}
           MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
           MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
           MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
           MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
 
+      - name: Record release state
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          state=$(./scripts/release release-state pomerium "$VERSION")
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+
   ingress-controller:
     needs: plan
     runs-on: ubuntu-22.04
+    outputs:
+      state: ${{ steps.release.outputs.state }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Create CI token
         id: ci-token
@@ -155,19 +170,33 @@ jobs:
           owner: pomerium
           repositories: ingress-controller
           permission-actions: write
+          permission-contents: write
 
       - name: Build candidate
         env:
           GH_TOKEN: ${{ steps.ci-token.outputs.token }}
-          VERSION: ${{ needs.plan.outputs.version }}
+          VERSION: ${{ inputs.version }}
         run: ./scripts/release dispatch ingress-controller release.yaml "$GITHUB_REF_NAME" "$VERSION" "$GITHUB_RUN_ID" core_sha="$GITHUB_SHA"
+
+      - name: Record release state
+        id: release
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          state=$(./scripts/release release-state ingress-controller "$VERSION")
+          echo "state=$state" >> "$GITHUB_OUTPUT"
 
   console:
     needs: plan
     runs-on: ubuntu-22.04
+    outputs:
+      state: ${{ steps.release.outputs.state }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Create CI token
         id: ci-token
@@ -178,15 +207,25 @@ jobs:
           owner: pomerium
           repositories: pomerium-console
           permission-actions: write
+          permission-contents: write
 
       - name: Build candidate
         env:
           GH_TOKEN: ${{ steps.ci-token.outputs.token }}
-          VERSION: ${{ needs.plan.outputs.version }}
+          VERSION: ${{ inputs.version }}
         run: ./scripts/release dispatch pomerium-console publish.yml "$GITHUB_REF_NAME" "$VERSION" "$GITHUB_RUN_ID"
 
+      - name: Record release state
+        id: release
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          state=$(./scripts/release release-state pomerium-console "$VERSION")
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+
   enterprise:
-    needs: [plan, core, ingress-controller, console]
+    needs: [core, ingress-controller, console]
     permissions:
       contents: read
       packages: read
@@ -204,6 +243,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Create CI token
         id: ci-token
@@ -219,7 +260,7 @@ jobs:
       - name: Build candidate
         env:
           GH_TOKEN: ${{ steps.ci-token.outputs.token }}
-          VERSION: ${{ needs.plan.outputs.version }}
+          VERSION: ${{ inputs.version }}
         run: ./scripts/release dispatch pomerium-enterprise candidate.yaml "$GITHUB_REF_NAME" "$VERSION" "$GITHUB_RUN_ID"
 
       - name: gcloud authenticate
@@ -234,14 +275,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          gcloud auth configure-docker gcr.io,us-central1-docker.pkg.dev
+          gcloud auth configure-docker us-central1-docker.pkg.dev
           docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
 
       - name: Read candidates
         id: candidates
         env:
           GH_TOKEN: ${{ steps.ci-token.outputs.token }}
-          VERSION: ${{ needs.plan.outputs.version }}
+          VERSION: ${{ inputs.version }}
         run: |
           while read -r name repository tag; do
             digest=$(./scripts/release digest "$repository:$tag")
@@ -275,17 +316,22 @@ jobs:
       image: ${{ needs.enterprise.outputs.enterprise }}
 
   promote:
-    needs: [plan, core, ingress-controller, console, enterprise, acceptance]
+    needs: [core, ingress-controller, console, enterprise, acceptance]
     permissions:
       contents: read
       packages: read
     runs-on: ubuntu-22.04
     environment: release
     env:
-      VERSION: ${{ needs.plan.outputs.version }}
+      VERSION: ${{ inputs.version }}
+      CORE_STATE: ${{ needs.core.outputs.state }}
+      INGRESS_CONTROLLER_STATE: ${{ needs.ingress-controller.outputs.state }}
+      CONSOLE_STATE: ${{ needs.console.outputs.state }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Create CI token
         id: ci-token
@@ -298,7 +344,7 @@ jobs:
           permission-contents: write
           permission-workflows: write
 
-      - name: Latest
+      - name: Check latest
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -326,7 +372,15 @@ jobs:
           docker login docker.cloudsmith.io --username "$CLOUDSMITH_USER" --password-stdin <<<"$CLOUDSMITH_API_KEY"
           docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
 
-      - name: Images
+      - name: Check releases
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+        run: |
+          ./scripts/release check-release pomerium "$VERSION" "$CORE_STATE"
+          ./scripts/release check-release ingress-controller "$VERSION" "$INGRESS_CONTROLLER_STATE"
+          ./scripts/release check-release pomerium-console "$VERSION" "$CONSOLE_STATE"
+
+      - name: Copy images
         env:
           ENTERPRISE: ${{ needs.enterprise.outputs.enterprise }}
           ENTERPRISE_DEBUG: ${{ needs.enterprise.outputs.enterprise-debug }}
@@ -337,28 +391,27 @@ jobs:
           CONSOLE: ${{ needs.enterprise.outputs.console }}
           CLOUDRUN: ${{ needs.enterprise.outputs.cloudrun }}
         run: |
-          v=$VERSION
-          m=${VERSION%.*}
-          l=${LATEST#false}
+          minor=${VERSION%.*}
+          latest=${LATEST#false}
           while read -ra row; do
             for tag in "${row[@]:2}"; do
               echo "${row[0]} ${row[1]}:$tag"
             done
           done > "$RUNNER_TEMP/images" <<EOF
-          $ENTERPRISE docker.io/pomerium/pomerium $v $m ${l:+latest}
-          $ENTERPRISE docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise $v $m ${l:+latest}
-          $ENTERPRISE_DEBUG docker.io/pomerium/pomerium debug-$v debug-$m ${l:+debug}
-          $ENTERPRISE_DEBUG docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise debug-$v debug-$m ${l:+debug}
-          $ENTERPRISE_NONROOT docker.io/pomerium/pomerium nonroot-$v nonroot-$m ${l:+nonroot}
-          $ENTERPRISE_NONROOT docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise nonroot-$v nonroot-$m ${l:+nonroot}
-          $ENTERPRISE_DEBUG_NONROOT docker.io/pomerium/pomerium debug-nonroot-$v debug-nonroot-$m ${l:+debug-nonroot}
-          $ENTERPRISE_DEBUG_NONROOT docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise debug-nonroot-$v debug-nonroot-$m ${l:+debug-nonroot}
-          $ENTERPRISE_INGRESS_CONTROLLER docker.io/pomerium/ingress-controller $v $m ${l:+latest}
-          $ENTERPRISE_INGRESS_CONTROLLER docker.cloudsmith.io/pomerium/pomerium-enterprise/ingress-controller-enterprise $v $m ${l:+latest}
-          $INGRESS_CONTROLLER docker.cloudsmith.io/pomerium/ingress-controller/ingress-controller $v $m ${l:+latest}
-          $CONSOLE gcr.io/pomerium-public/enterprise/pomerium-console $v ${l:+latest}
-          $CONSOLE docker.cloudsmith.io/pomerium/enterprise/pomerium-console $v
-          $CLOUDRUN gcr.io/pomerium-io/pomerium $v-cloudrun $m-cloudrun ${l:+latest-cloudrun}
+          $ENTERPRISE docker.io/pomerium/pomerium $VERSION $minor ${latest:+latest}
+          $ENTERPRISE docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise $VERSION $minor ${latest:+latest}
+          $ENTERPRISE_DEBUG docker.io/pomerium/pomerium debug-$VERSION debug-$minor ${latest:+debug}
+          $ENTERPRISE_DEBUG docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise debug-$VERSION debug-$minor ${latest:+debug}
+          $ENTERPRISE_NONROOT docker.io/pomerium/pomerium nonroot-$VERSION nonroot-$minor ${latest:+nonroot}
+          $ENTERPRISE_NONROOT docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise nonroot-$VERSION nonroot-$minor ${latest:+nonroot}
+          $ENTERPRISE_DEBUG_NONROOT docker.io/pomerium/pomerium debug-nonroot-$VERSION debug-nonroot-$minor ${latest:+debug-nonroot}
+          $ENTERPRISE_DEBUG_NONROOT docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise debug-nonroot-$VERSION debug-nonroot-$minor ${latest:+debug-nonroot}
+          $ENTERPRISE_INGRESS_CONTROLLER docker.io/pomerium/ingress-controller $VERSION $minor ${latest:+latest}
+          $ENTERPRISE_INGRESS_CONTROLLER docker.cloudsmith.io/pomerium/pomerium-enterprise/ingress-controller-enterprise $VERSION $minor ${latest:+latest}
+          $INGRESS_CONTROLLER docker.cloudsmith.io/pomerium/ingress-controller/ingress-controller $VERSION $minor ${latest:+latest}
+          $CONSOLE gcr.io/pomerium-public/enterprise/pomerium-console $VERSION ${latest:+latest}
+          $CONSOLE docker.cloudsmith.io/pomerium/enterprise/pomerium-console $VERSION
+          $CLOUDRUN gcr.io/pomerium-io/pomerium $VERSION-cloudrun $minor-cloudrun ${latest:+latest-cloudrun}
           EOF
           while read -r source destination; do
             ./scripts/release copy "$VERSION" "$source" "$destination"
@@ -368,9 +421,9 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.ci-token.outputs.token }}
         run: |
-          for repo in pomerium ingress-controller pomerium-console; do
-            ./scripts/release publish-release "$repo" "$VERSION" "$LATEST"
-          done
+          ./scripts/release publish-release pomerium "$VERSION" "$LATEST" "$CORE_STATE"
+          ./scripts/release publish-release ingress-controller "$VERSION" "$LATEST" "$INGRESS_CONTROLLER_STATE"
+          ./scripts/release publish-release pomerium-console "$VERSION" "$LATEST" "$CONSOLE_STATE"
 
       - name: Download packages
         env:
@@ -381,12 +434,12 @@ jobs:
           gh release download "$VERSION" --repo pomerium/pomerium --pattern "pomerium-$v-1.*.rpm" --pattern "pomerium_$v-1_*.deb"
           gh release download "$VERSION" --repo pomerium/pomerium-console --pattern "pomerium-console-$v-1.*.rpm" --pattern "pomerium-console_$v-1_*.deb"
 
-      - name: Cloudsmith packages
+      - name: Push Cloudsmith packages
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         working-directory: ${{ runner.temp }}
         run: |
-          pip3 install cloudsmith-cli==1.28.0
+          cloudsmith() { docker run --rm -e CLOUDSMITH_API_KEY -v "$PWD:/packages:ro" -w /packages cloudsmith/cloudsmith-cli:1.28.0@sha256:cff4dafad42a4aeb97c018998e5de630b825d07e69381ed43a0db0dd87b5cb90 "$@"; }
           v=${VERSION#v}
           cloudsmith push rpm pomerium/pomerium/el/any-version "pomerium-$v-1.x86_64.rpm" --republish
           cloudsmith push rpm pomerium/pomerium/el/any-version "pomerium-$v-1.aarch64.rpm" --republish
@@ -395,15 +448,15 @@ jobs:
           cloudsmith push rpm pomerium/enterprise/el/any-version "pomerium-console-$v-1.x86_64.rpm" --republish
           cloudsmith push deb pomerium/enterprise/any-distro/any-version "pomerium-console_$v-1_amd64.deb" --republish
 
-      - name: Submodule tags
+      - name: Create submodule tags
         env:
           GH_TOKEN: ${{ steps.ci-token.outputs.token }}
         run: |
           ./scripts/release create-ref pomerium "refs/tags/pkg/grpc/config/$VERSION" "$GITHUB_SHA"
           ./scripts/release create-ref pomerium "refs/tags/pkg/grpc/databroker/$VERSION" "$GITHUB_SHA"
 
-      - name: envoy-custom and enterprise-extensions branches
-        if: endsWith(needs.plan.outputs.version, '.0')
+      - name: Create envoy-custom and enterprise-extensions branches
+        if: endsWith(inputs.version, '.0')
         env:
           GH_TOKEN: ${{ steps.ci-token.outputs.token }}
           EXTENSION: ${{ needs.enterprise.outputs.extension }}
@@ -418,7 +471,7 @@ jobs:
           ./scripts/release create-branch envoy-custom "$branch" "$envoy"
           ./scripts/release create-branch enterprise-extensions "$branch" "$EXTENSION"
 
-      - name: Homebrew
+      - name: Update Homebrew tap
         if: env.LATEST == 'true'
         env:
           GH_TOKEN: ${{ steps.ci-token.outputs.token }}

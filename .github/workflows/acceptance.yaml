@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 # A new push to a branch cancels an in-flight acceptance run for that branch.
 concurrency:
@@ -122,6 +121,9 @@ jobs:
     name: E2E — mcp
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - name: Checkout code
@@ -160,6 +162,7 @@ jobs:
           IMAGE: ${{ inputs.image }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
+          [[ $IMAGE =~ ^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]]
           docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
           docker pull "$IMAGE"
           echo "POMERIUM_IMAGE=$IMAGE" >> "$GITHUB_ENV"
@@ -190,6 +193,9 @@ jobs:
     name: E2E — downstream-mtls
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
     # Non-blocking while a CI flake is stabilized: the suite restarts the
     # Pomerium container per spec group, which churns the runner's Docker network
     # and aborts browser navigations with ERR_NETWORK_CHANGED. helpers/nav.ts
@@ -224,6 +230,7 @@ jobs:
           IMAGE: ${{ inputs.image }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
+          [[ $IMAGE =~ ^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]]
           docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
           docker pull "$IMAGE"
           echo "POMERIUM_IMAGE=$IMAGE" >> "$GITHUB_ENV"
@@ -254,6 +261,9 @@ jobs:
     name: E2E — upstream-tls
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - name: Checkout code
@@ -281,6 +291,7 @@ jobs:
           IMAGE: ${{ inputs.image }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
+          [[ $IMAGE =~ ^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]]
           docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
           docker pull "$IMAGE"
           echo "POMERIUM_IMAGE=$IMAGE" >> "$GITHUB_ENV"

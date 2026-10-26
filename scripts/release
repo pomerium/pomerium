@@ -58,21 +58,6 @@ create-branch() {
 	create-ref "$_repo" "refs/heads/$_branch" "$_commit"
 }
 
-ensure-release-branch() {
-	local _repo="${1?"repo is required"}"
-	local _branch="${2?"branch is required"}"
-	local _patch="${3?"patch is required"}"
-
-	local _commit
-	_commit="$(ref-commit "$_repo" "refs/heads/$_branch")"
-	if [[ -n $_commit ]]; then
-		return
-	fi
-	[[ $_patch == 0 ]] || fatal "pomerium/$_repo has no branch $_branch"
-	_commit="$(ref-commit "$_repo" refs/heads/main)"
-	create-ref "$_repo" "refs/heads/$_branch" "$_commit"
-}
-
 is-latest() {
 	local _version="${1?"version is required"}"
 
@@ -105,11 +90,14 @@ plan() {
 		_tag="$(ref-commit "$_repo" "refs/tags/$_version")"
 		[[ -z $_tag ]] || fatal "tag $_version already exists at $_tag in pomerium/$_repo"
 	done
+	local _commit
 	for _repo in ingress-controller pomerium-console pomerium-enterprise; do
-		ensure-release-branch "$_repo" "$_release_branch" "$_patch"
+		_commit="$(ref-commit "$_repo" "refs/heads/$_release_branch")"
+		[[ -z $_commit ]] || continue
+		[[ $_patch == 0 ]] || fatal "pomerium/$_repo has no branch $_release_branch"
+		_commit="$(ref-commit "$_repo" refs/heads/main)"
+		create-ref "$_repo" "refs/heads/$_release_branch" "$_commit"
 	done
-
-	echo "version=$_version"
 }
 
 find-run() {
@@ -178,31 +166,54 @@ digest() {
 copy() {
 	local _version="${1?"version is required"}"
 	local _source="${2?"source is required"}"
-	shift 2
+	local _destination="${3?"destination is required"}"
 
 	local _digest="${_source##*@}"
 	[[ $_digest =~ ^sha256:[0-9a-f]{64}$ ]] || fatal "$_source is not pinned by digest"
-	local _destination _current
-	for _destination in "$@"; do
-		_current="$(lookup-digest "$_destination")"
-		if [[ $_current == "$_digest" ]]; then
-			log "$_destination is already $_digest"
-			continue
-		fi
-		if [[ -n $_current && -${_destination##*:}- == *-"$_version"-* ]]; then
-			fatal "$_destination is $_current, not $_digest"
-		fi
-		docker buildx imagetools create --prefer-index=false --tag "$_destination" "$_source"
-		_current="$(lookup-digest "$_destination")"
-		[[ $_current == "$_digest" ]] || fatal "$_destination is '$_current' after the copy, not $_digest"
-		log "copied $_digest to $_destination"
-	done
+	local _current
+	_current="$(lookup-digest "$_destination")"
+	if [[ $_current == "$_digest" ]]; then
+		log "$_destination is already $_digest"
+		return
+	fi
+	if [[ -n $_current && -${_destination##*:}- == *-"$_version"-* ]]; then
+		fatal "$_destination is $_current, not $_digest"
+	fi
+	docker buildx imagetools create --prefer-index=false --tag "$_destination" "$_source"
+	_current="$(lookup-digest "$_destination")"
+	[[ $_current == "$_digest" ]] || fatal "$_destination is '$_current' after the copy, not $_digest"
+	log "copied $_digest to $_destination"
+}
+
+release-state() {
+	local _repo="${1?"repo is required"}"
+	local _version="${2?"version is required"}"
+
+	local _releases
+	_releases="$(gh api --paginate "repos/pomerium/$_repo/releases?per_page=100" \
+		--jq ".[] | select(.tag_name == \"$_version\") | {target_commitish, assets: [.assets[] | {name, digest}] | sort_by(.name)} | tojson")"
+	local _count
+	_count="$(grep -c . <<<"$_releases" || true)"
+	[[ $_count == 1 ]] || fatal "pomerium/$_repo has $_count releases for $_version"
+	jq -e 'all(.assets[]; .digest != null)' <<<"$_releases" >/dev/null || fatal "release $_version in pomerium/$_repo has an asset without a digest"
+	jq -jcS . <<<"$_releases" | sha256sum | cut -d ' ' -f 1
+}
+
+check-release() {
+	local _repo="${1?"repo is required"}"
+	local _version="${2?"version is required"}"
+	local _state="${3?"state is required"}"
+
+	local _current
+	_current="$(release-state "$_repo" "$_version")"
+	[[ $_current == "$_state" ]] || fatal "release $_version in pomerium/$_repo changed after its candidate was built"
 }
 
 publish-release() {
 	local _repo="${1?"repo is required"}"
 	local _version="${2?"version is required"}"
 	local _latest="${3?"latest is required"}"
+	local _state="${4?"state is required"}"
 
 	local _releases
 	_releases="$(gh api --paginate "repos/pomerium/$_repo/releases?per_page=100" \
@@ -218,6 +229,7 @@ publish-release() {
 	_commit="$(ref-commit "$_repo" "refs/tags/$_version")"
 	if [[ $_draft == true ]]; then
 		[[ -z $_commit || $_commit == "$_target" ]] || fatal "tag $_version in pomerium/$_repo is at $_commit, not $_target"
+		check-release "$_repo" "$_version" "$_state"
 		gh api --method PATCH "repos/pomerium/$_repo/releases/$_id" -F draft=false -f make_latest="$_latest" --silent
 		log "published $_version in pomerium/$_repo"
 		_commit="$(ref-commit "$_repo" "refs/tags/$_version")"
@@ -231,7 +243,7 @@ main() {
 	local _command="${1?"command is required"}"
 	shift
 	case "$_command" in
-	plan | is-latest | dispatch | digest | copy | publish-release | create-ref | create-branch)
+	plan | is-latest | dispatch | digest | copy | release-state | check-release | publish-release | create-ref | create-branch)
 		"$_command" "$@"
 		;;
 	*)
