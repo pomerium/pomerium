@@ -1931,11 +1931,11 @@ components:
             - string
             - "null"
           title: cache_dir
-        changesRequiredApprovalCount:
+        changesetRequiredApprovalCount:
           type:
             - integer
             - "null"
-          title: changes_required_approval_count
+          title: changeset_required_approval_count
         customerId:
           type:
             - string
@@ -1997,11 +1997,11 @@ components:
             - $ref: '#/components/schemas/google.protobuf.Duration'
             - type: "null"
           title: directory_provider_refresh_interval
-        directoryProviderTimeout:
+        directoryProviderRefreshTimeout:
           oneOf:
             - $ref: '#/components/schemas/google.protobuf.Duration'
             - type: "null"
-          title: directory_provider_timeout
+          title: directory_provider_refresh_timeout
         disableFeedbackWidget:
           type:
             - boolean

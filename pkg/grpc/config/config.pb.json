@@ -1385,7 +1385,7 @@
               "defaultValue": ""
             },
             {
-              "name": "changes_required_approval_count",
+              "name": "changeset_required_approval_count",
               "description": "",
               "label": "optional",
               "type": "uint32",
@@ -1393,7 +1393,7 @@
               "fullType": "uint32",
               "ismap": false,
               "isoneof": true,
-              "oneofdecl": "_changes_required_approval_count",
+              "oneofdecl": "_changeset_required_approval_count",
               "defaultValue": ""
             },
             {
@@ -1541,7 +1541,7 @@
               "defaultValue": ""
             },
             {
-              "name": "directory_provider_timeout",
+              "name": "directory_provider_refresh_timeout",
               "description": "",
               "label": "optional",
               "type": "Duration",
@@ -1549,7 +1549,7 @@
               "fullType": "google.protobuf.Duration",
               "ismap": false,
               "isoneof": true,
-              "oneofdecl": "_directory_provider_timeout",
+              "oneofdecl": "_directory_provider_refresh_timeout",
               "defaultValue": ""
             },
             {

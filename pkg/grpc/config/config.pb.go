@@ -3223,7 +3223,7 @@ type EnterpriseSettings struct {
 	AuthenticateServiceUrl               *string                        `protobuf:"bytes,5,opt,name=authenticate_service_url,json=authenticateServiceUrl,proto3,oneof" json:"authenticate_service_url,omitempty"`
 	BindAddress                          *string                        `protobuf:"bytes,6,opt,name=bind_address,json=bindAddress,proto3,oneof" json:"bind_address,omitempty"`
 	CacheDir                             *string                        `protobuf:"bytes,7,opt,name=cache_dir,json=cacheDir,proto3,oneof" json:"cache_dir,omitempty"`
-	ChangesRequiredApprovalCount         *uint32                        `protobuf:"varint,8,opt,name=changes_required_approval_count,json=changesRequiredApprovalCount,proto3,oneof" json:"changes_required_approval_count,omitempty"`
+	ChangesetRequiredApprovalCount       *uint32                        `protobuf:"varint,8,opt,name=changeset_required_approval_count,json=changesetRequiredApprovalCount,proto3,oneof" json:"changeset_required_approval_count,omitempty"`
 	CustomerId                           *string                        `protobuf:"bytes,9,opt,name=customer_id,json=customerId,proto3,oneof" json:"customer_id,omitempty"`
 	DangerouslyDisableAllNamespaceChecks *bool                          `protobuf:"varint,10,opt,name=dangerously_disable_all_namespace_checks,json=dangerouslyDisableAllNamespaceChecks,proto3,oneof" json:"dangerously_disable_all_namespace_checks,omitempty"`
 	DatabaseEncryptionKey                []byte                         `protobuf:"bytes,11,opt,name=database_encryption_key,json=databaseEncryptionKey,proto3,oneof" json:"database_encryption_key,omitempty"`
@@ -3236,7 +3236,7 @@ type EnterpriseSettings struct {
 	DirectoryProvider                    *string                        `protobuf:"bytes,18,opt,name=directory_provider,json=directoryProvider,proto3,oneof" json:"directory_provider,omitempty"`
 	DirectoryProviderOptions             *structpb.Struct               `protobuf:"bytes,19,opt,name=directory_provider_options,json=directoryProviderOptions,proto3,oneof" json:"directory_provider_options,omitempty"`
 	DirectoryProviderRefreshInterval     *durationpb.Duration           `protobuf:"bytes,20,opt,name=directory_provider_refresh_interval,json=directoryProviderRefreshInterval,proto3,oneof" json:"directory_provider_refresh_interval,omitempty"`
-	DirectoryProviderTimeout             *durationpb.Duration           `protobuf:"bytes,21,opt,name=directory_provider_timeout,json=directoryProviderTimeout,proto3,oneof" json:"directory_provider_timeout,omitempty"`
+	DirectoryProviderRefreshTimeout      *durationpb.Duration           `protobuf:"bytes,21,opt,name=directory_provider_refresh_timeout,json=directoryProviderRefreshTimeout,proto3,oneof" json:"directory_provider_refresh_timeout,omitempty"`
 	DisableFeedbackWidget                *bool                          `protobuf:"varint,22,opt,name=disable_feedback_widget,json=disableFeedbackWidget,proto3,oneof" json:"disable_feedback_widget,omitempty"`
 	DisableRemoteDiagnostics             *bool                          `protobuf:"varint,23,opt,name=disable_remote_diagnostics,json=disableRemoteDiagnostics,proto3,oneof" json:"disable_remote_diagnostics,omitempty"`
 	EnableSessionRecordingQuerierCache   *bool                          `protobuf:"varint,24,opt,name=enable_session_recording_querier_cache,json=enableSessionRecordingQuerierCache,proto3,oneof" json:"enable_session_recording_querier_cache,omitempty"`
@@ -3353,9 +3353,9 @@ func (x *EnterpriseSettings) GetCacheDir() string {
 	return ""
 }
 
-func (x *EnterpriseSettings) GetChangesRequiredApprovalCount() uint32 {
-	if x != nil && x.ChangesRequiredApprovalCount != nil {
-		return *x.ChangesRequiredApprovalCount
+func (x *EnterpriseSettings) GetChangesetRequiredApprovalCount() uint32 {
+	if x != nil && x.ChangesetRequiredApprovalCount != nil {
+		return *x.ChangesetRequiredApprovalCount
 	}
 	return 0
 }
@@ -3444,9 +3444,9 @@ func (x *EnterpriseSettings) GetDirectoryProviderRefreshInterval() *durationpb.D
 	return nil
 }
 
-func (x *EnterpriseSettings) GetDirectoryProviderTimeout() *durationpb.Duration {
+func (x *EnterpriseSettings) GetDirectoryProviderRefreshTimeout() *durationpb.Duration {
 	if x != nil {
-		return x.DirectoryProviderTimeout
+		return x.DirectoryProviderRefreshTimeout
 	}
 	return nil
 }
@@ -10480,7 +10480,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xc4$\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xe1$\n" +
 	"\x12EnterpriseSettings\x12[\n" +
 	"\x0eadministrators\x18\x01 \x01(\v2..pomerium.config.EnterpriseSettings.StringListH\x00R\x0eadministrators\x88\x01\x01\x12\\\n" +
 	"\x1aanalytics_collect_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationH\x01R\x18analyticsCollectInterval\x88\x01\x01\x12(\n" +
@@ -10488,8 +10488,8 @@ const file_config_proto_rawDesc = "" +
 	"\baudience\x18\x04 \x01(\v2..pomerium.config.EnterpriseSettings.StringListH\x03R\baudience\x88\x01\x01\x12=\n" +
 	"\x18authenticate_service_url\x18\x05 \x01(\tH\x04R\x16authenticateServiceUrl\x88\x01\x01\x12&\n" +
 	"\fbind_address\x18\x06 \x01(\tH\x05R\vbindAddress\x88\x01\x01\x12 \n" +
-	"\tcache_dir\x18\a \x01(\tH\x06R\bcacheDir\x88\x01\x01\x12J\n" +
-	"\x1fchanges_required_approval_count\x18\b \x01(\rH\aR\x1cchangesRequiredApprovalCount\x88\x01\x01\x12$\n" +
+	"\tcache_dir\x18\a \x01(\tH\x06R\bcacheDir\x88\x01\x01\x12N\n" +
+	"!changeset_required_approval_count\x18\b \x01(\rH\aR\x1echangesetRequiredApprovalCount\x88\x01\x01\x12$\n" +
 	"\vcustomer_id\x18\t \x01(\tH\bR\n" +
 	"customerId\x88\x01\x01\x12[\n" +
 	"(dangerously_disable_all_namespace_checks\x18\n" +
@@ -10504,8 +10504,8 @@ const file_config_proto_rawDesc = "" +
 	"\x11debug_config_dump\x18\x11 \x01(\bH\x10R\x0fdebugConfigDump\x88\x01\x01\x122\n" +
 	"\x12directory_provider\x18\x12 \x01(\tH\x11R\x11directoryProvider\x88\x01\x01\x12Z\n" +
 	"\x1adirectory_provider_options\x18\x13 \x01(\v2\x17.google.protobuf.StructH\x12R\x18directoryProviderOptions\x88\x01\x01\x12m\n" +
-	"#directory_provider_refresh_interval\x18\x14 \x01(\v2\x19.google.protobuf.DurationH\x13R directoryProviderRefreshInterval\x88\x01\x01\x12\\\n" +
-	"\x1adirectory_provider_timeout\x18\x15 \x01(\v2\x19.google.protobuf.DurationH\x14R\x18directoryProviderTimeout\x88\x01\x01\x12;\n" +
+	"#directory_provider_refresh_interval\x18\x14 \x01(\v2\x19.google.protobuf.DurationH\x13R directoryProviderRefreshInterval\x88\x01\x01\x12k\n" +
+	"\"directory_provider_refresh_timeout\x18\x15 \x01(\v2\x19.google.protobuf.DurationH\x14R\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12;\n" +
 	"\x17disable_feedback_widget\x18\x16 \x01(\bH\x15R\x15disableFeedbackWidget\x88\x01\x01\x12A\n" +
 	"\x1adisable_remote_diagnostics\x18\x17 \x01(\bH\x16R\x18disableRemoteDiagnostics\x88\x01\x01\x12W\n" +
 	"&enable_session_recording_querier_cache\x18\x18 \x01(\bH\x17R\"enableSessionRecordingQuerierCache\x88\x01\x01\x12L\n" +
@@ -10553,8 +10553,8 @@ const file_config_proto_rawDesc = "" +
 	"\x19_authenticate_service_urlB\x0f\n" +
 	"\r_bind_addressB\f\n" +
 	"\n" +
-	"_cache_dirB\"\n" +
-	" _changes_required_approval_countB\x0e\n" +
+	"_cache_dirB$\n" +
+	"\"_changeset_required_approval_countB\x0e\n" +
 	"\f_customer_idB+\n" +
 	")_dangerously_disable_all_namespace_checksB\x1a\n" +
 	"\x18_database_encryption_keyB\x1f\n" +
@@ -10566,8 +10566,8 @@ const file_config_proto_rawDesc = "" +
 	"\x12_debug_config_dumpB\x15\n" +
 	"\x13_directory_providerB\x1d\n" +
 	"\x1b_directory_provider_optionsB&\n" +
-	"$_directory_provider_refresh_intervalB\x1d\n" +
-	"\x1b_directory_provider_timeoutB\x1a\n" +
+	"$_directory_provider_refresh_intervalB%\n" +
+	"#_directory_provider_refresh_timeoutB\x1a\n" +
 	"\x18_disable_feedback_widgetB\x1d\n" +
 	"\x1b_disable_remote_diagnosticsB)\n" +
 	"'_enable_session_recording_querier_cacheB#\n" +
@@ -11621,7 +11621,7 @@ var file_config_proto_depIdxs = []int32{
 	103, // 46: pomerium.config.EnterpriseSettings.databroker_service_urls:type_name -> pomerium.config.EnterpriseSettings.StringList
 	121, // 47: pomerium.config.EnterpriseSettings.directory_provider_options:type_name -> google.protobuf.Struct
 	120, // 48: pomerium.config.EnterpriseSettings.directory_provider_refresh_interval:type_name -> google.protobuf.Duration
-	120, // 49: pomerium.config.EnterpriseSettings.directory_provider_timeout:type_name -> google.protobuf.Duration
+	120, // 49: pomerium.config.EnterpriseSettings.directory_provider_refresh_timeout:type_name -> google.protobuf.Duration
 	120, // 50: pomerium.config.EnterpriseSettings.prometheus_scrape_interval:type_name -> google.protobuf.Duration
 	121, // 51: pomerium.config.EnterpriseSettings.session_recording_options:type_name -> google.protobuf.Struct
 	5,   // 52: pomerium.config.EnterpriseSettings.validation_mode:type_name -> pomerium.config.EnterpriseValidationMode

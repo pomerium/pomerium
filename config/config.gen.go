@@ -22,7 +22,7 @@ type EnterpriseSettings struct {
 	AuthenticateServiceURL               Value[string]                            `json:"authenticate_service_url,omitzero" mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
 	BindAddress                          Value[string]                            `json:"bind_address,omitzero" mapstructure:"bind_address" yaml:"bind_address,omitempty"`
 	CacheDir                             Value[string]                            `json:"cache_dir,omitzero" mapstructure:"cache_dir" yaml:"cache_dir,omitempty"`
-	ChangesRequiredApprovalCount         Value[uint32]                            `json:"changes_required_approval_count,omitzero" mapstructure:"changes_required_approval_count" yaml:"changes_required_approval_count,omitempty"`
+	ChangesetRequiredApprovalCount       Value[uint32]                            `json:"changeset_required_approval_count,omitzero" mapstructure:"changeset_required_approval_count" yaml:"changeset_required_approval_count,omitempty"`
 	CustomerID                           Value[string]                            `json:"customer_id,omitzero" mapstructure:"customer_id" yaml:"customer_id,omitempty"`
 	DangerouslyDisableAllNamespaceChecks Value[bool]                              `json:"dangerously_disable_all_namespace_checks,omitzero" mapstructure:"dangerously_disable_all_namespace_checks" yaml:"dangerously_disable_all_namespace_checks,omitempty"`
 	DatabaseEncryptionKey                Value[[]byte]                            `json:"database_encryption_key,omitzero" mapstructure:"database_encryption_key" yaml:"database_encryption_key,omitempty"`
@@ -35,7 +35,7 @@ type EnterpriseSettings struct {
 	DirectoryProvider                    Value[string]                            `json:"directory_provider,omitzero" mapstructure:"directory_provider" yaml:"directory_provider,omitempty"`
 	DirectoryProviderOptions             Value[map[string]any]                    `json:"directory_provider_options,omitzero" mapstructure:"directory_provider_options" yaml:"directory_provider_options,omitempty"`
 	DirectoryProviderRefreshInterval     Value[time.Duration]                     `json:"directory_provider_refresh_interval,omitzero" mapstructure:"directory_provider_refresh_interval" yaml:"directory_provider_refresh_interval,omitempty"`
-	DirectoryProviderTimeout             Value[time.Duration]                     `json:"directory_provider_timeout,omitzero" mapstructure:"directory_provider_timeout" yaml:"directory_provider_timeout,omitempty"`
+	DirectoryProviderRefreshTimeout      Value[time.Duration]                     `json:"directory_provider_refresh_timeout,omitzero" mapstructure:"directory_provider_refresh_timeout" yaml:"directory_provider_refresh_timeout,omitempty"`
 	DisableFeedbackWidget                Value[bool]                              `json:"disable_feedback_widget,omitzero" mapstructure:"disable_feedback_widget" yaml:"disable_feedback_widget,omitempty"`
 	DisableRemoteDiagnostics             Value[bool]                              `json:"disable_remote_diagnostics,omitzero" mapstructure:"disable_remote_diagnostics" yaml:"disable_remote_diagnostics,omitempty"`
 	EnableBootstrapServiceAccount        Value[bool]                              `json:"enable_bootstrap_service_account,omitzero" mapstructure:"enable_bootstrap_service_account" yaml:"enable_bootstrap_service_account,omitempty"`
@@ -252,7 +252,7 @@ func setEnterpriseSettingsFromProto(dst *EnterpriseSettings, src *configpb.Enter
 		setNullableStringFromProto(&dst.AuthenticateServiceURL, src.AuthenticateServiceUrl),
 		setNullableStringFromProto(&dst.BindAddress, src.BindAddress),
 		setNullableStringFromProto(&dst.CacheDir, src.CacheDir),
-		setNullableUInt32FromProto(&dst.ChangesRequiredApprovalCount, src.ChangesRequiredApprovalCount),
+		setNullableUInt32FromProto(&dst.ChangesetRequiredApprovalCount, src.ChangesetRequiredApprovalCount),
 		setNullableStringFromProto(&dst.CustomerID, src.CustomerId),
 		setNullableBoolFromProto(&dst.DangerouslyDisableAllNamespaceChecks, src.DangerouslyDisableAllNamespaceChecks),
 		setNullableSliceOfByteFromProto(&dst.DatabaseEncryptionKey, src.DatabaseEncryptionKey),
@@ -265,7 +265,7 @@ func setEnterpriseSettingsFromProto(dst *EnterpriseSettings, src *configpb.Enter
 		setNullableStringFromProto(&dst.DirectoryProvider, src.DirectoryProvider),
 		setNullableStructFromProto(&dst.DirectoryProviderOptions, src.DirectoryProviderOptions),
 		setNullableDurationFromProto(&dst.DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
-		setNullableDurationFromProto(&dst.DirectoryProviderTimeout, src.DirectoryProviderTimeout),
+		setNullableDurationFromProto(&dst.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		setNullableBoolFromProto(&dst.DisableFeedbackWidget, src.DisableFeedbackWidget),
 		setNullableBoolFromProto(&dst.DisableRemoteDiagnostics, src.DisableRemoteDiagnostics),
 		setNullableBoolFromProto(&dst.EnableBootstrapServiceAccount, src.EnableBootstrapServiceAccount),
@@ -842,7 +842,7 @@ func setEnterpriseSettingsToProto(dst **configpb.EnterpriseSettings, src *Enterp
 		setNullableStringToProto(&obj.AuthenticateServiceUrl, src.AuthenticateServiceURL),
 		setNullableStringToProto(&obj.BindAddress, src.BindAddress),
 		setNullableStringToProto(&obj.CacheDir, src.CacheDir),
-		setNullableUInt32ToProto(&obj.ChangesRequiredApprovalCount, src.ChangesRequiredApprovalCount),
+		setNullableUInt32ToProto(&obj.ChangesetRequiredApprovalCount, src.ChangesetRequiredApprovalCount),
 		setNullableStringToProto(&obj.CustomerId, src.CustomerID),
 		setNullableBoolToProto(&obj.DangerouslyDisableAllNamespaceChecks, src.DangerouslyDisableAllNamespaceChecks),
 		setNullableSliceOfByteToProto(&obj.DatabaseEncryptionKey, src.DatabaseEncryptionKey),
@@ -855,7 +855,7 @@ func setEnterpriseSettingsToProto(dst **configpb.EnterpriseSettings, src *Enterp
 		setNullableStringToProto(&obj.DirectoryProvider, src.DirectoryProvider),
 		setNullableStructToProto(&obj.DirectoryProviderOptions, src.DirectoryProviderOptions),
 		setNullableDurationToProto(&obj.DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
-		setNullableDurationToProto(&obj.DirectoryProviderTimeout, src.DirectoryProviderTimeout),
+		setNullableDurationToProto(&obj.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		setNullableBoolToProto(&obj.DisableFeedbackWidget, src.DisableFeedbackWidget),
 		setNullableBoolToProto(&obj.DisableRemoteDiagnostics, src.DisableRemoteDiagnostics),
 		setNullableBoolToProto(&obj.EnableBootstrapServiceAccount, src.EnableBootstrapServiceAccount),

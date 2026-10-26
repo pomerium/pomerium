@@ -3603,8 +3603,8 @@ func (m *EnterpriseSettings) validate(all bool) error {
 		// no validation rules for CacheDir
 	}
 
-	if m.ChangesRequiredApprovalCount != nil {
-		// no validation rules for ChangesRequiredApprovalCount
+	if m.ChangesetRequiredApprovalCount != nil {
+		// no validation rules for ChangesetRequiredApprovalCount
 	}
 
 	if m.CustomerId != nil {
@@ -3742,14 +3742,14 @@ func (m *EnterpriseSettings) validate(all bool) error {
 
 	}
 
-	if m.DirectoryProviderTimeout != nil {
+	if m.DirectoryProviderRefreshTimeout != nil {
 
 		if all {
-			switch v := interface{}(m.GetDirectoryProviderTimeout()).(type) {
+			switch v := interface{}(m.GetDirectoryProviderRefreshTimeout()).(type) {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
 					errors = append(errors, EnterpriseSettingsValidationError{
-						field:  "DirectoryProviderTimeout",
+						field:  "DirectoryProviderRefreshTimeout",
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
@@ -3757,16 +3757,16 @@ func (m *EnterpriseSettings) validate(all bool) error {
 			case interface{ Validate() error }:
 				if err := v.Validate(); err != nil {
 					errors = append(errors, EnterpriseSettingsValidationError{
-						field:  "DirectoryProviderTimeout",
+						field:  "DirectoryProviderRefreshTimeout",
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
 				}
 			}
-		} else if v, ok := interface{}(m.GetDirectoryProviderTimeout()).(interface{ Validate() error }); ok {
+		} else if v, ok := interface{}(m.GetDirectoryProviderRefreshTimeout()).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
 				return EnterpriseSettingsValidationError{
-					field:  "DirectoryProviderTimeout",
+					field:  "DirectoryProviderRefreshTimeout",
 					reason: "embedded message failed validation",
 					cause:  err,
 				}

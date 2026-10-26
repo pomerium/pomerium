@@ -198,8 +198,8 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 	} else {
 		options["cache_dir"] = cacheDir
 	}
-	if settings.ChangesRequiredApprovalCount.IsSet {
-		options["changes_required_approval_count"] = int(settings.ChangesRequiredApprovalCount.Value)
+	if settings.ChangesetRequiredApprovalCount.IsSet {
+		options["changeset_required_approval_count"] = int(settings.ChangesetRequiredApprovalCount.Value)
 	}
 	if settings.CustomerID.IsSet {
 		options["customer_id"] = settings.CustomerID.Value
@@ -256,8 +256,8 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 	if settings.DirectoryProviderRefreshInterval.IsSet {
 		options["directory_provider_refresh_interval"] = settings.DirectoryProviderRefreshInterval.Value.String()
 	}
-	if settings.DirectoryProviderTimeout.IsSet {
-		options["directory_provider_timeout"] = settings.DirectoryProviderTimeout.Value.String()
+	if settings.DirectoryProviderRefreshTimeout.IsSet {
+		options["directory_provider_refresh_timeout"] = settings.DirectoryProviderRefreshTimeout.Value.String()
 	}
 	if settings.DisableFeedbackWidget.IsSet {
 		options["disable_feedback_widget"] = settings.DisableFeedbackWidget.Value
@@ -269,7 +269,7 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 		options["enable_session_recording_querier_cache"] = settings.EnableSessionRecordingQuerierCache.Value
 	}
 	if settings.EnableBootstrapServiceAccount.IsSet {
-		options["enable_bootstrap_service_account"] = settings.EnableBootstrapServiceAccount.Value
+		options["bootstrap_service_account"] = settings.EnableBootstrapServiceAccount.Value
 	}
 	if settings.GRPCAddress.IsSet {
 		options["grpc_addr"] = settings.GRPCAddress.Value
