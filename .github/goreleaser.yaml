@@ -8,6 +8,8 @@ git:
 
 release:
   prerelease: auto
+  draft: true
+  target_commitish: "{{ .FullCommit }}"
   github:
     owner: pomerium
     name: pomerium
@@ -31,6 +33,10 @@ builds:
       - arm64
     goos:
       - linux
+      - darwin
+    ignore:
+      - goos: darwin
+        goarch: amd64
 
     ldflags:
       - -s -w
@@ -39,6 +45,19 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.Timestamp={{.Timestamp}}
       - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
       - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
+
+notarize:
+  macos:
+    - enabled: "{{ not .IsSnapshot }}"
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        wait: true
+        timeout: 15m
 
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
@@ -124,8 +143,8 @@ dockers:
       - "--label=homepage=http://www.pomerium.io"
 
   - image_templates:
-      - "gcr.io/pomerium-io/pomerium:{{ .Tag }}-cloudrun"
-      - "gcr.io/pomerium-io/pomerium:v{{ .Major }}.{{ .Minor }}-cloudrun"
+      - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:{{ .Tag }}-cloudrun"
+      - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:v{{ .Major }}.{{ .Minor }}-cloudrun"
     dockerfile: .github/Dockerfile-cloudrun
     use: buildx
     build_flag_templates:

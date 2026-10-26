@@ -5,9 +5,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      image:
+        type: string
 
 permissions:
   contents: read
+  packages: read
 
 # A new push to a branch cancels an in-flight acceptance run for that branch.
 concurrency:
@@ -149,6 +154,16 @@ jobs:
           npm ci
           npx playwright install chromium --with-deps
 
+      - name: Pull candidate image
+        if: inputs.image
+        env:
+          IMAGE: ${{ inputs.image }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
+          docker pull "$IMAGE"
+          echo "POMERIUM_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
       - name: Run MCP e2e suite
         working-directory: internal/acceptance/suites/mcp
         run: make test
@@ -203,6 +218,16 @@ jobs:
           npm ci
           npx playwright install chromium --with-deps
 
+      - name: Pull candidate image
+        if: inputs.image
+        env:
+          IMAGE: ${{ inputs.image }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
+          docker pull "$IMAGE"
+          echo "POMERIUM_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
       - name: Run downstream mTLS e2e suite
         working-directory: internal/acceptance/suites/downstream-mtls
         run: make test
@@ -249,6 +274,16 @@ jobs:
         run: |
           npm ci
           npx playwright install chromium --with-deps
+
+      - name: Pull candidate image
+        if: inputs.image
+        env:
+          IMAGE: ${{ inputs.image }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
+          docker pull "$IMAGE"
+          echo "POMERIUM_IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
       - name: Run upstream TLS e2e suite
         working-directory: internal/acceptance/suites/upstream-tls

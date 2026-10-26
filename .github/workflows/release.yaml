@@ -1,36 +1,76 @@
 name: Release
+run-name: Release ${{ inputs.version }}
 permissions:
   contents: read
 
 on:
-  release:
-    types:
-      - published
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: "Perform a dry-run (snapshot build, no publishing)"
+      version:
+        description: "Version to release (vX.Y.Z)"
         required: true
-        default: true
-        type: boolean
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
 
 jobs:
-  goreleaser:
-    permissions:
-      contents: write
-      issues: read
-      pull-requests: read
+  plan:
     runs-on: ubuntu-22.04
-    env:
-      DOCKER_CLI_EXPERIMENTAL: "enabled"
     outputs:
-      tag: ${{ steps.tagName.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
     steps:
+      - name: Check release environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: test "$(gh api "repos/$GITHUB_REPOSITORY/environments/release" --jq 'any(.protection_rules[]; .type == "required_reviewers")')" = true
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
+      - name: Create CI token
+        id: ci-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
+          owner: pomerium
+          repositories: ingress-controller,pomerium-console,pomerium-enterprise
+          permission-contents: write
+
+      - name: Plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+          VERSION: ${{ inputs.version }}
+        run: ./scripts/release plan "$VERSION" "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+
+  core:
+    needs: plan
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    environment: apple-signing
+    env:
+      DOCKER_CLI_EXPERIMENTAL: "enabled"
+    steps:
+      - name: Check signing secrets
+        env:
+          SECRETS_SET: ${{ secrets.MACOS_SIGN_P12 && secrets.MACOS_SIGN_PASSWORD && secrets.MACOS_NOTARY_KEY && secrets.MACOS_NOTARY_KEY_ID && secrets.MACOS_NOTARY_ISSUER_ID && 'true' }}
+        run: test "$SECRETS_SET" = true
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
       - name: Unshallow
         run: git fetch --prune --unshallow
+
+      - name: Tag
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: git tag "$VERSION"
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
@@ -43,134 +83,356 @@ jobs:
           go-version-file: .tool-versions
           cache: false
 
+      - name: Build dependencies without signing secrets
+        run: make deps-build build-ui
+
       - name: Set up Docker
         run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
       - name: gcloud authenticate
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:
-          project_id: ${{ secrets.GCP_PRODUCTION_PROJECT_ID }}
           credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: gcloud sdk
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
 
       - name: Gcloud login
-        run: gcloud auth configure-docker gcr.io,us-central1-docker.pkg.dev
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          previous=()
+          if [[ $VERSION =~ ^v([0-9]+)\.([1-9][0-9]*)\.0$ ]]; then
+            previous=(-f "previous_tag_name=v${BASH_REMATCH[1]}.$((BASH_REMATCH[2] - 1)).0")
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$VERSION" -f target_commitish="$GITHUB_SHA" "${previous[@]}" --jq .body > "$RUNNER_TEMP/notes.md"
+
+      - name: Delete drafts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          drafts=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | select(.draft and .tag_name == env.VERSION) | .id')
+          for id in $drafts; do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done
 
       - name: Get GoReleaser version
         id: goreleaser-version
-        run: echo "version=v$(grep '^goreleaser ' .tool-versions | awk '{print $2}')" >> $GITHUB_OUTPUT
+        run: echo "version=v$(grep '^goreleaser ' .tool-versions | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94
         with:
           version: ${{ steps.goreleaser-version.outputs.version }}
-          args: >-
-            release
-            ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && '--snapshot' || '' }}
-            --clean
-            --config .github/goreleaser.yaml
+          args: release --clean --skip=before --config .github/goreleaser.yaml --release-notes ${{ runner.temp }}/notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ needs.plan.outputs.version }}
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+
+  ingress-controller:
+    needs: plan
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Create CI token
         id: ci-token
-        if: github.event_name == 'release' && !github.event.release.prerelease
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
           client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
           private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
           owner: pomerium
-          repositories: mac-builds
-          permission-contents: write
+          repositories: ingress-controller
+          permission-actions: write
 
-      - name: trigger mac build
-        if: github.event_name == 'release' && !github.event.release.prerelease
-        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697
-        with:
-          repository: pomerium/mac-builds
-          token: ${{ steps.ci-token.outputs.token }}
-          event-type: pomerium-proxy-release
-          client-payload: '{ "release": "${{ github.event.release.tag_name }}", "push": "true" }'
-
-      - name: Get tag name
-        if: github.event_name == 'release'
-        id: tagName
-        run: |
-          TAG=$(git describe --tags --exact-match)
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
-
-      - name: Install Cloudsmith CLI
-        if: github.event_name == 'release' && !github.event.release.prerelease
-        run: |
-          pip3 install cloudsmith-cli
-
-      - name: Publish to Cloudsmith
-        if: github.event_name == 'release' && !github.event.release.prerelease
+      - name: Build candidate
         env:
-          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-        working-directory: dist/
-        run: |
-          VERSION=${{ steps.tagName.outputs.version }}
-          RPMS="pomerium-${VERSION}-1.x86_64.rpm pomerium-${VERSION}-1.aarch64.rpm"
-          for pkg in $(echo $RPMS); do
-            cloudsmith push rpm pomerium/pomerium/el/any-version $pkg
-          done
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: ./scripts/release dispatch ingress-controller release.yaml "$GITHUB_REF_NAME" "$VERSION" "$GITHUB_RUN_ID" core_sha="$GITHUB_SHA"
 
-          DEBS="pomerium_${VERSION}-1_amd64.deb pomerium_${VERSION}-1_arm64.deb"
-          for pkg in $(echo $DEBS); do
-            cloudsmith push deb pomerium/pomerium/any-distro/any-version $pkg
-          done
-
-      - name: Find latest tag
-        if: github.event_name == 'release'
-        id: latestTag
-        run: |
-          LATEST_TAG=$(git tag | grep -vi 'rc' | sort --version-sort | tail -1)
-          echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
-
-      - name: Publish latest tag
-        if: github.event_name == 'release' && steps.latestTag.outputs.tag == steps.tagName.outputs.tag
-        run: |
-          docker manifest create -a us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:latest us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:amd64-${{ steps.tagName.outputs.tag }} us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:latest
-
-          docker tag gcr.io/pomerium-io/pomerium:${{ steps.tagName.outputs.tag }}-cloudrun gcr.io/pomerium-io/pomerium:latest-cloudrun
-          docker push gcr.io/pomerium-io/pomerium:latest-cloudrun
-
-          docker manifest create -a us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot-amd64-${{ steps.tagName.outputs.tag }} us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot
-
-          docker manifest create -a us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-amd64-${{ steps.tagName.outputs.tag }} us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug
-
-          docker manifest create -a us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot-amd64-${{ steps.tagName.outputs.tag }} us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
-          docker manifest push us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot
-
-  tag-sub-packages:
+  console:
+    needs: plan
     runs-on: ubuntu-22.04
-    needs: goreleaser
-    if: github.event_name == 'release'
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
       - name: Create CI token
         id: ci-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
           client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
           private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
-          permission-contents: write
+          owner: pomerium
+          repositories: pomerium-console
+          permission-actions: write
 
+      - name: Build candidate
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: ./scripts/release dispatch pomerium-console publish.yml "$GITHUB_REF_NAME" "$VERSION" "$GITHUB_RUN_ID"
+
+  enterprise:
+    needs: [plan, core, ingress-controller, console]
+    permissions:
+      contents: read
+      packages: read
+    runs-on: ubuntu-22.04
+    outputs:
+      enterprise: ${{ steps.candidates.outputs.enterprise }}
+      enterprise-debug: ${{ steps.candidates.outputs.enterprise-debug }}
+      enterprise-nonroot: ${{ steps.candidates.outputs.enterprise-nonroot }}
+      enterprise-debug-nonroot: ${{ steps.candidates.outputs.enterprise-debug-nonroot }}
+      enterprise-ingress-controller: ${{ steps.candidates.outputs.enterprise-ingress-controller }}
+      ingress-controller: ${{ steps.candidates.outputs.ingress-controller }}
+      console: ${{ steps.candidates.outputs.console }}
+      cloudrun: ${{ steps.candidates.outputs.cloudrun }}
+      extension: ${{ steps.candidates.outputs.extension }}
+    steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: pomerium/pomerium
-          token: ${{ steps.ci-token.outputs.token }}
 
-      - name: Tag
+      - name: Create CI token
+        id: ci-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
+          owner: pomerium
+          repositories: pomerium-enterprise
+          permission-actions: write
+          permission-contents: read
+
+      - name: Build candidate
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: ./scripts/release dispatch pomerium-enterprise candidate.yaml "$GITHUB_REF_NAME" "$VERSION" "$GITHUB_RUN_ID"
+
+      - name: gcloud authenticate
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: gcloud sdk
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+
+      - name: Registry login
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          git tag pkg/grpc/config/${{ needs.goreleaser.outputs.tag }} ${{ needs.goreleaser.outputs.tag }}
-          git push origin tag pkg/grpc/config/${{ needs.goreleaser.outputs.tag }}
-          git tag pkg/grpc/databroker/${{ needs.goreleaser.outputs.tag }} ${{ needs.goreleaser.outputs.tag }}
-          git push origin tag pkg/grpc/databroker/${{ needs.goreleaser.outputs.tag }}
+          gcloud auth configure-docker gcr.io,us-central1-docker.pkg.dev
+          docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
+
+      - name: Read candidates
+        id: candidates
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          while read -r name repository tag; do
+            digest=$(./scripts/release digest "$repository:$tag")
+            echo "$name=$repository@$digest" >> "$GITHUB_OUTPUT"
+          done <<EOF
+          enterprise ghcr.io/pomerium/pomerium-enterprise $VERSION
+          enterprise-debug ghcr.io/pomerium/pomerium-enterprise debug-$VERSION
+          enterprise-nonroot ghcr.io/pomerium/pomerium-enterprise nonroot-$VERSION
+          enterprise-debug-nonroot ghcr.io/pomerium/pomerium-enterprise debug-nonroot-$VERSION
+          enterprise-ingress-controller ghcr.io/pomerium/ingress-controller-enterprise $VERSION
+          cloudrun us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium $VERSION-cloudrun
+          EOF
+          pins=$(gh api "repos/pomerium/pomerium-enterprise/contents/dependencies.env?ref=$VERSION" -H "Accept: application/vnd.github.raw")
+          extension=$(sed -nE 's/^EXTENSION_VERSION="([0-9a-f]{40})-.*/\1/p' <<<"$pins")
+          ingress_controller=$(sed -nE 's/^INGRESS_CONTROLLER_VERSION=".*@(sha256:[0-9a-f]{64})"$/\1/p' <<<"$pins")
+          console=$(sed -nE 's/^CONSOLE_VERSION=".*@(sha256:[0-9a-f]{64})"$/\1/p' <<<"$pins")
+          [[ -n $extension && -n $ingress_controller && -n $console ]]
+          {
+            echo "extension=$extension"
+            echo "ingress-controller=us-central1-docker.pkg.dev/pomerium-public-prd/ingress-controller/ingress-controller@$ingress_controller"
+            echo "console=gcr.io/pomerium-registry/pomerium-console@$console"
+          } >> "$GITHUB_OUTPUT"
+
+  acceptance:
+    needs: enterprise
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/acceptance.yaml
+    with:
+      image: ${{ needs.enterprise.outputs.enterprise }}
+
+  promote:
+    needs: [plan, core, ingress-controller, console, enterprise, acceptance]
+    permissions:
+      contents: read
+      packages: read
+    runs-on: ubuntu-22.04
+    environment: release
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Create CI token
+        id: ci-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
+          owner: pomerium
+          repositories: pomerium,ingress-controller,pomerium-console,envoy-custom,enterprise-extensions,homebrew-tap
+          permission-contents: write
+          permission-workflows: write
+
+      - name: Latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(./scripts/release is-latest "$VERSION")
+          echo "LATEST=$latest" >> "$GITHUB_ENV"
+
+      - name: gcloud authenticate
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: gcloud sdk
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+
+      - name: Registry login
+        env:
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          CLOUDSMITH_USER: ${{ secrets.CLOUDSMITH_USER }}
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gcloud auth configure-docker gcr.io,us-central1-docker.pkg.dev
+          docker login --username "$DOCKERHUB_USER" --password-stdin <<<"$DOCKERHUB_TOKEN"
+          docker login docker.cloudsmith.io --username "$CLOUDSMITH_USER" --password-stdin <<<"$CLOUDSMITH_API_KEY"
+          docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
+
+      - name: Images
+        env:
+          ENTERPRISE: ${{ needs.enterprise.outputs.enterprise }}
+          ENTERPRISE_DEBUG: ${{ needs.enterprise.outputs.enterprise-debug }}
+          ENTERPRISE_NONROOT: ${{ needs.enterprise.outputs.enterprise-nonroot }}
+          ENTERPRISE_DEBUG_NONROOT: ${{ needs.enterprise.outputs.enterprise-debug-nonroot }}
+          ENTERPRISE_INGRESS_CONTROLLER: ${{ needs.enterprise.outputs.enterprise-ingress-controller }}
+          INGRESS_CONTROLLER: ${{ needs.enterprise.outputs.ingress-controller }}
+          CONSOLE: ${{ needs.enterprise.outputs.console }}
+          CLOUDRUN: ${{ needs.enterprise.outputs.cloudrun }}
+        run: |
+          v=$VERSION
+          m=${VERSION%.*}
+          l=${LATEST#false}
+          while read -ra row; do
+            for tag in "${row[@]:2}"; do
+              echo "${row[0]} ${row[1]}:$tag"
+            done
+          done > "$RUNNER_TEMP/images" <<EOF
+          $ENTERPRISE docker.io/pomerium/pomerium $v $m ${l:+latest}
+          $ENTERPRISE docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise $v $m ${l:+latest}
+          $ENTERPRISE_DEBUG docker.io/pomerium/pomerium debug-$v debug-$m ${l:+debug}
+          $ENTERPRISE_DEBUG docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise debug-$v debug-$m ${l:+debug}
+          $ENTERPRISE_NONROOT docker.io/pomerium/pomerium nonroot-$v nonroot-$m ${l:+nonroot}
+          $ENTERPRISE_NONROOT docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise nonroot-$v nonroot-$m ${l:+nonroot}
+          $ENTERPRISE_DEBUG_NONROOT docker.io/pomerium/pomerium debug-nonroot-$v debug-nonroot-$m ${l:+debug-nonroot}
+          $ENTERPRISE_DEBUG_NONROOT docker.cloudsmith.io/pomerium/pomerium-enterprise/pomerium-enterprise debug-nonroot-$v debug-nonroot-$m ${l:+debug-nonroot}
+          $ENTERPRISE_INGRESS_CONTROLLER docker.io/pomerium/ingress-controller $v $m ${l:+latest}
+          $ENTERPRISE_INGRESS_CONTROLLER docker.cloudsmith.io/pomerium/pomerium-enterprise/ingress-controller-enterprise $v $m ${l:+latest}
+          $INGRESS_CONTROLLER docker.cloudsmith.io/pomerium/ingress-controller/ingress-controller $v $m ${l:+latest}
+          $CONSOLE gcr.io/pomerium-public/enterprise/pomerium-console $v ${l:+latest}
+          $CONSOLE docker.cloudsmith.io/pomerium/enterprise/pomerium-console $v
+          $CLOUDRUN gcr.io/pomerium-io/pomerium $v-cloudrun $m-cloudrun ${l:+latest-cloudrun}
+          EOF
+          while read -r source destination; do
+            ./scripts/release copy "$VERSION" "$source" "$destination"
+          done < "$RUNNER_TEMP/images"
+
+      - name: Publish releases
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+        run: |
+          for repo in pomerium ingress-controller pomerium-console; do
+            ./scripts/release publish-release "$repo" "$VERSION" "$LATEST"
+          done
+
+      - name: Download packages
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          v=${VERSION#v}
+          gh release download "$VERSION" --repo pomerium/pomerium --pattern "pomerium-$v-1.*.rpm" --pattern "pomerium_$v-1_*.deb"
+          gh release download "$VERSION" --repo pomerium/pomerium-console --pattern "pomerium-console-$v-1.*.rpm" --pattern "pomerium-console_$v-1_*.deb"
+
+      - name: Cloudsmith packages
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          pip3 install cloudsmith-cli==1.28.0
+          v=${VERSION#v}
+          cloudsmith push rpm pomerium/pomerium/el/any-version "pomerium-$v-1.x86_64.rpm" --republish
+          cloudsmith push rpm pomerium/pomerium/el/any-version "pomerium-$v-1.aarch64.rpm" --republish
+          cloudsmith push deb pomerium/pomerium/any-distro/any-version "pomerium_$v-1_amd64.deb" --republish
+          cloudsmith push deb pomerium/pomerium/any-distro/any-version "pomerium_$v-1_arm64.deb" --republish
+          cloudsmith push rpm pomerium/enterprise/el/any-version "pomerium-console-$v-1.x86_64.rpm" --republish
+          cloudsmith push deb pomerium/enterprise/any-distro/any-version "pomerium-console_$v-1_amd64.deb" --republish
+
+      - name: Submodule tags
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+        run: |
+          ./scripts/release create-ref pomerium "refs/tags/pkg/grpc/config/$VERSION" "$GITHUB_SHA"
+          ./scripts/release create-ref pomerium "refs/tags/pkg/grpc/databroker/$VERSION" "$GITHUB_SHA"
+
+      - name: envoy-custom and enterprise-extensions branches
+        if: endsWith(needs.plan.outputs.version, '.0')
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+          EXTENSION: ${{ needs.enterprise.outputs.extension }}
+        run: |
+          branch=pomerium-${VERSION#v}
+          branch=${branch//./-}
+          envoy=$(awk '$1 == "github.com/pomerium/envoy-custom" { print $2 }' go.mod)
+          if [[ $envoy =~ [-.][0-9]{14}-([0-9a-f]{12})$ ]]; then
+            envoy=${BASH_REMATCH[1]}
+          fi
+          envoy=$(gh api "repos/pomerium/envoy-custom/commits/$envoy" --jq .sha)
+          ./scripts/release create-branch envoy-custom "$branch" "$envoy"
+          ./scripts/release create-branch enterprise-extensions "$branch" "$EXTENSION"
+
+      - name: Homebrew
+        if: env.LATEST == 'true'
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+        run: gh api repos/pomerium/homebrew-tap/dispatches -f event_type=pomerium-release -f "client_payload[version]=${VERSION#v}"
+
+      - name: Verify
+        env:
+          GH_TOKEN: ${{ steps.ci-token.outputs.token }}
+        run: |
+          while read -r source destination; do
+            digest=$(./scripts/release digest "$destination")
+            echo "$destination $digest"
+            test "$digest" = "${source#*@}"
+          done < "$RUNNER_TEMP/images"
+          if [ "$LATEST" = true ]; then
+            test "$(gh api repos/pomerium/pomerium/releases/latest --jq .tag_name)" = "$VERSION"
+          fi

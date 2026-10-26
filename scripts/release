@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s inherit_errexit
+
+log() {
+	echo "$*" >&2
+}
+
+fatal() {
+	log "$*"
+	exit 1
+}
+
+ref-commit() {
+	local _repo="${1?"repo is required"}"
+	local _ref="${2?"ref is required"}"
+
+	local _object
+	_object="$(gh api "repos/pomerium/$_repo/git/matching-refs/${_ref#refs/}" \
+		--jq ".[] | select(.ref == \"$_ref\") | .object | \"\(.type) \(.sha)\"")"
+	local _type _sha
+	read -r _type _sha <<<"$_object"
+	while [[ $_type == tag ]]; do
+		_object="$(gh api "repos/pomerium/$_repo/git/tags/$_sha" --jq '.object | "\(.type) \(.sha)"')"
+		read -r _type _sha <<<"$_object"
+	done
+	echo "$_sha"
+}
+
+create-ref() {
+	local _repo="${1?"repo is required"}"
+	local _ref="${2?"ref is required"}"
+	local _commit="${3?"commit is required"}"
+
+	[[ $_commit =~ ^[0-9a-f]{40}$ ]] || fatal "commit must be a full sha, not '$_commit'"
+	local _current
+	_current="$(ref-commit "$_repo" "$_ref")"
+	if [[ $_current == "$_commit" ]]; then
+		log "$_ref is already at $_commit in pomerium/$_repo"
+		return
+	fi
+	[[ -z $_current ]] || fatal "$_ref is at $_current in pomerium/$_repo, not $_commit"
+	gh api --method POST "repos/pomerium/$_repo/git/refs" -f ref="$_ref" -f sha="$_commit" --silent
+	log "created $_ref at $_commit in pomerium/$_repo"
+}
+
+create-branch() {
+	local _repo="${1?"repo is required"}"
+	local _branch="${2?"branch is required"}"
+	local _commit="${3?"commit is required"}"
+
+	local _current
+	_current="$(ref-commit "$_repo" "refs/heads/$_branch")"
+	if [[ -n $_current ]]; then
+		log "branch $_branch is at $_current in pomerium/$_repo"
+		return
+	fi
+	create-ref "$_repo" "refs/heads/$_branch" "$_commit"
+}
+
+ensure-release-branch() {
+	local _repo="${1?"repo is required"}"
+	local _branch="${2?"branch is required"}"
+	local _patch="${3?"patch is required"}"
+
+	local _commit
+	_commit="$(ref-commit "$_repo" "refs/heads/$_branch")"
+	if [[ -n $_commit ]]; then
+		return
+	fi
+	[[ $_patch == 0 ]] || fatal "pomerium/$_repo has no branch $_branch"
+	_commit="$(ref-commit "$_repo" refs/heads/main)"
+	create-ref "$_repo" "refs/heads/$_branch" "$_commit"
+}
+
+is-latest() {
+	local _version="${1?"version is required"}"
+
+	local _highest
+	_highest="$({
+		gh api "repos/pomerium/pomerium/git/matching-refs/tags/v" --jq '.[].ref | ltrimstr("refs/tags/")'
+		echo "$_version"
+	} | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)"
+	if [[ $_highest == "$_version" ]]; then
+		echo true
+	else
+		echo false
+	fi
+}
+
+plan() {
+	local _version="${1?"version is required"}"
+	local _branch="${2?"branch is required"}"
+
+	[[ $_version =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || fatal "version must be vX.Y.Z, not '$_version'"
+	local _release_branch="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-0"
+	local _patch="${BASH_REMATCH[3]}"
+	[[ $_branch == "$_release_branch" ]] || fatal "$_version must be released from branch $_release_branch, not $_branch"
+	local _tag
+	_tag="$(ref-commit pomerium "refs/tags/$_version")"
+	[[ -z $_tag ]] || fatal "tag $_version already exists at $_tag"
+
+	local _repo
+	for _repo in ingress-controller pomerium-console; do
+		_tag="$(ref-commit "$_repo" "refs/tags/$_version")"
+		[[ -z $_tag ]] || fatal "tag $_version already exists at $_tag in pomerium/$_repo"
+	done
+	for _repo in ingress-controller pomerium-console pomerium-enterprise; do
+		ensure-release-branch "$_repo" "$_release_branch" "$_patch"
+	done
+
+	echo "version=$_version"
+}
+
+find-run() {
+	local _repo="${1?"repo is required"}"
+	local _workflow="${2?"workflow is required"}"
+	local _branch="${3?"branch is required"}"
+	local _title="${4?"title is required"}"
+	local _after="${5?"after is required"}"
+
+	gh api "repos/pomerium/$_repo/actions/workflows/$_workflow/runs?event=workflow_dispatch&branch=$_branch&per_page=100" |
+		jq -r --arg title "$_title" --argjson after "$_after" \
+			'[.workflow_runs[] | select(.display_title == $title and .id > $after)] | max_by(.id) // empty | "\(.id) \(.html_url)"'
+}
+
+dispatch() {
+	local _repo="${1?"repo is required"}"
+	local _workflow="${2?"workflow is required"}"
+	local _branch="${3?"branch is required"}"
+	local _version="${4?"version is required"}"
+	local _request="${5?"request is required"}"
+	shift 5
+
+	local _title="candidate $_version $_request"
+	local _run
+	_run="$(find-run "$_repo" "$_workflow" "$_branch" "$_title" 0)"
+	local _after="${_run%% *}"
+
+	local _fields=(-f "ref=$_branch" -f "inputs[version]=$_version" -f "inputs[request]=$_request")
+	local _input
+	for _input in "$@"; do
+		_fields+=(-f "inputs[${_input%%=*}]=${_input#*=}")
+	done
+	gh api --method POST "repos/pomerium/$_repo/actions/workflows/$_workflow/dispatches" "${_fields[@]}" --silent
+
+	_run=""
+	for _ in {1..60}; do
+		sleep 5
+		_run="$(find-run "$_repo" "$_workflow" "$_branch" "$_title" "${_after:-0}")"
+		[[ -z $_run ]] || break
+	done
+	[[ -n $_run ]] || fatal "no run titled '$_title' started in pomerium/$_repo"
+	echo "${_run#* }"
+	gh run watch "${_run%% *}" --repo "pomerium/$_repo" --interval 30 --exit-status >/dev/null
+}
+
+lookup-digest() {
+	local _image="${1?"image is required"}"
+
+	local _output
+	if _output="$(docker buildx imagetools inspect --format '{{json .Manifest}}' "$_image" 2>&1)"; then
+		jq -r .digest <<<"$_output"
+	elif [[ $_output != *": not found"* ]]; then
+		fatal "$_output"
+	fi
+}
+
+digest() {
+	local _image="${1?"image is required"}"
+
+	local _digest
+	_digest="$(lookup-digest "$_image")"
+	[[ -n $_digest ]] || fatal "$_image does not exist"
+	echo "$_digest"
+}
+
+copy() {
+	local _version="${1?"version is required"}"
+	local _source="${2?"source is required"}"
+	shift 2
+
+	local _digest="${_source##*@}"
+	[[ $_digest =~ ^sha256:[0-9a-f]{64}$ ]] || fatal "$_source is not pinned by digest"
+	local _destination _current
+	for _destination in "$@"; do
+		_current="$(lookup-digest "$_destination")"
+		if [[ $_current == "$_digest" ]]; then
+			log "$_destination is already $_digest"
+			continue
+		fi
+		if [[ -n $_current && -${_destination##*:}- == *-"$_version"-* ]]; then
+			fatal "$_destination is $_current, not $_digest"
+		fi
+		docker buildx imagetools create --prefer-index=false --tag "$_destination" "$_source"
+		_current="$(lookup-digest "$_destination")"
+		[[ $_current == "$_digest" ]] || fatal "$_destination is '$_current' after the copy, not $_digest"
+		log "copied $_digest to $_destination"
+	done
+}
+
+publish-release() {
+	local _repo="${1?"repo is required"}"
+	local _version="${2?"version is required"}"
+	local _latest="${3?"latest is required"}"
+
+	local _releases
+	_releases="$(gh api --paginate "repos/pomerium/$_repo/releases?per_page=100" \
+		--jq ".[] | select(.tag_name == \"$_version\") | \"\(.id) \(.draft) \(.target_commitish)\"")"
+	local _count
+	_count="$(grep -c . <<<"$_releases" || true)"
+	[[ $_count == 1 ]] || fatal "pomerium/$_repo has $_count releases for $_version"
+	local _id _draft _target
+	read -r _id _draft _target <<<"$_releases"
+	[[ $_target =~ ^[0-9a-f]{40}$ ]] || fatal "release $_version in pomerium/$_repo targets '$_target', not a commit"
+
+	local _commit
+	_commit="$(ref-commit "$_repo" "refs/tags/$_version")"
+	if [[ $_draft == true ]]; then
+		[[ -z $_commit || $_commit == "$_target" ]] || fatal "tag $_version in pomerium/$_repo is at $_commit, not $_target"
+		gh api --method PATCH "repos/pomerium/$_repo/releases/$_id" -F draft=false -f make_latest="$_latest" --silent
+		log "published $_version in pomerium/$_repo"
+		_commit="$(ref-commit "$_repo" "refs/tags/$_version")"
+	else
+		log "$_version is already published in pomerium/$_repo"
+	fi
+	[[ $_commit == "$_target" ]] || fatal "tag $_version in pomerium/$_repo is at '$_commit', not $_target"
+}
+
+main() {
+	local _command="${1?"command is required"}"
+	shift
+	case "$_command" in
+	plan | is-latest | dispatch | digest | copy | publish-release | create-ref | create-branch)
+		"$_command" "$@"
+		;;
+	*)
+		fatal "unknown command $_command"
+		;;
+	esac
+}
+
+main "$@"
