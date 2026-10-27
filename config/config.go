@@ -307,6 +307,22 @@ func setNullableDurationToProto(dst **durationpb.Duration, src nullable.Value[ti
 	return nil
 }
 
+func setNullableSliceOfByteFromProto(dst *nullable.Value[[]byte], src []byte) error {
+	if src == nil {
+		return nil
+	}
+	*dst = nullable.NewValue(true, slices.Clone(src))
+	return nil
+}
+
+func setNullableSliceOfByteToProto(dst *[]byte, src nullable.Value[[]byte]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = slices.Clone(src.Value)
+	return nil
+}
+
 func setNullableStringListFromProto[T any, TPtr interface {
 	*T
 	GetValues() []string
@@ -326,6 +342,9 @@ func setNullableStringListToProto[T any, TPtr interface {
 		return nil
 	}
 	*dst = new(T)
+	if obj, ok := any(*dst).(*configpb.EnterpriseSettings_StringList); ok {
+		obj.Values = slices.Clone(src.Value)
+	}
 	if obj, ok := any(*dst).(*configpb.Settings_StringList); ok {
 		obj.Values = slices.Clone(src.Value)
 	}
@@ -352,5 +371,13 @@ func setNullableStructToProto(dst **structpb.Struct, src nullable.Value[map[stri
 		return err
 	}
 	*dst = v.GetStructValue()
+	return nil
+}
+
+func setSliceOfByteToProto(dst *[]byte, src nullable.Value[[]byte]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = slices.Clone(src.Value)
 	return nil
 }

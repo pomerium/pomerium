@@ -23,6 +23,10 @@ var sensitiveNamePattern = regexp.MustCompile(
 // sensitive pattern but do not actually carry secrets. Use sparingly and
 // document the reason inline.
 var nonSensitiveAllowlist = map[string]string{
+	"pomerium.config.EnterpriseSettings.shared_secret_file":       "path to a file, not the secret",
+	"pomerium.config.EnterpriseSettings.shared_secret_raw_file":   "path to a file, not the secret",
+	"pomerium.config.EnterpriseSettings.signing_key_file":         "path to a file, not the secret",
+	"pomerium.config.EnterpriseSettings.signing_key_raw_file":     "path to a file, not the secret",
 	"pomerium.config.Route.idp_access_token_allowed_audiences":    "list of allowed audiences, not a token",
 	"pomerium.config.Settings.idp_access_token_allowed_audiences": "list of allowed audiences, not a token",
 }
@@ -98,6 +102,17 @@ func sensitive(fd protoreflect.FieldDescriptor) bool {
 // together — that's the lint's whole purpose.
 var expectedSensitiveFields = map[string]struct{}{
 	"pomerium.config.CreateServiceAccountResponse.jwt":              {},
+	"pomerium.config.EnterpriseSettings.database_encryption_key":    {},
+	"pomerium.config.EnterpriseSettings.database_url":               {},
+	"pomerium.config.EnterpriseSettings.directory_provider_options": {},
+	"pomerium.config.EnterpriseSettings.license_key":                {},
+	"pomerium.config.EnterpriseSettings.prometheus_url":             {},
+	"pomerium.config.EnterpriseSettings.session_recording_options":  {},
+	"pomerium.config.EnterpriseSettings.shared_secret":              {},
+	"pomerium.config.EnterpriseSettings.signing_key":                {},
+	"pomerium.config.EnterpriseSettings.tls_certificate_authority":  {},
+	"pomerium.config.EnterpriseSettings.tls_certificate":            {},
+	"pomerium.config.EnterpriseSettings.tls_key":                    {},
 	"pomerium.config.KeyPair.key":                                   {},
 	"pomerium.config.OIDCBridge.client_secret":                      {},
 	"pomerium.config.Route.idp_client_secret":                       {},
@@ -108,7 +123,6 @@ var expectedSensitiveFields = map[string]struct{}{
 	"pomerium.config.Settings.Certificate.key_bytes":                {},
 	"pomerium.config.Settings.cookie_secret":                        {},
 	"pomerium.config.Settings.databroker_storage_connection_string": {},
-	"pomerium.config.Settings.enterprise":                           {},
 	"pomerium.config.Settings.idp_client_secret":                    {},
 	"pomerium.config.Settings.metrics_basic_auth":                   {},
 	"pomerium.config.Settings.shared_secret":                        {},

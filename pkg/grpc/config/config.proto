@@ -717,6 +717,140 @@ message Policy {
   ];
 }
 
+// EnterpriseValidationMode indicates the level of validation the enterprise console will perform.
+enum EnterpriseValidationMode {
+  ENTERPRISE_VALIDATION_MODE_UNKNOWN = 0;
+  // Disables validation.
+  ENTERPRISE_VALIDATION_MODE_DISABLED = 1;
+  // Only does static validation.
+  ENTERPRISE_VALIDATION_MODE_STATIC = 2;
+  // Does full validation using envoy.
+  ENTERPRISE_VALIDATION_MODE_FULL = 3;
+}
+
+// EnterpriseSettings are the embedded enterprise configuration settings.
+message EnterpriseSettings {
+  // Wrapper for a list of strings.
+  message StringList {
+    // The string values held by this list.
+    repeated string values = 1;
+  }
+
+  // A list of user IDs or email addresses to make administrators..
+  optional StringList administrators = 1;
+  // The period for analytics data collection and export to the cloud.
+  optional google.protobuf.Duration analytics_collect_interval = 2;
+  // The analytics URL.
+  optional string analytics_url = 3;
+  // A list of audiences for verifying the signing key.
+  optional StringList audience = 4;
+  // The URL for the authenticate service.
+  optional string authenticate_service_url = 5;
+  // The address the enterprise console will listen on.
+  optional string bind_address = 6;
+  // When true, create the bootstrap service account in the database.
+  optional bool bootstrap_service_account = 7;
+  // The directory to store cache data.
+  optional string cache_dir = 8;
+  // How many approvals are required to deploy a changeset.
+  optional uint32 changeset_required_approval_count = 9;
+  // The customer ID.
+  optional string customer_id = 10;
+  // Disables all namespace checks.
+  optional bool dangerously_disable_all_namespace_checks = 11;
+  // The encryption key for encrypting sensitive data in the database.
+  optional bytes database_encryption_key = 12 [(sensitive) = true];
+  // A file containing the base64-encoded database encryption key.
+  optional string database_encryption_key_file = 13;
+  // A file containing the raw database encryption key.
+  optional string database_encryption_key_raw_file = 14;
+  // The database the enterprise console will use.
+  optional string database_url = 15 [(sensitive) = true];
+  // The databroker service URLs.
+  optional StringList databroker_service_urls = 16;
+  // The address to expose pprof debug endpoints.
+  optional string debug_address = 17;
+  // Dumps the databroker configuration. This is a debug option to be used
+  // only when specified by Pomerium Support.
+  optional bool debug_config_dump = 18;
+  // The directory provider for directory sync.
+  optional string directory_provider = 19;
+  // The directory provider options for directory sync.
+  optional google.protobuf.Struct directory_provider_options = 20 [(sensitive) = true];
+  // The directory provider refresh interval.
+  optional google.protobuf.Duration directory_provider_refresh_interval = 21;
+  // The directory provider refresh timeout.
+  optional google.protobuf.Duration directory_provider_refresh_timeout = 22;
+  // Disables the feedback widget.
+  optional bool disable_feedback_widget = 23;
+  // Disables remote diagnostics.
+  optional bool disable_remote_diagnostics = 24;
+  // Indexes remote session recording metadata locally for more efficient
+  // querying.
+  optional bool enable_session_recording_querier_cache = 25;
+  // The address to listen for gRPC on.
+  optional string grpc_address = 26;
+  // The license key issued by your account team.
+  optional string license_key = 27 [(sensitive) = true];
+  // Validates the license key offline, without contacting the license server.
+  optional bool license_key_validate_offline = 28;
+  // The enterprise console log level. Defaults to info.
+  optional string log_level = 29;
+  // The address to expose console metrics in Prometheus format.
+  optional string metrics_address = 30;
+  // Overrides the certificate name used for the databroker connection.
+  optional string override_certificate_name = 31;
+  // The path to Prometheus data.
+  optional string prometheus_data_dir = 32;
+  // The address the embedded Prometheus listens on, as host:port.
+  optional string prometheus_listen_address = 33;
+  // The Prometheus scrape frequency.
+  optional google.protobuf.Duration prometheus_scrape_interval = 34;
+  // The URL to access the Prometheus metrics server.
+  optional string prometheus_url = 35 [(sensitive) = true];
+  // The address the enterprise console is reachable at. Defaults to
+  // bind_address.
+  optional string public_address = 36;
+  // Bootstrap settings for session recording for the default cluster.
+  optional google.protobuf.Struct session_recording_options = 37 [(sensitive) = true];
+  // The secret for signing JWTs, shared with Pomerium.
+  optional bytes shared_secret = 38 [(sensitive) = true];
+  // A file containing the base64-encoded shared secret.
+  optional string shared_secret_file = 39;
+  // A file containing the raw shared secret.
+  optional string shared_secret_raw_file = 40;
+  // The signing key (public or private) for verifying JWTs.
+  // This option is deprecated.
+  optional bytes signing_key = 41 [(sensitive) = true];
+  // A file containing the base64-encoded signing key.
+  optional string signing_key_file = 42;
+  // A file containing the raw signing key.
+  optional string signing_key_raw_file = 43;
+  // The TLS certificate.
+  optional bytes tls_certificate = 44 [(sensitive) = true];
+  // The TLS certificate authority.
+  optional bytes tls_certificate_authority = 45 [(sensitive) = true];
+  // A file containing the TLS certificate authority.
+  optional string tls_certificate_authority_file = 46;
+  // A file containing the TLS certificate.
+  optional string tls_certificate_file = 47;
+  // Derives the TLS certificate for this domain name from the shared secret.
+  optional string tls_derive = 48;
+  // Disables remote hosts' TLS certificate chain and hostname checks.
+  optional bool tls_insecure_skip_verify = 49;
+  // The TLS private key.
+  optional bytes tls_key = 50 [(sensitive) = true];
+  // A file containing the TLS private key.
+  optional string tls_key_file = 51;
+  // The URL to host the enterprise console at. The enterprise console is
+  // only enabled when this is set.
+  optional string url = 52;
+  // When false, forwards static requests to localhost:3000. Defaults to true.
+  optional bool use_static_assets = 53;
+  // How much validation to perform. Defaults to static.
+  optional EnterpriseValidationMode validation_mode = 54;
+}
+
 // Global Pomerium configuration settings.
 message Settings {
   // An inline TLS certificate/key pair Pomerium serves for matching SNI
@@ -1165,7 +1299,7 @@ message Settings {
   // Configure default OIDC bridge support for all routes.
   optional OIDCBridge oidc_bridge = 189;
   // Embedded enterprise options.
-  optional google.protobuf.Struct enterprise = 192 [(sensitive) = true];
+  optional EnterpriseSettings enterprise = 192;
   // License type for Pomerium.
   optional LicenseType license_type = 193;
 

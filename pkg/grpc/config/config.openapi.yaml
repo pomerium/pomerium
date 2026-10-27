@@ -1893,6 +1893,373 @@ components:
       description: |-
         DownstreamMtlsSettings controls how Pomerium validates client certificates
          presented by downstream (end-user) connections.
+    pomerium.config.EnterpriseSettings:
+      type: object
+      properties:
+        administrators:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.EnterpriseSettings.StringList'
+            - type: "null"
+          title: administrators
+          description: A list of user IDs or email addresses to make administrators..
+        analyticsCollectInterval:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: analytics_collect_interval
+          description: The period for analytics data collection and export to the cloud.
+        analyticsUrl:
+          type:
+            - string
+            - "null"
+          title: analytics_url
+          description: The analytics URL.
+        audience:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.EnterpriseSettings.StringList'
+            - type: "null"
+          title: audience
+          description: A list of audiences for verifying the signing key.
+        authenticateServiceUrl:
+          type:
+            - string
+            - "null"
+          title: authenticate_service_url
+          description: The URL for the authenticate service.
+        bindAddress:
+          type:
+            - string
+            - "null"
+          title: bind_address
+          description: The address the enterprise console will listen on.
+        bootstrapServiceAccount:
+          type:
+            - boolean
+            - "null"
+          title: bootstrap_service_account
+          description: When true, create the bootstrap service account in the database.
+        cacheDir:
+          type:
+            - string
+            - "null"
+          title: cache_dir
+          description: The directory to store cache data.
+        changesetRequiredApprovalCount:
+          type:
+            - integer
+            - "null"
+          title: changeset_required_approval_count
+          description: How many approvals are required to deploy a changeset.
+        customerId:
+          type:
+            - string
+            - "null"
+          title: customer_id
+          description: The customer ID.
+        dangerouslyDisableAllNamespaceChecks:
+          type:
+            - boolean
+            - "null"
+          title: dangerously_disable_all_namespace_checks
+          description: Disables all namespace checks.
+        databaseEncryptionKey:
+          type:
+            - string
+            - "null"
+          title: database_encryption_key
+          format: byte
+          description: The encryption key for encrypting sensitive data in the database.
+        databaseEncryptionKeyFile:
+          type:
+            - string
+            - "null"
+          title: database_encryption_key_file
+          description: A file containing the base64-encoded database encryption key.
+        databaseEncryptionKeyRawFile:
+          type:
+            - string
+            - "null"
+          title: database_encryption_key_raw_file
+          description: A file containing the raw database encryption key.
+        databaseUrl:
+          type:
+            - string
+            - "null"
+          title: database_url
+          description: The database the enterprise console will use.
+        databrokerServiceUrls:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.EnterpriseSettings.StringList'
+            - type: "null"
+          title: databroker_service_urls
+          description: The databroker service URLs.
+        debugAddress:
+          type:
+            - string
+            - "null"
+          title: debug_address
+          description: The address to expose pprof debug endpoints.
+        debugConfigDump:
+          type:
+            - boolean
+            - "null"
+          title: debug_config_dump
+          description: |-
+            Dumps the databroker configuration. This is a debug option to be used
+             only when specified by Pomerium Support.
+        directoryProvider:
+          type:
+            - string
+            - "null"
+          title: directory_provider
+          description: The directory provider for directory sync.
+        directoryProviderOptions:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+            - type: "null"
+          title: directory_provider_options
+          description: The directory provider options for directory sync.
+        directoryProviderRefreshInterval:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: directory_provider_refresh_interval
+          description: The directory provider refresh interval.
+        directoryProviderRefreshTimeout:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: directory_provider_refresh_timeout
+          description: The directory provider refresh timeout.
+        disableFeedbackWidget:
+          type:
+            - boolean
+            - "null"
+          title: disable_feedback_widget
+          description: Disables the feedback widget.
+        disableRemoteDiagnostics:
+          type:
+            - boolean
+            - "null"
+          title: disable_remote_diagnostics
+          description: Disables remote diagnostics.
+        enableSessionRecordingQuerierCache:
+          type:
+            - boolean
+            - "null"
+          title: enable_session_recording_querier_cache
+          description: |-
+            Indexes remote session recording metadata locally for more efficient
+             querying.
+        grpcAddress:
+          type:
+            - string
+            - "null"
+          title: grpc_address
+          description: The address to listen for gRPC on.
+        licenseKey:
+          type:
+            - string
+            - "null"
+          title: license_key
+          description: The license key issued by your account team.
+        licenseKeyValidateOffline:
+          type:
+            - boolean
+            - "null"
+          title: license_key_validate_offline
+          description: Validates the license key offline, without contacting the license server.
+        logLevel:
+          type:
+            - string
+            - "null"
+          title: log_level
+          description: The enterprise console log level. Defaults to info.
+        metricsAddress:
+          type:
+            - string
+            - "null"
+          title: metrics_address
+          description: The address to expose console metrics in Prometheus format.
+        overrideCertificateName:
+          type:
+            - string
+            - "null"
+          title: override_certificate_name
+          description: Overrides the certificate name used for the databroker connection.
+        prometheusDataDir:
+          type:
+            - string
+            - "null"
+          title: prometheus_data_dir
+          description: The path to Prometheus data.
+        prometheusListenAddress:
+          type:
+            - string
+            - "null"
+          title: prometheus_listen_address
+          description: The address the embedded Prometheus listens on, as host:port.
+        prometheusScrapeInterval:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+            - type: "null"
+          title: prometheus_scrape_interval
+          description: The Prometheus scrape frequency.
+        prometheusUrl:
+          type:
+            - string
+            - "null"
+          title: prometheus_url
+          description: The URL to access the Prometheus metrics server.
+        publicAddress:
+          type:
+            - string
+            - "null"
+          title: public_address
+          description: |-
+            The address the enterprise console is reachable at. Defaults to
+             bind_address.
+        sessionRecordingOptions:
+          oneOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+            - type: "null"
+          title: session_recording_options
+          description: Bootstrap settings for session recording for the default cluster.
+        sharedSecret:
+          type:
+            - string
+            - "null"
+          title: shared_secret
+          format: byte
+          description: The secret for signing JWTs, shared with Pomerium.
+        sharedSecretFile:
+          type:
+            - string
+            - "null"
+          title: shared_secret_file
+          description: A file containing the base64-encoded shared secret.
+        sharedSecretRawFile:
+          type:
+            - string
+            - "null"
+          title: shared_secret_raw_file
+          description: A file containing the raw shared secret.
+        signingKey:
+          type:
+            - string
+            - "null"
+          title: signing_key
+          format: byte
+          description: |-
+            The signing key (public or private) for verifying JWTs.
+             This option is deprecated.
+        signingKeyFile:
+          type:
+            - string
+            - "null"
+          title: signing_key_file
+          description: A file containing the base64-encoded signing key.
+        signingKeyRawFile:
+          type:
+            - string
+            - "null"
+          title: signing_key_raw_file
+          description: A file containing the raw signing key.
+        tlsCertificate:
+          type:
+            - string
+            - "null"
+          title: tls_certificate
+          format: byte
+          description: The TLS certificate.
+        tlsCertificateAuthority:
+          type:
+            - string
+            - "null"
+          title: tls_certificate_authority
+          format: byte
+          description: The TLS certificate authority.
+        tlsCertificateAuthorityFile:
+          type:
+            - string
+            - "null"
+          title: tls_certificate_authority_file
+          description: A file containing the TLS certificate authority.
+        tlsCertificateFile:
+          type:
+            - string
+            - "null"
+          title: tls_certificate_file
+          description: A file containing the TLS certificate.
+        tlsDerive:
+          type:
+            - string
+            - "null"
+          title: tls_derive
+          description: Derives the TLS certificate for this domain name from the shared secret.
+        tlsInsecureSkipVerify:
+          type:
+            - boolean
+            - "null"
+          title: tls_insecure_skip_verify
+          description: Disables remote hosts' TLS certificate chain and hostname checks.
+        tlsKey:
+          type:
+            - string
+            - "null"
+          title: tls_key
+          format: byte
+          description: The TLS private key.
+        tlsKeyFile:
+          type:
+            - string
+            - "null"
+          title: tls_key_file
+          description: A file containing the TLS private key.
+        url:
+          type:
+            - string
+            - "null"
+          title: url
+          description: |-
+            The URL to host the enterprise console at. The enterprise console is
+             only enabled when this is set.
+        useStaticAssets:
+          type:
+            - boolean
+            - "null"
+          title: use_static_assets
+          description: When false, forwards static requests to localhost:3000. Defaults to true.
+        validationMode:
+          oneOf:
+            - $ref: '#/components/schemas/pomerium.config.EnterpriseValidationMode'
+            - type: "null"
+          title: validation_mode
+          description: How much validation to perform. Defaults to static.
+      title: EnterpriseSettings
+      additionalProperties: false
+      description: EnterpriseSettings are the embedded enterprise configuration settings.
+    pomerium.config.EnterpriseSettings.StringList:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            type: string
+          title: values
+          description: The string values held by this list.
+      title: StringList
+      additionalProperties: false
+      description: Wrapper for a list of strings.
+    pomerium.config.EnterpriseValidationMode:
+      type: string
+      title: EnterpriseValidationMode
+      enum:
+        - ENTERPRISE_VALIDATION_MODE_UNKNOWN
+        - ENTERPRISE_VALIDATION_MODE_DISABLED
+        - ENTERPRISE_VALIDATION_MODE_STATIC
+        - ENTERPRISE_VALIDATION_MODE_FULL
+      description: EnterpriseValidationMode indicates the level of validation the enterprise console will perform.
     pomerium.config.EntityInfo:
       type: object
       properties:
@@ -5496,7 +5863,7 @@ components:
           description: Configure default OIDC bridge support for all routes.
         enterprise:
           oneOf:
-            - $ref: '#/components/schemas/google.protobuf.Struct'
+            - $ref: '#/components/schemas/pomerium.config.EnterpriseSettings'
             - type: "null"
           title: enterprise
           description: Embedded enterprise options.
