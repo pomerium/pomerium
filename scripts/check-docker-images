@@ -63,7 +63,7 @@ check-dockerfile() {
 
     while IFS= read -r _image; do
         check-image "$_image"
-    done < <(sed -n -r -e 's/^FROM ([^:]*)(:[^@]*)(@sha256[^ ]*).*$/\1\2\3/p' "$_file")
+    done < <(sed -n -r -e 's/^FROM --platform=[^ ]+ /FROM /' -e 's/^FROM ([^:]*)(:[^@]*)(@sha256[^ ]*).*$/\1\2\3/p' "$_file")
 }
 
 check-directory() {
