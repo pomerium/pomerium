@@ -342,6 +342,9 @@ func setNullableStringListToProto[T any, TPtr interface {
 		return nil
 	}
 	*dst = new(T)
+	if obj, ok := any(*dst).(*configpb.EnterpriseSettings_StringList); ok {
+		obj.Values = slices.Clone(src.Value)
+	}
 	if obj, ok := any(*dst).(*configpb.Settings_StringList); ok {
 		obj.Values = slices.Clone(src.Value)
 	}
