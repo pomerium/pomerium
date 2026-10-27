@@ -17,6 +17,8 @@ import (
 )
 
 func TestBuildOptions(t *testing.T) {
+	t.Skip("the embedded enterprise console is disabled")
+
 	dir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))

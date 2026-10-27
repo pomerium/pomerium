@@ -167,7 +167,7 @@ func (mgr *Manager) watchStartedCommand(cmd *exec.Cmd) {
 func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err error) {
 	options = make(map[string]any)
 	enabled = cfg.Options.Enterprise.IsSet && cfg.Options.Enterprise.Value.URL.IsSet
-	if !enabled {
+	if !enabled || true { // for now, running the embedded enterprise console is disabled
 		return options, enabled, nil
 	}
 
