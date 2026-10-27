@@ -12,6 +12,8 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/analytics"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -19,6 +21,8 @@ func TestCreatePosthogEvent(t *testing.T) {
 	t.Parallel()
 
 	options := config.NewDefaultOptions()
+	options.InstallationID = "INSTALLATION_ID"
+	options.LicenseType = nullable.From(configpb.LicenseType_LICENSE_TYPE_COMMERCIAL)
 	options.SharedKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32))
 	for i := range 100 {
 		options.Routes = append(options.Routes,
@@ -48,7 +52,7 @@ func TestCreatePosthogEvent(t *testing.T) {
 	cfg := config.New(options)
 
 	evt := analytics.New(analytics.WithMaxDomains(5)).CreatePosthogEvent(t.Context(), cfg, 10, 20)
-	assert.Equal(t, "c903eaea12a1cdce23857f76c7525218ad36e190eb93a21d93c2ed1a0a81aae7", evt.DistinctId)
+	assert.Equal(t, "INSTALLATION_ID", evt.DistinctId)
 	assert.Equal(t, "core_periodic_analytics", evt.Event)
 	assert.Equal(t, []string{
 		"a.b.route-00.com",
@@ -65,6 +69,32 @@ func TestCreatePosthogEvent(t *testing.T) {
 	assert.Equal(t, 100, evt.Properties["udp_route_count"])
 	assert.Equal(t, []string{"accept", "authenticated_user"}, evt.Properties["ppl_criteria"])
 	assert.Contains(t, evt.Properties, "build_version")
+
+	t.Run("pseudonymous", func(t *testing.T) {
+		t.Parallel()
+
+		options := config.NewDefaultOptions()
+		options.SharedKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x02}, 32))
+		options.LicenseType = nullable.From(configpb.LicenseType_LICENSE_TYPE_COMMUNITY)
+		options.Routes = []config.Policy{
+			{
+				From:   "https://example.com",
+				Policy: mustParsePPL(t, `{"allow": {"or": [{"authenticated_user": 1}]}}`),
+			},
+		}
+		cfg := config.New(options)
+		evt := analytics.New().CreatePosthogEvent(t.Context(), cfg, 0, 0)
+		assert.Equal(t, "bdS/DkMVmpzBR865YlvhMXucXSO3tfcDFySXu0nAtIo=", evt.DistinctId)
+		assert.NotContains(t, evt.Groups, "installation_id")
+		assert.Equal(t, []string{"n4dU0B+ujBEZxQfDfIcLA1s7fcFqhHIZ6nvu9Mp9/48="}, evt.Properties["pseudonymous_domains"])
+		assert.NotContains(t, evt.Properties, "domains")
+		assert.Contains(t, evt.Properties, "pseudonymous_hostname")
+		assert.NotContains(t, evt.Properties, "hostname")
+		assert.Contains(t, evt.Properties, "pseudonymous_host_id")
+		assert.NotContains(t, evt.Properties, "host_id")
+		assert.Contains(t, evt.Properties, "pseudonymous_identity_provider_url")
+		assert.NotContains(t, evt.Properties, "identity_provider_url")
+	})
 }
 
 func mustParsePPL(t testing.TB, raw string) *config.PPLPolicy {

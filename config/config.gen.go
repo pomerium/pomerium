@@ -148,6 +148,7 @@ type GlobalOptions struct {
 	EnvoyDynamicExtensions             Value[[]string]                              `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
 	HeadersWithUnderscoresAction       Value[configpb.HeadersWithUnderscoresAction] `json:"headers_with_underscores_action,omitzero" mapstructure:"headers_with_underscores_action" yaml:"headers_with_underscores_action,omitempty"`
 	JWTIssuerFormat                    Value[configpb.IssuerFormat]                 `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	LicenseType                        Value[configpb.LicenseType]                  `json:"license_type,omitzero" mapstructure:"license_type" yaml:"license_type,omitempty"`
 	MergeSlashes                       Value[bool]                                  `json:"merge_slashes,omitzero" mapstructure:"merge_slashes" yaml:"merge_slashes,omitempty"`
 	NormalizePath                      Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
 	OidcBridge                         Value[OIDCBridge]                            `json:"oidc_bridge,omitzero" mapstructure:"oidc_bridge" yaml:"oidc_bridge,omitempty"`
@@ -642,6 +643,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableStringListFromProto(&dst.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableHeadersWithUnderscoresActionFromProto(&dst.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
+		setNullableLicenseTypeFromProto(&dst.LicenseType, src.LicenseType),
 		setNullableBoolFromProto(&dst.MergeSlashes, src.MergeSlashes),
 		setNullableBoolFromProto(&dst.NormalizePath, src.NormalizePath),
 		setNullableOIDCBridgeFromProto(&dst.OidcBridge, src.OidcBridge),
@@ -1216,6 +1218,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableStringListToProto(&obj.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableHeadersWithUnderscoresActionToProto(&obj.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
+		setNullableLicenseTypeToProto(&obj.LicenseType, src.LicenseType),
 		setNullableBoolToProto(&obj.MergeSlashes, src.MergeSlashes),
 		setNullableBoolToProto(&obj.NormalizePath, src.NormalizePath),
 		setNullableOIDCBridgeToProto(&obj.OidcBridge, src.OidcBridge),
@@ -2213,6 +2216,22 @@ func setNullableKeyPairStatusFromProto(dst *Value[configpb.KeyPairStatus], src *
 }
 
 func setNullableKeyPairStatusToProto(dst **configpb.KeyPairStatus, src Value[configpb.KeyPairStatus]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableLicenseTypeFromProto(dst *Value[configpb.LicenseType], src *configpb.LicenseType) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableLicenseTypeToProto(dst **configpb.LicenseType, src Value[configpb.LicenseType]) error {
 	if !src.IsSet {
 		return nil
 	}

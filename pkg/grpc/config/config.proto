@@ -633,6 +633,19 @@ message PPLPolicy {
   bytes raw = 1;
 }
 
+// LicenseType is the license type for Pomerium.
+enum LicenseType {
+  LICENSE_TYPE_UNKNOWN = 0;
+  // Open Source Edition
+  LICENSE_TYPE_OPEN_SOURCE = 1;
+  // Community Edition
+  LICENSE_TYPE_COMMUNITY = 2;
+  // Commercial Edition
+  LICENSE_TYPE_COMMERCIAL = 3;
+  // Commercial Trial Edition
+  LICENSE_TYPE_COMMERCIAL_TRIAL = 4;
+}
+
 // Configuration for a policy.
 message Policy {
   // Server-assigned unique ID of the policy.
@@ -1287,8 +1300,10 @@ message Settings {
   optional OIDCBridge oidc_bridge = 189;
   // Embedded enterprise options.
   optional EnterpriseSettings enterprise = 192;
+  // License type for Pomerium.
+  optional LicenseType license_type = 193;
 
-  // computed properties
+  /* computed properties */
 
   // When the settings were created.
   google.protobuf.Timestamp created_at = 169 [

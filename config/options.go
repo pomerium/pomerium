@@ -41,12 +41,14 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/logfields"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
@@ -355,6 +357,14 @@ var defaultOptions = Options{
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
 	SSHRLSEnabled:                       false,
+	LicenseType:                         nullable.From(defaultLicenseType()),
+}
+
+func defaultLicenseType() configpb.LicenseType {
+	if version.GitCommit != "" {
+		return configpb.LicenseType_LICENSE_TYPE_COMMUNITY
+	}
+	return configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
