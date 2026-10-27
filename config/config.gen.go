@@ -14,6 +14,63 @@ type BlobStorageSettings struct {
 	ManagedPrefix Value[string] `json:"managed_prefix,omitzero" mapstructure:"managed_prefix" yaml:"managed_prefix,omitempty"`
 }
 
+type EnterpriseSettings struct {
+	Administrators                       Value[[]string]                          `json:"administrators,omitzero" mapstructure:"administrators" yaml:"administrators,omitempty"`
+	AnalyticsCollectInterval             Value[time.Duration]                     `json:"analytics_collect_interval,omitzero" mapstructure:"analytics_collect_interval" yaml:"analytics_collect_interval,omitempty"`
+	AnalyticsURL                         Value[string]                            `json:"analytics_url,omitzero" mapstructure:"analytics_url" yaml:"analytics_url,omitempty"`
+	Audience                             Value[[]string]                          `json:"audience,omitzero" mapstructure:"audience" yaml:"audience,omitempty"`
+	AuthenticateServiceURL               Value[string]                            `json:"authenticate_service_url,omitzero" mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
+	BindAddress                          Value[string]                            `json:"bind_address,omitzero" mapstructure:"bind_address" yaml:"bind_address,omitempty"`
+	BootstrapServiceAccount              Value[bool]                              `json:"bootstrap_service_account,omitzero" mapstructure:"bootstrap_service_account" yaml:"bootstrap_service_account,omitempty"`
+	CacheDir                             Value[string]                            `json:"cache_dir,omitzero" mapstructure:"cache_dir" yaml:"cache_dir,omitempty"`
+	ChangesetRequiredApprovalCount       Value[uint32]                            `json:"changeset_required_approval_count,omitzero" mapstructure:"changeset_required_approval_count" yaml:"changeset_required_approval_count,omitempty"`
+	CustomerID                           Value[string]                            `json:"customer_id,omitzero" mapstructure:"customer_id" yaml:"customer_id,omitempty"`
+	DangerouslyDisableAllNamespaceChecks Value[bool]                              `json:"dangerously_disable_all_namespace_checks,omitzero" mapstructure:"dangerously_disable_all_namespace_checks" yaml:"dangerously_disable_all_namespace_checks,omitempty"`
+	DatabaseEncryptionKey                Value[[]byte]                            `json:"database_encryption_key,omitzero" mapstructure:"database_encryption_key" yaml:"database_encryption_key,omitempty"`
+	DatabaseEncryptionKeyFile            Value[string]                            `json:"database_encryption_key_file,omitzero" mapstructure:"database_encryption_key_file" yaml:"database_encryption_key_file,omitempty"`
+	DatabaseEncryptionKeyRawFile         Value[string]                            `json:"database_encryption_key_raw_file,omitzero" mapstructure:"database_encryption_key_raw_file" yaml:"database_encryption_key_raw_file,omitempty"`
+	DatabaseURL                          Value[string]                            `json:"database_url,omitzero" mapstructure:"database_url" yaml:"database_url,omitempty"`
+	DatabrokerServiceURLs                Value[[]string]                          `json:"databroker_service_urls,omitzero" mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
+	DebugAddress                         Value[string]                            `json:"debug_address,omitzero" mapstructure:"debug_address" yaml:"debug_address,omitempty"`
+	DebugConfigDump                      Value[bool]                              `json:"debug_config_dump,omitzero" mapstructure:"debug_config_dump" yaml:"debug_config_dump,omitempty"`
+	DirectoryProvider                    Value[string]                            `json:"directory_provider,omitzero" mapstructure:"directory_provider" yaml:"directory_provider,omitempty"`
+	DirectoryProviderOptions             Value[map[string]any]                    `json:"directory_provider_options,omitzero" mapstructure:"directory_provider_options" yaml:"directory_provider_options,omitempty"`
+	DirectoryProviderRefreshInterval     Value[time.Duration]                     `json:"directory_provider_refresh_interval,omitzero" mapstructure:"directory_provider_refresh_interval" yaml:"directory_provider_refresh_interval,omitempty"`
+	DirectoryProviderRefreshTimeout      Value[time.Duration]                     `json:"directory_provider_refresh_timeout,omitzero" mapstructure:"directory_provider_refresh_timeout" yaml:"directory_provider_refresh_timeout,omitempty"`
+	DisableFeedbackWidget                Value[bool]                              `json:"disable_feedback_widget,omitzero" mapstructure:"disable_feedback_widget" yaml:"disable_feedback_widget,omitempty"`
+	DisableRemoteDiagnostics             Value[bool]                              `json:"disable_remote_diagnostics,omitzero" mapstructure:"disable_remote_diagnostics" yaml:"disable_remote_diagnostics,omitempty"`
+	EnableSessionRecordingQuerierCache   Value[bool]                              `json:"enable_session_recording_querier_cache,omitzero" mapstructure:"enable_session_recording_querier_cache" yaml:"enable_session_recording_querier_cache,omitempty"`
+	GRPCAddress                          Value[string]                            `json:"grpc_address,omitzero" mapstructure:"grpc_address" yaml:"grpc_address,omitempty"`
+	LicenseKey                           Value[string]                            `json:"license_key,omitzero" mapstructure:"license_key" yaml:"license_key,omitempty"`
+	LicenseKeyValidateOffline            Value[bool]                              `json:"license_key_validate_offline,omitzero" mapstructure:"license_key_validate_offline" yaml:"license_key_validate_offline,omitempty"`
+	LogLevel                             Value[string]                            `json:"log_level,omitzero" mapstructure:"log_level" yaml:"log_level,omitempty"`
+	MetricsAddress                       Value[string]                            `json:"metrics_address,omitzero" mapstructure:"metrics_address" yaml:"metrics_address,omitempty"`
+	OverrideCertificateName              Value[string]                            `json:"override_certificate_name,omitzero" mapstructure:"override_certificate_name" yaml:"override_certificate_name,omitempty"`
+	PrometheusDataDir                    Value[string]                            `json:"prometheus_data_dir,omitzero" mapstructure:"prometheus_data_dir" yaml:"prometheus_data_dir,omitempty"`
+	PrometheusListenAddress              Value[string]                            `json:"prometheus_listen_address,omitzero" mapstructure:"prometheus_listen_address" yaml:"prometheus_listen_address,omitempty"`
+	PrometheusScrapeInterval             Value[time.Duration]                     `json:"prometheus_scrape_interval,omitzero" mapstructure:"prometheus_scrape_interval" yaml:"prometheus_scrape_interval,omitempty"`
+	PrometheusURL                        Value[string]                            `json:"prometheus_url,omitzero" mapstructure:"prometheus_url" yaml:"prometheus_url,omitempty"`
+	PublicAddress                        Value[string]                            `json:"public_address,omitzero" mapstructure:"public_address" yaml:"public_address,omitempty"`
+	SessionRecordingOptions              Value[map[string]any]                    `json:"session_recording_options,omitzero" mapstructure:"session_recording_options" yaml:"session_recording_options,omitempty"`
+	SharedSecret                         Value[[]byte]                            `json:"shared_secret,omitzero" mapstructure:"shared_secret" yaml:"shared_secret,omitempty"`
+	SharedSecretFile                     Value[string]                            `json:"shared_secret_file,omitzero" mapstructure:"shared_secret_file" yaml:"shared_secret_file,omitempty"`
+	SharedSecretRawFile                  Value[string]                            `json:"shared_secret_raw_file,omitzero" mapstructure:"shared_secret_raw_file" yaml:"shared_secret_raw_file,omitempty"`
+	SigningKey                           Value[[]byte]                            `json:"signing_key,omitzero" mapstructure:"signing_key" yaml:"signing_key,omitempty"`
+	SigningKeyFile                       Value[string]                            `json:"signing_key_file,omitzero" mapstructure:"signing_key_file" yaml:"signing_key_file,omitempty"`
+	SigningKeyRawFile                    Value[string]                            `json:"signing_key_raw_file,omitzero" mapstructure:"signing_key_raw_file" yaml:"signing_key_raw_file,omitempty"`
+	TLSCertificate                       Value[[]byte]                            `json:"tls_certificate,omitzero" mapstructure:"tls_certificate" yaml:"tls_certificate,omitempty"`
+	TLSCertificateAuthority              Value[[]byte]                            `json:"tls_certificate_authority,omitzero" mapstructure:"tls_certificate_authority" yaml:"tls_certificate_authority,omitempty"`
+	TLSCertificateAuthorityFile          Value[string]                            `json:"tls_certificate_authority_file,omitzero" mapstructure:"tls_certificate_authority_file" yaml:"tls_certificate_authority_file,omitempty"`
+	TLSCertificateFile                   Value[string]                            `json:"tls_certificate_file,omitzero" mapstructure:"tls_certificate_file" yaml:"tls_certificate_file,omitempty"`
+	TLSDerive                            Value[string]                            `json:"tls_derive,omitzero" mapstructure:"tls_derive" yaml:"tls_derive,omitempty"`
+	TLSInsecureSkipVerify                Value[bool]                              `json:"tls_insecure_skip_verify,omitzero" mapstructure:"tls_insecure_skip_verify" yaml:"tls_insecure_skip_verify,omitempty"`
+	TLSKey                               Value[[]byte]                            `json:"tls_key,omitzero" mapstructure:"tls_key" yaml:"tls_key,omitempty"`
+	TLSKeyFile                           Value[string]                            `json:"tls_key_file,omitzero" mapstructure:"tls_key_file" yaml:"tls_key_file,omitempty"`
+	URL                                  Value[string]                            `json:"url,omitzero" mapstructure:"url" yaml:"url,omitempty"`
+	UseStaticAssets                      Value[bool]                              `json:"use_static_assets,omitzero" mapstructure:"use_static_assets" yaml:"use_static_assets,omitempty"`
+	ValidationMode                       Value[configpb.EnterpriseValidationMode] `json:"validation_mode,omitzero" mapstructure:"validation_mode" yaml:"validation_mode,omitempty"`
+}
+
 type OIDCBridge struct {
 	ClientSecret Value[string] `json:"client_secret,omitzero" mapstructure:"client_secret" yaml:"client_secret,omitempty"`
 	Enabled      Value[bool]   `json:"enabled,omitzero" mapstructure:"enabled" yaml:"enabled,omitempty"`
@@ -87,7 +144,7 @@ type GlobalOptions struct {
 	AutoApplyChangesets                Value[bool]                                  `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
 	BearerTokenFormat                  Value[configpb.BearerTokenFormat]            `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 	CodecType                          Value[configpb.CodecType]                    `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
-	Enterprise                         Value[map[string]any]                        `json:"enterprise,omitzero" mapstructure:"enterprise" yaml:"enterprise,omitempty"`
+	Enterprise                         Value[EnterpriseSettings]                    `json:"enterprise,omitzero" mapstructure:"enterprise" yaml:"enterprise,omitempty"`
 	EnvoyDynamicExtensions             Value[[]string]                              `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
 	HeadersWithUnderscoresAction       Value[configpb.HeadersWithUnderscoresAction] `json:"headers_with_underscores_action,omitzero" mapstructure:"headers_with_underscores_action" yaml:"headers_with_underscores_action,omitempty"`
 	JWTIssuerFormat                    Value[configpb.IssuerFormat]                 `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
@@ -152,6 +209,96 @@ func setBlobStorageSettingsFromProto(dst *BlobStorageSettings, src *configpb.Blo
 	return errors.Join(
 		setNullableStringFromProto(&dst.BucketURI, src.BucketUri),
 		setNullableStringFromProto(&dst.ManagedPrefix, src.ManagedPrefix),
+	)
+}
+
+func setNullableEnterpriseSettingsFromProto(dst *Value[EnterpriseSettings], src *configpb.EnterpriseSettings) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setEnterpriseSettingsFromProto(&obj, src)
+	if err != nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfEnterpriseSettingsFromProto(dst *Value[[]EnterpriseSettings], src []*configpb.EnterpriseSettings) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]EnterpriseSettings, len(src))
+	for i := range src {
+		err := setEnterpriseSettingsFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setEnterpriseSettingsFromProto(dst *EnterpriseSettings, src *configpb.EnterpriseSettings) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		setNullableStringListFromProto(&dst.Administrators, src.Administrators),
+		setNullableDurationFromProto(&dst.AnalyticsCollectInterval, src.AnalyticsCollectInterval),
+		setNullableStringFromProto(&dst.AnalyticsURL, src.AnalyticsUrl),
+		setNullableStringListFromProto(&dst.Audience, src.Audience),
+		setNullableStringFromProto(&dst.AuthenticateServiceURL, src.AuthenticateServiceUrl),
+		setNullableStringFromProto(&dst.BindAddress, src.BindAddress),
+		setNullableBoolFromProto(&dst.BootstrapServiceAccount, src.BootstrapServiceAccount),
+		setNullableStringFromProto(&dst.CacheDir, src.CacheDir),
+		setNullableUInt32FromProto(&dst.ChangesetRequiredApprovalCount, src.ChangesetRequiredApprovalCount),
+		setNullableStringFromProto(&dst.CustomerID, src.CustomerId),
+		setNullableBoolFromProto(&dst.DangerouslyDisableAllNamespaceChecks, src.DangerouslyDisableAllNamespaceChecks),
+		setNullableSliceOfByteFromProto(&dst.DatabaseEncryptionKey, src.DatabaseEncryptionKey),
+		setNullableStringFromProto(&dst.DatabaseEncryptionKeyFile, src.DatabaseEncryptionKeyFile),
+		setNullableStringFromProto(&dst.DatabaseEncryptionKeyRawFile, src.DatabaseEncryptionKeyRawFile),
+		setNullableStringFromProto(&dst.DatabaseURL, src.DatabaseUrl),
+		setNullableStringListFromProto(&dst.DatabrokerServiceURLs, src.DatabrokerServiceUrls),
+		setNullableStringFromProto(&dst.DebugAddress, src.DebugAddress),
+		setNullableBoolFromProto(&dst.DebugConfigDump, src.DebugConfigDump),
+		setNullableStringFromProto(&dst.DirectoryProvider, src.DirectoryProvider),
+		setNullableStructFromProto(&dst.DirectoryProviderOptions, src.DirectoryProviderOptions),
+		setNullableDurationFromProto(&dst.DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
+		setNullableDurationFromProto(&dst.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
+		setNullableBoolFromProto(&dst.DisableFeedbackWidget, src.DisableFeedbackWidget),
+		setNullableBoolFromProto(&dst.DisableRemoteDiagnostics, src.DisableRemoteDiagnostics),
+		setNullableBoolFromProto(&dst.EnableSessionRecordingQuerierCache, src.EnableSessionRecordingQuerierCache),
+		setNullableStringFromProto(&dst.GRPCAddress, src.GrpcAddress),
+		setNullableStringFromProto(&dst.LicenseKey, src.LicenseKey),
+		setNullableBoolFromProto(&dst.LicenseKeyValidateOffline, src.LicenseKeyValidateOffline),
+		setNullableStringFromProto(&dst.LogLevel, src.LogLevel),
+		setNullableStringFromProto(&dst.MetricsAddress, src.MetricsAddress),
+		setNullableStringFromProto(&dst.OverrideCertificateName, src.OverrideCertificateName),
+		setNullableStringFromProto(&dst.PrometheusDataDir, src.PrometheusDataDir),
+		setNullableStringFromProto(&dst.PrometheusListenAddress, src.PrometheusListenAddress),
+		setNullableDurationFromProto(&dst.PrometheusScrapeInterval, src.PrometheusScrapeInterval),
+		setNullableStringFromProto(&dst.PrometheusURL, src.PrometheusUrl),
+		setNullableStringFromProto(&dst.PublicAddress, src.PublicAddress),
+		setNullableStructFromProto(&dst.SessionRecordingOptions, src.SessionRecordingOptions),
+		setNullableSliceOfByteFromProto(&dst.SharedSecret, src.SharedSecret),
+		setNullableStringFromProto(&dst.SharedSecretFile, src.SharedSecretFile),
+		setNullableStringFromProto(&dst.SharedSecretRawFile, src.SharedSecretRawFile),
+		setNullableSliceOfByteFromProto(&dst.SigningKey, src.SigningKey),
+		setNullableStringFromProto(&dst.SigningKeyFile, src.SigningKeyFile),
+		setNullableStringFromProto(&dst.SigningKeyRawFile, src.SigningKeyRawFile),
+		setNullableSliceOfByteFromProto(&dst.TLSCertificate, src.TlsCertificate),
+		setNullableSliceOfByteFromProto(&dst.TLSCertificateAuthority, src.TlsCertificateAuthority),
+		setNullableStringFromProto(&dst.TLSCertificateAuthorityFile, src.TlsCertificateAuthorityFile),
+		setNullableStringFromProto(&dst.TLSCertificateFile, src.TlsCertificateFile),
+		setNullableStringFromProto(&dst.TLSDerive, src.TlsDerive),
+		setNullableBoolFromProto(&dst.TLSInsecureSkipVerify, src.TlsInsecureSkipVerify),
+		setNullableSliceOfByteFromProto(&dst.TLSKey, src.TlsKey),
+		setNullableStringFromProto(&dst.TLSKeyFile, src.TlsKeyFile),
+		setNullableStringFromProto(&dst.URL, src.Url),
+		setNullableBoolFromProto(&dst.UseStaticAssets, src.UseStaticAssets),
+		setNullableEnterpriseValidationModeFromProto(&dst.ValidationMode, src.ValidationMode),
 	)
 }
 
@@ -491,7 +638,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeFromProto(&dst.CodecType, src.CodecType),
-		setNullableStructFromProto(&dst.Enterprise, src.Enterprise),
+		setNullableEnterpriseSettingsFromProto(&dst.Enterprise, src.Enterprise),
 		setNullableStringListFromProto(&dst.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableHeadersWithUnderscoresActionFromProto(&dst.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
@@ -539,9 +686,9 @@ func setSettings_CertificateFromProto(dst *Settings_Certificate, src *configpb.S
 		return nil
 	}
 	return errors.Join(
-		setNullableSliceOfByteFromProto(&dst.CertBytes, &src.CertBytes),
+		setNullableSliceOfByteFromProto(&dst.CertBytes, src.CertBytes),
 		setNullableStringFromProto(&dst.ID, &src.Id),
-		setNullableSliceOfByteFromProto(&dst.KeyBytes, &src.KeyBytes),
+		setNullableSliceOfByteFromProto(&dst.KeyBytes, src.KeyBytes),
 	)
 }
 
@@ -654,6 +801,94 @@ func setBlobStorageSettingsToProto(dst **configpb.BlobStorageSettings, src *Blob
 	return errors.Join(
 		setNullableStringToProto(&obj.BucketUri, src.BucketURI),
 		setNullableStringToProto(&obj.ManagedPrefix, src.ManagedPrefix),
+	)
+}
+
+func setNullableEnterpriseSettingsToProto(dst **configpb.EnterpriseSettings, src Value[EnterpriseSettings]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setEnterpriseSettingsToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfEnterpriseSettingsToProto(dst *[]*configpb.EnterpriseSettings, src Value[[]EnterpriseSettings]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.EnterpriseSettings, len(src.Value))
+	for i := range src.Value {
+		err := setEnterpriseSettingsToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setEnterpriseSettingsToProto(dst **configpb.EnterpriseSettings, src *EnterpriseSettings) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.EnterpriseSettings)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringListToProto(&obj.Administrators, src.Administrators),
+		setNullableDurationToProto(&obj.AnalyticsCollectInterval, src.AnalyticsCollectInterval),
+		setNullableStringToProto(&obj.AnalyticsUrl, src.AnalyticsURL),
+		setNullableStringListToProto(&obj.Audience, src.Audience),
+		setNullableStringToProto(&obj.AuthenticateServiceUrl, src.AuthenticateServiceURL),
+		setNullableStringToProto(&obj.BindAddress, src.BindAddress),
+		setNullableBoolToProto(&obj.BootstrapServiceAccount, src.BootstrapServiceAccount),
+		setNullableStringToProto(&obj.CacheDir, src.CacheDir),
+		setNullableUInt32ToProto(&obj.ChangesetRequiredApprovalCount, src.ChangesetRequiredApprovalCount),
+		setNullableStringToProto(&obj.CustomerId, src.CustomerID),
+		setNullableBoolToProto(&obj.DangerouslyDisableAllNamespaceChecks, src.DangerouslyDisableAllNamespaceChecks),
+		setNullableSliceOfByteToProto(&obj.DatabaseEncryptionKey, src.DatabaseEncryptionKey),
+		setNullableStringToProto(&obj.DatabaseEncryptionKeyFile, src.DatabaseEncryptionKeyFile),
+		setNullableStringToProto(&obj.DatabaseEncryptionKeyRawFile, src.DatabaseEncryptionKeyRawFile),
+		setNullableStringToProto(&obj.DatabaseUrl, src.DatabaseURL),
+		setNullableStringListToProto(&obj.DatabrokerServiceUrls, src.DatabrokerServiceURLs),
+		setNullableStringToProto(&obj.DebugAddress, src.DebugAddress),
+		setNullableBoolToProto(&obj.DebugConfigDump, src.DebugConfigDump),
+		setNullableStringToProto(&obj.DirectoryProvider, src.DirectoryProvider),
+		setNullableStructToProto(&obj.DirectoryProviderOptions, src.DirectoryProviderOptions),
+		setNullableDurationToProto(&obj.DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
+		setNullableDurationToProto(&obj.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
+		setNullableBoolToProto(&obj.DisableFeedbackWidget, src.DisableFeedbackWidget),
+		setNullableBoolToProto(&obj.DisableRemoteDiagnostics, src.DisableRemoteDiagnostics),
+		setNullableBoolToProto(&obj.EnableSessionRecordingQuerierCache, src.EnableSessionRecordingQuerierCache),
+		setNullableStringToProto(&obj.GrpcAddress, src.GRPCAddress),
+		setNullableStringToProto(&obj.LicenseKey, src.LicenseKey),
+		setNullableBoolToProto(&obj.LicenseKeyValidateOffline, src.LicenseKeyValidateOffline),
+		setNullableStringToProto(&obj.LogLevel, src.LogLevel),
+		setNullableStringToProto(&obj.MetricsAddress, src.MetricsAddress),
+		setNullableStringToProto(&obj.OverrideCertificateName, src.OverrideCertificateName),
+		setNullableStringToProto(&obj.PrometheusDataDir, src.PrometheusDataDir),
+		setNullableStringToProto(&obj.PrometheusListenAddress, src.PrometheusListenAddress),
+		setNullableDurationToProto(&obj.PrometheusScrapeInterval, src.PrometheusScrapeInterval),
+		setNullableStringToProto(&obj.PrometheusUrl, src.PrometheusURL),
+		setNullableStringToProto(&obj.PublicAddress, src.PublicAddress),
+		setNullableStructToProto(&obj.SessionRecordingOptions, src.SessionRecordingOptions),
+		setNullableSliceOfByteToProto(&obj.SharedSecret, src.SharedSecret),
+		setNullableStringToProto(&obj.SharedSecretFile, src.SharedSecretFile),
+		setNullableStringToProto(&obj.SharedSecretRawFile, src.SharedSecretRawFile),
+		setNullableSliceOfByteToProto(&obj.SigningKey, src.SigningKey),
+		setNullableStringToProto(&obj.SigningKeyFile, src.SigningKeyFile),
+		setNullableStringToProto(&obj.SigningKeyRawFile, src.SigningKeyRawFile),
+		setNullableSliceOfByteToProto(&obj.TlsCertificate, src.TLSCertificate),
+		setNullableSliceOfByteToProto(&obj.TlsCertificateAuthority, src.TLSCertificateAuthority),
+		setNullableStringToProto(&obj.TlsCertificateAuthorityFile, src.TLSCertificateAuthorityFile),
+		setNullableStringToProto(&obj.TlsCertificateFile, src.TLSCertificateFile),
+		setNullableStringToProto(&obj.TlsDerive, src.TLSDerive),
+		setNullableBoolToProto(&obj.TlsInsecureSkipVerify, src.TLSInsecureSkipVerify),
+		setNullableSliceOfByteToProto(&obj.TlsKey, src.TLSKey),
+		setNullableStringToProto(&obj.TlsKeyFile, src.TLSKeyFile),
+		setNullableStringToProto(&obj.Url, src.URL),
+		setNullableBoolToProto(&obj.UseStaticAssets, src.UseStaticAssets),
+		setNullableEnterpriseValidationModeToProto(&obj.ValidationMode, src.ValidationMode),
 	)
 }
 
@@ -977,7 +1212,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeToProto(&obj.CodecType, src.CodecType),
-		setNullableStructToProto(&obj.Enterprise, src.Enterprise),
+		setNullableEnterpriseSettingsToProto(&obj.Enterprise, src.Enterprise),
 		setNullableStringListToProto(&obj.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableHeadersWithUnderscoresActionToProto(&obj.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
@@ -1131,43 +1366,6 @@ func setNullableBoolToProto(dst **bool, src Value[bool]) error {
 }
 
 func setBoolToProto(dst *bool, src Value[bool]) error {
-	if !src.IsSet {
-		return nil
-	}
-	*dst = src.Value
-	return nil
-}
-
-func setNullableByteFromProto(dst *Value[byte], src *byte) error {
-	if src == nil {
-		return nil
-	}
-	obj := dst.Value
-	err := setByteFromProto(&obj, src)
-	if err != nil {
-		return err
-	}
-	*dst = From(obj)
-	return nil
-}
-
-func setByteFromProto(dst *byte, src *byte) error {
-	if src == nil {
-		return nil
-	}
-	*dst = *src
-	return nil
-}
-
-func setNullableByteToProto(dst **byte, src Value[byte]) error {
-	if !src.IsSet {
-		return nil
-	}
-	*dst = new(src.Value)
-	return nil
-}
-
-func setByteToProto(dst *byte, src Value[byte]) error {
 	if !src.IsSet {
 		return nil
 	}
@@ -1545,43 +1743,6 @@ func setSliceOfBoolToProto(dst *[]bool, src Value[[]bool]) error {
 	return nil
 }
 
-func setNullableSliceOfByteFromProto(dst *Value[[]byte], src *[]byte) error {
-	if src == nil {
-		return nil
-	}
-	obj := dst.Value
-	err := setSliceOfByteFromProto(&obj, src)
-	if err != nil {
-		return err
-	}
-	*dst = From(obj)
-	return nil
-}
-
-func setSliceOfByteFromProto(dst *[]byte, src *[]byte) error {
-	if src == nil {
-		return nil
-	}
-	*dst = *src
-	return nil
-}
-
-func setNullableSliceOfByteToProto(dst **[]byte, src Value[[]byte]) error {
-	if !src.IsSet {
-		return nil
-	}
-	*dst = new(src.Value)
-	return nil
-}
-
-func setSliceOfByteToProto(dst *[]byte, src Value[[]byte]) error {
-	if !src.IsSet {
-		return nil
-	}
-	*dst = src.Value
-	return nil
-}
-
 func setNullableSliceOfFloatFromProto(dst *Value[[]float32], src *[]float32) error {
 	if src == nil {
 		return nil
@@ -1940,6 +2101,22 @@ func setNullableCodecTypeFromProto(dst *Value[configpb.CodecType], src *configpb
 }
 
 func setNullableCodecTypeToProto(dst **configpb.CodecType, src Value[configpb.CodecType]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableEnterpriseValidationModeFromProto(dst *Value[configpb.EnterpriseValidationMode], src *configpb.EnterpriseValidationMode) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableEnterpriseValidationModeToProto(dst **configpb.EnterpriseValidationMode, src Value[configpb.EnterpriseValidationMode]) error {
 	if !src.IsSet {
 		return nil
 	}
