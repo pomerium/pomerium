@@ -92,8 +92,11 @@ func TestExtProcSurvivesOutboundReload(t *testing.T) {
 		Name:     "dashboard-settings",
 		Settings: &configpb.Settings{InstallationId: new("console-installation")},
 	})
-	// the per-config services re-dial for the new installation id
-	settingsRec.WaitForMatch(map[string]any{"message": "outbound client connection has changed meaningfully, reloading"}, 20*time.Second)
+	// the ext_proc handler re-dials for the new installation id
+	settingsRec.WaitForMatch(map[string]any{
+		"owner":   "mcp-extproc",
+		"message": "outbound client connection has changed meaningfully, reloading",
+	}, 20*time.Second)
 
 	// 3: the MCP route works
 	sa := &user.ServiceAccount{Id: "outbound-reload-sa", UserId: saUserID}
