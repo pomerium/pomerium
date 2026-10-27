@@ -10480,7 +10480,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xcd$\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\x89%\n" +
 	"\x12EnterpriseSettings\x12[\n" +
 	"\x0eadministrators\x18\x01 \x01(\v2..pomerium.config.EnterpriseSettings.StringListH\x00R\x0eadministrators\x88\x01\x01\x12\\\n" +
 	"\x1aanalytics_collect_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationH\x01R\x18analyticsCollectInterval\x88\x01\x01\x12(\n" +
@@ -10495,23 +10495,23 @@ const file_config_proto_rawDesc = "" +
 	" \x01(\tH\tR\n" +
 	"customerId\x88\x01\x01\x12[\n" +
 	"(dangerously_disable_all_namespace_checks\x18\v \x01(\bH\n" +
-	"R$dangerouslyDisableAllNamespaceChecks\x88\x01\x01\x12;\n" +
-	"\x17database_encryption_key\x18\f \x01(\fH\vR\x15databaseEncryptionKey\x88\x01\x01\x12D\n" +
+	"R$dangerouslyDisableAllNamespaceChecks\x88\x01\x01\x12A\n" +
+	"\x17database_encryption_key\x18\f \x01(\fB\x04\xe8\xd6,\x01H\vR\x15databaseEncryptionKey\x88\x01\x01\x12D\n" +
 	"\x1cdatabase_encryption_key_file\x18\r \x01(\tH\fR\x19databaseEncryptionKeyFile\x88\x01\x01\x12K\n" +
-	" database_encryption_key_raw_file\x18\x0e \x01(\tH\rR\x1cdatabaseEncryptionKeyRawFile\x88\x01\x01\x12&\n" +
-	"\fdatabase_url\x18\x0f \x01(\tH\x0eR\vdatabaseUrl\x88\x01\x01\x12k\n" +
+	" database_encryption_key_raw_file\x18\x0e \x01(\tH\rR\x1cdatabaseEncryptionKeyRawFile\x88\x01\x01\x12,\n" +
+	"\fdatabase_url\x18\x0f \x01(\tB\x04\xe8\xd6,\x01H\x0eR\vdatabaseUrl\x88\x01\x01\x12k\n" +
 	"\x17databroker_service_urls\x18\x10 \x01(\v2..pomerium.config.EnterpriseSettings.StringListH\x0fR\x15databrokerServiceUrls\x88\x01\x01\x12(\n" +
 	"\rdebug_address\x18\x11 \x01(\tH\x10R\fdebugAddress\x88\x01\x01\x12/\n" +
 	"\x11debug_config_dump\x18\x12 \x01(\bH\x11R\x0fdebugConfigDump\x88\x01\x01\x122\n" +
-	"\x12directory_provider\x18\x13 \x01(\tH\x12R\x11directoryProvider\x88\x01\x01\x12Z\n" +
-	"\x1adirectory_provider_options\x18\x14 \x01(\v2\x17.google.protobuf.StructH\x13R\x18directoryProviderOptions\x88\x01\x01\x12m\n" +
+	"\x12directory_provider\x18\x13 \x01(\tH\x12R\x11directoryProvider\x88\x01\x01\x12`\n" +
+	"\x1adirectory_provider_options\x18\x14 \x01(\v2\x17.google.protobuf.StructB\x04\xe8\xd6,\x01H\x13R\x18directoryProviderOptions\x88\x01\x01\x12m\n" +
 	"#directory_provider_refresh_interval\x18\x15 \x01(\v2\x19.google.protobuf.DurationH\x14R directoryProviderRefreshInterval\x88\x01\x01\x12k\n" +
 	"\"directory_provider_refresh_timeout\x18\x16 \x01(\v2\x19.google.protobuf.DurationH\x15R\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12;\n" +
 	"\x17disable_feedback_widget\x18\x17 \x01(\bH\x16R\x15disableFeedbackWidget\x88\x01\x01\x12A\n" +
 	"\x1adisable_remote_diagnostics\x18\x18 \x01(\bH\x17R\x18disableRemoteDiagnostics\x88\x01\x01\x12W\n" +
 	"&enable_session_recording_querier_cache\x18\x19 \x01(\bH\x18R\"enableSessionRecordingQuerierCache\x88\x01\x01\x12&\n" +
-	"\fgrpc_address\x18\x1a \x01(\tH\x19R\vgrpcAddress\x88\x01\x01\x12$\n" +
-	"\vlicense_key\x18\x1b \x01(\tH\x1aR\n" +
+	"\fgrpc_address\x18\x1a \x01(\tH\x19R\vgrpcAddress\x88\x01\x01\x12*\n" +
+	"\vlicense_key\x18\x1b \x01(\tB\x04\xe8\xd6,\x01H\x1aR\n" +
 	"licenseKey\x88\x01\x01\x12D\n" +
 	"\x1clicense_key_validate_offline\x18\x1c \x01(\bH\x1bR\x19licenseKeyValidateOffline\x88\x01\x01\x12 \n" +
 	"\tlog_level\x18\x1d \x01(\tH\x1cR\blogLevel\x88\x01\x01\x12,\n" +
@@ -10519,25 +10519,25 @@ const file_config_proto_rawDesc = "" +
 	"\x19override_certificate_name\x18\x1f \x01(\tH\x1eR\x17overrideCertificateName\x88\x01\x01\x123\n" +
 	"\x13prometheus_data_dir\x18  \x01(\tH\x1fR\x11prometheusDataDir\x88\x01\x01\x12?\n" +
 	"\x19prometheus_listen_address\x18! \x01(\tH R\x17prometheusListenAddress\x88\x01\x01\x12\\\n" +
-	"\x1aprometheus_scrape_interval\x18\" \x01(\v2\x19.google.protobuf.DurationH!R\x18prometheusScrapeInterval\x88\x01\x01\x12*\n" +
-	"\x0eprometheus_url\x18# \x01(\tH\"R\rprometheusUrl\x88\x01\x01\x12*\n" +
+	"\x1aprometheus_scrape_interval\x18\" \x01(\v2\x19.google.protobuf.DurationH!R\x18prometheusScrapeInterval\x88\x01\x01\x120\n" +
+	"\x0eprometheus_url\x18# \x01(\tB\x04\xe8\xd6,\x01H\"R\rprometheusUrl\x88\x01\x01\x12*\n" +
 	"\x0epublic_address\x18$ \x01(\tH#R\rpublicAddress\x88\x01\x01\x12X\n" +
-	"\x19session_recording_options\x18% \x01(\v2\x17.google.protobuf.StructH$R\x17sessionRecordingOptions\x88\x01\x01\x12(\n" +
-	"\rshared_secret\x18& \x01(\fH%R\fsharedSecret\x88\x01\x01\x121\n" +
+	"\x19session_recording_options\x18% \x01(\v2\x17.google.protobuf.StructH$R\x17sessionRecordingOptions\x88\x01\x01\x12.\n" +
+	"\rshared_secret\x18& \x01(\fB\x04\xe8\xd6,\x01H%R\fsharedSecret\x88\x01\x01\x121\n" +
 	"\x12shared_secret_file\x18' \x01(\tH&R\x10sharedSecretFile\x88\x01\x01\x128\n" +
-	"\x16shared_secret_raw_file\x18( \x01(\tH'R\x13sharedSecretRawFile\x88\x01\x01\x12$\n" +
-	"\vsigning_key\x18) \x01(\fH(R\n" +
+	"\x16shared_secret_raw_file\x18( \x01(\tH'R\x13sharedSecretRawFile\x88\x01\x01\x12*\n" +
+	"\vsigning_key\x18) \x01(\fB\x04\xe8\xd6,\x01H(R\n" +
 	"signingKey\x88\x01\x01\x12-\n" +
 	"\x10signing_key_file\x18* \x01(\tH)R\x0esigningKeyFile\x88\x01\x01\x124\n" +
-	"\x14signing_key_raw_file\x18+ \x01(\tH*R\x11signingKeyRawFile\x88\x01\x01\x12,\n" +
-	"\x0ftls_certificate\x18, \x01(\fH+R\x0etlsCertificate\x88\x01\x01\x12?\n" +
-	"\x19tls_certificate_authority\x18- \x01(\fH,R\x17tlsCertificateAuthority\x88\x01\x01\x12H\n" +
+	"\x14signing_key_raw_file\x18+ \x01(\tH*R\x11signingKeyRawFile\x88\x01\x01\x122\n" +
+	"\x0ftls_certificate\x18, \x01(\fB\x04\xe8\xd6,\x01H+R\x0etlsCertificate\x88\x01\x01\x12E\n" +
+	"\x19tls_certificate_authority\x18- \x01(\fB\x04\xe8\xd6,\x01H,R\x17tlsCertificateAuthority\x88\x01\x01\x12H\n" +
 	"\x1etls_certificate_authority_file\x18. \x01(\tH-R\x1btlsCertificateAuthorityFile\x88\x01\x01\x125\n" +
 	"\x14tls_certificate_file\x18/ \x01(\tH.R\x12tlsCertificateFile\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"tls_derive\x180 \x01(\tH/R\ttlsDerive\x88\x01\x01\x12<\n" +
-	"\x18tls_insecure_skip_verify\x181 \x01(\bH0R\x15tlsInsecureSkipVerify\x88\x01\x01\x12\x1c\n" +
-	"\atls_key\x182 \x01(\fH1R\x06tlsKey\x88\x01\x01\x12%\n" +
+	"\x18tls_insecure_skip_verify\x181 \x01(\bH0R\x15tlsInsecureSkipVerify\x88\x01\x01\x12\"\n" +
+	"\atls_key\x182 \x01(\fB\x04\xe8\xd6,\x01H1R\x06tlsKey\x88\x01\x01\x12%\n" +
 	"\ftls_key_file\x183 \x01(\tH2R\n" +
 	"tlsKeyFile\x88\x01\x01\x12\x15\n" +
 	"\x03url\x184 \x01(\tH3R\x03url\x88\x01\x01\x12/\n" +
