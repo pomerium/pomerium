@@ -1373,6 +1373,18 @@
               "defaultValue": ""
             },
             {
+              "name": "bootstrap_service_account",
+              "description": "",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_bootstrap_service_account",
+              "defaultValue": ""
+            },
+            {
               "name": "cache_dir",
               "description": "",
               "label": "optional",
@@ -1574,18 +1586,6 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_disable_remote_diagnostics",
-              "defaultValue": ""
-            },
-            {
-              "name": "enable_bootstrap_service_account",
-              "description": "",
-              "label": "optional",
-              "type": "bool",
-              "longType": "bool",
-              "fullType": "bool",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_enable_bootstrap_service_account",
               "defaultValue": ""
             },
             {

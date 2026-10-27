@@ -21,6 +21,7 @@ type EnterpriseSettings struct {
 	Audience                             Value[[]string]                          `json:"audience,omitzero" mapstructure:"audience" yaml:"audience,omitempty"`
 	AuthenticateServiceURL               Value[string]                            `json:"authenticate_service_url,omitzero" mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
 	BindAddress                          Value[string]                            `json:"bind_address,omitzero" mapstructure:"bind_address" yaml:"bind_address,omitempty"`
+	BootstrapServiceAccount              Value[bool]                              `json:"bootstrap_service_account,omitzero" mapstructure:"bootstrap_service_account" yaml:"bootstrap_service_account,omitempty"`
 	CacheDir                             Value[string]                            `json:"cache_dir,omitzero" mapstructure:"cache_dir" yaml:"cache_dir,omitempty"`
 	ChangesetRequiredApprovalCount       Value[uint32]                            `json:"changeset_required_approval_count,omitzero" mapstructure:"changeset_required_approval_count" yaml:"changeset_required_approval_count,omitempty"`
 	CustomerID                           Value[string]                            `json:"customer_id,omitzero" mapstructure:"customer_id" yaml:"customer_id,omitempty"`
@@ -38,7 +39,6 @@ type EnterpriseSettings struct {
 	DirectoryProviderRefreshTimeout      Value[time.Duration]                     `json:"directory_provider_refresh_timeout,omitzero" mapstructure:"directory_provider_refresh_timeout" yaml:"directory_provider_refresh_timeout,omitempty"`
 	DisableFeedbackWidget                Value[bool]                              `json:"disable_feedback_widget,omitzero" mapstructure:"disable_feedback_widget" yaml:"disable_feedback_widget,omitempty"`
 	DisableRemoteDiagnostics             Value[bool]                              `json:"disable_remote_diagnostics,omitzero" mapstructure:"disable_remote_diagnostics" yaml:"disable_remote_diagnostics,omitempty"`
-	EnableBootstrapServiceAccount        Value[bool]                              `json:"enable_bootstrap_service_account,omitzero" mapstructure:"enable_bootstrap_service_account" yaml:"enable_bootstrap_service_account,omitempty"`
 	EnableSessionRecordingQuerierCache   Value[bool]                              `json:"enable_session_recording_querier_cache,omitzero" mapstructure:"enable_session_recording_querier_cache" yaml:"enable_session_recording_querier_cache,omitempty"`
 	GRPCAddress                          Value[string]                            `json:"grpc_address,omitzero" mapstructure:"grpc_address" yaml:"grpc_address,omitempty"`
 	LicenseKey                           Value[string]                            `json:"license_key,omitzero" mapstructure:"license_key" yaml:"license_key,omitempty"`
@@ -251,6 +251,7 @@ func setEnterpriseSettingsFromProto(dst *EnterpriseSettings, src *configpb.Enter
 		setNullableStringListFromProto(&dst.Audience, src.Audience),
 		setNullableStringFromProto(&dst.AuthenticateServiceURL, src.AuthenticateServiceUrl),
 		setNullableStringFromProto(&dst.BindAddress, src.BindAddress),
+		setNullableBoolFromProto(&dst.BootstrapServiceAccount, src.BootstrapServiceAccount),
 		setNullableStringFromProto(&dst.CacheDir, src.CacheDir),
 		setNullableUInt32FromProto(&dst.ChangesetRequiredApprovalCount, src.ChangesetRequiredApprovalCount),
 		setNullableStringFromProto(&dst.CustomerID, src.CustomerId),
@@ -268,7 +269,6 @@ func setEnterpriseSettingsFromProto(dst *EnterpriseSettings, src *configpb.Enter
 		setNullableDurationFromProto(&dst.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		setNullableBoolFromProto(&dst.DisableFeedbackWidget, src.DisableFeedbackWidget),
 		setNullableBoolFromProto(&dst.DisableRemoteDiagnostics, src.DisableRemoteDiagnostics),
-		setNullableBoolFromProto(&dst.EnableBootstrapServiceAccount, src.EnableBootstrapServiceAccount),
 		setNullableBoolFromProto(&dst.EnableSessionRecordingQuerierCache, src.EnableSessionRecordingQuerierCache),
 		setNullableStringFromProto(&dst.GRPCAddress, src.GrpcAddress),
 		setNullableStringFromProto(&dst.LicenseKey, src.LicenseKey),
@@ -841,6 +841,7 @@ func setEnterpriseSettingsToProto(dst **configpb.EnterpriseSettings, src *Enterp
 		setNullableStringListToProto(&obj.Audience, src.Audience),
 		setNullableStringToProto(&obj.AuthenticateServiceUrl, src.AuthenticateServiceURL),
 		setNullableStringToProto(&obj.BindAddress, src.BindAddress),
+		setNullableBoolToProto(&obj.BootstrapServiceAccount, src.BootstrapServiceAccount),
 		setNullableStringToProto(&obj.CacheDir, src.CacheDir),
 		setNullableUInt32ToProto(&obj.ChangesetRequiredApprovalCount, src.ChangesetRequiredApprovalCount),
 		setNullableStringToProto(&obj.CustomerId, src.CustomerID),
@@ -858,7 +859,6 @@ func setEnterpriseSettingsToProto(dst **configpb.EnterpriseSettings, src *Enterp
 		setNullableDurationToProto(&obj.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		setNullableBoolToProto(&obj.DisableFeedbackWidget, src.DisableFeedbackWidget),
 		setNullableBoolToProto(&obj.DisableRemoteDiagnostics, src.DisableRemoteDiagnostics),
-		setNullableBoolToProto(&obj.EnableBootstrapServiceAccount, src.EnableBootstrapServiceAccount),
 		setNullableBoolToProto(&obj.EnableSessionRecordingQuerierCache, src.EnableSessionRecordingQuerierCache),
 		setNullableStringToProto(&obj.GrpcAddress, src.GRPCAddress),
 		setNullableStringToProto(&obj.LicenseKey, src.LicenseKey),

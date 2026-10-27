@@ -194,6 +194,9 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 	if settings.BindAddress.IsSet {
 		options["bind_addr"] = settings.BindAddress.Value
 	}
+	if settings.BootstrapServiceAccount.IsSet {
+		options["bootstrap_service_account"] = settings.BootstrapServiceAccount.Value
+	}
 	if settings.CacheDir.IsSet {
 		options["cache_dir"] = settings.CacheDir.Value
 	} else {
@@ -268,9 +271,6 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 	}
 	if settings.EnableSessionRecordingQuerierCache.IsSet {
 		options["enable_session_recording_querier_cache"] = settings.EnableSessionRecordingQuerierCache.Value
-	}
-	if settings.EnableBootstrapServiceAccount.IsSet {
-		options["bootstrap_service_account"] = settings.EnableBootstrapServiceAccount.Value
 	}
 	if settings.GRPCAddress.IsSet {
 		options["grpc_addr"] = settings.GRPCAddress.Value

@@ -3222,24 +3222,24 @@ type EnterpriseSettings struct {
 	Audience                             *EnterpriseSettings_StringList `protobuf:"bytes,4,opt,name=audience,proto3,oneof" json:"audience,omitempty"`
 	AuthenticateServiceUrl               *string                        `protobuf:"bytes,5,opt,name=authenticate_service_url,json=authenticateServiceUrl,proto3,oneof" json:"authenticate_service_url,omitempty"`
 	BindAddress                          *string                        `protobuf:"bytes,6,opt,name=bind_address,json=bindAddress,proto3,oneof" json:"bind_address,omitempty"`
-	CacheDir                             *string                        `protobuf:"bytes,7,opt,name=cache_dir,json=cacheDir,proto3,oneof" json:"cache_dir,omitempty"`
-	ChangesetRequiredApprovalCount       *uint32                        `protobuf:"varint,8,opt,name=changeset_required_approval_count,json=changesetRequiredApprovalCount,proto3,oneof" json:"changeset_required_approval_count,omitempty"`
-	CustomerId                           *string                        `protobuf:"bytes,9,opt,name=customer_id,json=customerId,proto3,oneof" json:"customer_id,omitempty"`
-	DangerouslyDisableAllNamespaceChecks *bool                          `protobuf:"varint,10,opt,name=dangerously_disable_all_namespace_checks,json=dangerouslyDisableAllNamespaceChecks,proto3,oneof" json:"dangerously_disable_all_namespace_checks,omitempty"`
-	DatabaseEncryptionKey                []byte                         `protobuf:"bytes,11,opt,name=database_encryption_key,json=databaseEncryptionKey,proto3,oneof" json:"database_encryption_key,omitempty"`
-	DatabaseEncryptionKeyFile            *string                        `protobuf:"bytes,12,opt,name=database_encryption_key_file,json=databaseEncryptionKeyFile,proto3,oneof" json:"database_encryption_key_file,omitempty"`
-	DatabaseEncryptionKeyRawFile         *string                        `protobuf:"bytes,13,opt,name=database_encryption_key_raw_file,json=databaseEncryptionKeyRawFile,proto3,oneof" json:"database_encryption_key_raw_file,omitempty"`
-	DatabaseUrl                          *string                        `protobuf:"bytes,14,opt,name=database_url,json=databaseUrl,proto3,oneof" json:"database_url,omitempty"`
-	DatabrokerServiceUrls                *EnterpriseSettings_StringList `protobuf:"bytes,15,opt,name=databroker_service_urls,json=databrokerServiceUrls,proto3,oneof" json:"databroker_service_urls,omitempty"`
-	DebugAddress                         *string                        `protobuf:"bytes,16,opt,name=debug_address,json=debugAddress,proto3,oneof" json:"debug_address,omitempty"`
-	DebugConfigDump                      *bool                          `protobuf:"varint,17,opt,name=debug_config_dump,json=debugConfigDump,proto3,oneof" json:"debug_config_dump,omitempty"`
-	DirectoryProvider                    *string                        `protobuf:"bytes,18,opt,name=directory_provider,json=directoryProvider,proto3,oneof" json:"directory_provider,omitempty"`
-	DirectoryProviderOptions             *structpb.Struct               `protobuf:"bytes,19,opt,name=directory_provider_options,json=directoryProviderOptions,proto3,oneof" json:"directory_provider_options,omitempty"`
-	DirectoryProviderRefreshInterval     *durationpb.Duration           `protobuf:"bytes,20,opt,name=directory_provider_refresh_interval,json=directoryProviderRefreshInterval,proto3,oneof" json:"directory_provider_refresh_interval,omitempty"`
-	DirectoryProviderRefreshTimeout      *durationpb.Duration           `protobuf:"bytes,21,opt,name=directory_provider_refresh_timeout,json=directoryProviderRefreshTimeout,proto3,oneof" json:"directory_provider_refresh_timeout,omitempty"`
-	DisableFeedbackWidget                *bool                          `protobuf:"varint,22,opt,name=disable_feedback_widget,json=disableFeedbackWidget,proto3,oneof" json:"disable_feedback_widget,omitempty"`
-	DisableRemoteDiagnostics             *bool                          `protobuf:"varint,23,opt,name=disable_remote_diagnostics,json=disableRemoteDiagnostics,proto3,oneof" json:"disable_remote_diagnostics,omitempty"`
-	EnableBootstrapServiceAccount        *bool                          `protobuf:"varint,24,opt,name=enable_bootstrap_service_account,json=enableBootstrapServiceAccount,proto3,oneof" json:"enable_bootstrap_service_account,omitempty"`
+	BootstrapServiceAccount              *bool                          `protobuf:"varint,7,opt,name=bootstrap_service_account,json=bootstrapServiceAccount,proto3,oneof" json:"bootstrap_service_account,omitempty"`
+	CacheDir                             *string                        `protobuf:"bytes,8,opt,name=cache_dir,json=cacheDir,proto3,oneof" json:"cache_dir,omitempty"`
+	ChangesetRequiredApprovalCount       *uint32                        `protobuf:"varint,9,opt,name=changeset_required_approval_count,json=changesetRequiredApprovalCount,proto3,oneof" json:"changeset_required_approval_count,omitempty"`
+	CustomerId                           *string                        `protobuf:"bytes,10,opt,name=customer_id,json=customerId,proto3,oneof" json:"customer_id,omitempty"`
+	DangerouslyDisableAllNamespaceChecks *bool                          `protobuf:"varint,11,opt,name=dangerously_disable_all_namespace_checks,json=dangerouslyDisableAllNamespaceChecks,proto3,oneof" json:"dangerously_disable_all_namespace_checks,omitempty"`
+	DatabaseEncryptionKey                []byte                         `protobuf:"bytes,12,opt,name=database_encryption_key,json=databaseEncryptionKey,proto3,oneof" json:"database_encryption_key,omitempty"`
+	DatabaseEncryptionKeyFile            *string                        `protobuf:"bytes,13,opt,name=database_encryption_key_file,json=databaseEncryptionKeyFile,proto3,oneof" json:"database_encryption_key_file,omitempty"`
+	DatabaseEncryptionKeyRawFile         *string                        `protobuf:"bytes,14,opt,name=database_encryption_key_raw_file,json=databaseEncryptionKeyRawFile,proto3,oneof" json:"database_encryption_key_raw_file,omitempty"`
+	DatabaseUrl                          *string                        `protobuf:"bytes,15,opt,name=database_url,json=databaseUrl,proto3,oneof" json:"database_url,omitempty"`
+	DatabrokerServiceUrls                *EnterpriseSettings_StringList `protobuf:"bytes,16,opt,name=databroker_service_urls,json=databrokerServiceUrls,proto3,oneof" json:"databroker_service_urls,omitempty"`
+	DebugAddress                         *string                        `protobuf:"bytes,17,opt,name=debug_address,json=debugAddress,proto3,oneof" json:"debug_address,omitempty"`
+	DebugConfigDump                      *bool                          `protobuf:"varint,18,opt,name=debug_config_dump,json=debugConfigDump,proto3,oneof" json:"debug_config_dump,omitempty"`
+	DirectoryProvider                    *string                        `protobuf:"bytes,19,opt,name=directory_provider,json=directoryProvider,proto3,oneof" json:"directory_provider,omitempty"`
+	DirectoryProviderOptions             *structpb.Struct               `protobuf:"bytes,20,opt,name=directory_provider_options,json=directoryProviderOptions,proto3,oneof" json:"directory_provider_options,omitempty"`
+	DirectoryProviderRefreshInterval     *durationpb.Duration           `protobuf:"bytes,21,opt,name=directory_provider_refresh_interval,json=directoryProviderRefreshInterval,proto3,oneof" json:"directory_provider_refresh_interval,omitempty"`
+	DirectoryProviderRefreshTimeout      *durationpb.Duration           `protobuf:"bytes,22,opt,name=directory_provider_refresh_timeout,json=directoryProviderRefreshTimeout,proto3,oneof" json:"directory_provider_refresh_timeout,omitempty"`
+	DisableFeedbackWidget                *bool                          `protobuf:"varint,23,opt,name=disable_feedback_widget,json=disableFeedbackWidget,proto3,oneof" json:"disable_feedback_widget,omitempty"`
+	DisableRemoteDiagnostics             *bool                          `protobuf:"varint,24,opt,name=disable_remote_diagnostics,json=disableRemoteDiagnostics,proto3,oneof" json:"disable_remote_diagnostics,omitempty"`
 	EnableSessionRecordingQuerierCache   *bool                          `protobuf:"varint,25,opt,name=enable_session_recording_querier_cache,json=enableSessionRecordingQuerierCache,proto3,oneof" json:"enable_session_recording_querier_cache,omitempty"`
 	GrpcAddress                          *string                        `protobuf:"bytes,26,opt,name=grpc_address,json=grpcAddress,proto3,oneof" json:"grpc_address,omitempty"`
 	LicenseKey                           *string                        `protobuf:"bytes,27,opt,name=license_key,json=licenseKey,proto3,oneof" json:"license_key,omitempty"`
@@ -3344,6 +3344,13 @@ func (x *EnterpriseSettings) GetBindAddress() string {
 		return *x.BindAddress
 	}
 	return ""
+}
+
+func (x *EnterpriseSettings) GetBootstrapServiceAccount() bool {
+	if x != nil && x.BootstrapServiceAccount != nil {
+		return *x.BootstrapServiceAccount
+	}
+	return false
 }
 
 func (x *EnterpriseSettings) GetCacheDir() string {
@@ -3461,13 +3468,6 @@ func (x *EnterpriseSettings) GetDisableFeedbackWidget() bool {
 func (x *EnterpriseSettings) GetDisableRemoteDiagnostics() bool {
 	if x != nil && x.DisableRemoteDiagnostics != nil {
 		return *x.DisableRemoteDiagnostics
-	}
-	return false
-}
-
-func (x *EnterpriseSettings) GetEnableBootstrapServiceAccount() bool {
-	if x != nil && x.EnableBootstrapServiceAccount != nil {
-		return *x.EnableBootstrapServiceAccount
 	}
 	return false
 }
@@ -10480,35 +10480,35 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xe1$\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xcd$\n" +
 	"\x12EnterpriseSettings\x12[\n" +
 	"\x0eadministrators\x18\x01 \x01(\v2..pomerium.config.EnterpriseSettings.StringListH\x00R\x0eadministrators\x88\x01\x01\x12\\\n" +
 	"\x1aanalytics_collect_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationH\x01R\x18analyticsCollectInterval\x88\x01\x01\x12(\n" +
 	"\ranalytics_url\x18\x03 \x01(\tH\x02R\fanalyticsUrl\x88\x01\x01\x12O\n" +
 	"\baudience\x18\x04 \x01(\v2..pomerium.config.EnterpriseSettings.StringListH\x03R\baudience\x88\x01\x01\x12=\n" +
 	"\x18authenticate_service_url\x18\x05 \x01(\tH\x04R\x16authenticateServiceUrl\x88\x01\x01\x12&\n" +
-	"\fbind_address\x18\x06 \x01(\tH\x05R\vbindAddress\x88\x01\x01\x12 \n" +
-	"\tcache_dir\x18\a \x01(\tH\x06R\bcacheDir\x88\x01\x01\x12N\n" +
-	"!changeset_required_approval_count\x18\b \x01(\rH\aR\x1echangesetRequiredApprovalCount\x88\x01\x01\x12$\n" +
-	"\vcustomer_id\x18\t \x01(\tH\bR\n" +
+	"\fbind_address\x18\x06 \x01(\tH\x05R\vbindAddress\x88\x01\x01\x12?\n" +
+	"\x19bootstrap_service_account\x18\a \x01(\bH\x06R\x17bootstrapServiceAccount\x88\x01\x01\x12 \n" +
+	"\tcache_dir\x18\b \x01(\tH\aR\bcacheDir\x88\x01\x01\x12N\n" +
+	"!changeset_required_approval_count\x18\t \x01(\rH\bR\x1echangesetRequiredApprovalCount\x88\x01\x01\x12$\n" +
+	"\vcustomer_id\x18\n" +
+	" \x01(\tH\tR\n" +
 	"customerId\x88\x01\x01\x12[\n" +
-	"(dangerously_disable_all_namespace_checks\x18\n" +
-	" \x01(\bH\tR$dangerouslyDisableAllNamespaceChecks\x88\x01\x01\x12;\n" +
-	"\x17database_encryption_key\x18\v \x01(\fH\n" +
-	"R\x15databaseEncryptionKey\x88\x01\x01\x12D\n" +
-	"\x1cdatabase_encryption_key_file\x18\f \x01(\tH\vR\x19databaseEncryptionKeyFile\x88\x01\x01\x12K\n" +
-	" database_encryption_key_raw_file\x18\r \x01(\tH\fR\x1cdatabaseEncryptionKeyRawFile\x88\x01\x01\x12&\n" +
-	"\fdatabase_url\x18\x0e \x01(\tH\rR\vdatabaseUrl\x88\x01\x01\x12k\n" +
-	"\x17databroker_service_urls\x18\x0f \x01(\v2..pomerium.config.EnterpriseSettings.StringListH\x0eR\x15databrokerServiceUrls\x88\x01\x01\x12(\n" +
-	"\rdebug_address\x18\x10 \x01(\tH\x0fR\fdebugAddress\x88\x01\x01\x12/\n" +
-	"\x11debug_config_dump\x18\x11 \x01(\bH\x10R\x0fdebugConfigDump\x88\x01\x01\x122\n" +
-	"\x12directory_provider\x18\x12 \x01(\tH\x11R\x11directoryProvider\x88\x01\x01\x12Z\n" +
-	"\x1adirectory_provider_options\x18\x13 \x01(\v2\x17.google.protobuf.StructH\x12R\x18directoryProviderOptions\x88\x01\x01\x12m\n" +
-	"#directory_provider_refresh_interval\x18\x14 \x01(\v2\x19.google.protobuf.DurationH\x13R directoryProviderRefreshInterval\x88\x01\x01\x12k\n" +
-	"\"directory_provider_refresh_timeout\x18\x15 \x01(\v2\x19.google.protobuf.DurationH\x14R\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12;\n" +
-	"\x17disable_feedback_widget\x18\x16 \x01(\bH\x15R\x15disableFeedbackWidget\x88\x01\x01\x12A\n" +
-	"\x1adisable_remote_diagnostics\x18\x17 \x01(\bH\x16R\x18disableRemoteDiagnostics\x88\x01\x01\x12L\n" +
-	" enable_bootstrap_service_account\x18\x18 \x01(\bH\x17R\x1denableBootstrapServiceAccount\x88\x01\x01\x12W\n" +
+	"(dangerously_disable_all_namespace_checks\x18\v \x01(\bH\n" +
+	"R$dangerouslyDisableAllNamespaceChecks\x88\x01\x01\x12;\n" +
+	"\x17database_encryption_key\x18\f \x01(\fH\vR\x15databaseEncryptionKey\x88\x01\x01\x12D\n" +
+	"\x1cdatabase_encryption_key_file\x18\r \x01(\tH\fR\x19databaseEncryptionKeyFile\x88\x01\x01\x12K\n" +
+	" database_encryption_key_raw_file\x18\x0e \x01(\tH\rR\x1cdatabaseEncryptionKeyRawFile\x88\x01\x01\x12&\n" +
+	"\fdatabase_url\x18\x0f \x01(\tH\x0eR\vdatabaseUrl\x88\x01\x01\x12k\n" +
+	"\x17databroker_service_urls\x18\x10 \x01(\v2..pomerium.config.EnterpriseSettings.StringListH\x0fR\x15databrokerServiceUrls\x88\x01\x01\x12(\n" +
+	"\rdebug_address\x18\x11 \x01(\tH\x10R\fdebugAddress\x88\x01\x01\x12/\n" +
+	"\x11debug_config_dump\x18\x12 \x01(\bH\x11R\x0fdebugConfigDump\x88\x01\x01\x122\n" +
+	"\x12directory_provider\x18\x13 \x01(\tH\x12R\x11directoryProvider\x88\x01\x01\x12Z\n" +
+	"\x1adirectory_provider_options\x18\x14 \x01(\v2\x17.google.protobuf.StructH\x13R\x18directoryProviderOptions\x88\x01\x01\x12m\n" +
+	"#directory_provider_refresh_interval\x18\x15 \x01(\v2\x19.google.protobuf.DurationH\x14R directoryProviderRefreshInterval\x88\x01\x01\x12k\n" +
+	"\"directory_provider_refresh_timeout\x18\x16 \x01(\v2\x19.google.protobuf.DurationH\x15R\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12;\n" +
+	"\x17disable_feedback_widget\x18\x17 \x01(\bH\x16R\x15disableFeedbackWidget\x88\x01\x01\x12A\n" +
+	"\x1adisable_remote_diagnostics\x18\x18 \x01(\bH\x17R\x18disableRemoteDiagnostics\x88\x01\x01\x12W\n" +
 	"&enable_session_recording_querier_cache\x18\x19 \x01(\bH\x18R\"enableSessionRecordingQuerierCache\x88\x01\x01\x12&\n" +
 	"\fgrpc_address\x18\x1a \x01(\tH\x19R\vgrpcAddress\x88\x01\x01\x12$\n" +
 	"\vlicense_key\x18\x1b \x01(\tH\x1aR\n" +
@@ -10551,7 +10551,8 @@ const file_config_proto_rawDesc = "" +
 	"\x0e_analytics_urlB\v\n" +
 	"\t_audienceB\x1b\n" +
 	"\x19_authenticate_service_urlB\x0f\n" +
-	"\r_bind_addressB\f\n" +
+	"\r_bind_addressB\x1c\n" +
+	"\x1a_bootstrap_service_accountB\f\n" +
 	"\n" +
 	"_cache_dirB$\n" +
 	"\"_changeset_required_approval_countB\x0e\n" +
@@ -10569,8 +10570,7 @@ const file_config_proto_rawDesc = "" +
 	"$_directory_provider_refresh_intervalB%\n" +
 	"#_directory_provider_refresh_timeoutB\x1a\n" +
 	"\x18_disable_feedback_widgetB\x1d\n" +
-	"\x1b_disable_remote_diagnosticsB#\n" +
-	"!_enable_bootstrap_service_accountB)\n" +
+	"\x1b_disable_remote_diagnosticsB)\n" +
 	"'_enable_session_recording_querier_cacheB\x0f\n" +
 	"\r_grpc_addressB\x0e\n" +
 	"\f_license_keyB\x1f\n" +

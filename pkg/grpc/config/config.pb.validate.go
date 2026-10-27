@@ -3599,6 +3599,10 @@ func (m *EnterpriseSettings) validate(all bool) error {
 		// no validation rules for BindAddress
 	}
 
+	if m.BootstrapServiceAccount != nil {
+		// no validation rules for BootstrapServiceAccount
+	}
+
 	if m.CacheDir != nil {
 		// no validation rules for CacheDir
 	}
@@ -3781,10 +3785,6 @@ func (m *EnterpriseSettings) validate(all bool) error {
 
 	if m.DisableRemoteDiagnostics != nil {
 		// no validation rules for DisableRemoteDiagnostics
-	}
-
-	if m.EnableBootstrapServiceAccount != nil {
-		// no validation rules for EnableBootstrapServiceAccount
 	}
 
 	if m.EnableSessionRecordingQuerierCache != nil {

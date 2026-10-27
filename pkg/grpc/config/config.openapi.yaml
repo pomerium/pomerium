@@ -1926,6 +1926,11 @@ components:
             - string
             - "null"
           title: bind_address
+        bootstrapServiceAccount:
+          type:
+            - boolean
+            - "null"
+          title: bootstrap_service_account
         cacheDir:
           type:
             - string
@@ -2012,11 +2017,6 @@ components:
             - boolean
             - "null"
           title: disable_remote_diagnostics
-        enableBootstrapServiceAccount:
-          type:
-            - boolean
-            - "null"
-          title: enable_bootstrap_service_account
         enableSessionRecordingQuerierCache:
           type:
             - boolean
