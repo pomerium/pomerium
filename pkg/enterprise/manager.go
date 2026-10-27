@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/logutil"
 )
 
@@ -102,9 +104,6 @@ func (mgr *Manager) updateLocked() error {
 		if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 			return fmt.Errorf("error creating enterprise console cache directory: %w", err)
 		}
-		if err := os.RemoveAll(dataDir); err != nil {
-			return fmt.Errorf("error deleting enterprise console data directory: %w", err)
-		}
 		if err := os.MkdirAll(dataDir, 0o700); err != nil {
 			return fmt.Errorf("error creating enterprise console data directory: %w", err)
 		}
@@ -178,6 +177,13 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 
 	cacheDir := fileutil.EnterpriseConsoleCacheDir()
 	dataDir := fileutil.EnterpriseConsoleDataDir()
+	// create the directories
+	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
+		return nil, false, fmt.Errorf("error creating enterprise console cache directory: %w", err)
+	}
+	if err := os.MkdirAll(dataDir, 0o700); err != nil {
+		return nil, false, fmt.Errorf("error creating enterprise console data directory: %w", err)
+	}
 
 	if _, ok := options["shared_secret"]; !ok {
 		sharedKey, err := cfg.Options.GetSharedKey()
@@ -199,9 +205,26 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 		options["cache_dir"] = cacheDir
 	}
 
-	// if no database encryption key is set, use the shared secret as the database encryption key
 	if _, ok := options["database_encryption_key"]; !ok {
-		options["database_encryption_key"] = options["shared_secret"]
+		// if no database encryption key was passed, used a saved database encryption key,
+		// derived from the shared secret
+		p := filepath.Join(dataDir, "database-encryption-key")
+		databaseEncryptionKey, err := os.ReadFile(p)
+		if os.IsNotExist(err) {
+			// no file exists, so we need to derive the database encryption key
+			sharedKey, err := cfg.Options.GetSharedKey()
+			if err != nil {
+				return nil, false, fmt.Errorf("error getting shared key: %w", err)
+			}
+			databaseEncryptionKey = cryptutil.DeriveKey(sharedKey, "database-encryption-key")
+			if err := os.WriteFile(p, databaseEncryptionKey, 0o600); err != nil {
+				return nil, false, fmt.Errorf("error saving database encryption key: %w", err)
+			}
+		} else if err != nil {
+			// some other error while reading the database encryption key
+			return nil, false, fmt.Errorf("error reading database encryption key: %w", err)
+		}
+		options["database_encryption_key"] = base64.StdEncoding.EncodeToString(databaseEncryptionKey)
 	}
 
 	if _, ok := options["databroker_service_url"]; !ok {
