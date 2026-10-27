@@ -41,12 +41,14 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/logfields"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
@@ -253,6 +255,7 @@ type Options struct {
 	// SSHRLSAdditonalEntries Specifies [2]{Key, Value} pairs of RLS entries
 	// https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/rate_limit_filter#substitution-formatting
 	SSHRLSAdditonalEntries []GenericKeyVal `mapstructure:"ssh_rls_additional_entries" yaml:"ssh_rls_additional_entries"`
+
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
 
@@ -314,7 +317,6 @@ type Options struct {
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool                `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
 	BlobStorage                *blob.StorageConfig `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
-	Enterprise                 map[string]any      `mapstructure:"enterprise" yaml:"enterprise,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -355,6 +357,14 @@ var defaultOptions = Options{
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
 	SSHRLSEnabled:                       false,
+	LicenseType:                         nullable.From(defaultLicenseType()),
+}
+
+func defaultLicenseType() configpb.LicenseType {
+	if version.GitCommit != "" {
+		return configpb.LicenseType_LICENSE_TYPE_COMMUNITY
+	}
+	return configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
@@ -1279,6 +1289,19 @@ func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy) map[string]stri
 	}
 
 	return hdrs
+}
+
+func (o *Options) GetOIDCBridgeForPolicy(policy *Policy) *OIDCBridge {
+	if policy.OidcBridge.IsSet {
+		return &policy.OidcBridge.Value
+	} else if o.OidcBridge.IsSet {
+		return &o.OidcBridge.Value
+	}
+	return nil
+}
+
+func (o *OIDCBridge) IsEnabled() bool {
+	return o != nil && (!o.Enabled.IsSet || o.Enabled.Value)
 }
 
 // GetCodecType gets a codec type.

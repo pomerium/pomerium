@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/analytics"
 	"github.com/pomerium/pomerium/internal/testutil/matchers"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
@@ -60,7 +61,7 @@ func TestRefreshSession(t *testing.T) {
 	t.Run("session does not exist", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
-		mgr := New(WithDataBrokerClient(client))
+		mgr := New(analytics.New(), WithDataBrokerClient(client))
 		mgr.refreshSession(t.Context(), "session-1")
 		// no databroker calls expected
 	})
@@ -69,6 +70,7 @@ func TestRefreshSession(t *testing.T) {
 		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 
 		mgr := New(
+			analytics.New(),
 			WithDataBrokerClient(client),
 			WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return nil, errors.New("no authenticator")
@@ -86,6 +88,7 @@ func TestRefreshSession(t *testing.T) {
 		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 		authenticator := &mockAuthenticator{}
 		mgr := New(
+			analytics.New(),
 			WithDataBrokerClient(client),
 			WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return authenticator, nil
@@ -104,6 +107,7 @@ func TestRefreshSession(t *testing.T) {
 		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 		authenticator := &mockAuthenticator{}
 		mgr := New(
+			analytics.New(),
 			WithDataBrokerClient(client),
 			WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return authenticator, nil
@@ -122,6 +126,7 @@ func TestRefreshSession(t *testing.T) {
 		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 		authenticator := &mockAuthenticator{}
 		mgr := New(
+			analytics.New(),
 			WithDataBrokerClient(client),
 			WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return authenticator, nil
@@ -142,6 +147,7 @@ func TestRefreshSession(t *testing.T) {
 			refreshError: context.DeadlineExceeded,
 		}
 		mgr := New(
+			analytics.New(),
 			WithDataBrokerClient(client),
 			WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return authenticator, nil
@@ -161,6 +167,7 @@ func TestRefreshSession(t *testing.T) {
 			refreshError: errors.New("failed to refresh"),
 		}
 		mgr := New(
+			analytics.New(),
 			WithDataBrokerClient(client),
 			WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return authenticator, nil
@@ -185,6 +192,7 @@ func TestRefreshSession(t *testing.T) {
 			updateUserInfoError: context.DeadlineExceeded,
 		}
 		mgr := New(
+			analytics.New(),
 			WithDataBrokerClient(client),
 			WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return authenticator, nil
@@ -209,6 +217,7 @@ func TestRefreshSession(t *testing.T) {
 			updateUserInfoError: errors.New("failed to get user info"),
 		}
 		mgr := New(
+			analytics.New(),
 			WithDataBrokerClient(client),
 			WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return authenticator, nil
@@ -233,6 +242,7 @@ func TestRefreshSession(t *testing.T) {
 			refreshResult: newToken,
 		}
 		mgr := New(
+			analytics.New(),
 			WithDataBrokerClient(client),
 			WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return authenticator, nil

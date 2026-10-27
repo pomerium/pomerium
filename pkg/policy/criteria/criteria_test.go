@@ -44,8 +44,9 @@ type (
 		IP                string                `json:"ip"`
 	}
 	InputSSH struct {
-		Username  string `json:"username"`
-		PublicKey []byte `json:"publickey"`
+		Username              string `json:"username"`
+		PublicKey             []byte `json:"publickey"`
+		AccessRequestApproved bool   `json:"access_request_approved"`
 	}
 	InputSession struct {
 		ID string `json:"id"`

@@ -326,6 +326,13 @@ func getCombinedCertificateAuthority(ctx context.Context, cfg *config.Config) ([
 	return buf.Bytes(), nil
 }
 
+func getGrpcClientTimeout(cfg *config.Config) *durationpb.Duration {
+	if cfg.Options.GRPCClientTimeout != 0 {
+		return durationpb.New(cfg.Options.GRPCClientTimeout)
+	}
+	return durationpb.New(30 * time.Second)
+}
+
 func marshalAny(msg proto.Message) *anypb.Any {
 	data := new(anypb.Any)
 	_ = anypb.MarshalFrom(data, msg, proto.MarshalOptions{

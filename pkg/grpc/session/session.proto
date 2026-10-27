@@ -91,6 +91,31 @@ message IdentityBinding {
   map<string, string> details = 4;
 }
 
+// A StreamAccessRequest represents a pending access request for an SSH client
+// to access a protected route.
+message StreamAccessRequest {
+  enum State {
+    NONE     = 0;
+    PENDING  = 1;
+    APPROVED = 2;
+    DENIED   = 3;
+  }
+  StreamAccessRequestParams params     = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  State                     state      = 4;
+  map<string, string>       metadata   = 5;
+}
+
+message StreamAccessRequestParams {
+  string protocol   = 1;
+  string session_id = 2;
+  string user_id    = 3;
+  uint64 stream_id  = 4;
+  string cluster_id = 5;
+  string route_id   = 6;
+}
+
 // A Handle is a reference to a session or a service account.
 message Handle {
   string          id                        = 1;

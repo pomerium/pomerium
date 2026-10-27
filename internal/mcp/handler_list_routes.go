@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
+	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
@@ -63,7 +63,7 @@ func (srv *Handler) listMCPServers(w http.ResponseWriter, r *http.Request) error
 		Str("user-id", userID).
 		Msg("mcp/list-routes: listing servers for user")
 
-	return srv.listMCPServersForUser(ctx, w, userID)
+	return srv.listMCPServersForUser(ctx, w, userID, nil)
 }
 
 // allServerInfos returns a serverInfo slice for every configured MCP server host.
@@ -84,7 +84,14 @@ func (srv *Handler) allServerInfos() []serverInfo {
 	return servers
 }
 
-func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWriter, userID string) error {
+// listMCPServersForUser writes the routes listing response for a user, optionally
+// including a per-route error map keyed by the route URL as the client sent it.
+func (srv *Handler) listMCPServersForUser(
+	ctx context.Context,
+	w http.ResponseWriter,
+	userID string,
+	routeErrors map[string]string,
+) error {
 	servers := srv.allServerInfos()
 
 	log.Ctx(ctx).Debug().
@@ -117,17 +124,42 @@ func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWr
 	w.WriteHeader(http.StatusOK)
 
 	type response struct {
-		Servers []serverInfo `json:"servers"`
+		Servers []serverInfo      `json:"servers"`
+		Errors  map[string]string `json:"errors,omitempty"`
 	}
 
 	log.Ctx(ctx).Debug().
 		Str("user-id", userID).
 		Int("server-count", len(servers)).
+		Int("error-count", len(routeErrors)).
 		Msg("mcp/list-routes: sending response")
 
 	return json.NewEncoder(w).Encode(response{
 		Servers: servers,
+		Errors:  routeErrors,
 	})
+}
+
+// UpstreamTokenStatus is the user-visible state of a stored upstream MCP token.
+// It is embedded in both the routes listing JSON and PortalRouteInfo so the fields
+// are declared and mapped once.
+type UpstreamTokenStatus struct {
+	// TokenExpiresAt is the stored upstream access token expiry, truncated to seconds;
+	// zero (and omitted from JSON) if there is no token or the token has no known expiry.
+	TokenExpiresAt time.Time `json:"token_expires_at,omitzero"`
+	// RefreshTokenAvailable indicates whether the stored token carries a refresh token.
+	RefreshTokenAvailable bool `json:"refresh_token_available"`
+}
+
+// newUpstreamTokenStatus derives the user-visible status from a stored upstream token.
+// A nil token yields the zero status.
+func newUpstreamTokenStatus(token *oauth21proto.UpstreamMCPToken) UpstreamTokenStatus {
+	var s UpstreamTokenStatus
+	if t := token.GetExpiresAt(); t != nil {
+		s.TokenExpiresAt = t.AsTime().Truncate(time.Second)
+	}
+	s.RefreshTokenAvailable = token.GetRefreshToken() != ""
+	return s
 }
 
 func (srv *Handler) checkHostsConnectedForUser(
@@ -144,10 +176,11 @@ func (srv *Handler) checkHostsConnectedForUser(
 		eg.Go(func() error {
 			if servers[i].routeID != "" && servers[i].upstreamURL != "" {
 				token, err := srv.storage.GetUpstreamMCPToken(ctx, userID, servers[i].routeID, servers[i].upstreamURL)
-				if err != nil && status.Code(err) != codes.NotFound {
+				if err != nil && !isNotFound(err) {
 					return fmt.Errorf("failed to get upstream MCP token for user %s: %w", userID, err)
 				}
 				servers[i].Connected = err == nil && token != nil
+				servers[i].UpstreamTokenStatus = newUpstreamTokenStatus(token)
 			}
 			return nil
 		})
@@ -161,13 +194,14 @@ func (srv *Handler) checkHostsConnectedForUser(
 }
 
 type serverInfo struct {
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	LogoURL     string `json:"logo_url,omitempty"`
-	URL         string `json:"url"`
-	Connected   bool   `json:"connected"`
-	NeedsOauth  bool   `json:"needs_oauth"`
-	host        string `json:"-"`
-	routeID     string `json:"-"`
-	upstreamURL string `json:"-"`
+	Name                string `json:"name,omitempty"`
+	Description         string `json:"description,omitempty"`
+	LogoURL             string `json:"logo_url,omitempty"`
+	URL                 string `json:"url"`
+	Connected           bool   `json:"connected"`
+	NeedsOauth          bool   `json:"needs_oauth"`
+	UpstreamTokenStatus        // embedded: encoding/json flattens its fields into this object
+	host                string `json:"-"`
+	routeID             string `json:"-"`
+	upstreamURL         string `json:"-"`
 }

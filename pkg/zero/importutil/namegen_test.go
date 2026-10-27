@@ -131,6 +131,33 @@ func TestGenerateRouteNames(t *testing.T) {
 			expected: []string{"foo", "bar", "baz"},
 		},
 		{
+			name: "tcp routes through proxy",
+			input: []*configpb.Route{
+				{
+					From: "tcp+https://auth.example.com:4443/ssh-db1-live.example.com:22",
+				},
+				{
+					From: "tcp+https://auth.example.com:4443/ssh-db2-live.example.com:22",
+				},
+				{
+					From: "tcp+https://auth.example.com:4443/ssh-db3-live.example.com:22",
+				},
+			},
+			expected: []string{"ssh-db1-live", "ssh-db2-live", "ssh-db3-live"},
+		},
+		{
+			name: "udp routes through proxy",
+			input: []*configpb.Route{
+				{
+					From: "udp+https://auth.example.com:4443/dns1.example.com:53",
+				},
+				{
+					From: "udp+https://auth.example.com:4443/dns2.example.com:53",
+				},
+			},
+			expected: []string{"dns1", "dns2"},
+		},
+		{
 			name: "multiple domain names, unique subdomains",
 			input: []*configpb.Route{
 				{From: "https://a.domain1.example.com"},

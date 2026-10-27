@@ -3,7 +3,6 @@ package envoyconfig
 import (
 	"context"
 	"fmt"
-	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -150,23 +149,15 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	fullyStatic bool,
 	useQUIC bool,
 ) (*envoy_config_listener_v3.Filter, error) {
-	var grpcClientTimeout *durationpb.Duration
-	if cfg.Options.GRPCClientTimeout != 0 {
-		grpcClientTimeout = durationpb.New(cfg.Options.GRPCClientTimeout)
-	} else {
-		grpcClientTimeout = durationpb.New(30 * time.Second)
-	}
-
 	filters := []*envoy_extensions_filters_network_http_connection_manager.HttpFilter{
 		LuaFilter(luascripts.RemoveImpersonateHeaders),
 		LuaFilter(luascripts.SetClientCertificateMetadata),
-		ExtAuthzFilter(grpcClientTimeout),
-		ExtProcFilter(grpcClientTimeout), // Disabled by default, enabled per-route for MCP
+		ExtAuthzFilter(getGrpcClientTimeout(cfg)),
+		CompositeFilter(cfg),
 		LuaFilter(luascripts.ExtAuthzSetCookie),
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
 		LuaFilter(luascripts.LocalReplyType),
-		SetConnectionStateFilter(),
 	}
 	// if we support http3 and this is the non-quic listener, add an alt-svc header indicating h3 is available
 	if !useQUIC && cfg.Options.CodecType.Value == configpb.CodecType_CODEC_TYPE_HTTP3 {

@@ -40,7 +40,7 @@ func TestCachedOutboundGRPClientConn_GetWithSameContext(t *testing.T) {
 	cache := &CachedOutboundGRPClientConn{}
 	ctx := t.Context()
 
-	opts1 := &OutboundOptions{OutboundPort: "1234", InstallationID: "a"}
+	opts1 := &OutboundOptions{OutboundPort: "1234"}
 	cc1, err := cache.Get(ctx, opts1,
 		dialer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestCachedOutboundGRPClientConn_GetWithSameContext(t *testing.T) {
 
 	// Call Get() a second time with different options but the SAME context.
 	// The context is still alive (not cancelled). This must not deadlock.
-	opts2 := &OutboundOptions{OutboundPort: "1234", InstallationID: "b"}
+	opts2 := &OutboundOptions{OutboundPort: "12345"}
 
 	done := make(chan struct{})
 	go func() {
@@ -77,7 +77,7 @@ func TestCachedOutboundGRPClientConn_GetWithCancelledContext(t *testing.T) {
 	cache := &CachedOutboundGRPClientConn{}
 	ctx1, cancel1 := context.WithCancel(t.Context())
 
-	opts1 := &OutboundOptions{OutboundPort: "1234", InstallationID: "a"}
+	opts1 := &OutboundOptions{OutboundPort: "1234"}
 	cc1, err := cache.Get(ctx1, opts1,
 		dialer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestCachedOutboundGRPClientConn_GetWithCancelledContext(t *testing.T) {
 
 	// Now call Get() with a new context and different options.
 	ctx2 := t.Context()
-	opts2 := &OutboundOptions{OutboundPort: "1234", InstallationID: "b"}
+	opts2 := &OutboundOptions{OutboundPort: "12345"}
 
 	done := make(chan struct{})
 	go func() {
@@ -117,7 +117,7 @@ func TestCachedOutboundGRPClientConn_GetSameOptions(t *testing.T) {
 	cache := &CachedOutboundGRPClientConn{}
 	ctx := t.Context()
 
-	opts := &OutboundOptions{OutboundPort: "1234", InstallationID: "a"}
+	opts := &OutboundOptions{OutboundPort: "1234"}
 	cc1, err := cache.Get(ctx, opts,
 		dialer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
@@ -132,14 +132,10 @@ func TestCachedOutboundGRPClientConn_GetSameOptions(t *testing.T) {
 func TestChangedOutboundOptions(t *testing.T) {
 	t.Parallel()
 
-	prev := &OutboundOptions{OutboundPort: "1", InstallationID: "", ServiceName: "all", SignedJWTKey: []byte("k1")}
+	prev := &OutboundOptions{OutboundPort: "1", SignedJWTKey: []byte("k1")}
 	assert.Empty(t, changedOutboundOptions(prev, prev))
-	assert.Equal(t, []string{`installation_id: "" -> "b"`},
-		changedOutboundOptions(prev, &OutboundOptions{OutboundPort: "1", InstallationID: "b", ServiceName: "all", SignedJWTKey: []byte("k1")}))
 	assert.Equal(t, []string{
 		`outbound_port: "1" -> "2"`,
-		`installation_id: "" -> "b"`,
-		`service_name: "all" -> "proxy"`,
 		"signed_jwt_key: changed",
-	}, changedOutboundOptions(prev, &OutboundOptions{OutboundPort: "2", InstallationID: "b", ServiceName: "proxy", SignedJWTKey: []byte("k2")}))
+	}, changedOutboundOptions(prev, &OutboundOptions{OutboundPort: "2", SignedJWTKey: []byte("k2")}))
 }

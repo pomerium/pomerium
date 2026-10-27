@@ -856,6 +856,15 @@ func decodeEnumHookFunc() mapstructure.DecodeHookFunc {
 	})
 }
 
+func decodeBase64BytesHookFunc() mapstructure.DecodeHookFunc {
+	return mapstructure.DecodeHookFuncValue(func(f, t reflect.Value) (any, error) {
+		if t.Type() != reflect.TypeFor[[]byte]() || f.Type().Kind() != reflect.String {
+			return f.Interface(), nil
+		}
+		return base64.StdEncoding.DecodeString(strings.TrimSpace(f.Interface().(string)))
+	})
+}
+
 func trimLongestCommonPrefix(strs []string) []string {
 	strs = slices.Clone(strs)
 	if len(strs) <= 1 {

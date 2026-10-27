@@ -51,7 +51,7 @@ func TestSecretWriter(t *testing.T) {
 
 	// replace the default in-cluster builder with one that uses the test server
 	writers.RegisterBuilder("secret", func(uri *url.URL) (writers.ConfigWriter, error) {
-		return newSecretWriterForConfig(uri, restConfig)
+		return newSecretWriterForConfig(uri, func() (*rest.Config, error) { return restConfig, nil })
 	})
 
 	t.Run("Writer", func(t *testing.T) {

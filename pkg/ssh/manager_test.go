@@ -3,7 +3,10 @@ package ssh_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
@@ -52,7 +55,7 @@ func TestStreamManager(t *testing.T) {
 	m := ssh.NewStreamManager(
 		t.Context(),
 		auth,
-		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient)),
+		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(evalResultAlwaysAllow, databrokerClient)),
 		ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)),
 		cfg,
 	)
@@ -154,6 +157,185 @@ func TestStreamManager(t *testing.T) {
 		}
 	})
 
+	t.Run("TerminateStreamBeforeRun", func(t *testing.T) {
+		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		testErr := errors.New("test error")
+		sh1.Terminate(testErr)
+		ctx, ca := context.WithTimeout(t.Context(), 10*time.Millisecond)
+		err := sh1.Run(ctx)
+		ca()
+		assert.ErrorIs(t, err, testErr)
+	})
+
+	t.Run("TerminateStreamTwice", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+			done1 := make(chan error)
+			go func() {
+				done1 <- sh1.Run(t.Context())
+			}()
+			synctest.Wait()
+			err1 := errors.New("test error 1")
+			err2 := errors.New("test error 1")
+			sh1.Terminate(err1)
+			sh1.Terminate(err2)
+			actual := <-done1
+			assert.ErrorIs(t, actual, err1)
+		})
+	})
+
+	t.Run("TerminateStreamWithNilError", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+			done1 := make(chan error)
+			go func() {
+				done1 <- sh1.Run(t.Context())
+			}()
+			synctest.Wait()
+			sh1.Terminate(nil)
+			actual := <-done1
+			assert.ErrorIs(t, actual, context.Canceled)
+		})
+	})
+
+	t.Run("TerminateStreamWithNilErrorBeforeRun", func(t *testing.T) {
+		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		sh1.Terminate(nil)
+		ctx, ca := context.WithTimeout(t.Context(), 10*time.Millisecond)
+		err := sh1.Run(ctx)
+		ca()
+		assert.Equal(t, status.Code(err), codes.Canceled)
+	})
+
+	t.Run("TerminateStreamDuringPublicKeyAuthHandler", func(t *testing.T) {
+		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		done := make(chan error)
+		go func() {
+			done <- sh.Run(t.Context())
+		}()
+
+		key := newSSHKey(t)
+		sshKey, _ := gossh.NewPublicKey(key.Public())
+
+		wait := make(chan chan error, 1)
+		auth.EXPECT().
+			HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+				// whichever context is passed to this function should be canceled when
+				// the stream is terminated
+				errC := make(chan error)
+				wait <- errC
+				<-ctx.Done()
+				err := context.Cause(ctx)
+				errC <- err
+				return ssh.AuthMethodResponse{}, err
+			})
+
+		sh.ReadC() <- &extensions_ssh.ClientMessage{
+			Message: &extensions_ssh.ClientMessage_AuthRequest{
+				AuthRequest: &extensions_ssh.AuthenticationRequest{
+					Protocol:   "ssh",
+					Service:    "ssh-connection",
+					Username:   "user",
+					AuthMethod: "publickey",
+					MethodRequest: marshalAny(&extensions_ssh.PublicKeyMethodRequest{
+						PublicKey:                  key,
+						PublicKeyAlg:               "ssh-ed25519",
+						PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
+					}),
+				},
+			},
+		}
+
+		errC := <-wait
+		testErr := errors.New("test error")
+		sh.Terminate(testErr)
+		select {
+		case actualErr := <-errC:
+			assert.ErrorIs(t, actualErr, testErr)
+		case <-time.After(1 * time.Second):
+			t.Error("timed out waiting for error")
+		}
+		err := <-done
+		assert.ErrorIs(t, err, testErr)
+	})
+
+	t.Run("TerminateStreamDuringKbdIntAuthHandler", func(t *testing.T) {
+		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		done := make(chan error)
+		go func() {
+			done <- sh.Run(t.Context())
+		}()
+
+		key := newSSHKey(t)
+		sshKey, _ := gossh.NewPublicKey(key.Public())
+
+		wait := make(chan chan error, 1)
+		auth.EXPECT().
+			HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+				return ssh.AuthMethodResponse{
+					AllowMethod:            true,
+					NextRequiredAuthMethod: "keyboard-interactive",
+					ContextUpdates: &extensions_ssh.AuthContext{
+						PublicKey:                  sshKey.Marshal(),
+						PublicKeyAlg:               sshKey.Type(),
+						PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
+					},
+				}, nil
+			})
+		auth.EXPECT().
+			HandleKeyboardInteractiveMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, _ ssh.StreamInfo, _ ssh.StreamAuthInfo, _ api.UserRequest, _ *extensions_ssh.KeyboardInteractiveMethodRequest, _ ssh.KeyboardInteractiveQuerier) (ssh.AuthMethodResponse, error) {
+				errC := make(chan error)
+				wait <- errC
+				<-ctx.Done()
+				err := context.Cause(ctx)
+				errC <- err
+				return ssh.AuthMethodResponse{}, err
+			})
+
+		sh.ReadC() <- &extensions_ssh.ClientMessage{
+			Message: &extensions_ssh.ClientMessage_AuthRequest{
+				AuthRequest: &extensions_ssh.AuthenticationRequest{
+					Protocol:   "ssh",
+					Service:    "ssh-connection",
+					Username:   "user",
+					AuthMethod: "publickey",
+					MethodRequest: marshalAny(&extensions_ssh.PublicKeyMethodRequest{
+						PublicKey:                  key,
+						PublicKeyAlg:               "ssh-ed25519",
+						PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
+					}),
+				},
+			},
+		}
+		_ = <-sh.WriteC()
+		sh.ReadC() <- &extensions_ssh.ClientMessage{
+			Message: &extensions_ssh.ClientMessage_AuthRequest{
+				AuthRequest: &extensions_ssh.AuthenticationRequest{
+					Protocol:      "ssh",
+					Service:       "ssh-connection",
+					Username:      "user",
+					AuthMethod:    "keyboard-interactive",
+					MethodRequest: marshalAny(&extensions_ssh.KeyboardInteractiveMethodRequest{}),
+				},
+			},
+		}
+
+		errC := <-wait
+		testErr := errors.New("test error")
+		sh.Terminate(testErr)
+		select {
+		case actualErr := <-errC:
+			assert.ErrorIs(t, actualErr, testErr)
+		case <-time.After(1 * time.Second):
+			t.Error("timed out waiting for error")
+		}
+		err := <-done
+		assert.ErrorIs(t, err, testErr)
+	})
+
 	t.Run("ClearRecords", func(t *testing.T) {
 		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 		done1 := make(chan error)
@@ -190,9 +372,10 @@ func TestReverseTunnelEDS(t *testing.T) {
 	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = []config.Policy{
-		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22"), UpstreamTunnel: &config.UpstreamTunnel{}, AllowPublicUnauthenticatedAccess: true},
-		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22"), UpstreamTunnel: &config.UpstreamTunnel{}, AllowPublicUnauthenticatedAccess: true},
+		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22"), UpstreamTunnel: &config.UpstreamTunnel{}, AllowAnyAuthenticatedUser: true},
+		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22"), UpstreamTunnel: &config.UpstreamTunnel{}, AllowAnyAuthenticatedUser: true},
 	}
+	require.NoError(t, cfg.Options.Validate())
 
 	route1ClusterID := envoyconfig.GetClusterID(&cfg.Options.Policies[0])
 	route2ClusterID := envoyconfig.GetClusterID(&cfg.Options.Policies[1])
@@ -230,7 +413,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 
 	key := newSSHKey(t)
 	sshKey, _ := gossh.NewPublicKey(key.Public())
-	authRequest := &extensions_ssh.ClientMessage{
+	publicKeyAuthRequest := &extensions_ssh.ClientMessage{
 		Message: &extensions_ssh.ClientMessage_AuthRequest{
 			AuthRequest: &extensions_ssh.AuthenticationRequest{
 				Protocol:   "ssh",
@@ -240,24 +423,55 @@ func TestReverseTunnelEDS(t *testing.T) {
 				MethodRequest: marshalAny(&extensions_ssh.PublicKeyMethodRequest{
 					PublicKey:                  key,
 					PublicKeyAlg:               "ssh-ed25519",
-					PublicKeyFingerprintSha256: []byte(gossh.FingerprintSHA256(sshKey)),
+					PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
 				}),
 			},
 		},
 	}
+	kbdIntAuthRequest := &extensions_ssh.ClientMessage{
+		Message: &extensions_ssh.ClientMessage_AuthRequest{
+			AuthRequest: &extensions_ssh.AuthenticationRequest{
+				Protocol:      "ssh",
+				Service:       "ssh-connection",
+				Username:      "user",
+				AuthMethod:    "keyboard-interactive",
+				MethodRequest: marshalAny(&extensions_ssh.KeyboardInteractiveMethodRequest{}),
+			},
+		},
+	}
 	auth.EXPECT().
-		HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, api.UserRequest, *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
-			return ssh.PublicKeyAuthMethodResponse{
-				Allow: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey: []byte(gossh.FingerprintSHA256(sshKey)),
+		HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, ssh.StreamInfo, ssh.StreamAuthInfo, api.UserRequest, *extensions_ssh.PublicKeyMethodRequest) (ssh.AuthMethodResponse, error) {
+			return ssh.AuthMethodResponse{
+				AllowMethod:            true,
+				NextRequiredAuthMethod: "keyboard-interactive",
+				ContextUpdates: &extensions_ssh.AuthContext{
+					PublicKey:                  sshKey.Marshal(),
+					PublicKeyAlg:               sshKey.Type(),
+					PublicKeyFingerprintSha256: RawFingerprintSHA256(sshKey),
+				},
+			}, nil
+		}).
+		AnyTimes()
+	nextSession := &atomic.Int32{}
+	auth.EXPECT().
+		HandleKeyboardInteractiveMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, ssh.StreamInfo, ssh.StreamAuthInfo, api.UserRequest, *extensions_ssh.KeyboardInteractiveMethodRequest, ssh.KeyboardInteractiveQuerier) (ssh.AuthMethodResponse, error) {
+			n := nextSession.Add(1)
+			return ssh.AuthMethodResponse{
+				AllowMethod:              true,
+				NoFurtherMethodsRequired: true,
+				ContextUpdates: &extensions_ssh.AuthContext{
+					SessionId:        fmt.Sprintf("tunnel-session-%d", n),
+					UserId:           fmt.Sprintf("tunnel-user-%d", n),
+					SessionBindingId: fmt.Sprintf("tunnel-session-binding-%d", n),
 				},
 			}, nil
 		}).
 		AnyTimes()
 	auth.EXPECT().
-		EvaluateDelayed(gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, api.UserRequest) error {
+		EvaluateDelayed(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, ssh.StreamInfo, ssh.StreamAuthInfo, api.UserRequest) error {
 			return nil
 		}).
 		AnyTimes()
@@ -327,7 +541,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 		databrokerClient := databrokerpb.NewDataBrokerServiceClient(cc)
 		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
-		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
+		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(evalResultAlwaysAllow, databrokerClient))
 		m := ssh.NewStreamManager(t.Context(), auth, indexer, ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)), cfg)
 
 		go indexer.Run(t.Context())
@@ -356,25 +570,37 @@ func TestReverseTunnelEDS(t *testing.T) {
 			close(done2)
 		}()
 
-		sh.ReadC() <- authRequest
-		require.NotNil(t, (<-sh.WriteC()).GetAuthResponse())
+		sh.ReadC() <- publicKeyAuthRequest
+		resp := (<-sh.WriteC()).GetAuthResponse()
+		require.True(t, resp.GetDeny().GetPartial())
+		require.Equal(t, []string{"keyboard-interactive"}, resp.GetDeny().GetMethods())
+		sh.ReadC() <- kbdIntAuthRequest
+		resp = (<-sh.WriteC()).GetAuthResponse()
+		require.NotNil(t, resp.GetAllow())
+		assert.NotEmpty(t, resp.GetAllow().AuthContext.SessionId)
+		assert.NotEmpty(t, resp.GetAllow().AuthContext.SessionBindingId)
+		assert.NotEmpty(t, resp.GetAllow().AuthContext.UserId)
 
-		m.OnStreamAuthenticated(ctx, 1234, ssh.AuthRequest{SessionID: "tunnel-session", SessionBindingID: "tunnel-session-binding"})
+		m.OnStreamAuthenticated(ctx, 1234, ssh.AuthRequest{
+			SessionID:        resp.GetAllow().AuthContext.SessionId,
+			SessionBindingID: resp.GetAllow().AuthContext.SessionBindingId,
+		})
 		databrokerClient.Put(t.Context(), &databrokerpb.PutRequest{
 			Records: []*databrokerpb.Record{
 				{
 					Type: "type.googleapis.com/session.Session",
-					Id:   "tunnel-session",
+					Id:   resp.GetAllow().AuthContext.SessionId,
 					Data: marshalAny(&session.Session{
-						Id: "tunnel-session",
+						Id: resp.GetAllow().AuthContext.SessionId,
 					}),
 				},
 				{
 					Type: "type.googleapis.com/session.SessionBinding",
-					Id:   "tunnel-session-binding",
+					Id:   resp.GetAllow().AuthContext.SessionBindingId,
 					Data: marshalAny(&session.SessionBinding{
 						Protocol:  "ssh",
-						SessionId: "tunnel-session",
+						SessionId: resp.GetAllow().AuthContext.SessionId,
+						UserId:    resp.GetAllow().AuthContext.UserId,
 					}),
 				},
 			},
@@ -487,7 +713,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 		databrokerClient := databrokerpb.NewDataBrokerServiceClient(cc)
 		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
-		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
+		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(evalResultAlwaysAllow, databrokerClient))
 		m := ssh.NewStreamManager(t.Context(), auth, indexer, ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)), cfg)
 
 		go indexer.Run(t.Context())
@@ -525,43 +751,70 @@ func TestReverseTunnelEDS(t *testing.T) {
 			<-done2
 		})
 
-		sh1.ReadC() <- authRequest
-		require.NotNil(t, (<-sh1.WriteC()).GetAuthResponse())
-		sh2.ReadC() <- authRequest
-		require.NotNil(t, (<-sh2.WriteC()).GetAuthResponse())
+		var resp1, resp2 *extensions_ssh.AuthenticationResponse
+		{
+			sh1.ReadC() <- publicKeyAuthRequest
+			deny := (<-sh1.WriteC()).GetAuthResponse()
+			require.True(t, deny.GetDeny().GetPartial())
+			require.Equal(t, []string{"keyboard-interactive"}, deny.GetDeny().GetMethods())
+			sh1.ReadC() <- kbdIntAuthRequest
+			resp1 = (<-sh1.WriteC()).GetAuthResponse()
+			require.NotNil(t, resp1.GetAllow())
+		}
+		{
+			sh2.ReadC() <- publicKeyAuthRequest
+			deny := (<-sh2.WriteC()).GetAuthResponse()
+			require.True(t, deny.GetDeny().GetPartial())
+			require.Equal(t, []string{"keyboard-interactive"}, deny.GetDeny().GetMethods())
+			sh2.ReadC() <- kbdIntAuthRequest
+			resp2 = (<-sh2.WriteC()).GetAuthResponse()
+			require.NotNil(t, resp2.GetAllow())
+		}
+		// mock sanity check
+		require.NotEqual(t, resp1.GetAllow().AuthContext.SessionId, resp2.GetAllow().AuthContext.SessionId)
+		require.NotEqual(t, resp1.GetAllow().AuthContext.SessionBindingId, resp2.GetAllow().AuthContext.SessionBindingId)
+		require.NotEqual(t, resp1.GetAllow().AuthContext.UserId, resp2.GetAllow().AuthContext.UserId)
 
-		require.NoError(t, m.OnStreamAuthenticated(ctx, 1234, ssh.AuthRequest{SessionID: "tunnel-session-1", SessionBindingID: "tunnel-session-binding-1"}))
-		require.NoError(t, m.OnStreamAuthenticated(ctx, 2345, ssh.AuthRequest{SessionID: "tunnel-session-2", SessionBindingID: "tunnel-session-binding-2"}))
+		require.NoError(t, m.OnStreamAuthenticated(ctx, 1234, ssh.AuthRequest{
+			SessionID:        resp1.GetAllow().AuthContext.SessionId,
+			SessionBindingID: resp1.GetAllow().AuthContext.SessionBindingId,
+		}))
+		require.NoError(t, m.OnStreamAuthenticated(ctx, 2345, ssh.AuthRequest{
+			SessionID:        resp2.GetAllow().AuthContext.SessionId,
+			SessionBindingID: resp2.GetAllow().AuthContext.SessionBindingId,
+		}))
 		databrokerClient.Put(t.Context(), &databrokerpb.PutRequest{
 			Records: []*databrokerpb.Record{
 				{
 					Type: "type.googleapis.com/session.Session",
-					Id:   "tunnel-session-1",
+					Id:   resp1.GetAllow().AuthContext.SessionId,
 					Data: marshalAny(&session.Session{
-						Id: "tunnel-session-1",
+						Id: resp1.GetAllow().AuthContext.SessionId,
 					}),
 				},
 				{
 					Type: "type.googleapis.com/session.SessionBinding",
-					Id:   "tunnel-session-binding-1",
+					Id:   resp1.GetAllow().AuthContext.SessionBindingId,
 					Data: marshalAny(&session.SessionBinding{
 						Protocol:  "ssh",
-						SessionId: "tunnel-session-1",
+						SessionId: resp1.GetAllow().AuthContext.SessionId,
+						UserId:    resp1.GetAllow().AuthContext.UserId,
 					}),
 				},
 				{
 					Type: "type.googleapis.com/session.Session",
-					Id:   "tunnel-session-2",
+					Id:   resp2.GetAllow().AuthContext.SessionId,
 					Data: marshalAny(&session.Session{
-						Id: "tunnel-session-2",
+						Id: resp2.GetAllow().AuthContext.SessionId,
 					}),
 				},
 				{
 					Type: "type.googleapis.com/session.SessionBinding",
-					Id:   "tunnel-session-binding-2",
+					Id:   resp2.GetAllow().AuthContext.SessionBindingId,
 					Data: marshalAny(&session.SessionBinding{
 						Protocol:  "ssh",
-						SessionId: "tunnel-session-2",
+						SessionId: resp2.GetAllow().AuthContext.SessionId,
+						UserId:    resp2.GetAllow().AuthContext.UserId,
 					}),
 				},
 			},

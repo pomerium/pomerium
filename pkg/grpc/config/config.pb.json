@@ -71,6 +71,34 @@
           ]
         },
         {
+          "name": "EnterpriseValidationMode",
+          "longName": "EnterpriseValidationMode",
+          "fullName": "pomerium.config.EnterpriseValidationMode",
+          "description": "EnterpriseValidationMode indicates the level of validation the enterprise console will perform.",
+          "values": [
+            {
+              "name": "ENTERPRISE_VALIDATION_MODE_UNKNOWN",
+              "number": "0",
+              "description": ""
+            },
+            {
+              "name": "ENTERPRISE_VALIDATION_MODE_DISABLED",
+              "number": "1",
+              "description": "Disables validation."
+            },
+            {
+              "name": "ENTERPRISE_VALIDATION_MODE_STATIC",
+              "number": "2",
+              "description": "Only does static validation."
+            },
+            {
+              "name": "ENTERPRISE_VALIDATION_MODE_FULL",
+              "number": "3",
+              "description": "Does full validation using envoy."
+            }
+          ]
+        },
+        {
           "name": "HeadersWithUnderscoresAction",
           "longName": "HeadersWithUnderscoresAction",
           "fullName": "pomerium.config.HeadersWithUnderscoresAction",
@@ -220,6 +248,39 @@
               "name": "KEY_PAIR_STATUS_PENDING",
               "number": "2",
               "description": "The key pair is still being prepared (e.g. waiting on ACME issuance)."
+            }
+          ]
+        },
+        {
+          "name": "LicenseType",
+          "longName": "LicenseType",
+          "fullName": "pomerium.config.LicenseType",
+          "description": "LicenseType is the license type for Pomerium.",
+          "values": [
+            {
+              "name": "LICENSE_TYPE_UNKNOWN",
+              "number": "0",
+              "description": ""
+            },
+            {
+              "name": "LICENSE_TYPE_OPEN_SOURCE",
+              "number": "1",
+              "description": "Open Source Edition"
+            },
+            {
+              "name": "LICENSE_TYPE_COMMUNITY",
+              "number": "2",
+              "description": "Community Edition"
+            },
+            {
+              "name": "LICENSE_TYPE_COMMERCIAL",
+              "number": "3",
+              "description": "Commercial Edition"
+            },
+            {
+              "name": "LICENSE_TYPE_COMMERCIAL_TRIAL",
+              "number": "4",
+              "description": "Commercial Trial Edition"
             }
           ]
         },
@@ -1258,6 +1319,690 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_ca_key_pair_id",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "EnterpriseSettings",
+          "longName": "EnterpriseSettings",
+          "fullName": "pomerium.config.EnterpriseSettings",
+          "description": "EnterpriseSettings are the embedded enterprise configuration settings.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "administrators",
+              "description": "A list of user IDs or email addresses to make administrators..",
+              "label": "optional",
+              "type": "StringList",
+              "longType": "EnterpriseSettings.StringList",
+              "fullType": "pomerium.config.EnterpriseSettings.StringList",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_administrators",
+              "defaultValue": ""
+            },
+            {
+              "name": "analytics_collect_interval",
+              "description": "The period for analytics data collection and export to the cloud.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_analytics_collect_interval",
+              "defaultValue": ""
+            },
+            {
+              "name": "analytics_url",
+              "description": "The analytics URL.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_analytics_url",
+              "defaultValue": ""
+            },
+            {
+              "name": "audience",
+              "description": "A list of audiences for verifying the signing key.",
+              "label": "optional",
+              "type": "StringList",
+              "longType": "EnterpriseSettings.StringList",
+              "fullType": "pomerium.config.EnterpriseSettings.StringList",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_audience",
+              "defaultValue": ""
+            },
+            {
+              "name": "authenticate_service_url",
+              "description": "The URL for the authenticate service.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_authenticate_service_url",
+              "defaultValue": ""
+            },
+            {
+              "name": "bind_address",
+              "description": "The address the enterprise console will listen on.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_bind_address",
+              "defaultValue": ""
+            },
+            {
+              "name": "bootstrap_service_account",
+              "description": "When true, create the bootstrap service account in the database.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_bootstrap_service_account",
+              "defaultValue": ""
+            },
+            {
+              "name": "cache_dir",
+              "description": "The directory to store cache data.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_cache_dir",
+              "defaultValue": ""
+            },
+            {
+              "name": "changeset_required_approval_count",
+              "description": "How many approvals are required to deploy a changeset.",
+              "label": "optional",
+              "type": "uint32",
+              "longType": "uint32",
+              "fullType": "uint32",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_changeset_required_approval_count",
+              "defaultValue": ""
+            },
+            {
+              "name": "customer_id",
+              "description": "The customer ID.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_customer_id",
+              "defaultValue": ""
+            },
+            {
+              "name": "dangerously_disable_all_namespace_checks",
+              "description": "Disables all namespace checks.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_dangerously_disable_all_namespace_checks",
+              "defaultValue": ""
+            },
+            {
+              "name": "database_encryption_key",
+              "description": "The encryption key for encrypting sensitive data in the database.",
+              "label": "optional",
+              "type": "bytes",
+              "longType": "bytes",
+              "fullType": "bytes",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_database_encryption_key",
+              "defaultValue": ""
+            },
+            {
+              "name": "database_encryption_key_file",
+              "description": "A file containing the base64-encoded database encryption key.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_database_encryption_key_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "database_encryption_key_raw_file",
+              "description": "A file containing the raw database encryption key.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_database_encryption_key_raw_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "database_url",
+              "description": "The database the enterprise console will use.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_database_url",
+              "defaultValue": ""
+            },
+            {
+              "name": "databroker_service_urls",
+              "description": "The databroker service URLs.",
+              "label": "optional",
+              "type": "StringList",
+              "longType": "EnterpriseSettings.StringList",
+              "fullType": "pomerium.config.EnterpriseSettings.StringList",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_databroker_service_urls",
+              "defaultValue": ""
+            },
+            {
+              "name": "debug_address",
+              "description": "The address to expose pprof debug endpoints.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_debug_address",
+              "defaultValue": ""
+            },
+            {
+              "name": "debug_config_dump",
+              "description": "Dumps the databroker configuration. This is a debug option to be used\nonly when specified by Pomerium Support.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_debug_config_dump",
+              "defaultValue": ""
+            },
+            {
+              "name": "directory_provider",
+              "description": "The directory provider for directory sync.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_directory_provider",
+              "defaultValue": ""
+            },
+            {
+              "name": "directory_provider_options",
+              "description": "The directory provider options for directory sync.",
+              "label": "optional",
+              "type": "Struct",
+              "longType": "google.protobuf.Struct",
+              "fullType": "google.protobuf.Struct",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_directory_provider_options",
+              "defaultValue": ""
+            },
+            {
+              "name": "directory_provider_refresh_interval",
+              "description": "The directory provider refresh interval.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_directory_provider_refresh_interval",
+              "defaultValue": ""
+            },
+            {
+              "name": "directory_provider_refresh_timeout",
+              "description": "The directory provider refresh timeout.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_directory_provider_refresh_timeout",
+              "defaultValue": ""
+            },
+            {
+              "name": "disable_feedback_widget",
+              "description": "Disables the feedback widget.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_disable_feedback_widget",
+              "defaultValue": ""
+            },
+            {
+              "name": "disable_remote_diagnostics",
+              "description": "Disables remote diagnostics.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_disable_remote_diagnostics",
+              "defaultValue": ""
+            },
+            {
+              "name": "enable_session_recording_querier_cache",
+              "description": "Indexes remote session recording metadata locally for more efficient\nquerying.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_enable_session_recording_querier_cache",
+              "defaultValue": ""
+            },
+            {
+              "name": "grpc_address",
+              "description": "The address to listen for gRPC on.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_grpc_address",
+              "defaultValue": ""
+            },
+            {
+              "name": "license_key",
+              "description": "The license key issued by your account team.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_license_key",
+              "defaultValue": ""
+            },
+            {
+              "name": "license_key_validate_offline",
+              "description": "Validates the license key offline, without contacting the license server.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_license_key_validate_offline",
+              "defaultValue": ""
+            },
+            {
+              "name": "log_level",
+              "description": "The enterprise console log level. Defaults to info.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_log_level",
+              "defaultValue": ""
+            },
+            {
+              "name": "metrics_address",
+              "description": "The address to expose console metrics in Prometheus format.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_metrics_address",
+              "defaultValue": ""
+            },
+            {
+              "name": "override_certificate_name",
+              "description": "Overrides the certificate name used for the databroker connection.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_override_certificate_name",
+              "defaultValue": ""
+            },
+            {
+              "name": "prometheus_data_dir",
+              "description": "The path to Prometheus data.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_prometheus_data_dir",
+              "defaultValue": ""
+            },
+            {
+              "name": "prometheus_listen_address",
+              "description": "The address the embedded Prometheus listens on, as host:port.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_prometheus_listen_address",
+              "defaultValue": ""
+            },
+            {
+              "name": "prometheus_scrape_interval",
+              "description": "The Prometheus scrape frequency.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_prometheus_scrape_interval",
+              "defaultValue": ""
+            },
+            {
+              "name": "prometheus_url",
+              "description": "The URL to access the Prometheus metrics server.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_prometheus_url",
+              "defaultValue": ""
+            },
+            {
+              "name": "public_address",
+              "description": "The address the enterprise console is reachable at. Defaults to\nbind_address.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_public_address",
+              "defaultValue": ""
+            },
+            {
+              "name": "session_recording_options",
+              "description": "Bootstrap settings for session recording for the default cluster.",
+              "label": "optional",
+              "type": "Struct",
+              "longType": "google.protobuf.Struct",
+              "fullType": "google.protobuf.Struct",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_session_recording_options",
+              "defaultValue": ""
+            },
+            {
+              "name": "shared_secret",
+              "description": "The secret for signing JWTs, shared with Pomerium.",
+              "label": "optional",
+              "type": "bytes",
+              "longType": "bytes",
+              "fullType": "bytes",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_shared_secret",
+              "defaultValue": ""
+            },
+            {
+              "name": "shared_secret_file",
+              "description": "A file containing the base64-encoded shared secret.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_shared_secret_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "shared_secret_raw_file",
+              "description": "A file containing the raw shared secret.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_shared_secret_raw_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "signing_key",
+              "description": "The signing key (public or private) for verifying JWTs.\nThis option is deprecated.",
+              "label": "optional",
+              "type": "bytes",
+              "longType": "bytes",
+              "fullType": "bytes",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_signing_key",
+              "defaultValue": ""
+            },
+            {
+              "name": "signing_key_file",
+              "description": "A file containing the base64-encoded signing key.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_signing_key_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "signing_key_raw_file",
+              "description": "A file containing the raw signing key.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_signing_key_raw_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "tls_certificate",
+              "description": "The TLS certificate.",
+              "label": "optional",
+              "type": "bytes",
+              "longType": "bytes",
+              "fullType": "bytes",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_tls_certificate",
+              "defaultValue": ""
+            },
+            {
+              "name": "tls_certificate_authority",
+              "description": "The TLS certificate authority.",
+              "label": "optional",
+              "type": "bytes",
+              "longType": "bytes",
+              "fullType": "bytes",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_tls_certificate_authority",
+              "defaultValue": ""
+            },
+            {
+              "name": "tls_certificate_authority_file",
+              "description": "A file containing the TLS certificate authority.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_tls_certificate_authority_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "tls_certificate_file",
+              "description": "A file containing the TLS certificate.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_tls_certificate_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "tls_derive",
+              "description": "Derives the TLS certificate for this domain name from the shared secret.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_tls_derive",
+              "defaultValue": ""
+            },
+            {
+              "name": "tls_insecure_skip_verify",
+              "description": "Disables remote hosts' TLS certificate chain and hostname checks.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_tls_insecure_skip_verify",
+              "defaultValue": ""
+            },
+            {
+              "name": "tls_key",
+              "description": "The TLS private key.",
+              "label": "optional",
+              "type": "bytes",
+              "longType": "bytes",
+              "fullType": "bytes",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_tls_key",
+              "defaultValue": ""
+            },
+            {
+              "name": "tls_key_file",
+              "description": "A file containing the TLS private key.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_tls_key_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "url",
+              "description": "The URL to host the enterprise console at. The enterprise console is\nonly enabled when this is set.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_url",
+              "defaultValue": ""
+            },
+            {
+              "name": "use_static_assets",
+              "description": "When false, forwards static requests to localhost:3000. Defaults to true.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_use_static_assets",
+              "defaultValue": ""
+            },
+            {
+              "name": "validation_mode",
+              "description": "How much validation to perform. Defaults to static.",
+              "label": "optional",
+              "type": "EnterpriseValidationMode",
+              "longType": "EnterpriseValidationMode",
+              "fullType": "pomerium.config.EnterpriseValidationMode",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_validation_mode",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "StringList",
+          "longName": "EnterpriseSettings.StringList",
+          "fullName": "pomerium.config.EnterpriseSettings.StringList",
+          "description": "Wrapper for a list of strings.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "values",
+              "description": "The string values held by this list.",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
               "defaultValue": ""
             }
           ]
@@ -3384,6 +4129,42 @@
           ]
         },
         {
+          "name": "OIDCBridge",
+          "longName": "OIDCBridge",
+          "fullName": "pomerium.config.OIDCBridge",
+          "description": "OIDC bridge settings control whether Pomerium can serve as an OpenID\nprovider for upstream applications.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "enabled",
+              "description": "Whether the OIDC bridge feature should be enabled.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_enabled",
+              "defaultValue": ""
+            },
+            {
+              "name": "client_secret",
+              "description": "Client secret to use for upstream applications that do not support\npublic clients / PKCE.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_client_secret",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "OutlierDetection",
           "longName": "OutlierDetection",
           "fullName": "pomerium.config.OutlierDetection",
@@ -4972,6 +5753,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_session_recording",
+              "defaultValue": ""
+            },
+            {
+              "name": "oidc_bridge",
+              "description": "Configure OIDC bridge support for this route.",
+              "label": "optional",
+              "type": "OIDCBridge",
+              "longType": "OIDCBridge",
+              "fullType": "pomerium.config.OIDCBridge",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_oidc_bridge",
               "defaultValue": ""
             },
             {
@@ -7163,6 +7956,18 @@
               "defaultValue": ""
             },
             {
+              "name": "ssh_two_person_approval_request_timeout",
+              "description": "Maximum duration for pending two-person approval requests before they expire and are denied.\nDefaults to 5 minutes.",
+              "label": "optional",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_ssh_two_person_approval_request_timeout",
+              "defaultValue": ""
+            },
+            {
               "name": "mcp_allowed_client_id_domains",
               "description": "mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.\nSupports wildcard patterns like \"*.example.com\".\nThis is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.",
               "label": "repeated",
@@ -7343,6 +8148,42 @@
               "defaultValue": ""
             },
             {
+              "name": "oidc_bridge",
+              "description": "Configure default OIDC bridge support for all routes.",
+              "label": "optional",
+              "type": "OIDCBridge",
+              "longType": "OIDCBridge",
+              "fullType": "pomerium.config.OIDCBridge",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_oidc_bridge",
+              "defaultValue": ""
+            },
+            {
+              "name": "enterprise",
+              "description": "Embedded enterprise options.",
+              "label": "optional",
+              "type": "EnterpriseSettings",
+              "longType": "EnterpriseSettings",
+              "fullType": "pomerium.config.EnterpriseSettings",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_enterprise",
+              "defaultValue": ""
+            },
+            {
+              "name": "license_type",
+              "description": "License type for Pomerium.",
+              "label": "optional",
+              "type": "LicenseType",
+              "longType": "LicenseType",
+              "fullType": "pomerium.config.LicenseType",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_license_type",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the settings were created.",
               "label": "",
@@ -7364,6 +8205,18 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "readonly_console_audiences",
+              "description": "When syncing settings from enterprise console, this field will be\npopulated with the console's current list of audiences (based on the value\nof the --audiences flag). This is used to identify the bootstrap console\nroute(s) that are defined in core so that additional configuration can be\napplied to those routes automatically. Some console features require\nadditional http route options to work correctly, in particular when using\nmultiple console replicas.",
+              "label": "optional",
+              "type": "StringList",
+              "longType": "Settings.StringList",
+              "fullType": "pomerium.config.Settings.StringList",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_readonly_console_audiences",
               "defaultValue": ""
             }
           ]

@@ -56,6 +56,7 @@ func generateConfig(ctx context.Context) error {
 		"pomerium.config.DeleteServiceAccountRequest",
 		"pomerium.config.DeleteServiceAccountResponse",
 		"pomerium.config.DownstreamMtlsSettings",
+		"pomerium.config.EnterpriseSettings.StringList",
 		"pomerium.config.EntityInfo",
 		"pomerium.config.GetKeyPairRequest",
 		"pomerium.config.GetKeyPairResponse",
@@ -236,7 +237,7 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 							setterName = "SliceOf" + setterName
 						}
 						srcRef := jen.Id("src").Dot(protoGoName)
-						if fd.HasOptionalKeyword() {
+						if fd.HasOptionalKeyword() || setterName == "SliceOfByte" {
 							// do nothing
 						} else if od := fd.ContainingOneof(); od != nil {
 							srcRef = jen.Id("getOneOf").Call(
@@ -373,7 +374,6 @@ func generateBasicSetters(_ context.Context, g *jen.Group) error {
 	}
 	baseDefs := []Def{
 		{"bool", "Bool"},
-		{"byte", "Byte"},
 		{"float32", "Float"},
 		{"float64", "Double"},
 		{"int16", "Int16"},
@@ -637,7 +637,7 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
 		case "google.protobuf.Int64Value":
 			s = jen.Int64()
 		case "google.protobuf.Struct":
-			s = jen.Op("*").Qual("google.golang.org/protobuf/types/known/structpb", "Struct")
+			s = jen.Map(jen.String()).Any()
 		case "google.protobuf.Timestamp":
 			s = jen.Qual("time", "Time")
 		case "google.protobuf.UInt16Value":
@@ -646,7 +646,9 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
 			s = jen.Uint32()
 		case "google.protobuf.UInt64Value":
 			s = jen.Uint64()
-		case "pomerium.config.Route.StringList", "pomerium.config.Settings.StringList":
+		case "pomerium.config.EnterpriseSettings.StringList",
+			"pomerium.config.Route.StringList",
+			"pomerium.config.Settings.StringList":
 			s = jen.Index().String()
 		default:
 			s = jen.Id(getMessageName(fd.Message()))
@@ -700,7 +702,8 @@ func getFieldTypeName(fd protoreflect.FieldDescriptor) string {
 		name = "SliceOfByte"
 	case protoreflect.MessageKind:
 		switch fd.Message().FullName() {
-		case "pomerium.config.Route.StringList",
+		case "pomerium.config.EnterpriseSettings.StringList",
+			"pomerium.config.Route.StringList",
 			"pomerium.config.Settings.StringList":
 			name = "StringList"
 		case "google.protobuf.Timestamp":
@@ -743,34 +746,32 @@ func getLocalMessageName(md protoreflect.MessageDescriptor) string {
 }
 
 func iterateMessageFields(md protoreflect.MessageDescriptor) iter.Seq[protoreflect.FieldDescriptor] {
+	routeInclusionRanges := fieldNumberRanges{
+		{65, 65},
+		{70, 70},
+		{78, 78},
+		{81, 81},
+		{93, 94},
+		{96, 1000},
+	}
+	settingsInclusionRanges := fieldNumberRanges{
+		{73, 73},
+		{138, 139},
+		{160, 160},
+		{180, 187},
+		{189, 1000},
+	}
+
 	fds := md.Fields()
 	var s []protoreflect.FieldDescriptor
 	for i := range fds.Len() {
 		fd := fds.Get(i)
 		if md.FullName() == "pomerium.config.Route" &&
-			fd.Number() < 93 &&
-			fd.Number() != 78 &&
-			fd.Number() != 70 &&
-			fd.Number() != 65 {
-			continue
-		}
-		// Route.identity_providers (95) has hand-written conversions in
-		// config/policy.go, so it must not be auto-generated.
-		if md.FullName() == "pomerium.config.Route" &&
-			fd.Number() == 95 {
+			!routeInclusionRanges.includes(fd.Number()) {
 			continue
 		}
 		if md.FullName() == "pomerium.config.Settings" &&
-			fd.Number() < 180 &&
-			fd.Number() != 138 &&
-			fd.Number() != 73 &&
-			fd.Number() != 139 {
-			continue
-		}
-		// Settings.identity_providers (188) has hand-written conversions in
-		// config/options.go and must not be auto-generated.
-		if md.FullName() == "pomerium.config.Settings" &&
-			fd.Number() == 188 {
+			!settingsInclusionRanges.includes(fd.Number()) {
 			continue
 		}
 		s = append(s, fd)
@@ -794,6 +795,7 @@ func toGoPascalCase(str string) string {
 		"Grpc", "GRPC",
 		"Dns", "DNS",
 		"5xx", "_5xx",
+		"Tls", "TLS",
 	)
 	return r.Replace(strcase.ToPascal(str))
 }

@@ -1505,6 +1505,19 @@ func testPutIfMatchVersion(ctx context.Context, t *testing.T, backend storage.Ba
 		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 
+	t.Run("refuses to update a record deleted since it was read", func(t *testing.T) {
+		read := putUnconditionally(t, "deleted-since-read", "v1")
+		_, err := backend.Put(ctx, []*databroker.Record{
+			{Type: recordType, Id: "deleted-since-read", DeletedAt: timestamppb.Now()},
+		})
+		require.NoError(t, err)
+
+		_, err = backend.Put(ctx, []*databroker.Record{newRecord("deleted-since-read", "v2", read)}, storage.WithIfMatchVersion())
+		assert.ErrorIs(t, err, databroker.ErrRecordVersionMismatch)
+		_, err = backend.Get(ctx, recordType, "deleted-since-read")
+		assert.Equal(t, codes.NotFound, status.Code(err), "a write at a stale version must not bring the record back")
+	})
+
 	t.Run("rejects a batch that names the same record twice", func(t *testing.T) {
 		current := putUnconditionally(t, "duplicate", "v1")
 

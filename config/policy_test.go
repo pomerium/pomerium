@@ -391,16 +391,42 @@ func TestPolicy_FromToPb(t *testing.T) {
 }
 
 func TestPolicy_Matches(t *testing.T) {
+	matches := func(p *Policy, url string) bool {
+		return p.Matches(urlutil.MustParseAndValidateURL(url), true)
+	}
 	t.Run("full", func(t *testing.T) {
 		p := &Policy{
 			From:  "https://www.example.com",
 			To:    mustParseWeightedURLs(t, "https://localhost"),
-			Regex: `/foo`,
+			Regex: "/foo",
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.False(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar`), true),
+		assert.False(t, matches(p, "https://www.example.com/foo/bar"),
 			"regex should only match full string")
+	})
+	t.Run("full-with-alternation", func(t *testing.T) {
+		p := &Policy{
+			From:  "https://www.example.com",
+			To:    mustParseWeightedURLs(t, "https://localhost"),
+			Regex: "/foo|/bar|/baz",
+		}
+		assert.NoError(t, p.Validate())
+
+		assert.True(t, matches(p, "https://www.example.com/foo"))
+		assert.True(t, matches(p, "https://www.example.com/bar"))
+		assert.True(t, matches(p, "https://www.example.com/baz"))
+		assert.False(t, matches(p, "https://www.example.com/foo/something"))
+		assert.False(t, matches(p, "https://www.example.com/some/path/with/bar/anywhere/in/it"))
+		assert.False(t, matches(p, "https://www.example.com/something/baz"))
+	})
+	t.Run("invalid-regex", func(t *testing.T) {
+		p := &Policy{
+			From:  "https://www.example.com",
+			To:    mustParseWeightedURLs(t, "https://localhost"),
+			Regex: "foo)|(bar",
+		}
+		assert.ErrorContains(t, p.Validate(), "config: invalid regex")
 	})
 	t.Run("issue2952", func(t *testing.T) {
 		p := &Policy{
@@ -410,18 +436,18 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar/0`), true))
+		assert.True(t, matches(p, "https://www.example.com/foo/bar/0"))
 	})
-	t.Run("issue2592-test2", func(t *testing.T) {
+	t.Run("issue2952-test2", func(t *testing.T) {
 		p := &Policy{
 			From:  "https://www.example.com",
 			To:    mustParseWeightedURLs(t, "https://localhost"),
-			Regex: `/admin/.*`,
+			Regex: "/admin/.*",
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/foo`), true))
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/bar`), true))
+		assert.True(t, matches(p, "https://www.example.com/admin/foo"))
+		assert.True(t, matches(p, "https://www.example.com/admin/bar"))
 	})
 	t.Run("tcp", func(t *testing.T) {
 		p := &Policy{
@@ -430,7 +456,7 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://tcp.example.com:6379`), true))
+		assert.True(t, matches(p, "https://tcp.example.com:6379"))
 	})
 }
 

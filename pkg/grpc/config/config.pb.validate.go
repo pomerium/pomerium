@@ -2026,6 +2026,39 @@ func (m *Route) validate(all bool) error {
 
 	}
 
+	if m.OidcBridge != nil {
+
+		if all {
+			switch v := interface{}(m.GetOidcBridge()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, RouteValidationError{
+						field:  "OidcBridge",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, RouteValidationError{
+						field:  "OidcBridge",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetOidcBridge()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return RouteValidationError{
+					field:  "OidcBridge",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if m.NamespaceName != nil {
 		// no validation rules for NamespaceName
 	}
@@ -2915,6 +2948,113 @@ var _ interface {
 	ErrorName() string
 } = OAuth2EndpointValidationError{}
 
+// Validate checks the field values on OIDCBridge with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *OIDCBridge) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on OIDCBridge with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in OIDCBridgeMultiError, or
+// nil if none found.
+func (m *OIDCBridge) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *OIDCBridge) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if m.Enabled != nil {
+		// no validation rules for Enabled
+	}
+
+	if m.ClientSecret != nil {
+		// no validation rules for ClientSecret
+	}
+
+	if len(errors) > 0 {
+		return OIDCBridgeMultiError(errors)
+	}
+
+	return nil
+}
+
+// OIDCBridgeMultiError is an error wrapping multiple validation errors
+// returned by OIDCBridge.ValidateAll() if the designated constraints aren't met.
+type OIDCBridgeMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m OIDCBridgeMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m OIDCBridgeMultiError) AllErrors() []error { return m }
+
+// OIDCBridgeValidationError is the validation error returned by
+// OIDCBridge.Validate if the designated constraints aren't met.
+type OIDCBridgeValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e OIDCBridgeValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e OIDCBridgeValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e OIDCBridgeValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e OIDCBridgeValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e OIDCBridgeValidationError) ErrorName() string { return "OIDCBridgeValidationError" }
+
+// Error satisfies the builtin error interface
+func (e OIDCBridgeValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sOIDCBridge.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = OIDCBridgeValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = OIDCBridgeValidationError{}
+
 // Validate checks the field values on PPLPolicy with the rules defined in the
 // proto definition for this message. If any rules are violated, the first
 // error encountered is returned, or nil if there are no violations.
@@ -3325,6 +3465,585 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = PolicyValidationError{}
+
+// Validate checks the field values on EnterpriseSettings with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *EnterpriseSettings) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on EnterpriseSettings with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// EnterpriseSettingsMultiError, or nil if none found.
+func (m *EnterpriseSettings) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *EnterpriseSettings) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if m.Administrators != nil {
+
+		if all {
+			switch v := interface{}(m.GetAdministrators()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "Administrators",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "Administrators",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetAdministrators()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EnterpriseSettingsValidationError{
+					field:  "Administrators",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.AnalyticsCollectInterval != nil {
+
+		if all {
+			switch v := interface{}(m.GetAnalyticsCollectInterval()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "AnalyticsCollectInterval",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "AnalyticsCollectInterval",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetAnalyticsCollectInterval()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EnterpriseSettingsValidationError{
+					field:  "AnalyticsCollectInterval",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.AnalyticsUrl != nil {
+		// no validation rules for AnalyticsUrl
+	}
+
+	if m.Audience != nil {
+
+		if all {
+			switch v := interface{}(m.GetAudience()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "Audience",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "Audience",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetAudience()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EnterpriseSettingsValidationError{
+					field:  "Audience",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.AuthenticateServiceUrl != nil {
+		// no validation rules for AuthenticateServiceUrl
+	}
+
+	if m.BindAddress != nil {
+		// no validation rules for BindAddress
+	}
+
+	if m.BootstrapServiceAccount != nil {
+		// no validation rules for BootstrapServiceAccount
+	}
+
+	if m.CacheDir != nil {
+		// no validation rules for CacheDir
+	}
+
+	if m.ChangesetRequiredApprovalCount != nil {
+		// no validation rules for ChangesetRequiredApprovalCount
+	}
+
+	if m.CustomerId != nil {
+		// no validation rules for CustomerId
+	}
+
+	if m.DangerouslyDisableAllNamespaceChecks != nil {
+		// no validation rules for DangerouslyDisableAllNamespaceChecks
+	}
+
+	if m.DatabaseEncryptionKey != nil {
+		// no validation rules for DatabaseEncryptionKey
+	}
+
+	if m.DatabaseEncryptionKeyFile != nil {
+		// no validation rules for DatabaseEncryptionKeyFile
+	}
+
+	if m.DatabaseEncryptionKeyRawFile != nil {
+		// no validation rules for DatabaseEncryptionKeyRawFile
+	}
+
+	if m.DatabaseUrl != nil {
+		// no validation rules for DatabaseUrl
+	}
+
+	if m.DatabrokerServiceUrls != nil {
+
+		if all {
+			switch v := interface{}(m.GetDatabrokerServiceUrls()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "DatabrokerServiceUrls",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "DatabrokerServiceUrls",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetDatabrokerServiceUrls()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EnterpriseSettingsValidationError{
+					field:  "DatabrokerServiceUrls",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.DebugAddress != nil {
+		// no validation rules for DebugAddress
+	}
+
+	if m.DebugConfigDump != nil {
+		// no validation rules for DebugConfigDump
+	}
+
+	if m.DirectoryProvider != nil {
+		// no validation rules for DirectoryProvider
+	}
+
+	if m.DirectoryProviderOptions != nil {
+
+		if all {
+			switch v := interface{}(m.GetDirectoryProviderOptions()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "DirectoryProviderOptions",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "DirectoryProviderOptions",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetDirectoryProviderOptions()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EnterpriseSettingsValidationError{
+					field:  "DirectoryProviderOptions",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.DirectoryProviderRefreshInterval != nil {
+
+		if all {
+			switch v := interface{}(m.GetDirectoryProviderRefreshInterval()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "DirectoryProviderRefreshInterval",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "DirectoryProviderRefreshInterval",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetDirectoryProviderRefreshInterval()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EnterpriseSettingsValidationError{
+					field:  "DirectoryProviderRefreshInterval",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.DirectoryProviderRefreshTimeout != nil {
+
+		if all {
+			switch v := interface{}(m.GetDirectoryProviderRefreshTimeout()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "DirectoryProviderRefreshTimeout",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "DirectoryProviderRefreshTimeout",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetDirectoryProviderRefreshTimeout()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EnterpriseSettingsValidationError{
+					field:  "DirectoryProviderRefreshTimeout",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.DisableFeedbackWidget != nil {
+		// no validation rules for DisableFeedbackWidget
+	}
+
+	if m.DisableRemoteDiagnostics != nil {
+		// no validation rules for DisableRemoteDiagnostics
+	}
+
+	if m.EnableSessionRecordingQuerierCache != nil {
+		// no validation rules for EnableSessionRecordingQuerierCache
+	}
+
+	if m.GrpcAddress != nil {
+		// no validation rules for GrpcAddress
+	}
+
+	if m.LicenseKey != nil {
+		// no validation rules for LicenseKey
+	}
+
+	if m.LicenseKeyValidateOffline != nil {
+		// no validation rules for LicenseKeyValidateOffline
+	}
+
+	if m.LogLevel != nil {
+		// no validation rules for LogLevel
+	}
+
+	if m.MetricsAddress != nil {
+		// no validation rules for MetricsAddress
+	}
+
+	if m.OverrideCertificateName != nil {
+		// no validation rules for OverrideCertificateName
+	}
+
+	if m.PrometheusDataDir != nil {
+		// no validation rules for PrometheusDataDir
+	}
+
+	if m.PrometheusListenAddress != nil {
+		// no validation rules for PrometheusListenAddress
+	}
+
+	if m.PrometheusScrapeInterval != nil {
+
+		if all {
+			switch v := interface{}(m.GetPrometheusScrapeInterval()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "PrometheusScrapeInterval",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "PrometheusScrapeInterval",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetPrometheusScrapeInterval()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EnterpriseSettingsValidationError{
+					field:  "PrometheusScrapeInterval",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.PrometheusUrl != nil {
+		// no validation rules for PrometheusUrl
+	}
+
+	if m.PublicAddress != nil {
+		// no validation rules for PublicAddress
+	}
+
+	if m.SessionRecordingOptions != nil {
+
+		if all {
+			switch v := interface{}(m.GetSessionRecordingOptions()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "SessionRecordingOptions",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EnterpriseSettingsValidationError{
+						field:  "SessionRecordingOptions",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetSessionRecordingOptions()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EnterpriseSettingsValidationError{
+					field:  "SessionRecordingOptions",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.SharedSecret != nil {
+		// no validation rules for SharedSecret
+	}
+
+	if m.SharedSecretFile != nil {
+		// no validation rules for SharedSecretFile
+	}
+
+	if m.SharedSecretRawFile != nil {
+		// no validation rules for SharedSecretRawFile
+	}
+
+	if m.SigningKey != nil {
+		// no validation rules for SigningKey
+	}
+
+	if m.SigningKeyFile != nil {
+		// no validation rules for SigningKeyFile
+	}
+
+	if m.SigningKeyRawFile != nil {
+		// no validation rules for SigningKeyRawFile
+	}
+
+	if m.TlsCertificate != nil {
+		// no validation rules for TlsCertificate
+	}
+
+	if m.TlsCertificateAuthority != nil {
+		// no validation rules for TlsCertificateAuthority
+	}
+
+	if m.TlsCertificateAuthorityFile != nil {
+		// no validation rules for TlsCertificateAuthorityFile
+	}
+
+	if m.TlsCertificateFile != nil {
+		// no validation rules for TlsCertificateFile
+	}
+
+	if m.TlsDerive != nil {
+		// no validation rules for TlsDerive
+	}
+
+	if m.TlsInsecureSkipVerify != nil {
+		// no validation rules for TlsInsecureSkipVerify
+	}
+
+	if m.TlsKey != nil {
+		// no validation rules for TlsKey
+	}
+
+	if m.TlsKeyFile != nil {
+		// no validation rules for TlsKeyFile
+	}
+
+	if m.Url != nil {
+		// no validation rules for Url
+	}
+
+	if m.UseStaticAssets != nil {
+		// no validation rules for UseStaticAssets
+	}
+
+	if m.ValidationMode != nil {
+		// no validation rules for ValidationMode
+	}
+
+	if len(errors) > 0 {
+		return EnterpriseSettingsMultiError(errors)
+	}
+
+	return nil
+}
+
+// EnterpriseSettingsMultiError is an error wrapping multiple validation errors
+// returned by EnterpriseSettings.ValidateAll() if the designated constraints
+// aren't met.
+type EnterpriseSettingsMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m EnterpriseSettingsMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m EnterpriseSettingsMultiError) AllErrors() []error { return m }
+
+// EnterpriseSettingsValidationError is the validation error returned by
+// EnterpriseSettings.Validate if the designated constraints aren't met.
+type EnterpriseSettingsValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e EnterpriseSettingsValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e EnterpriseSettingsValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e EnterpriseSettingsValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e EnterpriseSettingsValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e EnterpriseSettingsValidationError) ErrorName() string {
+	return "EnterpriseSettingsValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e EnterpriseSettingsValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sEnterpriseSettings.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = EnterpriseSettingsValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = EnterpriseSettingsValidationError{}
 
 // Validate checks the field values on Settings with the rules defined in the
 // proto definition for this message. If any rules are violated, the first
@@ -4592,6 +5311,39 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for SshUserCaKeyPairId
 	}
 
+	if m.SshTwoPersonApprovalRequestTimeout != nil {
+
+		if all {
+			switch v := interface{}(m.GetSshTwoPersonApprovalRequestTimeout()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "SshTwoPersonApprovalRequestTimeout",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "SshTwoPersonApprovalRequestTimeout",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetSshTwoPersonApprovalRequestTimeout()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  "SshTwoPersonApprovalRequestTimeout",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if m.DirectoryProvider != nil {
 		// no validation rules for DirectoryProvider
 	}
@@ -4783,6 +5535,109 @@ func (m *Settings) validate(all bool) error {
 
 	if m.HeadersWithUnderscoresAction != nil {
 		// no validation rules for HeadersWithUnderscoresAction
+	}
+
+	if m.OidcBridge != nil {
+
+		if all {
+			switch v := interface{}(m.GetOidcBridge()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "OidcBridge",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "OidcBridge",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetOidcBridge()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  "OidcBridge",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.Enterprise != nil {
+
+		if all {
+			switch v := interface{}(m.GetEnterprise()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "Enterprise",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "Enterprise",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetEnterprise()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  "Enterprise",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.LicenseType != nil {
+		// no validation rules for LicenseType
+	}
+
+	if m.ReadonlyConsoleAudiences != nil {
+
+		if all {
+			switch v := interface{}(m.GetReadonlyConsoleAudiences()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "ReadonlyConsoleAudiences",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "ReadonlyConsoleAudiences",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetReadonlyConsoleAudiences()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  "ReadonlyConsoleAudiences",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
 	}
 
 	if len(errors) > 0 {
@@ -14312,6 +15167,109 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = Route_StringListValidationError{}
+
+// Validate checks the field values on EnterpriseSettings_StringList with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *EnterpriseSettings_StringList) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on EnterpriseSettings_StringList with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// EnterpriseSettings_StringListMultiError, or nil if none found.
+func (m *EnterpriseSettings_StringList) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *EnterpriseSettings_StringList) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return EnterpriseSettings_StringListMultiError(errors)
+	}
+
+	return nil
+}
+
+// EnterpriseSettings_StringListMultiError is an error wrapping multiple
+// validation errors returned by EnterpriseSettings_StringList.ValidateAll()
+// if the designated constraints aren't met.
+type EnterpriseSettings_StringListMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m EnterpriseSettings_StringListMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m EnterpriseSettings_StringListMultiError) AllErrors() []error { return m }
+
+// EnterpriseSettings_StringListValidationError is the validation error
+// returned by EnterpriseSettings_StringList.Validate if the designated
+// constraints aren't met.
+type EnterpriseSettings_StringListValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e EnterpriseSettings_StringListValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e EnterpriseSettings_StringListValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e EnterpriseSettings_StringListValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e EnterpriseSettings_StringListValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e EnterpriseSettings_StringListValidationError) ErrorName() string {
+	return "EnterpriseSettings_StringListValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e EnterpriseSettings_StringListValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sEnterpriseSettings_StringList.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = EnterpriseSettings_StringListValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = EnterpriseSettings_StringListValidationError{}
 
 // Validate checks the field values on Settings_Certificate with the rules
 // defined in the proto definition for this message. If any rules are

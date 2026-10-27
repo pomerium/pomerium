@@ -824,3 +824,4 @@ All MCP-related HTTP endpoints served by Pomerium:
 | GET | `/.pomerium/mcp/routes` | List MCP server routes for a user |
 | GET | `/.pomerium/mcp/connect` | Proactive upstream token acquisition |
 | POST | `/.pomerium/mcp/routes/disconnect` | Purge upstream tokens |
+| POST | `/.pomerium/mcp/routes/refresh` | Force a refresh_token grant for upstream tokens |

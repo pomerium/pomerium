@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -1239,4 +1241,54 @@ func newTestUpstreamAuthHandler(t *testing.T, cfg *config.Config, store HandlerS
 	h, err := NewUpstreamAuthHandler(t.Context(), cfg, WithStorage(store), WithUpstreamHTTPClient(httpClient))
 	require.NoError(t, err)
 	return h
+}
+
+func TestRefreshExpiredUpstreamMCPToken_ErrorClassification(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		status        int
+		refreshToken  string
+		expectCleared bool
+	}{
+		{"rejected by AS", http.StatusBadRequest, "old-refresh", true},
+		{"no refresh token", http.StatusOK, "", true},
+		{"transient failure", http.StatusInternalServerError, "old-refresh", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(`{"error":"invalid_grant"}`))
+			}))
+			t.Cleanup(tokenSrv.Close)
+
+			var tokenDeleted bool
+			store := &autoDiscoveryTestStorage{
+				testUpstreamAuthStorage: &testUpstreamAuthStorage{},
+				deleteUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) error {
+					tokenDeleted = true
+					return nil
+				},
+			}
+			token := &oauth21proto.UpstreamMCPToken{
+				UserId:         "user-1",
+				RouteId:        "route-1",
+				UpstreamServer: "https://api.example.com",
+				AccessToken:    "expired-token",
+				RefreshToken:   tc.refreshToken,
+				TokenEndpoint:  tokenSrv.URL,
+				ExpiresAt:      timestamppb.New(time.Now().Add(-time.Hour)),
+			}
+
+			refreshed, err := refreshExpiredUpstreamMCPToken(
+				t.Context(), store, tokenSrv.Client(), &singleflight.Group{}, token, "")
+			require.Error(t, err)
+			assert.Nil(t, refreshed)
+			assert.Equal(t, tc.expectCleared, errors.Is(err, errUpstreamTokenCleared))
+			assert.Equal(t, tc.expectCleared, tokenDeleted)
+		})
+	}
 }

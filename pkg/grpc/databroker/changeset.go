@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -49,6 +50,7 @@ func (cs *changeSet) Upsert(record *Record) {
 }
 
 // PutMulti puts the records into the databroker in batches.
+// The records will be updated to the result of the Put call.
 func PutMulti(ctx context.Context, client DataBrokerServiceClient, records ...*Record) error {
 	if len(records) == 0 {
 		return nil
@@ -56,9 +58,17 @@ func PutMulti(ctx context.Context, client DataBrokerServiceClient, records ...*R
 
 	updates := OptimumPutRequestsFromRecords(records)
 	for _, req := range updates {
-		_, err := client.Put(ctx, req)
+		res, err := client.Put(ctx, req)
 		if err != nil {
 			return fmt.Errorf("put databroker record: %w", err)
+		}
+		// update the original records
+		if len(res.Records) == len(req.Records) {
+			for i := range res.Records {
+				*req.Records[i] = *proto.CloneOf(res.Records[i])
+			}
+		} else {
+			log.Ctx(ctx).Error().Msg("databroker: result of put call returned an unexpected number of records")
 		}
 	}
 	return nil

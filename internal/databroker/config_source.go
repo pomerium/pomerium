@@ -312,10 +312,8 @@ func (src *ConfigSource) addPolicies(ctx context.Context, cfg *config.Config, po
 func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 	sharedKey, _ := cfg.Options.GetSharedKey()
 	connectionOptions := &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
-		InstallationID: cfg.Options.InstallationID,
-		ServiceName:    cfg.Options.Services,
-		SignedJWTKey:   sharedKey,
+		OutboundPort: cfg.OutboundPort,
+		SignedJWTKey: sharedKey,
 	}
 	h, err := hashutil.Hash(connectionOptions)
 	if err != nil {
@@ -414,6 +412,7 @@ func (s *configSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, recor
 		}
 
 		s.src.dbConfigs[record.GetId()] = dbConfig{&cfgpb, record.Version}
+		metrics.SetDBConfigInfo(ctx, s.src.computedConfig.Options.Services, record.GetId(), record.GetVersion(), 0)
 	}
 	s.src.standardConfigReady = true
 	s.src.mu.Unlock()

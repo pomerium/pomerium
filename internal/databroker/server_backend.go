@@ -22,7 +22,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/file"
@@ -61,7 +60,7 @@ func NewBackendServer(tracerProvider oteltrace.TracerProvider) Server {
 	srv.backendConfigServer = &backendConfigServer{
 		backendServer: srv,
 	}
-	srv.backendConfigServer.updateLocalRecords(new(configpb.Config))
+	srv.backendConfigServer.updateLocalRecords(config.New(config.NewDefaultOptions()))
 
 	srv.stopCtx, srv.stop = context.WithCancelCause(context.Background())
 	srv.stopWG.Go(func() {
@@ -667,10 +666,34 @@ func (srv *backendServer) syncOptionsByType(ctx context.Context, typeURL string,
 func (srv *backendServer) Stop() {
 	srv.stop(context.Canceled)
 	srv.stopWG.Wait()
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+	srv.closeBackendLocked(srv.stopCtx)
+}
+
+func (srv *backendServer) closeBackendLocked(ctx context.Context) {
+	if srv.backend != nil {
+		err := srv.backend.Close()
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing backend")
+		}
+		srv.backend = nil
+
+		// clear the global cache
+		storage.GlobalCache.InvalidateAll()
+	}
+
+	if srv.registry != nil {
+		err := srv.registry.Close()
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing registry")
+		}
+		srv.registry = nil
+	}
 }
 
 func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	srv.updateLocalRecords(cfg.Options.ToProto())
+	srv.updateLocalRecords(cfg)
 
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
@@ -703,24 +726,7 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	srv.storageConnectionString = storageConnectionString
 	srv.sharedKey = sharedKey
 
-	if srv.backend != nil {
-		err := srv.backend.Close()
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing backend")
-		}
-		srv.backend = nil
-
-		// clear the global cache
-		storage.GlobalCache.InvalidateAll()
-	}
-
-	if srv.registry != nil {
-		err := srv.registry.Close()
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing registry")
-		}
-		srv.registry = nil
-	}
+	srv.closeBackendLocked(ctx)
 }
 
 func (srv *backendServer) getBackend(ctx context.Context) (backend storage.Backend, err error) {

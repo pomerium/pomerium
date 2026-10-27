@@ -38,20 +38,42 @@ type clusteredFollowerServer struct {
 	leader    Server
 	local     Server
 
-	cancel context.CancelCauseFunc
-	done   chan struct{}
+	cancel           context.CancelCauseFunc
+	done             chan struct{}
+	extraHealthAttrs []health.Attr
+}
+
+type FollowerOptions struct {
+	extraHealthAttrs []health.Attr
+}
+
+func (o *FollowerOptions) Apply(opts ...FollowerOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type FollowerOption func(o *FollowerOptions)
+
+func WithFollowerHealthAttrs(attrs ...health.Attr) FollowerOption {
+	return func(o *FollowerOptions) {
+		o.extraHealthAttrs = attrs
+	}
 }
 
 // NewClusteredFollowerServer creates a new clustered follower databroker
 // server. A clustered follower server forwards all requests to a leader
 // databroker via the passed client connection.
-func NewClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local Server, leaderCC grpc.ClientConnInterface) Server {
+func NewClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local Server, leaderCC grpc.ClientConnInterface, opts ...FollowerOption) Server {
+	options := &FollowerOptions{}
+	options.Apply(opts...)
 	srv := &clusteredFollowerServer{
-		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-clustered-follower-server"),
-		leaderCC:  leaderCC,
-		leader:    NewForwardingServer(leaderCC),
-		local:     local,
-		done:      make(chan struct{}, 1),
+		telemetry:        *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-clustered-follower-server"),
+		leaderCC:         leaderCC,
+		leader:           NewForwardingServer(leaderCC),
+		local:            local,
+		done:             make(chan struct{}, 1),
+		extraHealthAttrs: options.extraHealthAttrs,
 	}
 	ctx := context.Background()
 	ctx, srv.cancel = context.WithCancelCause(ctx)
@@ -448,7 +470,7 @@ func (srv *clusteredFollowerServer) run(ctx context.Context) {
 		// attempt to sync
 		// the first sync is non-blocking, to ensure startup guarantees
 		err := srv.sync(ctx, b, wait)
-		if !wait && errors.Is(err, io.EOF) {
+		if !wait && (err == nil || errors.Is(err, io.EOF)) {
 			wait = true
 			health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
 			continue
@@ -477,9 +499,9 @@ func (srv *clusteredFollowerServer) run(ctx context.Context) {
 }
 
 func (srv *clusteredFollowerServer) healthAttrs() []health.Attr {
-	return []health.Attr{
-		health.StrAttr("member", "follower"),
-	}
+	attrs := make([]health.Attr, 0, len(srv.extraHealthAttrs)+1)
+	attrs = append(attrs, srv.extraHealthAttrs...)
+	return append(attrs, health.StrAttr("member", "follower"))
 }
 
 // sync syncs records from the leader and stores them in the local store.
@@ -492,21 +514,24 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff,
 	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, b, ch1, wait) })
-	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
-	eg.Go(func() error { return srv.putStep(ctx, ch2) })
-	err := eg.Wait()
-	srv.handleSyncError(err)
-	return err
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.Go(func() error { defer close(ch1); return srv.syncStep(egCtx, b, ch1, wait) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(egCtx, ch1, ch2) })
+	eg.Go(func() error { return srv.putStep(egCtx, ch2) })
+	return srv.handleSyncError(ctx, eg.Wait())
 }
 
-func (srv *clusteredFollowerServer) handleSyncError(err error) {
+func (srv *clusteredFollowerServer) handleSyncError(ctx context.Context, err error) error {
+	// gRPC drops the cancellation cause, so take it from ctx
+	if err != nil && ctx.Err() != nil {
+		err = context.Cause(ctx)
+	}
 	if err == nil || errors.Is(err, errClusteredFollowerServerStopped) {
 		health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
-	} else {
+	} else if !errors.Is(err, io.EOF) && !errors.Is(err, errClusteredFollowerNeedsReset) {
 		health.ReportError(health.DatabrokerCluster, err, srv.healthAttrs()...)
 	}
+	return err
 }
 
 // syncLatest resets the local store, syncs the latest records from the leader,
@@ -520,13 +545,11 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context, b backoff.Ba
 	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(ctx, b, ch1) })
-	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
-	eg.Go(func() error { return srv.putStep(ctx, ch2) })
-	err := eg.Wait()
-	srv.handleSyncError(err)
-	return err
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(egCtx, b, ch1) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(egCtx, ch1, ch2) })
+	eg.Go(func() error { return srv.putStep(egCtx, ch2) })
+	return srv.handleSyncError(ctx, eg.Wait())
 }
 
 // syncStep starts a sync stream and sends records and checkpoints to the
