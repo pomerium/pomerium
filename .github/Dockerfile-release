@@ -1,7 +1,21 @@
 FROM busybox:latest@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e AS build
 RUN touch /config.yaml
 
+# Remove this stage once distroless Debian 12 ships the corrected CA bundle.
+FROM --platform=$BUILDPLATFORM debian:bookworm@sha256:854dd8ab51d62866dbd8f5431d15ce77b12983a2a4a1e1fe43a2395dc7ef9f61 AS distroless-ca-certificates
+RUN --mount=type=tmpfs,target=/var/cache/apt \
+    --mount=type=tmpfs,target=/var/lib/apt/lists \
+    apt-get -qq update \
+    && DEBIAN_FRONTEND=noninteractive apt-get -qq install --no-install-recommends -y ca-certificates \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge '20250419~deb12u2' \
+    && mkdir -p /out/etc/ssl/certs /out/usr/share/doc/ca-certificates /out/var/lib/dpkg/status.d \
+    && cp /etc/ssl/certs/ca-certificates.crt /out/etc/ssl/certs/ \
+    && cp /usr/share/doc/ca-certificates/copyright /out/usr/share/doc/ca-certificates/ \
+    && dpkg-query -s ca-certificates | grep -v '^Status:' > /out/var/lib/dpkg/status.d/ca-certificates \
+    && cp /var/lib/dpkg/info/ca-certificates.md5sums /out/var/lib/dpkg/status.d/
+
 FROM gcr.io/distroless/base-nossl-debian12:latest@sha256:e35893f8ca1cabfbd60394af94899c20930c4615355adf97c5da660a51b61bca
+COPY --from=distroless-ca-certificates --chown=0:0 /out/ /
 ENV AUTOCERT_DIR=/data/autocert
 WORKDIR /pomerium
 COPY pomerium /bin/
