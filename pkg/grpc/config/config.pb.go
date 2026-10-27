@@ -3215,63 +3215,122 @@ func (x *Policy) GetNamespaceName() string {
 
 // EnterpriseSettings are the embedded enterprise configuration settings.
 type EnterpriseSettings struct {
-	state                                protoimpl.MessageState         `protogen:"open.v1"`
-	Administrators                       *EnterpriseSettings_StringList `protobuf:"bytes,1,opt,name=administrators,proto3,oneof" json:"administrators,omitempty"`
-	AnalyticsCollectInterval             *durationpb.Duration           `protobuf:"bytes,2,opt,name=analytics_collect_interval,json=analyticsCollectInterval,proto3,oneof" json:"analytics_collect_interval,omitempty"`
-	AnalyticsUrl                         *string                        `protobuf:"bytes,3,opt,name=analytics_url,json=analyticsUrl,proto3,oneof" json:"analytics_url,omitempty"`
-	Audience                             *EnterpriseSettings_StringList `protobuf:"bytes,4,opt,name=audience,proto3,oneof" json:"audience,omitempty"`
-	AuthenticateServiceUrl               *string                        `protobuf:"bytes,5,opt,name=authenticate_service_url,json=authenticateServiceUrl,proto3,oneof" json:"authenticate_service_url,omitempty"`
-	BindAddress                          *string                        `protobuf:"bytes,6,opt,name=bind_address,json=bindAddress,proto3,oneof" json:"bind_address,omitempty"`
-	BootstrapServiceAccount              *bool                          `protobuf:"varint,7,opt,name=bootstrap_service_account,json=bootstrapServiceAccount,proto3,oneof" json:"bootstrap_service_account,omitempty"`
-	CacheDir                             *string                        `protobuf:"bytes,8,opt,name=cache_dir,json=cacheDir,proto3,oneof" json:"cache_dir,omitempty"`
-	ChangesetRequiredApprovalCount       *uint32                        `protobuf:"varint,9,opt,name=changeset_required_approval_count,json=changesetRequiredApprovalCount,proto3,oneof" json:"changeset_required_approval_count,omitempty"`
-	CustomerId                           *string                        `protobuf:"bytes,10,opt,name=customer_id,json=customerId,proto3,oneof" json:"customer_id,omitempty"`
-	DangerouslyDisableAllNamespaceChecks *bool                          `protobuf:"varint,11,opt,name=dangerously_disable_all_namespace_checks,json=dangerouslyDisableAllNamespaceChecks,proto3,oneof" json:"dangerously_disable_all_namespace_checks,omitempty"`
-	DatabaseEncryptionKey                []byte                         `protobuf:"bytes,12,opt,name=database_encryption_key,json=databaseEncryptionKey,proto3,oneof" json:"database_encryption_key,omitempty"`
-	DatabaseEncryptionKeyFile            *string                        `protobuf:"bytes,13,opt,name=database_encryption_key_file,json=databaseEncryptionKeyFile,proto3,oneof" json:"database_encryption_key_file,omitempty"`
-	DatabaseEncryptionKeyRawFile         *string                        `protobuf:"bytes,14,opt,name=database_encryption_key_raw_file,json=databaseEncryptionKeyRawFile,proto3,oneof" json:"database_encryption_key_raw_file,omitempty"`
-	DatabaseUrl                          *string                        `protobuf:"bytes,15,opt,name=database_url,json=databaseUrl,proto3,oneof" json:"database_url,omitempty"`
-	DatabrokerServiceUrls                *EnterpriseSettings_StringList `protobuf:"bytes,16,opt,name=databroker_service_urls,json=databrokerServiceUrls,proto3,oneof" json:"databroker_service_urls,omitempty"`
-	DebugAddress                         *string                        `protobuf:"bytes,17,opt,name=debug_address,json=debugAddress,proto3,oneof" json:"debug_address,omitempty"`
-	DebugConfigDump                      *bool                          `protobuf:"varint,18,opt,name=debug_config_dump,json=debugConfigDump,proto3,oneof" json:"debug_config_dump,omitempty"`
-	DirectoryProvider                    *string                        `protobuf:"bytes,19,opt,name=directory_provider,json=directoryProvider,proto3,oneof" json:"directory_provider,omitempty"`
-	DirectoryProviderOptions             *structpb.Struct               `protobuf:"bytes,20,opt,name=directory_provider_options,json=directoryProviderOptions,proto3,oneof" json:"directory_provider_options,omitempty"`
-	DirectoryProviderRefreshInterval     *durationpb.Duration           `protobuf:"bytes,21,opt,name=directory_provider_refresh_interval,json=directoryProviderRefreshInterval,proto3,oneof" json:"directory_provider_refresh_interval,omitempty"`
-	DirectoryProviderRefreshTimeout      *durationpb.Duration           `protobuf:"bytes,22,opt,name=directory_provider_refresh_timeout,json=directoryProviderRefreshTimeout,proto3,oneof" json:"directory_provider_refresh_timeout,omitempty"`
-	DisableFeedbackWidget                *bool                          `protobuf:"varint,23,opt,name=disable_feedback_widget,json=disableFeedbackWidget,proto3,oneof" json:"disable_feedback_widget,omitempty"`
-	DisableRemoteDiagnostics             *bool                          `protobuf:"varint,24,opt,name=disable_remote_diagnostics,json=disableRemoteDiagnostics,proto3,oneof" json:"disable_remote_diagnostics,omitempty"`
-	EnableSessionRecordingQuerierCache   *bool                          `protobuf:"varint,25,opt,name=enable_session_recording_querier_cache,json=enableSessionRecordingQuerierCache,proto3,oneof" json:"enable_session_recording_querier_cache,omitempty"`
-	GrpcAddress                          *string                        `protobuf:"bytes,26,opt,name=grpc_address,json=grpcAddress,proto3,oneof" json:"grpc_address,omitempty"`
-	LicenseKey                           *string                        `protobuf:"bytes,27,opt,name=license_key,json=licenseKey,proto3,oneof" json:"license_key,omitempty"`
-	LicenseKeyValidateOffline            *bool                          `protobuf:"varint,28,opt,name=license_key_validate_offline,json=licenseKeyValidateOffline,proto3,oneof" json:"license_key_validate_offline,omitempty"`
-	LogLevel                             *string                        `protobuf:"bytes,29,opt,name=log_level,json=logLevel,proto3,oneof" json:"log_level,omitempty"`
-	MetricsAddress                       *string                        `protobuf:"bytes,30,opt,name=metrics_address,json=metricsAddress,proto3,oneof" json:"metrics_address,omitempty"`
-	OverrideCertificateName              *string                        `protobuf:"bytes,31,opt,name=override_certificate_name,json=overrideCertificateName,proto3,oneof" json:"override_certificate_name,omitempty"`
-	PrometheusDataDir                    *string                        `protobuf:"bytes,32,opt,name=prometheus_data_dir,json=prometheusDataDir,proto3,oneof" json:"prometheus_data_dir,omitempty"`
-	PrometheusListenAddress              *string                        `protobuf:"bytes,33,opt,name=prometheus_listen_address,json=prometheusListenAddress,proto3,oneof" json:"prometheus_listen_address,omitempty"`
-	PrometheusScrapeInterval             *durationpb.Duration           `protobuf:"bytes,34,opt,name=prometheus_scrape_interval,json=prometheusScrapeInterval,proto3,oneof" json:"prometheus_scrape_interval,omitempty"`
-	PrometheusUrl                        *string                        `protobuf:"bytes,35,opt,name=prometheus_url,json=prometheusUrl,proto3,oneof" json:"prometheus_url,omitempty"`
-	PublicAddress                        *string                        `protobuf:"bytes,36,opt,name=public_address,json=publicAddress,proto3,oneof" json:"public_address,omitempty"`
-	SessionRecordingOptions              *structpb.Struct               `protobuf:"bytes,37,opt,name=session_recording_options,json=sessionRecordingOptions,proto3,oneof" json:"session_recording_options,omitempty"`
-	SharedSecret                         []byte                         `protobuf:"bytes,38,opt,name=shared_secret,json=sharedSecret,proto3,oneof" json:"shared_secret,omitempty"`
-	SharedSecretFile                     *string                        `protobuf:"bytes,39,opt,name=shared_secret_file,json=sharedSecretFile,proto3,oneof" json:"shared_secret_file,omitempty"`
-	SharedSecretRawFile                  *string                        `protobuf:"bytes,40,opt,name=shared_secret_raw_file,json=sharedSecretRawFile,proto3,oneof" json:"shared_secret_raw_file,omitempty"`
-	SigningKey                           []byte                         `protobuf:"bytes,41,opt,name=signing_key,json=signingKey,proto3,oneof" json:"signing_key,omitempty"`
-	SigningKeyFile                       *string                        `protobuf:"bytes,42,opt,name=signing_key_file,json=signingKeyFile,proto3,oneof" json:"signing_key_file,omitempty"`
-	SigningKeyRawFile                    *string                        `protobuf:"bytes,43,opt,name=signing_key_raw_file,json=signingKeyRawFile,proto3,oneof" json:"signing_key_raw_file,omitempty"`
-	TlsCertificate                       []byte                         `protobuf:"bytes,44,opt,name=tls_certificate,json=tlsCertificate,proto3,oneof" json:"tls_certificate,omitempty"`
-	TlsCertificateAuthority              []byte                         `protobuf:"bytes,45,opt,name=tls_certificate_authority,json=tlsCertificateAuthority,proto3,oneof" json:"tls_certificate_authority,omitempty"`
-	TlsCertificateAuthorityFile          *string                        `protobuf:"bytes,46,opt,name=tls_certificate_authority_file,json=tlsCertificateAuthorityFile,proto3,oneof" json:"tls_certificate_authority_file,omitempty"`
-	TlsCertificateFile                   *string                        `protobuf:"bytes,47,opt,name=tls_certificate_file,json=tlsCertificateFile,proto3,oneof" json:"tls_certificate_file,omitempty"`
-	TlsDerive                            *string                        `protobuf:"bytes,48,opt,name=tls_derive,json=tlsDerive,proto3,oneof" json:"tls_derive,omitempty"`
-	TlsInsecureSkipVerify                *bool                          `protobuf:"varint,49,opt,name=tls_insecure_skip_verify,json=tlsInsecureSkipVerify,proto3,oneof" json:"tls_insecure_skip_verify,omitempty"`
-	TlsKey                               []byte                         `protobuf:"bytes,50,opt,name=tls_key,json=tlsKey,proto3,oneof" json:"tls_key,omitempty"`
-	TlsKeyFile                           *string                        `protobuf:"bytes,51,opt,name=tls_key_file,json=tlsKeyFile,proto3,oneof" json:"tls_key_file,omitempty"`
-	Url                                  *string                        `protobuf:"bytes,52,opt,name=url,proto3,oneof" json:"url,omitempty"`
-	UseStaticAssets                      *bool                          `protobuf:"varint,53,opt,name=use_static_assets,json=useStaticAssets,proto3,oneof" json:"use_static_assets,omitempty"`
-	ValidationMode                       *EnterpriseValidationMode      `protobuf:"varint,54,opt,name=validation_mode,json=validationMode,proto3,enum=pomerium.config.EnterpriseValidationMode,oneof" json:"validation_mode,omitempty"`
-	unknownFields                        protoimpl.UnknownFields
-	sizeCache                            protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A list of user IDs or email addresses to make administrators..
+	Administrators *EnterpriseSettings_StringList `protobuf:"bytes,1,opt,name=administrators,proto3,oneof" json:"administrators,omitempty"`
+	// The period for analytics data collection and export to the cloud.
+	AnalyticsCollectInterval *durationpb.Duration `protobuf:"bytes,2,opt,name=analytics_collect_interval,json=analyticsCollectInterval,proto3,oneof" json:"analytics_collect_interval,omitempty"`
+	// The analytics URL.
+	AnalyticsUrl *string `protobuf:"bytes,3,opt,name=analytics_url,json=analyticsUrl,proto3,oneof" json:"analytics_url,omitempty"`
+	// A list of audiences for verifying the signing key.
+	Audience *EnterpriseSettings_StringList `protobuf:"bytes,4,opt,name=audience,proto3,oneof" json:"audience,omitempty"`
+	// The URL for the authenticate service.
+	AuthenticateServiceUrl *string `protobuf:"bytes,5,opt,name=authenticate_service_url,json=authenticateServiceUrl,proto3,oneof" json:"authenticate_service_url,omitempty"`
+	// The address the enterprise console will listen on.
+	BindAddress *string `protobuf:"bytes,6,opt,name=bind_address,json=bindAddress,proto3,oneof" json:"bind_address,omitempty"`
+	// When true, create the bootstrap service account in the database.
+	BootstrapServiceAccount *bool `protobuf:"varint,7,opt,name=bootstrap_service_account,json=bootstrapServiceAccount,proto3,oneof" json:"bootstrap_service_account,omitempty"`
+	// The directory to store cache data.
+	CacheDir *string `protobuf:"bytes,8,opt,name=cache_dir,json=cacheDir,proto3,oneof" json:"cache_dir,omitempty"`
+	// How many approvals are required to deploy a changeset.
+	ChangesetRequiredApprovalCount *uint32 `protobuf:"varint,9,opt,name=changeset_required_approval_count,json=changesetRequiredApprovalCount,proto3,oneof" json:"changeset_required_approval_count,omitempty"`
+	// The customer ID.
+	CustomerId *string `protobuf:"bytes,10,opt,name=customer_id,json=customerId,proto3,oneof" json:"customer_id,omitempty"`
+	// Disables all namespace checks.
+	DangerouslyDisableAllNamespaceChecks *bool `protobuf:"varint,11,opt,name=dangerously_disable_all_namespace_checks,json=dangerouslyDisableAllNamespaceChecks,proto3,oneof" json:"dangerously_disable_all_namespace_checks,omitempty"`
+	// The encryption key for encrypting sensitive data in the database.
+	DatabaseEncryptionKey []byte `protobuf:"bytes,12,opt,name=database_encryption_key,json=databaseEncryptionKey,proto3,oneof" json:"database_encryption_key,omitempty"`
+	// A file containing the base64-encoded database encryption key.
+	DatabaseEncryptionKeyFile *string `protobuf:"bytes,13,opt,name=database_encryption_key_file,json=databaseEncryptionKeyFile,proto3,oneof" json:"database_encryption_key_file,omitempty"`
+	// A file containing the raw database encryption key.
+	DatabaseEncryptionKeyRawFile *string `protobuf:"bytes,14,opt,name=database_encryption_key_raw_file,json=databaseEncryptionKeyRawFile,proto3,oneof" json:"database_encryption_key_raw_file,omitempty"`
+	// The database the enterprise console will use.
+	DatabaseUrl *string `protobuf:"bytes,15,opt,name=database_url,json=databaseUrl,proto3,oneof" json:"database_url,omitempty"`
+	// The databroker service URLs.
+	DatabrokerServiceUrls *EnterpriseSettings_StringList `protobuf:"bytes,16,opt,name=databroker_service_urls,json=databrokerServiceUrls,proto3,oneof" json:"databroker_service_urls,omitempty"`
+	// The address to expose pprof debug endpoints.
+	DebugAddress *string `protobuf:"bytes,17,opt,name=debug_address,json=debugAddress,proto3,oneof" json:"debug_address,omitempty"`
+	// Dumps the databroker configuration. This is a debug option to be used
+	// only when specified by Pomerium Support.
+	DebugConfigDump *bool `protobuf:"varint,18,opt,name=debug_config_dump,json=debugConfigDump,proto3,oneof" json:"debug_config_dump,omitempty"`
+	// The directory provider for directory sync.
+	DirectoryProvider *string `protobuf:"bytes,19,opt,name=directory_provider,json=directoryProvider,proto3,oneof" json:"directory_provider,omitempty"`
+	// The directory provider options for directory sync.
+	DirectoryProviderOptions *structpb.Struct `protobuf:"bytes,20,opt,name=directory_provider_options,json=directoryProviderOptions,proto3,oneof" json:"directory_provider_options,omitempty"`
+	// The directory provider refresh interval.
+	DirectoryProviderRefreshInterval *durationpb.Duration `protobuf:"bytes,21,opt,name=directory_provider_refresh_interval,json=directoryProviderRefreshInterval,proto3,oneof" json:"directory_provider_refresh_interval,omitempty"`
+	// The directory provider refresh timeout.
+	DirectoryProviderRefreshTimeout *durationpb.Duration `protobuf:"bytes,22,opt,name=directory_provider_refresh_timeout,json=directoryProviderRefreshTimeout,proto3,oneof" json:"directory_provider_refresh_timeout,omitempty"`
+	// Disables the feedback widget.
+	DisableFeedbackWidget *bool `protobuf:"varint,23,opt,name=disable_feedback_widget,json=disableFeedbackWidget,proto3,oneof" json:"disable_feedback_widget,omitempty"`
+	// Disables remote diagnostics.
+	DisableRemoteDiagnostics *bool `protobuf:"varint,24,opt,name=disable_remote_diagnostics,json=disableRemoteDiagnostics,proto3,oneof" json:"disable_remote_diagnostics,omitempty"`
+	// Indexes remote session recording metadata locally for more efficient
+	// querying.
+	EnableSessionRecordingQuerierCache *bool `protobuf:"varint,25,opt,name=enable_session_recording_querier_cache,json=enableSessionRecordingQuerierCache,proto3,oneof" json:"enable_session_recording_querier_cache,omitempty"`
+	// The address to listen for gRPC on.
+	GrpcAddress *string `protobuf:"bytes,26,opt,name=grpc_address,json=grpcAddress,proto3,oneof" json:"grpc_address,omitempty"`
+	// The license key issued by your account team.
+	LicenseKey *string `protobuf:"bytes,27,opt,name=license_key,json=licenseKey,proto3,oneof" json:"license_key,omitempty"`
+	// Validates the license key offline, without contacting the license server.
+	LicenseKeyValidateOffline *bool `protobuf:"varint,28,opt,name=license_key_validate_offline,json=licenseKeyValidateOffline,proto3,oneof" json:"license_key_validate_offline,omitempty"`
+	// The enterprise console log level. Defaults to info.
+	LogLevel *string `protobuf:"bytes,29,opt,name=log_level,json=logLevel,proto3,oneof" json:"log_level,omitempty"`
+	// The address to expose console metrics in Prometheus format.
+	MetricsAddress *string `protobuf:"bytes,30,opt,name=metrics_address,json=metricsAddress,proto3,oneof" json:"metrics_address,omitempty"`
+	// Overrides the certificate name used for the databroker connection.
+	OverrideCertificateName *string `protobuf:"bytes,31,opt,name=override_certificate_name,json=overrideCertificateName,proto3,oneof" json:"override_certificate_name,omitempty"`
+	// The path to Prometheus data.
+	PrometheusDataDir *string `protobuf:"bytes,32,opt,name=prometheus_data_dir,json=prometheusDataDir,proto3,oneof" json:"prometheus_data_dir,omitempty"`
+	// The address the embedded Prometheus listens on, as host:port.
+	PrometheusListenAddress *string `protobuf:"bytes,33,opt,name=prometheus_listen_address,json=prometheusListenAddress,proto3,oneof" json:"prometheus_listen_address,omitempty"`
+	// The Prometheus scrape frequency.
+	PrometheusScrapeInterval *durationpb.Duration `protobuf:"bytes,34,opt,name=prometheus_scrape_interval,json=prometheusScrapeInterval,proto3,oneof" json:"prometheus_scrape_interval,omitempty"`
+	// The URL to access the Prometheus metrics server.
+	PrometheusUrl *string `protobuf:"bytes,35,opt,name=prometheus_url,json=prometheusUrl,proto3,oneof" json:"prometheus_url,omitempty"`
+	// The address the enterprise console is reachable at. Defaults to
+	// bind_address.
+	PublicAddress *string `protobuf:"bytes,36,opt,name=public_address,json=publicAddress,proto3,oneof" json:"public_address,omitempty"`
+	// Bootstrap settings for session recording for the default cluster.
+	SessionRecordingOptions *structpb.Struct `protobuf:"bytes,37,opt,name=session_recording_options,json=sessionRecordingOptions,proto3,oneof" json:"session_recording_options,omitempty"`
+	// The secret for signing JWTs, shared with Pomerium.
+	SharedSecret []byte `protobuf:"bytes,38,opt,name=shared_secret,json=sharedSecret,proto3,oneof" json:"shared_secret,omitempty"`
+	// A file containing the base64-encoded shared secret.
+	SharedSecretFile *string `protobuf:"bytes,39,opt,name=shared_secret_file,json=sharedSecretFile,proto3,oneof" json:"shared_secret_file,omitempty"`
+	// A file containing the raw shared secret.
+	SharedSecretRawFile *string `protobuf:"bytes,40,opt,name=shared_secret_raw_file,json=sharedSecretRawFile,proto3,oneof" json:"shared_secret_raw_file,omitempty"`
+	// The signing key (public or private) for verifying JWTs.
+	// This option is deprecated.
+	SigningKey []byte `protobuf:"bytes,41,opt,name=signing_key,json=signingKey,proto3,oneof" json:"signing_key,omitempty"`
+	// A file containing the base64-encoded signing key.
+	SigningKeyFile *string `protobuf:"bytes,42,opt,name=signing_key_file,json=signingKeyFile,proto3,oneof" json:"signing_key_file,omitempty"`
+	// A file containing the raw signing key.
+	SigningKeyRawFile *string `protobuf:"bytes,43,opt,name=signing_key_raw_file,json=signingKeyRawFile,proto3,oneof" json:"signing_key_raw_file,omitempty"`
+	// The TLS certificate.
+	TlsCertificate []byte `protobuf:"bytes,44,opt,name=tls_certificate,json=tlsCertificate,proto3,oneof" json:"tls_certificate,omitempty"`
+	// The TLS certificate authority.
+	TlsCertificateAuthority []byte `protobuf:"bytes,45,opt,name=tls_certificate_authority,json=tlsCertificateAuthority,proto3,oneof" json:"tls_certificate_authority,omitempty"`
+	// A file containing the TLS certificate authority.
+	TlsCertificateAuthorityFile *string `protobuf:"bytes,46,opt,name=tls_certificate_authority_file,json=tlsCertificateAuthorityFile,proto3,oneof" json:"tls_certificate_authority_file,omitempty"`
+	// A file containing the TLS certificate.
+	TlsCertificateFile *string `protobuf:"bytes,47,opt,name=tls_certificate_file,json=tlsCertificateFile,proto3,oneof" json:"tls_certificate_file,omitempty"`
+	// Derives the TLS certificate for this domain name from the shared secret.
+	TlsDerive *string `protobuf:"bytes,48,opt,name=tls_derive,json=tlsDerive,proto3,oneof" json:"tls_derive,omitempty"`
+	// Disables remote hosts' TLS certificate chain and hostname checks.
+	TlsInsecureSkipVerify *bool `protobuf:"varint,49,opt,name=tls_insecure_skip_verify,json=tlsInsecureSkipVerify,proto3,oneof" json:"tls_insecure_skip_verify,omitempty"`
+	// The TLS private key.
+	TlsKey []byte `protobuf:"bytes,50,opt,name=tls_key,json=tlsKey,proto3,oneof" json:"tls_key,omitempty"`
+	// A file containing the TLS private key.
+	TlsKeyFile *string `protobuf:"bytes,51,opt,name=tls_key_file,json=tlsKeyFile,proto3,oneof" json:"tls_key_file,omitempty"`
+	// The URL to host the enterprise console at. The enterprise console is
+	// only enabled when this is set.
+	Url *string `protobuf:"bytes,52,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	// When false, forwards static requests to localhost:3000. Defaults to true.
+	UseStaticAssets *bool `protobuf:"varint,53,opt,name=use_static_assets,json=useStaticAssets,proto3,oneof" json:"use_static_assets,omitempty"`
+	// How much validation to perform. Defaults to static.
+	ValidationMode *EnterpriseValidationMode `protobuf:"varint,54,opt,name=validation_mode,json=validationMode,proto3,enum=pomerium.config.EnterpriseValidationMode,oneof" json:"validation_mode,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *EnterpriseSettings) Reset() {
@@ -10480,7 +10539,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\x89%\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\x8f%\n" +
 	"\x12EnterpriseSettings\x12[\n" +
 	"\x0eadministrators\x18\x01 \x01(\v2..pomerium.config.EnterpriseSettings.StringListH\x00R\x0eadministrators\x88\x01\x01\x12\\\n" +
 	"\x1aanalytics_collect_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationH\x01R\x18analyticsCollectInterval\x88\x01\x01\x12(\n" +
@@ -10521,8 +10580,8 @@ const file_config_proto_rawDesc = "" +
 	"\x19prometheus_listen_address\x18! \x01(\tH R\x17prometheusListenAddress\x88\x01\x01\x12\\\n" +
 	"\x1aprometheus_scrape_interval\x18\" \x01(\v2\x19.google.protobuf.DurationH!R\x18prometheusScrapeInterval\x88\x01\x01\x120\n" +
 	"\x0eprometheus_url\x18# \x01(\tB\x04\xe8\xd6,\x01H\"R\rprometheusUrl\x88\x01\x01\x12*\n" +
-	"\x0epublic_address\x18$ \x01(\tH#R\rpublicAddress\x88\x01\x01\x12X\n" +
-	"\x19session_recording_options\x18% \x01(\v2\x17.google.protobuf.StructH$R\x17sessionRecordingOptions\x88\x01\x01\x12.\n" +
+	"\x0epublic_address\x18$ \x01(\tH#R\rpublicAddress\x88\x01\x01\x12^\n" +
+	"\x19session_recording_options\x18% \x01(\v2\x17.google.protobuf.StructB\x04\xe8\xd6,\x01H$R\x17sessionRecordingOptions\x88\x01\x01\x12.\n" +
 	"\rshared_secret\x18& \x01(\fB\x04\xe8\xd6,\x01H%R\fsharedSecret\x88\x01\x01\x121\n" +
 	"\x12shared_secret_file\x18' \x01(\tH&R\x10sharedSecretFile\x88\x01\x01\x128\n" +
 	"\x16shared_secret_raw_file\x18( \x01(\tH'R\x13sharedSecretRawFile\x88\x01\x01\x12*\n" +
@@ -10602,7 +10661,7 @@ const file_config_proto_rawDesc = "" +
 	"\r_tls_key_fileB\x06\n" +
 	"\x04_urlB\x14\n" +
 	"\x12_use_static_assetsB\x12\n" +
-	"\x10_validation_mode\"\xa8m\n" +
+	"\x10_validation_mode\"\xa2m\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -10762,9 +10821,9 @@ const file_config_proto_rawDesc = "" +
 	" path_with_escaped_slashes_action\x18\xba\x01 \x01(\x0e2-.pomerium.config.PathWithEscapedSlashesActionH~R\x1cpathWithEscapedSlashesAction\x88\x01\x01\x12z\n" +
 	"\x1fheaders_with_underscores_action\x18\xbb\x01 \x01(\x0e2-.pomerium.config.HeadersWithUnderscoresActionH\x7fR\x1cheadersWithUnderscoresAction\x88\x01\x01\x12C\n" +
 	"\voidc_bridge\x18\xbd\x01 \x01(\v2\x1b.pomerium.config.OIDCBridgeH\x80\x01R\n" +
-	"oidcBridge\x88\x01\x01\x12P\n" +
+	"oidcBridge\x88\x01\x01\x12J\n" +
 	"\n" +
-	"enterprise\x18\xc0\x01 \x01(\v2#.pomerium.config.EnterpriseSettingsB\x04\xe8\xd6,\x01H\x81\x01R\n" +
+	"enterprise\x18\xc0\x01 \x01(\v2#.pomerium.config.EnterpriseSettingsH\x81\x01R\n" +
 	"enterprise\x88\x01\x01\x12A\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x05\xbaG\x02\x18\x01R\tcreatedAt\x12C\n" +

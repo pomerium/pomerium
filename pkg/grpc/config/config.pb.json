@@ -1302,7 +1302,7 @@
           "fields": [
             {
               "name": "administrators",
-              "description": "",
+              "description": "A list of user IDs or email addresses to make administrators..",
               "label": "optional",
               "type": "StringList",
               "longType": "EnterpriseSettings.StringList",
@@ -1314,7 +1314,7 @@
             },
             {
               "name": "analytics_collect_interval",
-              "description": "",
+              "description": "The period for analytics data collection and export to the cloud.",
               "label": "optional",
               "type": "Duration",
               "longType": "google.protobuf.Duration",
@@ -1326,7 +1326,7 @@
             },
             {
               "name": "analytics_url",
-              "description": "",
+              "description": "The analytics URL.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1338,7 +1338,7 @@
             },
             {
               "name": "audience",
-              "description": "",
+              "description": "A list of audiences for verifying the signing key.",
               "label": "optional",
               "type": "StringList",
               "longType": "EnterpriseSettings.StringList",
@@ -1350,7 +1350,7 @@
             },
             {
               "name": "authenticate_service_url",
-              "description": "",
+              "description": "The URL for the authenticate service.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1362,7 +1362,7 @@
             },
             {
               "name": "bind_address",
-              "description": "",
+              "description": "The address the enterprise console will listen on.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1374,7 +1374,7 @@
             },
             {
               "name": "bootstrap_service_account",
-              "description": "",
+              "description": "When true, create the bootstrap service account in the database.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
@@ -1386,7 +1386,7 @@
             },
             {
               "name": "cache_dir",
-              "description": "",
+              "description": "The directory to store cache data.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1398,7 +1398,7 @@
             },
             {
               "name": "changeset_required_approval_count",
-              "description": "",
+              "description": "How many approvals are required to deploy a changeset.",
               "label": "optional",
               "type": "uint32",
               "longType": "uint32",
@@ -1410,7 +1410,7 @@
             },
             {
               "name": "customer_id",
-              "description": "",
+              "description": "The customer ID.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1422,7 +1422,7 @@
             },
             {
               "name": "dangerously_disable_all_namespace_checks",
-              "description": "",
+              "description": "Disables all namespace checks.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
@@ -1434,7 +1434,7 @@
             },
             {
               "name": "database_encryption_key",
-              "description": "",
+              "description": "The encryption key for encrypting sensitive data in the database.",
               "label": "optional",
               "type": "bytes",
               "longType": "bytes",
@@ -1446,7 +1446,7 @@
             },
             {
               "name": "database_encryption_key_file",
-              "description": "",
+              "description": "A file containing the base64-encoded database encryption key.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1458,7 +1458,7 @@
             },
             {
               "name": "database_encryption_key_raw_file",
-              "description": "",
+              "description": "A file containing the raw database encryption key.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1470,7 +1470,7 @@
             },
             {
               "name": "database_url",
-              "description": "",
+              "description": "The database the enterprise console will use.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1482,7 +1482,7 @@
             },
             {
               "name": "databroker_service_urls",
-              "description": "",
+              "description": "The databroker service URLs.",
               "label": "optional",
               "type": "StringList",
               "longType": "EnterpriseSettings.StringList",
@@ -1494,7 +1494,7 @@
             },
             {
               "name": "debug_address",
-              "description": "",
+              "description": "The address to expose pprof debug endpoints.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1506,7 +1506,7 @@
             },
             {
               "name": "debug_config_dump",
-              "description": "",
+              "description": "Dumps the databroker configuration. This is a debug option to be used\nonly when specified by Pomerium Support.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
@@ -1518,7 +1518,7 @@
             },
             {
               "name": "directory_provider",
-              "description": "",
+              "description": "The directory provider for directory sync.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1530,7 +1530,7 @@
             },
             {
               "name": "directory_provider_options",
-              "description": "",
+              "description": "The directory provider options for directory sync.",
               "label": "optional",
               "type": "Struct",
               "longType": "google.protobuf.Struct",
@@ -1542,7 +1542,7 @@
             },
             {
               "name": "directory_provider_refresh_interval",
-              "description": "",
+              "description": "The directory provider refresh interval.",
               "label": "optional",
               "type": "Duration",
               "longType": "google.protobuf.Duration",
@@ -1554,7 +1554,7 @@
             },
             {
               "name": "directory_provider_refresh_timeout",
-              "description": "",
+              "description": "The directory provider refresh timeout.",
               "label": "optional",
               "type": "Duration",
               "longType": "google.protobuf.Duration",
@@ -1566,7 +1566,7 @@
             },
             {
               "name": "disable_feedback_widget",
-              "description": "",
+              "description": "Disables the feedback widget.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
@@ -1578,7 +1578,7 @@
             },
             {
               "name": "disable_remote_diagnostics",
-              "description": "",
+              "description": "Disables remote diagnostics.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
@@ -1590,7 +1590,7 @@
             },
             {
               "name": "enable_session_recording_querier_cache",
-              "description": "",
+              "description": "Indexes remote session recording metadata locally for more efficient\nquerying.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
@@ -1602,7 +1602,7 @@
             },
             {
               "name": "grpc_address",
-              "description": "",
+              "description": "The address to listen for gRPC on.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1614,7 +1614,7 @@
             },
             {
               "name": "license_key",
-              "description": "",
+              "description": "The license key issued by your account team.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1626,7 +1626,7 @@
             },
             {
               "name": "license_key_validate_offline",
-              "description": "",
+              "description": "Validates the license key offline, without contacting the license server.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
@@ -1638,7 +1638,7 @@
             },
             {
               "name": "log_level",
-              "description": "",
+              "description": "The enterprise console log level. Defaults to info.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1650,7 +1650,7 @@
             },
             {
               "name": "metrics_address",
-              "description": "",
+              "description": "The address to expose console metrics in Prometheus format.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1662,7 +1662,7 @@
             },
             {
               "name": "override_certificate_name",
-              "description": "",
+              "description": "Overrides the certificate name used for the databroker connection.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1674,7 +1674,7 @@
             },
             {
               "name": "prometheus_data_dir",
-              "description": "",
+              "description": "The path to Prometheus data.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1686,7 +1686,7 @@
             },
             {
               "name": "prometheus_listen_address",
-              "description": "",
+              "description": "The address the embedded Prometheus listens on, as host:port.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1698,7 +1698,7 @@
             },
             {
               "name": "prometheus_scrape_interval",
-              "description": "",
+              "description": "The Prometheus scrape frequency.",
               "label": "optional",
               "type": "Duration",
               "longType": "google.protobuf.Duration",
@@ -1710,7 +1710,7 @@
             },
             {
               "name": "prometheus_url",
-              "description": "",
+              "description": "The URL to access the Prometheus metrics server.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1722,7 +1722,7 @@
             },
             {
               "name": "public_address",
-              "description": "",
+              "description": "The address the enterprise console is reachable at. Defaults to\nbind_address.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1734,7 +1734,7 @@
             },
             {
               "name": "session_recording_options",
-              "description": "",
+              "description": "Bootstrap settings for session recording for the default cluster.",
               "label": "optional",
               "type": "Struct",
               "longType": "google.protobuf.Struct",
@@ -1746,7 +1746,7 @@
             },
             {
               "name": "shared_secret",
-              "description": "",
+              "description": "The secret for signing JWTs, shared with Pomerium.",
               "label": "optional",
               "type": "bytes",
               "longType": "bytes",
@@ -1758,7 +1758,7 @@
             },
             {
               "name": "shared_secret_file",
-              "description": "",
+              "description": "A file containing the base64-encoded shared secret.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1770,7 +1770,7 @@
             },
             {
               "name": "shared_secret_raw_file",
-              "description": "",
+              "description": "A file containing the raw shared secret.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1782,7 +1782,7 @@
             },
             {
               "name": "signing_key",
-              "description": "",
+              "description": "The signing key (public or private) for verifying JWTs.\nThis option is deprecated.",
               "label": "optional",
               "type": "bytes",
               "longType": "bytes",
@@ -1794,7 +1794,7 @@
             },
             {
               "name": "signing_key_file",
-              "description": "",
+              "description": "A file containing the base64-encoded signing key.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1806,7 +1806,7 @@
             },
             {
               "name": "signing_key_raw_file",
-              "description": "",
+              "description": "A file containing the raw signing key.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1818,7 +1818,7 @@
             },
             {
               "name": "tls_certificate",
-              "description": "",
+              "description": "The TLS certificate.",
               "label": "optional",
               "type": "bytes",
               "longType": "bytes",
@@ -1830,7 +1830,7 @@
             },
             {
               "name": "tls_certificate_authority",
-              "description": "",
+              "description": "The TLS certificate authority.",
               "label": "optional",
               "type": "bytes",
               "longType": "bytes",
@@ -1842,7 +1842,7 @@
             },
             {
               "name": "tls_certificate_authority_file",
-              "description": "",
+              "description": "A file containing the TLS certificate authority.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1854,7 +1854,7 @@
             },
             {
               "name": "tls_certificate_file",
-              "description": "",
+              "description": "A file containing the TLS certificate.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1866,7 +1866,7 @@
             },
             {
               "name": "tls_derive",
-              "description": "",
+              "description": "Derives the TLS certificate for this domain name from the shared secret.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1878,7 +1878,7 @@
             },
             {
               "name": "tls_insecure_skip_verify",
-              "description": "",
+              "description": "Disables remote hosts' TLS certificate chain and hostname checks.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
@@ -1890,7 +1890,7 @@
             },
             {
               "name": "tls_key",
-              "description": "",
+              "description": "The TLS private key.",
               "label": "optional",
               "type": "bytes",
               "longType": "bytes",
@@ -1902,7 +1902,7 @@
             },
             {
               "name": "tls_key_file",
-              "description": "",
+              "description": "A file containing the TLS private key.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1914,7 +1914,7 @@
             },
             {
               "name": "url",
-              "description": "",
+              "description": "The URL to host the enterprise console at. The enterprise console is\nonly enabled when this is set.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -1926,7 +1926,7 @@
             },
             {
               "name": "use_static_assets",
-              "description": "",
+              "description": "When false, forwards static requests to localhost:3000. Defaults to true.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
@@ -1938,7 +1938,7 @@
             },
             {
               "name": "validation_mode",
-              "description": "",
+              "description": "How much validation to perform. Defaults to static.",
               "label": "optional",
               "type": "EnterpriseValidationMode",
               "longType": "EnterpriseValidationMode",
