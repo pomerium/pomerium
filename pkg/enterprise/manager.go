@@ -168,7 +168,7 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 	options = make(map[string]any)
 	enabled = cfg.Options.Enterprise.IsSet && cfg.Options.Enterprise.Value.URL.IsSet
 	if !enabled || true { // for now, running the embedded enterprise console is disabled
-		return options, enabled, nil
+		return options, false, nil
 	}
 
 	settings := cfg.Options.Enterprise.Value
