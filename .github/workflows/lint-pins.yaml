@@ -19,8 +19,7 @@ jobs:
   lint-pins:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -39,4 +38,16 @@ jobs:
         shell: bash
         run: |
           { git grep -IHnoE '(=")?[-A-Za-z0-9._/:{}$]*@sha256:[0-9a-f]{64}' -- ':!*.lock' ':!*lock.json' ':!*.sum' || test $? -eq 1; } \
-            | awk '{ file = $0; sub(/:.*/, "", file); ref = $0; sub(/^[^:]*:[0-9]+:/, "", ref); sub(/@sha256:.*/, "", ref); if (ref ~ /^="/) { sub(/^="/, "", ref); if (file ~ /\.env$/ && ref ~ /^[A-Za-z0-9][-A-Za-z0-9._]*$/) next } n = split(ref, part, "/"); if (part[n] !~ /:/) { print "image digest without a tag: " $0; bad = 1 } } END { exit bad }'
+            | awk '
+              {
+                file = $0; sub(/:.*/, "", file)
+                ref = $0; sub(/^[^:]*:[0-9]+:/, "", ref); sub(/@sha256:.*/, "", ref)
+                if (ref ~ /^="/) {
+                  sub(/^="/, "", ref)
+                  if (file ~ /\.env$/ && ref ~ /^[A-Za-z0-9][-A-Za-z0-9._]*$/) next
+                }
+                n = split(ref, part, "/")
+                if (part[n] !~ /:/) { print "image digest without a tag: " $0; bad = 1 }
+              }
+              END { exit bad }
+            '
