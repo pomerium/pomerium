@@ -115,12 +115,11 @@ func TestExtProcUsesUpdatedDatabrokerConfigForLateMCPRoute(t *testing.T) {
 	makeRequest := func() int {
 		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, fromURL, nil)
+		req, err := newMCPRequest(reqCtx, fromURL)
 		if err != nil {
 			return 0
 		}
 		req.Header.Set("Authorization", "Bearer Pomerium-"+saJWT)
-		req.Header.Set("Content-Type", "application/json")
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			return 0
