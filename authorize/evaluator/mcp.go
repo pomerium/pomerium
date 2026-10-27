@@ -24,7 +24,10 @@ type RequestMCPToolCall struct {
 	Arguments map[string]any `json:"arguments"`
 }
 
-// RequestMCPFromCheckRequest populates a RequestMCP from an Envoy CheckRequest proto for MCP routes.
+// RequestMCPFromCheckRequest populates a RequestMCP from an Envoy CheckRequest
+// proto for MCP routes. An error means a POST is not one that authorization
+// can be evaluated against, and must be rejected: its body is not a single
+// well-formed JSON-RPC message.
 func RequestMCPFromCheckRequest(
 	in *envoy_service_auth_v3.CheckRequest,
 ) (RequestMCP, error) {
@@ -49,14 +52,23 @@ func RequestMCPFromCheckRequest(
 		return mcpReq, fmt.Errorf("unsupported content-type %q, expected application/json", mimeType)
 	}
 
+	if !json.Valid([]byte(body)) {
+		return mcpReq, errors.New("MCP request body is not valid JSON")
+	}
+
 	msg, err := jsonrpc.DecodeMessage([]byte(body))
 	if err != nil {
 		return mcpReq, fmt.Errorf("failed to parse MCP request: %w", err)
 	}
 
-	jsonRPCReq, ok := msg.(*jsonrpc.Request)
-	if !ok {
-		return mcpReq, errors.New("not a JSON-RPC request")
+	jsonRPCReq, isRequest := msg.(*jsonrpc.Request)
+	if !isRequest {
+		// A client's response to a server request carries nothing to authorize
+		// beyond the route itself.
+		return mcpReq, nil
+	}
+	if jsonRPCReq.Method == "" {
+		return mcpReq, errors.New("MCP request method is empty")
 	}
 
 	mcpReq.ID = jsonRPCReq.ID
@@ -64,12 +76,37 @@ func RequestMCPFromCheckRequest(
 
 	if jsonRPCReq.Method == "tools/call" {
 		var toolCall RequestMCPToolCall
-		err := json.Unmarshal(jsonRPCReq.Params, &toolCall)
-		if err != nil {
+		if err := unmarshalMembers(jsonRPCReq.Params, map[string]any{
+			"name":      &toolCall.Name,
+			"arguments": &toolCall.Arguments,
+		}); err != nil {
 			return mcpReq, fmt.Errorf("failed to unmarshal MCP tool call parameters: %w", err)
+		}
+		if toolCall.Name == "" {
+			return mcpReq, errors.New("MCP tool call name is empty")
 		}
 		mcpReq.ToolCall = &toolCall
 	}
 
 	return mcpReq, nil
+}
+
+// unmarshalMembers unmarshals the members of a JSON object into the values
+// that fields points to, by exact member name. JSON-RPC member names are
+// case-sensitive, so a member must not be decoded into a struct field, which
+// encoding/json matches case-insensitively: authorization would then see a
+// different value than an MCP server reading the same message.
+func unmarshalMembers(data json.RawMessage, fields map[string]any) error {
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(data, &members); err != nil {
+		return err
+	}
+	for name, v := range fields {
+		if member, ok := members[name]; ok {
+			if err := json.Unmarshal(member, v); err != nil {
+				return fmt.Errorf("%s: %w", name, err)
+			}
+		}
+	}
+	return nil
 }

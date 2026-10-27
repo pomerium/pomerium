@@ -39,7 +39,7 @@ func TestBuildOptions(t *testing.T) {
 		assert.True(t, enabled)
 		assert.Equal(t, map[string]any{
 			"cache_dir":               fileutil.EnterpriseConsoleCacheDir(),
-			"database_encryption_key": "oKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKA=",
+			"database_encryption_key": "bDofqoe3k4bupJ/8cEjiof1TYB+MEZPLrqlEXiO1qF0=",
 			"database_url":            "sqlite://" + path.Join(fileutil.EnterpriseConsoleDataDir(), "data.sqlite"),
 			"databroker_service_url":  "http://localhost:5443",
 			"prometheus_data_dir":     filepath.Join(fileutil.EnterpriseConsoleDataDir(), "prometheus"),
@@ -167,5 +167,20 @@ func TestBuildOptions(t *testing.T) {
 			"use_static_assets":                        true,
 			"validation_mode":                          "full",
 		}, options)
+	})
+	t.Run("saves database encryption key", func(t *testing.T) {
+		cfg := config.New(config.NewDefaultOptions())
+		cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0xA0}, 32))
+		cfg.Options.Enterprise = nullable.From(config.EnterpriseSettings{
+			URL: nullable.From("https://example.com"),
+		})
+		options1, enabled, err := buildOptions(cfg)
+		assert.NoError(t, err)
+		assert.True(t, enabled)
+		cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0xA1}, 32))
+		options2, enabled, err := buildOptions(cfg)
+		assert.NoError(t, err)
+		assert.True(t, enabled)
+		assert.Equal(t, options1["database_encryption_key"], options2["database_encryption_key"])
 	})
 }
