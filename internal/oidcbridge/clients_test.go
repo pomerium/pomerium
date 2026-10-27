@@ -51,6 +51,24 @@ func TestClientLookup(t *testing.T) {
 			assert.ErrorContains(t, err, "unknown client_id")
 		}
 	}
+	testLookupOKByRedirectURI := func(clientID, redirectURI string) func(t *testing.T) {
+		return func(t *testing.T) {
+			t.Helper()
+			info, err := c.Lookup(clientID, redirectURI)
+			assert.NoError(t, err)
+			assert.Equal(t, clientID, info.ID)
+			assert.Equal(t, redirectURI, info.RedirectURI)
+		}
+	}
+
+	testLookupInvalidRedirectURI := func(clientID, redirectURI string) func(t *testing.T) {
+		return func(t *testing.T) {
+			t.Helper()
+			info, err := c.Lookup(clientID, redirectURI)
+			assert.Nil(t, info)
+			assert.ErrorContains(t, err, "does not match allowed redirect_uris")
+		}
+	}
 
 	assert.True(t, c.Empty())
 
@@ -134,6 +152,43 @@ func TestClientLookup(t *testing.T) {
 	t.Run("non-wildcard match", testLookupOK("https://non-wildcard.example.com/path-prefix/foo-bar", "non-wildcard"))
 	t.Run("no wildcard fallthrough", testLookupNotFound("https://non-wildcard.example.com/non-matching-path"))
 	t.Run("valid wildcard", testLookupOK("https://other-wildcard.example.com/some-path", "wildcard"))
+
+	setup([]config.Policy{
+		{
+			From:   "https://non-wildcard.example.com",
+			Prefix: "/path-prefix",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("non-wildcard"),
+			}),
+		},
+		{
+			From: "https://*-wildcard.example.com",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("wildcard"),
+			}),
+		},
+	})
+	assert.False(t, c.Empty())
+
+	setup([]config.Policy{
+		{
+			From:   "https://strict.example.com",
+			Prefix: "/nested/foo",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				RedirectURIs: nullable.From([]string{
+					"https://strict.example.com/nested/foo/oauth/callback",
+					"https://strict.example.com/oauth/callback",
+					"https://foo.com/oauth/callback",
+				}),
+				ClientSecret: nullable.From("foo"),
+			}),
+		},
+	})
+
+	t.Run("valid redirect_uri nested", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/nested/foo/oauth/callback"))
+	t.Run("valid redirect_uri non-nested", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/oauth/callback"))
+	t.Run("valid redirect_uri other host", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://foo.com/oauth/callback"))
+	t.Run("invalid redirect_uri", testLookupInvalidRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/nested/foo/auth/callback"))
 }
 
 func TestClientLookup_ValidatesRedirectURI(t *testing.T) {

@@ -625,6 +625,9 @@ message OIDCBridge {
   // Client secret to use for upstream applications that do not support
   // public clients / PKCE.
   optional string client_secret = 2 [(pomerium.config.sensitive) = true];
+  // List of allowed redirect_uris. By default allows any subpath of the configured
+  // route's `to` address
+  repeated string redirect_uris = 3;
 }
 
 // A policy expressed in Pomerium Policy Language (PPL).

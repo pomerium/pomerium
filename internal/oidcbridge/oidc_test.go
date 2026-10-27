@@ -110,8 +110,13 @@ func TestHandleAuth(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("no client_id", func(t *testing.T) {
+		q := url.Values{
+			"redirect_uri":  {"https://pkce.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {"openid"},
+		}
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/oidc/auth", nil)
+		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
 		h.HandleAuth(w, r)
 		res := w.Result()
 		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
@@ -120,8 +125,13 @@ func TestHandleAuth(t *testing.T) {
 	})
 
 	t.Run("no redirect_uri", func(t *testing.T) {
+		q := url.Values{
+			"client_id":     {"https://pkce.example.com"},
+			"response_type": {"code"},
+			"scope":         {"openid"},
+		}
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?client_id=foobar", nil)
+		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
 		h.HandleAuth(w, r)
 		res := w.Result()
 		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
@@ -131,8 +141,10 @@ func TestHandleAuth(t *testing.T) {
 
 	t.Run("invalid redirect_uri", func(t *testing.T) {
 		q := url.Values{
-			"client_id":    {"https://pkce.example.com"},
-			"redirect_uri": {"https://other.example.com/callback"},
+			"client_id":     {"https://pkce.example.com"},
+			"redirect_uri":  {"https://other.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {"openid"},
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
@@ -140,7 +152,7 @@ func TestHandleAuth(t *testing.T) {
 		res := w.Result()
 		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 		b, _ := io.ReadAll(res.Body)
-		assert.Contains(t, string(b), `redirect_uri \"https://other.example.com/callback\" does not match client_id \"https://pkce.example.com\"`)
+		assert.Contains(t, string(b), `redirect_uri https://other.example.com/callback does not match client_id https://pkce.example.com`)
 	})
 
 	t.Run("invalid code_challenge_method", func(t *testing.T) {
@@ -148,6 +160,8 @@ func TestHandleAuth(t *testing.T) {
 			"client_id":             {"https://pkce.example.com"},
 			"redirect_uri":          {"https://pkce.example.com/callback"},
 			"code_challenge_method": {"plain"},
+			"response_type":         {"code"},
+			"scope":                 {"openid"},
 			"state":                 {"example-state"}, // should be propagated even for an error response
 		}
 		w := httptest.NewRecorder()
@@ -156,7 +170,7 @@ func TestHandleAuth(t *testing.T) {
 		res := w.Result()
 		assert.Equal(t, http.StatusFound, res.StatusCode)
 		require.NoError(t, err)
-		assert.Equal(t, "https://pkce.example.com/callback?error=invalid_request&error_description=unsupported+code_challenge_method+%22plain%22&state=example-state", res.Header.Get("Location"))
+		assert.Equal(t, "https://pkce.example.com/callback?error=invalid_request&error_description=unsupported+code_challenge_method&state=example-state", res.Header.Get("Location"))
 	})
 
 	t.Run("invalid code_challenge", func(t *testing.T) {
@@ -165,6 +179,8 @@ func TestHandleAuth(t *testing.T) {
 			"redirect_uri":          {"https://pkce.example.com/callback"},
 			"code_challenge":        {"foobar"},
 			"code_challenge_method": {"S256"},
+			"response_type":         {"code"},
+			"scope":                 {"openid"},
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
@@ -177,9 +193,11 @@ func TestHandleAuth(t *testing.T) {
 
 	t.Run("nonce too large", func(t *testing.T) {
 		q := url.Values{
-			"client_id":    {"https://non-pkce.example.com"},
-			"redirect_uri": {"https://non-pkce.example.com/callback"},
-			"nonce":        {strings.Repeat("A", 2000)},
+			"client_id":     {"https://non-pkce.example.com"},
+			"redirect_uri":  {"https://non-pkce.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {"openid"},
+			"nonce":         {strings.Repeat("A", 2000)},
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
@@ -196,8 +214,10 @@ func TestHandleAuth(t *testing.T) {
 		require.NoError(t, err)
 
 		q := url.Values{
-			"client_id":    {"https://non-pkce.example.com"},
-			"redirect_uri": {"https://non-pkce.example.com/callback"},
+			"client_id":     {"https://non-pkce.example.com"},
+			"redirect_uri":  {"https://non-pkce.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {"openid"},
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
@@ -222,6 +242,8 @@ func TestHandleAuth(t *testing.T) {
 			"code_challenge_method": {"S256"},
 			"code_challenge":        {"QTytuADJyhDFCbcVU_m4Vkdbpy36C9a-6i0Yo25m0-s"},
 			"redirect_uri":          {"https://pkce.example.com/callback"},
+			"response_type":         {"code"},
+			"scope":                 {"openid"},
 			"state":                 {"example-state"},
 		}
 		w := httptest.NewRecorder()
@@ -265,9 +287,11 @@ func TestHandleAuth(t *testing.T) {
 		require.NoError(t, err)
 
 		q := url.Values{
-			"client_id":    {"https://non-pkce.example.com"},
-			"redirect_uri": {"https://non-pkce.example.com/callback"},
-			"state":        {"abcdef"},
+			"client_id":     {"https://non-pkce.example.com"},
+			"redirect_uri":  {"https://non-pkce.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {"openid"},
+			"state":         {"abcdef"},
 			// no code_challenge or code_challenge_method
 		}
 		w := httptest.NewRecorder()
@@ -291,7 +315,7 @@ func TestHandleToken(t *testing.T) {
 	h, err := NewHandlers(nil, nil, exampleConfig())
 	require.NoError(t, err)
 
-	t.Run("no client_id", func(t *testing.T) {
+	t.Run("no redirect_uri", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/token", nil)
 		h.HandleToken(w, r)
@@ -301,7 +325,122 @@ func TestHandleToken(t *testing.T) {
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
 			"error": "invalid_request",
+			"error_description": "missing redirect_uri"
+		}`, string(b))
+	})
+
+	t.Run("no grant_type", func(t *testing.T) {
+		q := url.Values{
+			"redirect_uri": {"https://pkce.example.com/callback"},
+		}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/oidc/token?"+q.Encode(), nil)
+		h.HandleToken(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{
+			"error": "invalid_request",
+			"error_description": "missing grant_type"
+		}`, string(b))
+	})
+
+	t.Run("no code", func(t *testing.T) {
+		q := url.Values{
+			"redirect_uri": {"https://pkce.example.com/callback"},
+			"grant_type":   {"authorization_code"},
+		}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/oidc/token?"+q.Encode(), nil)
+		h.HandleToken(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{
+			"error": "invalid_request",
+			"error_description": "missing code"
+		}`, string(b))
+	})
+
+	t.Run("repeated parameter in request body", func(t *testing.T) {
+		body := url.Values{
+			"code": {"one", "two"},
+		}.Encode()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/oidc/token", strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		h.HandleToken(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{
+			"error": "invalid_request",
+			"error_description": "repeated parameter"
+		}`, string(b))
+	})
+
+	t.Run("repeated parameter across query and request body", func(t *testing.T) {
+		body := url.Values{
+			"code": {"two"},
+		}.Encode()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/oidc/token?code=one", strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		h.HandleToken(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{
+			"error": "invalid_request",
+			"error_description": "repeated parameter"
+		}`, string(b))
+	})
+
+	t.Run("no client_id", func(t *testing.T) {
+		q := url.Values{
+			"redirect_uri": {"https://pkce.example.com/callback"},
+			"grant_type":   {"authorization_code"},
+			"code":         {"foobar"},
+		}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/oidc/token?"+q.Encode(), nil)
+		h.HandleToken(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{
+			"error": "invalid_grant",
 			"error_description": "missing client_id"
+		}`, string(b))
+	})
+
+	t.Run("multiple client credentials", func(t *testing.T) {
+		body := url.Values{
+			"client_secret": {"explicit-secret"},
+			"redirect_uri":  {"https://non-pkce.example.com/callback"},
+			"grant_type":    {"authorization_code"},
+			"code":          {"code"},
+		}.Encode()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/oidc/token", strings.NewReader(body))
+		r.SetBasicAuth("https%3A%2F%2Fnon-pkce.example.com", "explicit-secret")
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		h.HandleToken(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{
+			"error": "invalid_request",
+			"error_description": "multiple client credentials"
 		}`, string(b))
 	})
 
@@ -324,11 +463,12 @@ func TestHandleToken(t *testing.T) {
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		h.HandleToken(w, r)
 		res := w.Result()
-		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+		assert.Equal(t, `Basic realm="oidc"`, res.Header.Get("WWW-Authenticate"))
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_client",
 			"error_description": "incorrect client_secret"
 		}`, string(b))
 	})
@@ -339,6 +479,7 @@ func TestHandleToken(t *testing.T) {
 			"client_id":    {"https://pkce.example.com"},
 			"redirect_uri": {"https://pkce.example.com/callback"},
 			"grant_type":   {"implicit"},
+			"code":         {"code"},
 		}.Encode()
 
 		w := httptest.NewRecorder()
@@ -351,7 +492,7 @@ func TestHandleToken(t *testing.T) {
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
 			"error": "unsupported_grant_type",
-			"error_description": "grant type \"implicit\" is not supported"
+			"error_description": "grant type implicit is not supported"
 		}`, string(b))
 	})
 
@@ -372,7 +513,7 @@ func TestHandleToken(t *testing.T) {
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_grant",
 			"error_description": "invalid authorization code"
 		}`, string(b))
 	})
@@ -399,7 +540,7 @@ func TestHandleToken(t *testing.T) {
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_grant",
 			"error_description": "authorization code expired at 2026-10-07 22:23:24 UTC"
 		}`, string(b))
 	})
@@ -426,7 +567,7 @@ func TestHandleToken(t *testing.T) {
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_grant",
 			"error_description": "incorrect or missing redirect_uri"
 		}`, string(b))
 	})
@@ -455,7 +596,7 @@ func TestHandleToken(t *testing.T) {
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{
-			"error": "invalid_request",
+			"error": "invalid_grant",
 			"error_description": "incorrect code_verifier"
 		}`, string(b))
 	})
@@ -636,10 +777,10 @@ func TestHandleUserInfo(t *testing.T) {
 		r.Header.Set("Authorization", "!invalid!")
 		h.HandleUserInfo(w, r)
 		res := w.Result()
-		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 		b, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
-		assert.JSONEq(t, `{"error": "invalid_request"}`, string(b))
+		assert.JSONEq(t, `{"error": "invalid_token"}`, string(b))
 	})
 	t.Run("invalid access token", func(t *testing.T) {
 		h, err := NewHandlers(nil, nil, exampleConfig())

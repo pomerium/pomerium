@@ -133,10 +133,6 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 	if err != nil {
 		return nil, fmt.Errorf("invalid redirect_uri: %w", err)
 	}
-	if !redirectURIMatches(parsedClient, parsedRedirect) {
-		return nil, fmt.Errorf("redirect_uri %q does not match client_id %q", redirectURI, clientID)
-	}
-
 	var routesToScan []*config.Policy
 	if routes, ok := c.nonWildcardRoutes[parsedClient.Host]; ok {
 		routesToScan = routes
@@ -145,23 +141,41 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 	}
 	for _, r := range routesToScan {
 		clientMatches := r.Matches(parsedClient, false)
-		redirectMatches := r.Matches(parsedRedirect, false)
-		if clientMatches && redirectMatches {
-			info := ClientInfo{
-				ID:          clientID,
-				RedirectURI: redirectURI,
-			}
-			oidcBridge := c.globalOptions.GetOIDCBridgeForPolicy(r)
-			if oidcBridge.ClientSecret.IsSet {
-				// Store a hash of the explicit client_secret, so we can perform
-				// a constant-time string comparison during verification.
-				hash := sha256.Sum256([]byte(oidcBridge.ClientSecret.Value))
-				info.SecretHash = hash[:]
-			}
-			return &info, nil
-		} else if clientMatches || redirectMatches {
-			return nil, fmt.Errorf("redirect_uri %q does not match client_id route", redirectURI)
+		if !clientMatches {
+			continue
 		}
+		info := ClientInfo{
+			ID:          clientID,
+			RedirectURI: redirectURI,
+		}
+		oidcBridge := c.globalOptions.GetOIDCBridgeForPolicy(r)
+		if oidcBridge.ClientSecret.IsSet {
+			// Store a hash of the explicit client_secret, so we can perform
+			// a constant-time string comparison during verification.
+			hash := sha256.Sum256([]byte(oidcBridge.ClientSecret.Value))
+			info.SecretHash = hash[:]
+		}
+
+		if oidcBridge.RedirectURIs.IsSet {
+			// OpenId Connect Core §3.1.2.1, registered redirect_uri validation.
+
+			for _, redirectURI := range oidcBridge.RedirectURIs.Value {
+				// Validation should be performed according to §6.2.1 of RFC3986
+				if strings.EqualFold(redirectURI, info.RedirectURI) {
+					return &info, nil
+				}
+			}
+			return nil, fmt.Errorf("redirect_uri %s does not match allowed redirect_uris", info.RedirectURI)
+		}
+
+		// default fallback : any subpath of the parsedClient is accepted
+		if !r.Matches(parsedRedirect, false) {
+			return nil, fmt.Errorf("redirect_uri %s does not match client_id %s", redirectURI, clientID)
+		}
+		if !redirectURIMatches(parsedClient, parsedRedirect) {
+			return nil, fmt.Errorf("redirect_uri %s does not match client_id %s", redirectURI, clientID)
+		}
+		return &info, nil
 	}
 	return nil, errors.New("unknown client_id")
 }

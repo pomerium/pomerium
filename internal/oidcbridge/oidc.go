@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -124,6 +125,8 @@ func deriveJWKS(sharedSecret []byte) (*jose.JSONWebKeySet, error) {
 	return &jwks, nil
 }
 
+var oidcResponseTypesSupported = []string{"code"}
+
 func (h *Handlers) HandleOIDCConfiguration(w http.ResponseWriter, r *http.Request) {
 	var rootURL *url.URL
 	rootURL, _ = url.Parse(h.issuerURL)
@@ -139,8 +142,8 @@ func (h *Handlers) HandleOIDCConfiguration(w http.ResponseWriter, r *http.Reques
 		"code_challenge_methods_supported":      []string{"S256"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
 		"token_endpoint_auth_methods_supported": []string{"client_secret_basic", "client_secret_post"},
-		"response_types_supported":              []string{"code"},
-		"scopes_supported":                      []string{"openid"},
+		"response_types_supported":              oidcResponseTypesSupported,
+		"scopes_supported":                      oidcSupportedScopes,
 	}
 	serveJSON(w, r, config)
 }
@@ -160,12 +163,14 @@ func (h *Handlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
 			}).ErrorResponse(r.Context(), w, r)
 			return
 		}
-
-		// Any other error should be redirected.
-		e := &errorResponse{
-			ErrorCode:   "invalid_request",
-			Description: err.Error(),
+		e := &errorResponse{}
+		if !errors.As(err, e) {
+			e = &errorResponse{
+				ErrorCode:   "invalid_request",
+				Description: err.Error(),
+			}
 		}
+		// Any other error should be redirected.
 		http.Redirect(w, r, validated.ErrorRedirectURL(e), http.StatusFound)
 		return
 	}
@@ -225,6 +230,23 @@ func (h *Handlers) validateAuthRequest(r *http.Request) (*validatedAuthRequest, 
 		State:       r.FormValue("state"),
 	}
 
+	if err := validateCodeResponseType(r.FormValue("response_type")); err != nil {
+		return validated, err
+	}
+
+	// OIDC 3.1.2.6.
+	//  This OP does not support use of the request parameter defined in Section 6.
+	if r.FormValue("request") != "" {
+		return validated, &errorResponse{ErrorCode: "request_not_supported"}
+	}
+
+	if scope := r.FormValue("scope"); !slices.Contains(oidcSupportedScopes, scope) {
+		return validated, &errorResponse{
+			ErrorCode:   "invalid_request",
+			Description: fmt.Sprintf("unsupported scope requested : %s", scope),
+		}
+	}
+
 	validated.S256CodeChallenge, err = validateCodeChallenge(
 		r.FormValue("code_challenge_method"), r.FormValue("code_challenge"))
 	if err != nil {
@@ -269,8 +291,18 @@ func validateCodeChallenge(method, challenge string) (string, error) {
 		}
 		return challenge, nil
 	default:
-		return "", fmt.Errorf("unsupported code_challenge_method %q", method)
+		return "", errors.New("unsupported code_challenge_method")
 	}
+}
+
+func validateCodeResponseType(codeTypeRequested string) error {
+	if !slices.Contains(oidcResponseTypesSupported, codeTypeRequested) {
+		return oauth21.Error{
+			Code:        oauth21.InvalidRequest,
+			Description: fmt.Sprintf("code unsupported response_type: %s", codeTypeRequested),
+		}
+	}
+	return nil
 }
 
 // HandleToken handles a token endpoint request, exchanging an authorization
@@ -331,6 +363,51 @@ type ValidatedTokenRequest struct {
 
 const timestampFormat = "2006-01-02 15:04:05 MST"
 
+func (h *Handlers) validateTokenFormValues(r *http.Request) error {
+	if err := r.ParseForm(); err != nil {
+		return &errorResponse{
+			ErrorCode: "invalid_request",
+		}
+	}
+	// RFC 6749: The OAuth 2.0 Authorization Framework section §5.2, repeated values are not allowed
+	for _, values := range r.Form {
+		if len(values) > 1 {
+			return &errorResponse{
+				ErrorCode:   "invalid_request",
+				Description: "repeated parameter",
+			}
+		}
+	}
+	if _, _, ok := r.BasicAuth(); ok {
+		if _, ok := r.PostForm["client_secret"]; ok {
+			return &errorResponse{
+				ErrorCode:   "invalid_request",
+				Description: "multiple client credentials",
+			}
+		}
+	}
+	if r.FormValue("redirect_uri") == "" {
+		return &errorResponse{
+			ErrorCode:   "invalid_request",
+			Description: "missing redirect_uri",
+		}
+	}
+	grantType := r.FormValue("grant_type")
+	if grantType == "" {
+		return &errorResponse{
+			ErrorCode:   "invalid_request",
+			Description: "missing grant_type",
+		}
+	}
+	if r.FormValue("code") == "" {
+		return &errorResponse{
+			ErrorCode:   "invalid_request",
+			Description: "missing code",
+		}
+	}
+	return nil
+}
+
 func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*ValidatedTokenRequest, error) {
 	// From the OIDC spec §3.1.3.2:
 	//
@@ -355,32 +432,34 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 	// Implementation notes:
 	//  - We do not currently implement (4).
 
+	// Error codes are compliant with RFC 6749: The OAuth 2.0 Authorization Framework
+	// section §5.2 & RFC 7636 PKCE by OAuth Public Clients sections §4.4.1 / §4.6.
+
+	if err := h.validateTokenFormValues(r); err != nil {
+		return nil, err
+	}
+
 	var clientID, clientSecret string
 	if u, p, ok := r.BasicAuth(); ok {
 		var err error
 		clientID, err = url.QueryUnescape(u)
 		if err != nil {
-			return nil, &errorResponse{
-				ErrorCode:   "invalid_request",
-				Description: "invalid client_secret_basic value",
-			}
+			return nil, newInvalidClientError("invalid client_secret_basic value")
 		}
 		clientSecret, err = url.QueryUnescape(p)
 		if err != nil {
-			return nil, &errorResponse{
-				ErrorCode:   "invalid_request",
-				Description: "invalid client_secret_basic value",
-			}
+			return nil, newInvalidClientError("invalid client_secret_basic value")
 		}
 	} else {
 		clientID = r.FormValue("client_id")
 		clientSecret = r.FormValue("client_secret")
 	}
+
 	redirectURI := r.FormValue("redirect_uri")
 	clientInfo, err := h.clients.Lookup(clientID, redirectURI)
 	if err != nil {
 		return nil, &errorResponse{
-			ErrorCode:   "invalid_request",
+			ErrorCode:   "invalid_grant",
 			Description: err.Error(),
 		}
 	}
@@ -390,25 +469,25 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 	if grantType != "authorization_code" {
 		return nil, &errorResponse{
 			ErrorCode:   "unsupported_grant_type",
-			Description: fmt.Sprintf("grant type %q is not supported", grantType),
+			Description: fmt.Sprintf("grant type %s is not supported", grantType),
 		}
 	}
 
 	payload, err := h.codeEncryptor.Decrypt(r.FormValue("code"), clientID)
 	if err != nil {
 		return nil, &errorResponse{
-			ErrorCode:   "invalid_request",
+			ErrorCode:   "invalid_grant",
 			Description: "invalid authorization code",
 		}
 	} else if payload.Expiration.Before(now) {
 		return nil, &errorResponse{
-			ErrorCode: "invalid_request",
+			ErrorCode: "invalid_grant",
 			Description: fmt.Sprintf("authorization code expired at %s",
 				payload.Expiration.UTC().Format(timestampFormat)),
 		}
-	} else if u := r.FormValue("redirect_uri"); u != payload.RedirectURI {
+	} else if redirectURI != payload.RedirectURI {
 		return nil, &errorResponse{
-			ErrorCode:   "invalid_request",
+			ErrorCode:   "invalid_grant",
 			Description: "incorrect or missing redirect_uri",
 		}
 	}
@@ -418,10 +497,7 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 	if clientInfo.SecretHash != nil {
 		hash := sha256.Sum256([]byte(clientSecret))
 		if subtle.ConstantTimeCompare(hash[:], clientInfo.SecretHash) != 1 {
-			return nil, &errorResponse{
-				ErrorCode:   "invalid_request",
-				Description: "incorrect client_secret",
-			}
+			return nil, newInvalidClientError("incorrect client_secret")
 		}
 	}
 
@@ -430,8 +506,9 @@ func (h *Handlers) validateTokenRequest(r *http.Request, now time.Time) (*Valida
 	challenge := payload.S256CodeChallenge
 	if verifier != "" || challenge != "" {
 		if !oauth21.VerifyPKCES256(verifier, challenge) {
+			// RFC 7636 §4.6
 			return nil, &errorResponse{
-				ErrorCode:   "invalid_request",
+				ErrorCode:   "invalid_grant",
 				Description: "incorrect code_verifier",
 			}
 		}
@@ -464,12 +541,16 @@ func (h *Handlers) issueIDToken(data *handlers.UserInfoData, clientID string, no
 	payload := make(map[string]any)
 	identity.CollectClaims(payload, data.User)
 	identity.CollectClaims(payload, data.Session)
+	// "Normalizing" claims by scope is not technically required for strict conformance,
+	// but is probably better practice here. The OIDC conformance suite also flags
+	// this as best practice.
+	// Note that it is by design that the user info endpoint doesn't normalize scopes yet.
+	NormalizeClaimsByScope(payload, scopeClaimsOIDC)
 
 	// Make sure "aud" and "iss" refer to the OIDC flow between Pomerium and the
 	// upstream application, not the underlying IdP and Pomerium.
 	payload["aud"] = clientID
 	payload["iss"] = h.issuerURL
-	delete(payload, "azp")
 	iat := time.Now().Unix()
 	payload["iat"] = iat
 	payload["exp"] = iat + idTokenValiditySeconds
@@ -487,21 +568,56 @@ func (h *Handlers) issueIDToken(data *handlers.UserInfoData, clientID string, no
 }
 
 // HandleUserInfo handles a request to the user info endpoint.
+// As detailed in the RFC, returning claims per scope requested is out of scope
+// for the current implementation.
 func (h *Handlers) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
 
-	authz := r.Header.Get("Authorization")
-	if authz == "" {
-		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request missing authorization header")
+	// From RFC 6750 Bearer Token Usage §3.1
+
+	//    When a request fails, the resource server responds using the
+	//    appropriate HTTP status code (typically, 400, 401, 403, or 405) and
+	//    includes one of the following error codes in the response:
+
+	//    invalid_request
+	//          The request is missing a required parameter, includes an
+	//          unsupported parameter or parameter value, repeats the same
+	//          parameter, uses more than one method for including an access
+	//          token, or is otherwise malformed.  The resource server SHOULD
+	//          respond with the HTTP 400 (Bad Request) status code.
+
+	//    invalid_token
+	//          The access token provided is expired, revoked, malformed, or
+	//          invalid for other reasons.  The resource SHOULD respond with
+	//          the HTTP 401 (Unauthorized) status code.  The client MAY
+	//          request a new access token and retry the protected resource
+	//          request.
+
+	//    insufficient_scope
+	//          The request requires higher privileges than provided by the
+	//          access token.  The resource server SHOULD respond with the HTTP
+	//          403 (Forbidden) status code and MAY include the "scope"
+	//          attribute with the scope necessary to access the protected
+	//          resource.
+
+	if err := r.ParseForm(); err != nil {
 		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_request"})
 		return
 	}
-
-	if strings.HasPrefix(authz, "Bearer ") {
-		authz = authz[len("Bearer "):]
-	} else {
-		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request missing bearer token")
+	bearerToken, hasHeader := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	bodyToken := r.PostForm.Get("access_token")
+	if hasHeader && bodyToken != "" {
+		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_request"})
+		return
+	}
+	authz := bearerToken
+	if bodyToken != "" {
+		authz = bodyToken
+	}
+	log.Ctx(r.Context()).Debug()
+	if authz == "" {
+		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request missing access token")
 		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_request"})
 		return
 	}
@@ -552,6 +668,12 @@ func serveJSON(w http.ResponseWriter, r *http.Request, obj any) {
 		return
 	}
 
+	if h, ok := obj.(interface{ GetHTTPHeaders() map[string]string }); ok {
+		for k, v := range h.GetHTTPHeaders() {
+			w.Header().Add(k, v)
+		}
+	}
+
 	if s, ok := obj.(interface{ GetHTTPStatus() int }); ok {
 		if status := s.GetHTTPStatus(); status != 0 {
 			w.WriteHeader(status)
@@ -561,9 +683,20 @@ func serveJSON(w http.ResponseWriter, r *http.Request, obj any) {
 }
 
 type errorResponse struct {
-	Status      int    `json:"-"`
-	ErrorCode   string `json:"error"`
-	Description string `json:"error_description,omitempty"`
+	Status      int               `json:"-"`
+	Headers     map[string]string `json:"-"`
+	ErrorCode   string            `json:"error"`
+	Description string            `json:"error_description,omitempty"`
+}
+
+func newInvalidClientError(description string) *errorResponse {
+	return &errorResponse{
+		Headers: map[string]string{
+			"WWW-Authenticate": `Basic realm="oidc"`,
+		},
+		ErrorCode:   "invalid_client",
+		Description: description,
+	}
 }
 
 func (e errorResponse) Error() string {
@@ -578,11 +711,46 @@ func (e *errorResponse) GetHTTPStatus() int {
 		return e.Status
 	}
 	switch e.ErrorCode {
-	case "invalid_client", "invalid_grant", "invalid_request", "unsupported_grant_type":
+	case "invalid_client":
+		return http.StatusUnauthorized
+	case "invalid_grant", "invalid_request", "unsupported_grant_type":
 		return http.StatusBadRequest
 	case "invalid_token":
 		return http.StatusUnauthorized
 	default:
 		return http.StatusInternalServerError
+	}
+}
+
+func (e *errorResponse) GetHTTPHeaders() map[string]string {
+	return e.Headers
+}
+
+type OIDCScope string
+
+const (
+	scopeClaimsOIDC OIDCScope = "openid"
+)
+
+var (
+	oidcSupportedScopes = []string{
+		string(scopeClaimsOIDC),
+	}
+	claimsOIDCScope = []string{
+		"aud", "exp", "iat", "iss", "sid", "sub",
+	}
+)
+
+func NormalizeClaimsByScope(claims map[string]any, scope OIDCScope) {
+	filter := []string{}
+	switch scope {
+	case scopeClaimsOIDC:
+		filter = claimsOIDCScope
+	}
+
+	for k := range claims {
+		if !slices.Contains(filter, k) {
+			delete(claims, k)
+		}
 	}
 }
