@@ -861,7 +861,7 @@ func decodeBase64BytesHookFunc() mapstructure.DecodeHookFunc {
 		if t.Type() != reflect.TypeFor[[]byte]() || f.Type().Kind() != reflect.String {
 			return f.Interface(), nil
 		}
-		return base64.StdEncoding.DecodeString(f.Interface().(string))
+		return base64.StdEncoding.DecodeString(strings.TrimSpace(f.Interface().(string)))
 	})
 }
 
