@@ -43,7 +43,7 @@ const KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.5.2";
 // so both suites pull an identical build; override with VERIFY_IMAGE.
 const UPSTREAM_IMAGE =
   process.env.VERIFY_IMAGE ||
-  "pomerium/verify@sha256:6d9dd40deae8d3ae7517485febf6fd4e7de2692e9dc1a2859c00e3426559af96";
+  "pomerium/verify:sha-3af2c13@sha256:6d9dd40deae8d3ae7517485febf6fd4e7de2692e9dc1a2859c00e3426559af96";
 const POMERIUM_IMAGE = process.env.POMERIUM_IMAGE || "pomerium/pomerium:main";
 
 const STARTUP_TIMEOUT_MS = 240_000;

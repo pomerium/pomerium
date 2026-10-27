@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Create CI token
         id: ci-token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
           private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
@@ -34,7 +34,7 @@ jobs:
           permission-actions: write
 
       - name: Notify
-        uses: benc-uk/workflow-dispatch@d004979be141727c7a17c28f603e2facc40d0855
+        uses: benc-uk/workflow-dispatch@d004979be141727c7a17c28f603e2facc40d0855 # v1.3.3
         with:
           ref: main
           repo: pomerium/${{ matrix.repo }}

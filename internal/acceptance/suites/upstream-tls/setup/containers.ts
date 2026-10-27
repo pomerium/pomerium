@@ -58,7 +58,7 @@ const KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.5.2";
 // acceptance suite uses; override with VERIFY_IMAGE.
 const VERIFY_IMAGE =
   process.env.VERIFY_IMAGE ||
-  "pomerium/verify@sha256:6d9dd40deae8d3ae7517485febf6fd4e7de2692e9dc1a2859c00e3426559af96";
+  "pomerium/verify:sha-3af2c13@sha256:6d9dd40deae8d3ae7517485febf6fd4e7de2692e9dc1a2859c00e3426559af96";
 // First-party echo upstream base image (server.js is bind-mounted in). node
 // core modules only, so any recent node:alpine works. Pinned by multi-arch
 // index digest for reproducibility; override with NODE_IMAGE.
