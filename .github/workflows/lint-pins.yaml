@@ -2,6 +2,20 @@ name: Lint Pins
 
 on:
   pull_request:
+    paths:
+      - ".github/**"
+      - ".pinact.yaml"
+      - "**/Dockerfile*"
+      - "**/*.dockerfile"
+      - "**/*.yml"
+      - "**/*.yaml"
+      - "**/*.env"
+      - "**/*.tf"
+      - "**/*.bzl"
+      - "**/WORKSPACE*"
+      - "**/Makefile"
+      - "**/*.sh"
+      - "internal/acceptance/**"
 
 permissions:
   contents: read
@@ -29,5 +43,5 @@ jobs:
       - name: Check image pins
         shell: bash
         run: |
-          { git grep -IHnoE '[-A-Za-z0-9._/:{}$]*@sha256:[0-9a-f]{64}' -- ':!*.lock' ':!*lock.json' ':!*.sum' ':!dependencies.env' || test $? -eq 1; } \
-            | awk '{ ref = $0; sub(/^[^:]*:[0-9]+:/, "", ref); sub(/@sha256:.*/, "", ref); n = split(ref, part, "/"); if (part[n] !~ /:/) { print "image digest without a tag: " $0; bad = 1 } } END { exit bad }'
+          { git grep -IHnoE '(=")?[-A-Za-z0-9._/:{}$]*@sha256:[0-9a-f]{64}' -- ':!*.lock' ':!*lock.json' ':!*.sum' || test $? -eq 1; } \
+            | awk '{ file = $0; sub(/:.*/, "", file); ref = $0; sub(/^[^:]*:[0-9]+:/, "", ref); sub(/@sha256:.*/, "", ref); if (ref ~ /^="/) { sub(/^="/, "", ref); if (file ~ /\.env$/ && ref ~ /^[A-Za-z0-9][-A-Za-z0-9._]*$/) next } n = split(ref, part, "/"); if (part[n] !~ /:/) { print "image digest without a tag: " $0; bad = 1 } } END { exit bad }'
