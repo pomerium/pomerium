@@ -3239,8 +3239,8 @@ type EnterpriseSettings struct {
 	DirectoryProviderRefreshTimeout      *durationpb.Duration           `protobuf:"bytes,21,opt,name=directory_provider_refresh_timeout,json=directoryProviderRefreshTimeout,proto3,oneof" json:"directory_provider_refresh_timeout,omitempty"`
 	DisableFeedbackWidget                *bool                          `protobuf:"varint,22,opt,name=disable_feedback_widget,json=disableFeedbackWidget,proto3,oneof" json:"disable_feedback_widget,omitempty"`
 	DisableRemoteDiagnostics             *bool                          `protobuf:"varint,23,opt,name=disable_remote_diagnostics,json=disableRemoteDiagnostics,proto3,oneof" json:"disable_remote_diagnostics,omitempty"`
-	EnableSessionRecordingQuerierCache   *bool                          `protobuf:"varint,24,opt,name=enable_session_recording_querier_cache,json=enableSessionRecordingQuerierCache,proto3,oneof" json:"enable_session_recording_querier_cache,omitempty"`
-	EnableBootstrapServiceAccount        *bool                          `protobuf:"varint,25,opt,name=enable_bootstrap_service_account,json=enableBootstrapServiceAccount,proto3,oneof" json:"enable_bootstrap_service_account,omitempty"`
+	EnableBootstrapServiceAccount        *bool                          `protobuf:"varint,24,opt,name=enable_bootstrap_service_account,json=enableBootstrapServiceAccount,proto3,oneof" json:"enable_bootstrap_service_account,omitempty"`
+	EnableSessionRecordingQuerierCache   *bool                          `protobuf:"varint,25,opt,name=enable_session_recording_querier_cache,json=enableSessionRecordingQuerierCache,proto3,oneof" json:"enable_session_recording_querier_cache,omitempty"`
 	GrpcAddress                          *string                        `protobuf:"bytes,26,opt,name=grpc_address,json=grpcAddress,proto3,oneof" json:"grpc_address,omitempty"`
 	LicenseKey                           *string                        `protobuf:"bytes,27,opt,name=license_key,json=licenseKey,proto3,oneof" json:"license_key,omitempty"`
 	LicenseKeyValidateOffline            *bool                          `protobuf:"varint,28,opt,name=license_key_validate_offline,json=licenseKeyValidateOffline,proto3,oneof" json:"license_key_validate_offline,omitempty"`
@@ -3259,11 +3259,11 @@ type EnterpriseSettings struct {
 	SigningKey                           []byte                         `protobuf:"bytes,41,opt,name=signing_key,json=signingKey,proto3,oneof" json:"signing_key,omitempty"`
 	SigningKeyFile                       *string                        `protobuf:"bytes,42,opt,name=signing_key_file,json=signingKeyFile,proto3,oneof" json:"signing_key_file,omitempty"`
 	SigningKeyRawFile                    *string                        `protobuf:"bytes,43,opt,name=signing_key_raw_file,json=signingKeyRawFile,proto3,oneof" json:"signing_key_raw_file,omitempty"`
-	TlsDerive                            *string                        `protobuf:"bytes,44,opt,name=tls_derive,json=tlsDerive,proto3,oneof" json:"tls_derive,omitempty"`
-	TlsCertificate                       []byte                         `protobuf:"bytes,45,opt,name=tls_certificate,json=tlsCertificate,proto3,oneof" json:"tls_certificate,omitempty"`
-	TlsCertificateAuthority              []byte                         `protobuf:"bytes,46,opt,name=tls_certificate_authority,json=tlsCertificateAuthority,proto3,oneof" json:"tls_certificate_authority,omitempty"`
-	TlsCertificateAuthorityFile          *string                        `protobuf:"bytes,47,opt,name=tls_certificate_authority_file,json=tlsCertificateAuthorityFile,proto3,oneof" json:"tls_certificate_authority_file,omitempty"`
-	TlsCertificateFile                   *string                        `protobuf:"bytes,48,opt,name=tls_certificate_file,json=tlsCertificateFile,proto3,oneof" json:"tls_certificate_file,omitempty"`
+	TlsCertificate                       []byte                         `protobuf:"bytes,44,opt,name=tls_certificate,json=tlsCertificate,proto3,oneof" json:"tls_certificate,omitempty"`
+	TlsCertificateAuthority              []byte                         `protobuf:"bytes,45,opt,name=tls_certificate_authority,json=tlsCertificateAuthority,proto3,oneof" json:"tls_certificate_authority,omitempty"`
+	TlsCertificateAuthorityFile          *string                        `protobuf:"bytes,46,opt,name=tls_certificate_authority_file,json=tlsCertificateAuthorityFile,proto3,oneof" json:"tls_certificate_authority_file,omitempty"`
+	TlsCertificateFile                   *string                        `protobuf:"bytes,47,opt,name=tls_certificate_file,json=tlsCertificateFile,proto3,oneof" json:"tls_certificate_file,omitempty"`
+	TlsDerive                            *string                        `protobuf:"bytes,48,opt,name=tls_derive,json=tlsDerive,proto3,oneof" json:"tls_derive,omitempty"`
 	TlsInsecureSkipVerify                *bool                          `protobuf:"varint,49,opt,name=tls_insecure_skip_verify,json=tlsInsecureSkipVerify,proto3,oneof" json:"tls_insecure_skip_verify,omitempty"`
 	TlsKey                               []byte                         `protobuf:"bytes,50,opt,name=tls_key,json=tlsKey,proto3,oneof" json:"tls_key,omitempty"`
 	TlsKeyFile                           *string                        `protobuf:"bytes,51,opt,name=tls_key_file,json=tlsKeyFile,proto3,oneof" json:"tls_key_file,omitempty"`
@@ -3465,16 +3465,16 @@ func (x *EnterpriseSettings) GetDisableRemoteDiagnostics() bool {
 	return false
 }
 
-func (x *EnterpriseSettings) GetEnableSessionRecordingQuerierCache() bool {
-	if x != nil && x.EnableSessionRecordingQuerierCache != nil {
-		return *x.EnableSessionRecordingQuerierCache
+func (x *EnterpriseSettings) GetEnableBootstrapServiceAccount() bool {
+	if x != nil && x.EnableBootstrapServiceAccount != nil {
+		return *x.EnableBootstrapServiceAccount
 	}
 	return false
 }
 
-func (x *EnterpriseSettings) GetEnableBootstrapServiceAccount() bool {
-	if x != nil && x.EnableBootstrapServiceAccount != nil {
-		return *x.EnableBootstrapServiceAccount
+func (x *EnterpriseSettings) GetEnableSessionRecordingQuerierCache() bool {
+	if x != nil && x.EnableSessionRecordingQuerierCache != nil {
+		return *x.EnableSessionRecordingQuerierCache
 	}
 	return false
 }
@@ -3605,13 +3605,6 @@ func (x *EnterpriseSettings) GetSigningKeyRawFile() string {
 	return ""
 }
 
-func (x *EnterpriseSettings) GetTlsDerive() string {
-	if x != nil && x.TlsDerive != nil {
-		return *x.TlsDerive
-	}
-	return ""
-}
-
 func (x *EnterpriseSettings) GetTlsCertificate() []byte {
 	if x != nil {
 		return x.TlsCertificate
@@ -3636,6 +3629,13 @@ func (x *EnterpriseSettings) GetTlsCertificateAuthorityFile() string {
 func (x *EnterpriseSettings) GetTlsCertificateFile() string {
 	if x != nil && x.TlsCertificateFile != nil {
 		return *x.TlsCertificateFile
+	}
+	return ""
+}
+
+func (x *EnterpriseSettings) GetTlsDerive() string {
+	if x != nil && x.TlsDerive != nil {
+		return *x.TlsDerive
 	}
 	return ""
 }
@@ -10507,9 +10507,9 @@ const file_config_proto_rawDesc = "" +
 	"#directory_provider_refresh_interval\x18\x14 \x01(\v2\x19.google.protobuf.DurationH\x13R directoryProviderRefreshInterval\x88\x01\x01\x12k\n" +
 	"\"directory_provider_refresh_timeout\x18\x15 \x01(\v2\x19.google.protobuf.DurationH\x14R\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12;\n" +
 	"\x17disable_feedback_widget\x18\x16 \x01(\bH\x15R\x15disableFeedbackWidget\x88\x01\x01\x12A\n" +
-	"\x1adisable_remote_diagnostics\x18\x17 \x01(\bH\x16R\x18disableRemoteDiagnostics\x88\x01\x01\x12W\n" +
-	"&enable_session_recording_querier_cache\x18\x18 \x01(\bH\x17R\"enableSessionRecordingQuerierCache\x88\x01\x01\x12L\n" +
-	" enable_bootstrap_service_account\x18\x19 \x01(\bH\x18R\x1denableBootstrapServiceAccount\x88\x01\x01\x12&\n" +
+	"\x1adisable_remote_diagnostics\x18\x17 \x01(\bH\x16R\x18disableRemoteDiagnostics\x88\x01\x01\x12L\n" +
+	" enable_bootstrap_service_account\x18\x18 \x01(\bH\x17R\x1denableBootstrapServiceAccount\x88\x01\x01\x12W\n" +
+	"&enable_session_recording_querier_cache\x18\x19 \x01(\bH\x18R\"enableSessionRecordingQuerierCache\x88\x01\x01\x12&\n" +
 	"\fgrpc_address\x18\x1a \x01(\tH\x19R\vgrpcAddress\x88\x01\x01\x12$\n" +
 	"\vlicense_key\x18\x1b \x01(\tH\x1aR\n" +
 	"licenseKey\x88\x01\x01\x12D\n" +
@@ -10529,13 +10529,13 @@ const file_config_proto_rawDesc = "" +
 	"\vsigning_key\x18) \x01(\fH(R\n" +
 	"signingKey\x88\x01\x01\x12-\n" +
 	"\x10signing_key_file\x18* \x01(\tH)R\x0esigningKeyFile\x88\x01\x01\x124\n" +
-	"\x14signing_key_raw_file\x18+ \x01(\tH*R\x11signingKeyRawFile\x88\x01\x01\x12\"\n" +
+	"\x14signing_key_raw_file\x18+ \x01(\tH*R\x11signingKeyRawFile\x88\x01\x01\x12,\n" +
+	"\x0ftls_certificate\x18, \x01(\fH+R\x0etlsCertificate\x88\x01\x01\x12?\n" +
+	"\x19tls_certificate_authority\x18- \x01(\fH,R\x17tlsCertificateAuthority\x88\x01\x01\x12H\n" +
+	"\x1etls_certificate_authority_file\x18. \x01(\tH-R\x1btlsCertificateAuthorityFile\x88\x01\x01\x125\n" +
+	"\x14tls_certificate_file\x18/ \x01(\tH.R\x12tlsCertificateFile\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"tls_derive\x18, \x01(\tH+R\ttlsDerive\x88\x01\x01\x12,\n" +
-	"\x0ftls_certificate\x18- \x01(\fH,R\x0etlsCertificate\x88\x01\x01\x12?\n" +
-	"\x19tls_certificate_authority\x18. \x01(\fH-R\x17tlsCertificateAuthority\x88\x01\x01\x12H\n" +
-	"\x1etls_certificate_authority_file\x18/ \x01(\tH.R\x1btlsCertificateAuthorityFile\x88\x01\x01\x125\n" +
-	"\x14tls_certificate_file\x180 \x01(\tH/R\x12tlsCertificateFile\x88\x01\x01\x12<\n" +
+	"tls_derive\x180 \x01(\tH/R\ttlsDerive\x88\x01\x01\x12<\n" +
 	"\x18tls_insecure_skip_verify\x181 \x01(\bH0R\x15tlsInsecureSkipVerify\x88\x01\x01\x12\x1c\n" +
 	"\atls_key\x182 \x01(\fH1R\x06tlsKey\x88\x01\x01\x12%\n" +
 	"\ftls_key_file\x183 \x01(\tH2R\n" +
@@ -10569,9 +10569,9 @@ const file_config_proto_rawDesc = "" +
 	"$_directory_provider_refresh_intervalB%\n" +
 	"#_directory_provider_refresh_timeoutB\x1a\n" +
 	"\x18_disable_feedback_widgetB\x1d\n" +
-	"\x1b_disable_remote_diagnosticsB)\n" +
-	"'_enable_session_recording_querier_cacheB#\n" +
-	"!_enable_bootstrap_service_accountB\x0f\n" +
+	"\x1b_disable_remote_diagnosticsB#\n" +
+	"!_enable_bootstrap_service_accountB)\n" +
+	"'_enable_session_recording_querier_cacheB\x0f\n" +
 	"\r_grpc_addressB\x0e\n" +
 	"\f_license_keyB\x1f\n" +
 	"\x1d_license_key_validate_offlineB\f\n" +
@@ -10590,12 +10590,12 @@ const file_config_proto_rawDesc = "" +
 	"\x17_shared_secret_raw_fileB\x0e\n" +
 	"\f_signing_keyB\x13\n" +
 	"\x11_signing_key_fileB\x17\n" +
-	"\x15_signing_key_raw_fileB\r\n" +
-	"\v_tls_deriveB\x12\n" +
+	"\x15_signing_key_raw_fileB\x12\n" +
 	"\x10_tls_certificateB\x1c\n" +
 	"\x1a_tls_certificate_authorityB!\n" +
 	"\x1f_tls_certificate_authority_fileB\x17\n" +
-	"\x15_tls_certificate_fileB\x1b\n" +
+	"\x15_tls_certificate_fileB\r\n" +
+	"\v_tls_deriveB\x1b\n" +
 	"\x19_tls_insecure_skip_verifyB\n" +
 	"\n" +
 	"\b_tls_keyB\x0f\n" +

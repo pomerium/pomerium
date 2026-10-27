@@ -3783,12 +3783,12 @@ func (m *EnterpriseSettings) validate(all bool) error {
 		// no validation rules for DisableRemoteDiagnostics
 	}
 
-	if m.EnableSessionRecordingQuerierCache != nil {
-		// no validation rules for EnableSessionRecordingQuerierCache
-	}
-
 	if m.EnableBootstrapServiceAccount != nil {
 		// no validation rules for EnableBootstrapServiceAccount
+	}
+
+	if m.EnableSessionRecordingQuerierCache != nil {
+		// no validation rules for EnableSessionRecordingQuerierCache
 	}
 
 	if m.GrpcAddress != nil {
@@ -3921,10 +3921,6 @@ func (m *EnterpriseSettings) validate(all bool) error {
 		// no validation rules for SigningKeyRawFile
 	}
 
-	if m.TlsDerive != nil {
-		// no validation rules for TlsDerive
-	}
-
 	if m.TlsCertificate != nil {
 		// no validation rules for TlsCertificate
 	}
@@ -3939,6 +3935,10 @@ func (m *EnterpriseSettings) validate(all bool) error {
 
 	if m.TlsCertificateFile != nil {
 		// no validation rules for TlsCertificateFile
+	}
+
+	if m.TlsDerive != nil {
+		// no validation rules for TlsDerive
 	}
 
 	if m.TlsInsecureSkipVerify != nil {

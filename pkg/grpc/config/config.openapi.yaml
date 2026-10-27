@@ -2012,16 +2012,16 @@ components:
             - boolean
             - "null"
           title: disable_remote_diagnostics
-        enableSessionRecordingQuerierCache:
-          type:
-            - boolean
-            - "null"
-          title: enable_session_recording_querier_cache
         enableBootstrapServiceAccount:
           type:
             - boolean
             - "null"
           title: enable_bootstrap_service_account
+        enableSessionRecordingQuerierCache:
+          type:
+            - boolean
+            - "null"
+          title: enable_session_recording_querier_cache
         grpcAddress:
           type:
             - string
@@ -2114,11 +2114,6 @@ components:
             - string
             - "null"
           title: signing_key_raw_file
-        tlsDerive:
-          type:
-            - string
-            - "null"
-          title: tls_derive
         tlsCertificate:
           type:
             - string
@@ -2141,6 +2136,11 @@ components:
             - string
             - "null"
           title: tls_certificate_file
+        tlsDerive:
+          type:
+            - string
+            - "null"
+          title: tls_derive
         tlsInsecureSkipVerify:
           type:
             - boolean

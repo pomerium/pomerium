@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/fileutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
@@ -105,6 +106,7 @@ func TestBuildOptions(t *testing.T) {
 			TLSKeyFile:                           nullable.From("TLS-KEY-FILE"),
 			UseStaticAssets:                      nullable.From(true),
 			URL:                                  nullable.From("https://example.com"),
+			ValidationMode:                       nullable.From(configpb.EnterpriseValidationMode_ENTERPRISE_VALIDATION_MODE_FULL),
 		})
 		options, enabled, err := buildOptions(cfg)
 		assert.NoError(t, err)
@@ -163,7 +165,7 @@ func TestBuildOptions(t *testing.T) {
 			"tls_key_file":                             "TLS-KEY-FILE",
 			"url":                                      "https://example.com",
 			"use_static_assets":                        true,
-			"validation_mode":                          "static",
+			"validation_mode":                          "full",
 		}, options)
 	})
 }

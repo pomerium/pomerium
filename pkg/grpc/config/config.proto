@@ -746,8 +746,8 @@ message EnterpriseSettings {
   optional google.protobuf.Duration directory_provider_refresh_timeout       = 21;
   optional bool                     disable_feedback_widget                  = 22;
   optional bool                     disable_remote_diagnostics               = 23;
-  optional bool                     enable_session_recording_querier_cache   = 24;
-  optional bool                     enable_bootstrap_service_account         = 25;
+  optional bool                     enable_bootstrap_service_account         = 24;
+  optional bool                     enable_session_recording_querier_cache   = 25;
   optional string                   grpc_address                             = 26;
   optional string                   license_key                              = 27;
   optional bool                     license_key_validate_offline             = 28;
@@ -766,11 +766,11 @@ message EnterpriseSettings {
   optional bytes                    signing_key                              = 41;
   optional string                   signing_key_file                         = 42;
   optional string                   signing_key_raw_file                     = 43;
-  optional string                   tls_derive                               = 44;
-  optional bytes                    tls_certificate                          = 45;
-  optional bytes                    tls_certificate_authority                = 46;
-  optional string                   tls_certificate_authority_file           = 47;
-  optional string                   tls_certificate_file                     = 48;
+  optional bytes                    tls_certificate                          = 44;
+  optional bytes                    tls_certificate_authority                = 45;
+  optional string                   tls_certificate_authority_file           = 46;
+  optional string                   tls_certificate_file                     = 47;
+  optional string                   tls_derive                               = 48;
   optional bool                     tls_insecure_skip_verify                 = 49;
   optional bytes                    tls_key                                  = 50;
   optional string                   tls_key_file                             = 51;

@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/logutil"
 )
 
@@ -371,8 +372,8 @@ func buildOptions(cfg *config.Config) (options map[string]any, enabled bool, err
 	if settings.UseStaticAssets.IsSet {
 		options["use_static_assets"] = settings.UseStaticAssets.Value
 	}
-	if settings.ValidationMode.IsSet {
-		options["validation_mode"] = settings.ValidationMode.Value
+	if settings.ValidationMode.IsSet && settings.ValidationMode.Value != configpb.EnterpriseValidationMode_ENTERPRISE_VALIDATION_MODE_UNKNOWN {
+		options["validation_mode"] = strings.ToLower(strings.TrimPrefix(settings.ValidationMode.Value.String(), "ENTERPRISE_VALIDATION_MODE_"))
 	} else {
 		options["validation_mode"] = "static"
 	}

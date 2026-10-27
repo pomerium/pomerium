@@ -1577,18 +1577,6 @@
               "defaultValue": ""
             },
             {
-              "name": "enable_session_recording_querier_cache",
-              "description": "",
-              "label": "optional",
-              "type": "bool",
-              "longType": "bool",
-              "fullType": "bool",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_enable_session_recording_querier_cache",
-              "defaultValue": ""
-            },
-            {
               "name": "enable_bootstrap_service_account",
               "description": "",
               "label": "optional",
@@ -1598,6 +1586,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_enable_bootstrap_service_account",
+              "defaultValue": ""
+            },
+            {
+              "name": "enable_session_recording_querier_cache",
+              "description": "",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_enable_session_recording_querier_cache",
               "defaultValue": ""
             },
             {
@@ -1817,18 +1817,6 @@
               "defaultValue": ""
             },
             {
-              "name": "tls_derive",
-              "description": "",
-              "label": "optional",
-              "type": "string",
-              "longType": "string",
-              "fullType": "string",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_tls_derive",
-              "defaultValue": ""
-            },
-            {
               "name": "tls_certificate",
               "description": "",
               "label": "optional",
@@ -1874,6 +1862,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_tls_certificate_file",
+              "defaultValue": ""
+            },
+            {
+              "name": "tls_derive",
+              "description": "",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_tls_derive",
               "defaultValue": ""
             },
             {
