@@ -92,8 +92,11 @@ func TestExtProcSurvivesOutboundReload(t *testing.T) {
 		Name:     "dashboard-settings",
 		Settings: &configpb.Settings{InstallationId: new("console-installation")},
 	})
-	// the per-config services re-dial for the new installation id
-	settingsRec.WaitForMatch(map[string]any{"message": "outbound client connection has changed meaningfully, reloading"}, 20*time.Second)
+	// the ext_proc handler re-dials for the new installation id
+	settingsRec.WaitForMatch(map[string]any{
+		"owner":   "mcp-extproc",
+		"message": "outbound client connection has changed meaningfully, reloading",
+	}, 20*time.Second)
 
 	// 3: the MCP route works
 	sa := &user.ServiceAccount{Id: "outbound-reload-sa", UserId: saUserID}
@@ -105,12 +108,11 @@ func TestExtProcSurvivesOutboundReload(t *testing.T) {
 	makeRequest := func() int {
 		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, fromURL, nil)
+		req, err := newMCPRequest(reqCtx, fromURL)
 		if err != nil {
 			return 0
 		}
 		req.Header.Set("Authorization", "Bearer Pomerium-"+saJWT)
-		req.Header.Set("Content-Type", "application/json")
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			return 0

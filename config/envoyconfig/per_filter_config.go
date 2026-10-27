@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"math"
 	"strconv"
 
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
@@ -26,14 +27,23 @@ func PerFilterConfigExtAuthzContextExtensions(authzContextExtensions map[string]
 
 // PerFilterConfigExtAuthzContextExtensionsWithBody returns a per-filter config for ext authz that
 // sets context extensions and includes the request body.
+//
+// Envoy only answers 413 itself when an oversized body arrives in several
+// chunks; a body that arrives in one chunk is truncated to the buffer limit and
+// sent to authorize. The buffer is one byte larger than mcpRequestBodyMaxBytes
+// so authorize can tell those truncated bodies apart and reject them with 413.
 func PerFilterConfigExtAuthzContextExtensionsWithBody(mcpRequestBodyMaxBytes uint32, authzContextExtensions map[string]string) *anypb.Any {
+	maxRequestBytes := mcpRequestBodyMaxBytes
+	if maxRequestBytes < math.MaxUint32 {
+		maxRequestBytes++
+	}
 	return marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{
 		Override: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute_CheckSettings{
 			CheckSettings: &envoy_extensions_filters_http_ext_authz_v3.CheckSettings{
 				ContextExtensions: authzContextExtensions,
 				WithRequestBody: &envoy_extensions_filters_http_ext_authz_v3.BufferSettings{
-					MaxRequestBytes:     mcpRequestBodyMaxBytes,
-					AllowPartialMessage: true,
+					MaxRequestBytes:     maxRequestBytes,
+					AllowPartialMessage: false,
 				},
 			},
 		},
