@@ -116,18 +116,11 @@ func (q *syncQuerier) run(ctx context.Context) {
 		if q.serverVersion == 0 {
 			err := q.syncLatest(ctx)
 			if err != nil {
-				if status.Code(err) == codes.Canceled {
-					return backoff.Permanent(err)
-				}
 				return err
 			}
 		}
 
-		err := q.sync(ctx)
-		if status.Code(err) == codes.Canceled {
-			return backoff.Permanent(err)
-		}
-		return err
+		return q.sync(ctx)
 	}, bo, func(err error, d time.Duration) {
 		log.Ctx(ctx).Error().
 			Err(err).
