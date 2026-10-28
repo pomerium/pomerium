@@ -2,8 +2,13 @@ version: 2
 
 project_name: pomerium
 
+git:
+  ignore_tags:
+    - "pkg/grpc/*"
+
 release:
   prerelease: auto
+  replace_existing_artifacts: true
   github:
     owner: pomerium
     name: pomerium
@@ -36,13 +41,17 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
 
 notarize:
-  macos_native:
-    - enabled: '{{ isEnvSet "SIGN_BINARIES" }}'
+  macos:
+    - enabled: true
       sign:
-        identity: 4CCCBFF19C6ABD0AED5047C3A833B8E05F098F89
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
       notarize:
-        profile_name: pomerium_proxy
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
         wait: true
+        timeout: 15m
 
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
@@ -53,7 +62,7 @@ archives:
       - none*
 
 checksum:
-  name_template: "{{ .ProjectName }}_checksums.txt"
+  name_template: "{{ .ProjectName }}_darwin_checksums.txt"
 
 snapshot:
   version_template: "{{ .Version }}+next+{{ .ShortCommit }}"
