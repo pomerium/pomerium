@@ -2,6 +2,7 @@ package databroker
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -631,10 +633,29 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 
 	log.Ctx(ctx).Info().Msg("resyncing")
 
-	// reset the local store
-	_, err := srv.local.Clear(ctx, new(emptypb.Empty))
+	// the local records stay in place until the leader's records replace them,
+	// so a resync that does not complete never leaves the local store empty
+	existing, err := srv.listLocal(ctx)
 	if err != nil {
-		return op.Failure(fmt.Errorf("error clearing existing records: %w", err))
+		return op.Failure(fmt.Errorf("error listing existing records: %w", err))
+	}
+
+	// a resync that does not complete must be retried, so drop the checkpoint
+	// until the leader's is stored
+	_, err = srv.local.SetCheckpoint(ctx, &databrokerpb.SetCheckpointRequest{
+		Checkpoint: new(databrokerpb.Checkpoint),
+	})
+	if err != nil {
+		return op.Failure(fmt.Errorf("error resetting checkpoint: %w", err))
+	}
+
+	send := func(payload clusteredFollowerServerBatchStepPayload) error {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case out <- payload:
+			return nil
+		}
 	}
 
 	// cancel the stream if we return
@@ -651,6 +672,8 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 	var serverVersion, latestRecordVersion uint64
 	cnt := 0
 	optCnt := 0
+	unchangedCnt := 0
+	removedCnt := 0
 	for {
 		res, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -665,8 +688,38 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 		switch res := res.Response.(type) {
 		case *databrokerpb.SyncLatestResponse_Record:
 			cnt++
+			key := localRecordKey{recordType: res.Record.GetType(), recordID: res.Record.GetId()}
+			digest, ok := existing.records[key]
+			delete(existing.records, key)
+			if ok && digest == recordDigest(res.Record) {
+				unchangedCnt++
+				continue
+			}
 			payload.record = res.Record
 		case *databrokerpb.SyncLatestResponse_Versions:
+			// the versions are sent last, so any local record or options the
+			// leader did not send no longer exist on the leader
+			for key := range existing.records {
+				removedCnt++
+				err := send(clusteredFollowerServerBatchStepPayload{record: &databrokerpb.Record{
+					Type:      key.recordType,
+					Id:        key.recordID,
+					DeletedAt: timestamppb.Now(),
+				}})
+				if err != nil {
+					return err
+				}
+			}
+			for recordType := range existing.optionTypes {
+				err := send(clusteredFollowerServerBatchStepPayload{options: &databrokerpb.TypedOptions{
+					TypeURL: recordType,
+					Options: new(databrokerpb.Options),
+				}})
+				if err != nil {
+					return err
+				}
+			}
+
 			serverVersion = res.Versions.ServerVersion
 			latestRecordVersion = res.Versions.LatestRecordVersion
 			payload.checkpoint = &databrokerpb.Checkpoint{
@@ -674,25 +727,87 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 				RecordVersion: res.Versions.LatestRecordVersion,
 			}
 		case *databrokerpb.SyncLatestResponse_Options:
+			delete(existing.optionTypes, res.Options.GetTypeURL())
 			payload.options = res.Options
 		}
 
 		// send the batch payload
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case out <- payload:
+		if err := send(payload); err != nil {
+			return err
 		}
 	}
 
 	log.Ctx(ctx).Info().
 		Int("record-count", cnt).
+		Int("unchanged-record-count", unchangedCnt).
+		Int("removed-record-count", removedCnt).
 		Int("options-count", optCnt).
 		Uint64("server-version", serverVersion).
 		Uint64("latest-record-version", latestRecordVersion).
 		Msg("synced latest records")
 
 	b.Reset()
+	return nil
+}
+
+type localRecordKey struct {
+	recordType, recordID string
+}
+
+type localRecords struct {
+	records     map[localRecordKey][sha256.Size]byte
+	optionTypes map[string]struct{}
+}
+
+// listLocal returns a digest of every record in the local store, and the
+// record types that have options.
+func (srv *clusteredFollowerServer) listLocal(ctx context.Context) (*localRecords, error) {
+	existing := &localRecords{
+		records:     make(map[localRecordKey][sha256.Size]byte),
+		optionTypes: make(map[string]struct{}),
+	}
+	err := srv.local.SyncLatest(new(databrokerpb.SyncLatestRequest), &syncLatestReceiver{
+		ctx: ctx,
+		receive: func(res *databrokerpb.SyncLatestResponse) {
+			switch res := res.Response.(type) {
+			case *databrokerpb.SyncLatestResponse_Record:
+				key := localRecordKey{recordType: res.Record.GetType(), recordID: res.Record.GetId()}
+				existing.records[key] = recordDigest(res.Record)
+			case *databrokerpb.SyncLatestResponse_Options:
+				existing.optionTypes[res.Options.GetTypeURL()] = struct{}{}
+			}
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return existing, nil
+}
+
+func recordDigest(record *databrokerpb.Record) [sha256.Size]byte {
+	h := sha256.New()
+	h.Write([]byte(record.GetData().GetTypeUrl()))
+	h.Write([]byte{0})
+	h.Write(record.GetData().GetValue())
+	var digest [sha256.Size]byte
+	h.Sum(digest[:0])
+	return digest
+}
+
+// syncLatestReceiver is an in-process SyncLatest stream that passes each
+// response to receive.
+type syncLatestReceiver struct {
+	grpc.ServerStream
+	ctx     context.Context
+	receive func(*databrokerpb.SyncLatestResponse)
+}
+
+func (r *syncLatestReceiver) Context() context.Context {
+	return r.ctx
+}
+
+func (r *syncLatestReceiver) Send(res *databrokerpb.SyncLatestResponse) error {
+	r.receive(res)
 	return nil
 }
 

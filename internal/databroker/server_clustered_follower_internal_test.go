@@ -8,9 +8,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/trace/noop"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/telemetry"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -32,8 +32,8 @@ func (s stoppingServer) GetCheckpoint(context.Context, *databrokerpb.GetCheckpoi
 	return nil, s.fail()
 }
 
-func (s stoppingServer) Clear(context.Context, *emptypb.Empty) (*databrokerpb.ClearResponse, error) {
-	return nil, s.fail()
+func (s stoppingServer) SyncLatest(*databrokerpb.SyncLatestRequest, grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
+	return s.fail()
 }
 
 func TestClusteredFollowerServerStopped(t *testing.T) {
