@@ -13,6 +13,7 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 )
 
@@ -20,8 +21,9 @@ type clusteredLeaderServer struct {
 	local    Server
 	onChange *signal.Signal
 
-	cancel context.CancelCauseFunc
-	done   chan struct{}
+	cancelCtx context.Context
+	cancel    context.CancelCauseFunc
+	done      chan struct{}
 }
 
 // NewClusteredLeaderServer creates a new clustered leader databroker server.
@@ -36,9 +38,8 @@ func NewClusteredLeaderServer(local Server) Server {
 		),
 		done: make(chan struct{}, 1),
 	}
-	ctx, cancel := context.WithCancelCause(context.Background())
-	srv.cancel = cancel
-	go srv.run(ctx)
+	srv.cancelCtx, srv.cancel = context.WithCancelCause(context.Background())
+	go srv.run(srv.cancelCtx)
 	return srv
 }
 
@@ -116,15 +117,21 @@ func (srv *clusteredLeaderServer) SetOptions(ctx context.Context, req *databroke
 }
 
 func (srv *clusteredLeaderServer) Sync(req *databrokerpb.SyncRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncResponse]) error {
-	return srv.local.Sync(req, stream)
+	return grpcutil.HandleServerStreamingServerWithContext(srv.cancelCtx, stream, func(stream grpc.ServerStreamingServer[databrokerpb.SyncResponse]) error {
+		return srv.local.Sync(req, stream)
+	})
 }
 
 func (srv *clusteredLeaderServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
-	return srv.local.SyncLatest(req, stream)
+	return grpcutil.HandleServerStreamingServerWithContext(srv.cancelCtx, stream, func(stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
+		return srv.local.SyncLatest(req, stream)
+	})
 }
 
 func (srv *clusteredLeaderServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
-	return srv.local.Watch(req, stream)
+	return grpcutil.HandleServerStreamingServerWithContext(srv.cancelCtx, stream, func(stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
+		return srv.local.Watch(req, stream)
+	})
 }
 
 // config methods
