@@ -61,6 +61,15 @@ func (ff *fastForwardHandler) run(ctx context.Context) {
 }
 
 func (ff *fastForwardHandler) processCmd(ctx context.Context, cmd ffCmd) {
+	if cmd.clearRecords && cmd.updateRecords {
+		if replacer, ok := ff.handler.(RecordReplacer); ok {
+			ctx, op := ff.c.Start(ctx, "ReplaceRecords", attribute.Int("records", len(cmd.records)))
+			replacer.ReplaceRecords(ctx, cmd.serverVersion, cmd.records)
+			op.Complete()
+			return
+		}
+	}
+
 	if cmd.clearRecords {
 		ctx, op := ff.c.Start(ctx, "ClearRecords")
 		ff.handler.ClearRecords(ctx)
@@ -99,6 +108,30 @@ func (ff *fastForwardHandler) ClearRecords(ctx context.Context) {
 	case <-ctx.Done():
 		_ = op.Failure(errors.New("cancelled"))
 	case ff.pending <- cmd:
+		op.Complete()
+	}
+}
+
+// ReplaceRecords implements RecordReplacer. The replacement supersedes any
+// pending command and reaches the handler as one clear-and-fill step, or as
+// ClearRecords followed by UpdateRecords if the handler is not a
+// RecordReplacer.
+func (ff *fastForwardHandler) ReplaceRecords(ctx context.Context, serverVersion uint64, records []*databrokerpb.Record) {
+	ff.mu.Lock()
+	defer ff.mu.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-ff.pending:
+	default:
+	}
+
+	_, op := ff.c.Start(ctx, "Enqueue/ReplaceRecords", attribute.Int("records", len(records)))
+	select {
+	case <-ctx.Done():
+		_ = op.Failure(errors.New("cancelled"))
+	case ff.pending <- ffCmd{clearRecords: true, updateRecords: true, serverVersion: serverVersion, records: records}:
 		op.Complete()
 	}
 }
