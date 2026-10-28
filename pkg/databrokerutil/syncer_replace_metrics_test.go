@@ -60,13 +60,11 @@ func TestSyncer_ReplaceRecordsCountsClear(t *testing.T) {
 
 	replaced := make(chan struct{}, 1)
 	syncer := databrokerutil.NewSyncer(ctx, "test", testReplacingSyncerHandler{
-		testSyncerHandler: testSyncerHandler{
-			getDataBrokerServiceClient: func() databroker.DataBrokerServiceClient {
-				return databroker.NewDataBrokerServiceClient(cc)
-			},
-			clearRecords:  func(context.Context) {},
-			updateRecords: func(context.Context, uint64, []*databroker.Record) {},
+		getDataBrokerServiceClient: func() databroker.DataBrokerServiceClient {
+			return databroker.NewDataBrokerServiceClient(cc)
 		},
+		clearRecords:  func(context.Context) {},
+		updateRecords: func(context.Context, uint64, []*databroker.Record) {},
 		replaceRecords: func(context.Context, uint64, []*databroker.Record) {
 			replaced <- struct{}{}
 		},

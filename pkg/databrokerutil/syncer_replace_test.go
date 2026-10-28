@@ -81,16 +81,14 @@ func TestSyncer_ResyncReplacesRecords(t *testing.T) {
 	calls := make(chan string, 16)
 	replaced := make(chan uint64, 2)
 	syncer := databrokerutil.NewSyncer(ctx, "test", testReplacingSyncerHandler{
-		testSyncerHandler: testSyncerHandler{
-			getDataBrokerServiceClient: func() databroker.DataBrokerServiceClient {
-				return databroker.NewDataBrokerServiceClient(cc)
-			},
-			clearRecords: func(context.Context) {
-				calls <- "ClearRecords"
-			},
-			updateRecords: func(context.Context, uint64, []*databroker.Record) {
-				calls <- "UpdateRecords"
-			},
+		getDataBrokerServiceClient: func() databroker.DataBrokerServiceClient {
+			return databroker.NewDataBrokerServiceClient(cc)
+		},
+		clearRecords: func(context.Context) {
+			calls <- "ClearRecords"
+		},
+		updateRecords: func(context.Context, uint64, []*databroker.Record) {
+			calls <- "UpdateRecords"
 		},
 		replaceRecords: func(_ context.Context, serverVersion uint64, records []*databroker.Record) {
 			calls <- "ReplaceRecords"

@@ -35,7 +35,8 @@ func TestFastForward_ReplaceRecords(t *testing.T) {
 	defer cancel()
 
 	m := &mockReplacingFF{
-		mockFF:  mockFF{clear: make(chan struct{}, 1), update: make(chan uint64, 1)},
+		clear:   make(chan struct{}, 1),
+		update:  make(chan uint64, 1),
 		replace: make(chan []*databrokerpb.Record, 1),
 	}
 	f := newFastForwardHandler(ctx, noop.NewTracerProvider(), "test", m)
