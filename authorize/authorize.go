@@ -171,8 +171,7 @@ func (a *Authorize) Run(ctx context.Context) error {
 		a.accessTracker.Run(ctx)
 		return nil
 	})
-	err := eg.Wait()
-	return err
+	return eg.Wait()
 }
 
 // stopped is called after Run completes
