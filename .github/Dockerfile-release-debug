@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim@sha256:f9c6a2fd2ddbc23e336b6257a5245e31f996953ef06cd13a59fa0a1df2d5c252
+FROM debian:trixie-20261020-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 ARG DEBIAN_FRONTEND=noninteractive
 ENV AUTOCERT_DIR=/data/autocert
 WORKDIR /pomerium
@@ -17,6 +17,7 @@ RUN apt-get update \
         procps \
         strace \
         traceroute \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge '20250419+deb13u1' \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 COPY pomerium /bin/

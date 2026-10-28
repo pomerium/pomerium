@@ -18,7 +18,7 @@ The published debug images are toolbox images for shell, DNS, network, TLS, and 
 - `pomerium/pomerium:debug-main` tracks the current `main` branch.
 - `debug-v<major>.<minor>` and matching `debug-nonroot` tags track tagged releases.
 
-These images use `debian:bookworm-slim` and include:
+The [debug Dockerfile](.github/Dockerfile-release-debug) defines the Debian base and includes these tools:
 
 - `bash`
 - `ca-certificates`
