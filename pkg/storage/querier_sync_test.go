@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -322,4 +323,32 @@ func TestSyncQuerierRemoteClose(t *testing.T) {
 		assert.Len(c, res.GetRecords(), 1)
 		assert.Empty(c, cmp.Diff(r1.Data, res.GetRecords()[0].Data, protocmp.Transform()))
 	}, time.Second, 50*time.Millisecond)
+}
+
+func TestRetriesOnCanceled(t *testing.T) {
+	// Previously, if a stream returned a Canceled error code, we would stop
+	// retrying requests. Since the clustered databroker cancels streams when
+	// leadership changes, this resulted in sessions never being updated.
+	//
+	// This test ensures that merely receiving codes.Canceled will not stop
+	// retries. Instead .Stop should be called on the sync querier.
+
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	mockClient := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+
+	var callCount atomic.Uint64
+	mockSyncLatestStream := mock_databroker.NewMockSyncLatestClient(ctrl)
+	mockSyncLatestStream.EXPECT().Recv().AnyTimes().DoAndReturn(func() (*databrokerpb.SyncLatestResponse, error) {
+		callCount.Add(1)
+		return nil, status.Error(codes.Canceled, "test-canceled")
+	})
+	mockClient.EXPECT().SyncLatest(gomock.Any(), gomock.Any()).AnyTimes().Return(mockSyncLatestStream, nil)
+
+	q := storage.NewSyncQuerier(mockClient, "t1")
+	t.Cleanup(q.Stop)
+
+	assert.Eventually(t, func() bool { return callCount.Load() > 1 }, 10*time.Second, 10*time.Millisecond,
+		"should retry canceled errors")
 }

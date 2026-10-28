@@ -130,7 +130,8 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 	a.policyIndexer = o.policyIndexerCtor(a)
 	a.ssh = ssh.NewStreamManager(
 		ctx,
-		ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer, accessRequestMgr,
+		ssh.NewAuth(
+			a, &a.currentConfig, a.tracerProvider, codeIssuer, accessRequestMgr,
 			ssh.WithMetricMeter(otel.Meter("ssh_auth_code")),
 			ssh.WithTracer(a.tracerProvider.Tracer(trace.PomeriumCoreTracer)),
 		),
@@ -158,6 +159,7 @@ func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 
 // Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
+	defer a.stopped()
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return a.ssh.Run(ctx)
@@ -169,7 +171,16 @@ func (a *Authorize) Run(ctx context.Context) error {
 		a.accessTracker.Run(ctx)
 		return nil
 	})
-	return eg.Wait()
+	err := eg.Wait()
+	return err
+}
+
+// stopped is called after Run completes
+func (a *Authorize) stopped() {
+	// stop any active sync queriers
+	for _, q := range a.state.Load().syncQueriers {
+		q.Stop()
+	}
 }
 
 func validateOptions(o *config.Options) error {
@@ -227,7 +238,8 @@ func newPolicyEvaluator(
 	clientCertConstraints, err := evaluator.ClientCertConstraintsFromConfig(&opts.DownstreamMTLS)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"authorize: internal error: couldn't build client cert constraints: %w", err)
+			"authorize: internal error: couldn't build client cert constraints: %w", err,
+		)
 	}
 
 	allPolicies := slices.Collect(opts.GetAllPolicies())
