@@ -31,6 +31,7 @@ type fastForwardHandler struct {
 
 type ffCmd struct {
 	clearRecords  bool
+	updateRecords bool
 	serverVersion uint64
 	records       []*databrokerpb.Record
 }
@@ -64,6 +65,8 @@ func (ff *fastForwardHandler) processCmd(ctx context.Context, cmd ffCmd) {
 		ctx, op := ff.c.Start(ctx, "ClearRecords")
 		ff.handler.ClearRecords(ctx)
 		op.Complete()
+	}
+	if !cmd.updateRecords {
 		return
 	}
 
@@ -88,6 +91,7 @@ func (ff *fastForwardHandler) ClearRecords(ctx context.Context) {
 	default:
 	}
 	cmd.clearRecords = true
+	cmd.updateRecords = false
 	cmd.records = nil
 
 	_, op := ff.c.Start(ctx, "Enqueue/ClearRecords")
@@ -135,7 +139,9 @@ func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion u
 	// reverse back so they appear in the order they were delivered
 	slices.Reverse(records)
 
-	cmd.clearRecords = false
+	// a pending clear stays pending: the handler must still clear before it
+	// applies the merged records
+	cmd.updateRecords = true
 	cmd.serverVersion = serverVersion
 	cmd.records = records
 
