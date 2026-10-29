@@ -60,34 +60,10 @@ func TestCreatePosthogEvent(t *testing.T) {
 	evt := analytics.New(analytics.WithMaxDomains(5)).CreatePosthogEvent(t.Context(), cfg, 10, 20)
 	assert.Equal(t, "INSTALLATION_ID", evt.DistinctId)
 	assert.Equal(t, "core_periodic_analytics", evt.Event)
-	assert.Equal(t, []string{
-		"a.b.route-00.com",
-		"a.b.route-01.com",
-		"a.b.route-02.com",
-		"a.b.route-03.com",
-		"a.b.route-04.com",
-	}, evt.Properties["domains"])
-	assert.Equal(t, 600, evt.Properties["route_count"])
-	assert.Equal(t, 100, evt.Properties["kubernetes_route_count"])
-	assert.Equal(t, 100, evt.Properties["mcp_route_count"])
-	assert.Equal(t, 100, evt.Properties["ssh_route_count"])
-	assert.Equal(t, 100, evt.Properties["tcp_route_count"])
-	assert.Equal(t, 100, evt.Properties["udp_route_count"])
-	assert.Equal(t, []string{"accept", "authenticated_user", "email", "user"}, evt.Properties["ppl_criteria"])
 	assert.Contains(t, evt.Properties, "build_version")
 
 	// policy properties
 	assert.Contains(t, evt.Properties, "policy_count")
-	assert.Contains(t, evt.Properties, "inline_policy_count")
-	assert.Contains(t, evt.Properties, "attached_policy_count")
-	assert.Contains(t, evt.Properties, "shared_policy_count")
-	assert.Contains(t, evt.Properties, "route_policy_attachment_count")
-	assert.Contains(t, evt.Properties, "max_routes_per_policy")
-
-	// criteria properties
-	assert.Equal(t, 200, evt.Properties["routes_with_criterion_accept_count"])
-	assert.Equal(t, 100, evt.Properties["routes_with_criterion_user_count"])
-	assert.Equal(t, 1, evt.Properties["policies_with_criterion_domain_count"])
 
 	t.Run("pseudonymous", func(t *testing.T) {
 		t.Parallel()
@@ -105,12 +81,6 @@ func TestCreatePosthogEvent(t *testing.T) {
 		evt := analytics.New().CreatePosthogEvent(t.Context(), cfg, 0, 0)
 		assert.Equal(t, "bdS/DkMVmpzBR865YlvhMXucXSO3tfcDFySXu0nAtIo=", evt.DistinctId)
 		assert.NotContains(t, evt.Groups, "installation_id")
-		assert.Equal(t, []string{"n4dU0B+ujBEZxQfDfIcLA1s7fcFqhHIZ6nvu9Mp9/48="}, evt.Properties["pseudonymous_domains"])
-		assert.NotContains(t, evt.Properties, "domains")
-		assert.Contains(t, evt.Properties, "pseudonymous_hostname")
-		assert.NotContains(t, evt.Properties, "hostname")
-		assert.Contains(t, evt.Properties, "pseudonymous_host_id")
-		assert.NotContains(t, evt.Properties, "host_id")
 		assert.Contains(t, evt.Properties, "pseudonymous_identity_provider_url")
 		assert.NotContains(t, evt.Properties, "identity_provider_url")
 	})

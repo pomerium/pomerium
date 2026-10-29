@@ -35,7 +35,6 @@ type clusteredServer struct {
 	currentLeaderElector LeaderElector
 	currentOptions       config.DataBrokerOptions
 	currentServer        Server
-	requests             sync.WaitGroup
 }
 
 type storageMetricAttributeSetter interface {
