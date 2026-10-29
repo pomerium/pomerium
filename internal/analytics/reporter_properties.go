@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"math"
 	"os"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-set/v3"
@@ -17,10 +17,14 @@ import (
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/version"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -41,6 +45,7 @@ func (r *reporter) CreatePosthogProperties(ctx context.Context, cfg *config.Conf
 	p.Merge(r.CreatePosthogPropertiesForPolicies(cfg))
 	p.Merge(r.CreatePosthogPropertiesForProduct(cfg))
 	p.Merge(r.CreatePosthogPropertiesForRoutes(cfg))
+	p.Merge(r.CreatePosthogPropertiesForRouteSettings(cfg))
 	p.Merge(r.CreatePosthogPropertiesForRuntimeFlags(cfg))
 	p.Merge(r.CreatePosthogPropertiesForSettings(cfg))
 	return p
@@ -226,6 +231,61 @@ func (r *reporter) CreatePosthogPropertiesForRoutes(cfg *config.Config) posthog.
 	return normalizePropertyTypes(p)
 }
 
+func (r *reporter) CreatePosthogPropertiesForRouteSettings(cfg *config.Config) posthog.Properties {
+	// the values a route inherits from the global settings
+	settings := cfg.Options.ToProto().Settings
+	inherited := &configpb.Route{
+		Timeout:                     durationpb.New(cfg.Options.DefaultUpstreamTimeout),
+		PassIdentityHeaders:         settings.PassIdentityHeaders,
+		JwtIssuerFormat:             settings.JwtIssuerFormat,
+		JwtGroupsFilter:             settings.JwtGroupsFilter,
+		JwtGroupsFilterInferFromPpl: settings.JwtGroupsFilterInferFromPpl,
+		BearerTokenFormat:           settings.BearerTokenFormat,
+		CircuitBreakerThresholds:    settings.CircuitBreakerThresholds,
+	}
+	if settings.AllowUpgrades != nil {
+		inherited.AllowUpgrades = &configpb.Route_StringList{Values: settings.AllowUpgrades.Values}
+	}
+	if settings.IdpAccessTokenAllowedAudiences != nil {
+		inherited.IdpAccessTokenAllowedAudiences = &configpb.Route_StringList{Values: settings.IdpAccessTokenAllowedAudiences.Values}
+	}
+
+	changedRouteSettings := set.NewTreeSet(strings.Compare)
+	for policy := range cfg.Options.GetAllPolicies() {
+		route, err := policy.ToProto()
+		if err != nil {
+			continue
+		}
+		// ToProto sets the default timeout when the route doesn't set one
+		if policy.UpstreamTimeout == nil {
+			route.Timeout = nil
+		}
+		// fields the route doesn't set inherit the global value
+		inherited.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+			if !route.ProtoReflect().Has(fd) {
+				route.ProtoReflect().Set(fd, v)
+			}
+			return true
+		})
+
+		for _, field := range getChangedFields(inherited, route) {
+			if name := getChangedRouteSettingsName(field); name != "" {
+				changedRouteSettings.Insert(name)
+			}
+		}
+		if len(route.To) > 1 {
+			changedRouteSettings.Insert("load_balancing")
+		}
+		if proto.Size(route.GetMcp().GetServer()) > 0 {
+			changedRouteSettings.Insert("mcp")
+		}
+	}
+
+	p := posthog.NewProperties()
+	p["changed_route_settings"] = changedRouteSettings.Slice()
+	return normalizePropertyTypes(p)
+}
+
 func (r *reporter) CreatePosthogPropertiesForRuntimeFlags(cfg *config.Config) posthog.Properties {
 	defaults := config.DefaultRuntimeFlags()
 	changed := []string{}
@@ -276,32 +336,11 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 	p["services"] = getServicesName(cfg.Options.Services)
 
 	changedSettings := set.NewTreeSet(strings.Compare)
-	cmp.Equal(config.NewDefaultOptions().ToProto(), cfg.Options.ToProto(), protocmp.Transform(),
-		cmp.Reporter(&cmpReporter{callback: func(path cmp.Path, result cmp.Result) {
-			// nothing changed
-			if result.Equal() {
-				return
-			}
-
-			var name []string
-			for _, step := range path {
-				switch field := step.(type) {
-				case cmp.MapIndex:
-					if key, ok := field.Key().Interface().(string); ok {
-						name = append(name, key)
-					}
-				}
-			}
-
-			// only global settings are tracked here, routes are handled separately
-			if len(name) < 2 || name[0] != "settings" {
-				return
-			}
-
-			if n := getChangedSettingsName(name[1]); n != "" {
-				changedSettings.Insert(n)
-			}
-		}}))
+	for _, field := range getChangedFields(config.NewDefaultOptions().ToProto().Settings, cfg.Options.ToProto().Settings) {
+		if name := getChangedSettingsName(field); name != "" {
+			changedSettings.Insert(name)
+		}
+	}
 
 	p["changed_settings"] = changedSettings.Slice()
 
@@ -330,6 +369,28 @@ func normalizePropertyTypes(p posthog.Properties) posthog.Properties {
 	return p
 }
 
+// getChangedFields returns the names of the top-level protobuf fields that
+// differ between x and y.
+func getChangedFields(x, y proto.Message) []string {
+	changed := set.New[string](0)
+	cmp.Equal(x, y, protocmp.Transform(),
+		cmp.Reporter(&cmpReporter{callback: func(path cmp.Path, result cmp.Result) {
+			if result.Equal() {
+				return
+			}
+			// the first map index is the top-level field name
+			for _, step := range path {
+				if field, ok := step.(cmp.MapIndex); ok {
+					if key, ok := reflect.TypeAssert[string](field.Key()); ok {
+						changed.Insert(key)
+					}
+					return
+				}
+			}
+		}}))
+	return changed.Slice()
+}
+
 type cmpReporter struct {
 	path     cmp.Path
 	callback func(path cmp.Path, result cmp.Result)
@@ -350,10 +411,7 @@ func (r *cmpReporter) Report(result cmp.Result) {
 // changedSettingsRules map settings protobuf field names to the name reported
 // in changed_settings. Fields that match no rule are reported as themselves.
 // The empty string indicates the field will be ignored.
-var changedSettingsRules = []struct {
-	pattern string
-	name    string
-}{
+var changedSettingsRules = []fieldNameRule{
 	// ignored
 	{`^(cookie_secret|idp_client_id|autocert_eab_.*|databroker_storage_.*|log_level|proxy_log_level|services|idp_provider|certificates|certificate_key_pair_ids|runtime_flags|id|namespace_id|cluster_id|originator_id|name|installation_id|created_at|modified_at|enterprise|license_type|readonly_console_audiences|auto_apply_changesets|directory_provider.*)$`, ""},
 	// renamed
@@ -382,24 +440,58 @@ var changedSettingsRules = []struct {
 	{`^otel_`, "tracing"},
 	{`^(skip_xff_append|xff_num_trusted_hops)$`, "xff"},
 	// ignore any other secrets or keys, so new fields aren't reported by default
-	{`(^|_)secret(_|$)|(^|_)keys?(_files?)?$`, ""},
+	{secretFieldPattern, ""},
 }
 
-// getChangedSettingsName returns the changed_settings name for a settings
-// protobuf field name.
-func getChangedSettingsName(field string) string {
-	for i, re := range getChangedSettingsRegexps() {
-		if re.MatchString(field) {
-			return changedSettingsRules[i].name
+// changedRouteSettingsRules map route protobuf field names to the name reported
+// in changed_route_settings. Fields that match no rule are reported as themselves.
+// The empty string indicates the field will be ignored.
+var changedRouteSettingsRules = []fieldNameRule{
+	// ignored: policies are reported in ppl_criteria, kubernetes in route_types,
+	// and mcp and to are handled separately
+	{`^(id|namespace_id|namespace_name|originator_id|name|stat_name|description|logo_url|from|to|allowed_users|allowed_domains|allowed_idp_claims|cors_allow_preflight|allow_public_unauthenticated_access|allow_any_authenticated_user|kubernetes_service_account_token.*|policies|ppl_policies|policy_ids|enforced_policies|assigned_policies|outlier_detection|mcp|created_at|modified_at)$`, ""},
+	// groups
+	{`^(prefix|path|regex|regex_priority_order|prefix_rewrite|regex_rewrite_.*)$`, "path"},
+	{`^(host_rewrite|host_rewrite_header|host_path_regex_rewrite_.*|preserve_host_header)$`, "host"},
+	{`^(timeout|idle_timeout)$`, "timeouts"},
+	{`^tls_`, "tls"},
+	{`^(set_request_headers|remove_request_headers|set_response_headers|rewrite_response_headers)$`, "headers"},
+	{`^(pass_identity_headers|jwt_issuer_format|jwt_groups_filter|jwt_groups_filter_infer_from_ppl|bearer_token_format)$`, "identity_headers"},
+	{`^(idp_client_id|idp_client_secret|idp_access_token_allowed_audiences|identity_providers)$`, "idp"},
+	{`^(allow_websockets|allow_spdy|allow_upgrades)$`, "protocols"},
+	{`^(load_balancing_policy|load_balancing_weights|healthy_panic_threshold)$`, "load_balancing"},
+	{`^circuit_breaker_thresholds$`, "circuit_breaker"},
+	// ignore any other secrets or keys, so new fields aren't reported by default
+	{secretFieldPattern, ""},
+}
+
+// secretFieldPattern matches field names that look like secrets or keys.
+const secretFieldPattern = `(^|_)secret(_|$)|(^|_)keys?(_files?)?$` //nolint:gosec // a field name pattern, not a credential
+
+var (
+	getChangedSettingsName      = newFieldNameMapper(changedSettingsRules)
+	getChangedRouteSettingsName = newFieldNameMapper(changedRouteSettingsRules)
+)
+
+// A fieldNameRule maps protobuf field names matching pattern to name.
+type fieldNameRule struct {
+	pattern string
+	name    string
+}
+
+// newFieldNameMapper returns a function which returns the name of the first
+// rule matching a protobuf field name, or the field name if no rule matches.
+func newFieldNameMapper(rules []fieldNameRule) func(field string) string {
+	regexps := make([]*regexp.Regexp, len(rules))
+	for i, rule := range rules {
+		regexps[i] = regexp.MustCompile(rule.pattern)
+	}
+	return func(field string) string {
+		for i, re := range regexps {
+			if re.MatchString(field) {
+				return rules[i].name
+			}
 		}
+		return field
 	}
-	return field
 }
-
-var getChangedSettingsRegexps = sync.OnceValue(func() []*regexp.Regexp {
-	res := make([]*regexp.Regexp, len(changedSettingsRules))
-	for i, rule := range changedSettingsRules {
-		res[i] = regexp.MustCompile(rule.pattern)
-	}
-	return res
-})

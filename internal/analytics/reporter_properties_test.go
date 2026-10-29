@@ -190,6 +190,134 @@ func TestCreatePosthogPropertiesForPolicies(t *testing.T) {
 	}, p)
 }
 
+func TestCreatePosthogPropertiesForRouteSettings(t *testing.T) {
+	t.Parallel()
+
+	to := func(urls ...string) config.WeightedURLs {
+		u, err := config.ParseWeightedUrls(urls...)
+		require.NoError(t, err)
+		return u
+	}
+
+	for _, tc := range []struct {
+		name     string
+		options  func(o *config.Options)
+		route    func(p *config.Policy)
+		expected []any
+	}{
+		{"unchanged", nil, func(_ *config.Policy) {}, []any{}},
+		{"path", nil, func(p *config.Policy) { p.Prefix = "/api" }, []any{"path"}},
+		{"host", nil, func(p *config.Policy) { p.PreserveHostHeader = true }, []any{"host"}},
+		{"idle timeout", nil, func(p *config.Policy) { p.IdleTimeout = new(time.Minute) }, []any{"timeouts"}},
+		{"timeout", nil, func(p *config.Policy) { p.UpstreamTimeout = new(time.Minute) }, []any{"timeouts"}},
+		{
+			"timeout inherited", func(o *config.Options) { o.DefaultUpstreamTimeout = time.Minute },
+			func(_ *config.Policy) {},
+			[]any{},
+		},
+		{
+			"timeout same as global", func(o *config.Options) { o.DefaultUpstreamTimeout = time.Minute },
+			func(p *config.Policy) { p.UpstreamTimeout = new(time.Minute) },
+			[]any{},
+		},
+		{"tls", nil, func(p *config.Policy) { p.TLSSkipVerify = true }, []any{"tls"}},
+		{"headers", nil, func(p *config.Policy) { p.SetRequestHeaders = map[string]string{"X": "Y"} }, []any{"headers"}},
+		{"identity headers", nil, func(p *config.Policy) { p.PassIdentityHeaders = new(true) }, []any{"identity_headers"}},
+		{
+			"identity headers same as global", func(o *config.Options) { o.PassIdentityHeaders = new(true) },
+			func(p *config.Policy) { p.PassIdentityHeaders = new(true) },
+			[]any{},
+		},
+		{
+			"identity headers differ from global", func(o *config.Options) { o.PassIdentityHeaders = new(true) },
+			func(p *config.Policy) { p.PassIdentityHeaders = new(false) },
+			[]any{"identity_headers"},
+		},
+		{"idp", nil, func(p *config.Policy) { p.IDPClientID, p.IDPClientSecret = "ID", "SECRET" }, []any{"idp"}},
+		{"protocols", nil, func(p *config.Policy) { p.AllowWebsockets = true }, []any{"protocols"}},
+		{
+			"protocols same as global", func(o *config.Options) { o.AllowUpgrades = nullable.From([]string{"websocket"}) },
+			func(p *config.Policy) { p.AllowUpgrades = nullable.From([]string{"websocket"}) },
+			[]any{},
+		},
+		{
+			"load balancing", nil, func(p *config.Policy) {
+				p.LoadBalancingPolicy = nullable.From(configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_RANDOM)
+			}, []any{"load_balancing"},
+		},
+		{
+			"load balancing upstreams", nil, func(p *config.Policy) {
+				p.To = to("https://to1.example.com", "https://to2.example.com")
+			}, []any{"load_balancing"},
+		},
+		{
+			"circuit breaker", nil, func(p *config.Policy) {
+				p.CircuitBreakerThresholds = &config.CircuitBreakerThresholds{MaxConnections: null.Uint32From(1)}
+			}, []any{"circuit_breaker"},
+		},
+		{
+			"circuit breaker same as global", func(o *config.Options) {
+				o.CircuitBreakerThresholds = &config.CircuitBreakerThresholds{MaxConnections: null.Uint32From(1)}
+			}, func(p *config.Policy) {
+				p.CircuitBreakerThresholds = &config.CircuitBreakerThresholds{MaxConnections: null.Uint32From(1)}
+			}, []any{},
+		},
+		{"health checks", nil, func(p *config.Policy) { p.HealthChecks = []*configpb.HealthCheck{{}} }, []any{"health_checks"}},
+		{
+			"mcp server", nil, func(p *config.Policy) {
+				p.MCP = &config.MCP{Server: &config.MCPServer{MaxRequestBytes: new(uint32(1))}}
+			}, []any{"mcp"},
+		},
+		{"mcp server defaults", nil, func(p *config.Policy) { p.MCP = &config.MCP{Server: &config.MCPServer{}} }, []any{}},
+		{
+			"own name", nil, func(p *config.Policy) {
+				p.DependsOn = []string{"https://other.example.com"}
+				p.EnableGoogleCloudServerlessAuthentication = true
+				p.ShowErrorDetails = true
+			}, []any{"depends_on", "enable_google_cloud_serverless_authentication", "show_error_details"},
+		},
+		{
+			"ignored", nil, func(p *config.Policy) {
+				p.AllowAnyAuthenticatedUser = true
+				p.AllowPublicUnauthenticatedAccess = true
+				p.AllowedUsers = []string{"u1"}
+				p.CORSAllowPreflight = true
+				p.KubernetesServiceAccountToken = "TOKEN"
+				p.OriginatorID = nullable.From("terraform")
+				p.OutlierDetection = &configpb.OutlierDetection{}
+			}, []any{},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &config.Config{Options: config.NewDefaultOptions()}
+			if tc.options != nil {
+				tc.options(cfg.Options)
+			}
+			route := config.Policy{From: "https://from.example.com", To: to("https://to.example.com")}
+			tc.route(&route)
+			cfg.Options.Routes = []config.Policy{route}
+
+			p := New().(*reporter).CreatePosthogPropertiesForRouteSettings(cfg)
+			assert.Equal(t, posthog.Properties{"changed_route_settings": tc.expected}, p)
+		})
+	}
+
+	t.Run("multiple routes", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg.Options.Routes = []config.Policy{
+			{From: "https://from1.example.com", To: to("https://to.example.com"), Prefix: "/api"},
+			{From: "https://from2.example.com", To: to("https://to.example.com"), TLSSkipVerify: true},
+			{From: "https://from3.example.com", To: to("https://to.example.com"), Prefix: "/other"},
+		}
+		p := New().(*reporter).CreatePosthogPropertiesForRouteSettings(cfg)
+		assert.Equal(t, posthog.Properties{"changed_route_settings": []any{"path", "tls"}}, p)
+	})
+}
+
 func TestCreatePosthogPropertiesForRuntimeFlags(t *testing.T) {
 	t.Parallel()
 
