@@ -326,3 +326,20 @@ func TestParseURL(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultRedirectAfterProtoRoundTrip(t *testing.T) {
+	o := exampleConfig()
+	pb, err := o.Routes[0].ToProto()
+	require.NoError(t, err)
+	p, err := config.NewPolicyFromProto(pb)
+	require.NoError(t, err)
+	o.Routes = []config.Policy{*p}
+	var c ClientLookup
+	c.buildForConfig(o)
+	_, err = c.Lookup(
+		"https://pkce.example.com",
+		"https://pkce.example.com/callback",
+	)
+	// default redirect should fallback to subpaths.
+	require.NoError(t, err)
+}

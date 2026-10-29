@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/pomerium/pomerium/config"
@@ -156,14 +157,11 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 			info.SecretHash = hash[:]
 		}
 
-		if oidcBridge.RedirectURIs.IsSet {
+		// Checking IsSet=true is wrong here, since proto conversion sets it to true
+		if len(oidcBridge.RedirectURIs.Value) > 0 {
 			// OpenId Connect Core §3.1.2.1, registered redirect_uri validation.
-
-			for _, redirectURI := range oidcBridge.RedirectURIs.Value {
-				// Validation should be performed according to §6.2.1 of RFC3986
-				if strings.EqualFold(redirectURI, info.RedirectURI) {
-					return &info, nil
-				}
+			if slices.Contains(oidcBridge.RedirectURIs.Value, info.RedirectURI) {
+				return &info, nil
 			}
 			return nil, fmt.Errorf("redirect_uri %s does not match allowed redirect_uris", info.RedirectURI)
 		}

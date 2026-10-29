@@ -208,6 +208,55 @@ func TestHandleAuth(t *testing.T) {
 		assert.Equal(t, "https://non-pkce.example.com/callback?error=invalid_request&error_description=nonce+too+large", res.Header.Get("Location"))
 	})
 
+	t.Run("request not supported", func(t *testing.T) {
+		q := url.Values{
+			"client_id":     {"https://pkce.example.com"},
+			"redirect_uri":  {"https://pkce.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {"openid"},
+			"request":       {"e30."},
+		}
+		w := httptest.NewRecorder()
+		h.HandleAuth(w, httptest.NewRequest(
+			http.MethodGet, "/oidc/auth?"+q.Encode(), nil,
+		))
+		location, err := url.Parse(w.Header().Get("Location"))
+		require.NoError(t, err)
+		assert.Equal(t, "request_not_supported", location.Query().Get("error"))
+	})
+
+	t.Run("unsupported response type", func(t *testing.T) {
+		q := url.Values{
+			"client_id":     {"https://pkce.example.com"},
+			"redirect_uri":  {"https://pkce.example.com/callback"},
+			"response_type": {"token"},
+			"scope":         {"openid"},
+		}
+		w := httptest.NewRecorder()
+		h.HandleAuth(w, httptest.NewRequest(
+			http.MethodGet, "/oidc/auth?"+q.Encode(), nil,
+		))
+		location, err := url.Parse(w.Header().Get("Location"))
+		require.NoError(t, err)
+		assert.Equal(t, "unsupported_response_type", location.Query().Get("error"))
+	})
+
+	t.Run("invalid scope", func(t *testing.T) {
+		q := url.Values{
+			"client_id":     {"https://pkce.example.com"},
+			"redirect_uri":  {"https://pkce.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {"profile"},
+		}
+		w := httptest.NewRecorder()
+		h.HandleAuth(w, httptest.NewRequest(
+			http.MethodGet, "/oidc/auth?"+q.Encode(), nil,
+		))
+		location, err := url.Parse(w.Header().Get("Location"))
+		require.NoError(t, err)
+		assert.Equal(t, "invalid_scope", location.Query().Get("error"))
+	})
+
 	t.Run("internal error", func(t *testing.T) {
 		getSessionHandler := mockGetSessionHandle(nil, errors.New("internal error message"))
 		h, err := NewHandlers(getSessionHandler, nil, exampleConfig())
@@ -349,6 +398,7 @@ func TestHandleToken(t *testing.T) {
 	t.Run("no code", func(t *testing.T) {
 		q := url.Values{
 			"redirect_uri": {"https://pkce.example.com/callback"},
+			"client_id":    {"https://pkce.example.com"},
 			"grant_type":   {"authorization_code"},
 		}
 		w := httptest.NewRecorder()
