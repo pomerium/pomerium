@@ -112,7 +112,6 @@ require (
 	github.com/tidwall/gjson v1.19.0
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
 	github.com/volatiletech/null/v9 v9.0.0
-	github.com/weastur/hclog-zerolog v1.0.0
 	github.com/yuin/gopher-lua v1.1.2
 	github.com/zeebo/xxh3 v1.1.0
 	go.opencensus.io v0.24.0
