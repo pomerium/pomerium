@@ -41,6 +41,7 @@ func (r *reporter) CreatePosthogProperties(ctx context.Context, cfg *config.Conf
 	p.Merge(r.CreatePosthogPropertiesForPolicies(cfg))
 	p.Merge(r.CreatePosthogPropertiesForProduct(cfg))
 	p.Merge(r.CreatePosthogPropertiesForRoutes(cfg))
+	p.Merge(r.CreatePosthogPropertiesForRuntimeFlags(cfg))
 	p.Merge(r.CreatePosthogPropertiesForSettings(cfg))
 	return p
 }
@@ -222,6 +223,28 @@ func (r *reporter) CreatePosthogPropertiesForRoutes(cfg *config.Config) posthog.
 	p := posthog.NewProperties()
 	p["route_count"] = routeCount
 	p["route_types"] = routeTypes
+	return normalizePropertyTypes(p)
+}
+
+func (r *reporter) CreatePosthogPropertiesForRuntimeFlags(cfg *config.Config) posthog.Properties {
+	defaults := config.DefaultRuntimeFlags()
+	changed := []string{}
+	for flag, def := range defaults {
+		if cfg.Options.IsRuntimeFlagSet(flag) != def {
+			changed = append(changed, string(flag))
+		}
+	}
+	// unknown flags are ignored by pomerium, but report them without their name
+	for flag := range cfg.Options.RuntimeFlags {
+		if _, ok := defaults[flag]; !ok {
+			changed = append(changed, "other")
+			break
+		}
+	}
+	slices.Sort(changed)
+
+	p := posthog.NewProperties()
+	p["changed_runtime_flags"] = changed
 	return normalizePropertyTypes(p)
 }
 

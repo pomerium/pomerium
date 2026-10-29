@@ -190,6 +190,32 @@ func TestCreatePosthogPropertiesForPolicies(t *testing.T) {
 	}, p)
 }
 
+func TestCreatePosthogPropertiesForRuntimeFlags(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{Options: config.NewDefaultOptions()}
+	p := New().(*reporter).CreatePosthogPropertiesForRuntimeFlags(cfg)
+	assert.Equal(t, posthog.Properties{
+		"changed_runtime_flags": []any{},
+	}, p)
+
+	cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = false
+	cfg.Options.RuntimeFlags[config.RuntimeFlagSSHRoutesPortal] = true
+	cfg.Options.RuntimeFlags["some_unknown_flag"] = true
+	cfg.Options.RuntimeFlags["another_unknown_flag"] = false
+	delete(cfg.Options.RuntimeFlags, config.RuntimeFlagRoutesPortal)        // missing means false
+	delete(cfg.Options.RuntimeFlags, config.RuntimeFlagDebugAdminEndpoints) // false by default
+	p = New().(*reporter).CreatePosthogPropertiesForRuntimeFlags(cfg)
+	assert.Equal(t, posthog.Properties{
+		"changed_runtime_flags": []any{
+			"mcp",
+			"other",
+			"routes_portal",
+			"ssh_routes_portal",
+		},
+	}, p)
+}
+
 func TestCreatePosthogPropertiesForSettings(t *testing.T) {
 	t.Parallel()
 	cfg := &config.Config{Options: config.NewDefaultOptions()}
