@@ -6,6 +6,7 @@ import (
 	stdlog "log"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/hashicorp/go-hclog"
@@ -122,14 +123,27 @@ func (l *logger) fields(args []any) []any {
 		case zerolog.TimestampFieldName, zerolog.LevelFieldName, zerolog.MessageFieldName, loggerNameField:
 			k = "raft-" + k
 		}
+		v := fieldValue(kvs[i+1])
 		if j, ok := idx[k]; ok {
-			fields[j+1] = kvs[i+1]
+			fields[j+1] = v
 			continue
 		}
 		idx[k] = len(fields)
-		fields = append(fields, k, kvs[i+1])
+		fields = append(fields, k, v)
 	}
 	return fields
+}
+
+// fieldValue returns v as its string when it implements fmt.Stringer, except
+// for the types zerolog already formats.
+func fieldValue(v any) any {
+	switch v.(type) {
+	case time.Duration, time.Time, error:
+		return v
+	case fmt.Stringer:
+		return fmt.Sprint(v)
+	}
+	return v
 }
 
 // pairs returns args with an odd trailing value keyed by hclog.MissingKey.
