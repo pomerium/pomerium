@@ -338,10 +338,6 @@ func (a *Authorize) requireWebAuthnResponse(
 		return a.okResponse(request, result.Headers, result.HeadersToRemove), nil
 	}
 
-	if !ShouldRedirect(a.currentConfig.Load(), in, request) {
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
-	}
-
 	q := url.Values{}
 	if deviceType, ok := result.Allow.AdditionalData["device_type"].(string); ok {
 		q.Set(urlutil.QueryDeviceType, deviceType)
@@ -357,6 +353,17 @@ func (a *Authorize) requireWebAuthnResponse(
 	}
 	q.Set(urlutil.QueryIdentityProviderID, idp.GetId())
 	signinURL := urlutil.WebAuthnURL(getHTTPRequestFromCheckRequest(in), &checkRequestURL, state.sharedKey, q)
+
+	// Programmatic clients cannot follow the redirect, but their login minted the
+	// same session the ceremony attaches the device to: hand back the URL to retry.
+	if !ShouldRedirect(a.currentConfig.Load(), in, request) {
+		headers := make(http.Header)
+		headers.Set("X-Pomerium-WebAuthn-Url", signinURL)
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized,
+			"device authentication required: open "+signinURL+" to authenticate your device, then retry",
+			headers)
+	}
+
 	return a.deniedResponse(ctx, in, http.StatusFound, "Login", http.Header{
 		"Location": {signinURL},
 	})
