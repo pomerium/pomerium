@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
@@ -154,12 +156,24 @@ func TestLoggerNoDuplicateKeys(t *testing.T) {
 				l = l.ResetNamed(name)
 			}
 		}
-		level := hegel.Draw(ht, hegel.SampledFrom(slices.Collect(maps.Keys(levels))))
 		msg := hegel.Draw(ht, hegel.Text())
 		callArgs := drawArgs(ht)
 
-		lines := captureLogLines(ht, func() { l.Log(level, msg, callArgs...) })
+		var emit func()
+		var wantLevel, wantMsg string
+		if hegel.Draw(ht, hegel.Booleans()) {
+			level := hegel.Draw(ht, hegel.SampledFrom(slices.Collect(maps.Keys(levels))))
+			wantLevel, wantMsg = levels[level], msg
+			emit = func() { l.Log(level, msg, callArgs...) }
+		} else {
+			// the standard writer logs without a level and without one trailing newline
+			wantLevel, wantMsg = "", strings.TrimSuffix(msg, "\n")
+			emit = func() { _, _ = l.With(callArgs...).StandardWriter(nil).Write([]byte(msg)) }
+		}
+
+		lines := captureLogLines(ht, emit)
 		require.Len(ht, lines, 1)
+		assert.True(ht, utf8.Valid(lines[0]), "line: %q", lines[0])
 		assert.Empty(ht, duplicateKeys(ht, lines[0]), "line: %s", lines[0])
 
 		var m map[string]any
@@ -167,15 +181,15 @@ func TestLoggerNoDuplicateKeys(t *testing.T) {
 		ts, _ := m["time"].(string)
 		_, err := time.Parse(time.RFC3339, ts)
 		assert.NoError(ht, err, "time must be the timestamp, got %v", m["time"])
-		if levels[level] == "" {
+		if wantLevel == "" {
 			assert.NotContains(ht, m, "level")
 		} else {
-			assert.Equal(ht, levels[level], m["level"])
+			assert.Equal(ht, wantLevel, m["level"])
 		}
-		if msg == "" {
+		if wantMsg == "" {
 			assert.NotContains(ht, m, "message")
 		} else {
-			assert.Equal(ht, msg, m["message"])
+			assert.Equal(ht, wantMsg, m["message"])
 		}
 		assert.Equal(ht, name, m["component"])
 	}, hegel.WithTestCases(1000))
