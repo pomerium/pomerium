@@ -5,6 +5,8 @@ import (
 	"io"
 	stdlog "log"
 	"slices"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/rs/zerolog"
@@ -114,6 +116,8 @@ func (l *logger) fields(args []any) []any {
 		if !ok {
 			k = fmt.Sprint(kvs[i])
 		}
+		// zerolog writes invalid UTF-8 as U+FFFD, which could make two keys equal
+		k = strings.ToValidUTF8(k, string(utf8.RuneError))
 		switch k {
 		case zerolog.TimestampFieldName, zerolog.LevelFieldName, zerolog.MessageFieldName, loggerNameField:
 			k = "raft-" + k
