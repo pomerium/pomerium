@@ -106,41 +106,65 @@ func (r *reporter) CreatePosthogPropertiesForPolicies(cfg *config.Config) postho
 		return "other"
 	}
 
-	var inlinePolicyCount int
-	policyUsage := map[string]int{}
-	pplCriteriaUsage := map[string]int{} // criterion name -> count
-	pplOperatorUsage := map[string]int{} // operator -> count
-	for route := range cfg.Options.GetAllPolicies() {
-		seenCriterion := map[string]struct{}{}
-		ppl := route.ToPPL()
-		if len(ppl.Rules) > 0 {
-			inlinePolicyCount++
-		}
-		for _, rule := range ppl.Rules {
-			pplOperatorUsage["and"] += len(rule.And)
-			pplOperatorUsage["nor"] += len(rule.Nor)
-			pplOperatorUsage["not"] += len(rule.Not)
-			pplOperatorUsage["or"] += len(rule.Or)
+	addCriteria := func(seenCriterion map[string]struct{}, rules []parser.Rule) {
+		for _, rule := range rules {
 			for _, criterion := range slices.Concat(nil, rule.And, rule.Nor, rule.Not, rule.Or) {
 				seenCriterion[getCriterionName(criterion.Name)] = struct{}{}
 			}
 		}
+	}
+	pplOperatorUsage := map[string]int{} // operator -> number of rules
+	addOperators := func(rules []parser.Rule) {
+		for _, rule := range rules {
+			if len(rule.And) > 0 {
+				pplOperatorUsage["and"]++
+			}
+			if len(rule.Nor) > 0 {
+				pplOperatorUsage["nor"]++
+			}
+			if len(rule.Not) > 0 {
+				pplOperatorUsage["not"]++
+			}
+			if len(rule.Or) > 0 {
+				pplOperatorUsage["or"]++
+			}
+		}
+	}
+
+	var policyCount int
+	policyUsage := map[string]int{}      // attached policy id -> number of routes
+	pplCriteriaUsage := map[string]int{} // criterion name -> number of routes
+	for route := range cfg.Options.GetAllPolicies() {
+		seenCriterion := map[string]struct{}{}
+
+		// the inline policy, ToPPL always adds an allow rule, so only count it if it has criteria
+		if rules := route.ToPPL().Rules; slices.ContainsFunc(rules, func(rule parser.Rule) bool {
+			return len(rule.And)+len(rule.Nor)+len(rule.Not)+len(rule.Or) > 0
+		}) {
+			policyCount++
+			addCriteria(seenCriterion, rules)
+			addOperators(rules)
+		}
+
+		// attached policies, only count operators once per distinct policy
 		for _, policy := range route.SubPolicies {
+			firstUse := policy.ID == "" || policyUsage[policy.ID] == 0
 			if policy.ID != "" {
 				policyUsage[policy.ID]++
 			}
-			if subPPL, err := parser.ParseYAML(strings.NewReader(policy.SourcePPL)); err == nil {
-				for _, rule := range subPPL.Rules {
-					pplOperatorUsage["and"] += len(rule.And)
-					pplOperatorUsage["nor"] += len(rule.Nor)
-					pplOperatorUsage["not"] += len(rule.Not)
-					pplOperatorUsage["or"] += len(rule.Or)
-					for _, criterion := range slices.Concat(nil, rule.And, rule.Nor, rule.Not, rule.Or) {
-						seenCriterion[getCriterionName(criterion.Name)] = struct{}{}
-					}
-				}
+			if firstUse {
+				policyCount++
+			}
+			subPPL, err := parser.ParseYAML(strings.NewReader(policy.SourcePPL))
+			if err != nil {
+				continue
+			}
+			addCriteria(seenCriterion, subPPL.Rules)
+			if firstUse {
+				addOperators(subPPL.Rules)
 			}
 		}
+
 		for criterionName := range seenCriterion {
 			pplCriteriaUsage[criterionName]++
 		}
@@ -152,7 +176,7 @@ func (r *reporter) CreatePosthogPropertiesForPolicies(cfg *config.Config) postho
 		}
 	}
 	p := posthog.NewProperties()
-	p["policy_count"] = inlinePolicyCount + len(policyUsage)
+	p["policy_count"] = policyCount
 	p["ppl_criteria"] = pplCriteriaUsage
 	p["ppl_operators"] = pplOperatorUsage
 	p["shared_policy_count"] = sharedPolicyCount
@@ -180,10 +204,10 @@ func (r *reporter) CreatePosthogPropertiesForRoutes(cfg *config.Config) posthog.
 		routeCount++
 		if route.IsForKubernetes() {
 			routeTypes["kubernetes"]++
-		} else if route.IsMCPClient() {
-			routeTypes["mcp_client"]++
 		} else if route.IsMCPServer() {
 			routeTypes["mcp_server"]++
+		} else if route.IsMCPClient() {
+			routeTypes["mcp_client"]++
 		} else if route.IsSSH() {
 			routeTypes["ssh"]++
 		} else if route.IsTCP() || route.IsTCPUpstream() {
@@ -208,16 +232,27 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 	} else {
 		p["identity_provider"] = "none"
 	}
-	p["log_level"] = cfg.Options.LogLevel
-	p["proxy_log_level"] = cfg.Options.ProxyLogLevel
-	if !cfg.Options.OriginatorID.IsSet {
-		p["originator_id"] = "local"
-	} else if cfg.Options.OriginatorID.Value == "terraform" {
-		p["originator_id"] = "terraform"
-	} else {
+	p["log_level"] = getLogLevelName(cfg.Options.LogLevel, func(lvl config.LogLevel) string {
+		return lvl.ToZerolog().String()
+	})
+	// envoy uses the proxy log level, falling back to the log level and then debug
+	proxyLogLevel := cfg.Options.ProxyLogLevel
+	if proxyLogLevel == "" {
+		proxyLogLevel = cfg.Options.LogLevel
+	}
+	if proxyLogLevel == "" {
+		proxyLogLevel = config.LogLevelDebug
+	}
+	p["proxy_log_level"] = getLogLevelName(proxyLogLevel, config.LogLevel.ToEnvoy)
+	switch {
+	case !cfg.Options.OriginatorID.IsSet || cfg.Options.OriginatorID.Value == "":
+		p["originator_id"] = "none"
+	case cfg.Options.OriginatorID.Value == "local", cfg.Options.OriginatorID.Value == "terraform":
+		p["originator_id"] = cfg.Options.OriginatorID.Value
+	default:
 		p["originator_id"] = "other"
 	}
-	p["services"] = cfg.Options.Services
+	p["services"] = getServicesName(cfg.Options.Services)
 
 	changedSettings := set.NewTreeSet(strings.Compare)
 	cmp.Equal(config.NewDefaultOptions().ToProto(), cfg.Options.ToProto(), protocmp.Transform(),
@@ -250,6 +285,40 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 	p["changed_settings"] = changedSettings.Slice()
 
 	return normalizePropertyTypes(p)
+}
+
+// getLogLevelName returns the effective name of a log level, or "other" if
+// the log level is unknown.
+func getLogLevelName(lvl config.LogLevel, convert func(config.LogLevel) string) string {
+	if config.ValidateLogLevel(lvl) != nil {
+		return "other"
+	}
+	return convert(lvl)
+}
+
+// getServicesName returns "all" or the enabled services sorted and joined
+// with commas.
+func getServicesName(services string) string {
+	if config.IsAll(services) {
+		return config.ServiceAll
+	}
+	var names []string
+	if config.IsAuthenticate(services) {
+		names = append(names, config.ServiceAuthenticate)
+	}
+	if config.IsAuthorize(services) {
+		names = append(names, config.ServiceAuthorize)
+	}
+	if config.IsDataBroker(services) {
+		names = append(names, config.ServiceDataBroker)
+	}
+	if config.IsProxy(services) {
+		names = append(names, config.ServiceProxy)
+	}
+	if len(names) == 0 {
+		return "other"
+	}
+	return strings.Join(names, ",")
 }
 
 // normalizePropertyTypes passes the properties through json marshaling/unmarshaling so

@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/logfields"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -124,15 +125,19 @@ func TestCreatePosthogPropertiesForRoutes(t *testing.T) {
 			config.Policy{
 				From:                          fmt.Sprintf("https://a.b.route-%02d.com", i),
 				KubernetesServiceAccountToken: "TOKEN",
+			},
+			config.Policy{
+				From: fmt.Sprintf("https://a.route-%02d.com", i),
+				MCP:  &config.MCP{Server: &config.MCPServer{}, Client: &config.MCPClient{}},
 			})
 	}
 	p := New().(*reporter).CreatePosthogPropertiesForRoutes(cfg)
 	assert.Equal(t, posthog.Properties{
-		"route_count": 600.,
+		"route_count": 700.,
 		"route_types": map[string]any{
 			"http":       100.,
 			"kubernetes": 100.,
-			"mcp_server": 100.,
+			"mcp_server": 200.,
 			"ssh":        100.,
 			"tcp":        100.,
 			"udp":        100.,
@@ -168,7 +173,7 @@ func TestCreatePosthogPropertiesForPolicies(t *testing.T) {
 	}
 	p := New().(*reporter).CreatePosthogPropertiesForPolicies(cfg)
 	assert.Equal(t, posthog.Properties{
-		"policy_count": 5.,
+		"policy_count": 3.,
 		"ppl_criteria": map[string]any{
 			"accept":             2.,
 			"authenticated_user": 1.,
@@ -178,9 +183,8 @@ func TestCreatePosthogPropertiesForPolicies(t *testing.T) {
 		},
 		"ppl_operators": map[string]any{
 			"and": 1.,
-			"nor": 2.,
-			"not": 0.,
-			"or":  8.,
+			"nor": 1.,
+			"or":  3.,
 		},
 		"shared_policy_count": 1.,
 	}, p)
@@ -195,8 +199,8 @@ func TestCreatePosthogPropertiesForSettings(t *testing.T) {
 		"databroker_storage_type": "memory",
 		"identity_provider":       "none",
 		"log_level":               "info",
-		"originator_id":           "local",
-		"proxy_log_level":         "",
+		"originator_id":           "none",
+		"proxy_log_level":         "info",
 		"services":                "all",
 		"changed_settings":        []any{},
 	}, p)
@@ -238,6 +242,41 @@ func TestCreatePosthogPropertiesForSettings(t *testing.T) {
 		"tls_derive",
 		"tracing",
 	}, p["changed_settings"])
+}
+
+func TestCreatePosthogPropertiesForSettingsValues(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		modify        func(o *config.Options)
+		key, expected string
+	}{
+		{"originator unset", func(_ *config.Options) {}, "originator_id", "none"},
+		{"originator empty", func(o *config.Options) { o.OriginatorID = nullable.From("") }, "originator_id", "none"},
+		{"originator local", func(o *config.Options) { o.OriginatorID = nullable.From("local") }, "originator_id", "local"},
+		{"originator terraform", func(o *config.Options) { o.OriginatorID = nullable.From("terraform") }, "originator_id", "terraform"},
+		{"originator other", func(o *config.Options) { o.OriginatorID = nullable.From("my-script") }, "originator_id", "other"},
+		{"services all", func(o *config.Options) { o.Services = "all" }, "services", "all"},
+		{"services every service", func(o *config.Options) { o.Services = "proxy,authorize,databroker,authenticate" }, "services", "all"},
+		{"services sorted", func(o *config.Options) { o.Services = "proxy,authorize" }, "services", "authorize,proxy"},
+		{"services cache", func(o *config.Options) { o.Services = "cache" }, "services", "databroker"},
+		{"services unknown", func(o *config.Options) { o.Services = "unknown" }, "services", "other"},
+		{"log level unset", func(o *config.Options) { o.LogLevel = config.LogLevelUnset }, "log_level", "info"},
+		{"log level warning", func(o *config.Options) { o.LogLevel = config.LogLevelWarning }, "log_level", "warn"},
+		{"log level unknown", func(o *config.Options) { o.LogLevel = "unknown" }, "log_level", "other"},
+		{"proxy log level set", func(o *config.Options) { o.ProxyLogLevel = config.LogLevelWarning }, "proxy_log_level", "warn"},
+		{"proxy log level from log level", func(o *config.Options) { o.LogLevel = config.LogLevelError }, "proxy_log_level", "error"},
+		{"proxy log level default", func(o *config.Options) { o.LogLevel = config.LogLevelUnset }, "proxy_log_level", "debug"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &config.Config{Options: config.NewDefaultOptions()}
+			tc.modify(cfg.Options)
+			p := New().(*reporter).CreatePosthogPropertiesForSettings(cfg)
+			assert.Equal(t, tc.expected, p[tc.key])
+		})
+	}
 }
 
 func TestChangedSettingsRules(t *testing.T) {
