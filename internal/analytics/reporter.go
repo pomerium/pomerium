@@ -7,10 +7,12 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/posthog/posthog-go"
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -23,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 var fallbackKey = cryptutil.NewKey()
@@ -123,8 +126,10 @@ func (r *reporter) createPosthogProperties(ctx context.Context, cfg *config.Conf
 		Set("user_count", userCount)
 	p.Merge(r.createPosthogPropertiesForCertificates(cfg))
 	p.Merge(r.createPosthogPropertiesForCPU(ctx))
+	p.Merge(r.createPosthogPropertiesForCriteria(cfg))
 	p.Merge(r.createPosthogPropertiesForHost(ctx, cfg))
 	p.Merge(r.createPosthogPropertiesForMemory(ctx))
+	p.Merge(r.createPosthogPropertiesForPolicies(cfg))
 	p.Merge(r.createPosthogPropertiesForProduct(cfg))
 	p.Merge(r.createPosthogPropertiesForRoutes(cfg))
 	p.Merge(r.createPosthogPropertiesForSettings(cfg))
@@ -154,6 +159,97 @@ func (r *reporter) createPosthogPropertiesForCPU(ctx context.Context) posthog.Pr
 		}
 		p["cpu_core_count"] = coreCount
 	}
+	return p
+}
+
+func (r *reporter) createPosthogPropertiesForCriteria(cfg *config.Config) posthog.Properties {
+	trackedCriterionNames := set.From([]string{
+		"accept",
+		"authenticated_user",
+		"claim",
+		"client_certificate",
+		"cors_preflight",
+		"device",
+		"domain",
+		"email",
+		"groups",
+		"http_method",
+		"http_path",
+		"invalid_client_certificate",
+		"mcp_tool",
+		"reject",
+		"source_ip",
+		"ssh_access_request_approved",
+		"ssh_ca",
+		"ssh_publickey",
+		"ssh_username",
+		"ssh_username_matches_claim",
+		"ssh_username_matches_email",
+		"user",
+	})
+
+	routeCriteriaCounts := map[string]map[string]struct{}{}
+	policyCriteriaCounts := map[string]map[string]struct{}{}
+	visitCriterion := func(routeID, policyID, criterionName string) {
+		if !trackedCriterionNames.Contains(criterionName) {
+			criterionName = "other"
+		}
+
+		m, ok := routeCriteriaCounts[criterionName]
+		if !ok {
+			m = make(map[string]struct{})
+			routeCriteriaCounts[criterionName] = m
+		}
+		m[routeID] = struct{}{}
+
+		if policyID != "" {
+			m, ok := policyCriteriaCounts[criterionName]
+			if !ok {
+				m = make(map[string]struct{})
+				policyCriteriaCounts[criterionName] = m
+			}
+			m[policyID] = struct{}{}
+		}
+	}
+	policiesWithRego := map[string]struct{}{}
+	policiesWithParseErrors := map[string]struct{}{}
+	for route := range cfg.Options.GetAllPolicies() {
+		routeID := route.ID
+		if routeID == "" {
+			routeID = uuid.NewString()
+		}
+		ppl := route.ToPPL()
+		for _, rule := range ppl.Rules {
+			for _, criterion := range slices.Concat(nil, rule.And, rule.Nor, rule.Not, rule.Or) {
+				visitCriterion(routeID, "", criterion.Name)
+			}
+		}
+		for _, policy := range route.SubPolicies {
+			if policy.SourcePPL != "" {
+				ppl, err := parser.New().ParseYAML(strings.NewReader(policy.SourcePPL))
+				if err == nil {
+					for _, rule := range ppl.Rules {
+						for _, criterion := range slices.Concat(nil, rule.And, rule.Nor, rule.Not, rule.Or) {
+							visitCriterion(routeID, policy.ID, criterion.Name)
+						}
+					}
+				} else if policy.ID != "" {
+					policiesWithParseErrors[policy.ID] = struct{}{}
+				}
+			} else if policy.ID != "" && len(policy.Rego) > 0 {
+				policiesWithRego[policy.ID] = struct{}{}
+			}
+		}
+	}
+	p := posthog.Properties{}
+	for name, ids := range routeCriteriaCounts {
+		p["routes_with_criterion_"+name+"_count"] = len(ids)
+	}
+	for name, ids := range policyCriteriaCounts {
+		p["policies_with_criterion_"+name+"_count"] = len(ids)
+	}
+	p["policies_with_parse_errors"] = len(policiesWithParseErrors)
+	p["policies_with_rego"] = len(policiesWithRego)
 	return p
 }
 
@@ -199,6 +295,47 @@ func (r *reporter) createPosthogPropertiesForProduct(cfg *config.Config) posthog
 		p["product"] = "core"
 	}
 	return p
+}
+
+func (r *reporter) createPosthogPropertiesForPolicies(cfg *config.Config) posthog.Properties {
+	// Count a route's own non-empty PPL or legacy allow rules as its inline policy.
+	// Count resolved SubPolicies as attached policies. Use policy ids locally to count
+	// sharing across routes; never transmit them or their hashes. Where no id exists,
+	// keep policy identity local to that route and mark that cross-route sharing cannot
+	// be established. A generated rule with no criterion is not a policy.
+	//
+	// Report policy_count, inline_policy_count, attached_policy_count, shared_policy_count,
+	// route_policy_attachment_count, and max_routes_per_policy. Add route counts for
+	// inline/attached policies and a fixed histogram of zero, one, two-to-four, or
+	// five-plus policies per route. Explanation and remediation contribute presence counts
+	// only.
+	var policyCount, inlinePolicyCount, attachedPolicyCount, routePolicyAttachmentCount int
+	routesPerPolicy := map[string]int{}
+	for route := range cfg.Options.GetAllPolicies() {
+		ppl := route.ToPPL()
+		if len(ppl.Rules) > 0 {
+			inlinePolicyCount++
+			policyCount++
+		}
+		for _, policy := range route.SubPolicies {
+			if policy.ID != "" {
+				routesPerPolicy[policy.ID]++
+			}
+			attachedPolicyCount++
+		}
+	}
+	maxRoutesPerPolicy := 0
+	for _, count := range routesPerPolicy {
+		maxRoutesPerPolicy = max(maxRoutesPerPolicy, count)
+	}
+	return posthog.Properties{
+		"policy_count":                  policyCount,
+		"inline_policy_count":           inlinePolicyCount,
+		"attached_policy_count":         attachedPolicyCount,
+		"shared_policy_count":           len(routesPerPolicy),
+		"route_policy_attachment_count": routePolicyAttachmentCount, // not sure what routePolicyAttachmentCount means
+		"max_routes_per_policy":         maxRoutesPerPolicy,
+	}
 }
 
 func (r *reporter) createPosthogPropertiesForRoutes(cfg *config.Config) posthog.Properties {

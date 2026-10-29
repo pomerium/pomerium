@@ -27,13 +27,15 @@ func TestCreatePosthogEvent(t *testing.T) {
 	for i := range 100 {
 		options.Routes = append(options.Routes,
 			config.Policy{
-				From:   fmt.Sprintf("https://a.b.c.d.route-%02d.com", i),
-				Policy: mustParsePPL(t, `{"allow": {"or": [{"authenticated_user": 1}]}}`),
+				AllowPublicUnauthenticatedAccess: true,
+				From:                             fmt.Sprintf("https://a.b.c.d.route-%02d.com", i),
+				Policy:                           mustParsePPL(t, `{"allow": {"or": [{"authenticated_user": 1}]}}`),
 			},
 			config.Policy{
-				From:   fmt.Sprintf("https://a.b.c.route-%02d.com", i),
-				MCP:    &config.MCP{Server: &config.MCPServer{}},
-				Policy: mustParsePPL(t, `{"allow": {"and": [{"accept": 1}]}}`),
+				AllowedUsers: []string{"u1", "u2", "u3"},
+				From:         fmt.Sprintf("https://a.b.c.route-%02d.com", i),
+				MCP:          &config.MCP{Server: &config.MCPServer{}},
+				Policy:       mustParsePPL(t, `{"allow": {"and": [{"accept": 1}]}}`),
 			},
 			config.Policy{
 				From: fmt.Sprintf("ssh://a.b.c.route-%02d.com", i),
@@ -43,6 +45,10 @@ func TestCreatePosthogEvent(t *testing.T) {
 			},
 			config.Policy{
 				From: fmt.Sprintf("udp+https://a.b.c.route-%02d.com:9000", i),
+				SubPolicies: []config.SubPolicy{{
+					ID:        "p1",
+					SourcePPL: `{"allow": {"or": [{"domain": "example.com"}]}}`,
+				}},
 			},
 			config.Policy{
 				From:                          fmt.Sprintf("https://a.b.route-%02d.com", i),
@@ -67,8 +73,21 @@ func TestCreatePosthogEvent(t *testing.T) {
 	assert.Equal(t, 100, evt.Properties["ssh_route_count"])
 	assert.Equal(t, 100, evt.Properties["tcp_route_count"])
 	assert.Equal(t, 100, evt.Properties["udp_route_count"])
-	assert.Equal(t, []string{"accept", "authenticated_user"}, evt.Properties["ppl_criteria"])
+	assert.Equal(t, []string{"accept", "authenticated_user", "email", "user"}, evt.Properties["ppl_criteria"])
 	assert.Contains(t, evt.Properties, "build_version")
+
+	// policy properties
+	assert.Contains(t, evt.Properties, "policy_count")
+	assert.Contains(t, evt.Properties, "inline_policy_count")
+	assert.Contains(t, evt.Properties, "attached_policy_count")
+	assert.Contains(t, evt.Properties, "shared_policy_count")
+	assert.Contains(t, evt.Properties, "route_policy_attachment_count")
+	assert.Contains(t, evt.Properties, "max_routes_per_policy")
+
+	// criteria properties
+	assert.Equal(t, 200, evt.Properties["routes_with_criterion_accept_count"])
+	assert.Equal(t, 100, evt.Properties["routes_with_criterion_user_count"])
+	assert.Equal(t, 1, evt.Properties["policies_with_criterion_domain_count"])
 
 	t.Run("pseudonymous", func(t *testing.T) {
 		t.Parallel()
