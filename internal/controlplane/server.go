@@ -283,7 +283,7 @@ func NewServer(
 		return nil, err
 	}
 
-	srv.HealthCheckListener, err = reuseport.Listen("tcp4", cfg.Options.HealthCheckAddr)
+	srv.HealthCheckListener, err = reuseport.Listen("tcp", cfg.Options.HealthCheckAddr)
 	if err != nil {
 		return nil, err
 	}
