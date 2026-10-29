@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -23,59 +22,42 @@ import (
 func TestLogger(t *testing.T) {
 	for _, name := range []string{"raft-node", "raft-transport"} {
 		t.Run(name, func(t *testing.T) {
-			var buf bytes.Buffer
-			log.Writer.Add(&buf)
 			l := newLogger(name)
-			l.Warn("failed to contact", "server-id", "pomerium-1", "time", 500*time.Millisecond)
-			l.With("time", 500*time.Millisecond).Info("with")
-			l.Named("sub").Info("named", "time", 500*time.Millisecond)
-			l.Log(hclog.Error, "reserved", "level", "x", "message", "y", "component", "z")
-			l.With("server-id", "pomerium-1").Info("with repeated", "server-id", "pomerium-2")
-			log.Writer.Remove(&buf)
-
-			lines := map[string]map[string]any{}
-			s := bufio.NewScanner(&buf)
-			for s.Scan() {
-				var m map[string]any
-				require.NoError(t, json.Unmarshal(s.Bytes(), &m), "line: %s", s.Text())
-				msg, _ := m["message"].(string)
-				switch msg {
-				case "failed to contact", "with", "named", "reserved", "with repeated":
-				default:
-					continue
-				}
-				assert.Empty(t, duplicateKeys(t, s.Bytes()), "line: %s", s.Text())
-				lines[msg] = m
-			}
-			require.NoError(t, s.Err())
+			lines := captureLogLines(t, func() {
+				l.Warn("failed to contact", "server-id", "pomerium-1", "time", 500*time.Millisecond)
+				l.With("time", 500*time.Millisecond).Info("with")
+				l.Named("sub").Info("named", "time", 500*time.Millisecond)
+				l.Log(hclog.Error, "reserved", "level", "x", "message", "y", "component", "z")
+				l.With("server-id", "pomerium-1").Info("with repeated", "server-id", "pomerium-2")
+			})
 			require.Len(t, lines, 5)
 
-			for msg, m := range lines {
-				ts, ok := m["time"].(string)
-				if assert.True(t, ok, "%s: time must be the timestamp string, got %v", msg, m["time"]) {
-					_, err := time.Parse(time.RFC3339, ts)
-					assert.NoError(t, err, msg)
-				}
+			logged := map[string]map[string]any{}
+			for _, line := range lines {
+				m := decodeLogLine(t, line)
+				assertTimestamp(t, m)
+				msg, _ := m["message"].(string)
+				logged[msg] = m
 			}
 
-			assert.Equal(t, "warn", lines["failed to contact"]["level"])
-			assert.Equal(t, name, lines["failed to contact"]["component"])
-			assert.Equal(t, "pomerium-1", lines["failed to contact"]["server-id"])
-			assert.Equal(t, 500.0, lines["failed to contact"]["raft-time"])
+			assert.Equal(t, "warn", logged["failed to contact"]["level"])
+			assert.Equal(t, name, logged["failed to contact"]["component"])
+			assert.Equal(t, "pomerium-1", logged["failed to contact"]["server-id"])
+			assert.Equal(t, 500.0, logged["failed to contact"]["raft-time"])
 
-			assert.Equal(t, name, lines["with"]["component"])
-			assert.Equal(t, 500.0, lines["with"]["raft-time"])
+			assert.Equal(t, name, logged["with"]["component"])
+			assert.Equal(t, 500.0, logged["with"]["raft-time"])
 
-			assert.Equal(t, name+".sub", lines["named"]["component"])
-			assert.Equal(t, 500.0, lines["named"]["raft-time"])
+			assert.Equal(t, name+".sub", logged["named"]["component"])
+			assert.Equal(t, 500.0, logged["named"]["raft-time"])
 
-			assert.Equal(t, "error", lines["reserved"]["level"])
-			assert.Equal(t, name, lines["reserved"]["component"])
-			assert.Equal(t, "x", lines["reserved"]["raft-level"])
-			assert.Equal(t, "y", lines["reserved"]["raft-message"])
-			assert.Equal(t, "z", lines["reserved"]["raft-component"])
+			assert.Equal(t, "error", logged["reserved"]["level"])
+			assert.Equal(t, name, logged["reserved"]["component"])
+			assert.Equal(t, "x", logged["reserved"]["raft-level"])
+			assert.Equal(t, "y", logged["reserved"]["raft-message"])
+			assert.Equal(t, "z", logged["reserved"]["raft-component"])
 
-			assert.Equal(t, "pomerium-2", lines["with repeated"]["server-id"])
+			assert.Equal(t, "pomerium-2", logged["with repeated"]["server-id"])
 		})
 	}
 }
@@ -107,53 +89,54 @@ func duplicateKeys(t testing.TB, line []byte) []string {
 }
 
 func TestLoggerNoDuplicateKeys(t *testing.T) {
-	levels := map[hclog.Level]string{
-		hclog.Debug:   "debug",
-		hclog.Info:    "info",
-		hclog.Warn:    "warn",
-		hclog.Error:   "error",
-		hclog.NoLevel: "",
+	levels := []struct {
+		level hclog.Level
+		name  string
+	}{
+		{hclog.Debug, "debug"},
+		{hclog.Info, "info"},
+		{hclog.Warn, "warn"},
+		{hclog.Error, "error"},
+		{hclog.NoLevel, ""},
 	}
 	key := hegel.OneOf(
-		hegel.Map(hegel.SampledFrom(loggerTestKeys), func(s string) any { return s }),
-		hegel.Map(hegel.Text().MaxSize(3), func(s string) any { return s }),
+		asAny(hegel.SampledFrom(loggerTestKeys)),
+		asAny(hegel.Text().MaxSize(3)),
 		// a small alphabet of bytes, some not valid UTF-8 on their own
 		hegel.Map(hegel.Lists(hegel.SampledFrom([]byte("a\xc3\xa9\x80\xff"))).MaxSize(2), func(b []byte) any { return string(b) }),
-		hegel.Map(hegel.Integers(-1, 1), func(i int) any { return i }),
+		asAny(hegel.Integers(-1, 1)),
 	)
 	value := hegel.OneOf(
 		key,
 		hegel.Map(hegel.Integers(-1000, 1000), func(i int) any { return time.Duration(i) * time.Millisecond }),
-		hegel.Map(hegel.Booleans(), func(b bool) any { return b }),
+		asAny(hegel.Booleans()),
 		hegel.Just[any](nil),
 	)
 	drawArgs := func(ht *hegel.T) []any {
-		var args []any
-		for range hegel.Draw(ht, hegel.Integers(0, 4)) {
-			args = append(args, hegel.Draw(ht, key), hegel.Draw(ht, value))
-		}
+		args := drawKVs(ht, key, value)
 		if hegel.Draw(ht, hegel.Booleans()) {
 			args = append(args, hegel.Draw(ht, value))
 		}
 		return args
 	}
+	nameGen := hegel.Text().MaxSize(5)
 
 	hegel.Test(t, func(ht *hegel.T) {
-		name := hegel.Draw(ht, hegel.Text().MaxSize(5))
+		name := hegel.Draw(ht, nameGen)
 		l := newLogger(name)
 		for range hegel.Draw(ht, hegel.Integers(0, 3)) {
 			switch hegel.Draw(ht, hegel.SampledFrom([]string{"With", "Named", "ResetNamed"})) {
 			case "With":
 				l = l.With(drawArgs(ht)...)
 			case "Named":
-				n := hegel.Draw(ht, hegel.Text().MaxSize(5))
+				n := hegel.Draw(ht, nameGen)
 				l = l.Named(n)
 				if name != "" {
 					n = name + "." + n
 				}
 				name = n
 			case "ResetNamed":
-				name = hegel.Draw(ht, hegel.Text().MaxSize(5))
+				name = hegel.Draw(ht, nameGen)
 				l = l.ResetNamed(name)
 			}
 		}
@@ -163,9 +146,9 @@ func TestLoggerNoDuplicateKeys(t *testing.T) {
 		var emit func()
 		var wantLevel, wantMsg string
 		if hegel.Draw(ht, hegel.Booleans()) {
-			level := hegel.Draw(ht, hegel.SampledFrom(slices.Collect(maps.Keys(levels))))
-			wantLevel, wantMsg = levels[level], msg
-			emit = func() { l.Log(level, msg, callArgs...) }
+			level := hegel.Draw(ht, hegel.SampledFrom(levels))
+			wantLevel, wantMsg = level.name, msg
+			emit = func() { l.Log(level.level, msg, callArgs...) }
 		} else {
 			// the standard writer logs without a level and without one trailing newline
 			wantLevel, wantMsg = "", strings.TrimSuffix(msg, "\n")
@@ -174,41 +157,17 @@ func TestLoggerNoDuplicateKeys(t *testing.T) {
 
 		lines := captureLogLines(ht, emit)
 		require.Len(ht, lines, 1)
-		assert.True(ht, utf8.Valid(lines[0]), "line: %q", lines[0])
-		assert.Empty(ht, duplicateKeys(ht, lines[0]), "line: %s", lines[0])
-
-		var m map[string]any
-		require.NoError(ht, json.Unmarshal(lines[0], &m))
-		ts, _ := m["time"].(string)
-		_, err := time.Parse(time.RFC3339, ts)
-		assert.NoError(ht, err, "time must be the timestamp, got %v", m["time"])
-		if wantLevel == "" {
-			assert.NotContains(ht, m, "level")
-		} else {
-			assert.Equal(ht, wantLevel, m["level"])
-		}
-		if wantMsg == "" {
-			assert.NotContains(ht, m, "message")
-		} else {
-			assert.Equal(ht, wantMsg, m["message"])
-		}
+		m := decodeLogLine(ht, lines[0])
+		assertTimestamp(ht, m)
+		assertField(ht, m, "level", wantLevel)
+		assertField(ht, m, "message", wantMsg)
 		assert.Equal(ht, name, m["component"])
 	}, hegel.WithTestCases(1000))
 }
 
 func TestLoggerKeepsArgs(t *testing.T) {
-	key := hegel.OneOf(
-		hegel.SampledFrom(loggerTestKeys),
-		hegel.Text().MaxSize(3),
-	)
-	pairs := hegel.Lists(hegel.Lists(hegel.OneOf(key, hegel.Text())).MinSize(2).MaxSize(2)).MaxSize(4)
-	flatten := func(ps [][]string) []any {
-		var kvs []any
-		for _, p := range ps {
-			kvs = append(kvs, p[0], p[1])
-		}
-		return kvs
-	}
+	key := asAny(hegel.OneOf(hegel.SampledFrom(loggerTestKeys), hegel.Text().MaxSize(3)))
+	value := asAny(hegel.OneOf(hegel.SampledFrom(loggerTestKeys), hegel.Text()))
 
 	hegel.Test(t, func(ht *hegel.T) {
 		// args named like a field the logger writes are expected under a
@@ -217,8 +176,7 @@ func TestLoggerKeepsArgs(t *testing.T) {
 		add := func(kvs []any) {
 			for i := 0; i < len(kvs); i += 2 {
 				k := kvs[i].(string)
-				switch k {
-				case "time", "level", "message", "component":
+				if slices.Contains(reservedKeys, k) {
 					k = "raft-" + k
 				}
 				want[k] = kvs[i+1]
@@ -227,19 +185,17 @@ func TestLoggerKeepsArgs(t *testing.T) {
 
 		l := newLogger("raft-node")
 		for range hegel.Draw(ht, hegel.Integers(0, 2)) {
-			kvs := flatten(hegel.Draw(ht, pairs))
+			kvs := drawKVs(ht, key, value)
 			add(kvs)
 			l = l.With(kvs...)
 		}
-		kvs := flatten(hegel.Draw(ht, pairs))
+		kvs := drawKVs(ht, key, value)
 		add(kvs)
 
 		lines := captureLogLines(ht, func() { l.Info("args", kvs...) })
 		require.Len(ht, lines, 1)
-
-		var m map[string]any
-		require.NoError(ht, json.Unmarshal(lines[0], &m))
-		for _, k := range []string{"time", "level", "message", "component"} {
+		m := decodeLogLine(ht, lines[0])
+		for _, k := range reservedKeys {
 			delete(m, k)
 		}
 		assert.Equal(ht, want, m)
@@ -273,16 +229,13 @@ func TestLoggerStringerValues(t *testing.T) {
 		}
 
 		l := newLogger("raft-node")
-		var lines [][]byte
+		args := []any{"v", v}
 		if hegel.Draw(ht, hegel.Booleans()) {
-			lines = captureLogLines(ht, func() { l.With("v", v).Info("stringer") })
-		} else {
-			lines = captureLogLines(ht, func() { l.Info("stringer", "v", v) })
+			l, args = l.With(args...), nil
 		}
+		lines := captureLogLines(ht, func() { l.Info("stringer", args...) })
 		require.Len(ht, lines, 1)
-
-		var m map[string]any
-		require.NoError(ht, json.Unmarshal(lines[0], &m))
+		m := decodeLogLine(ht, lines[0])
 		assert.Equal(ht, want, m["v"], "line: %s", lines[0])
 	})
 }
@@ -295,12 +248,59 @@ type testPtrStringer struct{ s string }
 
 func (s *testPtrStringer) String() string { return s.s }
 
+// reservedKeys are the fields the logger writes itself.
+var reservedKeys = []string{"time", "level", "message", "component"}
+
 // loggerTestKeys are arg keys that collide with fields the logger writes
 // or with their renamed forms.
-var loggerTestKeys = []string{
-	"time", "level", "message", "component",
+var loggerTestKeys = append(slices.Clone(reservedKeys),
 	"raft-time", "raft-level", "raft-message", "raft-component",
 	hclog.MissingKey,
+)
+
+func asAny[T any](g hegel.Generator[T]) hegel.Generator[any] {
+	return hegel.Map(g, func(v T) any { return v })
+}
+
+// drawKVs draws up to four key/value pairs.
+func drawKVs(ht *hegel.T, key, value hegel.Generator[any]) []any {
+	var kvs []any
+	for range hegel.Draw(ht, hegel.Integers(0, 4)) {
+		kvs = append(kvs, hegel.Draw(ht, key), hegel.Draw(ht, value))
+	}
+	return kvs
+}
+
+// decodeLogLine asserts that line is valid UTF-8 without duplicate keys and
+// returns it decoded.
+func decodeLogLine(t testing.TB, line []byte) map[string]any {
+	t.Helper()
+
+	assert.True(t, utf8.Valid(line), "line: %q", line)
+	assert.Empty(t, duplicateKeys(t, line), "line: %s", line)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(line, &m), "line: %s", line)
+	return m
+}
+
+func assertTimestamp(t testing.TB, m map[string]any) {
+	t.Helper()
+
+	ts, _ := m["time"].(string)
+	_, err := time.Parse(time.RFC3339, ts)
+	assert.NoError(t, err, "time must be the timestamp, got %v", m["time"])
+}
+
+// assertField asserts that m has key set to want, or no key when want is
+// empty.
+func assertField(t testing.TB, m map[string]any, key, want string) {
+	t.Helper()
+
+	if want == "" {
+		assert.NotContains(t, m, key)
+	} else {
+		assert.Equal(t, want, m[key])
+	}
 }
 
 // captureLogLines returns the lines fn writes to the global logger.
