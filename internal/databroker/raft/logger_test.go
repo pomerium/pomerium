@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"hegel.dev/go/hegel"
@@ -244,6 +245,55 @@ func TestLoggerKeepsArgs(t *testing.T) {
 		assert.Equal(ht, want, m)
 	})
 }
+
+func TestLoggerStringerValues(t *testing.T) {
+	hegel.Test(t, func(ht *hegel.T) {
+		var v, want any
+		switch hegel.Draw(ht, hegel.Integers(0, 6)) {
+		case 0:
+			s := hegel.Draw(ht, hegel.Text())
+			v, want = testStringer{s}, s
+		case 1:
+			v, want = (*testPtrStringer)(nil), "<nil>"
+		case 2:
+			st := raft.RaftState(hegel.Draw(ht, hegel.Integers[uint32](0, 4)))
+			v, want = st, st.String()
+		case 3:
+			sf := raft.ServerSuffrage(hegel.Draw(ht, hegel.Integers(0, 3)))
+			v, want = sf, sf.String()
+		case 4:
+			r := &raft.Raft{}
+			v, want = r, r.String()
+		case 5:
+			ms := hegel.Draw(ht, hegel.Integers(-1000, 1000))
+			v, want = time.Duration(ms)*time.Millisecond, float64(ms)
+		case 6:
+			ts := time.Unix(hegel.Draw(ht, hegel.Integers[int64](0, 1<<33)), 0).UTC()
+			v, want = ts, ts.Format(time.RFC3339)
+		}
+
+		l := newLogger("raft-node")
+		var lines [][]byte
+		if hegel.Draw(ht, hegel.Booleans()) {
+			lines = captureLogLines(ht, func() { l.With("v", v).Info("stringer") })
+		} else {
+			lines = captureLogLines(ht, func() { l.Info("stringer", "v", v) })
+		}
+		require.Len(ht, lines, 1)
+
+		var m map[string]any
+		require.NoError(ht, json.Unmarshal(lines[0], &m))
+		assert.Equal(ht, want, m["v"], "line: %s", lines[0])
+	})
+}
+
+type testStringer struct{ s string }
+
+func (s testStringer) String() string { return s.s }
+
+type testPtrStringer struct{ s string }
+
+func (s *testPtrStringer) String() string { return s.s }
 
 // loggerTestKeys are arg keys that collide with fields the logger writes
 // or with their renamed forms.
