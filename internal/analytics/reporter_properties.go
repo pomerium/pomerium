@@ -285,29 +285,16 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 	return normalizePropertyTypes(p)
 }
 
-// getServicesName returns "all" or the enabled services sorted and joined
-// with commas.
+// getServicesName returns the services sorted and joined with commas.
 func getServicesName(services string) string {
-	if config.IsAll(services) {
-		return config.ServiceAll
-	}
 	var names []string
-	if config.IsAuthenticate(services) {
-		names = append(names, config.ServiceAuthenticate)
+	for name := range strings.SplitSeq(services, ",") {
+		if name = strings.TrimSpace(strings.ToLower(name)); name != "" {
+			names = append(names, name)
+		}
 	}
-	if config.IsAuthorize(services) {
-		names = append(names, config.ServiceAuthorize)
-	}
-	if config.IsDataBroker(services) {
-		names = append(names, config.ServiceDataBroker)
-	}
-	if config.IsProxy(services) {
-		names = append(names, config.ServiceProxy)
-	}
-	if len(names) == 0 {
-		return "other"
-	}
-	return strings.Join(names, ",")
+	slices.Sort(names)
+	return strings.Join(slices.Compact(names), ",")
 }
 
 // normalizePropertyTypes passes the properties through json marshaling/unmarshaling so
