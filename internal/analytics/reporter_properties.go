@@ -1,6 +1,7 @@
 package analytics
 
 import (
+	stdcmp "cmp"
 	"context"
 	"encoding/json"
 	"math"
@@ -232,18 +233,15 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 	} else {
 		p["identity_provider"] = "none"
 	}
-	p["log_level"] = getLogLevelName(cfg.Options.LogLevel, func(lvl config.LogLevel) string {
-		return lvl.ToZerolog().String()
-	})
+	// ToZerolog and ToEnvoy panic on unknown log levels, so check them first
+	p["log_level"], p["proxy_log_level"] = "other", "other"
+	if lvl := cfg.Options.LogLevel; config.ValidateLogLevel(lvl) == nil {
+		p["log_level"] = lvl.ToZerolog().String()
+	}
 	// envoy uses the proxy log level, falling back to the log level and then debug
-	proxyLogLevel := cfg.Options.ProxyLogLevel
-	if proxyLogLevel == "" {
-		proxyLogLevel = cfg.Options.LogLevel
+	if lvl := stdcmp.Or(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug); config.ValidateLogLevel(lvl) == nil {
+		p["proxy_log_level"] = lvl.ToEnvoy()
 	}
-	if proxyLogLevel == "" {
-		proxyLogLevel = config.LogLevelDebug
-	}
-	p["proxy_log_level"] = getLogLevelName(proxyLogLevel, config.LogLevel.ToEnvoy)
 	switch {
 	case !cfg.Options.OriginatorID.IsSet || cfg.Options.OriginatorID.Value == "":
 		p["originator_id"] = "none"
@@ -285,15 +283,6 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 	p["changed_settings"] = changedSettings.Slice()
 
 	return normalizePropertyTypes(p)
-}
-
-// getLogLevelName returns the effective name of a log level, or "other" if
-// the log level is unknown.
-func getLogLevelName(lvl config.LogLevel, convert func(config.LogLevel) string) string {
-	if config.ValidateLogLevel(lvl) != nil {
-		return "other"
-	}
-	return convert(lvl)
 }
 
 // getServicesName returns "all" or the enabled services sorted and joined
