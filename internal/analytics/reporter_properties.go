@@ -3,15 +3,20 @@ package analytics
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/posthog/posthog-go"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/version"
@@ -50,15 +55,6 @@ func (r *reporter) CreatePosthogPropertiesForCertificates(cfg *config.Config) po
 func (r *reporter) CreatePosthogPropertiesForCPU(infos []cpu.InfoStat) posthog.Properties {
 	p := posthog.NewProperties()
 	p["cpu_count"] = len(infos)
-	var coreCount int
-	for _, info := range infos {
-		coreCount += int(info.Cores)
-		p["cpu_family"] = info.Family
-		p["cpu_model_name"] = info.ModelName
-		p["cpu_model"] = info.Model
-		p["cpu_vendor_id"] = info.VendorID
-	}
-	p["cpu_core_count"] = coreCount
 	return p
 }
 
@@ -66,18 +62,15 @@ func (r *reporter) CreatePosthogPropertiesForHost(info *host.InfoStat) posthog.P
 	p := posthog.NewProperties()
 	p["os"] = info.OS
 	p["platform"] = info.Platform
-	p["platform_family"] = info.PlatformFamily
+	p["platform_version"] = info.PlatformVersion
 	p["kernel_arch"] = info.KernelArch
-	p["kernel_version"] = info.KernelVersion
 	p["virtualization_system"] = info.VirtualizationSystem
 	return p
 }
 
 func (r *reporter) CreatePosthogPropertiesForMemory(info *mem.VirtualMemoryStat) posthog.Properties {
 	p := posthog.NewProperties()
-	p["mem_available_gib"] = info.Available / (1024 * 1024 * 1024)
-	p["mem_total_gib"] = info.Total / (1024 * 1024 * 1024)
-	p["mem_used_gib"] = info.Used / (1024 * 1024 * 1024)
+	p["mem_total_gib"] = math.Round(float64(info.Total) / (1024 * 1024 * 1024))
 	return normalizePropertyTypes(p)
 }
 
@@ -172,8 +165,6 @@ func (r *reporter) CreatePosthogPropertiesForProduct(cfg *config.Config) posthog
 	p["envoy_version"] = cfg.EnvoyVersion
 	if cfg.ZeroClusterID != "" {
 		p["product"] = "zero"
-		p["zero_cluster_id"] = cfg.ZeroClusterID
-		p["zero_organization_id"] = cfg.ZeroOrganizationID
 	} else if len(os.Args) > 0 && os.Args[0] == "manager" {
 		p["product"] = "ingress-controller"
 	} else {
@@ -219,7 +210,6 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 	}
 	p["log_level"] = cfg.Options.LogLevel
 	p["proxy_log_level"] = cfg.Options.ProxyLogLevel
-	r.setPII(cfg, p, "identity_provider_url", cfg.Options.ProviderURL)
 	if !cfg.Options.OriginatorID.IsSet {
 		p["originator_id"] = "local"
 	} else if cfg.Options.OriginatorID.Value == "terraform" {
@@ -228,6 +218,37 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 		p["originator_id"] = "other"
 	}
 	p["services"] = cfg.Options.Services
+
+	changedSettings := set.NewTreeSet(strings.Compare)
+	cmp.Equal(config.NewDefaultOptions().ToProto(), cfg.Options.ToProto(), protocmp.Transform(),
+		cmp.Reporter(&cmpReporter{callback: func(path cmp.Path, result cmp.Result) {
+			// nothing changed
+			if result.Equal() {
+				return
+			}
+
+			var name []string
+			for _, step := range path {
+				switch field := step.(type) {
+				case cmp.MapIndex:
+					if key, ok := field.Key().Interface().(string); ok {
+						name = append(name, key)
+					}
+				}
+			}
+
+			// only global settings are tracked here, routes are handled separately
+			if len(name) < 2 || name[0] != "settings" {
+				return
+			}
+
+			if n := getChangedSettingsName(name[1]); n != "" {
+				changedSettings.Insert(n)
+			}
+		}}))
+
+	p["changed_settings"] = changedSettings.Slice()
+
 	return normalizePropertyTypes(p)
 }
 
@@ -240,3 +261,77 @@ func normalizePropertyTypes(p posthog.Properties) posthog.Properties {
 	}
 	return p
 }
+
+type cmpReporter struct {
+	path     cmp.Path
+	callback func(path cmp.Path, result cmp.Result)
+}
+
+func (r *cmpReporter) PushStep(step cmp.PathStep) {
+	r.path = append(r.path, step)
+}
+
+func (r *cmpReporter) PopStep() {
+	r.path = r.path[:len(r.path)-1]
+}
+
+func (r *cmpReporter) Report(result cmp.Result) {
+	r.callback(r.path, result)
+}
+
+// changedSettingsRules map settings protobuf field names to the name reported
+// in changed_settings. Fields that match no rule are reported as themselves.
+// The empty string indicates the field will be ignored.
+var changedSettingsRules = []struct {
+	pattern string
+	name    string
+}{
+	// ignored
+	{`^(cookie_secret|idp_client_id|autocert_eab_.*|databroker_storage_.*|log_level|proxy_log_level|services|idp_provider|certificates|certificate_key_pair_ids|runtime_flags|id|namespace_id|cluster_id|originator_id|name|installation_id|created_at|modified_at|enterprise|license_type|readonly_console_audiences|auto_apply_changesets|directory_provider.*)$`, ""},
+	// renamed
+	{`^scopes$`, "idp_scopes"},
+	{`^request_params$`, "idp_request_params"},
+	{`^derive_tls$`, "tls_derive"},
+	{`^certificate_authority(_key_pair_id)?$`, "certificate_authority"},
+	{`^jwt_groups_filter(_infer_from_ppl)?$`, "jwt_groups_filter"},
+	// groups
+	{`^autocert(_.*)?$`, "autocert"},
+	{`^((darkmode_)?(primary|secondary)_color|logo_url|favicon_url|error_message_first_paragraph)$`, "branding"},
+	{`^circuit_breaker_`, "circuit_breaker"},
+	{`^cookie_`, "cookie"},
+	{`^databroker_(cluster_|raft_)`, "databroker_cluster"},
+	{`^dns_`, "dns"},
+	{`^downstream_mtls$`, "downstream_mtls"},
+	{`^envoy_admin_`, "envoy_admin"},
+	{`^envoy_bind_config_`, "envoy_bind"},
+	{`^(normalize_path|merge_slashes|path_with_escaped_slashes_action|headers_with_underscores_action)$`, "http_normalization"},
+	{`_log_fields$`, "log_fields"},
+	{`^mcp_`, "mcp"},
+	{`^metrics_`, "metrics"},
+	{`^((authorize|databroker)_service_urls|\w+_internal_service_url)$`, "service_urls"},
+	{`^ssh_(address|host_key|user_ca_key|rls_)`, "ssh"},
+	{`^(timeout_\w+|default_upstream_timeout|grpc_client_timeout)$`, "timeouts"},
+	{`^otel_`, "tracing"},
+	{`^(skip_xff_append|xff_num_trusted_hops)$`, "xff"},
+	// ignore any other secrets or keys, so new fields aren't reported by default
+	{`(^|_)secret(_|$)|(^|_)keys?(_files?)?$`, ""},
+}
+
+// getChangedSettingsName returns the changed_settings name for a settings
+// protobuf field name.
+func getChangedSettingsName(field string) string {
+	for i, re := range getChangedSettingsRegexps() {
+		if re.MatchString(field) {
+			return changedSettingsRules[i].name
+		}
+	}
+	return field
+}
+
+var getChangedSettingsRegexps = sync.OnceValue(func() []*regexp.Regexp {
+	res := make([]*regexp.Regexp, len(changedSettingsRules))
+	for i, rule := range changedSettingsRules {
+		res[i] = regexp.MustCompile(rule.pattern)
+	}
+	return res
+})

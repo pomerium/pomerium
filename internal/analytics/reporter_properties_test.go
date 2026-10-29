@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/posthog/posthog-go"
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -13,10 +14,12 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/volatiletech/null/v9"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -46,12 +49,7 @@ func TestCreatePosthogPropertiesForCPU(t *testing.T) {
 		{VendorID: "GenuineIntel", Family: "6", Model: "197", ModelName: "Intel(R) Core(TM) Ultra 9 285H", Cores: 1},
 	})
 	assert.Equal(t, posthog.Properties{
-		"cpu_core_count": 2,
-		"cpu_count":      2,
-		"cpu_family":     "6",
-		"cpu_model":      "197",
-		"cpu_model_name": "Intel(R) Core(TM) Ultra 9 285H",
-		"cpu_vendor_id":  "GenuineIntel",
+		"cpu_count": 2,
 	}, p)
 }
 
@@ -72,10 +70,9 @@ func TestCreatePosthogPropertiesForHost(t *testing.T) {
 	)
 	assert.Equal(t, posthog.Properties{
 		"kernel_arch":           "x86_64",
-		"kernel_version":        "7.0.0-38-generic",
 		"os":                    "linux",
 		"platform":              "ubuntu",
-		"platform_family":       "debian",
+		"platform_version":      "26.04",
 		"virtualization_system": "kvm",
 	}, p)
 }
@@ -90,10 +87,14 @@ func TestCreatePosthogPropertiesForMemory(t *testing.T) {
 		},
 	)
 	assert.Equal(t, posthog.Properties{
-		"mem_available_gib": 6.,
-		"mem_total_gib":     32.,
-		"mem_used_gib":      25.,
+		"mem_total_gib": 32.,
 	}, p)
+
+	// rounded to the nearest GiB
+	p = New().(*reporter).CreatePosthogPropertiesForMemory(&mem.VirtualMemoryStat{Total: 16_642_998_272}) // ~15.5 GiB
+	assert.Equal(t, posthog.Properties{"mem_total_gib": 16.}, p)
+	p = New().(*reporter).CreatePosthogPropertiesForMemory(&mem.VirtualMemoryStat{Total: 16_106_127_360}) // 15 GiB
+	assert.Equal(t, posthog.Properties{"mem_total_gib": 15.}, p)
 }
 
 func TestCreatePosthogPropertiesForRoutes(t *testing.T) {
@@ -191,14 +192,84 @@ func TestCreatePosthogPropertiesForSettings(t *testing.T) {
 	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0xAA}, 32))
 	p := New().(*reporter).CreatePosthogPropertiesForSettings(cfg)
 	assert.Equal(t, posthog.Properties{
-		"databroker_storage_type":            "memory",
-		"identity_provider":                  "none",
-		"log_level":                          "info",
-		"originator_id":                      "local",
-		"proxy_log_level":                    "",
-		"pseudonymous_identity_provider_url": "oiGhP9PrJsKGVL8bD4erGKflPjDy6zhgWYwqYXuJLaQ=",
-		"services":                           "all",
+		"databroker_storage_type": "memory",
+		"identity_provider":       "none",
+		"log_level":               "info",
+		"originator_id":           "local",
+		"proxy_log_level":         "",
+		"services":                "all",
+		"changed_settings":        []any{},
 	}, p)
+
+	cfg.Options.AccessLogFields = []logfields.AccessLogField{logfields.AccessLogFieldAuthority}
+	cfg.Options.Tracing.OtelBspMaxExportBatchSize = new(int32(11))
+	cfg.Options.DNS.UDPMaxQueries = null.NewUint32(87, true)
+	cfg.Options.AutocertOptions.MustStaple = true
+	cfg.Options.MetricsBasicAuth = "BASIC:AUTH"
+	cfg.Options.EnvoyAdminAccessLogPath = "/tmp/some/path"
+	cfg.Options.EnvoyBindConfigFreebind = null.BoolFrom(true)
+	cfg.Options.DataBroker.ClusterLeaderID = null.StringFrom("LEADER")
+	cfg.Options.BrandingOptions = &configpb.Settings{PrimaryColor: new("#FFF000")}
+	cfg.Options.CookieName = "_custom_cookie"
+	cfg.Options.ReadTimeout = time.Second * 10000
+	cfg.Options.DownstreamMTLS.MaxVerifyDepth = new(uint32(3))
+	cfg.Options.Scopes = []string{"openid"}
+	cfg.Options.DeriveInternalDomainCert = new("example.com")
+	cfg.Options.CookieSecret = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0xBB}, 32))
+	cfg.Options.ClientSecret = "SECRET"
+	cfg.Options.Provider = "oidc"
+	cfg.Options.LogLevel = config.LogLevelDebug
+	cfg.Options.RuntimeFlags = map[config.RuntimeFlag]bool{config.RuntimeFlagMCP: false}
+	cfg.Options.Routes = []config.Policy{{From: "https://from.example.com", PassIdentityHeaders: new(true)}}
+	p = New().(*reporter).CreatePosthogPropertiesForSettings(cfg)
+	assert.Equal(t, []any{
+		"autocert",
+		"branding",
+		"cookie",
+		"databroker_cluster",
+		"dns",
+		"downstream_mtls",
+		"envoy_admin",
+		"envoy_bind",
+		"idp_scopes",
+		"log_fields",
+		"metrics",
+		"timeouts",
+		"tls_derive",
+		"tracing",
+	}, p["changed_settings"])
+}
+
+func TestChangedSettingsRules(t *testing.T) {
+	t.Parallel()
+	for field, expected := range map[string]string{
+		"shared_secret":                           "",
+		"idp_client_secret":                       "",
+		"signing_key":                             "",
+		"cookie_secret":                           "",
+		"autocert_eab_mac_key":                    "",
+		"databroker_storage_connection_string":    "",
+		"ssh_two_person_approval_request_timeout": "ssh_two_person_approval_request_timeout",
+		"authenticate_service_url":                "authenticate_service_url",
+		"authenticate_internal_service_url":       "service_urls",
+		"scopes":                                  "idp_scopes",
+		"autocert":                                "autocert",
+		"ssh_user_ca_key_pair_id":                 "ssh",
+		"address":                                 "address",
+		"idp_provider_url":                        "idp_provider_url",
+		"ssh_user_ca_key":                         "ssh",
+		"certificate_authority_key_pair_id":       "certificate_authority",
+		"metrics_client_secret":                   "metrics",
+		"future_client_secret":                    "",
+		"future_client_secret_file":               "",
+		"future_private_key":                      "",
+		"future_private_key_file":                 "",
+		"future_host_keys":                        "",
+		"future_key_pair_id":                      "future_key_pair_id",
+	} {
+		actual := getChangedSettingsName(field)
+		assert.Equal(t, expected, actual, field)
+	}
 }
 
 func mustParsePPL(t testing.TB, raw string) *config.PPLPolicy {
