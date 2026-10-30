@@ -220,4 +220,30 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.ErrorIs(t, err, databrokerpb.ErrSetCheckpointNotSupported,
 			"should not allow setting checkpoints")
 	})
+	t.Run("stops streams", func(t *testing.T) {
+		leader := databroker.NewBackendServer(noop.NewTracerProvider())
+		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
+		})
+		local := databroker.NewBackendServer(noop.NewTracerProvider())
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
+		followerCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, follower)
+		})
+
+		c := databrokerpb.NewDataBrokerServiceClient(followerCC)
+		info, err := c.ServerInfo(t.Context(), new(emptypb.Empty))
+		require.NoError(t, err)
+		stream, err := c.Sync(t.Context(), &databrokerpb.SyncRequest{
+			ServerVersion: info.GetServerVersion(),
+			RecordVersion: info.GetLatestRecordVersion(),
+		})
+		require.NoError(t, err)
+
+		follower.Stop()
+
+		res, err := stream.Recv()
+		assert.Equal(t, codes.Canceled.String(), status.Code(err).String())
+		assert.Nil(t, res)
+	})
 }
