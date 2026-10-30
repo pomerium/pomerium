@@ -1,0 +1,21 @@
+{
+  "overallStatus":  "OVERALL_STATUS_TERMINATING",
+  "overallErr":  "1 component(s) not healthy: h3",
+  "statuses":  {
+    "h1":  {
+      "status":  "HEALTH_STATUS_TERMINATING"
+    },
+    "h2":  {
+      "status":  "HEALTH_STATUS_RUNNING"
+    },
+    "h3":  {
+      "status":  "HEALTH_STATUS_RUNNING",
+      "err":  "not terminating"
+    }
+  },
+  "required":  [
+    "h1",
+    "h2",
+    "h3"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "statuses": {
+    "a": {
+      "status": "RUNNING"
+    },
+    "b": {
+      "status": "TERMINATING",
+      "attributes": [
+        {
+          "Key": "foo",
+          "Value": "bar"
+        }
+      ]
+    },
+    "c": {
+      "status": "UNKNOWN",
+      "error": "some error"
+    }
+  },
+  "checks": [
+    "a",
+    "b",
+    "c",
+    "d"
+  ]
+}

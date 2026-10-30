@@ -1,0 +1,20 @@
+{
+  "overallStatus":  "OVERALL_STATUS_STARTING",
+  "overallErr":  "1 component(s) not started: h3",
+  "statuses":  {
+    "h1":  {
+      "status":  "HEALTH_STATUS_RUNNING"
+    },
+    "h2":  {
+      "status":  "HEALTH_STATUS_RUNNING",
+      "attributes":  {
+        "foo":  "bar"
+      }
+    }
+  },
+  "required":  [
+    "h1",
+    "h2",
+    "h3"
+  ]
+}

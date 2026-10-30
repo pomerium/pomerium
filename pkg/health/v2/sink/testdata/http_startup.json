@@ -1,0 +1,22 @@
+{
+  "a": {
+    "status": "RUNNING"
+  },
+  "b": {
+    "status": "TERMINATING",
+    "attributes": [
+      {
+        "Key": "foo",
+        "Value": "bar"
+      }
+    ]
+  },
+  "c": {
+    "status": "UNKNOWN",
+    "error": "some error"
+  },
+  "d": {
+    "status": "UNAVAILABLE",
+    "error": "expected ':d' to have been reported on, but was not"
+  }
+}
