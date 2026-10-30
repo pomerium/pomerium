@@ -8,12 +8,13 @@ import (
 	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 
 	"github.com/pomerium/pomerium/internal/telemetry"
 )
 
 var (
-	defaultClientManagerIdleTimeout = 30 * time.Second
+	DefaultClientManagerIdleTimeout = 30 * time.Second
 	defaultClientManagerNewClient   = grpc.NewClient
 )
 
@@ -41,7 +42,7 @@ func WithClientManagerNewClient(newClient func(target string, options ...grpc.Di
 
 func getClientManagerConfig(options ...ClientManagerOption) *clientManagerConfig {
 	cfg := new(clientManagerConfig)
-	WithClientManagerIdleTimeout(defaultClientManagerIdleTimeout)(cfg)
+	WithClientManagerIdleTimeout(DefaultClientManagerIdleTimeout)(cfg)
 	WithClientManagerNewClient(defaultClientManagerNewClient)(cfg)
 	for _, option := range options {
 		option(cfg)
@@ -67,7 +68,7 @@ type ClientManager interface {
 type clientManager struct {
 	telemetry telemetry.Component
 
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	cfg    *clientManagerConfig
 	active map[string]*clientManagerActiveClient
 	idle   map[string]*clientManagerIdleClient
@@ -123,6 +124,16 @@ func (mgr *clientManager) UpdateOptions(options ...ClientManagerOption) {
 
 	// update the dial options
 	mgr.cfg = getClientManagerConfig(options...)
+}
+
+func (mgr *clientManager) getState(target string) connectivity.State {
+	mgr.mu.RLock()
+	activeCC, ok := mgr.active[target]
+	mgr.mu.RUnlock()
+	if !ok {
+		return connectivity.Idle
+	}
+	return activeCC.cc.GetState()
 }
 
 func (mgr *clientManager) acquire(target string) (*grpc.ClientConn, error) {
@@ -244,6 +255,11 @@ func (lazyCC clientManagerLazyClient) Invoke(
 	return actualCC.Invoke(ctx, method, args, reply, append(opts, grpc.OnFinish(func(_ error) {
 		lazyCC.mgr.release(lazyCC.target)
 	}))...)
+}
+
+// Implements the equivalent GetState() connectivity.State method on *grpc.ClientConn
+func (lazyCC clientManagerLazyClient) GetState() connectivity.State {
+	return lazyCC.mgr.getState(lazyCC.target)
 }
 
 func (lazyCC clientManagerLazyClient) NewStream(

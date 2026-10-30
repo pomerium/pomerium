@@ -60,9 +60,11 @@ type Server struct {
 
 	monitorProcessCancel context.CancelFunc
 
-	mu                                sync.Mutex
-	shutdownC                         chan error
-	dynamicExtensionHealthProbeCancel context.CancelFunc
+	mu        sync.Mutex
+	shutdownC chan error
+	// dynamicExtensionHealthProbeCancel context.CancelFunc
+
+	process stdatomic.Pointer[envoyProcess]
 
 	recordingServer     stdatomic.Pointer[recording.Server]
 	recordingServerDone chan struct{}
@@ -215,15 +217,19 @@ func (srv *Server) Close() error {
 	if !srv.closing.CompareAndSwap(false, true) {
 		return nil
 	}
+
+	// TODO : need to report errors to the health checker implementation
+	// during shutdown.
+
 	health.ReportTerminating(health.EnvoyServer)
 	defer close(srv.shutdownC)
 	srv.monitorProcessCancel()
 
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
-	if srv.dynamicExtensionHealthProbeCancel != nil {
-		srv.dynamicExtensionHealthProbeCancel()
-	}
+	// if srv.dynamicExtensionHealthProbeCancel != nil {
+	// 	srv.dynamicExtensionHealthProbeCancel()
+	// }
 
 	var err error
 	if srv.cmd != nil && srv.cmd.Process != nil {
@@ -294,7 +300,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("envoy: failed to configure dynamic extensions: %w", err)
 	}
-	srv.startDynExtHealthProbeLocked(ctx, dynCfg)
+	// srv.startDynExtHealthProbeLocked(ctx, dynCfg)
 
 	if dynCfg.isSessionRecordingEnabled() {
 		srv.enableOrUpdateSessionRecording(ctx, cfg, dynCfg.RecordingPipes)
@@ -363,6 +369,11 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 		defer close(exited)
 		_ = cmd.Wait()
 	}()
+	srv.process.Store(&envoyProcess{
+		adminAddress: srv.adminAddress,
+		exited:       exited,
+		extensions:   dynCfg.extensions,
+	})
 	go func() {
 		srv.readiness(ctx, exited)
 		log.Ctx(ctx).Debug().Msg("readiness check stopped")
@@ -488,11 +499,18 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 	}
 }
 
-func (srv *Server) envoyReady(ctx context.Context) error {
-	srv.mu.Lock()
-	adminAddress := srv.adminAddress
-	srv.mu.Unlock()
+func envoyReady(ctx context.Context, adminAddress netutil.InternalAddress) error {
+	code, err := envoyReadyStatus(ctx, adminAddress)
+	if err != nil {
+		return err
+	}
+	if code != http.StatusOK {
+		return fmt.Errorf("unexpected http status code from ready endpoint : %d", code)
+	}
+	return nil
+}
 
+func envoyReadyStatus(ctx context.Context, adminAddress netutil.InternalAddress) (int, error) {
 	u := &url.URL{
 		Scheme: "http",
 		Host:   "unix",
@@ -502,17 +520,14 @@ func (srv *Server) envoyReady(ctx context.Context) error {
 	defer client.CloseIdleConnections()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected http status code from ready endpoint : %d", resp.StatusCode)
-	}
-	return nil
+	resp.Body.Close()
+	return resp.StatusCode, nil
 }
 
 func (srv *Server) readiness(ctx context.Context, exited chan struct{}) {
@@ -530,13 +545,13 @@ func (srv *Server) readiness(ctx context.Context, exited chan struct{}) {
 			// small optimization to bring up envoy as ready
 			return
 		case <-firstC:
-			if err := srv.envoyReady(ctx); err != nil {
+			if err := envoyReady(ctx, srv.process.Load().adminAddress); err != nil {
 				health.ReportError(health.EnvoyServer, err)
 			} else {
 				health.ReportRunning(health.EnvoyServer)
 			}
 		case <-ticker.C:
-			if err := srv.envoyReady(ctx); err != nil {
+			if err := envoyReady(ctx, srv.process.Load().adminAddress); err != nil {
 				health.ReportError(health.EnvoyServer, err)
 			} else {
 				health.ReportRunning(health.EnvoyServer)

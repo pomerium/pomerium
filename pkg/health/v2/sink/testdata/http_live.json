@@ -1,0 +1,18 @@
+{
+  "Proxy/a": {
+    "healthy": true
+  },
+  "Proxy/b": {
+    "healthy": true
+  },
+  "Proxy/c": {
+    "healthy": false,
+    "reason": "some error"
+  },
+  "Proxy/d": {
+    "healthy": true,
+    "details": {
+      "k": "v"
+    }
+  }
+}

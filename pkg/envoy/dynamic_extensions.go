@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/ipc"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	slicesutil "github.com/pomerium/pomerium/pkg/slices"
 )
@@ -110,14 +111,14 @@ func (srv *Server) configureDynamicExtensions(ctx context.Context, cfg *config.C
 	return out, nil
 }
 
-func (srv *Server) startDynExtHealthProbeLocked(ctx context.Context, dynCfg *DynamicExtensionsConfig) {
-	if srv.dynamicExtensionHealthProbeCancel != nil {
-		srv.dynamicExtensionHealthProbeCancel()
-	}
-	ctxca, ca := context.WithCancel(ctx)
-	srv.dynamicExtensionHealthProbeCancel = ca
-	go srv.probeExtensionHealth(ctxca, dynCfg.extensions)
-}
+// func (srv *Server) startDynExtHealthProbeLocked(ctx context.Context, dynCfg *DynamicExtensionsConfig) {
+// 	if srv.dynamicExtensionHealthProbeCancel != nil {
+// 		srv.dynamicExtensionHealthProbeCancel()
+// 	}
+// 	ctxca, ca := context.WithCancel(ctx)
+// 	srv.dynamicExtensionHealthProbeCancel = ca
+// 	go srv.probeExtensionHealth(ctxca, dynCfg.extensions)
+// }
 
 // mutates the extension loader in place
 func (srv *Server) configureSessionRecordingExtension(
@@ -163,6 +164,7 @@ func (srv *Server) configureSessionRecordingExtension(
 	return workers, nil
 }
 
+// nolint: unused
 func (srv *Server) probeExtensionHealth(ctx context.Context, configuredExtensions []dynamicExtension) {
 	log.Ctx(ctx).Debug().Msg("starting envoy dynamic extension health probe")
 	defer func() {
@@ -181,7 +183,7 @@ func (srv *Server) probeExtensionHealth(ctx context.Context, configuredExtension
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			info, err := srv.envoyDynamicExtStatus(ctx)
+			info, err := envoyDynamicExtStatus(ctx, srv.process.Load().adminAddress)
 			if err != nil {
 				health.ReportError(health.EnvoyDynamicExtensions, fmt.Errorf("failed to check extension status : %w", err))
 			} else {
@@ -199,11 +201,7 @@ func (srv *Server) probeExtensionHealth(ctx context.Context, configuredExtension
 	}
 }
 
-func (srv *Server) envoyDynamicExtStatus(ctx context.Context) (*extensionStatusInfo, error) {
-	srv.mu.Lock()
-	adminAddress := srv.adminAddress
-	srv.mu.Unlock()
-
+func envoyDynamicExtStatus(ctx context.Context, adminAddress netutil.InternalAddress) (*extensionStatusInfo, error) {
 	u := &url.URL{
 		Scheme: "http",
 		Host:   "unix",

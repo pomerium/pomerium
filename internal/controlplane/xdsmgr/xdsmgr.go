@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"golang.org/x/sync/errgroup"
@@ -16,7 +17,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/signal"
-	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/contextutil"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 )
 
 // streamState is what one stream has sent to envoy for one resource type.
@@ -42,7 +44,6 @@ func (s *streamState) recordSent(res *envoy_service_discovery_v3.DeltaDiscoveryR
 // A Manager manages xDS resources.
 type Manager struct {
 	signal *signal.Signal
-	health health.Provider
 
 	mu        sync.Mutex
 	resources map[string][]*envoy_service_discovery_v3.Resource
@@ -52,16 +53,83 @@ type Manager struct {
 	// sender, 0 included. Tests use it to know when the manager is done
 	// reacting.
 	onResponsesQueued func(n int)
+
+	healthMu   sync.RWMutex
+	streamSync *syncState
+
+	shutdownRequested atomic.Bool
 }
+
+var _ healthv2.ServiceEvaluator = (*Manager)(nil)
 
 // NewManager creates a new Manager.
 func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Manager {
 	return &Manager{
-		signal: signal.New(),
-		health: health.GetProviderManager(),
-
+		signal:    signal.New(),
 		resources: resources,
+
+		streamSync: newSyncState(),
 	}
+}
+
+func (mgr *Manager) Component() string {
+	return "xds"
+}
+
+func (mgr *Manager) Service() healthv2.ServiceID {
+	return healthv2.ServiceEnvoy
+}
+
+func (mgr *Manager) Initialized(ctx context.Context) (bool, healthv2.Info) {
+	return mgr.Ready(ctx)
+}
+
+func (mgr *Manager) Ready(context.Context) (bool, healthv2.Info) {
+	mgr.healthMu.RLock()
+	defer mgr.healthMu.RUnlock()
+	ready := mgr.streamSync.readyLocked()
+	info := healthv2.Info{Details: mgr.streamSync.detailsLocked()}
+	if !ready {
+		info.Reason = mgr.streamSync.reasonLocked()
+	}
+	return ready, info
+}
+
+func (mgr *Manager) Healthy(ctx context.Context) (bool, healthv2.Info) {
+	healthy, info := mgr.healthy(ctx)
+	if mgr.shutdownRequested.Load() {
+		return !healthy, info
+	}
+	return healthy, info
+}
+
+func (mgr *Manager) healthy(context.Context) (bool, healthv2.Info) {
+	mgr.healthMu.RLock()
+	defer mgr.healthMu.RUnlock()
+	info := healthv2.Info{Details: mgr.streamSync.detailsLocked()}
+	if !mgr.streamSync.active {
+		info.Reason = mgr.streamSync.inactiveReasonLocked()
+	}
+	return mgr.streamSync.active, info
+}
+
+func (mgr *Manager) OnShutdown(context.Context, error) {
+	mgr.shutdownRequested.Store(true)
+}
+
+func (mgr *Manager) startStream() *syncState {
+	mgr.healthMu.Lock()
+	defer mgr.healthMu.Unlock()
+	mgr.streamSync = newSyncState()
+	mgr.streamSync.active = true
+	return mgr.streamSync
+}
+
+// TODO : hack
+func (mgr *Manager) updateSync(update func()) {
+	mgr.healthMu.Lock()
+	defer mgr.healthMu.Unlock()
+	update()
 }
 
 // DeltaAggregatedResources implements the increment xDS server.
@@ -70,6 +138,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 ) error {
 	ch := mgr.signal.Bind()
 	defer mgr.signal.Unbind(ch)
+	streamSync := mgr.startStream()
 
 	// stateByTypeURL and nonce belong to the goroutine that handles requests
 	// and resource changes and queues the responses, so they need no lock.
@@ -126,18 +195,17 @@ func (mgr *Manager) DeltaAggregatedResources(
 			stateByTypeURL[req.GetTypeUrl()] = state
 		}
 
-		check := getHealthCheck(req.GetTypeUrl())
 		switch {
 		case req.GetResponseNonce() == "":
 			// neither an ACK or a NACK
 		case req.GetErrorDetail() != nil:
 			// a NACK
 			logNACK(ctx, req)
-			mgr.health.ReportError(check, errors.New(req.GetErrorDetail().GetMessage()))
+			mgr.updateSync(func() { streamSync.nackLocked(req.GetTypeUrl(), req.GetErrorDetail().GetMessage()) })
 		case req.GetResponseNonce() == state.lastNonce:
 			// an ACK for the last response
 			logACK(ctx, req)
-			mgr.health.ReportStatus(check, health.StatusRunning)
+			mgr.updateSync(func() { streamSync.ackLocked(req.GetTypeUrl()) })
 		default:
 			// an ACK for a response that's not the last response
 			logEarlierACK(ctx, req, state.lastNonce)
@@ -213,6 +281,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 				state := stateByTypeURL[res.GetTypeUrl()]
 				state.lastNonce = res.Nonce
 				state.recordSent(res)
+				mgr.updateSync(func() { streamSync.sentLocked(res.GetTypeUrl()) })
 
 				select {
 				case <-ctx.Done():
@@ -240,7 +309,11 @@ func (mgr *Manager) DeltaAggregatedResources(
 			}
 		}
 	})
-	return eg.Wait()
+	err := eg.Wait()
+	if !errors.Is(context.Cause(stream.Context()), contextutil.ErrShutdown) {
+		mgr.updateSync(func() { streamSync.endLocked(err) })
+	}
+	return err
 }
 
 // StreamAggregatedResources is not implemented.

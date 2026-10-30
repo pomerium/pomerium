@@ -1,0 +1,71 @@
+{
+  "statuses": {
+    "Proxy/a": {
+      "status": "OK",
+      "initialized": {
+        "ok": true
+      },
+      "ready": {
+        "ok": true,
+        "details": {
+          "role": "leader"
+        }
+      },
+      "healthy": {
+        "ok": true
+      }
+    },
+    "Proxy/b": {
+      "status": "NOT_READY",
+      "initialized": {
+        "ok": true
+      },
+      "ready": {
+        "ok": false,
+        "reason": "syncing",
+        "details": {
+          "foo": "bar"
+        }
+      },
+      "healthy": {
+        "ok": true
+      }
+    },
+    "Proxy/c": {
+      "status": "UNHEALTHY",
+      "initialized": {
+        "ok": true
+      },
+      "ready": {
+        "ok": true
+      },
+      "healthy": {
+        "ok": false,
+        "reason": "some error"
+      }
+    },
+    "Proxy/d": {
+      "status": "STARTING",
+      "initialized": {
+        "ok": false,
+        "reason": "loading"
+      },
+      "ready": {
+        "ok": false,
+        "reason": "loading"
+      },
+      "healthy": {
+        "ok": true,
+        "details": {
+          "k": "v"
+        }
+      }
+    }
+  },
+  "checks": [
+    "Proxy/a",
+    "Proxy/b",
+    "Proxy/c",
+    "Proxy/d"
+  ]
+}

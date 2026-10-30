@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -105,6 +106,9 @@ type StreamManager struct {
 	edsServer            delta.Server
 	indexer              PolicyIndexer
 	cliCtrl              cli.InternalCLIController
+
+	running    atomic.Bool
+	sshEnabled atomic.Bool
 }
 
 // LogHealthCheckEvent implements grpc.HealthCheckEventSinkServer.
@@ -387,6 +391,7 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyInd
 
 	sm.bindingSyncer = bindingSyncer
 
+	sm.sshEnabled.Store(cfg.Options.SSHAddr != "")
 	sm.indexer.ProcessConfigUpdate(cfg)
 	return sm
 }
@@ -410,8 +415,11 @@ func (sm *StreamManager) waitForInitialSync(ctx context.Context) error {
 }
 
 func (sm *StreamManager) Run(ctx context.Context) error {
+	sm.running.Store(true)
+	defer sm.running.Store(false)
 	sm.edsServer = delta.NewServer(ctx, sm.edsCache, sm)
 	eg, eCtx := errgroup.WithContext(ctx)
+
 	eg.Go(func() error {
 		syncer := databrokerutil.NewSyncer(
 			eCtx,
@@ -450,6 +458,7 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 }
 
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
+	sm.sshEnabled.Store(cfg.Options.SSHAddr != "")
 	sm.indexer.ProcessConfigUpdate(cfg)
 
 	// TODO: integrate the re-auth mechanism with the indexer

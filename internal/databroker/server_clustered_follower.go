@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
@@ -26,6 +27,7 @@ import (
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 )
 
 var (
@@ -43,6 +45,8 @@ type clusteredFollowerServer struct {
 	cancel           context.CancelCauseFunc
 	done             chan struct{}
 	extraHealthAttrs []health.Attr
+
+	initialSyncDone atomic.Bool
 }
 
 type FollowerOptions struct {
@@ -74,7 +78,7 @@ func NewClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local S
 		leaderCC:         leaderCC,
 		leader:           NewForwardingServer(leaderCC),
 		local:            local,
-		done:             make(chan struct{}, 1),
+		done:             make(chan struct{}),
 		extraHealthAttrs: options.extraHealthAttrs,
 	}
 	srv.cancelCtx, srv.cancel = context.WithCancelCause(context.Background())
@@ -502,30 +506,26 @@ func (srv *clusteredFollowerServer) invokeReadWrite(ctx context.Context, fn func
 }
 
 func (srv *clusteredFollowerServer) run(ctx context.Context) {
-	defer func() {
-		select {
-		case srv.done <- struct{}{}:
-		default:
-		}
-	}()
+	defer close(srv.done)
 	b := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0))
 
-	wait := false
 	for {
-		// attempt to sync
-		// the first sync is non-blocking, to ensure startup guarantees
-		err := srv.sync(ctx, b, wait)
-		if !wait && (err == nil || errors.Is(err, io.EOF)) {
-			wait = true
-			health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
+		// the first sync is non-blocking, to ensure we can measure startup/readiness
+		// then it will start a long lived sync for updates
+		err := srv.sync(ctx, b, srv.initialSyncDone.Load())
+		if !srv.initialSyncDone.Load() && (err == nil || errors.Is(err, io.EOF)) {
+			srv.initialSyncDone.Store(true)
 			continue
 		}
 
-		// if we need to reset, call sync latest and then sync again
 		if errors.Is(err, errClusteredFollowerNeedsReset) {
+			srv.initialSyncDone.Store(false)
+			// clears and does a force-resync
 			err = srv.syncLatest(ctx, b)
 			if err == nil {
-				err = srv.sync(ctx, b, true)
+				srv.initialSyncDone.Store(true)
+				// go back to the long-lived sync
+				continue
 			}
 		}
 
@@ -550,6 +550,8 @@ func (srv *clusteredFollowerServer) healthAttrs() []health.Attr {
 }
 
 // sync syncs records from the leader and stores them in the local store.
+// the wait parameter is used to toggle whether or not sync requests need to sync up until EOF, or sync
+// and tail future updates
 func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff, wait bool) error {
 	// run a 3 step conditional pipeline:
 	// - sync the latest records
@@ -875,4 +877,66 @@ type clusteredFollowerServerPutStepPayload struct {
 	checkpoint *databrokerpb.Checkpoint
 	records    []*databrokerpb.Record
 	options    *databrokerpb.TypedOptions
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredFollowerServer) Service() healthv2.ServiceID {
+	return srv.local.Service()
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredFollowerServer) Component() string {
+	return srv.local.Component()
+}
+
+// Implements healthv2.HealthChecker
+
+func (srv *clusteredFollowerServer) isRunning() bool {
+	select {
+	case <-srv.done:
+		return false
+	default:
+		return true
+	}
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredFollowerServer) Initialized(ctx context.Context) (bool, healthv2.Info) {
+	initialized, info := healthv2.NewMultiEvaluator(srv.local, srv.leader).Initialized(ctx)
+	initialized, info = srv.check(initialized, info)
+	if initialized && !srv.initialSyncDone.Load() {
+		info.Reason = "initial sync from leader in progress"
+		return false, info
+	}
+	return initialized, info
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredFollowerServer) Ready(ctx context.Context) (bool, healthv2.Info) {
+	ready, info := healthv2.NewMultiEvaluator(srv.local, srv.leader).Ready(ctx)
+	ready, info = srv.check(ready, info)
+	if ready && !srv.initialSyncDone.Load() {
+		info.Reason = "initial sync from leader in progress"
+		return false, info
+	}
+	return ready, info
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredFollowerServer) Healthy(ctx context.Context) (bool, healthv2.Info) {
+	return srv.check(healthv2.NewMultiEvaluator(srv.local, srv.leader).Healthy(ctx))
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredFollowerServer) OnShutdown(context.Context, error) {
+	// TODO : health check v2
+}
+
+func (srv *clusteredFollowerServer) check(ok bool, info healthv2.Info) (bool, healthv2.Info) {
+	info = withMember(info, "follower")
+	if !srv.isRunning() {
+		info.Reason = "follower stopped"
+		return false, info
+	}
+	return ok, info
 }

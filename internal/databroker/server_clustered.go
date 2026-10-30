@@ -26,6 +26,7 @@ import (
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 )
 
 var (
@@ -39,7 +40,7 @@ type clusteredServer struct {
 	clientManager *ClientManager
 	streamLayer   raft.StreamLayer
 
-	mu                   sync.Mutex
+	mu                   sync.RWMutex
 	stopped              bool
 	currentLeaderElector LeaderElector
 	currentOptions       config.DataBrokerOptions
@@ -646,4 +647,42 @@ func (srv *clusteredServer) updateServerLocked() {
 
 func dataBrokerOptionsAreEqual(o1, o2 config.DataBrokerOptions) bool {
 	return cmp.Equal(o1, o2)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredServer) Service() healthv2.ServiceID {
+	return healthv2.ServiceDataBroker
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredServer) Component() string {
+	return "server"
+}
+
+// Implements healthv2.HealthChecker
+
+func (srv *clusteredServer) current() Server {
+	srv.mu.RLock()
+	defer srv.mu.RUnlock()
+	return srv.currentServer
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredServer) Initialized(ctx context.Context) (bool, healthv2.Info) {
+	return srv.current().Initialized(ctx)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredServer) Ready(ctx context.Context) (bool, healthv2.Info) {
+	return srv.current().Ready(ctx)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredServer) Healthy(ctx context.Context) (bool, healthv2.Info) {
+	return srv.current().Healthy(ctx)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredServer) OnShutdown(ctx context.Context, shutdownErr error) {
+	srv.current().OnShutdown(ctx, shutdownErr)
 }

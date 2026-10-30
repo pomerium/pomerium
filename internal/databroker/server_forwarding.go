@@ -5,6 +5,7 @@ import (
 
 	"connectrpc.com/connect"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -12,6 +13,7 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 )
 
 type forwardingServer struct {
@@ -309,3 +311,60 @@ func (srv *forwardingServer) UpdateSettings(ctx context.Context, req *connect.Re
 
 func (srv *forwardingServer) Stop()                                              {}
 func (srv *forwardingServer) OnConfigChange(_ context.Context, _ *config.Config) {}
+
+func (srv *forwardingServer) Component() string {
+	return "server"
+}
+
+// Implements healthv2.HealthChecker
+func (srv *forwardingServer) Service() healthv2.ServiceID {
+	return healthv2.ServiceDataBroker
+}
+
+func (srv *forwardingServer) leaderConnState() connectivity.State {
+	cc, ok := srv.cc.(interface {
+		GetState() connectivity.State
+	})
+	if !ok {
+		return connectivity.Ready
+	}
+	return cc.GetState()
+}
+
+// Implements healthv2.HealthChecker
+func (srv *forwardingServer) Initialized(context.Context) (bool, healthv2.Info) {
+	state := srv.leaderConnState()
+	info := healthv2.Info{Details: map[string]string{"leader_conn": state.String()}}
+	if state != connectivity.Idle && state != connectivity.Ready {
+		info.Reason = "could not connect to leader"
+		return false, info
+	}
+	return true, info
+}
+
+// Implements healthv2.HealthChecker
+func (srv *forwardingServer) Ready(context.Context) (bool, healthv2.Info) {
+	state := srv.leaderConnState()
+	info := healthv2.Info{Details: map[string]string{"leader_conn": state.String()}}
+	if state != connectivity.Idle && state != connectivity.Ready {
+		info.Reason = "could not connect to leader"
+		return false, info
+	}
+	return true, info
+}
+
+// Implements healthv2.HealthChecker
+func (srv *forwardingServer) Healthy(context.Context) (bool, healthv2.Info) {
+	state := srv.leaderConnState()
+	info := healthv2.Info{Details: map[string]string{"leader_conn": state.String()}}
+	if state == connectivity.Shutdown {
+		info.Reason = "connection to leader closed"
+		return false, info
+	}
+	return true, info
+}
+
+// Implements healthv2.HealthChecker
+func (srv *forwardingServer) OnShutdown(context.Context, error) {
+	// TODO : health check v2
+}

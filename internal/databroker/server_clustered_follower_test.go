@@ -17,11 +17,9 @@ import (
 
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/internal/testutil/healthtest"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
-	"github.com/pomerium/pomerium/pkg/health"
 )
 
 func TestClusteredFollowerServer(t *testing.T) {
@@ -127,7 +125,6 @@ func TestClusteredFollowerServer(t *testing.T) {
 		assert.ErrorIs(t, err, databrokerpb.ErrNodeIsNotLeader)
 	})
 	t.Run("sync", func(t *testing.T) {
-		testHealthTr := healthtest.NewTrackerForTest(t)
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())
 		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
@@ -143,9 +140,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC, databroker.WithFollowerHealthAttrs(
-			healthtest.HealhAttrTest(testHealthTr.GetUUID()),
-		))
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
 		t.Cleanup(follower.Stop)
 
 		for i := range 100 {
@@ -172,18 +167,10 @@ func TestClusteredFollowerServer(t *testing.T) {
 			Id:   "local-1",
 		})
 		assert.Equal(t, codes.NotFound, status.Code(err), "should clear local records during sync")
-
-		assert.EventuallyWithT(t, func(collect *assert.CollectT) {
-			assert.Equal(collect, []healthtest.HealthStatus{
-				{
-					Check:      health.DatabrokerCluster,
-					Status:     health.StatusRunning,
-					Attributes: []health.Attr{healthtest.HealhAttrTest(testHealthTr.GetUUID()), health.StrAttr("member", "follower")},
-				},
-			}, testHealthTr.GetStatuses(health.DatabrokerCluster))
-		}, time.Second, time.Millisecond)
-
-		assert.Nil(t, testHealthTr.GetErrors(health.DatabrokerCluster), "should not report an error during normal operation")
+		ready, _ := local.Ready(t.Context())
+		healthy, _ := local.Healthy(t.Context())
+		assert.True(t, ready)
+		assert.True(t, healthy)
 	})
 	t.Run("checkpoints", func(t *testing.T) {
 		leader := databroker.NewBackendServer(noop.NewTracerProvider())

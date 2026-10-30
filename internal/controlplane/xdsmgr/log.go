@@ -11,7 +11,6 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -87,15 +86,15 @@ func loggedNames[T any](items []T, name func(T) string) []string {
 	return names
 }
 
-func getHealthCheck(typeURL string) health.Check {
+func typeName(typeURL string) string {
 	switch typeURL {
 	case clusterTypeURL:
-		return health.XDSCluster
+		return "cluster"
 	case listenerTypeURL:
-		return health.XDSListener
+		return "listener"
 	case routeConfigurationTypeURL:
-		return health.XDSRouteConfiguration
+		return "route"
 	default:
-		return health.XDSOther
+		return typeURL
 	}
 }

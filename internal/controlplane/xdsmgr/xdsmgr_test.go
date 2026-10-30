@@ -2,9 +2,10 @@ package xdsmgr
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"maps"
-	"sync"
+	"net"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -18,11 +19,18 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	grpcstatus "google.golang.org/grpc/status"
+	"google.golang.org/grpc/test/bufconn"
 	"hegel.dev/go/hegel"
 
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
+	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -124,33 +132,12 @@ func resourceRefs(responses ...*envoy_service_discovery_v3.DeltaDiscoveryRespons
 	return refs
 }
 
-// recordingHealthProvider records whether each check was last reported
-// running.
-type recordingHealthProvider struct {
-	mu     sync.Mutex
-	checks map[health.Check]bool
-}
-
-func newRecordingHealthProvider() *recordingHealthProvider {
-	return &recordingHealthProvider{checks: map[health.Check]bool{}}
-}
-
-func (p *recordingHealthProvider) ReportStatus(check health.Check, status health.Status, _ ...health.Attr) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.checks[check] = status == health.StatusRunning
-}
-
-func (p *recordingHealthProvider) ReportError(check health.Check, _ error, _ ...health.Attr) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.checks[check] = false
-}
-
-func (p *recordingHealthProvider) running(check health.Check) bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.checks[check]
+func runHealthManager(t *testing.T, mgr *Manager, opts *config.Options) *healthv2.Manager {
+	t.Helper()
+	hm := healthv2.NewManager(healthv2.Options{PollInterval: 10 * time.Millisecond, CheckTimeout: time.Second})
+	hm.RegisterHealthChecker(mgr)
+	go hm.Run(t.Context())
+	return hm
 }
 
 func TestManager(t *testing.T) {
@@ -235,31 +222,31 @@ func TestManager_LateACKOfRevertedUpdate(t *testing.T) {
 		"r2 was never re-sent after envoy applied its removal")
 }
 
-// TestManager_ACKOfLastResponseReportsRunning covers an update that changes
-// nothing for a type. The manager sends no response for it, so the last
-// response for the type is the only one envoy can acknowledge. Acknowledging
-// it must report the type as running.
-func TestManager_ACKOfLastResponseReportsRunning(t *testing.T) {
+// TestManager_ACKOfLastResponseSyncs covers an update that changes nothing
+// for a type. The manager sends no response for it, so the last response for
+// the type is the only one envoy can acknowledge. Acknowledging it must sync
+// the type.
+func TestManager_ACKOfLastResponseSyncs(t *testing.T) {
 	t.Parallel()
 
 	resources := map[string][]*envoy_service_discovery_v3.Resource{
 		listenerTypeURL: {{Name: "r1", Version: "1"}},
 	}
-	provider := newRecordingHealthProvider()
 	mgr := NewManager(resources)
-	mgr.health = provider
 	s := newTestStream(t, mgr)
 
 	responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
 	require.Len(t, responses, 1)
-	assert.False(t, provider.running(health.XDSListener))
+	_, info := mgr.Ready(t.Context())
+	assert.Equal(t, "pending", info.Details["listener"])
 
 	// an update that changes nothing for the type sends no response
 	require.Empty(t, s.update(resources), "an unchanged type should not be re-sent")
 
 	s.ack(listenerTypeURL, responses[0].GetNonce())
-	assert.True(t, provider.running(health.XDSListener),
-		"acknowledging the last response for the type should report it running")
+	_, info = mgr.Ready(t.Context())
+	assert.Equal(t, "synced", info.Details["listener"],
+		"acknowledging the last response for the type should sync it")
 }
 
 func TestBuildDiscoveryResponsesForConsistentUpdates(t *testing.T) {
@@ -448,4 +435,336 @@ func (m *xdsModel) InvariantEnvoyHoldsLatest(_ hegel.TestCase) {
 			m.ht.Fatalf("envoy holds %v of %s, the manager serves %v", m.envoy[typeURL], typeURL, m.latest[typeURL])
 		}
 	}
+}
+
+func TestXDSHealthChecks(t *testing.T) {
+	t.Parallel()
+
+	resources := map[string][]*envoy_service_discovery_v3.Resource{
+		listenerTypeURL: {{Name: "r1", Version: "1"}},
+	}
+
+	t.Run("idle", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resources)
+
+		healthy, info := mgr.Healthy(t.Context())
+		assert.False(t, healthy)
+		assert.Equal(t, "no active stream", info.Reason)
+	})
+
+	t.Run("start", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resources)
+		s := newTestStream(t, mgr)
+		s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+
+		ready, info := mgr.Ready(t.Context())
+		assert.False(t, ready)
+		assert.Equal(t, healthv2.Info{
+			Reason:  "waiting for ACK: cluster, listener, route",
+			Details: map[string]string{"cluster": "pending", "listener": "pending", "route": "pending"},
+		}, info)
+	})
+
+	t.Run("ack", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resources)
+		s := newTestStream(t, mgr)
+		responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+		require.Len(t, responses, 1)
+
+		s.ack(listenerTypeURL, responses[0].GetNonce())
+
+		ready, info := mgr.Ready(t.Context())
+		assert.False(t, ready)
+		assert.Equal(t, healthv2.Info{
+			Reason:  "waiting for ACK: cluster, route",
+			Details: map[string]string{"cluster": "pending", "listener": "synced", "route": "pending"},
+		}, info)
+	})
+
+	t.Run("nack", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resources)
+		s := newTestStream(t, mgr)
+		responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+		require.Len(t, responses, 1)
+
+		s.nack(listenerTypeURL, responses[0].GetNonce(), "invalid listener")
+
+		ready, info := mgr.Ready(t.Context())
+		assert.False(t, ready)
+		assert.Equal(t, healthv2.Info{
+			Reason:  "waiting for ACK: cluster, route; listener NACK: invalid listener",
+			Details: map[string]string{"cluster": "pending", "listener": "pending", "route": "pending"},
+		}, info)
+	})
+
+	t.Run("nack_then_ack", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resources)
+		s := newTestStream(t, mgr)
+		responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+		require.Len(t, responses, 1)
+		s.nack(listenerTypeURL, responses[0].GetNonce(), "invalid listener")
+
+		responses = s.update(map[string][]*envoy_service_discovery_v3.Resource{
+			listenerTypeURL: {{Name: "r1", Version: "2"}},
+		})
+		require.Len(t, responses, 1)
+		s.ack(listenerTypeURL, responses[0].GetNonce())
+
+		_, info := mgr.Ready(t.Context())
+		assert.Equal(t, healthv2.Info{
+			Reason:  "waiting for ACK: cluster, route",
+			Details: map[string]string{"cluster": "pending", "listener": "synced", "route": "pending"},
+		}, info)
+	})
+
+	t.Run("close", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resources)
+		s := newTestStream(t, mgr)
+		s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+
+		require.NoError(t, s.stream.CloseSend())
+		_, err := s.stream.Recv()
+		require.Error(t, err)
+
+		assert.EventuallyWithT(t, func(c *assert.CollectT) {
+			healthy, info := mgr.Healthy(t.Context())
+			assert.False(c, healthy)
+			assert.Contains(c, info.Reason, "stream ended")
+		}, 2*time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("shutdown", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resources)
+		shutdownCtx, shutdown := context.WithCancelCause(t.Context())
+		li := bufconn.Listen(1024 * 1024)
+		srv := grpc.NewServer(grpc.StreamInterceptor(contextutil.ShutdownCauseStreamInterceptor(shutdownCtx)))
+		envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv, mgr)
+		go srv.Serve(li)
+		t.Cleanup(srv.Stop)
+		cc, err := grpc.NewClient("passthrough://bufnet",
+			grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return li.Dial() }),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		require.NoError(t, err)
+		t.Cleanup(func() { cc.Close() })
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		t.Cleanup(cancel)
+		s := openTestStream(ctx, t, mgr, envoy_service_discovery_v3.NewAggregatedDiscoveryServiceClient(cc))
+		responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+		require.Len(t, responses, 1)
+		s.ack(listenerTypeURL, responses[0].GetNonce())
+		readyBefore, readyInfoBefore := mgr.Ready(t.Context())
+		healthyBefore, healthyInfoBefore := mgr.Healthy(t.Context())
+
+		shutdown(fmt.Errorf("test: %w", contextutil.ErrShutdown))
+		require.NoError(t, s.stream.CloseSend())
+		_, err = s.stream.Recv()
+		require.Error(t, err)
+
+		require.True(t, healthyBefore)
+		assert.Never(t, func() bool {
+			ready, readyInfo := mgr.Ready(t.Context())
+			healthy, healthyInfo := mgr.Healthy(t.Context())
+			return ready != readyBefore || !assert.ObjectsAreEqual(readyInfoBefore, readyInfo) ||
+				healthy != healthyBefore || !assert.ObjectsAreEqual(healthyInfoBefore, healthyInfo)
+		}, 200*time.Millisecond, 10*time.Millisecond, "shutdown should not change readiness or health")
+	})
+
+	t.Run("reconnect", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resources)
+		s := newTestStream(t, mgr)
+		responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+		require.Len(t, responses, 1)
+		s.ack(listenerTypeURL, responses[0].GetNonce())
+		require.NoError(t, s.stream.CloseSend())
+		_, err := s.stream.Recv()
+		require.Error(t, err)
+
+		s = openTestStream(s.ctx, t, mgr, s.client)
+		s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+
+		ready, info := mgr.Ready(t.Context())
+		assert.False(t, ready)
+		assert.Equal(t, map[string]string{"cluster": "pending", "listener": "pending", "route": "pending"}, info.Details)
+		healthy, _ := mgr.Healthy(t.Context())
+		assert.True(t, healthy)
+	})
+}
+
+func TestXDSHealthChecksDefaults(t *testing.T) {
+	t.Parallel()
+
+	defaults := config.New(config.NewDefaultOptions())
+	defaults.GRPCPort = "10001"
+	defaults.HTTPPort = "10002"
+	defaults.OutboundPort = "10003"
+	defaults.MetricsPort = "10004"
+	withPolicies := defaults.Clone()
+	for i := range 200 {
+		to, err := config.ParseWeightedUrls(fmt.Sprintf("https://app-%d.internal", i))
+		require.NoError(t, err)
+		withPolicies.Options.Policies = append(withPolicies.Options.Policies, config.Policy{
+			From: fmt.Sprintf("https://app-%d.example.com", i),
+			To:   to,
+		})
+	}
+
+	b := envoyconfig.New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+	resourcesByConfig := map[*config.Config]map[string][]*envoy_service_discovery_v3.Resource{}
+	var routeConfigurationNames []string
+	for _, cfg := range []*config.Config{defaults, withPolicies} {
+		resources := map[string][]*envoy_service_discovery_v3.Resource{}
+		clusters, err := b.BuildClusters(t.Context(), cfg)
+		require.NoError(t, err)
+		for _, c := range clusters {
+			resources[clusterTypeURL] = append(resources[clusterTypeURL], &envoy_service_discovery_v3.Resource{
+				Name: c.Name, Version: hex.EncodeToString(cryptutil.HashProto(c)), Resource: protoutil.NewAny(c),
+			})
+		}
+		listeners, err := b.BuildListeners(t.Context(), cfg, false)
+		require.NoError(t, err)
+		for _, l := range listeners {
+			resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
+				Name: l.Name, Version: hex.EncodeToString(cryptutil.HashProto(l)), Resource: protoutil.NewAny(l),
+			})
+		}
+		routeConfigurations, err := b.BuildRouteConfigurations(t.Context(), cfg)
+		require.NoError(t, err)
+		for _, rc := range routeConfigurations {
+			routeConfigurationNames = append(routeConfigurationNames, rc.Name)
+			resources[routeConfigurationTypeURL] = append(resources[routeConfigurationTypeURL], &envoy_service_discovery_v3.Resource{
+				Name: rc.Name, Version: hex.EncodeToString(cryptutil.HashProto(rc.Config)), Resource: protoutil.NewAny(rc.Config),
+			})
+		}
+		resourcesByConfig[cfg] = resources
+	}
+	require.Greater(t, len(resourcesByConfig[withPolicies][clusterTypeURL]), len(resourcesByConfig[defaults][clusterTypeURL]))
+
+	subscribe := []*envoy_service_discovery_v3.DeltaDiscoveryRequest{
+		{TypeUrl: clusterTypeURL},
+		{TypeUrl: listenerTypeURL},
+		{TypeUrl: routeConfigurationTypeURL, ResourceNamesSubscribe: routeConfigurationNames},
+	}
+	syncAll := func(t *testing.T, s *testStream, hm *healthv2.Manager) {
+		t.Helper()
+		for _, req := range subscribe {
+			responses := s.send(req)
+			require.Len(t, responses, 1)
+			s.ack(req.GetTypeUrl(), responses[0].GetNonce())
+		}
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			snap := hm.Snapshot()
+			assert.True(c, snap.Ready(), "%+v", snap.Checkers)
+		}, 2*time.Second, 10*time.Millisecond)
+	}
+
+	t.Run("ready", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resourcesByConfig[withPolicies])
+		hm := runHealthManager(t, mgr, withPolicies.Options)
+		syncAll(t, newTestStream(t, mgr), hm)
+	})
+
+	t.Run("update", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resourcesByConfig[defaults])
+		hm := runHealthManager(t, mgr, defaults.Options)
+		s := newTestStream(t, mgr)
+		syncAll(t, s, hm)
+
+		responses := s.update(resourcesByConfig[withPolicies])
+		require.NotEmpty(t, responses)
+		assert.Never(t, func() bool { return !hm.Snapshot().Ready() }, 200*time.Millisecond, 10*time.Millisecond,
+			"an unacknowledged config change should not affect readiness")
+
+		for _, res := range responses {
+			s.ack(res.GetTypeUrl(), res.GetNonce())
+		}
+		assert.Never(t, func() bool { return !hm.Snapshot().Ready() }, 200*time.Millisecond, 10*time.Millisecond,
+			"an acknowledged config change should not affect readiness")
+	})
+
+	t.Run("update_nack", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resourcesByConfig[defaults])
+		hm := runHealthManager(t, mgr, defaults.Options)
+		s := newTestStream(t, mgr)
+		syncAll(t, s, hm)
+
+		responses := s.update(resourcesByConfig[withPolicies])
+		require.NotEmpty(t, responses)
+		for _, res := range responses {
+			s.nack(res.GetTypeUrl(), res.GetNonce(), "rejected")
+		}
+
+		ready, info := mgr.Ready(t.Context())
+		assert.True(t, ready)
+		for _, res := range responses {
+			assert.Equal(t, "rejected", info.Details[typeName(res.GetTypeUrl())+".nack"], res.GetTypeUrl())
+		}
+		assert.Never(t, func() bool { return !hm.Snapshot().Ready() }, 200*time.Millisecond, 10*time.Millisecond,
+			"a rejected config change should not affect readiness")
+	})
+
+	t.Run("earlier_ack", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resourcesByConfig[withPolicies])
+		hm := runHealthManager(t, mgr, withPolicies.Options)
+		s := newTestStream(t, mgr)
+		var initial []*envoy_service_discovery_v3.DeltaDiscoveryResponse
+		for _, req := range subscribe {
+			responses := s.send(req)
+			require.Len(t, responses, 1)
+			initial = append(initial, responses...)
+		}
+		latest := s.update(resourcesByConfig[defaults])
+		require.NotEmpty(t, latest)
+
+		for _, res := range initial {
+			s.ack(res.GetTypeUrl(), res.GetNonce())
+		}
+		assert.EventuallyWithT(t, func(c *assert.CollectT) {
+			snap := hm.Snapshot()
+			assert.False(c, snap.Ready(), "superseded resources should not be ready: %+v", snap.Checkers)
+		}, 2*time.Second, 10*time.Millisecond)
+
+		for _, res := range latest {
+			s.ack(res.GetTypeUrl(), res.GetNonce())
+		}
+		assert.EventuallyWithT(t, func(c *assert.CollectT) {
+			snap := hm.Snapshot()
+			assert.True(c, snap.Ready(), "%+v", snap.Checkers)
+		}, 2*time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("nack", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager(resourcesByConfig[withPolicies])
+		hm := runHealthManager(t, mgr, withPolicies.Options)
+		s := newTestStream(t, mgr)
+
+		responses := s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: clusterTypeURL})
+		require.Len(t, responses, 1)
+		s.ack(clusterTypeURL, responses[0].GetNonce())
+		responses = s.send(&envoy_service_discovery_v3.DeltaDiscoveryRequest{TypeUrl: listenerTypeURL})
+		require.Len(t, responses, 1)
+		s.nack(listenerTypeURL, responses[0].GetNonce(), "invalid listener")
+
+		assert.EventuallyWithT(t, func(c *assert.CollectT) {
+			snap := hm.Snapshot()
+			assert.False(c, snap.Ready(), "%+v", snap.Checkers)
+			assert.True(c, snap.Healthy(), "%+v", snap.Checkers)
+			if assert.Len(c, snap.Checkers, 1) {
+				assert.Contains(c, snap.Checkers[0].Ready.Info.Reason, "listener NACK: invalid listener")
+			}
+		}, 2*time.Second, 10*time.Millisecond)
+	})
 }

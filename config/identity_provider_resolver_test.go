@@ -17,7 +17,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 	"github.com/pomerium/pomerium/pkg/derivecert"
-	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/extjwt"
 )
 
@@ -339,53 +338,6 @@ func TestNewIdentityProviderResolverFromConfig(t *testing.T) {
 		key, err := New(&Options{IdentityProviders: providers()}).identityProviderResolverCacheKey()
 		require.NoError(t, err)
 		assert.NotZero(t, key)
-	})
-}
-
-// TestIdentityProviderResolver_HealthChecks: a degraded provider is only visible
-// in a log line otherwise, so each one publishes its own check. Not parallel — it
-// asserts against the process-global health registry.
-func TestIdentityProviderResolver_HealthChecks(t *testing.T) {
-	healthy := health.IdentityProvider("healthcheck-good")
-	broken := health.IdentityProvider("healthcheck-bad")
-
-	providers := map[string]IdentityProvider{
-		"healthcheck-good": {Issuer: "https://good.example.com", Audiences: []string{"pomerium"}},
-		// No audiences: rejected by IdentityProvider.Validate, and by itself.
-		"healthcheck-bad": {Issuer: "https://bad.example.com"},
-		// Resolved on the dispatch path, so nothing is known about it yet.
-		"healthcheck-k8s": {Issuer: "kubernetes:///", Audiences: []string{"pomerium"}},
-	}
-	r := NewIdentityProviderResolverFromConfig(t.Context(),
-		New(&Options{IdentityProviders: providers}), nil)
-	require.NotNil(t, r)
-
-	records := health.GetProviderManager().GetRecords()
-	require.Contains(t, records, healthy)
-	require.Contains(t, records, broken)
-	assert.Equal(t, health.StatusRunning, records[healthy].Status())
-	assert.NoError(t, records[healthy].Err())
-	assert.ErrorContains(t, records[broken].Err(), "at least one audience is required")
-
-	// Reporting a kubernetes:/// provider healthy before it has resolved anything
-	// would assert a fact nobody established — and would silently clear a standing
-	// error every time the configuration changed, since each generation builds a
-	// fresh provider with no memory of the last failure.
-	assert.NotContains(t, records, health.IdentityProvider("healthcheck-k8s"),
-		"a provider that has not resolved yet must report nothing")
-
-	// Removing a provider must retract its check: nothing else ever would, and a
-	// stale error would keep the process looking unhealthy for its lifetime.
-	t.Run("a removed provider's check is retracted", func(t *testing.T) {
-		next := New(&Options{IdentityProviders: map[string]IdentityProvider{
-			"healthcheck-good": providers["healthcheck-good"],
-		}})
-		require.NotNil(t, NewIdentityProviderResolverFromConfig(t.Context(), next, r))
-
-		records := health.GetProviderManager().GetRecords()
-		assert.NoError(t, records[broken].Err())
-		assert.Equal(t, health.StatusTerminating, records[broken].Status())
-		assert.Equal(t, health.StatusRunning, records[healthy].Status())
 	})
 }
 

@@ -12,6 +12,7 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 )
 
 type erroringServer struct {
@@ -204,3 +205,33 @@ func (srv *erroringServer) UpdateSettings(_ context.Context, _ *connect.Request[
 
 func (srv *erroringServer) Stop()                                              {}
 func (srv *erroringServer) OnConfigChange(_ context.Context, _ *config.Config) {}
+
+// Implements healthv2.HealthChecker
+func (srv *erroringServer) Service() healthv2.ServiceID {
+	return healthv2.ServiceDataBroker
+}
+
+// Implements healthv2.HealthChecker
+func (srv *erroringServer) Component() string {
+	return "server"
+}
+
+// Implements healthv2.HealthChecker
+
+// Implements healthv2.HealthChecker
+func (srv *erroringServer) Initialized(context.Context) (bool, healthv2.Info) {
+	return false, healthv2.Info{Reason: srv.err.Error()}
+}
+
+// Implements healthv2.HealthChecker
+func (srv *erroringServer) Ready(context.Context) (bool, healthv2.Info) {
+	return false, healthv2.Info{Reason: srv.err.Error()}
+}
+
+// Implements healthv2.HealthChecker
+func (srv *erroringServer) Healthy(context.Context) (bool, healthv2.Info) {
+	return false, healthv2.Info{Reason: srv.err.Error()}
+}
+
+// Implements healthv2.HealthChecker
+func (srv *erroringServer) OnShutdown(context.Context, error) {}

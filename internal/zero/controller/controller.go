@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 )
 
 // Run runs Pomerium is managed mode using the provided token.
@@ -117,7 +118,7 @@ func (c *controller) runPomeriumCore(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("waiting for config source to be ready: %w", err)
 	}
-	return pomerium.Run(ctx, c.bootstrapConfig)
+	return pomerium.Run(ctx, c.bootstrapConfig, pomerium.WithHealthManager(healthv2.NewManager(healthv2.Options{})))
 }
 
 func (c *controller) runConnect(ctx context.Context) error {

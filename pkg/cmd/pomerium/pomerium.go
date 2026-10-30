@@ -31,6 +31,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
+	"github.com/pomerium/pomerium/pkg/health/v2/sink"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy"
 )
@@ -42,6 +44,7 @@ type Options struct {
 	authorizeServerOptions     []authorize.Option
 	authenticateServiceOptions []authenticate.Option
 	controlPlaneServerOptions  []controlplane.Option
+	healthMgr                  *healthv2.Manager
 }
 
 type Option func(*Options)
@@ -88,6 +91,15 @@ func WithControlPlaneServerOptions(opts ...controlplane.Option) Option {
 	}
 }
 
+// WithHealthManager sets the manager that Start registers its health checkers
+// and sinks on. Start runs the manager for the life of the process, so a
+// manager must not be passed to more than one Pomerium.
+func WithHealthManager(mgr *healthv2.Manager) Option {
+	return func(o *Options) {
+		o.healthMgr = mgr
+	}
+}
+
 // Run runs the main pomerium application.
 func Run(ctx context.Context, src config.Source, opts ...Option) error {
 	p := New(opts...)
@@ -115,6 +127,9 @@ type Pomerium struct {
 func New(opts ...Option) *Pomerium {
 	options := Options{}
 	options.apply(opts...)
+	if options.healthMgr == nil {
+		options.healthMgr = healthv2.NewManager(healthv2.Options{})
+	}
 
 	return &Pomerium{
 		Options:       options,
@@ -187,7 +202,10 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	analyticsReporter.UpdateConfig(cfg)
 
 	// setup the control plane
-	cpOpts := append([]controlplane.Option{controlplane.WithStartTime(startTime)}, p.controlPlaneServerOptions...)
+	healthCheckers := []healthv2.ServiceEvaluator{}
+	healthHTTP := sink.NewHTTP()
+	healthGRPC := newHealthGRPCSink(src)
+	cpOpts := append([]controlplane.Option{controlplane.WithHealthSinks(healthHTTP, healthGRPC)}, p.controlPlaneServerOptions...)
 	controlPlane, err := controlplane.NewServer(
 		ctx,
 		cfg,
@@ -199,6 +217,8 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
+	healthCheckers = append(healthCheckers, controlPlane.HealthCheckers()...)
+
 	src.OnConfigChange(ctx,
 		func(ctx context.Context, cfg *config.Config) {
 			if err := controlPlane.OnConfigChange(ctx, cfg); err != nil {
@@ -225,6 +245,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}
+	healthCheckers = append(healthCheckers, p.envoyServer.HealthCheckers()...)
 	context.AfterFunc(ctx, func() {
 		p.envoyServer.Close()
 	})
@@ -243,6 +264,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		if err != nil {
 			return err
 		}
+		healthCheckers = append(healthCheckers, authorizeServer.HealthCheckers()...)
 	}
 	var dataBrokerServer *databroker_service.DataBroker
 	if config.IsDataBroker(src.GetConfig().Options.Services) {
@@ -250,6 +272,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		if err != nil {
 			return fmt.Errorf("setting up databroker: %w", err)
 		}
+		healthCheckers = append(healthCheckers, dataBrokerServer.HealthCheckers()...)
 	}
 
 	if err = setupRegistryReporter(ctx, tracerProvider, src); err != nil {
@@ -263,7 +286,14 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		}
 	}
 
-	controlPlane.RegisterAdditionalExpectedChecks(ctx, cfg, p.envoyServer)
+	if err := p.runHealth(ctx, healthSetup{
+		src:       src,
+		startTime: startTime,
+		checkers:  healthCheckers,
+		sinks:     []healthv2.HealthSink{healthHTTP, healthGRPC},
+	}); err != nil {
+		return fmt.Errorf("setting up health checks: %w", err)
+	}
 
 	// run everything
 	p.errGroup, ctx = errgroup.WithContext(ctx)

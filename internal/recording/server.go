@@ -14,12 +14,14 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
 type Server interface {
+	healthv2.Evaluator
 	OnConfigChange(ctx context.Context, cfg *config.Config)
 	OnTransportChange(
 		ctx context.Context,
@@ -41,6 +43,8 @@ type recordingServer struct {
 	pipeServer        *ipc.ProtoPipeServer[*recording.RecordingData, *recording.RecordingCheckpoint]
 	pipeServerHandler *Handler
 	workerReload      chan []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint]
+
+	serving atomic.Bool
 }
 
 func NewRecordingServer(ctx context.Context, cfg *config.Config, workers []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint]) (Server, error) {
@@ -62,7 +66,46 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config, workers []*ipc.
 	return r, nil
 }
 
+// Implements healthv2.HealthChecker
+
+// Implements healthv2.HealthChecker
+func (r *recordingServer) Initialized(context.Context) (bool, healthv2.Info) {
+	return r.healthCheck()
+}
+
+// Implements healthv2.HealthChecker
+func (r *recordingServer) Ready(context.Context) (bool, healthv2.Info) {
+	return r.healthCheck()
+}
+
+// Implements healthv2.HealthChecker
+func (r *recordingServer) Healthy(context.Context) (bool, healthv2.Info) {
+	return r.healthCheck()
+}
+
+// Implements healthv2.HealthChecker
+func (r *recordingServer) OnShutdown(context.Context, error) {
+	// TODO :
+}
+
+func (r *recordingServer) healthCheck() (bool, healthv2.Info) {
+	info := healthv2.Info{Details: map[string]string{"transport": "pipe"}}
+	switch {
+	case !r.serving.Load():
+		info.Reason = "recording server not serving"
+	case r.blobCfg.Load() == nil:
+		info.Reason = "blob storage configuration not set"
+	case r.bucket.Load() == nil:
+		info.Reason = "blob storage bucket not open"
+	default:
+		return true, info
+	}
+	return false, info
+}
+
 func (r *recordingServer) Serve(ctx context.Context) error {
+	r.serving.Store(true)
+	defer r.serving.Store(false)
 	health.ReportRunning(health.RecordingHandler, health.StrAttr("transport", "pipe"))
 	defer func() {
 		health.ReportTerminating(health.RecordingHandler, health.StrAttr("transport", "pipe"))

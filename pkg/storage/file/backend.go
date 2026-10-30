@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cockroachdb/pebble/v2"
@@ -26,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	slicesutil "github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -59,6 +62,8 @@ type Backend struct {
 	closeErr  error
 	closeCtx  context.Context
 	close     context.CancelFunc
+
+	shutdownRequested atomic.Bool
 }
 
 // Option configures the backend instance.
@@ -950,4 +955,50 @@ func (backend *Backend) versionsLocked(
 	_ reader,
 ) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
 	return backend.serverVersion, backend.earliestRecordVersion, backend.latestRecordVersion, nil
+}
+
+func (backend *Backend) isClosed() error {
+	return backend.closeCtx.Err()
+}
+
+func (backend *Backend) healthAttrs() map[string]string {
+	if strings.HasPrefix(backend.dsn, "memory://") {
+		return map[string]string{"storage": "memory"}
+	}
+	return map[string]string{"storage": "file"}
+}
+
+func (backend *Backend) Ready(context.Context) (bool, healthv2.Info) {
+	if backend.shutdownRequested.Load() {
+		return false, healthv2.Info{Reason: "shutdown requested", Details: backend.healthAttrs()}
+	}
+	if err := backend.init(); err != nil {
+		return false, healthv2.Info{Reason: fmt.Sprintf("backend failed to initialize : %s", err), Details: backend.healthAttrs()}
+	}
+	if err := backend.isClosed(); err != nil {
+		return false, healthv2.Info{Reason: fmt.Sprintf("backend closed : %s", err), Details: backend.healthAttrs()}
+	}
+
+	return true, healthv2.Info{Details: backend.healthAttrs()}
+}
+
+func (backend *Backend) Healthy(context.Context) (bool, healthv2.Info) {
+	if backend.shutdownRequested.Load() {
+		return backend.closeCtx.Err() != nil, healthv2.Info{Reason: "shutdown requested", Details: backend.healthAttrs()}
+	}
+	if err := backend.init(); err != nil {
+		return false, healthv2.Info{Reason: fmt.Sprintf("backend failed to initialize : %s", err), Details: backend.healthAttrs()}
+	}
+	if err := backend.isClosed(); err != nil {
+		return false, healthv2.Info{Reason: fmt.Sprintf("backend closed : %s", err), Details: backend.healthAttrs()}
+	}
+	return true, healthv2.Info{Details: backend.healthAttrs()}
+}
+
+func (backend *Backend) Initialized(ctx context.Context) (bool, healthv2.Info) {
+	return backend.Ready(ctx)
+}
+
+func (backend *Backend) OnShutdown(context.Context, error) {
+	backend.shutdownRequested.Store(true)
 }

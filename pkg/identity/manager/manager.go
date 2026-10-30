@@ -44,6 +44,10 @@ type Manager struct {
 	dataStore                *dataStore
 	refreshSessionSchedulers map[string]*refreshSessionScheduler
 	updateUserInfoSchedulers map[string]*updateUserInfoScheduler
+
+	running           atomic.Bool
+	leased            atomic.Bool
+	shutdownRequested atomic.Bool
 }
 
 // New creates a new identity manager.
@@ -73,12 +77,16 @@ func (mgr *Manager) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 
 // Run runs the manager. This method blocks until an error occurs or the given context is canceled.
 func (mgr *Manager) Run(ctx context.Context) error {
+	mgr.running.Store(true)
+	defer mgr.running.Store(false)
 	leaser := databrokerutil.NewLeaser("identity_manager", mgr.cfg.Load().leaseTTL, mgr)
 	return leaser.Run(ctx)
 }
 
 // RunLeased runs the identity manager when a lease is acquired.
 func (mgr *Manager) RunLeased(ctx context.Context) error {
+	mgr.leased.Store(true)
+	defer mgr.leased.Store(false)
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "identity_manager")
 	})

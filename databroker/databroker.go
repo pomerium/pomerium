@@ -34,6 +34,7 @@ import (
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -177,6 +178,10 @@ func (d *DataBroker) RegisterConnectServices(mux *http.ServeMux) {
 
 	mux.Handle(configconnect.NewConfigServiceHandler(d.srv,
 		connect.WithInterceptors(interceptors...)))
+}
+
+func (d *DataBroker) HealthCheckers() []healthv2.ServiceEvaluator {
+	return []healthv2.ServiceEvaluator{d.srv, d.identityMgr}
 }
 
 // RegisterGRPCServices registers all the gRPC services with the given server.

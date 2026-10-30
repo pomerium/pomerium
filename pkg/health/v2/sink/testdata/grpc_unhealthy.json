@@ -1,0 +1,48 @@
+{
+  "overallStatus": "OVERALL_STATUS_RUNNING",
+  "overallErr": "1 component(s) not healthy: Proxy/h2",
+  "statuses": {
+    "Proxy/h1": {
+      "status": "HEALTH_STATUS_RUNNING",
+      "initialized": {
+        "ok": true
+      },
+      "ready": {
+        "ok": true
+      },
+      "healthy": {
+        "ok": true
+      }
+    },
+    "Proxy/h2": {
+      "status": "HEALTH_STATUS_UNHEALTHY",
+      "err": "something went wrong",
+      "initialized": {
+        "ok": true
+      },
+      "ready": {
+        "ok": true
+      },
+      "healthy": {
+        "reason": "something went wrong"
+      }
+    },
+    "Proxy/h3": {
+      "status": "HEALTH_STATUS_RUNNING",
+      "initialized": {
+        "ok": true
+      },
+      "ready": {
+        "ok": true
+      },
+      "healthy": {
+        "ok": true
+      }
+    }
+  },
+  "required": [
+    "Proxy/h1",
+    "Proxy/h2",
+    "Proxy/h3"
+  ]
+}

@@ -10,7 +10,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -20,13 +19,13 @@ func InitialSync(
 	client databrokerpb.DataBrokerServiceClient,
 	req *databrokerpb.SyncLatestRequest,
 ) (records []*databrokerpb.Record, options []*databrokerpb.TypedOptions, recordVersion, serverVersion uint64, err error) {
-	defer func() {
-		if err != nil {
-			health.ReportError(health.DatabrokerInitialSync, err)
-		} else {
-			health.ReportRunning(health.DatabrokerInitialSync)
-		}
-	}()
+	// defer func() {
+	// 	if err != nil {
+	// 		health.ReportError(health.DatabrokerInitialSync, err)
+	// 	} else {
+	// 		health.ReportRunning(health.DatabrokerInitialSync)
+	// 	}
+	// }()
 	stream, err := client.SyncLatest(ctx, req)
 	if err != nil {
 		return nil, nil, 0, 0, err

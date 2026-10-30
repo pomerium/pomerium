@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	stdslices "slices"
 	"sync/atomic"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/libp2p/go-reuseport"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"golang.org/x/net/nettest"
@@ -25,13 +23,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/admin"
 	"google.golang.org/grpc/channelz/grpc_channelz_v1"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
@@ -44,27 +40,28 @@ import (
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
-	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
+	"github.com/pomerium/pomerium/pkg/health/v2/sink"
 	"github.com/pomerium/pomerium/pkg/httputil"
-	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 type Options struct {
-	startTime       time.Time
 	extProcHandler  extproc.UpstreamRequestHandler
 	extProcCallback extproc.Callback
+	healthHTTP      *sink.HTTP
+	healthGRPC      *sink.GRPC
 }
 
 func (o *Options) Apply(opts ...Option) {
-	o.startTime = time.Now()
 	for _, opt := range opts {
 		opt(o)
 	}
@@ -72,9 +69,12 @@ func (o *Options) Apply(opts ...Option) {
 
 type Option func(o *Options)
 
-func WithStartTime(t time.Time) Option {
+// WithHealthSinks serves the health probes and /status from httpSink and
+// SyncHealth from grpcSink. Without it, those endpoints are not mounted.
+func WithHealthSinks(httpSink *sink.HTTP, grpcSink *sink.GRPC) Option {
 	return func(o *Options) {
-		o.startTime = t
+		o.healthHTTP = httpSink
+		o.healthGRPC = grpcSink
 	}
 }
 
@@ -113,10 +113,6 @@ type Server struct {
 	DebugListener       net.Listener
 	HealthCheckRouter   *mux.Router
 	HealthCheckListener net.Listener
-	healthMetrics       *health.Metrics
-	ProbeProvider       atomic.Pointer[health.HTTPProvider]
-	SystemdProvider     atomic.Pointer[health.SystemdProvider]
-	GrpcStreamProvider  atomic.Pointer[health.GRPCStreamProvider]
 	Builder             *envoyconfig.Builder
 	EventsMgr           *events.Manager
 
@@ -144,8 +140,6 @@ type Server struct {
 	channelZClient         atomic.Pointer[grpc_channelz_v1.ChannelzClient]
 	channelZCleanup        func()
 
-	extraHealthChecks []health.Checker
-
 	options *Options
 }
 
@@ -162,10 +156,6 @@ func NewServer(
 	options.Apply(opts...)
 	tracerProvider := trace.NewTracerProvider(ctx, "Control Plane")
 	var err error
-	metrics, err := health.NewMetrics(otel.Meter("health"))
-	if err != nil {
-		return nil, err
-	}
 	srv := &Server{
 		tracerProvider:  tracerProvider,
 		tracer:          tracerProvider.Tracer(trace.PomeriumCoreTracer),
@@ -175,7 +165,6 @@ func NewServer(
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 		updateConfig:    make(chan *config.Config, 1),
-		healthMetrics:   metrics,
 		options:         options,
 
 		outboundGRPCConnection: pom_grpc.CachedOutboundGRPClientConn{Name: "controlplane"},
@@ -230,6 +219,7 @@ func NewServer(
 			ui,
 		),
 		grpc.ChainStreamInterceptor(
+			contextutil.ShutdownCauseStreamInterceptor(ctx),
 			log.StreamServerInterceptor(log.Ctx(ctx)),
 			requestid.StreamServerInterceptor(),
 			si,
@@ -243,7 +233,9 @@ func NewServer(
 	srv.registerAccessLogHandlers()
 
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
-	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
+	if options.healthGRPC != nil {
+		healthpb.RegisterHealthNotifierServer(srv.GRPCServer, options.healthGRPC)
+	}
 
 	// MCP activation is per-route (see config/envoyconfig/routes.go) and
 	// per-request (extproc.Server.Process short-circuits on !IsMCP), so the
@@ -287,7 +279,6 @@ func NewServer(
 	if err != nil {
 		return nil, err
 	}
-	srv.updateHealthProviders(ctx, cfg)
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
@@ -298,39 +289,12 @@ func NewServer(
 	// metrics
 	srv.MetricsRouter.Handle(endpoints.PathMetrics, srv.metricsMgr)
 
-	// health
-	srv.HealthCheckRouter.Path(endpoints.PathStatus).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := srv.ProbeProvider.Load()
-		if p != nil {
-			http.HandlerFunc(p.Status).ServeHTTP(w, r)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	})
-	srv.HealthCheckRouter.Path(endpoints.PathStartupz).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := srv.ProbeProvider.Load()
-		if p != nil {
-			http.HandlerFunc(p.StartupProbe).ServeHTTP(w, r)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	})
-	srv.HealthCheckRouter.Path(endpoints.PathHealthz).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := srv.ProbeProvider.Load()
-		if p != nil {
-			http.HandlerFunc(p.LivenessProbe).ServeHTTP(w, r)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	})
-	srv.HealthCheckRouter.Path(endpoints.PathReadyz).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := srv.ProbeProvider.Load()
-		if p != nil {
-			http.HandlerFunc(p.ReadyProbe).ServeHTTP(w, r)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	})
+	if h := options.healthHTTP; h != nil {
+		srv.HealthCheckRouter.Path(endpoints.PathStatus).HandlerFunc(h.Status)
+		srv.HealthCheckRouter.Path(endpoints.PathStartupz).HandlerFunc(h.StartupProbe)
+		srv.HealthCheckRouter.Path(endpoints.PathHealthz).HandlerFunc(h.LivenessProbe)
+		srv.HealthCheckRouter.Path(endpoints.PathReadyz).HandlerFunc(h.ReadyProbe)
+	}
 
 	if err := srv.filemgr.ClearCache(); err != nil {
 		log.Error().Err(err).Msg("failed to clear envoy file cache")
@@ -429,7 +393,6 @@ func (srv *Server) Run(ctx context.Context) error {
 func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
 	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.OnConfigChange")
 	defer span.End()
-	srv.updateHealthProviders(ctx, cfg)
 	select {
 	case <-ctx.Done():
 		return context.Cause(ctx)
@@ -527,109 +490,6 @@ func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config) {
-	checks := srv.getExpectedHealthChecks(cfg)
-	checks = slices.Unique(append(checks, health.FromContextHealthChecks(ctx)...))
-	mgr := health.GetProviderManager()
-	httpProvider := health.NewHTTPProvider(mgr, health.WithExpectedChecks(
-		checks...,
-	))
-
-	metricsProvider := health.NewMetricsProvider(
-		ctx,
-		srv.healthMetrics,
-		mgr,
-		srv.options.startTime,
-	)
-
-	sharedKey, err := cfg.Options.GetSharedKey()
-	if err == nil {
-		srv.updateHealthStreamProvider(ctx, mgr, sharedKey, checks)
-	} else {
-		log.Ctx(ctx).Error().Err(err).Msg("health stream: failed to load shared key, will not update")
-	}
-	srv.ProbeProvider.Store(httpProvider)
-	mgr.Register(health.ProviderHTTP, httpProvider)
-	mgr.Register(health.ProviderMetrics, metricsProvider)
-	srv.configureExtraProviders(ctx, cfg, mgr, checks)
-}
-
-func (srv *Server) updateHealthStreamProvider(ctx context.Context, mgr health.ProviderManager, sharedKey []byte, checks []health.Check) {
-	if prevProvider := srv.GrpcStreamProvider.Load(); prevProvider != nil {
-		prevProvider.Close()
-	}
-	grpcStreamProvider := health.NewGRPCStreamProvider(
-		ctx,
-		mgr,
-		time.Second*15,
-		stdslices.Clone(sharedKey),
-		health.WithExpectedChecks(
-			checks...,
-		),
-	)
-	mgr.Register(health.ProviderGRPCStream, grpcStreamProvider)
-	srv.GrpcStreamProvider.Store(grpcStreamProvider)
-}
-
-func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Check) {
-	services := cfg.Options.Services
-	if config.IsAuthenticate(services) {
-		ret = append(ret, health.AuthenticateService)
-	}
-	if config.IsAuthorize(services) {
-		ret = append(ret, health.AuthorizationService)
-	}
-	if config.IsDataBroker(services) {
-		ret = append(
-			ret,
-			health.StorageBackend,
-			health.DatabrokerInitialSync,
-			health.DatabrokerBuildConfig,
-			health.DatabrokerCluster,
-		)
-		if cfg.Options.DataBroker.StorageType == config.StoragePostgresName {
-			ret = append(
-				ret,
-				health.StorageBackendCleanup,
-			)
-		}
-	}
-	if config.IsProxy(services) {
-		ret = append(
-			ret, health.ProxyService,
-			health.XDSRouteConfiguration,
-		)
-	}
-
-	if len(cfg.Options.EnvoyDynamicExtensions.Or([]string{})) > 0 {
-		ret = append(ret, health.EnvoyDynamicExtensions)
-	}
-
-	for _, extraCheckers := range srv.extraHealthChecks {
-		ret = append(ret, extraCheckers.GetExpectedHealthChecks()...)
-	}
-
-	ret = append(
-		ret,
-		// contingent on control plane
-		health.XDSCluster,
-		health.XDSListener,
-		health.EnvoyServer,
-	)
-	return ret
-}
-
-var _ healthpb.HealthNotifierServer = (*Server)(nil)
-
-func (srv *Server) SyncHealth(in *healthpb.HealthStreamRequest, remote grpc.ServerStreamingServer[healthpb.HealthMessage]) error {
-	p := srv.GrpcStreamProvider.Load()
-	if p == nil {
-		return status.Error(codes.Unavailable, "health streaming server not yet available")
-	}
-	return p.SyncHealth(in, remote)
-}
-
-func (srv *Server) RegisterAdditionalExpectedChecks(ctx context.Context, cfg *config.Config, checkers ...health.Checker) {
-	srv.extraHealthChecks = checkers
-	srv.updateHealthProviders(ctx, cfg)
+func (srv *Server) HealthCheckers() []healthv2.ServiceEvaluator {
+	return []healthv2.ServiceEvaluator{srv.xdsmgr}
 }

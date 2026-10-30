@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -21,7 +22,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -39,6 +40,10 @@ type Backend struct {
 	mu            sync.RWMutex
 	pool          *pgxpool.Pool
 	serverVersion uint64
+
+	// prevents duplicate ping calls in the Initialized() method.
+	initialized       atomic.Bool
+	shutdownRequested atomic.Bool
 }
 
 // New creates a new Backend.
@@ -70,11 +75,11 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 				return err
 			}
 		}
-		if err != nil {
-			health.ReportError(health.StorageBackendCleanup, err, backend.healthAttrs()...)
-		} else {
-			health.ReportRunning(health.StorageBackendCleanup, backend.healthAttrs()...)
-		}
+		// if err != nil {
+		// 	health.ReportError(health.StorageBackendCleanup, err, backend.healthAttrs()...)
+		// } else {
+		// 	health.ReportRunning(health.StorageBackendCleanup, backend.healthAttrs()...)
+		// }
 		return err
 	}, backend.cfg.registryTTL/2)
 
@@ -86,20 +91,20 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 		return err
 	}, time.Millisecond*100)
 
-	go backend.doOnceAndPeriodically(func(ctx context.Context) error {
-		err := backend.ping(ctx)
-		// ignore canceled errors
-		if errors.Is(err, context.Canceled) {
-			return nil
-		}
+	// go backend.doOnceAndPeriodically(func(ctx context.Context) error {
+	// 	err := backend.ping(ctx)
+	// 	// ignore canceled errors
+	// 	if errors.Is(err, context.Canceled) {
+	// 		return nil
+	// 	}
 
-		if err != nil {
-			health.ReportError(health.StorageBackend, err, backend.healthAttrs()...)
-		} else {
-			health.ReportRunning(health.StorageBackend, backend.healthAttrs()...)
-		}
-		return nil
-	}, time.Minute)
+	// 	if err != nil {
+	// 		health.ReportError(health.StorageBackend, err, backend.healthAttrs()...)
+	// 	} else {
+	// 		health.ReportRunning(health.StorageBackend, backend.healthAttrs()...)
+	// 	}
+	// 	return nil
+	// }, time.Minute)
 
 	return backend
 }
@@ -579,6 +584,41 @@ func (backend *Backend) ping(ctx context.Context) error {
 	return pool.Ping(ctx)
 }
 
-func (backend *Backend) healthAttrs() []health.Attr {
-	return []health.Attr{{Key: "backend", Value: "postgres"}}
+func (backend *Backend) healthAttrs() map[string]string {
+	return map[string]string{
+		"storage": "postgres",
+	}
+}
+
+func (backend *Backend) healthCheck(ctx context.Context) (bool, healthv2.Info) {
+	info := healthv2.Info{Details: backend.healthAttrs()}
+	if backend.closeCtx.Err() != nil {
+		info.Reason = "backend closed"
+		return false, info
+	}
+	if err := backend.ping(ctx); err != nil {
+		info.Reason = fmt.Sprintf("backend ping: %s", err)
+		return false, info
+	}
+	backend.initialized.Store(true)
+	return true, info
+}
+
+func (backend *Backend) Initialized(ctx context.Context) (bool, healthv2.Info) {
+	if backend.initialized.Load() {
+		return true, healthv2.Info{Details: backend.healthAttrs()}
+	}
+	return backend.healthCheck(ctx)
+}
+
+func (backend *Backend) Ready(ctx context.Context) (bool, healthv2.Info) {
+	return backend.healthCheck(ctx)
+}
+
+func (backend *Backend) Healthy(ctx context.Context) (bool, healthv2.Info) {
+	return backend.healthCheck(ctx)
+}
+
+func (backend *Backend) OnShutdown(context.Context, error) {
+	backend.shutdownRequested.Store(true)
 }

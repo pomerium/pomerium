@@ -19,7 +19,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
-	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/extjwt"
 )
 
@@ -469,34 +468,6 @@ func (r *IdentityProviderResolver) noMatchError(deferredErrs []error) error {
 		ErrNoMatchingIdentityProvider, errors.Join(unavailable...))
 }
 
-// updateIdentityProviderHealth publishes one health check per provider current
-// has built, and retracts the checks of providers previous had that current does
-// not — nothing else would ever retract them, and a stale error from a deleted
-// provider would keep the process looking unhealthy for its lifetime.
-//
-// A kubernetes:// provider is deliberately absent here: at build time nothing has
-// resolved it, so neither running nor error would be a fact about it. Its own
-// resolve reports it from the first dispatch onwards.
-func updateIdentityProviderHealth(previous, current *IdentityProviderResolver) {
-	if current != nil {
-		for name, err := range current.failed {
-			health.ReportError(health.IdentityProvider(name), err)
-		}
-		for _, rp := range current.byIssuer {
-			health.ReportRunning(health.IdentityProvider(rp.Name))
-		}
-	}
-	if previous == nil {
-		return
-	}
-	for _, name := range previous.names {
-		if current != nil && slices.Contains(current.names, name) {
-			continue
-		}
-		health.ReportTerminating(health.IdentityProvider(name))
-	}
-}
-
 // Verify verifies the raw JWT against the provider whose issuer matches the
 // token's `iss` claim, enforcing that provider's audiences (fail-closed).
 //
@@ -543,7 +514,6 @@ func NewIdentityProviderResolverFromConfig(
 	previous *IdentityProviderResolver,
 ) *IdentityProviderResolver {
 	if cfg == nil || cfg.Options == nil || len(cfg.Options.IdentityProviders) == 0 {
-		updateIdentityProviderHealth(previous, nil)
 		return nil
 	}
 	key, err := cfg.identityProviderResolverCacheKey()
@@ -573,7 +543,6 @@ func NewIdentityProviderResolverFromConfig(
 	if len(r.failed) == 0 {
 		r.cacheKey = key
 	}
-	updateIdentityProviderHealth(previous, r)
 	return r
 }
 

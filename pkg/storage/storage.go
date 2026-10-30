@@ -19,6 +19,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 )
 
 // Errors
@@ -31,6 +32,8 @@ var (
 
 // Backend is the interface required for a storage backend.
 type Backend interface {
+	healthv2.Evaluator
+
 	// Close closes the backend.
 	Close() error
 	// Clean removes old data.

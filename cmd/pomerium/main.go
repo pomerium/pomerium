@@ -17,7 +17,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
-	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
+	healthcli "github.com/pomerium/pomerium/pkg/health/v2/cli"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	_ "github.com/pomerium/pomerium/pkg/zero/bootstrapwriters/filesystem"
 	_ "github.com/pomerium/pomerium/pkg/zero/bootstrapwriters/k8s"
@@ -34,7 +35,7 @@ func main() {
 	}
 	root.SetVersionTemplate(versionTemplate())
 	root.AddCommand(zero_cmd.BuildRootCmd())
-	root.AddCommand(health.BuildHealthCommand())
+	root.AddCommand(healthcli.BuildHealthCommand())
 	root.PersistentFlags().StringVar(&configFile, "config", "", "Specify configuration file location")
 	log.SetLevel(zerolog.InfoLevel)
 
@@ -67,7 +68,7 @@ func run(ctx context.Context, configFile string) error {
 		return err
 	}
 
-	return pomerium.Run(ctx, src)
+	return pomerium.Run(ctx, src, pomerium.WithHealthManager(healthv2.NewManager(healthv2.Options{})))
 }
 
 // Converts the "-config" and "-version" single-dash style flags to the

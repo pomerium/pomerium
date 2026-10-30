@@ -17,6 +17,7 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 )
 
 type securedServer struct {
@@ -359,3 +360,33 @@ func (srv *securedServer) authorize(ctx context.Context) error {
 	}
 	return grpcutil.RequireSignedJWT(ctx, *sharedKey)
 }
+
+// Implements healthv2.HealthChecker
+func (srv *securedServer) Service() healthv2.ServiceID {
+	return srv.underlying.Service()
+}
+
+// Implements healthv2.HealthChecker
+func (srv *securedServer) Component() string {
+	return srv.underlying.Component()
+}
+
+// Implements healthv2.HealthChecker
+
+// Implements healthv2.HealthChecker
+func (srv *securedServer) Initialized(ctx context.Context) (bool, healthv2.Info) {
+	return srv.underlying.Initialized(ctx)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *securedServer) Ready(ctx context.Context) (bool, healthv2.Info) {
+	return srv.underlying.Ready(ctx)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *securedServer) Healthy(ctx context.Context) (bool, healthv2.Info) {
+	return srv.underlying.Healthy(ctx)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *securedServer) OnShutdown(context.Context, error) {}

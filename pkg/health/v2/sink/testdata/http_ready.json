@@ -1,0 +1,22 @@
+{
+  "Proxy/a": {
+    "ready": true,
+    "details": {
+      "role": "leader"
+    }
+  },
+  "Proxy/b": {
+    "ready": false,
+    "reason": "syncing",
+    "details": {
+      "foo": "bar"
+    }
+  },
+  "Proxy/c": {
+    "ready": true
+  },
+  "Proxy/d": {
+    "ready": false,
+    "reason": "loading"
+  }
+}

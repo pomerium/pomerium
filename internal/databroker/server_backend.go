@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/file"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
@@ -882,4 +883,62 @@ func (srv *backendServer) buildRecordTTLs(backend storage.Backend) map[string]ti
 		}
 	}
 	return ttls
+}
+
+// Implements healthv2.HealthChecker
+func (srv *backendServer) Service() healthv2.ServiceID {
+	return healthv2.ServiceDataBroker
+}
+
+// Implements healthv2.HealthChecker
+func (srv *backendServer) Component() string {
+	return "server"
+}
+
+// Implements healthv2.HealthChecker
+
+// FIXME: maybe better way to refactor this.
+func (srv *backendServer) healthBackend(ctx context.Context) (storage.Backend, error) {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+	if srv.stopCtx.Err() != nil {
+		return nil, errors.New("databroker stopped")
+	}
+	if srv.backend != nil {
+		return srv.backend, nil
+	}
+	backend, err := srv.newBackendAndSetupLocked(ctx)
+	srv.backend = backend
+	return backend, err
+}
+
+// Implements healthv2.HealthChecker
+func (srv *backendServer) Initialized(ctx context.Context) (bool, healthv2.Info) {
+	backend, err := srv.healthBackend(ctx)
+	if err != nil {
+		return false, healthv2.Info{Reason: err.Error()}
+	}
+	return backend.Initialized(ctx)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *backendServer) Ready(ctx context.Context) (bool, healthv2.Info) {
+	backend, err := srv.healthBackend(ctx)
+	if err != nil {
+		return false, healthv2.Info{Reason: err.Error()}
+	}
+	return backend.Ready(ctx)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *backendServer) Healthy(ctx context.Context) (bool, healthv2.Info) {
+	backend, err := srv.healthBackend(ctx)
+	if err != nil {
+		return false, healthv2.Info{Reason: err.Error()}
+	}
+	return backend.Healthy(ctx)
+}
+
+// Implements healthv2.HealthChecker
+func (srv *backendServer) OnShutdown(ctx context.Context, shutdownErr error) {
 }

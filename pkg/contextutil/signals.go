@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"google.golang.org/grpc"
+
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -26,4 +28,23 @@ func SetupSignals(ctx context.Context) context.Context {
 		}
 	}()
 	return ctxCa
+}
+
+type shutdownInterceptor struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (ss shutdownInterceptor) Context() context.Context {
+	return ss.ctx
+}
+
+func ShutdownCauseStreamInterceptor(shutdownCtx context.Context) grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		ctx, cancel := context.WithCancelCause(ss.Context())
+		defer cancel(nil)
+		stop := context.AfterFunc(shutdownCtx, func() { cancel(context.Cause(shutdownCtx)) })
+		defer stop()
+		return handler(srv, shutdownInterceptor{ServerStream: ss, ctx: ctx})
+	}
 }

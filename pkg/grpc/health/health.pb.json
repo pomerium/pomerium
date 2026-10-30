@@ -29,6 +29,21 @@
               "name": "HEALTH_STATUS_TERMINATING",
               "number": "2",
               "description": ""
+            },
+            {
+              "name": "HEALTH_STATUS_STARTING",
+              "number": "3",
+              "description": ""
+            },
+            {
+              "name": "HEALTH_STATUS_NOT_READY",
+              "number": "4",
+              "description": ""
+            },
+            {
+              "name": "HEALTH_STATUS_UNHEALTHY",
+              "number": "5",
+              "description": ""
             }
           ]
         },
@@ -108,6 +123,42 @@
               "isoneof": true,
               "oneofdecl": "_err",
               "defaultValue": ""
+            },
+            {
+              "name": "initialized",
+              "description": "",
+              "label": "",
+              "type": "Condition",
+              "longType": "Condition",
+              "fullType": "health.Condition",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "ready",
+              "description": "",
+              "label": "",
+              "type": "Condition",
+              "longType": "Condition",
+              "fullType": "health.Condition",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "healthy",
+              "description": "",
+              "label": "",
+              "type": "Condition",
+              "longType": "Condition",
+              "fullType": "health.Condition",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
             }
           ]
         },
@@ -143,6 +194,42 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "Condition",
+          "longName": "Condition",
+          "fullName": "health.Condition",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "ok",
+              "description": "",
+              "label": "",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "reason",
+              "description": "",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_reason",
               "defaultValue": ""
             }
           ]

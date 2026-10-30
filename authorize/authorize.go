@@ -55,6 +55,9 @@ type Authorize struct {
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 	*ratelimit.RateLimiter
 	recordingServer atomic.Pointer[recording.Server]
+
+	running           atomic.Bool
+	shutdownRequested atomic.Bool
 }
 
 type options struct {
@@ -159,6 +162,8 @@ func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 
 // Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
+	a.running.Store(true)
+	defer a.running.Store(false)
 	defer a.stopped()
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {

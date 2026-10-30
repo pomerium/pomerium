@@ -18,6 +18,7 @@ import (
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
+	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
 )
 
 type clusteredLeaderServer struct {
@@ -300,4 +301,54 @@ func (srv *clusteredLeaderServer) retry(ctx context.Context, fn func() error) er
 			Dur("delay", d).
 			Msg("databroker-clustered-leader-server: error performing operation, retrying")
 	})
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredLeaderServer) Service() healthv2.ServiceID {
+	return srv.local.Service()
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredLeaderServer) Component() string {
+	return srv.local.Component()
+}
+
+// Implements healthv2.HealthChecker
+
+func (srv *clusteredLeaderServer) isRunning() bool {
+	select {
+	case <-srv.done:
+		return false
+	default:
+		return true
+	}
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredLeaderServer) Initialized(ctx context.Context) (bool, healthv2.Info) {
+	return srv.check(srv.local.Initialized(ctx))
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredLeaderServer) Ready(ctx context.Context) (bool, healthv2.Info) {
+	return srv.check(srv.local.Ready(ctx))
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredLeaderServer) Healthy(ctx context.Context) (bool, healthv2.Info) {
+	return srv.check(srv.local.Healthy(ctx))
+}
+
+// Implements healthv2.HealthChecker
+func (srv *clusteredLeaderServer) OnShutdown(context.Context, error) {
+	// TODO : health check v2
+}
+
+func (srv *clusteredLeaderServer) check(ok bool, info healthv2.Info) (bool, healthv2.Info) {
+	info = withMember(info, "leader")
+	if !srv.isRunning() {
+		info.Reason = "leader stopped"
+		return false, info
+	}
+	return ok, info
 }

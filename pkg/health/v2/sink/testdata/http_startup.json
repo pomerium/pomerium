@@ -1,0 +1,15 @@
+{
+  "Proxy/a": {
+    "initialized": true
+  },
+  "Proxy/b": {
+    "initialized": true
+  },
+  "Proxy/c": {
+    "initialized": true
+  },
+  "Proxy/d": {
+    "initialized": false,
+    "reason": "loading"
+  }
+}

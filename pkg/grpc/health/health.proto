@@ -14,6 +14,9 @@ enum HealthStatus {
   HEALTH_STATUS_UNKNOWN     = 0;
   HEALTH_STATUS_RUNNING     = 1;
   HEALTH_STATUS_TERMINATING = 2;
+  HEALTH_STATUS_STARTING    = 3;
+  HEALTH_STATUS_NOT_READY   = 4;
+  HEALTH_STATUS_UNHEALTHY   = 5;
 }
 
 enum OverallStatus {
@@ -33,7 +36,15 @@ message HealthMessage {
 }
 
 message ComponentStatus {
-  HealthStatus        status     = 1;
-  map<string, string> attributes = 2;
-  optional string     err        = 3;
+  HealthStatus        status      = 1;
+  map<string, string> attributes  = 2;
+  optional string     err         = 3;
+  Condition           initialized = 4;
+  Condition           ready       = 5;
+  Condition           healthy     = 6;
+}
+
+message Condition {
+  bool            ok     = 1;
+  optional string reason = 2;
 }

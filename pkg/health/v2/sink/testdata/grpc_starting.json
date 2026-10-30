@@ -1,0 +1,66 @@
+{
+  "overallStatus": "OVERALL_STATUS_STARTING",
+  "overallErr": "1 component(s) starting: Proxy/h4; 1 component(s) not ready: Proxy/h3",
+  "statuses": {
+    "Proxy/h1": {
+      "status": "HEALTH_STATUS_RUNNING",
+      "initialized": {
+        "ok": true
+      },
+      "ready": {
+        "ok": true
+      },
+      "healthy": {
+        "ok": true
+      }
+    },
+    "Proxy/h2": {
+      "status": "HEALTH_STATUS_RUNNING",
+      "attributes": {
+        "ready.foo": "bar",
+        "healthy.role": "leader"
+      },
+      "initialized": {
+        "ok": true
+      },
+      "ready": {
+        "ok": true
+      },
+      "healthy": {
+        "ok": true
+      }
+    },
+    "Proxy/h3": {
+      "status": "HEALTH_STATUS_NOT_READY",
+      "err": "syncing",
+      "initialized": {
+        "ok": true
+      },
+      "ready": {
+        "reason": "syncing"
+      },
+      "healthy": {
+        "ok": true
+      }
+    },
+    "Proxy/h4": {
+      "status": "HEALTH_STATUS_STARTING",
+      "err": "loading",
+      "initialized": {
+        "reason": "loading"
+      },
+      "ready": {
+        "reason": "loading"
+      },
+      "healthy": {
+        "ok": true
+      }
+    }
+  },
+  "required": [
+    "Proxy/h1",
+    "Proxy/h2",
+    "Proxy/h3",
+    "Proxy/h4"
+  ]
+}

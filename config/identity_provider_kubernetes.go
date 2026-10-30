@@ -54,7 +54,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/extjwt"
 )
 
@@ -248,14 +247,12 @@ func (d *deferredKubernetesProvider) refresh(ctx context.Context) *kubernetesRes
 	rp, err := d.reload(ctx, res.rp)
 	if err != nil {
 		res.err = fmt.Errorf("identity_providers[%s]: %w", d.name, err)
-		health.ReportError(health.IdentityProvider(d.name), res.err)
 		log.Ctx(ctx).Error().Err(res.err).
 			Str("provider", d.name).
 			Msg("config: identity_providers: kubernetes provider unavailable; " +
 				"tokens issued by this cluster will be rejected, other providers are unaffected")
 	} else {
 		res.rp = rp
-		health.ReportRunning(health.IdentityProvider(d.name))
 	}
 
 	d.current.Store(res)

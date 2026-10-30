@@ -27,6 +27,9 @@ const (
 	HealthStatus_HEALTH_STATUS_UNKNOWN     HealthStatus = 0
 	HealthStatus_HEALTH_STATUS_RUNNING     HealthStatus = 1
 	HealthStatus_HEALTH_STATUS_TERMINATING HealthStatus = 2
+	HealthStatus_HEALTH_STATUS_STARTING    HealthStatus = 3
+	HealthStatus_HEALTH_STATUS_NOT_READY   HealthStatus = 4
+	HealthStatus_HEALTH_STATUS_UNHEALTHY   HealthStatus = 5
 )
 
 // Enum value maps for HealthStatus.
@@ -35,11 +38,17 @@ var (
 		0: "HEALTH_STATUS_UNKNOWN",
 		1: "HEALTH_STATUS_RUNNING",
 		2: "HEALTH_STATUS_TERMINATING",
+		3: "HEALTH_STATUS_STARTING",
+		4: "HEALTH_STATUS_NOT_READY",
+		5: "HEALTH_STATUS_UNHEALTHY",
 	}
 	HealthStatus_value = map[string]int32{
 		"HEALTH_STATUS_UNKNOWN":     0,
 		"HEALTH_STATUS_RUNNING":     1,
 		"HEALTH_STATUS_TERMINATING": 2,
+		"HEALTH_STATUS_STARTING":    3,
+		"HEALTH_STATUS_NOT_READY":   4,
+		"HEALTH_STATUS_UNHEALTHY":   5,
 	}
 )
 
@@ -233,6 +242,9 @@ type ComponentStatus struct {
 	Status        HealthStatus           `protobuf:"varint,1,opt,name=status,proto3,enum=health.HealthStatus" json:"status,omitempty"`
 	Attributes    map[string]string      `protobuf:"bytes,2,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Err           *string                `protobuf:"bytes,3,opt,name=err,proto3,oneof" json:"err,omitempty"`
+	Initialized   *Condition             `protobuf:"bytes,4,opt,name=initialized,proto3" json:"initialized,omitempty"`
+	Ready         *Condition             `protobuf:"bytes,5,opt,name=ready,proto3" json:"ready,omitempty"`
+	Healthy       *Condition             `protobuf:"bytes,6,opt,name=healthy,proto3" json:"healthy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -288,6 +300,79 @@ func (x *ComponentStatus) GetErr() string {
 	return ""
 }
 
+func (x *ComponentStatus) GetInitialized() *Condition {
+	if x != nil {
+		return x.Initialized
+	}
+	return nil
+}
+
+func (x *ComponentStatus) GetReady() *Condition {
+	if x != nil {
+		return x.Ready
+	}
+	return nil
+}
+
+func (x *ComponentStatus) GetHealthy() *Condition {
+	if x != nil {
+		return x.Healthy
+	}
+	return nil
+}
+
+type Condition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Reason        *string                `protobuf:"bytes,2,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Condition) Reset() {
+	*x = Condition{}
+	mi := &file_health_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Condition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Condition) ProtoMessage() {}
+
+func (x *Condition) ProtoReflect() protoreflect.Message {
+	mi := &file_health_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Condition.ProtoReflect.Descriptor instead.
+func (*Condition) Descriptor() ([]byte, []int) {
+	return file_health_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Condition) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *Condition) GetReason() string {
+	if x != nil && x.Reason != nil {
+		return *x.Reason
+	}
+	return ""
+}
+
 var File_health_proto protoreflect.FileDescriptor
 
 const file_health_proto_rawDesc = "" +
@@ -303,21 +388,31 @@ const file_health_proto_rawDesc = "" +
 	"\rStatusesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12-\n" +
 	"\x05value\x18\x02 \x01(\v2\x17.health.ComponentStatusR\x05value:\x028\x01B\x0e\n" +
-	"\f_overall_err\"\xe6\x01\n" +
+	"\f_overall_err\"\xf1\x02\n" +
 	"\x0fComponentStatus\x12,\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x14.health.HealthStatusR\x06status\x12G\n" +
 	"\n" +
 	"attributes\x18\x02 \x03(\v2'.health.ComponentStatus.AttributesEntryR\n" +
 	"attributes\x12\x15\n" +
-	"\x03err\x18\x03 \x01(\tH\x00R\x03err\x88\x01\x01\x1a=\n" +
+	"\x03err\x18\x03 \x01(\tH\x00R\x03err\x88\x01\x01\x123\n" +
+	"\vinitialized\x18\x04 \x01(\v2\x11.health.ConditionR\vinitialized\x12'\n" +
+	"\x05ready\x18\x05 \x01(\v2\x11.health.ConditionR\x05ready\x12+\n" +
+	"\ahealthy\x18\x06 \x01(\v2\x11.health.ConditionR\ahealthy\x1a=\n" +
 	"\x0fAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x06\n" +
-	"\x04_err*c\n" +
+	"\x04_err\"C\n" +
+	"\tCondition\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x1b\n" +
+	"\x06reason\x18\x02 \x01(\tH\x00R\x06reason\x88\x01\x01B\t\n" +
+	"\a_reason*\xb9\x01\n" +
 	"\fHealthStatus\x12\x19\n" +
 	"\x15HEALTH_STATUS_UNKNOWN\x10\x00\x12\x19\n" +
 	"\x15HEALTH_STATUS_RUNNING\x10\x01\x12\x1d\n" +
-	"\x19HEALTH_STATUS_TERMINATING\x10\x02*\x84\x01\n" +
+	"\x19HEALTH_STATUS_TERMINATING\x10\x02\x12\x1a\n" +
+	"\x16HEALTH_STATUS_STARTING\x10\x03\x12\x1b\n" +
+	"\x17HEALTH_STATUS_NOT_READY\x10\x04\x12\x1b\n" +
+	"\x17HEALTH_STATUS_UNHEALTHY\x10\x05*\x84\x01\n" +
 	"\rOverallStatus\x12\x1a\n" +
 	"\x16OVERALL_STATUS_UNKNOWN\x10\x00\x12\x1b\n" +
 	"\x17OVERALL_STATUS_STARTING\x10\x01\x12\x1a\n" +
@@ -340,29 +435,33 @@ func file_health_proto_rawDescGZIP() []byte {
 }
 
 var file_health_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_health_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_health_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_health_proto_goTypes = []any{
 	(HealthStatus)(0),           // 0: health.HealthStatus
 	(OverallStatus)(0),          // 1: health.OverallStatus
 	(*HealthStreamRequest)(nil), // 2: health.HealthStreamRequest
 	(*HealthMessage)(nil),       // 3: health.HealthMessage
 	(*ComponentStatus)(nil),     // 4: health.ComponentStatus
-	nil,                         // 5: health.HealthMessage.StatusesEntry
-	nil,                         // 6: health.ComponentStatus.AttributesEntry
+	(*Condition)(nil),           // 5: health.Condition
+	nil,                         // 6: health.HealthMessage.StatusesEntry
+	nil,                         // 7: health.ComponentStatus.AttributesEntry
 }
 var file_health_proto_depIdxs = []int32{
 	1, // 0: health.HealthMessage.overall_status:type_name -> health.OverallStatus
-	5, // 1: health.HealthMessage.statuses:type_name -> health.HealthMessage.StatusesEntry
+	6, // 1: health.HealthMessage.statuses:type_name -> health.HealthMessage.StatusesEntry
 	0, // 2: health.ComponentStatus.status:type_name -> health.HealthStatus
-	6, // 3: health.ComponentStatus.attributes:type_name -> health.ComponentStatus.AttributesEntry
-	4, // 4: health.HealthMessage.StatusesEntry.value:type_name -> health.ComponentStatus
-	2, // 5: health.HealthNotifier.SyncHealth:input_type -> health.HealthStreamRequest
-	3, // 6: health.HealthNotifier.SyncHealth:output_type -> health.HealthMessage
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	7, // 3: health.ComponentStatus.attributes:type_name -> health.ComponentStatus.AttributesEntry
+	5, // 4: health.ComponentStatus.initialized:type_name -> health.Condition
+	5, // 5: health.ComponentStatus.ready:type_name -> health.Condition
+	5, // 6: health.ComponentStatus.healthy:type_name -> health.Condition
+	4, // 7: health.HealthMessage.StatusesEntry.value:type_name -> health.ComponentStatus
+	2, // 8: health.HealthNotifier.SyncHealth:input_type -> health.HealthStreamRequest
+	3, // 9: health.HealthNotifier.SyncHealth:output_type -> health.HealthMessage
+	9, // [9:10] is the sub-list for method output_type
+	8, // [8:9] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_health_proto_init() }
@@ -372,13 +471,14 @@ func file_health_proto_init() {
 	}
 	file_health_proto_msgTypes[1].OneofWrappers = []any{}
 	file_health_proto_msgTypes[2].OneofWrappers = []any{}
+	file_health_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_health_proto_rawDesc), len(file_health_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
