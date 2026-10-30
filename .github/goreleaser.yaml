@@ -38,7 +38,7 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.GitCommit={{.ShortCommit}}
       - -X github.com/pomerium/pomerium/internal/version.Timestamp={{.Timestamp}}
       - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
-      - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
+      - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.com
 
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
@@ -70,7 +70,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
+      - "--label=homepage=http://www.pomerium.com"
 
   - image_templates:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot-amd64-{{ .Tag }}"
@@ -87,7 +87,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
+      - "--label=homepage=http://www.pomerium.com"
 
   - image_templates:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-amd64-{{ .Tag }}"
@@ -104,7 +104,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
+      - "--label=homepage=http://www.pomerium.com"
 
   - image_templates:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot-amd64-{{ .Tag }}"
@@ -121,7 +121,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
+      - "--label=homepage=http://www.pomerium.com"
 
   - image_templates:
       - "gcr.io/pomerium-io/pomerium:{{ .Tag }}-cloudrun"
@@ -137,7 +137,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
+      - "--label=homepage=http://www.pomerium.com"
 
   - goarch: arm64
     image_templates:
@@ -155,7 +155,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
+      - "--label=homepage=http://www.pomerium.com"
 
   - goarch: arm64
     image_templates:
@@ -173,7 +173,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
+      - "--label=homepage=http://www.pomerium.com"
 
   - goarch: arm64
     image_templates:
@@ -191,7 +191,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
+      - "--label=homepage=http://www.pomerium.com"
 
   - goarch: arm64
     image_templates:
@@ -209,7 +209,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
+      - "--label=homepage=http://www.pomerium.com"
 
 docker_manifests:
   - name_template: "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:{{ .Tag }}"
@@ -263,7 +263,7 @@ nfpms:
     homepage: https://www.pomerium.com
     description: Identity Aware Proxy
     maintainer: Pomerium <info@pomerium.com>
-    license: Apache 2.0
+    license: LicenseRef-Pomerium-Community-Edition
     epoch: 1
     release: 1
 
