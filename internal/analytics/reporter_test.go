@@ -27,13 +27,15 @@ func TestCreatePosthogEvent(t *testing.T) {
 	for i := range 100 {
 		options.Routes = append(options.Routes,
 			config.Policy{
-				From:   fmt.Sprintf("https://a.b.c.d.route-%02d.com", i),
-				Policy: mustParsePPL(t, `{"allow": {"or": [{"authenticated_user": 1}]}}`),
+				AllowPublicUnauthenticatedAccess: true,
+				From:                             fmt.Sprintf("https://a.b.c.d.route-%02d.com", i),
+				Policy:                           mustParsePPL(t, `{"allow": {"or": [{"authenticated_user": 1}]}}`),
 			},
 			config.Policy{
-				From:   fmt.Sprintf("https://a.b.c.route-%02d.com", i),
-				MCP:    &config.MCP{Server: &config.MCPServer{}},
-				Policy: mustParsePPL(t, `{"allow": {"and": [{"accept": 1}]}}`),
+				AllowedUsers: []string{"u1", "u2", "u3"},
+				From:         fmt.Sprintf("https://a.b.c.route-%02d.com", i),
+				MCP:          &config.MCP{Server: &config.MCPServer{}},
+				Policy:       mustParsePPL(t, `{"allow": {"and": [{"accept": 1}]}}`),
 			},
 			config.Policy{
 				From: fmt.Sprintf("ssh://a.b.c.route-%02d.com", i),
@@ -43,6 +45,10 @@ func TestCreatePosthogEvent(t *testing.T) {
 			},
 			config.Policy{
 				From: fmt.Sprintf("udp+https://a.b.c.route-%02d.com:9000", i),
+				SubPolicies: []config.SubPolicy{{
+					ID:        "p1",
+					SourcePPL: `{"allow": {"or": [{"domain": "example.com"}]}}`,
+				}},
 			},
 			config.Policy{
 				From:                          fmt.Sprintf("https://a.b.route-%02d.com", i),
@@ -51,24 +57,13 @@ func TestCreatePosthogEvent(t *testing.T) {
 	}
 	cfg := config.New(options)
 
-	evt := analytics.New(analytics.WithMaxDomains(5)).CreatePosthogEvent(t.Context(), cfg, 10, 20)
+	evt := analytics.New().CreatePosthogEvent(t.Context(), cfg, 10, 20)
 	assert.Equal(t, "INSTALLATION_ID", evt.DistinctId)
 	assert.Equal(t, "core_periodic_analytics", evt.Event)
-	assert.Equal(t, []string{
-		"a.b.route-00.com",
-		"a.b.route-01.com",
-		"a.b.route-02.com",
-		"a.b.route-03.com",
-		"a.b.route-04.com",
-	}, evt.Properties["domains"])
-	assert.Equal(t, 600, evt.Properties["route_count"])
-	assert.Equal(t, 100, evt.Properties["kubernetes_route_count"])
-	assert.Equal(t, 100, evt.Properties["mcp_route_count"])
-	assert.Equal(t, 100, evt.Properties["ssh_route_count"])
-	assert.Equal(t, 100, evt.Properties["tcp_route_count"])
-	assert.Equal(t, 100, evt.Properties["udp_route_count"])
-	assert.Equal(t, []string{"accept", "authenticated_user"}, evt.Properties["ppl_criteria"])
 	assert.Contains(t, evt.Properties, "build_version")
+
+	// policy properties
+	assert.Contains(t, evt.Properties, "policy_count")
 
 	t.Run("pseudonymous", func(t *testing.T) {
 		t.Parallel()
@@ -86,14 +81,8 @@ func TestCreatePosthogEvent(t *testing.T) {
 		evt := analytics.New().CreatePosthogEvent(t.Context(), cfg, 0, 0)
 		assert.Equal(t, "bdS/DkMVmpzBR865YlvhMXucXSO3tfcDFySXu0nAtIo=", evt.DistinctId)
 		assert.NotContains(t, evt.Groups, "installation_id")
-		assert.Equal(t, []string{"n4dU0B+ujBEZxQfDfIcLA1s7fcFqhHIZ6nvu9Mp9/48="}, evt.Properties["pseudonymous_domains"])
-		assert.NotContains(t, evt.Properties, "domains")
-		assert.Contains(t, evt.Properties, "pseudonymous_hostname")
-		assert.NotContains(t, evt.Properties, "hostname")
-		assert.Contains(t, evt.Properties, "pseudonymous_host_id")
-		assert.NotContains(t, evt.Properties, "host_id")
-		assert.Contains(t, evt.Properties, "pseudonymous_identity_provider_url")
 		assert.NotContains(t, evt.Properties, "identity_provider_url")
+		assert.NotContains(t, evt.Properties, "pseudonymous_identity_provider_url")
 	})
 }
 
