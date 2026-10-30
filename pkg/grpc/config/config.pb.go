@@ -2856,7 +2856,10 @@ type OIDCBridge struct {
 	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
 	// Client secret to use for upstream applications that do not support
 	// public clients / PKCE.
-	ClientSecret  *string `protobuf:"bytes,2,opt,name=client_secret,json=clientSecret,proto3,oneof" json:"client_secret,omitempty"`
+	ClientSecret *string `protobuf:"bytes,2,opt,name=client_secret,json=clientSecret,proto3,oneof" json:"client_secret,omitempty"`
+	// List of allowed redirect_uris. By default allows any subpath of the configured
+	// route's `to` address
+	RedirectUris  []string `protobuf:"bytes,3,rep,name=redirect_uris,json=redirectUris,proto3" json:"redirect_uris,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2903,6 +2906,13 @@ func (x *OIDCBridge) GetClientSecret() string {
 		return *x.ClientSecret
 	}
 	return ""
+}
+
+func (x *OIDCBridge) GetRedirectUris() []string {
+	if x != nil {
+		return x.RedirectUris
+	}
+	return nil
 }
 
 // A policy expressed in Pomerium Policy Language (PPL).
@@ -9840,11 +9850,12 @@ const file_config_proto_rawDesc = "" +
 	"\ttoken_url\x18\x02 \x01(\tR\btokenUrl\x12D\n" +
 	"\n" +
 	"auth_style\x18\x03 \x01(\x0e2 .pomerium.config.OAuth2AuthStyleH\x00R\tauthStyle\x88\x01\x01B\r\n" +
-	"\v_auth_style\"y\n" +
+	"\v_auth_style\"\x9e\x01\n" +
 	"\n" +
 	"OIDCBridge\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12.\n" +
-	"\rclient_secret\x18\x02 \x01(\tB\x04\xe8\xd6,\x01H\x01R\fclientSecret\x88\x01\x01B\n" +
+	"\rclient_secret\x18\x02 \x01(\tB\x04\xe8\xd6,\x01H\x01R\fclientSecret\x88\x01\x01\x12#\n" +
+	"\rredirect_uris\x18\x03 \x03(\tR\fredirectUrisB\n" +
 	"\n" +
 	"\b_enabledB\x10\n" +
 	"\x0e_client_secret\"\x1d\n" +

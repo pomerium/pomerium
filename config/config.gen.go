@@ -15,8 +15,9 @@ type BlobStorageSettings struct {
 }
 
 type OIDCBridge struct {
-	ClientSecret Value[string] `json:"client_secret,omitzero" mapstructure:"client_secret" yaml:"client_secret,omitempty"`
-	Enabled      Value[bool]   `json:"enabled,omitzero" mapstructure:"enabled" yaml:"enabled,omitempty"`
+	ClientSecret Value[string]   `json:"client_secret,omitzero" mapstructure:"client_secret" yaml:"client_secret,omitempty"`
+	Enabled      Value[bool]     `json:"enabled,omitzero" mapstructure:"enabled" yaml:"enabled,omitempty"`
+	RedirectURIs Value[[]string] `json:"redirect_uris,omitzero" mapstructure:"redirect_uris" yaml:"redirect_uris,omitempty"`
 }
 
 type OutlierDetection struct {
@@ -188,6 +189,7 @@ func setOIDCBridgeFromProto(dst *OIDCBridge, src *configpb.OIDCBridge) error {
 	return errors.Join(
 		setNullableStringFromProto(&dst.ClientSecret, src.ClientSecret),
 		setNullableBoolFromProto(&dst.Enabled, src.Enabled),
+		setNullableSliceOfStringFromProto(&dst.RedirectURIs, &src.RedirectUris),
 	)
 }
 
@@ -686,6 +688,7 @@ func setOIDCBridgeToProto(dst **configpb.OIDCBridge, src *OIDCBridge) error {
 	return errors.Join(
 		setNullableStringToProto(&obj.ClientSecret, src.ClientSecret),
 		setNullableBoolToProto(&obj.Enabled, src.Enabled),
+		setSliceOfStringToProto(&obj.RedirectUris, src.RedirectURIs),
 	)
 }
 

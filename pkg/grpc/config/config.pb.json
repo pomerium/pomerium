@@ -3416,6 +3416,18 @@
               "isoneof": true,
               "oneofdecl": "_client_secret",
               "defaultValue": ""
+            },
+            {
+              "name": "redirect_uris",
+              "description": "List of allowed redirect_uris. By default allows any subpath of the configured\nroute's `to` address",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
             }
           ]
         },
