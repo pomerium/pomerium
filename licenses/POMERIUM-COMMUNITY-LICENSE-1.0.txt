@@ -1,0 +1,360 @@
+                       POMERIUM COMMUNITY EDITION LICENSE
+                                  VERSION 1.0
+
+THIS LICENSE GOVERNS ONLY POMERIUM CORE OFFICIAL PRE-BUILT BINARIES AND
+CONTAINER IMAGES ("OFFICIAL BUILDS") RELEASED AFTER NOVEMBER 1, 2026. THE
+UNDERLYING SOURCE CODE IS LICENSED SEPARATELY UNDER THE APACHE LICENSE, VERSION
+2.0, AND REMAINS FREE FOR EVERYONE.
+
+OFFICIAL BUILDS ARE LICENSED FREE ONLY TO INDIVIDUALS AND ORGANIZATIONS THAT,
+TOGETHER WITH THEIR AFFILIATES, HAD LESS THAN US$10,000,000 IN GROSS REVENUE AND
+AN AVERAGE OF FEWER THAN 100 PERSONNEL IN THEIR MOST RECENTLY COMPLETED FISCAL
+YEAR. IF YOU DO NOT MEET THESE REQUIREMENTS, YOU MUST BUY A COMMERCIAL LICENSE
+FOR OFFICIAL BUILDS OR BUILD YOURSELF FROM THE SOURCE FORM. THIS NOTICE IS A
+SUMMARY ONLY, AND THE DEFINITION OF "ELIGIBLE PERSON" AND "OFFICIAL BUILDS" IN
+THIS LICENSE CONTROLS.
+
+INTRODUCTORY NOTE: This license is derived from the Apache License Version 2.0
+(available at https://www.apache.org/licenses/license-2.0). However, it adds
+conditions the Apache License does not contain, including limits on who may use
+the Official Builds, data collection, and termination. Please read this license
+carefully.
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      a. "Contribution" shall mean any work of authorship, including the
+          original version of the Source form from which the Work is built and
+          any modifications or additions to that Source form, that is
+          intentionally submitted to Licensor for inclusion in that Source form
+          by the copyright owner or by an individual or Legal Entity authorized
+          to submit on behalf of the copyright owner. For purposes of this
+          definition, "submitted" means any form of electronic, verbal, or
+          written communication to the Licensor or its representatives,
+          including but not limited to communication on electronic mailing
+          lists, source code control systems, and issue tracking systems that
+          are managed by, or on behalf of, the Licensor for the purpose of
+          discussing and improving that Source form, but excluding communication
+          that is conspicuously marked or otherwise designated in writing by the
+          copyright owner as "Not a Contribution".
+
+      b. "Contributor" shall mean Licensor and any individual or Legal Entity
+          on behalf of whom a Contribution has been received by Licensor and
+          subsequently incorporated within the Source form from which the Work
+          is built.
+
+      c. "Derivative Works" shall mean any work, whether in Source or Object
+          form, that is based on (or derived from) the Work and for which the
+          editorial revisions, annotations, elaborations, or other modifications
+          represent, as a whole, an original work of authorship. For the
+          purposes of this License, Derivative Works shall not include works
+          that remain separable from, or merely link (or bind by name) to the
+          interfaces of, the Work and Derivative Works thereof.
+
+      d. "Enterprise Features" means any features, components, or functionality
+          enabled by a license key or that Licensor designates as paid,
+          commercial, or evaluation-only.
+
+      e. "Eligible Person" shall mean (i) an individual acting on their own
+          behalf (other than as a Sole Proprietor), or (ii) a Legal Entity or
+          Sole Proprietor that, in its most recently completed fiscal year (or
+          if it has not completed one, in the period since it was formed) (A)
+          had total gross revenue, from all sources and converted to U.S.
+          dollars, of less than ten million U.S. dollars (US$10,000,000), and
+          (B) had an average of fewer than one hundred (100) Personnel,
+          calculated as the average of the number of Personnel on the last day
+          of each month in that period. For a non-profit or government body, its
+          total annual budget counts as its gross revenue. Revenue in another
+          currency shall be converted at the average exchange rate for that
+          period published by the U.S. Federal Reserve.
+
+      f. "License" shall mean the terms and conditions for use, reproduction,
+          and distribution as defined by this document.
+
+      g. "Licensor" shall mean Pomerium, Inc. and its successors and assigns.
+
+      h. "Legal Entity" shall mean the union of the acting entity and all other
+          entities that control, are controlled by, or are under common control
+          with that entity. For the purposes of this definition, "control" means
+          (i) the power, direct or indirect, to cause the direction or
+          management of such entity, whether by contract or otherwise; (ii)
+          ownership of fifty percent (50%) or more of the outstanding shares, or
+          (iii) beneficial ownership of such entity.
+
+      i. "Official Builds" shall mean the compiled binaries, container images,
+          packages, installers, and other pre-built executable or deployable
+          artifacts that Licensor builds and makes available through its
+          official channels, including any updates and patch versions that
+          Licensor releases through those channels. Official Builds do not
+          include (i) the Source form, which is licensed under the Apache
+          License, Version 2.0; (ii) any artifact built from the Source form by
+          anyone other than Licensor, whether or not modified; or (iii)
+          third-party components, such as software or other material included in
+          or distributed with an Official Build that Licensor does not own and
+          that is licensed to You under separate terms. For purposes of this
+          definition, "official channels" means the websites, container
+          repositories, and other distribution points that Licensor operates or
+          designates in writing as the source of Official Builds.
+
+      j. "Object" form shall mean any form resulting from mechanical
+          transformation or translation of a Source form, including but not
+          limited to compiled object code, generated documentation, and
+          conversions to other media types.
+
+      k. "Personnel" shall mean individuals who work for You, whether engaged
+          directly or through a staffing agency, employer of record, leasing
+          arrangement, or similar arrangement, including employees and
+          individual contractors.
+
+      l. "Separate Agreement" shall mean a written agreement or terms between
+          You and Licensor, including any commercial, evaluation, hosting, or
+          trial agreement, that Licensor makes available or You accept
+          separately from this License and that governs access to Enterprise
+          Features, hosting capabilities, usage data, or other matters addressed
+          in this License.
+
+      m. "Sole Proprietor" shall mean an individual carrying on a business,
+          trade, or profession in their own name without incorporating.
+
+      n. "Source" form shall mean the preferred form for making modifications,
+          including but not limited to software source code, documentation
+          source, and configuration files.
+
+      o. "You" (or "Your") shall mean an individual or Legal Entity exercising
+          permissions granted by this License.
+
+      p. "Work" shall mean the Official Builds, as made available under this
+          License, as indicated by a copyright notice that is included in or
+          attached to the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of this
+      License, Licensor hereby grants to You a worldwide, non-exclusive,
+      no-charge, royalty-free, copyright license, for so long as this License
+      permits, to use, reproduce, prepare Derivative Works of, publicly display,
+      publicly perform, and distribute the Work and such Derivative Works in
+      Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of this
+      License, Licensor hereby grants to You a worldwide, non-exclusive,
+      no-charge, royalty-free patent license, for so long as this License
+      permits, to make, have made, use, offer to sell, sell, import, and
+      otherwise transfer the Work, where such license applies only to those
+      patent claims licensable by Licensor that are necessarily infringed by
+      Licensor's Contribution(s) alone or by combination of Licensor's
+      Contribution(s) with the Work to which such Contribution(s) was submitted.
+      If You institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work or a
+      Contribution incorporated within the Work constitutes direct or
+      contributory patent infringement, then any patent licenses granted to You
+      under this License for that Work shall terminate as of the date such
+      litigation is filed. Nothing in this License limits any patent license
+      granted by any Contributor under the Apache License, Version 2.0.
+
+   4. Redistribution. You may reproduce and distribute copies of the Work or
+      Derivative Works thereof in any medium, with or without modifications, and
+      in Object form, provided that You meet the following conditions:
+
+      a. You may distribute the Work or Derivative Works only to recipients who
+          are Eligible Persons, give them a copy of this License, and tell them
+          that their rights depend on their eligibility; and
+
+      b. You must cause any modified files to carry prominent notices stating
+          that You changed the files; and
+
+      c. You must retain, in any Derivative Works that You distribute, all
+          copyright, patent, trademark, and attribution notices from the Work,
+          excluding those notices that do not pertain to any part of the
+          Derivative Works; and
+
+      d. If the Work includes a "NOTICE" text file as part of its distribution,
+          then any Derivative Works that You distribute must include a readable
+          copy of the attribution notices contained within such NOTICE file,
+          excluding those notices that do not pertain to any part of the
+          Derivative Works, in at least one of the following places: within a
+          NOTICE text file distributed as part of the Derivative Works; within
+          the Source form or documentation, if provided along with the
+          Derivative Works; or within a display generated by the Derivative
+          Works, if and wherever such third-party notices normally appear. The
+          contents of the NOTICE file are for informational purposes only and do
+          not modify the License. You may add Your own attribution notices
+          within Derivative Works that You distribute, alongside or as an
+          addendum to the NOTICE text from the Work, provided that such
+          additional attribution notices cannot be construed as modifying the
+          License.
+
+      e. You may add Your own copyright statement to Your modifications and may
+          provide additional or different license terms and conditions for use,
+          reproduction, or distribution of Your modifications, or for any such
+          Derivative Works as a whole, subject to subsection 4(a), and provided
+          Your use, reproduction, and distribution of the Work otherwise
+          complies with the conditions stated in this License.
+
+   5. Submission of Contributions. Contributions to the Source form are governed
+      by the Apache License, Version 2.0, and not by this License.
+
+   6. Trademarks. This License does not grant permission to use the trade names,
+      trademarks, service marks, or product names of the Licensor, except as
+      required for reasonable and customary use in describing the origin of the
+      Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or agreed to in
+      writing, Licensor provides the Work (and each Contributor provides its
+      Contributions) on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+      ANY KIND, either express or implied, including, without limitation, any
+      warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, OR
+      FITNESS FOR A PARTICULAR PURPOSE. You are solely responsible for
+      determining the appropriateness of using or redistributing the Work and
+      assume any risks associated with Your exercise of permissions under this
+      License.
+
+   8. Limitation of Liability. In no event and under no legal theory, whether in
+      tort (including negligence), contract, or otherwise, unless required by
+      applicable law (such as deliberate and grossly negligent acts) or agreed
+      to in writing, shall any Contributor be liable to You for damages,
+      including any direct, indirect, special, incidental, or consequential
+      damages of any character arising as a result of this License or out of the
+      use or inability to use the Work (including but not limited to damages for
+      loss of goodwill, work stoppage, computer failure or malfunction, or any
+      and all other commercial damages or losses), even if such Contributor has
+      been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing the Work
+      or Derivative Works thereof, You may choose to offer and charge a fee for,
+      acceptance of support, warranty, indemnity, or other liability obligations
+      and/or rights consistent with this License. However, in accepting such
+      obligations, You may act only on Your own behalf and on Your sole
+      responsibility, not on behalf of any other Contributor, and only if You
+      agree to indemnify, defend, and hold each Contributor harmless for any
+      liability incurred by, or claims asserted against, such Contributor by
+      reason of your accepting any such warranty or additional liability.
+
+   10. Eligibility. Subject to the Transition Period (defined below) and to
+      Section 12, the licenses granted in Sections 2 and 3 are granted only to
+      Eligible Persons, and eligibility is an express condition of those grants.
+      If Your most recently completed fiscal year ends at or above either
+      threshold in the definition of Eligible Person, You cease to be an
+      Eligible Person as of the end of that fiscal year. The licenses granted to
+      You in Sections 2 and 3 will continue for a period beginning at the end of
+      that fiscal year and ending forty-five (45) calendar days thereafter, or
+      if later, thirty (30) calendar days after Licensor notifies You in writing
+      that You are no longer an Eligible Person (the "Transition Period").
+      During the Transition Period, You may continue to use the Official Builds
+      you already have and may contact Licensor to obtain a Separate Agreement.
+      When the Transition Period ends, those licenses end, and You must stop
+      using the Official Builds unless You have entered into a Separate
+      Agreement. The Transition Period applies only to a person who was
+      previously an Eligible Person. Licensor may ask You to confirm, in
+      writing, that You are an Eligible Person. You must respond within thirty
+      (30) days with a statement of whether You meet the requirements. If You do
+      not respond, Licensor may treat You as not eligible and give written
+      notice that You are no longer eligible. You may not structure Your
+      affairs, including the timing of revenue, in order to qualify as an
+      Eligible Person.
+
+   11. Regaining Eligibility. If You have lost eligibility under the preceding
+      Section and Your next completed fiscal year ends below both thresholds in
+      the definition of Eligible Person, You become an Eligible Person again,
+      and the licenses granted in Sections 2 and 3 are reinstated, as of the end
+      of that fiscal year, provided You notify Licensor in writing and the
+      Official Builds You use are subject to the terms then in effect. A
+      reinstatement applies only to periods after it takes effect and does not
+      release You from any obligation arising from use of Official Builds during
+      the period when You were not an Eligible Person. Licensor may ask You to
+      confirm that You meet the requirements before it treats You as eligible
+      again.
+
+   12. Scope of License. This License grants rights only in Official Builds. You
+      may only use Enterprise Features under a Separate Agreement. This License
+      does not govern any hosted, managed, or cloud service that Licensor may
+      provide. Those services are governed by the agreement or terms of service
+      that apply to them.
+
+   13. Usage Data. Official Builds send Licensor periodic reports about how the
+      Official Builds are used, such as usage counts, feature usage, version,
+      and system and environment information associated with a hashed
+      installation identifier. These reports do not include names, email
+      addresses, user identifiers, host names, or domain names. Licensor does
+      not use this data to identify You, Your organization, or any individual.
+      Licensor may use this data to operate, secure, and improve the Official
+      Builds and its other products and services and for internal analytics and
+      business planning, including product planning, pricing, and market
+      analysis. For more information about how Licensor handles this data,
+      please refer to Licensor's Privacy Policy
+      (https://www.pomerium.com/privacy-policy#visitors). You may disable this
+      collection using the opt-out mechanism Licensor provides in the Official
+      Builds or documentation. A Separate Agreement may prohibit data
+      collection, provide for different or additional data collection, or
+      require that collection remain enabled, and in that case governs the data
+      it covers.
+
+   14. Changes to Official Builds and this License. Licensor makes Official
+      Builds available to Eligible Persons without charge as a courtesy, not a
+      commitment. Licensor may, at any time, in its sole discretion and without
+      liability, (i) add, remove, or change the features, components, or
+      functionality included in Official Builds; (ii) make any feature,
+      component, or functionality available only under a paid or commercial
+      license; (iii) change the Eligibility requirements or the terms on which
+      Official Builds are made available, for Official Builds released after the
+      change; and (iv) stop making Official Builds available free of charge, in
+      whole or in part. Licensor will use commercially reasonable efforts to
+      provide notice before a change under subsection (iii) or (iv) takes place.
+      Licensor has no obligation to develop, maintain, support, or release any
+      update, patch, or new version of the Official Builds, or to release any of
+      them free of charge, and references in this License to updates or patch
+      versions do not create any such obligations. A change under this Section
+      does not affect the license for an Official Build released before the
+      change, so long as You remain and Eligible Person.
+
+   15. Existing Agreements. This License does not apply to Official Builds or
+      Enterprise Features that You obtain or use under a written agreement with
+      Licensor under which You pay for, or are otherwise entitled to receive
+      them, whether the agreement was entered into before or after the date of
+      this License and whether or not it contains license terms. That agreement
+      alone governs that use, and nothing in this License modifies, supplements,
+      or limits it, except if that agreement does not address usage data,
+      Section 13 shall apply to that use. Licensor permits that use for the
+      purposes contemplated by that agreement. If You also use Official Builds
+      outside the scope of such an agreement, this License applies to that use.
+
+   16. Order of Precedence. Except as provided in Section 15 above, if You enter
+      into a Separate Agreement, that agreement applies together with this
+      License. If they conflict, the Separate Agreement controls, but only as to
+      the subject matter of the conflict and only while it is in effect. When a
+      Separate Agreement ends, this License alone governs Your continued use of
+      Official Builds, subject to Section 10.
+
+   17. Termination for Breach. If You materially breach this License, Licensor
+      may terminate the licenses granted to You in Sections 2 and 3 by written
+      notice. If the breach can be cured, termination takes effect thirty (30)
+      calendar days after the notice unless You cure the breach within that
+      period. No cure period applies to a breach involving a misstatement of
+      Your eligibility, structuring Your affairs to qualify as an Eligible
+      Person, or circumventing a license key or other technical measure that
+      limits access to Enterprise Features. The Transition Period under Section
+      10 does not apply to termination under this Section. After termination,
+      You must stop using the Official Builds and may regain a license only if
+      Licensor agrees in writing or You enter into a Separate Agreement.
+      Termination under this Section does not affect Your rights in the Source
+      form under the Apache License, Version 2.0, and does not limit any other
+      remedy available to Licensor.
+
+   18. Governing Law and Venue. This License is governed by the laws of
+      California, without regard to its conflict of laws rules. The courts of
+      San Francisco, California, USA have exclusive jurisdiction over disputes
+      arising out of this License, except that nothing in this Section limits
+      any mandatory rights You have under the laws of Your place of residence,
+      including any right to bring a claim in the courts of that place.
+
+   19. Severability. If any provision of this License is held unenforceable in a
+      jurisdiction, it is enforced to the extent permitted in that jurisdiction,
+      and the remaining provisions continue in effect.
+
+   20. Mandatory Law. Sections 7 and 8 apply to the fullest extent permitted by
+      applicable law. Nothing in this License excludes or limits any warranty,
+      condition, or liability that cannot be excluded or limited under the law
+      that applies to You, including consumer protection laws, and where such
+      law applies, Sections 7 and 8 are modified only to the extent necessary to
+      comply with such law.
+
+   END OF TERMS AND CONDITIONS
