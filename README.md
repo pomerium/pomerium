@@ -28,7 +28,7 @@ See [Contributing] for information on how you can contribute to Pomerium.
 
 This repository's source code is available under the [Apache License 2.0](./LICENSE). Users compiling from source must comply with the terms of this license.
 
-Official builds that Pomerium publishes, such as the binaries and packages on the [releases](https://github.com/pomerium/pomerium/releases) page, deb and rpm packages, and container images, are available under a [modified Apache 2.0 license.](./licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt).
+Official builds that Pomerium publishes, such as the binaries and packages on the [releases](https://github.com/pomerium/pomerium/releases) page, deb and rpm packages, and container images, are available under a [modified Apache 2.0 license](./licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt).
 
 [contributing]: https://github.com/pomerium/pomerium/blob/main/.github/CONTRIBUTING.md
 [documentation]: https://www.pomerium.com/docs/
