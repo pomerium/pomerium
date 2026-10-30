@@ -190,6 +190,38 @@ func TestCreatePosthogPropertiesForPolicies(t *testing.T) {
 	}, p)
 }
 
+func TestCreatePosthogPropertiesForPoliciesSubPolicyAllowedFields(t *testing.T) {
+	t.Parallel()
+	cfg := &config.Config{Options: config.NewDefaultOptions()}
+	cfg.Options.Routes = []config.Policy{
+		{SubPolicies: []config.SubPolicy{{ID: "p1", AllowedUsers: []string{"u1"}}}},
+		{SubPolicies: []config.SubPolicy{{ID: "p1", AllowedUsers: []string{"u1"}}}},
+		{
+			AllowedDomains: []string{"example.com"},
+			SubPolicies: []config.SubPolicy{{
+				ID:             "p2",
+				AllowedDomains: []string{"example.com"},
+				SourcePPL:      `{"allow": {"and": [{"accept": 1}]}}`,
+			}},
+		},
+	}
+	p := New().(*reporter).CreatePosthogPropertiesForPolicies(cfg)
+	assert.Equal(t, posthog.Properties{
+		"policy_count": 3.,
+		"ppl_criteria": map[string]any{
+			"accept": 1.,
+			"domain": 1.,
+			"email":  2.,
+			"user":   2.,
+		},
+		"ppl_operators": map[string]any{
+			"and": 1.,
+			"or":  3.,
+		},
+		"shared_policy_count": 1.,
+	}, p)
+}
+
 func TestCreatePosthogPropertiesForRouteSettings(t *testing.T) {
 	t.Parallel()
 

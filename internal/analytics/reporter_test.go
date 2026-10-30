@@ -57,7 +57,7 @@ func TestCreatePosthogEvent(t *testing.T) {
 	}
 	cfg := config.New(options)
 
-	evt := analytics.New(analytics.WithMaxDomains(5)).CreatePosthogEvent(t.Context(), cfg, 10, 20)
+	evt := analytics.New().CreatePosthogEvent(t.Context(), cfg, 10, 20)
 	assert.Equal(t, "INSTALLATION_ID", evt.DistinctId)
 	assert.Equal(t, "core_periodic_analytics", evt.Event)
 	assert.Contains(t, evt.Properties, "build_version")

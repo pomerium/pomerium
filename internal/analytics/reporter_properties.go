@@ -144,8 +144,12 @@ func (r *reporter) CreatePosthogPropertiesForPolicies(cfg *config.Config) postho
 	for route := range cfg.Options.GetAllPolicies() {
 		seenCriterion := map[string]struct{}{}
 
-		// the inline policy, ToPPL always adds an allow rule, so only count it if it has criteria
-		if rules := route.ToPPL().Rules; slices.ContainsFunc(rules, func(rule parser.Rule) bool {
+		// the inline policy, ToPPL includes the allowed fields of attached
+		// policies, so leave them out. ToPPL also always adds an allow rule, so
+		// only count the inline policy if it has criteria.
+		inline := *route
+		inline.SubPolicies = nil
+		if rules := inline.ToPPL().Rules; slices.ContainsFunc(rules, func(rule parser.Rule) bool {
 			return len(rule.And)+len(rule.Nor)+len(rule.Not)+len(rule.Or) > 0
 		}) {
 			policyCount++
@@ -162,13 +166,19 @@ func (r *reporter) CreatePosthogPropertiesForPolicies(cfg *config.Config) postho
 			if firstUse {
 				policyCount++
 			}
-			subPPL, err := parser.ParseYAML(strings.NewReader(policy.SourcePPL))
-			if err != nil {
-				continue
+			rules := (&config.Policy{
+				AllowedUsers:     policy.AllowedUsers,
+				AllowedDomains:   policy.AllowedDomains,
+				AllowedIDPClaims: policy.AllowedIDPClaims,
+			}).ToPPL().Rules
+			if policy.SourcePPL != "" {
+				if subPPL, err := parser.ParseYAML(strings.NewReader(policy.SourcePPL)); err == nil {
+					rules = append(rules, subPPL.Rules...)
+				}
 			}
-			addCriteria(seenCriterion, subPPL.Rules)
+			addCriteria(seenCriterion, rules)
 			if firstUse {
-				addOperators(subPPL.Rules)
+				addOperators(rules)
 			}
 		}
 
