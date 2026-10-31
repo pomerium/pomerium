@@ -14,16 +14,12 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { login, clearAuthState } from "../../helpers/authn-flow.js";
-import { getSessionCookie, verifySessionCookieAbsent } from "../../helpers/cookies.js";
+import { login } from "../../helpers/authn-flow.js";
+import { getSessionCookie } from "../../helpers/cookies.js";
 import { testUsers } from "../../fixtures/users.js";
 import { urls, paths } from "../../fixtures/test-data.js";
 
 test.describe("Logout", () => {
-  test.beforeEach(async ({ page }) => {
-    await clearAuthState(page);
-  });
-
   test("should clear session cookie on logout", async ({ page }) => {
     const user = testUsers.alice;
 
@@ -50,8 +46,8 @@ test.describe("Logout", () => {
     sessionCookie = await getSessionCookie(page);
     expect(
       sessionCookie?.value === "" ||
-        sessionCookie?.value === undefined ||
-        sessionCookie === undefined,
+      sessionCookie?.value === undefined ||
+      sessionCookie === undefined,
       "Session cookie should be cleared after logout"
     ).toBe(true);
   });
