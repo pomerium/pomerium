@@ -73,6 +73,11 @@ func ExtAuthzContextExtensionsIsInternal(extAuthzContextExtensions map[string]st
 	return extAuthzContextExtensions != nil && extAuthzContextExtensions["internal"] == "true"
 }
 
+// ExtAuthzContextExtensionsIsConsoleRoute returns true if the context extensions indicates the route is a console route.
+func ExtAuthzContextExtensionsIsConsoleRoute(extAuthzContextExtensions map[string]string) bool {
+	return extAuthzContextExtensions != nil && extAuthzContextExtensions["console"] == "true"
+}
+
 // ExtAuthzContextExtensionsRouteID returns the route id for the context extensions.
 func ExtAuthzContextExtensionsRouteID(extAuthzContextExtensions map[string]string) string {
 	if extAuthzContextExtensions == nil {

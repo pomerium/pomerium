@@ -24,6 +24,12 @@ func BuildRouteContextMetadata(request *evaluator.Request) *structpb.Struct {
 				envoyconfig.UseFilterChainMetadataKey: structpb.NewStringValue(envoyconfig.CompositeFilterChainUpstreamTunnel),
 			},
 		}
+	case request.IsConsole:
+		return &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				envoyconfig.UseFilterChainMetadataKey: structpb.NewStringValue(envoyconfig.CompositeFilterChainConsole),
+			},
+		}
 	case request.Policy.IsMCPServer():
 		if request.EnvoyRouteID == "" {
 			log.Error().Msg("authorize: MCP route has empty EnvoyRouteID, skipping metadata")
