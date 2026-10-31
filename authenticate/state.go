@@ -14,6 +14,8 @@ import (
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/handlers"
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/oidcbridge"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -53,7 +55,8 @@ type authenticateState struct {
 
 	csrf *csrfCookieValidation
 
-	pkceStore *pkceStore
+	pkceStore          *pkceStore
+	oidcBridgeHandlers *oidcbridge.Handlers
 }
 
 func newAuthenticateStateFromConfig(
@@ -128,7 +131,9 @@ func newAuthenticateStateFromConfig(
 	state.sessionHandleReader = cookieStore
 	state.sessionHandleWriter = cookieStore
 
-	if cfg.Options.UseStatelessAuthenticateFlow() {
+	useStatelessAuthenticationFlow := cfg.Options.UseStatelessAuthenticateFlow()
+
+	if useStatelessAuthenticationFlow {
 		state.flow, err = authenticateflow.NewStateless(ctx,
 			tracerProvider,
 			cfg,
@@ -147,6 +152,19 @@ func newAuthenticateStateFromConfig(
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	handlers, err := oidcbridge.NewHandlers(
+		cookieStore.ReadSessionHandle, state.flow.GetUserInfoData, cfg.Options)
+	if err != nil {
+		return nil, err
+	} else if handlers != nil {
+		if useStatelessAuthenticationFlow {
+			log.Ctx(ctx).Warn().Msg("oidc_bridge is not supported with legacy " +
+				"hosted authenticate; set idp_provider to use this feature")
+		} else {
+			state.oidcBridgeHandlers = handlers
+		}
 	}
 
 	return state, nil
