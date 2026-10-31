@@ -1,5 +1,7 @@
 package httputil
 
+import "strings"
+
 // Pomerium authorization types
 const (
 	// AuthorizationTypePomerium is for Authorization: Pomerium JWT... headers
@@ -50,4 +52,39 @@ var HeadersContentSecurityPolicy = map[string]string{
 // PomeriumJWTHeaderName returns the header name set by pomerium for given JWT claim field.
 func PomeriumJWTHeaderName(claim string) string {
 	return "x-pomerium-claim-" + claim
+}
+
+// BearerToken returns the token from an Authorization header value that uses
+// the Bearer scheme (matched case-insensitively), and whether it did.
+func BearerToken(authorization string) (string, bool) {
+	const prefix = "Bearer "
+	if len(authorization) < len(prefix) || !strings.EqualFold(authorization[:len(prefix)], prefix) {
+		return "", false
+	}
+	return authorization[len(prefix):], true
+}
+
+// PomeriumAuthorizationToken returns the Pomerium JWT from an Authorization
+// header value of the form "Pomerium <JWT>" (scheme matched case-sensitively),
+// and whether it was one.
+func PomeriumAuthorizationToken(authorization string) (string, bool) {
+	jwt, ok := strings.CutPrefix(authorization, AuthorizationTypePomerium+" ")
+	if !ok {
+		return "", false
+	}
+	return jwt, true
+}
+
+// PomeriumBearerToken returns the Pomerium JWT from an Authorization header
+// value of the form "Bearer Pomerium-<JWT>", and whether it was one.
+func PomeriumBearerToken(authorization string) (string, bool) {
+	token, ok := BearerToken(authorization)
+	if !ok {
+		return "", false
+	}
+	jwt, ok := strings.CutPrefix(token, AuthorizationTypePomerium+"-")
+	if !ok {
+		return "", false
+	}
+	return jwt, true
 }
