@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .tool-versions
 
@@ -165,14 +165,14 @@ jobs:
           token: ${{ steps.ci-token.outputs.token }}
 
       - name: Bump psql environment
-        uses: mikefarah/yq@c14f446382944492701b16c1ddb48bb9dbe683e3
+        uses: mikefarah/yq@504fc38780cc46be8444ea1b72fb55919fc0bfb0
         with:
           cmd:
             yq eval '.pomerium.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
             projects/pomerium-master-postgres/pomerium/values.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d
+        uses: stefanzweifel/git-auto-commit-action@d0b01107b5db882071f96de5dd4b54961ea93f4c
         with:
           commit_message: |
             Bump test environment pomerium/pomerium
