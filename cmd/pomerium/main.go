@@ -28,9 +28,10 @@ func main() {
 	var configFile string
 	root := &cobra.Command{
 		Use:          "pomerium",
-		Version:      fmt.Sprintf("pomerium: %s\nenvoy: %s", version.FullVersion(), files.Lockfile().Version),
+		Version:      fmt.Sprintf("pomerium: %s\nenvoy: %s\n%s", version.FullVersion(), files.Lockfile().Version, version.LicenseStatement()),
 		SilenceUsage: true,
 	}
+	root.SetVersionTemplate("{{.Version}}\n")
 	root.AddCommand(zero_cmd.BuildRootCmd())
 	root.AddCommand(health.BuildHealthCommand())
 	root.PersistentFlags().StringVar(&configFile, "config", "", "Specify configuration file location")

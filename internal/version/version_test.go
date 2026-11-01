@@ -3,8 +3,23 @@ package version
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"testing"
 )
+
+func TestLicenseStatement(t *testing.T) {
+	t.Cleanup(func() { officialBuild = "" })
+	for _, tt := range []struct{ flag, want string }{
+		{"", "Apache License 2.0"},
+		{"0", "Apache License 2.0"},
+		{"1", "Pomerium Community Edition License 1.0"},
+	} {
+		officialBuild = tt.flag
+		if got := LicenseStatement(); !strings.Contains(got, tt.want) {
+			t.Errorf("LicenseStatement() = %q with officialBuild %q, want %q", got, tt.flag, tt.want)
+		}
+	}
+}
 
 func TestFullVersionVersion(t *testing.T) {
 	tests := []struct {

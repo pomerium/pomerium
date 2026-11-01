@@ -11,7 +11,7 @@ BUILDTAGS :=
 
 # Populate version variables
 # Add to compile time flags
-VERSION ?= $(shell git describe --tags)
+VERSION ?= $(shell git describe --tags --match 'v*')
 GITCOMMIT := $(shell git rev-parse --short HEAD)
 BUILDMETA :=
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
@@ -19,6 +19,7 @@ ifneq ($(GITUNTRACKEDCHANGES),)
 	BUILDMETA := dirty
 endif
 CTIMEVAR = \
+	-X $(PKG)/internal/version.officialBuild=$(POMERIUM_OFFICIAL_BUILD) \
 	-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.Version=$(VERSION) \
 	-X $(PKG)/internal/version.BuildMeta=$(BUILDMETA) \
@@ -124,6 +125,7 @@ docker: build-ui ## Builds the local root image through the release Dockerfile.
 		trap 'rm -rf "$$_temp_dir"' EXIT INT TERM; \
 		GOOS=linux $(MAKE) build-go; \
 		cp "$(BINDIR)/$(NAME)" "$$_temp_dir/pomerium"; \
+		cp -R licenses "$$_temp_dir/licenses"; \
 		docker build -t pomerium/pomerium:local -f .github/Dockerfile-release "$$_temp_dir"
 
 .PHONY: docker-debug
@@ -134,6 +136,7 @@ docker-debug: build-ui ## Builds the local root debug image through the release 
 		trap 'rm -rf "$$_temp_dir"' EXIT INT TERM; \
 		GOOS=linux $(MAKE) build-go; \
 		cp "$(BINDIR)/$(NAME)" "$$_temp_dir/pomerium"; \
+		cp -R licenses "$$_temp_dir/licenses"; \
 		docker build -t pomerium/pomerium:debug-local -f .github/Dockerfile-release-debug "$$_temp_dir"
 
 .PHONY: lint

@@ -4,24 +4,13 @@ project_name: pomerium
 
 release:
   prerelease: auto
-  github:
-    owner: pomerium
-    name: pomerium
-  name_template: "v{{.Version}}"
+  replace_existing_artifacts: true
 
 env:
-  - GO111MODULE=on
   - CGO_ENABLED=0
 
-before:
-  hooks:
-    - go mod download
-    - make deps-build build-ui
-
 builds:
-  - id: pomerium
-    main: cmd/pomerium/main.go
-    binary: pomerium
+  - main: cmd/pomerium/main.go
     goarch:
       - arm64
     goos:
@@ -29,31 +18,31 @@ builds:
 
     ldflags:
       - -s -w
+      - -X github.com/pomerium/pomerium/internal/version.officialBuild=1
       - -X github.com/pomerium/pomerium/internal/version.Version={{.Version}}
       - -X github.com/pomerium/pomerium/internal/version.GitCommit={{.ShortCommit}}
       - -X github.com/pomerium/pomerium/internal/version.Timestamp={{.Timestamp}}
       - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
-      - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
+      - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.com
 
 notarize:
-  macos_native:
-    - enabled: '{{ isEnvSet "SIGN_BINARIES" }}'
+  macos:
+    - enabled: true
       sign:
-        identity: 4CCCBFF19C6ABD0AED5047C3A833B8E05F098F89
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
       notarize:
-        profile_name: pomerium_proxy
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
         wait: true
+        timeout: 15m
 
 archives:
-  - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    id: pomerium
-    ids:
-      - pomerium
+  - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
     files:
-      - none*
+      - src: licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt
+        dst: LICENSE
 
 checksum:
-  name_template: "{{ .ProjectName }}_checksums.txt"
-
-snapshot:
-  version_template: "{{ .Version }}+next+{{ .ShortCommit }}"
+  name_template: "{{ .ProjectName }}_darwin_checksums.txt"

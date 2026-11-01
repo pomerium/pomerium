@@ -24,6 +24,7 @@ RUN apt-get update \
     && touch /pomerium/config.yaml \
     && chown -R 65532:65532 /data /pomerium
 COPY pomerium /bin/
+COPY licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt /pomerium/LICENSE
 USER 65532:65532
 ENTRYPOINT [ "/bin/pomerium" ]
 CMD ["--config","/pomerium/config.yaml"]

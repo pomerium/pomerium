@@ -361,7 +361,7 @@ var defaultOptions = Options{
 }
 
 func defaultLicenseType() configpb.LicenseType {
-	if version.GitCommit != "" {
+	if version.OfficialBuild() {
 		return configpb.LicenseType_LICENSE_TYPE_COMMUNITY
 	}
 	return configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE

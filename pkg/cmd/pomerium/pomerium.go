@@ -263,10 +263,12 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 
 	// run everything
 	p.errGroup, ctx = errgroup.WithContext(ctx)
-	p.errGroup.Go(func() error {
-		analyticsReporter.Run(ctx)
-		return nil
-	})
+	if version.OfficialBuild() {
+		p.errGroup.Go(func() error {
+			analyticsReporter.Run(ctx)
+			return nil
+		})
+	}
 	if authorizeServer != nil {
 		p.errGroup.Go(func() error {
 			health.ReportRunning(health.AuthorizationService)
