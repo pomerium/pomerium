@@ -1,13 +1,12 @@
 package analytics
 
 import (
+	"cmp"
 	"context"
 	"crypto/hkdf"
 	"crypto/sha256"
-	"fmt"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/posthog/posthog-go"
 
 	"github.com/pomerium/pomerium/config"
@@ -26,17 +25,13 @@ type Reporter interface {
 }
 
 type reporter struct {
-	cfg *reporterConfig
-
 	config       chan *config.Config
 	sessionCount chan int
 	userCount    chan int
 }
 
-func New(options ...ReporterOption) Reporter {
+func New() Reporter {
 	return &reporter{
-		cfg: getReporterConfig(options...),
-
 		config:       make(chan *config.Config, 1),
 		sessionCount: make(chan int, 1),
 		userCount:    make(chan int, 1),
@@ -45,57 +40,50 @@ func New(options ...ReporterOption) Reporter {
 
 func (r *reporter) CreatePosthogEvent(ctx context.Context, cfg *config.Config, sessionCount, userCount int) posthog.Capture {
 	evt := posthog.Capture{
-		DistinctId: r.getDistinctID(cfg),
+		DistinctId: cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), cmp.Or(cfg.Options.InstallationID, "posthog_distinct_id")),
 		Event:      "core_periodic_analytics",
 		Properties: r.CreatePosthogProperties(ctx, cfg, sessionCount, userCount),
 	}
 	if cfg.Options.InstallationID != "" {
-		evt.Groups = make(posthog.Groups)
-		r.setPII(cfg, evt.Groups, "installation_id", cfg.Options.InstallationID)
+		evt.Groups = posthog.Groups{"pseudonymous_installation_id": evt.DistinctId}
 	}
 	return evt
 }
 
 func (r *reporter) Run(ctx context.Context) {
+	client, err := posthog.NewWithConfig(PostHogProductionProjectID, posthog.Config{
+		Endpoint:        PostHogEndpoint,
+		Logger:          posthogLogger{},
+		MaxRetries:      new(9),
+		ShutdownTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		log.Ctx(ctx).Err(err).Msg("analytics: failed to create posthog client")
+		return
+	}
+	defer func() { _ = client.Close() }()
+
 	var (
 		cfg                     *config.Config
 		sessionCount, userCount int
 	)
 
-	initialTimer := time.After(r.cfg.initialDelay)
-	var reportingTicker <-chan time.Time
-	shouldReport := false
-
-	bo := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0))
-	var backoffTimer <-chan time.Time
+	timer := time.NewTimer(initialDelay)
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-initialTimer:
-			reportingTicker = time.Tick(r.cfg.reportingInterval)
-			shouldReport = true
-		case <-backoffTimer:
-			shouldReport = true
-		case <-reportingTicker:
-			shouldReport = true
+		case <-timer.C:
+			timer.Reset(reportingInterval)
+			if err := r.report(ctx, client, cfg, sessionCount, userCount); err != nil {
+				log.Ctx(ctx).Err(err).Msg("analytics: failed to report analytics")
+			}
 		case sessionCount = <-r.sessionCount:
 		case userCount = <-r.userCount:
 		case cfg = <-r.config:
 		}
-
-		if shouldReport {
-			err := r.report(ctx, cfg, sessionCount, userCount)
-			if err == nil {
-				bo.Reset()
-				backoffTimer = nil
-			} else {
-				log.Ctx(ctx).Err(err).Msg("analytics: failed to report analytics")
-				backoffTimer = time.After(bo.NextBackOff())
-			}
-		}
-		shouldReport = false
 	}
 }
 
@@ -106,16 +94,6 @@ func (r *reporter) UpdateConfig(cfg *config.Config) {
 func (r *reporter) UpdateUserInfo(sessionCount, userCount int) {
 	sendOrReplace(r.sessionCount, sessionCount)
 	sendOrReplace(r.userCount, userCount)
-}
-
-func (r *reporter) getDistinctID(cfg *config.Config) string {
-	if cfg.Options.InstallationID != "" {
-		if r.shouldPseudonymize(cfg) {
-			return cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), cfg.Options.InstallationID)
-		}
-		return cfg.Options.InstallationID
-	}
-	return cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), "posthog_distinct_id")
 }
 
 func (r *reporter) getPseudonymizationKey(cfg *config.Config) []byte {
@@ -132,44 +110,13 @@ func (r *reporter) getPseudonymizationKey(cfg *config.Config) []byte {
 	return pseudonymizationKey
 }
 
-func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount, userCount int) error {
+func (r *reporter) report(ctx context.Context, client posthog.Client, cfg *config.Config, sessionCount, userCount int) error {
 	if cfg == nil ||
 		cfg.Options.LicenseType.Value == configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE ||
 		!cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) {
 		return nil
 	}
-
-	msg := r.CreatePosthogEvent(ctx, cfg, sessionCount, userCount)
-
-	client, err := posthog.NewWithConfig(PostHogProductionProjectID, posthog.Config{
-		Endpoint: PostHogEndpoint,
-		Logger:   posthogLogger{},
-	})
-	if err != nil {
-		return fmt.Errorf("error creating posthog client: %w", err)
-	}
-	err = client.Enqueue(msg)
-	if err != nil {
-		return fmt.Errorf("error enqueing posthog capture: %w", err)
-	}
-	err = client.CloseWithContext(ctx)
-	if err != nil {
-		return fmt.Errorf("error closing posthog client: %w", err)
-	}
-	return nil
-}
-
-func (r *reporter) setPII[M interface{ ~map[string]any }](cfg *config.Config, dst M, key, value string) {
-	if r.shouldPseudonymize(cfg) {
-		dst["pseudonymous_"+key] = cryptutil.Pseudonymize(r.getPseudonymizationKey(cfg), value)
-	} else {
-		dst[key] = value
-	}
-}
-
-func (r *reporter) shouldPseudonymize(cfg *config.Config) bool {
-	return cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL &&
-		cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_COMMERCIAL_TRIAL
+	return client.Enqueue(r.CreatePosthogEvent(ctx, cfg, sessionCount, userCount))
 }
 
 func sendOrReplace[T any](ch chan T, value T) {

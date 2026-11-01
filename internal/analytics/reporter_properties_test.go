@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/posthog/posthog-go"
-	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/stretchr/testify/assert"
@@ -40,17 +39,6 @@ func TestCreatePosthogPropertiesForCertificates(t *testing.T) {
 	)
 	assert.Equal(t, posthog.Properties{
 		"certificate_count": 1,
-	}, p)
-}
-
-func TestCreatePosthogPropertiesForCPU(t *testing.T) {
-	t.Parallel()
-	p := New().(*reporter).CreatePosthogPropertiesForCPU([]cpu.InfoStat{
-		{VendorID: "GenuineIntel", Family: "6", Model: "197", ModelName: "Intel(R) Core(TM) Ultra 9 285H", Cores: 1},
-		{VendorID: "GenuineIntel", Family: "6", Model: "197", ModelName: "Intel(R) Core(TM) Ultra 9 285H", Cores: 1},
-	})
-	assert.Equal(t, posthog.Properties{
-		"cpu_count": 2,
 	}, p)
 }
 
@@ -190,6 +178,19 @@ func TestCreatePosthogPropertiesForPolicies(t *testing.T) {
 	}, p)
 }
 
+func TestCreatePosthogPropertiesForPoliciesCounts(t *testing.T) {
+	t.Parallel()
+	r := New().(*reporter)
+
+	cfg := &config.Config{Options: config.NewDefaultOptions()}
+	cfg.Options.Routes = []config.Policy{{SubPolicies: []config.SubPolicy{{ID: "p1"}, {ID: "p1"}}}}
+	assert.Equal(t, 0., r.CreatePosthogPropertiesForPolicies(cfg)["shared_policy_count"], "a duplicate id in one route is not shared")
+
+	cfg = &config.Config{Options: config.NewDefaultOptions()}
+	cfg.Options.Routes = []config.Policy{{Policy: mustParsePPL(t, `[{"deny": {}}]`)}}
+	assert.Equal(t, 1., r.CreatePosthogPropertiesForPolicies(cfg)["policy_count"], "an inline policy with no criteria counts")
+}
+
 func TestCreatePosthogPropertiesForPoliciesSubPolicyAllowedFields(t *testing.T) {
 	t.Parallel()
 	cfg := &config.Config{Options: config.NewDefaultOptions()}
@@ -266,6 +267,35 @@ func TestCreatePosthogPropertiesForRouteSettings(t *testing.T) {
 			[]any{"identity_headers"},
 		},
 		{"idp", nil, func(p *config.Policy) { p.IDPClientID, p.IDPClientSecret = "ID", "SECRET" }, []any{"idp"}},
+		{
+			"idp same as global", func(o *config.Options) { o.ClientID, o.ClientSecret = "ID", "SECRET" },
+			func(p *config.Policy) { p.IDPClientID, p.IDPClientSecret = "ID", "SECRET" },
+			[]any{},
+		},
+		{
+			"response header repeats default", nil,
+			func(p *config.Policy) { p.SetResponseHeaders = map[string]string{"X-Frame-Options": "SAMEORIGIN"} },
+			[]any{},
+		},
+		{
+			"oidc bridge same as global", func(o *config.Options) { o.OidcBridge = nullable.From(config.OIDCBridge{}) },
+			func(p *config.Policy) { p.OidcBridge = nullable.From(config.OIDCBridge{}) },
+			[]any{},
+		},
+		{
+			"bearer token format default", nil,
+			func(p *config.Policy) {
+				p.BearerTokenFormat = nullable.From(configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT)
+			},
+			[]any{},
+		},
+		{
+			"circuit breaker subset of global", func(o *config.Options) {
+				o.CircuitBreakerThresholds = &config.CircuitBreakerThresholds{MaxConnections: null.Uint32From(1), MaxRetries: null.Uint32From(2)}
+			}, func(p *config.Policy) {
+				p.CircuitBreakerThresholds = &config.CircuitBreakerThresholds{MaxConnections: null.Uint32From(1)}
+			}, []any{},
+		},
 		{"protocols", nil, func(p *config.Policy) { p.AllowWebsockets = true }, []any{"protocols"}},
 		{
 			"protocols same as global", func(o *config.Options) { o.AllowUpgrades = nullable.From([]string{"websocket"}) },
@@ -430,6 +460,38 @@ func TestCreatePosthogPropertiesForSettings(t *testing.T) {
 	}, p["changed_settings"])
 }
 
+func TestCreatePosthogPropertiesForSettingsWithoutProtoField(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		modify   func(o *config.Options)
+		expected string
+	}{
+		{"autocert trusted ca file", func(o *config.Options) { o.AutocertOptions.TrustedCAFile = "/ca.pem" }, "autocert"},
+		{"dns resolvers", func(o *config.Options) { o.DNS.Resolvers = []string{"udp://8.8.8.8:53"} }, "dns"},
+		{"health check addr", func(o *config.Options) { o.HealthCheckAddr = "127.0.0.1:1" }, "health_check_addr"},
+		{"health check systemd", func(o *config.Options) { o.HealthCheckSystemdDisabled = true }, "health_check_systemd_disabled"},
+		{"authorize service url", func(o *config.Options) { o.AuthorizeURLString = "https://authorize.example.com" }, "service_urls"},
+		{"databroker service url", func(o *config.Options) { o.DataBroker.ServiceURL = "https://databroker.example.com" }, "service_urls"},
+		{"ssh rls enabled", func(o *config.Options) { o.SSHRLSEnabled = true }, "ssh"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &config.Config{Options: config.NewDefaultOptions()}
+			tc.modify(cfg.Options)
+			p := New().(*reporter).CreatePosthogPropertiesForSettings(cfg)
+			assert.Equal(t, []any{tc.expected}, p["changed_settings"])
+		})
+	}
+}
+
+func TestCreatePosthogPropertiesForProductKeepsZeroClusterIDThroughClone(t *testing.T) {
+	t.Parallel()
+	cfg := &config.Config{Options: config.NewDefaultOptions(), ZeroClusterID: "CLUSTER"}
+	assert.Equal(t, "zero", New().(*reporter).CreatePosthogPropertiesForProduct(cfg.Clone())["product"])
+}
+
 func TestCreatePosthogPropertiesForSettingsValues(t *testing.T) {
 	t.Parallel()
 
@@ -438,6 +500,9 @@ func TestCreatePosthogPropertiesForSettingsValues(t *testing.T) {
 		modify        func(o *config.Options)
 		key, expected string
 	}{
+		{"identity provider unset", func(_ *config.Options) {}, "identity_provider", "none"},
+		{"identity provider known", func(o *config.Options) { o.Provider = "okta" }, "identity_provider", "okta"},
+		{"identity provider unknown", func(o *config.Options) { o.Provider = "acme-sso" }, "identity_provider", "other"},
 		{"originator unset", func(_ *config.Options) {}, "originator_id", "none"},
 		{"originator empty", func(o *config.Options) { o.OriginatorID = nullable.From("") }, "originator_id", "none"},
 		{"originator local", func(o *config.Options) { o.OriginatorID = nullable.From("local") }, "originator_id", "local"},
@@ -470,6 +535,7 @@ func TestChangedSettingsRules(t *testing.T) {
 		"idp_client_secret":                       "",
 		"signing_key":                             "",
 		"cookie_secret":                           "",
+		"autocert_dir":                            "",
 		"autocert_eab_mac_key":                    "",
 		"databroker_storage_connection_string":    "",
 		"ssh_two_person_approval_request_timeout": "ssh_two_person_approval_request_timeout",

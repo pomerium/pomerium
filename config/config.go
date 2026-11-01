@@ -67,8 +67,6 @@ type Config struct {
 
 	// ZeroClusterID is the zero cluster id, only set when in zero mode.
 	ZeroClusterID string
-	// ZeroOrganizationID is the zero organization id, only set when in zero mode.
-	ZeroOrganizationID string
 	// ZeroPseudonymizationKey is the zero key used to pseudonymize data, only set in zero mode.
 	ZeroPseudonymizationKey []byte
 }
@@ -83,33 +81,13 @@ func New(options *Options) *Config {
 
 // Clone creates a clone of the config.
 func (cfg *Config) Clone() *Config {
-	newOptions := new(Options)
+	clone := *cfg
+	clone.Options = new(Options)
 	if cfg.Options != nil {
-		*newOptions = *cfg.Options
+		*clone.Options = *cfg.Options
 	}
-
-	endpoints := make([]MetricsScrapeEndpoint, len(cfg.MetricsScrapeEndpoints))
-	_ = copy(endpoints, cfg.MetricsScrapeEndpoints)
-
-	return &Config{
-		Options:          newOptions,
-		AutoCertificates: cfg.AutoCertificates,
-		EnvoyVersion:     cfg.EnvoyVersion,
-
-		EnvoyAdminInternalAddress: cfg.EnvoyAdminInternalAddress,
-		GRPCPort:                  cfg.GRPCPort,
-		HTTPPort:                  cfg.HTTPPort,
-		OutboundPort:              cfg.OutboundPort,
-		MetricsPort:               cfg.MetricsPort,
-		DebugPort:                 cfg.DebugPort,
-		ACMETLSALPNPort:           cfg.ACMETLSALPNPort,
-		ConnectPort:               cfg.ConnectPort,
-
-		MetricsScrapeEndpoints: endpoints,
-
-		DerivedCertificates: cfg.DerivedCertificates,
-		DerivedCAPEM:        cfg.DerivedCAPEM,
-	}
+	clone.MetricsScrapeEndpoints = slices.Clone(cfg.MetricsScrapeEndpoints)
+	return &clone
 }
 
 // AllCertificateAuthoritiesPEM returns all CAs as PEM bundle bytes

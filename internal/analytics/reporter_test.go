@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/posthog/posthog-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -58,19 +59,19 @@ func TestCreatePosthogEvent(t *testing.T) {
 	cfg := config.New(options)
 
 	evt := analytics.New().CreatePosthogEvent(t.Context(), cfg, 10, 20)
-	assert.Equal(t, "INSTALLATION_ID", evt.DistinctId)
+	assert.Equal(t, "5onyyK8bNLwEMOQgS/yinpAF3U1dzhmtIr64ICZKxmU=", evt.DistinctId)
+	assert.Equal(t, posthog.Groups{"pseudonymous_installation_id": evt.DistinctId}, evt.Groups)
 	assert.Equal(t, "core_periodic_analytics", evt.Event)
 	assert.Contains(t, evt.Properties, "build_version")
 
 	// policy properties
 	assert.Contains(t, evt.Properties, "policy_count")
 
-	t.Run("pseudonymous", func(t *testing.T) {
+	t.Run("no installation id", func(t *testing.T) {
 		t.Parallel()
 
 		options := config.NewDefaultOptions()
 		options.SharedKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x02}, 32))
-		options.LicenseType = nullable.From(configpb.LicenseType_LICENSE_TYPE_COMMUNITY)
 		options.Routes = []config.Policy{
 			{
 				From:   "https://example.com",
@@ -80,9 +81,6 @@ func TestCreatePosthogEvent(t *testing.T) {
 		cfg := config.New(options)
 		evt := analytics.New().CreatePosthogEvent(t.Context(), cfg, 0, 0)
 		assert.Equal(t, "bdS/DkMVmpzBR865YlvhMXucXSO3tfcDFySXu0nAtIo=", evt.DistinctId)
-		assert.NotContains(t, evt.Groups, "installation_id")
-		assert.NotContains(t, evt.Properties, "identity_provider_url")
-		assert.NotContains(t, evt.Properties, "pseudonymous_identity_provider_url")
 	})
 }
 

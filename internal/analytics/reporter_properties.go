@@ -1,17 +1,16 @@
 package analytics
 
 import (
-	stdcmp "cmp"
+	"cmp"
 	"context"
 	"encoding/json"
 	"math"
 	"os"
-	"reflect"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/posthog/posthog-go"
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -19,11 +18,11 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/envoy/envoyversion"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
@@ -33,8 +32,8 @@ func (r *reporter) CreatePosthogProperties(ctx context.Context, cfg *config.Conf
 	p.Set("session_count", sessionCount).
 		Set("user_count", userCount)
 	p.Merge(r.CreatePosthogPropertiesForCertificates(cfg))
-	if infos, err := cpu.InfoWithContext(ctx); err == nil {
-		p.Merge(r.CreatePosthogPropertiesForCPU(infos))
+	if count, err := cpu.CountsWithContext(ctx, true); err == nil {
+		p.Set("cpu_count", count)
 	}
 	if info, err := host.InfoWithContext(ctx); err == nil {
 		p.Merge(r.CreatePosthogPropertiesForHost(info))
@@ -56,12 +55,6 @@ func (r *reporter) CreatePosthogPropertiesForCertificates(cfg *config.Config) po
 	// add entity counts
 	certificates, _ := cfg.AllCertificates()
 	p["certificate_count"] = len(certificates)
-	return p
-}
-
-func (r *reporter) CreatePosthogPropertiesForCPU(infos []cpu.InfoStat) posthog.Properties {
-	p := posthog.NewProperties()
-	p["cpu_count"] = len(infos)
 	return p
 }
 
@@ -145,11 +138,11 @@ func (r *reporter) CreatePosthogPropertiesForPolicies(cfg *config.Config) postho
 		seenCriterion := map[string]struct{}{}
 
 		// the inline policy, ToPPL includes the allowed fields of attached
-		// policies, so leave them out. ToPPL also always adds an allow rule, so
-		// only count the inline policy if it has criteria.
+		// policies, so leave them out. Without an embedded policy ToPPL always
+		// adds an allow rule, so only count it if it has criteria.
 		inline := *route
 		inline.SubPolicies = nil
-		if rules := inline.ToPPL().Rules; slices.ContainsFunc(rules, func(rule parser.Rule) bool {
+		if rules := inline.ToPPL().Rules; (inline.Policy != nil && len(rules) > 0) || slices.ContainsFunc(rules, func(rule parser.Rule) bool {
 			return len(rule.And)+len(rule.Nor)+len(rule.Not)+len(rule.Or) > 0
 		}) {
 			policyCount++
@@ -158,13 +151,11 @@ func (r *reporter) CreatePosthogPropertiesForPolicies(cfg *config.Config) postho
 		}
 
 		// attached policies, only count operators once per distinct policy
+		attached := set.New[string](len(route.SubPolicies))
 		for _, policy := range route.SubPolicies {
 			firstUse := policy.ID == "" || policyUsage[policy.ID] == 0
-			if policy.ID != "" {
+			if policy.ID != "" && attached.Insert(policy.ID) {
 				policyUsage[policy.ID]++
-			}
-			if firstUse {
-				policyCount++
 			}
 			rules := (&config.Policy{
 				AllowedUsers:     policy.AllowedUsers,
@@ -178,6 +169,7 @@ func (r *reporter) CreatePosthogPropertiesForPolicies(cfg *config.Config) postho
 			}
 			addCriteria(seenCriterion, rules)
 			if firstUse {
+				policyCount++
 				addOperators(rules)
 			}
 		}
@@ -203,10 +195,10 @@ func (r *reporter) CreatePosthogPropertiesForPolicies(cfg *config.Config) postho
 func (r *reporter) CreatePosthogPropertiesForProduct(cfg *config.Config) posthog.Properties {
 	p := posthog.NewProperties()
 	p["build_version"] = version.FullVersion()
-	p["envoy_version"] = cfg.EnvoyVersion
+	p["envoy_version"] = envoyversion.Version()
 	if cfg.ZeroClusterID != "" {
 		p["product"] = "zero"
-	} else if len(os.Args) > 0 && os.Args[0] == "manager" {
+	} else if len(os.Args) > 0 && filepath.Base(os.Args[0]) == "manager" {
 		p["product"] = "ingress-controller"
 	} else {
 		p["product"] = "core"
@@ -244,14 +236,19 @@ func (r *reporter) CreatePosthogPropertiesForRoutes(cfg *config.Config) posthog.
 func (r *reporter) CreatePosthogPropertiesForRouteSettings(cfg *config.Config) posthog.Properties {
 	// the values a route inherits from the global settings
 	settings := cfg.Options.ToProto().Settings
+	// settings.IdpClientSecret base64 encodes a secret read from a file
+	clientSecret, _ := cfg.Options.GetClientSecret()
 	inherited := &configpb.Route{
-		Timeout:                     durationpb.New(cfg.Options.DefaultUpstreamTimeout),
-		PassIdentityHeaders:         settings.PassIdentityHeaders,
-		JwtIssuerFormat:             settings.JwtIssuerFormat,
-		JwtGroupsFilter:             settings.JwtGroupsFilter,
-		JwtGroupsFilterInferFromPpl: settings.JwtGroupsFilterInferFromPpl,
-		BearerTokenFormat:           settings.BearerTokenFormat,
-		CircuitBreakerThresholds:    settings.CircuitBreakerThresholds,
+		Timeout:                  durationpb.New(cfg.Options.DefaultUpstreamTimeout),
+		PassIdentityHeaders:      new(settings.GetPassIdentityHeaders()),
+		JwtIssuerFormat:          new(settings.GetJwtIssuerFormat()),
+		JwtGroupsFilter:          settings.JwtGroupsFilter,
+		BearerTokenFormat:        new(cmp.Or(settings.GetBearerTokenFormat(), configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT)),
+		CircuitBreakerThresholds: cmp.Or(settings.CircuitBreakerThresholds, &configpb.CircuitBreakerThresholds{}),
+		IdpClientId:              settings.IdpClientId,
+		IdpClientSecret:          &clientSecret,
+		OidcBridge:               settings.OidcBridge,
+		SetResponseHeaders:       cfg.Options.GetSetResponseHeaders(),
 	}
 	if settings.AllowUpgrades != nil {
 		inherited.AllowUpgrades = &configpb.Route_StringList{Values: settings.AllowUpgrades.Values}
@@ -277,6 +274,11 @@ func (r *reporter) CreatePosthogPropertiesForRouteSettings(cfg *config.Config) p
 			}
 			return true
 		})
+		// these inherit per key and per field, and the disable key can empty the headers
+		route.SetResponseHeaders = cfg.Options.GetSetResponseHeadersForPolicy(policy)
+		thresholds := proto.CloneOf(inherited.CircuitBreakerThresholds)
+		proto.Merge(thresholds, route.CircuitBreakerThresholds)
+		route.CircuitBreakerThresholds = thresholds
 
 		for _, field := range getChangedFields(inherited, route) {
 			if name := getChangedRouteSettingsName(field); name != "" {
@@ -321,10 +323,13 @@ func (r *reporter) CreatePosthogPropertiesForRuntimeFlags(cfg *config.Config) po
 func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) posthog.Properties {
 	p := posthog.NewProperties()
 	p["databroker_storage_type"] = cfg.Options.DataBroker.StorageType
-	if cfg.Options.Provider != "" {
-		p["identity_provider"] = cfg.Options.Provider
-	} else {
+	switch cfg.Options.Provider {
+	case "":
 		p["identity_provider"] = "none"
+	case "apple", "auth0", "azure", "cognito", "github", "gitlab", "google", "hosted", "oidc", "okta", "onelogin", "ping":
+		p["identity_provider"] = cfg.Options.Provider
+	default:
+		p["identity_provider"] = "other"
 	}
 	// ToZerolog and ToEnvoy panic on unknown log levels, so check them first
 	p["log_level"], p["proxy_log_level"] = "other", "other"
@@ -332,7 +337,7 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 		p["log_level"] = lvl.ToZerolog().String()
 	}
 	// envoy uses the proxy log level, falling back to the log level and then debug
-	if lvl := stdcmp.Or(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug); config.ValidateLogLevel(lvl) == nil {
+	if lvl := cmp.Or(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug); config.ValidateLogLevel(lvl) == nil {
 		p["proxy_log_level"] = lvl.ToEnvoy()
 	}
 	switch {
@@ -345,9 +350,23 @@ func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) postho
 	}
 	p["services"] = getServicesName(cfg.Options.Services)
 
+	defaults := config.NewDefaultOptions()
 	changedSettings := set.NewTreeSet(strings.Compare)
-	for _, field := range getChangedFields(config.NewDefaultOptions().ToProto().Settings, cfg.Options.ToProto().Settings) {
+	for _, field := range getChangedFields(defaults.ToProto().Settings, cfg.Options.ToProto().Settings) {
 		if name := getChangedSettingsName(field); name != "" {
+			changedSettings.Insert(name)
+		}
+	}
+	// ToProto leaves these out
+	for name, changed := range map[string]bool{
+		"autocert":                      cfg.Options.AutocertOptions.TrustedCAFile != defaults.AutocertOptions.TrustedCAFile,
+		"dns":                           !slices.Equal(cfg.Options.DNS.Resolvers, defaults.DNS.Resolvers),
+		"health_check_addr":             cfg.Options.HealthCheckAddr != defaults.HealthCheckAddr,
+		"health_check_systemd_disabled": cfg.Options.HealthCheckSystemdDisabled != defaults.HealthCheckSystemdDisabled,
+		"service_urls":                  cfg.Options.AuthorizeURLString != defaults.AuthorizeURLString || cfg.Options.DataBroker.ServiceURL != defaults.DataBroker.ServiceURL,
+		"ssh":                           cfg.Options.SSHRLSEnabled != defaults.SSHRLSEnabled || !slices.Equal(cfg.Options.SSHRLSAdditonalEntries, defaults.SSHRLSAdditonalEntries),
+	} {
+		if changed {
 			changedSettings.Insert(name)
 		}
 	}
@@ -382,40 +401,16 @@ func normalizePropertyTypes(p posthog.Properties) posthog.Properties {
 // getChangedFields returns the names of the top-level protobuf fields that
 // differ between x and y.
 func getChangedFields(x, y proto.Message) []string {
-	changed := set.New[string](0)
-	cmp.Equal(x, y, protocmp.Transform(),
-		cmp.Reporter(&cmpReporter{callback: func(path cmp.Path, result cmp.Result) {
-			if result.Equal() {
-				return
-			}
-			// the first map index is the top-level field name
-			for _, step := range path {
-				if field, ok := step.(cmp.MapIndex); ok {
-					if key, ok := reflect.TypeAssert[string](field.Key()); ok {
-						changed.Insert(key)
-					}
-					return
-				}
-			}
-		}}))
-	return changed.Slice()
-}
-
-type cmpReporter struct {
-	path     cmp.Path
-	callback func(path cmp.Path, result cmp.Result)
-}
-
-func (r *cmpReporter) PushStep(step cmp.PathStep) {
-	r.path = append(r.path, step)
-}
-
-func (r *cmpReporter) PopStep() {
-	r.path = r.path[:len(r.path)-1]
-}
-
-func (r *cmpReporter) Report(result cmp.Result) {
-	r.callback(r.path, result)
+	mx, my := x.ProtoReflect(), y.ProtoReflect()
+	fields := mx.Descriptor().Fields()
+	var changed []string
+	for i := range fields.Len() {
+		fd := fields.Get(i)
+		if mx.Has(fd) != my.Has(fd) || !mx.Get(fd).Equal(my.Get(fd)) {
+			changed = append(changed, string(fd.Name()))
+		}
+	}
+	return changed
 }
 
 // changedSettingsRules map settings protobuf field names to the name reported
@@ -423,7 +418,7 @@ func (r *cmpReporter) Report(result cmp.Result) {
 // The empty string indicates the field will be ignored.
 var changedSettingsRules = []fieldNameRule{
 	// ignored
-	{`^(cookie_secret|idp_client_id|autocert_eab_.*|databroker_storage_.*|log_level|proxy_log_level|services|idp_provider|certificates|certificate_key_pair_ids|runtime_flags|id|namespace_id|cluster_id|originator_id|name|installation_id|created_at|modified_at|enterprise|license_type|readonly_console_audiences|auto_apply_changesets|directory_provider.*)$`, ""},
+	{`^(cookie_secret|idp_client_id|autocert_dir|autocert_eab_.*|databroker_storage_.*|log_level|proxy_log_level|services|idp_provider|certificates|certificate_key_pair_ids|runtime_flags|id|namespace_id|cluster_id|originator_id|name|installation_id|created_at|modified_at|enterprise|license_type|readonly_console_audiences|auto_apply_changesets|directory_provider.*)$`, ""},
 	// renamed
 	{`^scopes$`, "idp_scopes"},
 	{`^request_params$`, "idp_request_params"},
@@ -437,7 +432,6 @@ var changedSettingsRules = []fieldNameRule{
 	{`^cookie_`, "cookie"},
 	{`^databroker_(cluster_|raft_)`, "databroker_cluster"},
 	{`^dns_`, "dns"},
-	{`^downstream_mtls$`, "downstream_mtls"},
 	{`^envoy_admin_`, "envoy_admin"},
 	{`^envoy_bind_config_`, "envoy_bind"},
 	{`^(normalize_path|merge_slashes|path_with_escaped_slashes_action|headers_with_underscores_action)$`, "http_normalization"},
@@ -445,7 +439,7 @@ var changedSettingsRules = []fieldNameRule{
 	{`^mcp_`, "mcp"},
 	{`^metrics_`, "metrics"},
 	{`^((authorize|databroker)_service_urls|\w+_internal_service_url)$`, "service_urls"},
-	{`^ssh_(address|host_key|user_ca_key|rls_)`, "ssh"},
+	{`^ssh_(address|host_key|user_ca_key)`, "ssh"},
 	{`^(timeout_\w+|default_upstream_timeout|grpc_client_timeout)$`, "timeouts"},
 	{`^otel_`, "tracing"},
 	{`^(skip_xff_append|xff_num_trusted_hops)$`, "xff"},

@@ -104,6 +104,5 @@ func applyBootstrapConfig(dst *config.Config, src *cluster_api.BootstrapConfig) 
 		dst.Options.DataBroker.StorageConnectionString = ""
 	}
 	dst.ZeroClusterID = src.ClusterId
-	dst.ZeroOrganizationID = src.OrganizationId
 	dst.ZeroPseudonymizationKey = src.PseudonymizationKey
 }
