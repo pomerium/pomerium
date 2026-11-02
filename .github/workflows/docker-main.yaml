@@ -65,10 +65,10 @@ jobs:
 
           mkdir -p dist/docker/amd64 dist/docker/arm64
 
-          GOOS=linux GOARCH=amd64 make build-go
+          GOOS=linux GOARCH=amd64 POMERIUM_OFFICIAL_BUILD=1 make build-go
           cp bin/pomerium dist/docker/amd64/pomerium
 
-          GOOS=linux GOARCH=arm64 make build-go
+          GOOS=linux GOARCH=arm64 POMERIUM_OFFICIAL_BUILD=1 make build-go
           cp bin/pomerium dist/docker/arm64/pomerium
 
       - name: Docker Publish - Main AMD64

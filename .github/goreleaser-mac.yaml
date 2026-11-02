@@ -34,6 +34,7 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.Timestamp={{.Timestamp}}
       - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
       - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
+      - -X github.com/pomerium/pomerium/internal/version.officialBuild=1
 
 notarize:
   macos_native:

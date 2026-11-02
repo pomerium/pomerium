@@ -18,12 +18,14 @@ GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 ifneq ($(GITUNTRACKEDCHANGES),)
 	BUILDMETA := dirty
 endif
+POMERIUM_OFFICIAL_BUILD ?= "0"
 CTIMEVAR = \
 	-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.Version=$(VERSION) \
 	-X $(PKG)/internal/version.BuildMeta=$(BUILDMETA) \
 	-X $(PKG)/internal/version.ProjectName=$(NAME) \
-	-X $(PKG)/internal/version.ProjectURL=$(PKG)
+	-X $(PKG)/internal/version.ProjectURL=$(PKG) \
+	-X $(PKG)/internal/version.officialBuild=$(POMERIUM_OFFICIAL_BUILD)
 
 GO ?= "go"
 GO_LDFLAGS = -ldflags "-s -w $(CTIMEVAR)"
