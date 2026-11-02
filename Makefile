@@ -18,7 +18,7 @@ GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 ifneq ($(GITUNTRACKEDCHANGES),)
 	BUILDMETA := dirty
 endif
-POMERIUM_OFFICIAL_BUILD ?= "0"
+POMERIUM_OFFICIAL_BUILD ?= 0
 CTIMEVAR = \
 	-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.Version=$(VERSION) \

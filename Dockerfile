@@ -23,7 +23,8 @@ COPY . .
 COPY --from=ui /build/ui/dist ./ui/dist
 
 # build
-RUN --mount=type=cache,target=/go/pkg/mod make build-go NAME=pomerium
+ARG POMERIUM_OFFICIAL_BUILD=0
+RUN --mount=type=cache,target=/go/pkg/mod make build-go NAME=pomerium POMERIUM_OFFICIAL_BUILD=${POMERIUM_OFFICIAL_BUILD}
 RUN touch /config.yaml
 
 FROM gcr.io/distroless/base-nossl-debian13:debug@sha256:d085c34ea66f46cdd1ff439c01f88c6875f6f49adeb2c1fcc7a22d33e1af515e
