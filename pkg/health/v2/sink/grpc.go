@@ -34,6 +34,7 @@ type GRPC struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
 var (
@@ -49,13 +50,17 @@ func NewGRPC(batchWindow time.Duration, sharedKey []byte) *GRPC {
 		subscribers: map[string]chan struct{}{},
 	}
 	g.ctx, g.cancel = context.WithCancel(context.Background())
-	go g.broadcastBatches()
 	return g
 }
 
+func (g *GRPC) Start() { g.wg.Go(g.broadcastBatches) }
+
 func (g *GRPC) Notify(snap healthv2.Snapshot) { g.latest.store(snap) }
 
-func (g *GRPC) Close() { g.cancel() }
+func (g *GRPC) Close() {
+	g.cancel()
+	g.wg.Wait()
+}
 
 func (g *GRPC) broadcastBatches() {
 	for {

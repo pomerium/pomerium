@@ -18,8 +18,9 @@ func (c CheckerStatus) Equal(other CheckerStatus) bool {
 		slices.EqualFunc(c.Results, other.Results, check.Result.Equal)
 }
 
-// The manager never modifies a Snapshot after handing it out.
+// A Snapshot must not be modified.
 type Snapshot struct {
+	// FIXME: hack so an empty snapshot is not healthy.
 	Configured  bool
 	Terminating bool
 	Checkers    []CheckerStatus
@@ -32,34 +33,15 @@ func (s Snapshot) Equal(other Snapshot) bool {
 }
 
 func (s Snapshot) Started() bool {
-	return s.allResults(func(r check.Result) bool { return r.Status != check.StatusUnknown })
+	return s.AllResults(func(r check.Result) bool { return r.Status != check.StatusUnknown })
 }
 
 func (s Snapshot) Ready() bool {
-	return s.allResults(func(r check.Result) bool { return r.Status == check.StatusRunning && r.Err == nil })
+	return s.AllResults(func(r check.Result) bool { return r.Status == check.StatusRunning && r.Err == nil })
 }
 
 func (s Snapshot) Live() bool {
-	return s.allResults(func(r check.Result) bool { return r.Status != check.StatusUnknown && r.Err == nil })
-}
-
-func (s Snapshot) AllRunning() bool {
-	return s.allResults(func(r check.Result) bool { return r.Status == check.StatusRunning })
-}
-
-func (s Snapshot) AllTerminating() bool {
-	return s.allResults(func(r check.Result) bool { return r.Status == check.StatusTerminating && r.Err == nil })
-}
-
-func (s Snapshot) AnyTerminating() bool {
-	for _, c := range s.Checkers {
-		for _, r := range c.Results {
-			if r.Status == check.StatusTerminating {
-				return true
-			}
-		}
-	}
-	return false
+	return s.AllResults(func(r check.Result) bool { return r.Status != check.StatusUnknown && r.Err == nil })
 }
 
 func (s Snapshot) Required() []string {
@@ -73,7 +55,7 @@ func (s Snapshot) Required() []string {
 	return names
 }
 
-func (s Snapshot) allResults(pred func(check.Result) bool) bool {
+func (s Snapshot) AllResults(pred func(check.Result) bool) bool {
 	if !s.Configured {
 		return false
 	}
@@ -85,4 +67,13 @@ func (s Snapshot) allResults(pred func(check.Result) bool) bool {
 		}
 	}
 	return true
+}
+
+func (s Snapshot) AnyResult(pred func(check.Result) bool) bool {
+	for _, c := range s.Checkers {
+		if slices.ContainsFunc(c.Results, pred) {
+			return true
+		}
+	}
+	return false
 }

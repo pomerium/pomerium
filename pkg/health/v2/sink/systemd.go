@@ -29,10 +29,6 @@ type SystemdOptions struct {
 	WatchdogInterval time.Duration
 }
 
-// READY=1 and STOPPING=1 are each sent at most once. Close does not return
-// until a due STOPPING=1 has been written. WATCHDOG=1 is sent while the
-// manager finished a poll within the last WatchdogInterval/2, and after the
-// manager starts terminating.
 type Systemd struct {
 	SystemdOptions
 	progress pollProgress
@@ -69,15 +65,22 @@ func newSystemd(conn io.WriteCloser, progress pollProgress, opts SystemdOptions)
 		sentErrs:       map[check.CheckName]string{},
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.wg.Go(s.processSnapshots)
-	if opts.WatchdogInterval > 0 {
-		s.wg.Go(s.runWatchdog)
-	}
 	return s
 }
 
+// Start sends WATCHDOG=1 while the last poll is within WatchdogInterval/2, and
+// once the snapshot is terminating.
+func (s *Systemd) Start() {
+	s.wg.Go(s.processSnapshots)
+	if s.WatchdogInterval > 0 {
+		s.wg.Go(s.runWatchdog)
+	}
+}
+
+// Notify sends READY=1 and STOPPING=1 at most once each.
 func (s *Systemd) Notify(snap healthv2.Snapshot) { s.latest.store(snap) }
 
+// Close returns after a due STOPPING=1 has been written.
 func (s *Systemd) Close() {
 	s.cancel()
 	s.wg.Wait()
@@ -106,14 +109,22 @@ func (s *Systemd) reportPending() {
 
 func (s *Systemd) report(snap healthv2.Snapshot) {
 	s.reportErrors(snap)
-	if !s.notifiedReady && snap.AllRunning() {
+	if !s.notifiedReady && allRunning(snap) {
 		s.notifiedReady = true
 		s.wg.Go(func() { s.sendWithRetry(sdNotifyReady) })
 	}
-	if !s.notifiedStopping && snap.AnyTerminating() {
+	if !s.notifiedStopping && anyTerminating(snap) {
 		s.notifiedStopping = true
 		s.wg.Go(func() { s.sendWithRetry(sdNotifyStopping) })
 	}
+}
+
+func allRunning(snap healthv2.Snapshot) bool {
+	return snap.AllResults(func(r check.Result) bool { return r.Status == check.StatusRunning })
+}
+
+func anyTerminating(snap healthv2.Snapshot) bool {
+	return snap.AnyResult(func(r check.Result) bool { return r.Status == check.StatusTerminating })
 }
 
 func (s *Systemd) reportErrors(snap healthv2.Snapshot) {

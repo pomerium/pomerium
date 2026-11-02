@@ -4,9 +4,9 @@ import (
 	"sync"
 
 	healthv2 "github.com/pomerium/pomerium/pkg/health/v2"
+	"github.com/pomerium/pomerium/pkg/health/v2/check"
 )
 
-// Channel signals OnReady and OnTerminating each at most once.
 type Channel struct {
 	mu              sync.Mutex
 	closed          bool
@@ -26,9 +26,13 @@ func NewChannel() *Channel {
 	}
 }
 
+// OnReady is signaled at most once.
 func (c *Channel) OnReady() <-chan struct{} { return c.onReady }
 
+// OnTerminating is signaled at most once.
 func (c *Channel) OnTerminating() <-chan struct{} { return c.onTerminating }
+
+func (c *Channel) Start() {}
 
 func (c *Channel) Notify(snap healthv2.Snapshot) {
 	c.mu.Lock()
@@ -40,7 +44,7 @@ func (c *Channel) Notify(snap healthv2.Snapshot) {
 		c.sentReady = true
 		c.onReady <- struct{}{}
 	}
-	if !c.sentTerminating && snap.AllTerminating() {
+	if !c.sentTerminating && allTerminating(snap) {
 		c.sentTerminating = true
 		c.onTerminating <- struct{}{}
 	}
@@ -55,4 +59,8 @@ func (c *Channel) Close() {
 	c.closed = true
 	close(c.onReady)
 	close(c.onTerminating)
+}
+
+func allTerminating(snap healthv2.Snapshot) bool {
+	return snap.AllResults(func(r check.Result) bool { return r.Status == check.StatusTerminating && r.Err == nil })
 }

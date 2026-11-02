@@ -14,6 +14,8 @@ const (
 	GroupIdentity     Group = "Identity"
 )
 
+// CheckName is a constant, unique across checkers; per-instance values go in
+// Result.Attrs.
 type CheckName string
 
 type Status int

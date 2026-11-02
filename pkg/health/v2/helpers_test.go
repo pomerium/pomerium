@@ -69,9 +69,16 @@ func checkerStatus(group check.Group, name string, results ...check.Result) Chec
 }
 
 type recordingSink struct {
-	mu     sync.Mutex
-	snaps  []Snapshot
-	closed bool
+	mu      sync.Mutex
+	snaps   []Snapshot
+	started bool
+	closed  bool
+}
+
+func (s *recordingSink) Start() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.started = true
 }
 
 func (s *recordingSink) Notify(snap Snapshot) {

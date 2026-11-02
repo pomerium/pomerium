@@ -26,6 +26,8 @@ func NewHTTP() *HTTP {
 
 func (h *HTTP) Notify(snap healthv2.Snapshot) { h.latest.Store(&snap) }
 
+func (h *HTTP) Start() {}
+
 func (h *HTTP) Close() {}
 
 type httpEntry struct {

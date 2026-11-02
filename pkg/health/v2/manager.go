@@ -37,9 +37,6 @@ type checkerState struct {
 	last     []check.Result
 }
 
-// Until a checker reports a result, each of its expected checks is reported as
-// Unknown. Once Run's context is done every result is reported as Terminating
-// without an error, and a check never goes back to Running.
 type Manager struct {
 	Options
 
@@ -119,6 +116,7 @@ func (m *Manager) ConfigureChecks(opts *config.Options) {
 	m.triggerPoll()
 }
 
+// Snapshot reports each expected check as Unknown until its checker reports it.
 func (m *Manager) Snapshot() Snapshot {
 	return *m.snapshot.Load()
 }
@@ -131,7 +129,12 @@ func (m *Manager) LastPoll() time.Time {
 	return time.Unix(0, ns)
 }
 
+// Once ctx is done, Run reports every result as Terminating without an error,
+// and a check never goes back to Running.
 func (m *Manager) Run(ctx context.Context) error {
+	for _, s := range m.sinks {
+		s.Start()
+	}
 	t := time.NewTicker(m.PollInterval)
 	defer t.Stop()
 	for {

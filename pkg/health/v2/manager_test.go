@@ -195,7 +195,7 @@ func TestManagerNotifiesOnChangeOnly(t *testing.T) {
 	assert.Equal(t, 2, sink.count())
 }
 
-func TestManagerCloseClosesSinks(t *testing.T) {
+func TestManagerSinkLifecycle(t *testing.T) {
 	t.Parallel()
 
 	m := newTestManager()
@@ -203,8 +203,16 @@ func TestManagerCloseClosesSinks(t *testing.T) {
 	for _, s := range sinks {
 		m.RegisterSink(s)
 	}
+	for _, s := range sinks {
+		assert.False(t, s.started)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	require.ErrorIs(t, m.Run(ctx), context.Canceled)
 	m.Close()
 	for _, s := range sinks {
+		assert.True(t, s.started)
 		assert.True(t, s.closed)
 	}
 }
@@ -322,7 +330,9 @@ func TestManagerStickyTerminating(t *testing.T) {
 		t.Helper()
 		assert.True(t, snap.Terminating)
 		assert.False(t, snap.Ready())
-		assert.True(t, snap.AllTerminating())
+		assert.True(t, snap.AllResults(func(r check.Result) bool {
+			return r.Status == check.StatusTerminating && r.Err == nil
+		}))
 	}
 	assertTerminating(t, m.Snapshot())
 	sink.mu.Lock()

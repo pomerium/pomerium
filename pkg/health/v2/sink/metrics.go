@@ -74,6 +74,8 @@ func NewMetrics(meter metric.Meter, startTime time.Time) (*Metrics, error) {
 	}, nil
 }
 
+func (m *Metrics) Start() {}
+
 func (m *Metrics) Close() {}
 
 func (m *Metrics) Notify(snap healthv2.Snapshot) {

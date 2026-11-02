@@ -63,6 +63,7 @@ func TestSystemdNotifications(t *testing.T) {
 	addr, conn := listenNotifySocket(t)
 	sink, err := NewSystemd(fakeProgress(time.Now), SystemdOptions{Addr: addr})
 	require.NoError(t, err)
+	sink.Start()
 	t.Cleanup(sink.Close)
 
 	for _, step := range []struct {
@@ -97,17 +98,22 @@ func TestSystemdWatchdog(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		progress      fakeProgress
+		start         bool
 		wantHeartbeat bool
 	}{
-		{"polls completing", time.Now, true},
-		{"poll loop stalled", func() time.Time { return time.Now().Add(-time.Hour) }, false},
-		{"never polled", func() time.Time { return time.Time{} }, false},
+		{"polls completing", time.Now, true, true},
+		{"not started", time.Now, false, false},
+		{"poll loop stalled", func() time.Time { return time.Now().Add(-time.Hour) }, true, false},
+		{"never polled", func() time.Time { return time.Time{} }, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			addr, conn := listenNotifySocket(t)
 			sink, err := NewSystemd(tc.progress, SystemdOptions{Addr: addr, WatchdogInterval: interval})
 			require.NoError(t, err)
+			if tc.start {
+				sink.Start()
+			}
 			t.Cleanup(sink.Close)
 
 			if !tc.wantHeartbeat {
@@ -180,6 +186,7 @@ func TestSystemdSendsStoppingBeforeClose(t *testing.T) {
 
 	conn := &fakeNotifyConn{}
 	sink := newSystemd(conn, fakeProgress(time.Now), SystemdOptions{})
+	sink.Start()
 	sink.Notify(snapshotOf(terminating("a")))
 	sink.Close()
 	assert.Contains(t, conn.sent(), "STOPPING=1")
@@ -190,6 +197,7 @@ func TestSystemdReadyRetryDoesNotBlockUpdates(t *testing.T) {
 
 	conn := &fakeNotifyConn{failOn: "READY=1"}
 	sink := newSystemd(conn, fakeProgress(time.Now), SystemdOptions{})
+	sink.Start()
 	t.Cleanup(sink.Close)
 
 	for _, step := range []struct {
