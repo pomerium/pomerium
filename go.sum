@@ -890,8 +890,8 @@ github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10/go.mod h1
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/pomerium/datasource v0.18.2-0.20261023135124-1158d9fc2af8 h1:QcVuIV170XtlWyo8LuHVuQYwRWGKQ8ei5Yl6Jpc1FyA=
-github.com/pomerium/datasource v0.18.2-0.20261023135124-1158d9fc2af8/go.mod h1:xZb+/Gk7Kw1Vwh5o0VRCV0dBVBz7CaK0p0pD4Fozppw=
+github.com/pomerium/datasource v0.18.2-0.20261102131956-f088d63a45ac h1:h2T1vsPN6R9a8M2ClJ5hoN3mdtLx8pwiz8Z/zbfRvUY=
+github.com/pomerium/datasource v0.18.2-0.20261102131956-f088d63a45ac/go.mod h1:qVM21XJ/iPqBkGD6YlVRIA0vJXqXQ6TBll3fkcPAMxg=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261001000628-2a7e5f0ae596 h1:toFfFbo6CcwDSWV6idgcZ7EBvF2ISN8uGTkv1XtNA9A=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261001000628-2a7e5f0ae596/go.mod h1:7XX22CuI+iU8rSlMPBHwmbWrz9yvQPEhuOIJSwdKXRE=
 github.com/pomerium/protoutil v0.0.0-20261023135301-1ce8ef91f9ec h1:hwY5NwGwRQAupLOTUSkQWODPO9bcTclr2HTPjtLmZK0=
