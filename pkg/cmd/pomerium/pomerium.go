@@ -132,6 +132,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 
 	evt := log.Ctx(ctx).Info().
 		Str("envoy-version", files.Lockfile().Version).
+		Str("license", files.EmbeddedEnvoyLicenseIdentifierOrError()).
 		Str("version", version.FullVersion())
 	if buildTime := version.BuildTime(); buildTime != "" {
 		evt = evt.Str("built", buildTime)

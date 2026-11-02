@@ -27,8 +27,9 @@ func main() {
 	convertOldStyleFlags()
 	var configFile string
 	root := &cobra.Command{
-		Use:          "pomerium",
-		Version:      fmt.Sprintf("pomerium: %s\nenvoy: %s", version.FullVersion(), files.Lockfile().Version),
+		Use: "pomerium",
+		Version: fmt.Sprintf("%s\nenvoy version %s (%s)",
+			version.FullVersion(), files.Lockfile().Version, files.EmbeddedEnvoyLicenseIdentifierOrError()),
 		SilenceUsage: true,
 	}
 	root.SetVersionTemplate(versionTemplate())
