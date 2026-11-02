@@ -2117,7 +2117,9 @@ func copyMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1
 	if len(src) == 0 {
 		return
 	}
-	*dst = make(TMap1, len(src))
+	if *dst == nil {
+		*dst = make(TMap1, len(src))
+	}
 	for k, v := range src {
 		k1, v1 := convert(k, v)
 		(*dst)[k1] = v1
