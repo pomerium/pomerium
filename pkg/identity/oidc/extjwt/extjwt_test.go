@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -177,7 +177,7 @@ func TestVerify_AlgAllowlist_ES256_OnJWKSPath(t *testing.T) {
 
 	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.ES256, Key: priv}, (&jose.SignerOptions{}).WithType("JWT"))
 	require.NoError(t, err)
-	tok, err := jwt.Signed(signer).Claims(stdClaims(issuer, "sub", "aud", time.Now())).CompactSerialize()
+	tok, err := jwt.Signed(signer).Claims(stdClaims(issuer, "sub", "aud", time.Now())).Serialize()
 	require.NoError(t, err)
 
 	t.Run("default ES256 is accepted", func(t *testing.T) {
@@ -235,7 +235,7 @@ func TestVerify_BadSignature(t *testing.T) {
 	require.NoError(t, err)
 	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.ES256, Key: attacker}, (&jose.SignerOptions{}).WithType("JWT"))
 	require.NoError(t, err)
-	tok, err := jwt.Signed(signer).Claims(stdClaims(issuer, "sub", "aud", time.Now())).CompactSerialize()
+	tok, err := jwt.Signed(signer).Claims(stdClaims(issuer, "sub", "aud", time.Now())).Serialize()
 	require.NoError(t, err)
 
 	p, err := extjwt.New(extjwt.Config{

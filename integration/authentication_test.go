@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/integration/flows"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 )
 
@@ -66,12 +67,8 @@ func getSessionCookieJWTClaims(t *testing.T, client *http.Client, u *url.URL) *j
 	t.Helper()
 	cookie := getSessionCookie(t, client, u)
 
-	token, err := jwt.ParseSigned(cookie.Value)
-	require.NoError(t, err)
-
 	var claims jwt.Claims
-	err = token.UnsafeClaimsWithoutVerification(&claims)
-	require.NoError(t, err)
+	require.NoError(t, cryptutil.UnverifiedClaims(cookie.Value, &claims))
 
 	return &claims
 }

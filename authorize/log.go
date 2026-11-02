@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -185,9 +185,8 @@ func populateLogEvent(
 		return evt
 	case logfields.AuthorizeLogFieldIDTokenClaims:
 		if s, ok := s.(*session.Session); ok {
-			if t, err := jwt.ParseSigned(s.GetIdToken().GetRaw()); err == nil {
-				var m map[string]any
-				_ = t.UnsafeClaimsWithoutVerification(&m)
+			var m map[string]any
+			if err := cryptutil.UnverifiedClaims(s.GetIdToken().GetRaw(), &m); err == nil {
 				evt = evt.Interface(string(field), m)
 			}
 		}

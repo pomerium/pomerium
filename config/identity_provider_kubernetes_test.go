@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -207,7 +207,7 @@ func (s *kubernetesAPIStub) setBearer(tok string) { s.bearer.Store(tok) }
 
 func (s *kubernetesAPIStub) signJWT(t testing.TB, claims map[string]any) string {
 	t.Helper()
-	tok, err := jwt.Signed(s.signer).Claims(claims).CompactSerialize()
+	tok, err := jwt.Signed(s.signer).Claims(claims).Serialize()
 	require.NoError(t, err)
 	return tok
 }
