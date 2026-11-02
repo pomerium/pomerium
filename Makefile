@@ -126,6 +126,7 @@ docker: build-ui ## Builds the local root image through the release Dockerfile.
 		trap 'rm -rf "$$_temp_dir"' EXIT INT TERM; \
 		GOOS=linux $(MAKE) build-go; \
 		cp "$(BINDIR)/$(NAME)" "$$_temp_dir/pomerium"; \
+    cp -R licenses "$$_temp_dir/licenses"; \
 		docker build -t pomerium/pomerium:local -f .github/Dockerfile-release "$$_temp_dir"
 
 .PHONY: docker-debug
@@ -136,6 +137,7 @@ docker-debug: build-ui ## Builds the local root debug image through the release 
 		trap 'rm -rf "$$_temp_dir"' EXIT INT TERM; \
 		GOOS=linux $(MAKE) build-go; \
 		cp "$(BINDIR)/$(NAME)" "$$_temp_dir/pomerium"; \
+    cp -R licenses "$$_temp_dir/licenses"; \
 		docker build -t pomerium/pomerium:debug-local -f .github/Dockerfile-release-debug "$$_temp_dir"
 
 .PHONY: lint
