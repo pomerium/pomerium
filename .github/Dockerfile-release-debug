@@ -20,6 +20,7 @@ RUN apt-get update \
     && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge '20250419+deb13u1' \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+COPY licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt /pomerium/LICENSE
 COPY pomerium /bin/
 RUN touch /pomerium/config.yaml
 ENTRYPOINT [ "/bin/pomerium" ]

@@ -67,9 +67,11 @@ jobs:
 
           GOOS=linux GOARCH=amd64 POMERIUM_OFFICIAL_BUILD=1 make build-go
           cp bin/pomerium dist/docker/amd64/pomerium
+          cp -R licenses dist/docker/amd64/licenses
 
           GOOS=linux GOARCH=arm64 POMERIUM_OFFICIAL_BUILD=1 make build-go
           cp bin/pomerium dist/docker/arm64/pomerium
+          cp -R licenses dist/docker/arm64/licenses
 
       - name: Docker Publish - Main AMD64
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc

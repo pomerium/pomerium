@@ -47,7 +47,8 @@ archives:
     ids:
       - pomerium
     files:
-      - none*
+      - src: licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt
+        dst: LICENSE
 
 checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"
@@ -61,12 +62,15 @@ dockers:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:amd64-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release
     use: buildx
+    extra_files: &license_files
+      - licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
       - "--provenance=false"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
@@ -78,12 +82,14 @@ dockers:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot-amd64-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-nonroot
     use: buildx
+    extra_files: *license_files
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
       - "--provenance=false"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
@@ -95,12 +101,14 @@ dockers:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-amd64-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-debug
     use: buildx
+    extra_files: *license_files
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
       - "--provenance=false"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
@@ -112,12 +120,14 @@ dockers:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot-amd64-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-debug-nonroot
     use: buildx
+    extra_files: *license_files
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
       - "--provenance=false"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
@@ -129,11 +139,13 @@ dockers:
       - "gcr.io/pomerium-io/pomerium:v{{ .Major }}.{{ .Minor }}-cloudrun"
     dockerfile: .github/Dockerfile-cloudrun
     use: buildx
+    extra_files: *license_files
     build_flag_templates:
       - "--pull"
       - "--provenance=false"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
@@ -146,12 +158,14 @@ dockers:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:arm64v8-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release
     use: buildx
+    extra_files: *license_files
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
       - "--provenance=false"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
@@ -164,12 +178,14 @@ dockers:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:nonroot-arm64v8-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-nonroot
     use: buildx
+    extra_files: *license_files
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
       - "--provenance=false"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
@@ -182,12 +198,14 @@ dockers:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-arm64v8-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-debug
     use: buildx
+    extra_files: *license_files
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
       - "--provenance=false"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
@@ -200,12 +218,14 @@ dockers:
       - "us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-nonroot-arm64v8-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-debug-nonroot
     use: buildx
+    extra_files: *license_files
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
       - "--provenance=false"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
@@ -264,7 +284,7 @@ nfpms:
     homepage: https://www.pomerium.com
     description: Identity Aware Proxy
     maintainer: Pomerium <info@pomerium.com>
-    license: LicenseRef-Pomerium-Community-Edition
+    license: LicenseRef-Pomerium-Community-Edition-1.0
     epoch: 1
     release: 1
 
@@ -279,6 +299,13 @@ nfpms:
       postinstall: ospkg/postinstall.sh
 
     contents:
+      - src: licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt
+        dst: /usr/share/pomerium/LICENSE
+
+      - src: ospkg/debian-copyright
+        dst: /usr/share/doc/pomerium/copyright
+        packager: deb
+
       - dst: /etc/pomerium
         type: dir
 
