@@ -31,6 +31,7 @@ func main() {
 		Version:      fmt.Sprintf("pomerium: %s\nenvoy: %s", version.FullVersion(), files.Lockfile().Version),
 		SilenceUsage: true,
 	}
+	root.SetVersionTemplate(versionTemplate())
 	root.AddCommand(zero_cmd.BuildRootCmd())
 	root.AddCommand(health.BuildHealthCommand())
 	root.PersistentFlags().StringVar(&configFile, "config", "", "Specify configuration file location")
@@ -87,4 +88,15 @@ func convertOldStyleFlags() {
 			os.Args[i] = "-" + arg
 		}
 	}
+}
+
+func versionTemplate() string {
+	tmpl := "{{.Version}}\n"
+	if version.IsOfficialBuild() {
+		tmpl += "Licensed under the terms of the Pomerium Community Edition License 1.0: https://github.com/pomerium/pomerium/blob/main/licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt"
+	} else {
+		tmpl += "Licensed under the terms of the Apache License 2.0: https://github.com/pomerium/pomerium/blob/main/LICENSE"
+	}
+	tmpl += "\n"
+	return tmpl
 }
