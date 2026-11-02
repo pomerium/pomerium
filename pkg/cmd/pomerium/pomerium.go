@@ -130,10 +130,13 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	ctx, p.cancel = context.WithCancelCause(ctx)
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
 
+	license, licenseURL := version.License()
 	evt := log.Ctx(ctx).Info().
 		Str("envoy-version", files.Lockfile().Version).
-		Str("license", files.EmbeddedEnvoyLicenseIdentifierOrError()).
-		Str("version", version.FullVersion())
+		Str("envoy-license", files.EmbeddedEnvoyLicenseIdentifierOrError()).
+		Str("version", version.FullVersion()).
+		Str("license", license).
+		Str("license-url", licenseURL)
 	if buildTime := version.BuildTime(); buildTime != "" {
 		evt = evt.Str("built", buildTime)
 	}
