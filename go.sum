@@ -896,8 +896,8 @@ github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRI
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pomerium/datasource v0.18.2-0.20261102131956-f088d63a45ac h1:h2T1vsPN6R9a8M2ClJ5hoN3mdtLx8pwiz8Z/zbfRvUY=
 github.com/pomerium/datasource v0.18.2-0.20261102131956-f088d63a45ac/go.mod h1:qVM21XJ/iPqBkGD6YlVRIA0vJXqXQ6TBll3fkcPAMxg=
-github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261001000628-2a7e5f0ae596 h1:toFfFbo6CcwDSWV6idgcZ7EBvF2ISN8uGTkv1XtNA9A=
-github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261001000628-2a7e5f0ae596/go.mod h1:7XX22CuI+iU8rSlMPBHwmbWrz9yvQPEhuOIJSwdKXRE=
+github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261102191522-e7b75c3a606d h1:L5p7xxVmLi7xbjhc2Ff5RP3a/m6VjBpreEkQW1V4VQ8=
+github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261102191522-e7b75c3a606d/go.mod h1:7XX22CuI+iU8rSlMPBHwmbWrz9yvQPEhuOIJSwdKXRE=
 github.com/pomerium/protoutil v0.0.0-20261023135301-1ce8ef91f9ec h1:hwY5NwGwRQAupLOTUSkQWODPO9bcTclr2HTPjtLmZK0=
 github.com/pomerium/protoutil v0.0.0-20261023135301-1ce8ef91f9ec/go.mod h1:jhc7CuszrQ7DB9w9sb4+MKaEqdDi01gizVk6Mj5lqE4=
 github.com/pomerium/webauthn v0.0.0-20261023135431-6b0074914851 h1:qTxuQGy1R1ejvfGZ8NL5bwcxmuRz6R7tgGWHudg3CWM=
