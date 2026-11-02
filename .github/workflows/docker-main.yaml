@@ -84,7 +84,8 @@ jobs:
           tags: us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-amd64
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
-            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
+            org.opencontainers.image.title=${{ steps.metadata.outputs.name }}
+            org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Docker Publish - Main ARM64
@@ -98,7 +99,8 @@ jobs:
           tags: us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-arm64v8
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
-            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
+            org.opencontainers.image.title=${{ steps.metadata.outputs.name }}
+            org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Docker Publish - Main Manifest
@@ -122,7 +124,8 @@ jobs:
           tags: us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-amd64-main
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
-            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
+            org.opencontainers.image.title=${{ steps.metadata.outputs.name }}
+            org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Docker Publish - Debug Main ARM64
@@ -136,7 +139,8 @@ jobs:
           tags: us-central1-docker.pkg.dev/pomerium-public-prd/pomerium/pomerium:debug-arm64v8-main
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
-            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
+            org.opencontainers.image.title=${{ steps.metadata.outputs.name }}
+            org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Docker Publish - Debug Main Manifest

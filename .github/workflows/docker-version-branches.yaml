@@ -25,6 +25,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
+          labels: |
+            org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1

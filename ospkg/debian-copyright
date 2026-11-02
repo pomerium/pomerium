@@ -1,0 +1,10 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: pomerium
+Upstream-Contact: Pomerium <info@pomerium.com>
+Source: https://github.com/pomerium/pomerium
+
+Files: *
+Copyright: Pomerium, Inc.
+License: LicenseRef-Pomerium-Community-Edition-1.0
+ The full text of the Pomerium Community License 1.0 can be found in
+ /usr/share/pomerium/LICENSE.

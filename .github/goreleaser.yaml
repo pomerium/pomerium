@@ -306,6 +306,11 @@ nfpms:
         dst: /usr/share/doc/pomerium/copyright
         packager: deb
 
+      - src: licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt
+        dst: /usr/share/licenses/pomerium/LICENSE
+        type: license
+        packager: rpm
+
       - dst: /etc/pomerium
         type: dir
 
