@@ -23,6 +23,7 @@ RUN apt-get update \
     && mkdir -p /data/autocert /pomerium \
     && touch /pomerium/config.yaml \
     && chown -R 65532:65532 /data /pomerium
+COPY licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt /pomerium/LICENSE
 COPY pomerium /bin/
 USER 65532:65532
 ENTRYPOINT [ "/bin/pomerium" ]

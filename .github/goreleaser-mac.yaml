@@ -34,6 +34,7 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.Timestamp={{.Timestamp}}
       - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
       - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
+      - -X github.com/pomerium/pomerium/internal/version.officialBuild=1
 
 notarize:
   macos_native:
@@ -50,7 +51,8 @@ archives:
     ids:
       - pomerium
     files:
-      - none*
+      - src: licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt
+        dst: LICENSE
 
 checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"

@@ -23,8 +23,14 @@ var (
 	// Timestamp specifies the build time, set by the compiler as UNIX timestamp.
 	Timestamp = ""
 
+	officialBuild  = "0"
 	runtimeVersion = runtime.Version()
 )
+
+// IsOfficialBuild returns true if this is an official build.
+func IsOfficialBuild() bool {
+	return officialBuild == "1"
+}
 
 func BuildTime() string {
 	tm, err := strconv.Atoi(Timestamp)

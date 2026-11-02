@@ -18,12 +18,14 @@ GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 ifneq ($(GITUNTRACKEDCHANGES),)
 	BUILDMETA := dirty
 endif
+POMERIUM_OFFICIAL_BUILD ?= 0
 CTIMEVAR = \
 	-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.Version=$(VERSION) \
 	-X $(PKG)/internal/version.BuildMeta=$(BUILDMETA) \
 	-X $(PKG)/internal/version.ProjectName=$(NAME) \
-	-X $(PKG)/internal/version.ProjectURL=$(PKG)
+	-X $(PKG)/internal/version.ProjectURL=$(PKG) \
+	-X $(PKG)/internal/version.officialBuild=$(POMERIUM_OFFICIAL_BUILD)
 
 GO ?= "go"
 GO_LDFLAGS = -ldflags "-s -w $(CTIMEVAR)"
@@ -124,6 +126,7 @@ docker: build-ui ## Builds the local root image through the release Dockerfile.
 		trap 'rm -rf "$$_temp_dir"' EXIT INT TERM; \
 		GOOS=linux $(MAKE) build-go; \
 		cp "$(BINDIR)/$(NAME)" "$$_temp_dir/pomerium"; \
+    cp -R licenses "$$_temp_dir/licenses"; \
 		docker build -t pomerium/pomerium:local -f .github/Dockerfile-release "$$_temp_dir"
 
 .PHONY: docker-debug
@@ -134,6 +137,7 @@ docker-debug: build-ui ## Builds the local root debug image through the release 
 		trap 'rm -rf "$$_temp_dir"' EXIT INT TERM; \
 		GOOS=linux $(MAKE) build-go; \
 		cp "$(BINDIR)/$(NAME)" "$$_temp_dir/pomerium"; \
+    cp -R licenses "$$_temp_dir/licenses"; \
 		docker build -t pomerium/pomerium:debug-local -f .github/Dockerfile-release-debug "$$_temp_dir"
 
 .PHONY: lint
