@@ -145,7 +145,7 @@ require (
 	golang.org/x/time v0.16.0
 	google.golang.org/api v0.299.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260921155816-b14227669459
-	google.golang.org/grpc v1.86.0-dev
+	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
 	hegel.dev/go/hegel v0.9.11
