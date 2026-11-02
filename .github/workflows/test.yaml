@@ -24,7 +24,7 @@ jobs:
           go-version-file: .tool-versions
           cache: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .tool-versions
 
@@ -78,7 +78,7 @@ jobs:
         with:
           go-version-file: .tool-versions
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .tool-versions
 
@@ -86,7 +86,7 @@ jobs:
         run: make build
 
       - name: save binary
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           path: bin/pomerium*
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
@@ -144,11 +144,11 @@ jobs:
           go-version-file: .tool-versions
           cache: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .tool-versions
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: "3.x"
 

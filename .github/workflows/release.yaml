@@ -33,7 +33,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .tool-versions
 
@@ -63,7 +63,7 @@ jobs:
         run: echo "version=v$(grep '^goreleaser ' .tool-versions | awk '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de
         with:
           version: ${{ steps.goreleaser-version.outputs.version }}
           args: >-
