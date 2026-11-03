@@ -62,7 +62,7 @@ func main() {
 func run(ctx context.Context, configFile string) error {
 	var src config.Source
 
-	src, err := config.NewFileOrEnvironmentSource(ctx, configFile)
+	src, err := config.NewFileOrEnvironmentSource(ctx, configFile, files.Lockfile().Version)
 	if err != nil {
 		return err
 	}
