@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/zero/cluster"
 	"github.com/pomerium/pomerium/pkg/zero/importutil"
 )
@@ -36,7 +37,7 @@ func BuildImportCmd() *cobra.Command {
 				return fmt.Errorf("no config file provided")
 			}
 			log.SetLevel(zerolog.ErrorLevel)
-			src, err := config.NewFileOrEnvironmentSource(cmd.Context(), configFile)
+			src, err := config.NewFileOrEnvironmentSource(cmd.Context(), configFile, files.Lockfile().Version)
 			if err != nil {
 				return err
 			}

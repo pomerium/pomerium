@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	. "github.com/pomerium/pomerium/internal/testutil/tracetest" //nolint:revive
 	"github.com/pomerium/pomerium/internal/testutil/tracetest/mock_otlptrace"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -523,7 +524,7 @@ func TestNewTraceClientFromConfig(t *testing.T) {
 			for k, v := range tc.env {
 				t.Setenv(k, v)
 			}
-			cfg, err := config.NewFileOrEnvironmentSource(t.Context(), emptyConfigFilePath)
+			cfg, err := config.NewFileOrEnvironmentSource(t.Context(), emptyConfigFilePath, version.FullVersion())
 			require.NoError(t, err)
 
 			remoteClient, err := trace.NewTraceClientFromConfig(cfg.GetConfig().Options.Tracing)
