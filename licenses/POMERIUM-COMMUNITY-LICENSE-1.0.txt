@@ -15,7 +15,7 @@ SUMMARY ONLY, AND THE DEFINITION OF "ELIGIBLE PERSON" AND "OFFICIAL BUILDS" IN
 THIS LICENSE CONTROLS.
 
 INTRODUCTORY NOTE: This license is derived from the Apache License Version 2.0
-(available at https://www.apache.org/licenses/license-2.0). However, it adds
+(available at https://www.apache.org/licenses/LICENSE-2.0). However, it adds
 conditions the Apache License does not contain, including limits on who may use
 the Official Builds, data collection, and termination. Please read this license
 carefully.
