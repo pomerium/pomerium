@@ -24,15 +24,22 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
+	envoyfiles "github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	slicesutil "github.com/pomerium/pomerium/pkg/slices"
 )
 
+const (
+	// Points to a directory that should hold extensions. They are auto-loaded.
+	envPomeriumExt = "POMERIUM_EXTENSIONS_DIR"
+)
+
 type dynamicExtension struct {
-	id   string
-	path string
+	id           string
+	path         string
+	builtVersion string
 }
 
 type extensionStatusInfo struct {
@@ -69,20 +76,37 @@ func (d *DynamicExtensionsConfig) isSessionRecordingEnabled() bool {
 	return slices.Contains(d.extensionIDs(), envoyconfig.ExtensionSSHSessionRecording)
 }
 
+// Nothing technically prevents the paths passed to configureDynamicExtensions to include multiple instances of the same extension,
+// for example when POMERIUM_EXTENSIONS_DIR is set and end-users have extensions defined in config.Options
+// (which could include config file and/or remote control planes).
+// configureDynamicExtensions explicitly guards against that scenario and prefers the version
+// built for the Envoy Pomerium is built with.
 func (srv *Server) configureDynamicExtensions(ctx context.Context, cfg *config.Config, paths []string) (*DynamicExtensionsConfig, error) {
 	out := &DynamicExtensionsConfig{}
-	extensionLoaderCfg := &dynamic_extension_loader.Config{
-		Paths:            paths,
-		ExtensionConfigs: map[string]*anypb.Any{},
-	}
+	extensions := make([]dynamicExtension, 0, len(paths))
 	for _, extPath := range paths {
-		extID, err := envoyconfig.ReadDynamicExtensionID(ctx, extPath)
+		extID, sha, err := envoyconfig.ReadDynamicExtensionID(ctx, extPath)
 		if err != nil {
 			return nil, err
 		}
-		switch extID {
+		extensions = append(extensions, dynamicExtension{
+			id:           extID,
+			path:         extPath,
+			builtVersion: sha,
+		})
+	}
+	out.extensions = deduplicateDynamicExtensions(extensions, envoyfiles.Lockfile().GitCommit())
+
+	extensionLoaderCfg := &dynamic_extension_loader.Config{
+		Paths: slicesutil.Map(out.extensions, func(ext dynamicExtension) string {
+			return ext.path
+		}),
+		ExtensionConfigs: map[string]*anypb.Any{},
+	}
+	for _, ext := range out.extensions {
+		switch ext.id {
 		case envoyconfig.ExtensionSSHSessionRecording:
-			pipes, err := srv.configureSessionRecordingExtension(ctx, cfg, extensionLoaderCfg, extID)
+			pipes, err := srv.configureSessionRecordingExtension(ctx, cfg, extensionLoaderCfg, ext.id)
 			if err != nil {
 				log.Ctx(ctx).Err(err).Msg("failed to configure ssh dynamic extension")
 				if pipes != nil {
@@ -98,16 +122,43 @@ func (srv *Server) configureDynamicExtensions(ctx context.Context, cfg *config.C
 			}
 			out.RecordingPipes = pipes
 		}
-		out.extensions = append(out.extensions, dynamicExtension{
-			id:   extID,
-			path: extPath,
-		})
 	}
 	out.DynamicExtensions = &envoy_config_core_v3.TypedExtensionConfig{
 		Name:        "envoy.bootstrap.dynamic_extension_loader",
 		TypedConfig: marshalAny(extensionLoaderCfg),
 	}
 	return out, nil
+}
+
+// deduplicateDynamicExtensions deduplicates dynamicExtensions obtained from the configured sources.
+// it selects either the version compatible with the Envoy Pomerium is built with, or the first match.
+func deduplicateDynamicExtensions(extensions []dynamicExtension, envoyVersion string) []dynamicExtension {
+	ids := make([]string, 0, len(extensions))
+	selected := make(map[string]dynamicExtension, len(extensions))
+
+	for _, ext := range extensions {
+		previous, ok := selected[ext.id]
+		if !ok {
+			// we specifically don't enforce strict sha matching from the go-side. Envoy handles this.
+			// It is useful for potentially selecting which extension is the most compatible, if multiple
+			// config sources hand the same extension (by ID) to Pomerium on different file paths.
+			ids = append(ids, ext.id)
+			selected[ext.id] = ext
+			continue
+		}
+
+		previousMatches := envoyVersion != "" && previous.builtVersion == envoyVersion
+		curMatches := envoyVersion != "" && ext.builtVersion == envoyVersion
+		if curMatches && !previousMatches {
+			selected[ext.id] = ext
+		}
+	}
+
+	deduplicated := make([]dynamicExtension, 0, len(ids))
+	for _, id := range ids {
+		deduplicated = append(deduplicated, selected[id])
+	}
+	return deduplicated
 }
 
 func (srv *Server) startDynExtHealthProbeLocked(ctx context.Context, dynCfg *DynamicExtensionsConfig) {
