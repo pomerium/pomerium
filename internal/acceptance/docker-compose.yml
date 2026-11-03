@@ -1,3 +1,16 @@
+# Shared build definition for all Pomerium instances. Every service reuses the
+# single built-from-source image (same tag), so extra instances cost ~nothing
+# (the repeated build is a full cache hit). NOTE: `<<:` merge is shallow -
+# volumes/ports/networks/healthcheck/depends_on stay per-service.
+x-pomerium: &pomerium-base
+  build:
+    context: ../..
+    dockerfile: Dockerfile
+  image: pomerium-acceptance:local
+  environment:
+    CERTIFICATE_FILE: /certs/pomerium.crt
+    CERTIFICATE_KEY_FILE: /certs/pomerium.key
+
 services:
   # Certificate generation - runs once before other services
   certs-init:
@@ -39,10 +52,7 @@ services:
 
   # Pomerium proxy (built from source)
   pomerium:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-    image: pomerium-acceptance:local
+    <<: *pomerium-base
     volumes:
       - ./certs:/certs:ro
       - ./pomerium/config.yaml:/pomerium/config.yaml:ro
@@ -55,9 +65,6 @@ services:
           - app.localhost.pomerium.io
           - admin.localhost.pomerium.io
           - mtls.localhost.pomerium.io
-    environment:
-      CERTIFICATE_FILE: /certs/pomerium.crt
-      CERTIFICATE_KEY_FILE: /certs/pomerium.key
     depends_on:
       certs-init:
         condition: service_completed_successfully
@@ -97,6 +104,92 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
+
+
+  # ===========================================================================
+  # Hosted-authenticate instances (real cloud: authenticate.pomerium.app)
+  # Started only with the "hosted" compose profile (make up-hosted /
+  # COMPOSE_PROFILES=hosted). Require outbound internet access. Each instance
+  # listens on the SAME port inside and outside the container so browser-facing
+  # and in-network URLs are identical.
+  # ===========================================================================
+
+  # NEW hosted-authenticate flow: local authenticate service, hosted service
+  # as its OIDC identity provider (idp_provider: hosted).
+  pomerium-hosted-new:
+    <<: *pomerium-base
+    profiles: ["hosted"]
+    volumes:
+      - ./certs:/certs:ro
+      - ./pomerium/config-hosted-new.yaml:/pomerium/config.yaml:ro
+    ports:
+      - "8444:8444"
+    networks:
+      default:
+        aliases:
+          - authenticate-hosted.localhost.pomerium.io
+          - verify-hosted.localhost.pomerium.io
+    depends_on:
+      certs-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://localhost:8444/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # OLD hosted-authenticate flow (stateless): the authenticate service IS the
+  # cloud service. cookie_expire is shortened to 90s for the session-timeout
+  # test - see pomerium/config-hosted-old.yaml.
+  pomerium-hosted-old:
+    <<: *pomerium-base
+    profiles: ["hosted"]
+    volumes:
+      - ./certs:/certs:ro
+      - ./pomerium/config-hosted-old.yaml:/pomerium/config.yaml:ro
+    ports:
+      - "8445:8445"
+    networks:
+      default:
+        aliases:
+          - verify-hosted-old.localhost.pomerium.io
+    depends_on:
+      certs-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://localhost:8445/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # OLD flow with a full Keycloak IdP block present: proves the hosted
+  # authenticate URL takes priority over configured IdP settings.
+  pomerium-hosted-priority:
+    <<: *pomerium-base
+    profiles: ["hosted"]
+    volumes:
+      - ./certs:/certs:ro
+      - ./pomerium/config-hosted-priority.yaml:/pomerium/config.yaml:ro
+    ports:
+      - "8446:8446"
+    networks:
+      default:
+        aliases:
+          - verify-hosted-priority.localhost.pomerium.io
+    # No keycloak dependency: in stateless mode this instance never contacts
+    # Keycloak (the IdP block is hashed into config, not dialed) - and the
+    # priority test asserts exactly that.
+    depends_on:
+      certs-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://localhost:8446/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
       start_period: 10s
 
 volumes:

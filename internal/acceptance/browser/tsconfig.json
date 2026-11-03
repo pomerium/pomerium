@@ -13,7 +13,6 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "baseUrl": ".",
     "paths": {
       "@fixtures/*": ["./fixtures/*"],
       "@helpers/*": ["./helpers/*"]
