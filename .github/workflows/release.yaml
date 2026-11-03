@@ -14,7 +14,7 @@ on:
         default: true
         type: boolean
       darwin_tag:
-        description: "Only build, sign, and upload the darwin assets of this existing release (vX.Y.Z)"
+        description: "Only build, sign, and notarize the darwin assets of this existing release (vX.Y.Z); upload them to the release unless dry-run"
         required: false
         default: ""
         type: string
@@ -208,7 +208,10 @@ jobs:
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           version: ${{ steps.goreleaser-version.outputs.version }}
-          args: release --clean --skip=before --config ${{ inputs.darwin_tag && format('{0}/goreleaser-mac.yaml', runner.temp) || '.github/goreleaser-mac.yaml' }}
+          args: >-
+            release --clean --skip=before
+            ${{ inputs.dry_run && '--snapshot' || '' }}
+            --config ${{ inputs.darwin_tag && format('{0}/goreleaser-mac.yaml', runner.temp) || '.github/goreleaser-mac.yaml' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
@@ -220,6 +223,16 @@ jobs:
       - name: Remove notarization key
         if: always()
         run: rm -f "$RUNNER_TEMP/apple-notary.p8"
+
+      - name: Upload dry-run assets
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: darwin-dry-run
+          path: |
+            dist/*.tar.gz
+            dist/*_darwin_checksums.txt
+          if-no-files-found: error
 
       - name: Find highest vX.Y.Z tag
         id: highestTag
