@@ -125,7 +125,8 @@ func TestFileOrEnvironmentSource(t *testing.T) {
 
 	newTest := func(enabled bool) func(*testing.T) {
 		return func(t *testing.T) {
-			initialConfigYaml := fmt.Sprintf(`
+			initialConfigYaml := fmt.Sprintf(
+				`
 certificate_authority_file: %s
 policy:
 - from: https://foo
@@ -144,7 +145,7 @@ runtime_flags:
 			require.NoError(t, err)
 
 			var src Source
-			src, err = NewFileOrEnvironmentSource(t.Context(), configFilePath, "")
+			src, err = NewFileOrEnvironmentSource(t.Context(), configFilePath)
 			require.NoError(t, err)
 			src = NewFileWatcherSource(t.Context(), src)
 
@@ -209,7 +210,7 @@ runtime_flags:
 		cfgFP := filepath.Join(tmp, "config.json")
 		require.NoError(t, os.WriteFile(cfgFP, []byte(`{}`), 0o600))
 
-		_, err := NewFileOrEnvironmentSource(ctx, cfgFP, "")
+		_, err := NewFileOrEnvironmentSource(ctx, cfgFP)
 		assert.NoError(t, err)
 
 		require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGHUP))
