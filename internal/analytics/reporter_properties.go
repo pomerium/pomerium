@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"math"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"slices"
@@ -43,7 +44,7 @@ func (r *reporter) CreatePosthogProperties(ctx context.Context, cfg *config.Conf
 		p.Merge(r.CreatePosthogPropertiesForMemory(info))
 	}
 	p.Merge(r.CreatePosthogPropertiesForPolicies(cfg))
-	p.Merge(r.CreatePosthogPropertiesForProduct(cfg))
+	p.Merge(r.CreatePosthogPropertiesForProduct(cfg, os.Args))
 	p.Merge(r.CreatePosthogPropertiesForRoutes(cfg))
 	p.Merge(r.CreatePosthogPropertiesForRouteSettings(cfg))
 	p.Merge(r.CreatePosthogPropertiesForRuntimeFlags(cfg))
@@ -200,13 +201,13 @@ func (r *reporter) CreatePosthogPropertiesForPolicies(cfg *config.Config) postho
 	return normalizePropertyTypes(p)
 }
 
-func (r *reporter) CreatePosthogPropertiesForProduct(cfg *config.Config) posthog.Properties {
+func (r *reporter) CreatePosthogPropertiesForProduct(cfg *config.Config, args []string) posthog.Properties {
 	p := posthog.NewProperties()
 	p["build_version"] = version.FullVersion()
 	p["envoy_version"] = cfg.EnvoyVersion
 	if cfg.ZeroClusterID != "" {
 		p["product"] = "zero"
-	} else if len(os.Args) > 0 && os.Args[0] == "manager" {
+	} else if len(args) > 0 && filepath.Base(args[0]) == "manager" {
 		p["product"] = "ingress-controller"
 	} else {
 		p["product"] = "core"
