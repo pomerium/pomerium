@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/netutil"
@@ -78,6 +79,7 @@ func New(options *Options) *Config {
 	return &Config{
 		Options:                   options,
 		EnvoyAdminInternalAddress: *netutil.NewInternalAddress(),
+		EnvoyVersion:              files.Lockfile().Version,
 	}
 }
 

@@ -106,7 +106,7 @@ type FileOrEnvironmentSource struct {
 // NewFileOrEnvironmentSource creates a new FileOrEnvironmentSource.
 func NewFileOrEnvironmentSource(
 	ctx context.Context,
-	configFile, envoyVersion string,
+	configFile string,
 ) (*FileOrEnvironmentSource, error) {
 	options, err := newOptionsFromConfig(configFile)
 	if err != nil {
@@ -114,7 +114,6 @@ func NewFileOrEnvironmentSource(
 	}
 
 	cfg := New(options)
-	cfg.EnvoyVersion = envoyVersion
 
 	ports, err := netutil.AllocatePorts(7)
 	if err != nil {
@@ -306,7 +305,8 @@ func getAllConfigFilePaths(cfg *Config) []string {
 	}
 
 	for _, policy := range cfg.Options.Policies {
-		fs = append(fs,
+		fs = append(
+			fs,
 			policy.KubernetesServiceAccountTokenFile,
 			policy.TLSClientCertFile,
 			policy.TLSClientKeyFile,
