@@ -179,12 +179,13 @@ func TestClientLookup(t *testing.T) {
 					"https://strict.example.com/nested/foo/oauth/callback",
 					"https://strict.example.com/oauth/callback",
 					"https://foo.com/oauth/callback",
+					"https://strict.example.com/oauth/callback?source=login",
 				}),
 				ClientSecret: nullable.From("foo"),
 			}),
 		},
 	})
-
+	t.Run("valid redirect_uri query param", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/oauth/callback?source=login"))
 	t.Run("valid redirect_uri nested", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/nested/foo/oauth/callback"))
 	t.Run("valid redirect_uri non-nested", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/oauth/callback"))
 	t.Run("valid redirect_uri other host", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://foo.com/oauth/callback"))
@@ -281,8 +282,10 @@ func TestClientLookup_ValidatesRedirectURI(t *testing.T) {
 	// Both the client_id and redirect_uri must be valid URLs.
 	_, err := c.Lookup("foobar", "foobar")
 	assert.ErrorContains(t, err, "invalid client_id")
-	_, err = c.Lookup("https://example.com", "https://example.com/?param")
-	assert.ErrorContains(t, err, "invalid redirect_uri")
+	_, err = c.Lookup("https://regular.example.com", "https://regular.example.com/?param")
+	assert.NoError(t, err)
+	_, err = c.Lookup("https://regular.example.com?param", "https://regular.example.com/")
+	assert.ErrorContains(t, err, "invalid client_id")
 }
 
 func TestParseURL(t *testing.T) {
@@ -292,6 +295,8 @@ func TestParseURL(t *testing.T) {
 		"https://foo.example.com/bar",
 		"https://foo.example.com/bar/",
 		"https://foo.example.com:1234/bar/",
+		"https://foo.example.com?bar",
+		"https://foo.example.com/bar?baz=qux",
 	}
 	for _, url := range okCases {
 		t.Run("ok", func(t *testing.T) {
@@ -305,16 +310,10 @@ func TestParseURL(t *testing.T) {
 		errorMsg string
 	}{
 		{"http://example.com", `URL scheme must be "https"`},
-		{"https://example.com?bar", "URL must not contain query parameters"},
 		{"https://example.com#baz", "URL must not contain a fragment"},
 		{"https://user@example.com", "URL must not contain a username or password"},
 		{"https://user:pass@example.com", "URL must not contain a username or password"},
 		{"https://example\x00.com", "invalid control character"},
-		{"https://example.com/foo?", "invalid URL path"},
-		{"https://example.com//", "invalid URL path"},
-		{"https://example.com/../relative/path", "invalid URL path"},
-		{"https://example.com/extra/./path", "invalid URL path"},
-		{"https://example.com/double//slash", "invalid URL path"},
 		{"https://*-example.com", "invalid URL hostname"},
 		{"https://underscore_in_host.com", "invalid URL hostname"},
 		{"https://[2001:db8::1]:1234/", "invalid URL hostname"},
@@ -323,6 +322,42 @@ func TestParseURL(t *testing.T) {
 		t.Run("error", func(t *testing.T) {
 			_, err := parseURL(c.url)
 			assert.ErrorContains(t, err, c.errorMsg)
+		})
+	}
+}
+
+func TestValidateClientIDURL(t *testing.T) {
+	okCases := []string{
+		"https://foo.example.com",
+		"https://foo.example.com/",
+		"https://foo.example.com/bar",
+		"https://foo.example.com/bar/",
+		"https://foo.example.com:1234/bar/",
+	}
+	for _, url := range okCases {
+		t.Run("ok", func(t *testing.T) {
+			u, err := parseURL(url)
+			require.NoError(t, err)
+			assert.NoError(t, validateClientIDURL(u))
+		})
+	}
+
+	errorCases := []struct {
+		url      string
+		errorMsg string
+	}{
+		{"https://example.com?bar", "invalid URL path"},
+		{"https://example.com/foo?", "invalid URL path"},
+		{"https://example.com//", "invalid URL path"},
+		{"https://example.com/../relative/path", "invalid URL path"},
+		{"https://example.com/extra/./path", "invalid URL path"},
+		{"https://example.com/double//slash", "invalid URL path"},
+	}
+	for _, c := range errorCases {
+		t.Run("error", func(t *testing.T) {
+			u, err := parseURL(c.url)
+			require.NoError(t, err)
+			assert.ErrorContains(t, validateClientIDURL(u), c.errorMsg)
 		})
 	}
 }

@@ -617,17 +617,23 @@ func (h *Handlers) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_request"})
 		return
 	}
-	bearerToken, hasHeader := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+
+	auth := r.Header.Get(httputil.HeaderAuthorization)
+	const prefix = "Bearer "
+	hasHeader := len(auth) > len(prefix) && strings.EqualFold(auth[:len(prefix)], prefix)
+
+	// bearerToken, hasHeader := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	bodyToken := r.PostForm.Get("access_token")
 	if hasHeader && bodyToken != "" {
 		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_request"})
 		return
 	}
-	authz := bearerToken
-	if bodyToken != "" {
+	var authz string
+	if hasHeader {
+		authz = auth[len(prefix):]
+	} else {
 		authz = bodyToken
 	}
-	log.Ctx(r.Context()).Debug()
 	if authz == "" {
 		log.Ctx(r.Context()).Info().Msg("oidc: userinfo request missing access token")
 		serveJSON(w, r, &errorResponse{ErrorCode: "invalid_request"})

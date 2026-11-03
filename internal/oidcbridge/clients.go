@@ -33,10 +33,29 @@ var urlHostnameRegexp = regexp.MustCompile("^[a-zA-Z0-9.-]+$")
 //   - have the scheme "https"
 //   - not contain a username/password
 //   - have a hostname that is plausibly a domain
-//   - not contain a query
 //   - not contain a fragment
 //   - not contain empty or relative path components
+//
+// RFC 6749 §3.1.2 indicates that encoded query parameters are acceptable.
 func parseURL(originalURL string) (*url.URL, error) {
+	u, err := url.Parse(originalURL)
+	if err != nil {
+		return nil, err
+	} else if u.Scheme != "https" {
+		return nil, fmt.Errorf(`URL scheme must be "https"`)
+	} else if u.User != nil {
+		return nil, fmt.Errorf("URL must not contain a username or password")
+	} else if !urlHostnameRegexp.MatchString(u.Hostname()) {
+		return nil, fmt.Errorf("invalid URL hostname")
+	} else if u.Fragment != "" {
+		return nil, fmt.Errorf("URL must not contain a fragment")
+	}
+	return u, nil
+}
+
+// additional validation for clientID, using path normalization.
+// no query parameters allowed.
+func validateClientIDURL(u *url.URL) error {
 	cleanPath := func(p string) string {
 		if p == "" || p == "/" {
 			return p
@@ -48,27 +67,14 @@ func parseURL(originalURL string) (*url.URL, error) {
 		return cleaned
 	}
 
-	u, err := url.Parse(originalURL)
-	if err != nil {
-		return nil, err
-	} else if u.Scheme != "https" {
-		return nil, fmt.Errorf(`URL scheme must be "https"`)
-	} else if u.User != nil {
-		return nil, fmt.Errorf("URL must not contain a username or password")
-	} else if !urlHostnameRegexp.MatchString(u.Hostname()) {
-		return nil, fmt.Errorf("invalid URL hostname")
-	} else if u.RawQuery != "" {
-		return nil, fmt.Errorf("URL must not contain query parameters")
-	} else if u.Fragment != "" {
-		return nil, fmt.Errorf("URL must not contain a fragment")
-	} else if cleaned := (&url.URL{
+	if cleaned := (&url.URL{
 		Scheme: "https",
 		Host:   u.Host,
 		Path:   cleanPath(u.Path),
-	}).String(); cleaned != originalURL {
-		return nil, fmt.Errorf("invalid URL path")
+	}).String(); cleaned != u.String() {
+		return fmt.Errorf("invalid URL path")
 	}
-	return u, nil
+	return nil
 }
 
 // ClientLookup is an indexed view of the routes with the OIDCBridge option set.
@@ -129,6 +135,9 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 	parsedClient, err := parseURL(clientID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid client_id: %w", err)
+	}
+	if err := validateClientIDURL(parsedClient); err != nil {
+		return nil, fmt.Errorf("invalid client_id : %w", err)
 	}
 	parsedRedirect, err := parseURL(redirectURI)
 	if err != nil {

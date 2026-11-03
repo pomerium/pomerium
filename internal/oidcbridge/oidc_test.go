@@ -824,7 +824,7 @@ func TestHandleUserInfo(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/oidc/userinfo", nil)
-		r.Header.Set("Authorization", "!invalid!")
+		r.Header.Set("Authorization", "Bearer !invalid!")
 		h.HandleUserInfo(w, r)
 		res := w.Result()
 		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
