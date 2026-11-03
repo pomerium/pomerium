@@ -350,6 +350,18 @@ func TestCreatePosthogPropertiesForRouteSettings(t *testing.T) {
 	})
 }
 
+func TestCreatePosthogPropertiesForProduct(t *testing.T) {
+	t.Parallel()
+	cfg := &config.Config{Options: config.NewDefaultOptions()}
+	p := New().(*reporter).CreatePosthogPropertiesForProduct(cfg, []string{"/manager"})
+	assert.Equal(t, "ingress-controller", p["product"])
+	p = New().(*reporter).CreatePosthogPropertiesForProduct(cfg, nil)
+	assert.Equal(t, "core", p["product"])
+	cfg.ZeroClusterID = "CLUSTER_ID"
+	p = New().(*reporter).CreatePosthogPropertiesForProduct(cfg, nil)
+	assert.Equal(t, "zero", p["product"])
+}
+
 func TestCreatePosthogPropertiesForRuntimeFlags(t *testing.T) {
 	t.Parallel()
 
