@@ -57,14 +57,30 @@ update-docker() {
 	popd
 }
 
+get-commit-sha() {
+	local _repo_url="${1?"repo url is required"}"
+	local _branch="${2?"branch is required"}"
+
+	require-command git
+
+	git ls-remote "$_repo_url" "refs/heads/$_branch" | awk '{print $1}'
+}
+
+go-get-direct() {
+	local _dependency="${1?"dependency is required"}"
+	local _branch="${2?"branch is required"}"
+	env GOPRIVATE="$_dependency" \
+		go get "$_dependency@$(get-commit-sha "https://$_dependency" "$_branch")"
+}
+
 update-pomerium() {
 	pushd "$_project_root"
 
 	require-command go
 
-	go get -u github.com/pomerium/datasource@main
-	go get -u github.com/pomerium/protoutil@main
-	go get -u github.com/pomerium/webauthn@main
+	go-get-direct github.com/pomerium/datasource main
+	go-get-direct github.com/pomerium/protoutil main
+	go-get-direct github.com/pomerium/webauthn main
 	go mod tidy
 
 	popd
