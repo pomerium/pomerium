@@ -82,7 +82,7 @@ require (
 	github.com/muesli/termenv v0.16.0
 	github.com/natefinch/atomic v1.0.1
 	github.com/oapi-codegen/runtime v1.8.0
-	github.com/open-policy-agent/opa v1.22.0
+	github.com/open-policy-agent/opa v1.20.2
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.16.0
@@ -265,7 +265,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v1.0.0 // indirect
-	github.com/gobwas/glob v1.0.0 // indirect
+	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/gofrs/flock v0.13.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -358,6 +358,7 @@ require (
 	github.com/pseudomuto/protoc-gen-doc v1.5.1 // indirect
 	github.com/pseudomuto/protokit v0.2.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
+	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/rs/xid v1.6.0 // indirect
@@ -380,6 +381,7 @@ require (
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/sudorandom/protoc-gen-connect-openapi v0.25.6 // indirect
+	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/tetratelabs/wazero v1.12.0 // indirect
 	github.com/tidwall/btree v1.8.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
