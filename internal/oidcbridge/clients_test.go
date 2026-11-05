@@ -51,6 +51,24 @@ func TestClientLookup(t *testing.T) {
 			assert.ErrorContains(t, err, "unknown client_id")
 		}
 	}
+	testLookupOKByRedirectURI := func(clientID, redirectURI string) func(t *testing.T) {
+		return func(t *testing.T) {
+			t.Helper()
+			info, err := c.Lookup(clientID, redirectURI)
+			assert.NoError(t, err)
+			assert.Equal(t, clientID, info.ID)
+			assert.Equal(t, redirectURI, info.RedirectURI)
+		}
+	}
+
+	testLookupInvalidRedirectURI := func(clientID, redirectURI string) func(t *testing.T) {
+		return func(t *testing.T) {
+			t.Helper()
+			info, err := c.Lookup(clientID, redirectURI)
+			assert.Nil(t, info)
+			assert.ErrorContains(t, err, "does not match allowed redirect_uris")
+		}
+	}
 
 	assert.True(t, c.Empty())
 
@@ -134,6 +152,44 @@ func TestClientLookup(t *testing.T) {
 	t.Run("non-wildcard match", testLookupOK("https://non-wildcard.example.com/path-prefix/foo-bar", "non-wildcard"))
 	t.Run("no wildcard fallthrough", testLookupNotFound("https://non-wildcard.example.com/non-matching-path"))
 	t.Run("valid wildcard", testLookupOK("https://other-wildcard.example.com/some-path", "wildcard"))
+
+	setup([]config.Policy{
+		{
+			From:   "https://non-wildcard.example.com",
+			Prefix: "/path-prefix",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("non-wildcard"),
+			}),
+		},
+		{
+			From: "https://*-wildcard.example.com",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("wildcard"),
+			}),
+		},
+	})
+	assert.False(t, c.Empty())
+
+	setup([]config.Policy{
+		{
+			From:   "https://strict.example.com",
+			Prefix: "/nested/foo",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				RedirectURIs: nullable.From([]string{
+					"https://strict.example.com/nested/foo/oauth/callback",
+					"https://strict.example.com/oauth/callback",
+					"https://foo.com/oauth/callback",
+					"https://strict.example.com/oauth/callback?source=login",
+				}),
+				ClientSecret: nullable.From("foo"),
+			}),
+		},
+	})
+	t.Run("valid redirect_uri query param", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/oauth/callback?source=login"))
+	t.Run("valid redirect_uri nested", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/nested/foo/oauth/callback"))
+	t.Run("valid redirect_uri non-nested", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/oauth/callback"))
+	t.Run("valid redirect_uri other host", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://foo.com/oauth/callback"))
+	t.Run("invalid redirect_uri", testLookupInvalidRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/nested/foo/auth/callback"))
 }
 
 func TestClientLookup_ValidatesRedirectURI(t *testing.T) {
@@ -226,8 +282,10 @@ func TestClientLookup_ValidatesRedirectURI(t *testing.T) {
 	// Both the client_id and redirect_uri must be valid URLs.
 	_, err := c.Lookup("foobar", "foobar")
 	assert.ErrorContains(t, err, "invalid client_id")
-	_, err = c.Lookup("https://example.com", "https://example.com/?param")
-	assert.ErrorContains(t, err, "invalid redirect_uri")
+	_, err = c.Lookup("https://regular.example.com", "https://regular.example.com/?param")
+	assert.NoError(t, err)
+	_, err = c.Lookup("https://regular.example.com?param", "https://regular.example.com/")
+	assert.ErrorContains(t, err, "invalid client_id")
 }
 
 func TestParseURL(t *testing.T) {
@@ -237,6 +295,8 @@ func TestParseURL(t *testing.T) {
 		"https://foo.example.com/bar",
 		"https://foo.example.com/bar/",
 		"https://foo.example.com:1234/bar/",
+		"https://foo.example.com?bar",
+		"https://foo.example.com/bar?baz=qux",
 	}
 	for _, url := range okCases {
 		t.Run("ok", func(t *testing.T) {
@@ -250,16 +310,10 @@ func TestParseURL(t *testing.T) {
 		errorMsg string
 	}{
 		{"http://example.com", `URL scheme must be "https"`},
-		{"https://example.com?bar", "URL must not contain query parameters"},
 		{"https://example.com#baz", "URL must not contain a fragment"},
 		{"https://user@example.com", "URL must not contain a username or password"},
 		{"https://user:pass@example.com", "URL must not contain a username or password"},
 		{"https://example\x00.com", "invalid control character"},
-		{"https://example.com/foo?", "invalid URL path"},
-		{"https://example.com//", "invalid URL path"},
-		{"https://example.com/../relative/path", "invalid URL path"},
-		{"https://example.com/extra/./path", "invalid URL path"},
-		{"https://example.com/double//slash", "invalid URL path"},
 		{"https://*-example.com", "invalid URL hostname"},
 		{"https://underscore_in_host.com", "invalid URL hostname"},
 		{"https://[2001:db8::1]:1234/", "invalid URL hostname"},
@@ -270,4 +324,57 @@ func TestParseURL(t *testing.T) {
 			assert.ErrorContains(t, err, c.errorMsg)
 		})
 	}
+}
+
+func TestValidateClientIDURL(t *testing.T) {
+	okCases := []string{
+		"https://foo.example.com",
+		"https://foo.example.com/",
+		"https://foo.example.com/bar",
+		"https://foo.example.com/bar/",
+		"https://foo.example.com:1234/bar/",
+	}
+	for _, url := range okCases {
+		t.Run("ok", func(t *testing.T) {
+			u, err := parseURL(url)
+			require.NoError(t, err)
+			assert.NoError(t, validateClientIDURL(u))
+		})
+	}
+
+	errorCases := []struct {
+		url      string
+		errorMsg string
+	}{
+		{"https://example.com?bar", "invalid URL path"},
+		{"https://example.com/foo?", "invalid URL path"},
+		{"https://example.com//", "invalid URL path"},
+		{"https://example.com/../relative/path", "invalid URL path"},
+		{"https://example.com/extra/./path", "invalid URL path"},
+		{"https://example.com/double//slash", "invalid URL path"},
+	}
+	for _, c := range errorCases {
+		t.Run("error", func(t *testing.T) {
+			u, err := parseURL(c.url)
+			require.NoError(t, err)
+			assert.ErrorContains(t, validateClientIDURL(u), c.errorMsg)
+		})
+	}
+}
+
+func TestDefaultRedirectAfterProtoRoundTrip(t *testing.T) {
+	o := exampleConfig()
+	pb, err := o.Routes[0].ToProto()
+	require.NoError(t, err)
+	p, err := config.NewPolicyFromProto(pb)
+	require.NoError(t, err)
+	o.Routes = []config.Policy{*p}
+	var c ClientLookup
+	c.buildForConfig(o)
+	_, err = c.Lookup(
+		"https://pkce.example.com",
+		"https://pkce.example.com/callback",
+	)
+	// default redirect should fallback to subpaths.
+	require.NoError(t, err)
 }

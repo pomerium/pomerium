@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/pomerium/pomerium/config"
@@ -32,10 +33,29 @@ var urlHostnameRegexp = regexp.MustCompile("^[a-zA-Z0-9.-]+$")
 //   - have the scheme "https"
 //   - not contain a username/password
 //   - have a hostname that is plausibly a domain
-//   - not contain a query
 //   - not contain a fragment
 //   - not contain empty or relative path components
+//
+// RFC 6749 §3.1.2 indicates that encoded query parameters are acceptable.
 func parseURL(originalURL string) (*url.URL, error) {
+	u, err := url.Parse(originalURL)
+	if err != nil {
+		return nil, err
+	} else if u.Scheme != "https" {
+		return nil, fmt.Errorf(`URL scheme must be "https"`)
+	} else if u.User != nil {
+		return nil, fmt.Errorf("URL must not contain a username or password")
+	} else if !urlHostnameRegexp.MatchString(u.Hostname()) {
+		return nil, fmt.Errorf("invalid URL hostname")
+	} else if u.Fragment != "" {
+		return nil, fmt.Errorf("URL must not contain a fragment")
+	}
+	return u, nil
+}
+
+// additional validation for clientID, using path normalization.
+// no query parameters allowed.
+func validateClientIDURL(u *url.URL) error {
 	cleanPath := func(p string) string {
 		if p == "" || p == "/" {
 			return p
@@ -47,27 +67,14 @@ func parseURL(originalURL string) (*url.URL, error) {
 		return cleaned
 	}
 
-	u, err := url.Parse(originalURL)
-	if err != nil {
-		return nil, err
-	} else if u.Scheme != "https" {
-		return nil, fmt.Errorf(`URL scheme must be "https"`)
-	} else if u.User != nil {
-		return nil, fmt.Errorf("URL must not contain a username or password")
-	} else if !urlHostnameRegexp.MatchString(u.Hostname()) {
-		return nil, fmt.Errorf("invalid URL hostname")
-	} else if u.RawQuery != "" {
-		return nil, fmt.Errorf("URL must not contain query parameters")
-	} else if u.Fragment != "" {
-		return nil, fmt.Errorf("URL must not contain a fragment")
-	} else if cleaned := (&url.URL{
+	if cleaned := (&url.URL{
 		Scheme: "https",
 		Host:   u.Host,
 		Path:   cleanPath(u.Path),
-	}).String(); cleaned != originalURL {
-		return nil, fmt.Errorf("invalid URL path")
+	}).String(); cleaned != u.String() {
+		return fmt.Errorf("invalid URL path")
 	}
-	return u, nil
+	return nil
 }
 
 // ClientLookup is an indexed view of the routes with the OIDCBridge option set.
@@ -129,14 +136,13 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 	if err != nil {
 		return nil, fmt.Errorf("invalid client_id: %w", err)
 	}
+	if err := validateClientIDURL(parsedClient); err != nil {
+		return nil, fmt.Errorf("invalid client_id : %w", err)
+	}
 	parsedRedirect, err := parseURL(redirectURI)
 	if err != nil {
 		return nil, fmt.Errorf("invalid redirect_uri: %w", err)
 	}
-	if !redirectURIMatches(parsedClient, parsedRedirect) {
-		return nil, fmt.Errorf("redirect_uri %q does not match client_id %q", redirectURI, clientID)
-	}
-
 	var routesToScan []*config.Policy
 	if routes, ok := c.nonWildcardRoutes[parsedClient.Host]; ok {
 		routesToScan = routes
@@ -145,23 +151,38 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 	}
 	for _, r := range routesToScan {
 		clientMatches := r.Matches(parsedClient, false)
-		redirectMatches := r.Matches(parsedRedirect, false)
-		if clientMatches && redirectMatches {
-			info := ClientInfo{
-				ID:          clientID,
-				RedirectURI: redirectURI,
-			}
-			oidcBridge := c.globalOptions.GetOIDCBridgeForPolicy(r)
-			if oidcBridge.ClientSecret.IsSet {
-				// Store a hash of the explicit client_secret, so we can perform
-				// a constant-time string comparison during verification.
-				hash := sha256.Sum256([]byte(oidcBridge.ClientSecret.Value))
-				info.SecretHash = hash[:]
-			}
-			return &info, nil
-		} else if clientMatches || redirectMatches {
-			return nil, fmt.Errorf("redirect_uri %q does not match client_id route", redirectURI)
+		if !clientMatches {
+			continue
 		}
+		info := ClientInfo{
+			ID:          clientID,
+			RedirectURI: redirectURI,
+		}
+		oidcBridge := c.globalOptions.GetOIDCBridgeForPolicy(r)
+		if oidcBridge.ClientSecret.IsSet {
+			// Store a hash of the explicit client_secret, so we can perform
+			// a constant-time string comparison during verification.
+			hash := sha256.Sum256([]byte(oidcBridge.ClientSecret.Value))
+			info.SecretHash = hash[:]
+		}
+
+		// Checking IsSet=true is wrong here, since proto conversion sets it to true
+		if len(oidcBridge.RedirectURIs.Value) > 0 {
+			// OpenId Connect Core §3.1.2.1, registered redirect_uri validation.
+			if slices.Contains(oidcBridge.RedirectURIs.Value, info.RedirectURI) {
+				return &info, nil
+			}
+			return nil, fmt.Errorf("redirect_uri %s does not match allowed redirect_uris", info.RedirectURI)
+		}
+
+		// default fallback : any subpath of the parsedClient is accepted
+		if !r.Matches(parsedRedirect, false) {
+			return nil, fmt.Errorf("redirect_uri %s does not match client_id %s", redirectURI, clientID)
+		}
+		if !redirectURIMatches(parsedClient, parsedRedirect) {
+			return nil, fmt.Errorf("redirect_uri %s does not match client_id %s", redirectURI, clientID)
+		}
+		return &info, nil
 	}
 	return nil, errors.New("unknown client_id")
 }

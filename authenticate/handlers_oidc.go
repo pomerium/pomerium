@@ -13,7 +13,7 @@ import (
 
 func (a *Authenticate) mountOIDCBridgeHandlers(r *mux.Router) {
 	r.Path(endpoints.PathOIDCToken).Methods(http.MethodPost).Handler(a.wrapOIDCBridgeHandler((*oidcbridge.Handlers).HandleToken))
-	r.Path(endpoints.PathOIDCUserInfo).Methods(http.MethodGet).Handler(a.wrapOIDCBridgeHandler((*oidcbridge.Handlers).HandleUserInfo))
+	r.Path(endpoints.PathOIDCUserInfo).Methods(http.MethodGet, http.MethodPost).Handler(a.wrapOIDCBridgeHandler((*oidcbridge.Handlers).HandleUserInfo))
 	r.Path(endpoints.PathOIDCJWKS).Methods(http.MethodGet).Handler(a.wrapOIDCBridgeHandler((*oidcbridge.Handlers).HandleJWKS))
 	r.Path(endpoints.PathWellKnownOpenIDConfiguration).Methods(http.MethodGet).Handler(a.wrapOIDCBridgeHandler((*oidcbridge.Handlers).HandleOIDCConfiguration))
 
