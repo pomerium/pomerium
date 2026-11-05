@@ -13,7 +13,7 @@
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@playwright/test": "^1.64.1",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "testcontainers": "^12.2.1",
     "typescript": "^7.0.2"
   },
