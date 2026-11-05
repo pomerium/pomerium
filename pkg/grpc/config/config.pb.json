@@ -6972,6 +6972,42 @@
               "defaultValue": ""
             },
             {
+              "name": "outbound_http_proxy",
+              "description": "Web proxy URL for Pomerium's own outbound plain-HTTP (http://) requests.\nSame format as the HTTP_PROXY environment variable; a value without a\nscheme is an http:// proxy. Supported schemes: http, https, socks5,\nsocks5h. If any outbound proxy setting is set, even to an empty value,\nthe outbound proxy settings replace the HTTP_PROXY, HTTPS_PROXY and\nNO_PROXY environment variables. Changes apply without a restart.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_outbound_http_proxy",
+              "defaultValue": ""
+            },
+            {
+              "name": "outbound_https_proxy",
+              "description": "Web proxy URL for Pomerium's own outbound HTTPS requests (e.g. to the\nidentity provider). Same format as the HTTPS_PROXY environment variable.\nSee outbound_http_proxy for how these settings replace the environment\nvariables.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_outbound_https_proxy",
+              "defaultValue": ""
+            },
+            {
+              "name": "outbound_no_proxy",
+              "description": "Comma-separated host names, domain suffixes (.example.com), IP\naddresses, CIDR ranges, or \"*\" that bypass the outbound proxy. Same\nsemantics as the NO_PROXY environment variable. See outbound_http_proxy\nfor how these settings replace the environment variables.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_outbound_no_proxy",
+              "defaultValue": ""
+            },
+            {
               "name": "derive_tls",
               "description": "Base hostname Pomerium uses to derive default TLS certificates for\nroutes. Empty disables derivation.",
               "label": "optional",

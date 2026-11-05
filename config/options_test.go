@@ -100,6 +100,13 @@ func Test_Validate(t *testing.T) {
 	goodAuthorizeLogFields.AuthorizeLogFields = []logfields.AuthorizeLogField{"request-id"}
 	badAuthorizeLogFields := testOptions()
 	badAuthorizeLogFields.AuthorizeLogFields = []logfields.AuthorizeLogField{"zzzzzzzzzzz"}
+	goodOutboundProxy := testOptions()
+	goodOutboundProxy.OutboundHttpProxy = nullable.From("proxy.example:3128")
+	goodOutboundProxy.OutboundHttpsProxy = nullable.From("http://user:pass@proxy.example:3128")
+	badOutboundHTTPProxy := testOptions()
+	badOutboundHTTPProxy.OutboundHttpProxy = nullable.From("http://[::1")
+	badOutboundHTTPSProxy := testOptions()
+	badOutboundHTTPSProxy.OutboundHttpsProxy = nullable.From("http://[::1")
 
 	tests := []struct {
 		name     string
@@ -121,6 +128,9 @@ func Test_Validate(t *testing.T) {
 		{"bad access log field", badAccessLogFields, false},
 		{"good authorize log field", goodAuthorizeLogFields, false},
 		{"bad authorize log field", badAuthorizeLogFields, false},
+		{"good outbound proxy", goodOutboundProxy, false},
+		{"bad outbound http proxy", badOutboundHTTPProxy, true},
+		{"bad outbound https proxy", badOutboundHTTPSProxy, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

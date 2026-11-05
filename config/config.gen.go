@@ -153,6 +153,9 @@ type GlobalOptions struct {
 	NormalizePath                      Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
 	OidcBridge                         Value[OIDCBridge]                            `json:"oidc_bridge,omitzero" mapstructure:"oidc_bridge" yaml:"oidc_bridge,omitempty"`
 	OriginatorID                       Value[string]                                `json:"originator_id,omitzero" mapstructure:"originator_id" yaml:"originator_id,omitempty"`
+	OutboundHttpProxy                  Value[string]                                `json:"outbound_http_proxy,omitzero" mapstructure:"outbound_http_proxy" yaml:"outbound_http_proxy,omitempty"`
+	OutboundHttpsProxy                 Value[string]                                `json:"outbound_https_proxy,omitzero" mapstructure:"outbound_https_proxy" yaml:"outbound_https_proxy,omitempty"`
+	OutboundNoProxy                    Value[string]                                `json:"outbound_no_proxy,omitzero" mapstructure:"outbound_no_proxy" yaml:"outbound_no_proxy,omitempty"`
 	PathWithEscapedSlashesAction       Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
 	ReadonlyConsoleAudiences           Value[[]string]                              `json:"readonly_console_audiences,omitzero" mapstructure:"readonly_console_audiences" yaml:"readonly_console_audiences,omitempty"`
 	SessionRecordingConcurrency        Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
@@ -648,6 +651,9 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.NormalizePath, src.NormalizePath),
 		setNullableOIDCBridgeFromProto(&dst.OidcBridge, src.OidcBridge),
 		setNullableStringFromProto(&dst.OriginatorID, src.OriginatorId),
+		setNullableStringFromProto(&dst.OutboundHttpProxy, src.OutboundHttpProxy),
+		setNullableStringFromProto(&dst.OutboundHttpsProxy, src.OutboundHttpsProxy),
+		setNullableStringFromProto(&dst.OutboundNoProxy, src.OutboundNoProxy),
 		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableStringListFromProto(&dst.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
@@ -1223,6 +1229,9 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.NormalizePath, src.NormalizePath),
 		setNullableOIDCBridgeToProto(&obj.OidcBridge, src.OidcBridge),
 		setNullableStringToProto(&obj.OriginatorId, src.OriginatorID),
+		setNullableStringToProto(&obj.OutboundHttpProxy, src.OutboundHttpProxy),
+		setNullableStringToProto(&obj.OutboundHttpsProxy, src.OutboundHttpsProxy),
+		setNullableStringToProto(&obj.OutboundNoProxy, src.OutboundNoProxy),
 		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableStringListToProto(&obj.ReadonlyConsoleAudiences, src.ReadonlyConsoleAudiences),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
