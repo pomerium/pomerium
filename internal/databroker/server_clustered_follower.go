@@ -24,12 +24,13 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 )
 
 var (
-	errClusteredFollowerServerStopped = errors.New("stopped")
-	errClusteredFollowerNeedsReset    = errors.New("needs reset")
+	errClusteredFollowerServerStopped = status.Error(codes.Canceled, "stopped")
+	errClusteredFollowerNeedsReset    = status.Error(codes.Aborted, "needs reset")
 )
 
 type clusteredFollowerServer struct {
@@ -38,6 +39,7 @@ type clusteredFollowerServer struct {
 	leader    Server
 	local     Server
 
+	cancelCtx        context.Context
 	cancel           context.CancelCauseFunc
 	done             chan struct{}
 	extraHealthAttrs []health.Attr
@@ -75,9 +77,8 @@ func NewClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local S
 		done:             make(chan struct{}, 1),
 		extraHealthAttrs: options.extraHealthAttrs,
 	}
-	ctx := context.Background()
-	ctx, srv.cancel = context.WithCancelCause(ctx)
-	go srv.run(ctx)
+	srv.cancelCtx, srv.cancel = context.WithCancelCause(context.Background())
+	go srv.run(srv.cancelCtx)
 	return srv
 }
 
@@ -203,19 +204,25 @@ func (srv *clusteredFollowerServer) SetOptions(ctx context.Context, req *databro
 
 func (srv *clusteredFollowerServer) Sync(req *databrokerpb.SyncRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncResponse]) error {
 	return srv.invokeReadOnly(stream.Context(), func(handler Server) error {
-		return handler.Sync(req, stream)
+		return grpcutil.HandleServerStreamingServerWithContext(srv.cancelCtx, stream, func(stream grpc.ServerStreamingServer[databrokerpb.SyncResponse]) error {
+			return handler.Sync(req, stream)
+		})
 	})
 }
 
 func (srv *clusteredFollowerServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
 	return srv.invokeReadOnly(stream.Context(), func(handler Server) error {
-		return handler.SyncLatest(req, stream)
+		return grpcutil.HandleServerStreamingServerWithContext(srv.cancelCtx, stream, func(stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
+			return handler.SyncLatest(req, stream)
+		})
 	})
 }
 
 func (srv *clusteredFollowerServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
 	return srv.invokeReadOnly(stream.Context(), func(handler Server) error {
-		return handler.Watch(req, stream)
+		return grpcutil.HandleServerStreamingServerWithContext(srv.cancelCtx, stream, func(stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
+			return handler.Watch(req, stream)
+		})
 	})
 }
 
