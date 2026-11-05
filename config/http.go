@@ -3,9 +3,11 @@ package config
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"net"
 	"net/http"
-	"sync"
+	"sync/atomic"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/tripper"
@@ -15,21 +17,12 @@ import (
 // NewHTTPTransport creates a new http transport. If CA or CAFile is set, the transport will
 // add the CA to system cert pool.
 func NewHTTPTransport(src Source) *http.Transport {
-	var (
-		lock      sync.Mutex
-		tlsConfig *tls.Config
-	)
+	var rootCAs atomic.Pointer[x509.CertPool]
 	update := func(ctx context.Context, cfg *Config) {
-		rootCAs, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
-		if err == nil {
-			lock.Lock()
-			tlsConfig = &tls.Config{
-				RootCAs:    rootCAs,
-				MinVersion: tls.VersionTLS12,
-			}
-			lock.Unlock()
-		} else {
+		if pool, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("config: error getting cert pool")
+		} else {
+			rootCAs.Store(pool)
 		}
 	}
 	src.OnConfigChange(context.Background(), update)
@@ -37,15 +30,53 @@ func NewHTTPTransport(src Source) *http.Transport {
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		lock.Lock()
-		d := &tls.Dialer{
-			Config: tlsConfig,
-		}
-		lock.Unlock()
+		d := &tls.Dialer{Config: &tls.Config{
+			RootCAs:    rootCAs.Load(),
+			MinVersion: tls.VersionTLS12,
+		}}
 		return d.DialContext(ctx, network, addr)
+	}
+	// Through a proxy, the TLS handshake with the origin uses TLSClientConfig
+	// rather than DialTLSContext. The CA pool can change with the config, so
+	// the server certificate is verified against the current pool here.
+	transport.TLSClientConfig = &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true, // verified by VerifyConnection
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			return verifyServerCertificate(cs, rootCAs.Load())
+		},
 	}
 	transport.ForceAttemptHTTP2 = true
 	return transport
+}
+
+// verifyServerCertificate verifies the server certificate chain against
+// rootCAs and the server name, like crypto/tls does when InsecureSkipVerify is
+// false. cs.ServerName is the SNI, which is empty when the server is addressed
+// by IP, so such servers are rejected rather than accepted without a name
+// check.
+func verifyServerCertificate(cs tls.ConnectionState, rootCAs *x509.CertPool) error {
+	if len(cs.PeerCertificates) == 0 {
+		return errors.New("tls: server presented no certificates")
+	}
+	var err error
+	if cs.ServerName == "" {
+		err = errors.New("cannot verify a server addressed by IP through a proxy")
+	} else {
+		intermediates := x509.NewCertPool()
+		for _, cert := range cs.PeerCertificates[1:] {
+			intermediates.AddCert(cert)
+		}
+		_, err = cs.PeerCertificates[0].Verify(x509.VerifyOptions{
+			DNSName:       cs.ServerName,
+			Roots:         rootCAs,
+			Intermediates: intermediates,
+		})
+	}
+	if err != nil {
+		return &tls.CertificateVerificationError{UnverifiedCertificates: cs.PeerCertificates, Err: err}
+	}
+	return nil
 }
 
 // NewPolicyHTTPTransport creates a new http RoundTripper for a policy.
