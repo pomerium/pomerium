@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -51,7 +51,7 @@ func TestVerifyIdentityToken(t *testing.T) {
 		"sub": "subject",
 		"exp": exp,
 		"iat": iat,
-	}).CompactSerialize()
+	}).Serialize()
 	require.NoError(t, err)
 
 	p, err := apple.New(ctx, &oauth.Options{
@@ -88,7 +88,7 @@ func TestRefresh_WithIDToken(t *testing.T) {
 		Audience: jwt.Audience{"CLIENT_ID"},
 		Expiry:   jwt.NewNumericDate(exp),
 		IssuedAt: jwt.NewNumericDate(iat),
-	}).CompactSerialize()
+	}).Serialize()
 	require.NoError(t, err)
 
 	m := http.NewServeMux()

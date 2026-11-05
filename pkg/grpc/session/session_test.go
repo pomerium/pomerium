@@ -209,7 +209,7 @@ func TestParseIDToken(t *testing.T) {
 	parsed, err = ParseIDToken("not a valid JWT")
 	require.Nil(t, parsed)
 	require.ErrorContains(t, err, "compact JWS format must have three parts")
-	parsed, err = ParseIDToken("e30.ImZvbyI.e30")
+	parsed, err = ParseIDToken("eyJhbGciOiJSUzI1NiJ9.ImZvbyI.e30")
 	require.Nil(t, parsed)
 	require.ErrorContains(t, err, "cannot unmarshal string")
 
@@ -228,7 +228,7 @@ func TestParseIDToken(t *testing.T) {
 	require.NoError(t, err)
 
 	// Attach a dummy header and signature (these aren't validated) to form an example token.
-	idToken := "e30." + base64.RawURLEncoding.EncodeToString(claimsJSON) + ".e30"
+	idToken := "eyJhbGciOiJSUzI1NiJ9." + base64.RawURLEncoding.EncodeToString(claimsJSON) + ".e30"
 
 	parsed, err = ParseIDToken(idToken)
 	assert.NoError(t, err)

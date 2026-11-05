@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -50,7 +50,7 @@ func TestVerifyAccessToken(t *testing.T) {
 		"sub": "subject",
 		"exp": exp,
 		"iat": iat,
-	}).CompactSerialize()
+	}).Serialize()
 	require.NoError(t, err)
 	rawAccessToken2, err := jwt.Signed(jwtSigner).Claims(map[string]any{
 		"iss": "https://sts.windows.net/323b4000-7ad7-4ed3-9f4e-adee06ee8bbe/",
@@ -58,7 +58,7 @@ func TestVerifyAccessToken(t *testing.T) {
 		"sub": "subject",
 		"exp": exp,
 		"iat": iat,
-	}).CompactSerialize()
+	}).Serialize()
 	require.NoError(t, err)
 
 	var srvURL string

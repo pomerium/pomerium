@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -216,13 +216,8 @@ func (p *Proxy) redirectToAuthenticate(
 // userInfoFromJWT extracts user info claims from the Pomerium JWT. Returns nil
 // if the JWT could not be parsed or if it does not contain a subject.
 func userInfoFromJWT(rawJWT string) map[string]any {
-	parsed, err := jwt.ParseSigned(rawJWT)
-	if err != nil {
-		return nil
-	}
-
 	var payload map[string]any
-	if parsed.UnsafeClaimsWithoutVerification(&payload) != nil {
+	if cryptutil.UnverifiedClaims(rawJWT, &payload) != nil {
 		return nil
 	} else if sub, ok := payload["sub"].(string); !ok || sub == "" {
 		return nil

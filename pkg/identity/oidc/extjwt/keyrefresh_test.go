@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -70,7 +70,7 @@ func (r *rotatableJWKS) sign(t *testing.T, issuer, sub, aud string) string {
 	tok, err := jwt.Signed(signer).Claims(map[string]any{
 		"iss": issuer, "sub": sub, "aud": []string{aud},
 		"exp": now.Add(time.Hour).Unix(), "iat": now.Unix(), "nbf": now.Unix(),
-	}).CompactSerialize()
+	}).Serialize()
 	require.NoError(t, err)
 	return tok
 }

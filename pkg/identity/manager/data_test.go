@@ -10,8 +10,8 @@ import (
 	"time"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -125,7 +125,7 @@ func TestSession_RefreshUpdate(t *testing.T) {
 	}
 	jwtSigner, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: privateKey}, nil)
 	require.NoError(t, err)
-	rawIDToken, err := jwt.Signed(jwtSigner).Claims(payload).CompactSerialize()
+	rawIDToken, err := jwt.Signed(jwtSigner).Claims(payload).Serialize()
 	require.NoError(t, err)
 
 	keySet := &go_oidc.StaticKeySet{PublicKeys: []crypto.PublicKey{privateKey.Public()}}
