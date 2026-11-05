@@ -8,6 +8,7 @@ import (
 	"time"
 
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -17,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func policyNameFunc() func(*config.Policy) string {
@@ -2560,4 +2562,90 @@ func Test_setHostRewriteOptions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_statefulSessionFilterEnabledForConsoleRoutes(t *testing.T) {
+	t.Parallel()
+
+	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
+	t.Run("audiences not set", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                      "https://console.example.com",
+					To:                        mustParseWeightedURLs(t, "https://console-int.example.com:8701"),
+					AllowAnyAuthenticatedUser: true,
+					PassIdentityHeaders:       new(true),
+				},
+			},
+		}), "console.example.com")
+		require.NoError(t, err)
+
+		var extAuthzConfig envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute
+		require.NoError(t, routes[0].TypedPerFilterConfig[PerFilterConfigExtAuthzName].UnmarshalTo(&extAuthzConfig))
+		assert.NotContains(t, extAuthzConfig.GetCheckSettings().GetContextExtensions(), "console")
+		for _, h := range routes[0].RequestHeadersToAdd {
+			assert.NotEqual(t, "x-pomerium-upstream-cluster", h.Header.Key)
+		}
+	})
+
+	t.Run("audiences set", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                      "https://console.example.com",
+					To:                        mustParseWeightedURLs(t, "https://console-int.example.com:8701"),
+					AllowAnyAuthenticatedUser: true,
+					PassIdentityHeaders:       new(true),
+				},
+			},
+			ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
+		}), "console.example.com")
+		require.NoError(t, err)
+
+		var extAuthzConfig envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute
+		require.NoError(t, routes[0].TypedPerFilterConfig[PerFilterConfigExtAuthzName].UnmarshalTo(&extAuthzConfig))
+		assert.Equal(t, "true", extAuthzConfig.GetCheckSettings().GetContextExtensions()["console"])
+
+		found := false
+		for _, h := range routes[0].RequestHeadersToAdd {
+			if h.Header.Key == "x-pomerium-upstream-cluster" {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "x-pomerium-upstream-cluster not found in request_headers_to_add")
+	})
+
+	t.Run("non-matching routes with audiences set", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                      "https://not-console.example.com",
+					To:                        mustParseWeightedURLs(t, "https://console-int.example.com:8701"),
+					AllowAnyAuthenticatedUser: true,
+					PassIdentityHeaders:       new(true),
+				},
+			},
+			ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
+		}), "not-console.example.com")
+		require.NoError(t, err)
+
+		var extAuthzConfig envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute
+		require.NoError(t, routes[0].TypedPerFilterConfig[PerFilterConfigExtAuthzName].UnmarshalTo(&extAuthzConfig))
+		assert.NotContains(t, extAuthzConfig.GetCheckSettings().GetContextExtensions(), "console")
+
+		for _, h := range routes[0].RequestHeadersToAdd {
+			assert.NotEqual(t, "x-pomerium-upstream-cluster", h.Header.Key)
+		}
+	})
 }
