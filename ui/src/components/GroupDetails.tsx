@@ -1,14 +1,10 @@
-import {
-  Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import Alert from "@mui/material/Alert";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 
 import type { Group } from "../types";
 import IDField from "./IDField";
@@ -18,10 +14,7 @@ export type GroupDetailsProps = {
   isEnterprise?: boolean;
   groups?: Group[];
 };
-export const GroupDetails: FC<GroupDetailsProps> = ({
-  isEnterprise,
-  groups,
-}) => {
+export default function GroupDetails({ isEnterprise, groups }: GroupDetailsProps) {
   return (
     <Section title="Groups">
       {isEnterprise ? (
@@ -48,13 +41,9 @@ export const GroupDetails: FC<GroupDetailsProps> = ({
       ) : (
         <Alert severity="info">
           Groups via directory sync are available in{" "}
-          <a href="https://www.pomerium.com/enterprise-sales/">
-            Pomerium Enterprise
-          </a>
-          .
+          <a href="https://www.pomerium.com/enterprise-sales/">Pomerium Enterprise</a>.
         </Alert>
       )}
     </Section>
   );
-};
-export default GroupDetails;
+}

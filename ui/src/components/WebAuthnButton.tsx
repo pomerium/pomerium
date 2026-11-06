@@ -1,7 +1,7 @@
-import type { ButtonProps } from "@mui/material";
-import { Button } from "@mui/material";
-import type { FC } from "react";
-import React, { useRef, useState } from "react";
+import type { ButtonProps } from "@mui/material/Button";
+import Button from "@mui/material/Button";
+import type { MouseEvent } from "react";
+import { useRef, useState } from "react";
 
 import AlertDialog from "./AlertDialog";
 
@@ -12,19 +12,19 @@ export type WebAuthnButtonProps = Omit<ButtonProps, "action"> & {
   text: string;
   url: string;
 };
-export const WebAuthnButton: FC<WebAuthnButtonProps> = ({
+export default function WebAuthnButton({
   action,
   enable,
   onClick,
   text,
   url,
   ...props
-}) => {
+}: WebAuthnButtonProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const responseRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function handleClickButton(evt: React.MouseEvent): void {
+  function handleClickButton(evt: MouseEvent): void {
     evt.preventDefault();
 
     void (async () => {
@@ -39,19 +39,14 @@ export const WebAuthnButton: FC<WebAuthnButtonProps> = ({
       }
     })();
   }
-  function handleClickDialogOK(evt: React.MouseEvent): void {
+  function handleClickDialogOK(evt: MouseEvent): void {
     evt.preventDefault();
     setError(null);
   }
 
   return (
     <>
-      <Button
-        onClick={handleClickButton}
-        variant="contained"
-        disabled={!enable}
-        {...props}
-      >
+      <Button onClick={handleClickButton} variant="contained" disabled={!enable} {...props}>
         {text}
       </Button>
       <form ref={formRef} method="post" action={url}>
@@ -68,5 +63,4 @@ export const WebAuthnButton: FC<WebAuthnButtonProps> = ({
       </AlertDialog>
     </>
   );
-};
-export default WebAuthnButton;
+}

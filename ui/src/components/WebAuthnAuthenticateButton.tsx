@@ -1,6 +1,3 @@
-import type { FC } from "react";
-import React from "react";
-
 import type { WebAuthnRequestOptions } from "../types";
 import { decode, encodeUrl } from "../util/base64";
 import type { WebAuthnButtonProps } from "./WebAuthnButton";
@@ -42,9 +39,10 @@ export type WebAuthnAuthenticateButtonProps = Omit<
 > & {
   requestOptions?: WebAuthnRequestOptions;
 };
-export const WebAuthnAuthenticateButton: FC<
-  WebAuthnAuthenticateButtonProps
-> = ({ requestOptions, ...props }) => {
+export default function WebAuthnAuthenticateButton({
+  requestOptions,
+  ...props
+}: WebAuthnAuthenticateButtonProps) {
   async function authenticate(): Promise<unknown> {
     if (!requestOptions) return;
     const credential = await authenticateCredential(requestOptions);
@@ -70,5 +68,4 @@ export const WebAuthnAuthenticateButton: FC<
       {...props}
     />
   );
-};
-export default WebAuthnAuthenticateButton;
+}

@@ -1,14 +1,11 @@
-import { Box, Paper, Stack, Toolbar, Typography } from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Toolbar from "@mui/material/Toolbar";
+import Typography from "@mui/material/Typography";
 
 import DeviceCredentialsTable from "../components/DeviceCredentialsTable";
-import type {
-  Session,
-  User,
-  WebAuthnCreationOptions,
-  WebAuthnRequestOptions,
-} from "../types";
+import type { Session, User, WebAuthnCreationOptions, WebAuthnRequestOptions } from "../types";
 import WebAuthnAuthenticateButton from "./WebAuthnAuthenticateButton";
 import WebAuthnRegisterButton from "./WebAuthnRegisterButton";
 
@@ -19,13 +16,13 @@ export type SessionDeviceCredentialsProps = {
   webAuthnRequestOptions: WebAuthnRequestOptions;
   webAuthnUrl: string;
 };
-export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
+export default function SessionDeviceCredentials({
   user,
   session,
   webAuthnCreationOptions,
   webAuthnRequestOptions,
   webAuthnUrl,
-}) => {
+}: SessionDeviceCredentialsProps) {
   const currentSessionDeviceCredentialIds: string[] = [];
   const otherDeviceCredentialIds: string[] = [];
   user?.deviceCredentialIds?.forEach((id) => {
@@ -45,11 +42,7 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
               Current Session Device Credentials
             </Typography>
 
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{ justifyContent: "center" }}
-            >
+            <Stack direction="row" spacing={1} sx={{ justifyContent: "center" }}>
               <WebAuthnRegisterButton
                 creationOptions={webAuthnCreationOptions}
                 url={webAuthnUrl}
@@ -81,10 +74,7 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
                 </Typography>
               </Toolbar>
               <Box sx={{ padding: 3, paddingTop: 0 }}>
-                <DeviceCredentialsTable
-                  ids={otherDeviceCredentialIds}
-                  webAuthnUrl={webAuthnUrl}
-                />
+                <DeviceCredentialsTable ids={otherDeviceCredentialIds} webAuthnUrl={webAuthnUrl} />
               </Box>
             </Stack>
           </Paper>
@@ -94,5 +84,4 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
       )}
     </>
   );
-};
-export default SessionDeviceCredentials;
+}

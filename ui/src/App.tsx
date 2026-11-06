@@ -1,29 +1,31 @@
-import { Box, CssBaseline, ThemeProvider } from "@mui/material";
-import type { FC } from "react";
-import React, { useLayoutEffect } from "react";
+import Box from "@mui/material/Box";
+import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider } from "@mui/material/styles";
+import type { ReactNode } from "react";
+import { useLayoutEffect } from "react";
 
 import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
 import RoutesPage from "./components/RoutesPage";
 import SessionBindingInfoPage from "./components/SessionBindingInfo";
+import SignedOutPage from "./components/SignedOutPage";
 import SignInSuccessPage from "./components/SignInSuccessPage";
 import SignInVerifyPage from "./components/SignInVerifyPage";
 import SignOutConfirmPage from "./components/SignOutConfirmPage";
-import SignedOutPage from "./components/SignedOutPage";
-import { ToolbarOffset } from "./components/ToolbarOffset";
+import ToolbarOffset from "./components/ToolbarOffset";
 import UpstreamErrorPage from "./components/UpstreamErrorPage";
 import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
 
-const App: FC = () => {
+export default function App() {
   const data = window.POMERIUM_DATA;
   const primary = data?.primaryColor || "#6F43E7";
   const secondary = data?.secondaryColor || "#49AAA1";
   const theme = createTheme(primary, secondary);
-  let body: React.ReactNode = <></>;
+  let body: ReactNode = <></>;
   if (
     data?.page === "Error" &&
     data?.statusText?.toLowerCase().includes("upstream") &&
@@ -66,9 +68,7 @@ const App: FC = () => {
   }
 
   useLayoutEffect(() => {
-    const favicon = document.getElementById(
-      "favicon",
-    ) as HTMLAnchorElement | null;
+    const favicon = document.getElementById("favicon") as HTMLAnchorElement | null;
     if (favicon) {
       favicon.href = data?.faviconUrl || "/.pomerium/favicon.ico";
     }
@@ -84,10 +84,7 @@ const App: FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SubpageContextProvider page={data?.page}>
-        <Header
-          includeSidebar={data?.page === "UserInfo" || data?.page === "Routes"}
-          data={data}
-        />
+        <Header includeSidebar={data?.page === "UserInfo" || data?.page === "Routes"} data={data} />
         <ToolbarOffset />
         <Box sx={{ overflow: "hidden", height: "calc(100vh - 120px)" }}>
           <Box
@@ -105,5 +102,4 @@ const App: FC = () => {
       </SubpageContextProvider>
     </ThemeProvider>
   );
-};
-export default App;
+}

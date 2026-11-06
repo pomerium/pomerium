@@ -1,4 +1,4 @@
-import type { FC, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { createContext, useState } from "react";
 
 export interface SubpageContextValue {
@@ -15,10 +15,7 @@ export type SubpageContextProviderProps = {
   children?: ReactNode;
   page?: string;
 };
-export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
-  page,
-  children,
-}) => {
+export function SubpageContextProvider({ page, children }: SubpageContextProviderProps) {
   const setSubpage = (subpage: string) => {
     location.hash = "subpage=" + encodeURIComponent(subpage);
     setState({ ...state, subpage });
@@ -42,4 +39,4 @@ export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
   const [state, setState] = useState(initState);
 
   return <SubpageContext value={state}>{children}</SubpageContext>;
-};
+}
