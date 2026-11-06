@@ -4704,6 +4704,18 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for CertificateAuthorityKeyPairId
 	}
 
+	if m.OutboundHttpProxy != nil {
+		// no validation rules for OutboundHttpProxy
+	}
+
+	if m.OutboundHttpsProxy != nil {
+		// no validation rules for OutboundHttpsProxy
+	}
+
+	if m.OutboundNoProxy != nil {
+		// no validation rules for OutboundNoProxy
+	}
+
 	if m.DeriveTls != nil {
 		// no validation rules for DeriveTls
 	}

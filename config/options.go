@@ -660,6 +660,13 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	if err := validateOutboundProxyURL(o.OutboundHttpProxy.Or("")); err != nil {
+		return fmt.Errorf("config: bad outbound_http_proxy: %w", err)
+	}
+	if err := validateOutboundProxyURL(o.OutboundHttpsProxy.Or("")); err != nil {
+		return fmt.Errorf("config: bad outbound_https_proxy: %w", err)
+	}
+
 	if o.PolicyFile != "" {
 		return errors.New("config: policy file setting is deprecated")
 	}

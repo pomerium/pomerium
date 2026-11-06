@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -19,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func TestHTTPTransportThroughProxy(t *testing.T) {
@@ -31,8 +31,10 @@ func TestHTTPTransportThroughProxy(t *testing.T) {
 	get := func(t *testing.T, ca, host string) error {
 		t.Helper()
 		proxy := newConnectProxy(t, dialTo(origin))
-		transport := config.NewHTTPTransport(config.NewStaticSource(config.New(&config.Options{CA: ca})))
-		transport.Proxy = proxy.ProxyFunc(t)
+		transport := config.NewHTTPTransport(config.NewStaticSource(config.New(&config.Options{
+			CA:            ca,
+			GlobalOptions: config.GlobalOptions{OutboundHttpsProxy: nullable.From(proxy.URL)},
+		})))
 		t.Cleanup(transport.CloseIdleConnections)
 		err := getOrigin(t, transport, origin, host)
 		assert.Equal(t, 1, proxy.Connects(host), "request goes through the proxy")
@@ -64,13 +66,15 @@ func TestHTTPTransportThroughProxyFollowsCAChanges(t *testing.T) {
 	origin, ca := newTLSOrigin(t)
 	proxy := newConnectProxy(t, dialTo(origin))
 	configWithCA := func(ca string) *config.Config {
-		return config.New(&config.Options{CA: ca})
+		return config.New(&config.Options{
+			CA:            ca,
+			GlobalOptions: config.GlobalOptions{OutboundHttpsProxy: nullable.From(proxy.URL)},
+		})
 	}
 
 	src := config.NewStaticSource(configWithCA(""))
 	// The clone is taken before the config changes.
 	transport := config.NewHTTPTransport(src).Clone()
-	transport.Proxy = proxy.ProxyFunc(t)
 	t.Cleanup(transport.CloseIdleConnections)
 	get := func() error {
 		transport.CloseIdleConnections()
@@ -187,12 +191,4 @@ func (p *connectProxy) Connects(prefix string) int {
 		}
 	}
 	return n
-}
-
-// ProxyFunc returns a [http.Transport.Proxy] function that selects p.
-func (p *connectProxy) ProxyFunc(t *testing.T) func(*http.Request) (*url.URL, error) {
-	t.Helper()
-	u, err := url.Parse(p.URL)
-	require.NoError(t, err)
-	return http.ProxyURL(u)
 }
