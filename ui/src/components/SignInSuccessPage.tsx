@@ -1,20 +1,17 @@
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Link,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
-import type { FC } from "react";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Typography from "@mui/material/Typography";
 
 import type { SignInSuccessPageData } from "../types";
 
@@ -22,7 +19,7 @@ type SignInSuccessPageProps = {
   data: SignInSuccessPageData;
 };
 
-const SignInSuccessPage: FC<SignInSuccessPageProps> = ({ data }) => {
+export default function SignInSuccessPage({ data }: SignInSuccessPageProps) {
   return (
     <Box sx={{ maxWidth: 540, mx: "auto", textAlign: "center" }}>
       <Typography variant="h5" gutterBottom sx={{ fontWeight: "bold" }}>
@@ -101,6 +98,4 @@ const SignInSuccessPage: FC<SignInSuccessPageProps> = ({ data }) => {
       </Box>
     </Box>
   );
-};
-
-export default SignInSuccessPage;
+}

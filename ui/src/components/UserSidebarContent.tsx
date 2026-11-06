@@ -1,13 +1,14 @@
-import { Devices } from "@mui/icons-material";
-import {
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-} from "@mui/material";
-import type { FC, JSX, ReactNode } from "react";
+import Devices from "@mui/icons-material/Devices";
+import List from "@mui/material/List";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import type { ReactNode } from "react";
 import { use } from "react";
-import { Link, Lock, User, Users } from "react-feather";
+import Link from "react-feather/dist/icons/link";
+import Lock from "react-feather/dist/icons/lock";
+import User from "react-feather/dist/icons/user";
+import Users from "react-feather/dist/icons/users";
 
 import { SubpageContext } from "../context/Subpage";
 import type { SidebarData } from "../types";
@@ -59,10 +60,7 @@ type UserSidebarContentProps = {
   close?: (() => void) | null;
   data?: SidebarData;
 };
-export const UserSidebarContent: FC<UserSidebarContentProps> = ({
-  close,
-  data,
-}: UserSidebarContentProps): JSX.Element => {
+export default function UserSidebarContent({ close, data }: UserSidebarContentProps) {
   const info = use(SubpageContext);
   const sectionList = getSectionList(data);
 
@@ -75,8 +73,7 @@ export const UserSidebarContent: FC<UserSidebarContentProps> = ({
             selected={title === info.subpage}
             onClick={() => {
               if (location.pathname !== pathname) {
-                location.href =
-                  pathname + "#subpage=" + encodeURIComponent(title);
+                location.href = pathname + "#subpage=" + encodeURIComponent(title);
                 return;
               }
               info.setSubpage(title);
@@ -90,5 +87,4 @@ export const UserSidebarContent: FC<UserSidebarContentProps> = ({
       })}
     </List>
   );
-};
-export default UserSidebarContent;
+}

@@ -1,26 +1,24 @@
-import type { AlertColor, DialogProps } from "@mui/material";
-import {
-  Alert,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import type { AlertColor } from "@mui/material/Alert";
+import Alert from "@mui/material/Alert";
+import type { DialogProps } from "@mui/material/Dialog";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import type { ReactNode } from "react";
 
 export type AlertDialogProps = DialogProps & {
-  title?: React.ReactNode;
+  title?: ReactNode;
   severity?: AlertColor;
-  actions?: React.ReactNode;
+  actions?: ReactNode;
 };
-export const AlertDialog: FC<AlertDialogProps> = ({
+export default function AlertDialog({
   title,
   severity,
   children,
   actions,
   ...props
-}) => {
+}: AlertDialogProps) {
   return (
     <Dialog transitionDuration={{ exit: 0 }} {...props}>
       <DialogTitle>{title}</DialogTitle>
@@ -30,5 +28,4 @@ export const AlertDialog: FC<AlertDialogProps> = ({
       {actions ? <DialogActions>{actions}</DialogActions> : <></>}
     </Dialog>
   );
-};
-export default AlertDialog;
+}
