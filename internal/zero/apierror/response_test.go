@@ -1,6 +1,7 @@
 package apierror_test
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 
@@ -26,9 +27,27 @@ func TestResponse(t *testing.T) {
 				HTTPResponse: &http.Response{},
 				JSON200:      &cluster.ExchangeTokenResponse{},
 			},
-			err:     nil,
 			wantVal: &cluster.ExchangeTokenResponse{},
-			wantErr: nil,
+		},
+		{
+			name: "bad request",
+			response: &cluster.ExchangeClusterIdentityTokenResp{
+				HTTPResponse: &http.Response{},
+				JSON400: &cluster.ErrorResponse{
+					Error: "BAD_REQUEST",
+				},
+			},
+			wantErr: apierror.WithRequestID(errors.New("bad request: BAD_REQUEST"), http.Header{}),
+		},
+		{
+			name: "internal server error",
+			response: &cluster.ExchangeClusterIdentityTokenResp{
+				HTTPResponse: &http.Response{},
+				JSON500: &cluster.ErrorResponse{
+					Error: "INTERNAL_SERVER_ERROR",
+				},
+			},
+			wantErr: apierror.WithRequestID(errors.New("internal server error: INTERNAL_SERVER_ERROR"), http.Header{}),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
