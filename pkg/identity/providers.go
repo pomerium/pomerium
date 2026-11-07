@@ -32,6 +32,8 @@ import (
 // State is the identity state.
 type State = identity.State
 
+//go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock_identity/mock_authenticator.go . Authenticator
+
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
 	Authenticate(context.Context, string, State) (*oauth2.Token, error)
