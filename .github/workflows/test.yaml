@@ -114,6 +114,35 @@ jobs:
           path-to-lcov: coverage.lcov
           fail-on-error: false
 
+  build-windows:
+    # pomerium/cli ships Windows binaries built from these packages, so
+    # everything except the unix-only server packages must cross-compile.
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [amd64, arm64]
+    env:
+      GOOS: windows
+      GOARCH: ${{ matrix.goarch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: .tool-versions
+          cache: false
+
+      - name: build
+        run: |
+          # Build every package in every workspace module, except unix-only
+          # server packages and anything importing them. Only add entries here
+          # for code that is genuinely server-only; otherwise fix the build.
+          # (integration is a test-only package that never builds standalone.)
+          unix_only='pomerium/(integration|pkg/(ipc|envoy/files))( |$)'
+          go list -f '{{if .GoFiles}}{{.ImportPath}} {{join .Deps " "}}{{end}}' $(go list -m -f '{{.Dir}}/...') \
+            | grep -vE "$unix_only" | cut -d' ' -f1 | xargs go build
+
   build-docker:
     runs-on: ubuntu-22.04
     steps:
