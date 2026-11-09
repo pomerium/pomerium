@@ -191,6 +191,13 @@ func buildSSHRouteConfiguration(cfg *config.Config) (*envoy_generic_proxy_v3.Rou
 
 	// Note that this is a separate xds resource type than the standard route
 	// configuration type used for http routes.
+	if len(matchers) == 0 {
+		// A matcher list must contain at least one matcher, so leave out the
+		// (optional) routes when there are no ssh routes.
+		return &envoy_generic_proxy_v3.RouteConfiguration{
+			Name: "ssh",
+		}, nil
+	}
 	return &envoy_generic_proxy_v3.RouteConfiguration{
 		Name: "ssh", // matches the generic rds route_config_name
 		Routes: &xds_matcher_v3.Matcher{

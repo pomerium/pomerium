@@ -261,6 +261,23 @@ func TestBuilder_buildSSHRouteConfiguration(t *testing.T) {
 	}`, routeConfiguration)
 }
 
+func TestBuilder_buildSSHRouteConfigurationNoRoutes(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				From: "https://should-be-ignored.example.com",
+				To:   mustParseWeightedURLs(t, "https://ignored"),
+			},
+		},
+	})
+	routeConfiguration, err := buildSSHRouteConfiguration(cfg)
+	require.NoError(t, err)
+	assert.NoError(t, routeConfiguration.ValidateAll())
+	testutil.AssertProtoJSONEqual(t, `{"name": "ssh"}`, routeConfiguration)
+}
+
 func TestBuilder_buildSSHRouteConfigurationErrors(t *testing.T) {
 	t.Parallel()
 
