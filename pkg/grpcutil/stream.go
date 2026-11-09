@@ -13,6 +13,24 @@ type serverStreamingServerWithContext[Res any] struct {
 	grpc.ServerStreamingServer[Res]
 }
 
+func (s *serverStreamingServerWithContext[Res]) Send(res *Res) error {
+	// return immediately if the context is already done
+	select {
+	case <-s.ctx.Done():
+		return context.Cause(s.ctx)
+	default:
+	}
+
+	errc := make(chan error, 1)
+	go func() { errc <- s.ServerStreamingServer.Send(res) }()
+	select {
+	case <-s.ctx.Done():
+		return context.Cause(s.ctx)
+	case err := <-errc:
+		return err
+	}
+}
+
 func (s *serverStreamingServerWithContext[Res]) Context() context.Context {
 	return s.ctx
 }
