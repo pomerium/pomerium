@@ -450,6 +450,11 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 }
 
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
+	// new stream handlers are created with sm.cfg
+	sm.mu.Lock()
+	sm.cfg = cfg
+	sm.mu.Unlock()
+
 	sm.indexer.ProcessConfigUpdate(cfg)
 
 	// TODO: integrate the re-auth mechanism with the indexer
