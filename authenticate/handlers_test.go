@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -26,6 +27,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -413,7 +415,8 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 				csrf:                csrf,
 				flow:                new(stubFlow),
 			})
-			a.options.Store(new(config.Options))
+			opts := &config.Options{CookieSecret: cryptutil.NewBase64Key()}
+			a.options.Store(opts)
 			u, _ := url.Parse("/oauthGet")
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("error", tt.paramErr)
@@ -446,6 +449,114 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthenticate_OAuthCallback_SessionState(t *testing.T) {
+	t.Parallel()
+
+	aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
+	require.NoError(t, err)
+	a := testAuthenticate(t)
+	a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+		return identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, nil
+	}))
+	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
+	var sid string
+	authURL, err := url.Parse("https://authenticate.pomerium.io")
+	require.NoError(t, err)
+	a.state.Store(&authenticateState{
+		redirectURL:         authURL,
+		sessionHandleWriter: &mstore.Store{},
+		cookieCipher:        aead,
+		csrf:                csrf,
+		// capture SID after callback runs.
+		flow: &stubFlow{persistSession: func(_, SID string) error {
+			sid = SID
+			return nil
+		}},
+	})
+	a.options.Store(&config.Options{CookieSecret: cryptutil.NewBase64Key()})
+
+	csrfCookie, token := getCSRFCookieAndTokenForTest(t, csrf)
+	state := testOAuthState{
+		Token:       token,
+		Timestamp:   time.Now().Unix(),
+		RedirectURI: "https://corp.pomerium.io",
+	}.Encode(aead)
+	r := httptest.NewRequest(http.MethodGet, "/oauthGet?"+url.Values{
+		"code":          {"code"},
+		"state":         {state},
+		"session_state": {"foo"},
+	}.Encode(), nil)
+	r.AddCookie(csrfCookie)
+	w := httptest.NewRecorder()
+
+	httputil.HandlerFunc(a.OAuthCallback).ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusFound, w.Code)
+	assert.Equal(t, "foo", sid)
+}
+
+func TestAuthenticate_OAuthCallback_BrowserID(t *testing.T) {
+	t.Parallel()
+
+	aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
+	require.NoError(t, err)
+	a := testAuthenticate(t)
+	a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+		return identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, nil
+	}))
+	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
+	var browserID string
+	authURL, err := url.Parse("https://authenticate.pomerium.io")
+	require.NoError(t, err)
+	a.state.Store(&authenticateState{
+		redirectURL:         authURL,
+		sessionHandleWriter: &mstore.Store{},
+		cookieCipher:        aead,
+		csrf:                csrf,
+		// capture browser ID after callback runs.
+		flow: &stubFlow{persistSession: func(bid, _ string) error {
+			browserID = bid
+			return nil
+		}},
+	})
+	a.options.Store(&config.Options{CookieSecret: cryptutil.NewBase64Key()})
+
+	csrfCookie, token := getCSRFCookieAndTokenForTest(t, csrf)
+	expectedBrowserID, browserIDCookie := newBrowserIDCookieForTest(t, a.options.Load())
+	state := testOAuthState{
+		Token:       token,
+		Timestamp:   time.Now().Unix(),
+		RedirectURI: "https://corp.pomerium.io",
+	}.Encode(aead)
+	r := httptest.NewRequest(http.MethodGet, "/oauthGet?"+url.Values{
+		"code":  {"code"},
+		"state": {state},
+	}.Encode(), nil)
+	r.AddCookie(csrfCookie)
+	r.AddCookie(browserIDCookie)
+	w := httptest.NewRecorder()
+
+	httputil.HandlerFunc(a.OAuthCallback).ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusFound, w.Code)
+	assert.Equal(t, expectedBrowserID, browserID)
+}
+
+func newBrowserIDCookieForTest(t *testing.T, opts *config.Options) (string, *http.Cookie) {
+	t.Helper()
+	browserID := uuid.New().String()
+	cookie, err := identity.GenerateBrowserIDCookie(
+		identity.BrowserIDOptions{
+			AuthKey:    []byte(opts.CookieSecret),
+			CookieName: opts.CookieName,
+			BrowserID:  browserID,
+			SameSite:   opts.GetCookieSameSite(),
+		},
+	)
+	require.NoError(t, err)
+	return browserID, cookie
 }
 
 type testOAuthState struct {
@@ -481,7 +592,8 @@ func TestAuthenticate_OAuthCallback_CSRF(t *testing.T) {
 		csrf:                csrf,
 		flow:                new(stubFlow),
 	})
-	a.options.Store(new(config.Options))
+	opts := &config.Options{CookieSecret: cryptutil.NewBase64Key()}
+	a.options.Store(opts)
 
 	csrfCookie, token := getCSRFCookieAndTokenForTest(t, csrf)
 
@@ -657,7 +769,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				flow:                new(stubFlow),
 				csrf:                newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode),
 			})
-			a.options.Store(new(config.Options))
+			a.options.Store(&config.Options{CookieSecret: cryptutil.NewBase64Key()})
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 			r.Header.Set("Accept", "application/json")
@@ -819,6 +931,9 @@ func TestSignOutBranding(t *testing.T) {
 
 	auth := testAuthenticate(t)
 	auth.state.Load().flow.(*stubFlow).verifySignatureErr = errors.New("unsigned URL")
+	auth.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+		return identity.MockProvider{}, nil
+	}))
 	auth.options.Store(&config.Options{
 		BrandingOptions: &configproto.Settings{
 			PrimaryColor:   new("red"),
@@ -838,7 +953,8 @@ func TestSignOutBranding(t *testing.T) {
 		b, err := io.ReadAll(w.Body)
 		require.NoError(t, err)
 
-		assert.Contains(t, string(b), `"primaryColor":"red","secondaryColor":"orange"`)
+		assert.Contains(t, string(b), `"primaryColor":"red"`)
+		assert.Contains(t, string(b), `"secondaryColor":"orange"`)
 	})
 
 	t.Run("signed_out", func(t *testing.T) {
@@ -953,6 +1069,7 @@ func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.Put
 // stubFlow is a stub implementation of the flow interface.
 type stubFlow struct {
 	verifySignatureErr error
+	persistSession     func(browserID, SID string) error
 }
 
 var _ flow = (*stubFlow)(nil)
@@ -969,10 +1086,6 @@ func (f *stubFlow) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request,
 	return nil
 }
 
-func (f *stubFlow) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
-	return nil
-}
-
 func (f *stubFlow) RevokeIdentityBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
 	return nil
 }
@@ -985,9 +1098,12 @@ func (*stubFlow) SignIn(http.ResponseWriter, *http.Request, *session.Handle) err
 	return nil
 }
 
-func (*stubFlow) PersistSession(
-	context.Context, http.ResponseWriter, *session.Handle, identity.SessionClaims, *oauth2.Token,
+func (f *stubFlow) PersistSession(
+	_ context.Context, _ http.ResponseWriter, _ *http.Request, _ *session.Handle, _ identity.SessionClaims, _ *oauth2.Token, browserID string, SID string,
 ) error {
+	if f.persistSession != nil {
+		return f.persistSession(browserID, SID)
+	}
 	return nil
 }
 
@@ -997,8 +1113,8 @@ func (*stubFlow) VerifySession(context.Context, *http.Request, *session.Handle) 
 
 func (*stubFlow) RevokeSession(
 	context.Context, *http.Request, identity.Authenticator, *session.Handle,
-) string {
-	return ""
+) authenticateflow.SignOutHints {
+	return authenticateflow.SignOutHints{}
 }
 
 func (*stubFlow) GetUserInfoData(*http.Request, *session.Handle) handlers.UserInfoData {
@@ -1006,3 +1122,7 @@ func (*stubFlow) GetUserInfoData(*http.Request, *session.Handle) handlers.UserIn
 }
 
 func (*stubFlow) LogAuthenticateEvent(*http.Request) {}
+
+func (*stubFlow) RevokeSessionBinding(_ context.Context, _ *session.Handle, _ string, _ string) error {
+	return nil
+}

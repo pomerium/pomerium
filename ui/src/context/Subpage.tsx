@@ -31,11 +31,13 @@ export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
         ? "Devices Info"
         : page === "Routes"
           ? "Routes"
-          : hashParams.get("subpage") === "Groups Info"
-            ? "Groups Info"
-            : hashParams.get("subpage") === "Devices Info"
-              ? "Devices Info"
-              : "User",
+          : page === "SessionBindingInfo"
+            ? "Sessions"
+            : hashParams.get("subpage") === "Groups Info"
+              ? "Groups Info"
+              : hashParams.get("subpage") === "Devices Info"
+                ? "Devices Info"
+                : "User",
     setSubpage,
   };
 

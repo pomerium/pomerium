@@ -7,39 +7,6 @@ import (
 	"github.com/pomerium/pomerium/ui"
 )
 
-type SessionInfoData struct {
-	UserInfoData
-	SessionData []SessionBindingData
-}
-
-type SessionBindingData struct {
-	SessionBindingID         string
-	Protocol                 string
-	IssuedAt                 string
-	ExpiresAt                string
-	RevokeSessionBindingURL  string
-	RevokeIdentityBindingURL string
-	HasIdentityBinding       bool
-	DetailsSSH               *ProtocolDetailsSSH
-}
-
-type ProtocolDetailsSSH struct {
-	FingerprintID string
-	SourceAddress string
-}
-
-func (data SessionInfoData) ToJSON() map[string]any {
-	m := data.UserInfoData.ToJSON()
-	m["sessionBindings"] = data.SessionData
-	return m
-}
-
-func ServeSessionBindingInfo(data SessionInfoData) http.Handler {
-	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		return ui.ServePage(w, r, "SessionBindingInfo", "Session Bindings", data.ToJSON())
-	})
-}
-
 type BindingInfoData struct {
 	UserInfoData
 	RevokeSessionBindingURL  string
@@ -57,8 +24,7 @@ type IDPSessionData struct {
 	InitiatedAt   string
 }
 
-// temporary struct to make build pass
-type SessionBindingDataV2 struct {
+type SessionBindingData struct {
 	IDPSessionID     string
 	SessionBindingID string
 	Protocol         string
@@ -69,4 +35,25 @@ type SessionBindingDataV2 struct {
 	// IsCurrentBrowser   bool
 	HasIdentityBinding bool
 	DetailsSSH         *ProtocolDetailsSSH
+}
+
+type ProtocolDetailsSSH struct {
+	FingerprintID string
+	SourceAddress string
+}
+
+func (data BindingInfoData) ToJSON() map[string]any {
+	m := data.UserInfoData.ToJSON()
+	m["idpSessions"] = data.IDPSessionData
+	m["sessionBindings"] = data.BindingData
+	m["currentIdpSessionId"] = data.CurrentIDPSessionID
+	m["revokeSessionBindingUrl"] = data.RevokeSessionBindingURL
+	m["revokeIdentityBindingUrl"] = data.RevokeIdentityBindingURL
+	return m
+}
+
+func ServeSessionBindingInfo(data BindingInfoData) http.Handler {
+	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		return ui.ServePage(w, r, "SessionBindingInfo", "Session Bindings", data.ToJSON())
+	})
 }

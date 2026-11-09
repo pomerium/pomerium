@@ -45,11 +45,13 @@ type Authenticator interface {
 	VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error)
 
 	SignIn(w http.ResponseWriter, r *http.Request, state string) error
-	SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error
+	SignOut(w http.ResponseWriter, r *http.Request, options SignOutOptions) error
 
 	DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, error)
 	DeviceAccessToken(ctx context.Context, r *oauth2.DeviceAuthResponse, state State) (*oauth2.Token, error)
 }
+
+type SignOutOptions = identity.SignOutOptions
 
 // AuthenticatorConstructor makes an Authenticator from the given options.
 type AuthenticatorConstructor func(context.Context, *oauth.Options) (Authenticator, error)
