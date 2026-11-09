@@ -185,6 +185,7 @@ func sendOrReplace[T any](ch chan T, value T) {
 	}
 }
 
+// ShouldReport returns true if analytics should be reported for the given configuration.
 func ShouldReport(cfg *config.Config) bool {
 	return cfg != nil &&
 		cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE &&
