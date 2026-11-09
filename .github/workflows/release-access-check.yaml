@@ -1,0 +1,180 @@
+name: Release access verification
+on:
+  push:
+    tags:
+      - v0.0.0-release-access-check.1
+permissions:
+  contents: read
+  packages: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: apple-signing
+    steps:
+      - name: Pull both private images with the Core Actions token
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PYTHON'
+          """Verify private GHCR image reads with this repository's Actions token."""
+          import base64
+          import hashlib
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          
+          
+          class SafeRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  if urllib.parse.urlparse(newurl).scheme != "https":
+                      raise RuntimeError("Registry returned an insecure redirect")
+                  redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+                  if urllib.parse.urlparse(req.full_url).netloc != urllib.parse.urlparse(newurl).netloc:
+                      redirected.remove_header("Authorization")
+                  return redirected
+          
+          
+          opener = urllib.request.build_opener(SafeRedirect())
+          accept = ", ".join([
+              "application/vnd.oci.image.index.v1+json",
+              "application/vnd.oci.image.manifest.v1+json",
+              "application/vnd.docker.distribution.manifest.list.v2+json",
+              "application/vnd.docker.distribution.manifest.v2+json",
+          ])
+          
+          
+          def request(url, authorization=None):
+              headers = {"Accept": accept}
+              if authorization:
+                  headers["Authorization"] = authorization
+              return opener.open(urllib.request.Request(url, headers=headers), timeout=90)
+          
+          
+          for package in ["pomerium-enterprise", "ingress-controller-enterprise"]:
+              path = "pomerium/" + package
+              scope = urllib.parse.urlencode({"service": "ghcr.io", "scope": "repository:" + path + ":pull"})
+              token_url = "https://ghcr.io/token?" + scope
+              anonymous_denied = False
+              try:
+                  with request(token_url) as response:
+                      anonymous_token = json.load(response)["token"]
+                  with request("https://ghcr.io/v2/" + path + "/tags/list?n=100", "Bearer " + anonymous_token):
+                      pass
+              except urllib.error.HTTPError as error:
+                  if error.code not in (401, 403):
+                      raise RuntimeError("Anonymous registry check: HTTP " + str(error.code)) from None
+                  anonymous_denied = True
+              assert anonymous_denied, "Expected a private package for the Actions access check"
+              basic = base64.b64encode((os.environ["GITHUB_ACTOR"] + ":" + os.environ["GH_TOKEN"]).encode()).decode()
+              try:
+                  with request(token_url, "Basic " + basic) as response:
+                      token = json.load(response)["token"]
+                  base = "https://ghcr.io/v2/" + path
+                  with request(base + "/tags/list?n=100", "Bearer " + token) as response:
+                      tags = json.load(response)["tags"]
+                  assert tags, "Package has no tags"
+                  tag = "latest" if "latest" in tags else sorted(tags)[-1]
+          
+                  def manifest(ref):
+                      with request(base + "/manifests/" + ref, "Bearer " + token) as response:
+                          data = response.read()
+                      if ref.startswith("sha256:"):
+                          assert hashlib.sha256(data).hexdigest() == ref[7:], "Manifest digest mismatch"
+                      return json.loads(data)
+          
+                  image = manifest(tag)
+                  if "manifests" in image:
+                      candidates = [m for m in image["manifests"] if m.get("platform", {}).get("os") == "linux" and m.get("platform", {}).get("architecture") == "amd64"]
+                      assert candidates, "Package has no linux/amd64 image"
+                      image = manifest(candidates[0]["digest"])
+                  blobs = [image["config"], *image["layers"]]
+                  total = 0
+                  for blob in blobs:
+                      digest = blob["digest"]
+                      assert digest.startswith("sha256:"), "Unsupported blob digest"
+                      hashed = hashlib.sha256()
+                      count = 0
+                      with request(base + "/blobs/" + digest, "Bearer " + token) as response:
+                          while chunk := response.read(1024 * 1024):
+                              hashed.update(chunk)
+                              count += len(chunk)
+                      assert hashed.hexdigest() == digest[7:], "Blob digest mismatch"
+                      assert count == blob["size"], "Blob size mismatch"
+                      total += count
+                  print(json.dumps({"package": path, "anonymous_denied": True, "actions_pull": "passed", "platform": "linux/amd64", "blobs_verified": len(blobs), "bytes_verified": total}), flush=True)
+              except urllib.error.HTTPError as error:
+                  raise RuntimeError(package + ": HTTP " + str(error.code)) from None
+          PYTHON
+      - name: Encrypt existing Apple credentials for their secret-storage backup
+        env:
+          APPLE_ID_KEY: ${{ secrets.APPLE_ID_KEY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_KEY_ISSUER: ${{ secrets.APPLE_ID_KEY_ISSUER }}
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+        run: |
+          umask 077
+          cat > "$RUNNER_TEMP/recipient.pem" <<'CERTIFICATE'
+          -----BEGIN CERTIFICATE-----
+          MIIE/DCCAuSgAwIBAgIUNTzdBXl40Lng4zpuEmkpEr7Dfw4wDQYJKoZIhvcNAQEL
+          BQAwODE2MDQGA1UEAwwtVGVtcG9yYXJ5IHJlbGVhc2UgY3JlZGVudGlhbCBiYWNr
+          dXAgcmVjaXBpZW50MB4XDTI2MTEwOTIwNTgxOFoXDTI2MTExMTIxMDMxOFowODE2
+          MDQGA1UEAwwtVGVtcG9yYXJ5IHJlbGVhc2UgY3JlZGVudGlhbCBiYWNrdXAgcmVj
+          aXBpZW50MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAttJK+at8D5ZY
+          xIV9N7Aw5HT8voKY+mlBW7R/+J+eW3BtAOc17jlZmHx/nmKjWVS5a5YQfKfhU93l
+          0Fx+awJ1Qo0a7qFv76pbuDuYS4Gd3mQHyWF4IJVuQA0zvni/Z3lT4pC1m72QkGNL
+          KSOHRMBOcLOFgOmlO3AEG9OjXT3pqmJmvkFRpHFIMNE7GHaH82y/eGBF61vSsKmu
+          2/yeCzCA67veIAnBVzgq3mtr2GOTLEzCgmI8xllFY6YZQMmhOo5UwPNOjY5owdXn
+          q9DKaIzZh+8Ah9OPHgS+4C7vrHm33BvHUFVbnsQ0YpNce55Lnsmy8YLJU1HJNXew
+          OetLywqJ1PmKMZ3YenRb2NlafCvyn7PfB1fh84kFqdGrTrb9RcafwAu9pg5T9GvB
+          VUBHzVrhoRQZtaMmDj5b1WqbjTTeoAltR7gASQVZKdy7kHucGxxI9Wp8Sv0AAEmq
+          NiKzcRWEhiisDe5ApSrZdZQgQ3mHZk/lQSX8ACrVpraA2miOvtFeRZ4nOpY/w7Zo
+          nIG0Wgt2GmFc6dEgdkKfvuZ1b4BpagCwAn/L/iQuMIp0+Vya8pXPWHZHE4LyqQHJ
+          W7vjBePXJVAytA0MpuGac63/r1FzoDSJGIJAniBE9VXsvOd5btstioiVrTJeB1wB
+          eHb6iqBSvkOkecOuxNjxvOfPt638AjkCAwEAATANBgkqhkiG9w0BAQsFAAOCAgEA
+          oXAB0074f+Ryb1Ttr54vw23kCLWm0fU8aw4FGqG3nDlPYjBRt1/l3QgFfSkdqs31
+          tyn32nT/m6XDyoKzwD659e21kTJFEd5w0GraYVdZCQh6EoN/kRwupTi62po07Ha3
+          ns9sBOrO3XQ36zfmpZ0+KGhPKJQtHTWQgmzS4r0yNEx5USk+/oYUXi/RG+JP4YtA
+          JPW4iAgJCJmXb2A2xNjf5gU8vR4z4eXqkNPvd7Dpu9j3c60U+NDwWrCywTFwGRJr
+          vUNRvUqODYrEmzYb2QfIC8Gl/A9ESl+GN9ChdqtfviASA60TGsq/Iwzliz4QZhNg
+          bhJoR0z68ZXbEG0XTT+s+Bkga1EXoFiJWJIsjxFpdlkVM7K6X7SeQFHf0geDzI1l
+          hC68/snSm/mtkAJY6vzQdDbxpQJb10HkHYKeWo3Krg3CA+VopkeLZeHKMwj1/4/y
+          +z0vSNUfZSti00ffQELggNG1nUsnxP+Fe+zl0snI0nhTpQ+kQ0UPamqsnsOVybfx
+          35qcw+nVKjTJnkpAYMHbSL60PNzfzH7OGx/74oz2a/67g5KzExJq3QmGUzbjaenX
+          X0e0XTGFWYv8Rx9KehGqBrrG4zOFgjDgMDUSOky/zlT+SJtODDHh2Iedc27RMmQk
+          R4flfPuiN6rsC8iJmN56dYstl/PBN+v6b2HIxx0oxcc=
+          -----END CERTIFICATE-----
+          CERTIFICATE
+          python3 - <<'PYTHON'
+          """Encrypt the existing notarization credential to a temporary local recipient."""
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          
+          values = {name: os.environ[name] for name in ("APPLE_ID_KEY", "APPLE_ID", "APPLE_ID_KEY_ISSUER", "MACOS_SIGN_P12", "MACOS_SIGN_PASSWORD")}
+          assert all(values.values()), "A required Apple credential is missing"
+          result = subprocess.run([
+              "openssl", "cms", "-encrypt", "-aes-256-gcm", "-binary", "-outform", "DER",
+              "-recip", str(Path(os.environ["RUNNER_TEMP"]) / "recipient.pem"),
+              "-keyopt", "rsa_padding_mode:oaep", "-keyopt", "rsa_oaep_md:sha256",
+          ], input=json.dumps(values).encode(), capture_output=True)
+          assert result.returncode == 0, "Credential encryption failed; diagnostics suppressed"
+          output = Path(os.environ["RUNNER_TEMP"]) / "encrypted-apple-backup.der"
+          output.write_bytes(result.stdout)
+          output.chmod(0o600)
+          print("Apple credentials encrypted to the temporary backup recipient; no plaintext file created.")
+          PYTHON
+      - name: Transfer only the encrypted backup
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: encrypted-apple-backup
+          path: ${{ runner.temp }}/encrypted-apple-backup.der
+          retention-days: 1
+          if-no-files-found: error
+      - name: Remove temporary files
+        if: always()
+        run: rm -f "$RUNNER_TEMP/recipient.pem" "$RUNNER_TEMP/encrypted-apple-backup.der"
