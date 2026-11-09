@@ -3555,6 +3555,14 @@ components:
           description: |-
             Client secret to use for upstream applications that do not support
              public clients / PKCE.
+        redirectUris:
+          type: array
+          items:
+            type: string
+          title: redirect_uris
+          description: |-
+            List of allowed redirect_uris. By default allows any subpath of the configured
+             route's `to` address
       title: OIDCBridge
       additionalProperties: false
       description: |-
