@@ -57,10 +57,12 @@ func (b *Builder) BuildRouteConfigurations(
 		if err != nil {
 			return nil, err
 		}
-		routeConfigurations = append(routeConfigurations, RouteConfiguration{
-			Name:   "ssh",
-			Config: rc,
-		})
+		if rc != nil {
+			routeConfigurations = append(routeConfigurations, RouteConfiguration{
+				Name:   "ssh",
+				Config: rc,
+			})
+		}
 	}
 
 	return routeConfigurations, nil
@@ -187,6 +189,10 @@ func buildSSHRouteConfiguration(cfg *config.Config) (*envoy_generic_proxy_v3.Rou
 				},
 			},
 		})
+	}
+
+	if len(matchers) == 0 {
+		return nil, nil
 	}
 
 	// Note that this is a separate xds resource type than the standard route
