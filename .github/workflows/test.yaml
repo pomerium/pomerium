@@ -135,11 +135,13 @@ jobs:
 
       - name: build
         run: |
-          unix_only='pomerium/pkg/(ipc|envoy/files)( |$)'
-          go list -f '{{if .GoFiles}}{{if ne .Name "main"}}{{.ImportPath}} {{join .Deps " "}}{{end}}{{end}}' ./... \
+          # Build every package in every workspace module, except unix-only
+          # server packages and anything importing them. Only add entries here
+          # for code that is genuinely server-only; otherwise fix the build.
+          # (integration is a test-only package that never builds standalone.)
+          unix_only='pomerium/(integration|pkg/(ipc|envoy/files))( |$)'
+          go list -f '{{if .GoFiles}}{{.ImportPath}} {{join .Deps " "}}{{end}}' $(go list -m -f '{{.Dir}}/...') \
             | grep -vE "$unix_only" | cut -d' ' -f1 | xargs go build
-          (cd pkg/grpc/config && go build ./...)
-          (cd pkg/grpc/databroker && go build ./...)
 
   build-docker:
     runs-on: ubuntu-22.04
