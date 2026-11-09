@@ -83,27 +83,30 @@ func NewClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local S
 }
 
 func (srv *clusteredFollowerServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (res *databrokerpb.AcquireLeaseResponse, err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.AcquireLease(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) Clear(ctx context.Context, req *emptypb.Empty) (res *databrokerpb.ClearResponse, err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.Clear(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) Get(ctx context.Context, req *databrokerpb.GetRequest) (res *databrokerpb.GetResponse, err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.Get(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) GetCheckpoint(ctx context.Context, req *databrokerpb.GetCheckpointRequest) (res *databrokerpb.GetCheckpointResponse, err error) {
@@ -111,75 +114,84 @@ func (srv *clusteredFollowerServer) GetCheckpoint(ctx context.Context, req *data
 }
 
 func (srv *clusteredFollowerServer) List(ctx context.Context, req *registrypb.ListRequest) (res *registrypb.ServiceList, err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.List(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) ListTypes(ctx context.Context, req *emptypb.Empty) (res *databrokerpb.ListTypesResponse, err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.ListTypes(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) Patch(ctx context.Context, req *databrokerpb.PatchRequest) (res *databrokerpb.PatchResponse, err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.Patch(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) Put(ctx context.Context, req *databrokerpb.PutRequest) (res *databrokerpb.PutResponse, err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.Put(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (res *databrokerpb.QueryResponse, err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.Query(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (res *emptypb.Empty, err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.ReleaseLease(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) RenewLease(ctx context.Context, req *databrokerpb.RenewLeaseRequest) (res *emptypb.Empty, err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.RenewLease(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) Report(ctx context.Context, req *registrypb.RegisterRequest) (res *registrypb.RegisterResponse, err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.Report(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (res *databrokerpb.ServerInfoResponse, err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.ServerInfo(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) SetCheckpoint(_ context.Context, _ *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
@@ -187,19 +199,21 @@ func (srv *clusteredFollowerServer) SetCheckpoint(_ context.Context, _ *databrok
 }
 
 func (srv *clusteredFollowerServer) GetOptions(ctx context.Context, req *databrokerpb.GetOptionsRequest) (res *databrokerpb.GetOptionsResponse, err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.GetOptions(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (res *databrokerpb.SetOptionsResponse, err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.SetOptions(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) Sync(req *databrokerpb.SyncRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncResponse]) error {
@@ -229,91 +243,102 @@ func (srv *clusteredFollowerServer) Watch(req *registrypb.ListRequest, stream gr
 // config methods
 
 func (srv *clusteredFollowerServer) CreateKeyPair(ctx context.Context, req *connect.Request[configpb.CreateKeyPairRequest]) (res *connect.Response[configpb.CreateKeyPairResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.CreateKeyPair(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) CreatePolicy(ctx context.Context, req *connect.Request[configpb.CreatePolicyRequest]) (res *connect.Response[configpb.CreatePolicyResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.CreatePolicy(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) CreateRoute(ctx context.Context, req *connect.Request[configpb.CreateRouteRequest]) (res *connect.Response[configpb.CreateRouteResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.CreateRoute(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) CreateServiceAccount(ctx context.Context, req *connect.Request[configpb.CreateServiceAccountRequest]) (res *connect.Response[configpb.CreateServiceAccountResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.CreateServiceAccount(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) DeleteKeyPair(ctx context.Context, req *connect.Request[configpb.DeleteKeyPairRequest]) (res *connect.Response[configpb.DeleteKeyPairResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.DeleteKeyPair(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) DeletePolicy(ctx context.Context, req *connect.Request[configpb.DeletePolicyRequest]) (res *connect.Response[configpb.DeletePolicyResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.DeletePolicy(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) DeleteRoute(ctx context.Context, req *connect.Request[configpb.DeleteRouteRequest]) (res *connect.Response[configpb.DeleteRouteResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.DeleteRoute(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) DeleteServiceAccount(ctx context.Context, req *connect.Request[configpb.DeleteServiceAccountRequest]) (res *connect.Response[configpb.DeleteServiceAccountResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.DeleteServiceAccount(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) GetKeyPair(ctx context.Context, req *connect.Request[configpb.GetKeyPairRequest]) (res *connect.Response[configpb.GetKeyPairResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.GetKeyPair(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) GetPolicy(ctx context.Context, req *connect.Request[configpb.GetPolicyRequest]) (res *connect.Response[configpb.GetPolicyResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.GetPolicy(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) GetRoute(ctx context.Context, req *connect.Request[configpb.GetRouteRequest]) (res *connect.Response[configpb.GetRouteResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.GetRoute(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) GetServerInfo(ctx context.Context, req *connect.Request[configpb.GetServerInfoRequest]) (res *connect.Response[configpb.GetServerInfoResponse], err error) {
@@ -321,107 +346,120 @@ func (srv *clusteredFollowerServer) GetServerInfo(ctx context.Context, req *conn
 }
 
 func (srv *clusteredFollowerServer) GetServiceAccount(ctx context.Context, req *connect.Request[configpb.GetServiceAccountRequest]) (res *connect.Response[configpb.GetServiceAccountResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.GetServiceAccount(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.GetSettings(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) ListAvailableLogFields(ctx context.Context, req *connect.Request[configpb.ListAvailableLogFieldsRequest]) (res *connect.Response[configpb.ListAvailableLogFieldsResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.ListAvailableLogFields(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) ListKeyPairs(ctx context.Context, req *connect.Request[configpb.ListKeyPairsRequest]) (res *connect.Response[configpb.ListKeyPairsResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.ListKeyPairs(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) ListPolicies(ctx context.Context, req *connect.Request[configpb.ListPoliciesRequest]) (res *connect.Response[configpb.ListPoliciesResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.ListPolicies(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) ListRoutes(ctx context.Context, req *connect.Request[configpb.ListRoutesRequest]) (res *connect.Response[configpb.ListRoutesResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.ListRoutes(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) ListServiceAccounts(ctx context.Context, req *connect.Request[configpb.ListServiceAccountsRequest]) (res *connect.Response[configpb.ListServiceAccountsResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.ListServiceAccounts(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) ListSettings(ctx context.Context, req *connect.Request[configpb.ListSettingsRequest]) (res *connect.Response[configpb.ListSettingsResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+	err = srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.ListSettings(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) UpdateKeyPair(ctx context.Context, req *connect.Request[configpb.UpdateKeyPairRequest]) (res *connect.Response[configpb.UpdateKeyPairResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.UpdateKeyPair(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) UpdatePolicy(ctx context.Context, req *connect.Request[configpb.UpdatePolicyRequest]) (res *connect.Response[configpb.UpdatePolicyResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.UpdatePolicy(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) UpdateRoute(ctx context.Context, req *connect.Request[configpb.UpdateRouteRequest]) (res *connect.Response[configpb.UpdateRouteResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.UpdateRoute(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) UpdateServiceAccount(ctx context.Context, req *connect.Request[configpb.UpdateServiceAccountRequest]) (res *connect.Response[configpb.UpdateServiceAccountResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.UpdateServiceAccount(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) UpdateSettings(ctx context.Context, req *connect.Request[configpb.UpdateSettingsRequest]) (res *connect.Response[configpb.UpdateSettingsResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+	err = srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.UpdateSettings(ctx, req)
 		return err
 	})
+	return res, err
 }
 
 func (srv *clusteredFollowerServer) Stop() {
