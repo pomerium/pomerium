@@ -134,10 +134,7 @@ func (r *reporter) getPseudonymizationKey(cfg *config.Config) []byte {
 }
 
 func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount, userCount int) error {
-	if cfg == nil ||
-		cfg.Options.LicenseType.Value == configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE ||
-		!cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) ||
-		os.Getenv("DO_NOT_TRACK") == "1" {
+	if !ShouldReport(cfg) {
 		return nil
 	}
 
@@ -186,4 +183,11 @@ func sendOrReplace[T any](ch chan T, value T) {
 		default:
 		}
 	}
+}
+
+func ShouldReport(cfg *config.Config) bool {
+	return cfg != nil &&
+		cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE &&
+		cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) &&
+		os.Getenv("DO_NOT_TRACK") != "1"
 }
