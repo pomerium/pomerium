@@ -1,15 +1,11 @@
-import {
-  Alert,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import Alert from "@mui/material/Alert";
+import Button from "@mui/material/Button";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 
 import IDField from "./IDField";
 
@@ -17,10 +13,7 @@ export type DeviceCredentialsTableProps = {
   ids: string[];
   webAuthnUrl: string;
 };
-export const DeviceCredentialsTable: FC<DeviceCredentialsTableProps> = ({
-  ids,
-  webAuthnUrl,
-}) => {
+export default function DeviceCredentialsTable({ ids, webAuthnUrl }: DeviceCredentialsTableProps) {
   return (
     <TableContainer>
       <Table>
@@ -40,11 +33,7 @@ export const DeviceCredentialsTable: FC<DeviceCredentialsTableProps> = ({
                 <TableCell>
                   <form action={webAuthnUrl} method="POST">
                     <input type="hidden" name="action" value="unregister" />
-                    <input
-                      type="hidden"
-                      name="pomerium_device_credential_id"
-                      value={id}
-                    />
+                    <input type="hidden" name="pomerium_device_credential_id" value={id} />
                     <Button size="small" type="submit" variant="contained">
                       Delete
                     </Button>
@@ -65,5 +54,4 @@ export const DeviceCredentialsTable: FC<DeviceCredentialsTableProps> = ({
       </Table>
     </TableContainer>
   );
-};
-export default DeviceCredentialsTable;
+}

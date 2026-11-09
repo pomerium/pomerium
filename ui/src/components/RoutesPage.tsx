@@ -1,21 +1,20 @@
-import {
-  Alert,
-  Avatar,
-  Box,
-  Card,
-  CardActionArea,
-  CardContent,
-  CardHeader,
-  Grid,
-  IconButton,
-  Paper,
-  Snackbar,
-  Stack,
-  Typography,
-} from "@mui/material";
-import type { FC } from "react";
-import React, { useEffect, useState } from "react";
-import { Clipboard, Link } from "react-feather";
+import Alert from "@mui/material/Alert";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import CardContent from "@mui/material/CardContent";
+import CardHeader from "@mui/material/CardHeader";
+import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Snackbar from "@mui/material/Snackbar";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import type { MouseEvent } from "react";
+import { useEffect, useState } from "react";
+import Clipboard from "react-feather/dist/icons/clipboard";
+import Link from "react-feather/dist/icons/link";
 
 import type { Route, RoutesPageData } from "../types";
 import MCPRouteCard from "./MCPRouteCard";
@@ -25,10 +24,10 @@ import SidebarPage from "./SidebarPage";
 type RouteCardProps = {
   route: Route;
 };
-const RouteCard: FC<RouteCardProps> = ({ route }) => {
+function RouteCard({ route }: RouteCardProps) {
   const [showSnackbar, setShowSnackbar] = useState(false);
 
-  const handleClick = (evt: React.MouseEvent) => {
+  const handleClick = (evt: MouseEvent) => {
     if (route.connect_command) {
       evt.preventDefault();
       navigator.clipboard.writeText(route.connect_command);
@@ -95,9 +94,7 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
           }
         />
         <CardContent>
-          {route.description && (
-            <Typography variant="body2">{route.description}</Typography>
-          )}
+          {route.description && <Typography variant="body2">{route.description}</Typography>}
           {route.connect_command && (
             <Box
               component="span"
@@ -121,14 +118,14 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
       />
     </Card>
   );
-};
+}
 
 type RoutesSectionProps = {
   type: "http" | "tcp" | "udp";
   title: string;
   allRoutes: Route[];
 };
-const RoutesSection: FC<RoutesSectionProps> = ({ type, title, allRoutes }) => {
+function RoutesSection({ type, title, allRoutes }: RoutesSectionProps) {
   const routes = allRoutes?.filter((r) => r.type === type);
   if (routes?.length === 0) {
     return <></>;
@@ -145,12 +142,12 @@ const RoutesSection: FC<RoutesSectionProps> = ({ type, title, allRoutes }) => {
       </Grid>
     </Section>
   );
-};
+}
 
 type MCPRoutesSectionProps = {
   allRoutes: Route[];
 };
-const MCPRoutesSection: FC<MCPRoutesSectionProps> = ({ allRoutes }) => {
+function MCPRoutesSection({ allRoutes }: MCPRoutesSectionProps) {
   const routes = allRoutes?.filter((r) => r.type === "mcp");
   if (routes?.length === 0) {
     return <></>;
@@ -167,12 +164,12 @@ const MCPRoutesSection: FC<MCPRoutesSectionProps> = ({ allRoutes }) => {
       </Grid>
     </Section>
   );
-};
+}
 
 type RoutesPageProps = {
   data: RoutesPageData;
 };
-const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
+export default function RoutesPage({ data }: RoutesPageProps) {
   const [connectError, setConnectError] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).get("connect_error"),
   );
@@ -196,29 +193,13 @@ const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
             Connection failed: {connectError}
           </Alert>
         )}
-        {data?.mcp_status_error && (
-          <Alert severity="warning">{data.mcp_status_error}</Alert>
-        )}
+        {data?.mcp_status_error && <Alert severity="warning">{data.mcp_status_error}</Alert>}
         {data?.routes?.length > 0 ? (
           <>
-            <RoutesSection
-              type={"http"}
-              title={"HTTP Routes"}
-              allRoutes={data.routes}
-            />
-            {data?.runtimeFlags?.mcp && (
-              <MCPRoutesSection allRoutes={data.routes} />
-            )}
-            <RoutesSection
-              type={"tcp"}
-              title={"TCP Routes"}
-              allRoutes={data.routes}
-            />
-            <RoutesSection
-              type={"udp"}
-              title={"UDP Routes"}
-              allRoutes={data.routes}
-            />
+            <RoutesSection type={"http"} title={"HTTP Routes"} allRoutes={data.routes} />
+            {data?.runtimeFlags?.mcp && <MCPRoutesSection allRoutes={data.routes} />}
+            <RoutesSection type={"tcp"} title={"TCP Routes"} allRoutes={data.routes} />
+            <RoutesSection type={"udp"} title={"UDP Routes"} allRoutes={data.routes} />
           </>
         ) : (
           <Paper sx={{ padding: 3 }}>
@@ -228,5 +209,4 @@ const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
       </Stack>
     </SidebarPage>
   );
-};
-export default RoutesPage;
+}

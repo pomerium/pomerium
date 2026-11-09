@@ -2,6 +2,8 @@
 .*.yml
 .*.yaml
 .*.json
+!ui/.oxfmtrc.json
+!ui/.oxlintrc.json
 .*.rego
 *.jq
 pem
