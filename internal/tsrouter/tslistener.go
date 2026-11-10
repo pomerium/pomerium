@@ -19,8 +19,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc"
-	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 var errStopped = errors.New("stopped")
@@ -83,19 +81,7 @@ func (l *tsListener) Start(ctx context.Context) {
 
 	ctx, l.stop = context.WithCancelCause(ctx)
 
-	cc, err := grpc.NewOutboundGRPCClientConn(ctx, &grpc.OutboundOptions{
-		OutboundPort: l.OutboundPort,
-		SignedJWTKey: l.SignedJWTKey,
-	})
-	if errors.Is(err, errStopped) {
-		return
-	} else if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("tsrouter: error creating outbound grpc connection")
-		return
-	}
-
 	srv := &tsnet.Server{
-		Store:         NewDataBrokerStateStore(l.Settings.Hostname.Value, databrokerpb.NewDataBrokerServiceClient(cc)),
 		Hostname:      l.Settings.Hostname.Value,
 		Ephemeral:     l.Settings.Ephemeral.Value,
 		AuthKey:       l.Settings.AuthKey.Value,
