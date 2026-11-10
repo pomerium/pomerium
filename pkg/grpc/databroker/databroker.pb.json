@@ -166,30 +166,6 @@
               "defaultValue": ""
             },
             {
-              "name": "mode",
-              "description": "",
-              "label": "",
-              "type": "uint32",
-              "longType": "uint32",
-              "fullType": "uint32",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
-              "name": "modified_at",
-              "description": "",
-              "label": "",
-              "type": "Timestamp",
-              "longType": "google.protobuf.Timestamp",
-              "fullType": "google.protobuf.Timestamp",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
               "name": "data",
               "description": "",
               "label": "",

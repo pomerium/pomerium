@@ -12,10 +12,8 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 
 message File {
-  string                    name        = 1;
-  uint32                    mode        = 2;
-  google.protobuf.Timestamp modified_at = 3;
-  bytes                     data        = 4;
+  string name = 1;
+  bytes  data = 2;
 }
 
 message Record {

@@ -30,9 +30,7 @@ const (
 type File struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Mode          uint32                 `protobuf:"varint,2,opt,name=mode,proto3" json:"mode,omitempty"`
-	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
-	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -72,20 +70,6 @@ func (x *File) GetName() string {
 		return x.Name
 	}
 	return ""
-}
-
-func (x *File) GetMode() uint32 {
-	if x != nil {
-		return x.Mode
-	}
-	return 0
-}
-
-func (x *File) GetModifiedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ModifiedAt
-	}
-	return nil
 }
 
 func (x *File) GetData() []byte {
@@ -1898,13 +1882,10 @@ var File_databroker_proto protoreflect.FileDescriptor
 const file_databroker_proto_rawDesc = "" +
 	"\n" +
 	"\x10databroker.proto\x12\n" +
-	"databroker\x1a\x19google/protobuf/any.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x7f\n" +
+	"databroker\x1a\x19google/protobuf/any.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\".\n" +
 	"\x04File\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04mode\x18\x02 \x01(\rR\x04mode\x12;\n" +
-	"\vmodified_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"modifiedAt\x12\x12\n" +
-	"\x04data\x18\x04 \x01(\fR\x04data\"\xe8\x01\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"\xe8\x01\n" +
 	"\x06Record\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x04R\aversion\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x0e\n" +
@@ -2096,77 +2077,76 @@ var file_databroker_proto_goTypes = []any{
 	(*GetCheckpointResponse)(nil), // 30: databroker.GetCheckpointResponse
 	(*SetCheckpointRequest)(nil),  // 31: databroker.SetCheckpointRequest
 	(*SetCheckpointResponse)(nil), // 32: databroker.SetCheckpointResponse
-	(*timestamppb.Timestamp)(nil), // 33: google.protobuf.Timestamp
-	(*anypb.Any)(nil),             // 34: google.protobuf.Any
+	(*anypb.Any)(nil),             // 33: google.protobuf.Any
+	(*timestamppb.Timestamp)(nil), // 34: google.protobuf.Timestamp
 	(*durationpb.Duration)(nil),   // 35: google.protobuf.Duration
 	(*structpb.Struct)(nil),       // 36: google.protobuf.Struct
 	(*fieldmaskpb.FieldMask)(nil), // 37: google.protobuf.FieldMask
 	(*emptypb.Empty)(nil),         // 38: google.protobuf.Empty
 }
 var file_databroker_proto_depIdxs = []int32{
-	33, // 0: databroker.File.modified_at:type_name -> google.protobuf.Timestamp
-	34, // 1: databroker.Record.data:type_name -> google.protobuf.Any
-	33, // 2: databroker.Record.modified_at:type_name -> google.protobuf.Timestamp
-	33, // 3: databroker.Record.deleted_at:type_name -> google.protobuf.Timestamp
-	35, // 4: databroker.Options.ttl:type_name -> google.protobuf.Duration
-	3,  // 5: databroker.TypedOptions.options:type_name -> databroker.Options
-	1,  // 6: databroker.GetResponse.record:type_name -> databroker.Record
-	36, // 7: databroker.QueryRequest.filter:type_name -> google.protobuf.Struct
-	1,  // 8: databroker.QueryResponse.records:type_name -> databroker.Record
-	1,  // 9: databroker.PutRequest.records:type_name -> databroker.Record
-	1,  // 10: databroker.PutResponse.records:type_name -> databroker.Record
-	1,  // 11: databroker.PatchRequest.records:type_name -> databroker.Record
-	37, // 12: databroker.PatchRequest.field_mask:type_name -> google.protobuf.FieldMask
-	1,  // 13: databroker.PatchResponse.records:type_name -> databroker.Record
-	3,  // 14: databroker.GetOptionsResponse.options:type_name -> databroker.Options
-	3,  // 15: databroker.SetOptionsRequest.options:type_name -> databroker.Options
-	3,  // 16: databroker.SetOptionsResponse.options:type_name -> databroker.Options
-	1,  // 17: databroker.SyncResponse.record:type_name -> databroker.Record
-	4,  // 18: databroker.SyncResponse.options:type_name -> databroker.TypedOptions
-	1,  // 19: databroker.SyncLatestResponse.record:type_name -> databroker.Record
-	2,  // 20: databroker.SyncLatestResponse.versions:type_name -> databroker.Versions
-	4,  // 21: databroker.SyncLatestResponse.options:type_name -> databroker.TypedOptions
-	35, // 22: databroker.AcquireLeaseRequest.duration:type_name -> google.protobuf.Duration
-	35, // 23: databroker.RenewLeaseRequest.duration:type_name -> google.protobuf.Duration
-	28, // 24: databroker.GetCheckpointResponse.checkpoint:type_name -> databroker.Checkpoint
-	28, // 25: databroker.SetCheckpointRequest.checkpoint:type_name -> databroker.Checkpoint
-	24, // 26: databroker.DataBrokerService.AcquireLease:input_type -> databroker.AcquireLeaseRequest
-	38, // 27: databroker.DataBrokerService.Clear:input_type -> google.protobuf.Empty
-	6,  // 28: databroker.DataBrokerService.Get:input_type -> databroker.GetRequest
-	16, // 29: databroker.DataBrokerService.GetOptions:input_type -> databroker.GetOptionsRequest
-	38, // 30: databroker.DataBrokerService.ListTypes:input_type -> google.protobuf.Empty
-	11, // 31: databroker.DataBrokerService.Put:input_type -> databroker.PutRequest
-	13, // 32: databroker.DataBrokerService.Patch:input_type -> databroker.PatchRequest
-	9,  // 33: databroker.DataBrokerService.Query:input_type -> databroker.QueryRequest
-	26, // 34: databroker.DataBrokerService.ReleaseLease:input_type -> databroker.ReleaseLeaseRequest
-	27, // 35: databroker.DataBrokerService.RenewLease:input_type -> databroker.RenewLeaseRequest
-	38, // 36: databroker.DataBrokerService.ServerInfo:input_type -> google.protobuf.Empty
-	18, // 37: databroker.DataBrokerService.SetOptions:input_type -> databroker.SetOptionsRequest
-	20, // 38: databroker.DataBrokerService.Sync:input_type -> databroker.SyncRequest
-	22, // 39: databroker.DataBrokerService.SyncLatest:input_type -> databroker.SyncLatestRequest
-	29, // 40: databroker.CheckpointService.GetCheckpoint:input_type -> databroker.GetCheckpointRequest
-	31, // 41: databroker.CheckpointService.SetCheckpoint:input_type -> databroker.SetCheckpointRequest
-	25, // 42: databroker.DataBrokerService.AcquireLease:output_type -> databroker.AcquireLeaseResponse
-	5,  // 43: databroker.DataBrokerService.Clear:output_type -> databroker.ClearResponse
-	7,  // 44: databroker.DataBrokerService.Get:output_type -> databroker.GetResponse
-	17, // 45: databroker.DataBrokerService.GetOptions:output_type -> databroker.GetOptionsResponse
-	8,  // 46: databroker.DataBrokerService.ListTypes:output_type -> databroker.ListTypesResponse
-	12, // 47: databroker.DataBrokerService.Put:output_type -> databroker.PutResponse
-	14, // 48: databroker.DataBrokerService.Patch:output_type -> databroker.PatchResponse
-	10, // 49: databroker.DataBrokerService.Query:output_type -> databroker.QueryResponse
-	38, // 50: databroker.DataBrokerService.ReleaseLease:output_type -> google.protobuf.Empty
-	38, // 51: databroker.DataBrokerService.RenewLease:output_type -> google.protobuf.Empty
-	15, // 52: databroker.DataBrokerService.ServerInfo:output_type -> databroker.ServerInfoResponse
-	19, // 53: databroker.DataBrokerService.SetOptions:output_type -> databroker.SetOptionsResponse
-	21, // 54: databroker.DataBrokerService.Sync:output_type -> databroker.SyncResponse
-	23, // 55: databroker.DataBrokerService.SyncLatest:output_type -> databroker.SyncLatestResponse
-	30, // 56: databroker.CheckpointService.GetCheckpoint:output_type -> databroker.GetCheckpointResponse
-	32, // 57: databroker.CheckpointService.SetCheckpoint:output_type -> databroker.SetCheckpointResponse
-	42, // [42:58] is the sub-list for method output_type
-	26, // [26:42] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	33, // 0: databroker.Record.data:type_name -> google.protobuf.Any
+	34, // 1: databroker.Record.modified_at:type_name -> google.protobuf.Timestamp
+	34, // 2: databroker.Record.deleted_at:type_name -> google.protobuf.Timestamp
+	35, // 3: databroker.Options.ttl:type_name -> google.protobuf.Duration
+	3,  // 4: databroker.TypedOptions.options:type_name -> databroker.Options
+	1,  // 5: databroker.GetResponse.record:type_name -> databroker.Record
+	36, // 6: databroker.QueryRequest.filter:type_name -> google.protobuf.Struct
+	1,  // 7: databroker.QueryResponse.records:type_name -> databroker.Record
+	1,  // 8: databroker.PutRequest.records:type_name -> databroker.Record
+	1,  // 9: databroker.PutResponse.records:type_name -> databroker.Record
+	1,  // 10: databroker.PatchRequest.records:type_name -> databroker.Record
+	37, // 11: databroker.PatchRequest.field_mask:type_name -> google.protobuf.FieldMask
+	1,  // 12: databroker.PatchResponse.records:type_name -> databroker.Record
+	3,  // 13: databroker.GetOptionsResponse.options:type_name -> databroker.Options
+	3,  // 14: databroker.SetOptionsRequest.options:type_name -> databroker.Options
+	3,  // 15: databroker.SetOptionsResponse.options:type_name -> databroker.Options
+	1,  // 16: databroker.SyncResponse.record:type_name -> databroker.Record
+	4,  // 17: databroker.SyncResponse.options:type_name -> databroker.TypedOptions
+	1,  // 18: databroker.SyncLatestResponse.record:type_name -> databroker.Record
+	2,  // 19: databroker.SyncLatestResponse.versions:type_name -> databroker.Versions
+	4,  // 20: databroker.SyncLatestResponse.options:type_name -> databroker.TypedOptions
+	35, // 21: databroker.AcquireLeaseRequest.duration:type_name -> google.protobuf.Duration
+	35, // 22: databroker.RenewLeaseRequest.duration:type_name -> google.protobuf.Duration
+	28, // 23: databroker.GetCheckpointResponse.checkpoint:type_name -> databroker.Checkpoint
+	28, // 24: databroker.SetCheckpointRequest.checkpoint:type_name -> databroker.Checkpoint
+	24, // 25: databroker.DataBrokerService.AcquireLease:input_type -> databroker.AcquireLeaseRequest
+	38, // 26: databroker.DataBrokerService.Clear:input_type -> google.protobuf.Empty
+	6,  // 27: databroker.DataBrokerService.Get:input_type -> databroker.GetRequest
+	16, // 28: databroker.DataBrokerService.GetOptions:input_type -> databroker.GetOptionsRequest
+	38, // 29: databroker.DataBrokerService.ListTypes:input_type -> google.protobuf.Empty
+	11, // 30: databroker.DataBrokerService.Put:input_type -> databroker.PutRequest
+	13, // 31: databroker.DataBrokerService.Patch:input_type -> databroker.PatchRequest
+	9,  // 32: databroker.DataBrokerService.Query:input_type -> databroker.QueryRequest
+	26, // 33: databroker.DataBrokerService.ReleaseLease:input_type -> databroker.ReleaseLeaseRequest
+	27, // 34: databroker.DataBrokerService.RenewLease:input_type -> databroker.RenewLeaseRequest
+	38, // 35: databroker.DataBrokerService.ServerInfo:input_type -> google.protobuf.Empty
+	18, // 36: databroker.DataBrokerService.SetOptions:input_type -> databroker.SetOptionsRequest
+	20, // 37: databroker.DataBrokerService.Sync:input_type -> databroker.SyncRequest
+	22, // 38: databroker.DataBrokerService.SyncLatest:input_type -> databroker.SyncLatestRequest
+	29, // 39: databroker.CheckpointService.GetCheckpoint:input_type -> databroker.GetCheckpointRequest
+	31, // 40: databroker.CheckpointService.SetCheckpoint:input_type -> databroker.SetCheckpointRequest
+	25, // 41: databroker.DataBrokerService.AcquireLease:output_type -> databroker.AcquireLeaseResponse
+	5,  // 42: databroker.DataBrokerService.Clear:output_type -> databroker.ClearResponse
+	7,  // 43: databroker.DataBrokerService.Get:output_type -> databroker.GetResponse
+	17, // 44: databroker.DataBrokerService.GetOptions:output_type -> databroker.GetOptionsResponse
+	8,  // 45: databroker.DataBrokerService.ListTypes:output_type -> databroker.ListTypesResponse
+	12, // 46: databroker.DataBrokerService.Put:output_type -> databroker.PutResponse
+	14, // 47: databroker.DataBrokerService.Patch:output_type -> databroker.PatchResponse
+	10, // 48: databroker.DataBrokerService.Query:output_type -> databroker.QueryResponse
+	38, // 49: databroker.DataBrokerService.ReleaseLease:output_type -> google.protobuf.Empty
+	38, // 50: databroker.DataBrokerService.RenewLease:output_type -> google.protobuf.Empty
+	15, // 51: databroker.DataBrokerService.ServerInfo:output_type -> databroker.ServerInfoResponse
+	19, // 52: databroker.DataBrokerService.SetOptions:output_type -> databroker.SetOptionsResponse
+	21, // 53: databroker.DataBrokerService.Sync:output_type -> databroker.SyncResponse
+	23, // 54: databroker.DataBrokerService.SyncLatest:output_type -> databroker.SyncLatestResponse
+	30, // 55: databroker.CheckpointService.GetCheckpoint:output_type -> databroker.GetCheckpointResponse
+	32, // 56: databroker.CheckpointService.SetCheckpoint:output_type -> databroker.SetCheckpointResponse
+	41, // [41:57] is the sub-list for method output_type
+	25, // [25:41] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_databroker_proto_init() }

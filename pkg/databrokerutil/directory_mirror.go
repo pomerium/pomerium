@@ -1,6 +1,7 @@
 package databrokerutil
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,224 +13,449 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
+	"github.com/hashicorp/go-set/v3"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/hashicorp/go-set/v3"
-
+	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+// A DirectoryMirror mirrors a directory to the databroker.
 type DirectoryMirror interface {
+	// Reconcile reconciles the local directory with the databroker.
 	Reconcile(ctx context.Context) error
-	Watch(ctx context.Context) (stop func())
+	// Watch performs a reconciliation and then watches for any changes.
+	// Cancel the context to stop watching.
+	Watch(ctx context.Context)
 }
 
-type directoryMirrorFile struct {
-	*databrokerpb.File
-	Deleted bool
+// DirectoryMirrorMode indicates how the DirectoryMirror should operate.
+type DirectoryMirrorMode int
+
+const (
+	// DirectoryMirrorModeDataBroker will update the local filesystem to match
+	// the databroker as the source of truth.
+	DirectoryMirrorModeDataBroker DirectoryMirrorMode = iota
+	// DirectoryMirrorModeLocal will update the databroker to match the
+	// local filesystem as the source of truth.
+	DirectoryMirrorModeLocal
+	// DirectoryMirrorModeDataBrokerThenLocal will start by syncing the local
+	// filesystem with the databroker, using the databroker as the source of
+	// truth, and then subsequent reconcilations will use the local filesystem
+	// as the source of truth.
+	DirectoryMirrorModeDataBrokerThenLocal
+)
+
+type directoryMirrorConfig struct {
+	mode        DirectoryMirrorMode
+	permissions os.FileMode
+}
+
+// DirectoryMirrorOption is an option to customize the directory mirror.
+type DirectoryMirrorOption func(cfg *directoryMirrorConfig)
+
+// WithDirectoryMirrorMode sets the mode to use for the directory mirror.
+func WithDirectoryMirrorMode(mode DirectoryMirrorMode) DirectoryMirrorOption {
+	return func(cfg *directoryMirrorConfig) {
+		cfg.mode = mode
+	}
+}
+
+// WithDirectoryMirrorPermissions sets the permissions to use for files with the directory mirror.
+func WithDirectoryMirrorPermissions(permissions os.FileMode) DirectoryMirrorOption {
+	return func(cfg *directoryMirrorConfig) {
+		cfg.permissions = permissions
+	}
+}
+
+func getDirectoryMirrorConfig(options ...DirectoryMirrorOption) *directoryMirrorConfig {
+	cfg := new(directoryMirrorConfig)
+	WithDirectoryMirrorMode(DirectoryMirrorModeDataBrokerThenLocal)(cfg)
+	WithDirectoryMirrorPermissions(0o600)(cfg)
+	for _, option := range options {
+		option(cfg)
+	}
+	return cfg
 }
 
 type directoryMirror struct {
 	client     databrokerpb.DataBrokerServiceClient
 	recordType string
 	rootDir    string
+	cfg        *directoryMirrorConfig
 
 	mu                           sync.Mutex
 	serverVersion, recordVersion uint64
-	dataBrokerFiles              map[string]directoryMirrorFile
-	fileSystemFiles              map[string]directoryMirrorFile
+	dataBrokerFiles              map[string]*databrokerpb.File
+	fileSystemFiles              map[string]*databrokerpb.File
+	initialized                  bool
 }
 
+// NewDirectoryMirror creates a new DirectoryMirror.
 func NewDirectoryMirror(
 	client databrokerpb.DataBrokerServiceClient,
 	recordType string,
 	rootDir string,
+	options ...DirectoryMirrorOption,
 ) DirectoryMirror {
 	return &directoryMirror{
 		client:     client,
 		recordType: recordType,
 		rootDir:    rootDir,
+		cfg:        getDirectoryMirrorConfig(options...),
 
-		dataBrokerFiles: make(map[string]directoryMirrorFile),
-		fileSystemFiles: make(map[string]directoryMirrorFile),
+		dataBrokerFiles: make(map[string]*databrokerpb.File),
+		fileSystemFiles: make(map[string]*databrokerpb.File),
 	}
 }
 
+// Reconcile reconciles the local directory with the databroker one time.
 func (d *directoryMirror) Reconcile(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.reconcileLocked(ctx)
 }
 
-func (d *directoryMirror) Watch(ctx context.Context) (stop func()) {
-	return func() {}
+// Watch watches the local directory and the databroker continuously for changes.
+// It blocks until context is Done.
+func (d *directoryMirror) Watch(ctx context.Context) {
+	err := d.retry(ctx, func() error { return d.Reconcile(ctx) })
+	if err != nil {
+		return
+	}
+
+	switch d.cfg.mode {
+	case DirectoryMirrorModeDataBroker:
+		d.watchDataBrokerToLocal(ctx)
+	case DirectoryMirrorModeDataBrokerThenLocal, DirectoryMirrorModeLocal:
+		d.watchLocalToDataBroker(ctx)
+	default:
+		panic(fmt.Errorf("unknown directory mirror mode: %d", d.cfg.mode))
+	}
 }
 
-func (d *directoryMirror) reconcileLocked(ctx context.Context) error {
-	err := d.syncDataBrokerLocked(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = d.syncFileSystemLocked(ctx)
-	if err != nil {
-		return err
-	}
-
-	// process databroker deletions
-	for p, f := range d.dataBrokerFiles {
-		if !f.Deleted {
-			continue
-		}
-		if err := d.deleteLocalFile(ctx, f.File); err != nil {
+func (d *directoryMirror) watchDataBrokerToLocal(ctx context.Context) {
+	b := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0))
+	update := func() error {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		if err := d.loadFileSystemRecordsLocked(ctx); err != nil {
 			return err
 		}
-		delete(d.dataBrokerFiles, p)
-		delete(d.fileSystemFiles, p)
+		return d.syncDataBrokerToLocalLocked(ctx)
 	}
+	syncLatest := func() error {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 
-	// process filesystem deletions
-	for p, f := range d.fileSystemFiles {
-		if !f.Deleted {
-			continue
+		d.mu.Lock()
+		clear(d.dataBrokerFiles)
+		d.mu.Unlock()
+
+		stream, err := d.client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{
+			Type: d.recordType,
+		})
+		if err != nil {
+			return fmt.Errorf("directory-mirror: error syncing latest records: %w", err)
 		}
-		if err := d.deleteDataBrokerFile(ctx, f.File); err != nil {
-			return err
-		}
-		delete(d.dataBrokerFiles, p)
-		delete(d.fileSystemFiles, p)
-	}
 
-	paths := set.From(slices.Collect(maps.Keys(d.dataBrokerFiles)))
-	paths.InsertSlice(slices.Collect(maps.Keys(d.fileSystemFiles)))
-	for p := range paths.Items() {
-		f1, ok1 := d.dataBrokerFiles[p]
-		f2, ok2 := d.fileSystemFiles[p]
+		b.Reset()
 
-		if ok1 && (!ok2 || f2.ModifiedAt.AsTime().Before(f1.ModifiedAt.AsTime())) {
-			if err := d.writeLocalFile(ctx, f1.File); err != nil {
-				return err
+		for {
+			res, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			} else if err != nil {
+				return fmt.Errorf("directory-mirror: error receiving sync latest records response: %w", err)
 			}
-		} else if ok2 && (!ok1 || f1.ModifiedAt.AsTime().Before(f2.ModifiedAt.AsTime())) {
-			if err := d.writeDataBrokerFile(ctx, f2.File); err != nil {
-				return err
-			}
-		}
-	}
 
-	return nil
-}
-
-func (d *directoryMirror) syncDataBrokerLocked(ctx context.Context) error {
-	if d.serverVersion == 0 {
-		return d.syncDataBrokerLatestLocked(ctx)
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	stream, err := d.client.Sync(ctx, &databrokerpb.SyncRequest{
-		Type:          d.recordType,
-		ServerVersion: d.serverVersion,
-		RecordVersion: d.recordVersion,
-		Wait:          new(false),
-	})
-	if err != nil {
-		return fmt.Errorf("directory-mirror: error syncing records: %w", err)
-	}
-
-	for {
-		res, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		} else if status.Code(err) == codes.Aborted {
-			cancel()
-			// the server version changed, so use sync latest
-			return d.syncDataBrokerLatestLocked(ctx)
-		} else if err != nil {
-			return fmt.Errorf("directory-mirror: error receving response from sync latest records: %w", err)
-		}
-
-		switch res := res.Response.(type) {
-		case *databrokerpb.SyncResponse_Record:
-			if res.Record.DeletedAt != nil {
-				if f, ok := d.dataBrokerFiles[res.Record.Id]; ok {
-					f.Deleted = true
-					d.dataBrokerFiles[res.Record.Id] = f
-				}
-			} else {
-				var file databrokerpb.File
-				if res.Record.Data.UnmarshalTo(&file) == nil {
-					d.dataBrokerFiles[res.Record.Id] = directoryMirrorFile{
-						File:    &file,
-						Deleted: false,
+			switch res := res.Response.(type) {
+			case *databrokerpb.SyncLatestResponse_Versions:
+				d.mu.Lock()
+				d.serverVersion = res.Versions.ServerVersion
+				d.recordVersion = res.Versions.LatestRecordVersion
+				d.mu.Unlock()
+			case *databrokerpb.SyncLatestResponse_Record:
+				if res.Record.DeletedAt == nil {
+					var file databrokerpb.File
+					if res.Record.Data.UnmarshalTo(&file) == nil {
+						d.mu.Lock()
+						d.dataBrokerFiles[res.Record.Id] = &file
+						d.mu.Unlock()
 					}
 				}
 			}
 		}
+
+		return update()
 	}
+	syncChanges := func() error {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 
-	return nil
-}
+		d.mu.Lock()
+		serverVersion, recordVersion := d.serverVersion, d.recordVersion
+		d.mu.Unlock()
 
-func (d *directoryMirror) syncDataBrokerLatestLocked(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	stream, err := d.client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{
-		Type: d.recordType,
-	})
-	if err != nil {
-		return fmt.Errorf("directory-mirror: error syncing latest records: %w", err)
-	}
-
-	seen := set.New[string](0)
-	for {
-		res, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		} else if err != nil {
-			return fmt.Errorf("directory-mirror: error receving response from sync latest records: %w", err)
+		stream, err := d.client.Sync(ctx, &databrokerpb.SyncRequest{
+			Type:          d.recordType,
+			ServerVersion: serverVersion,
+			RecordVersion: recordVersion,
+			Wait:          new(true),
+		})
+		if err != nil {
+			return fmt.Errorf("directory-mirror: error syncing records: %w", err)
 		}
 
-		switch res := res.Response.(type) {
-		case *databrokerpb.SyncLatestResponse_Record:
-			if res.Record.DeletedAt != nil {
-				continue
+		for {
+			res, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			} else if status.Code(err) == codes.Aborted {
+				cancel()
+				return syncLatest()
+			} else if err != nil {
+				return fmt.Errorf("directory-mirror: error receiving sync records response: %w", err)
 			}
 
-			var file databrokerpb.File
-			if res.Record.Data.UnmarshalTo(&file) == nil {
-				seen.Insert(res.Record.Id)
-				d.dataBrokerFiles[res.Record.Id] = directoryMirrorFile{
-					File:    &file,
-					Deleted: false,
+			b.Reset()
+
+			switch res := res.Response.(type) {
+			case *databrokerpb.SyncResponse_Record:
+				d.mu.Lock()
+				if res.Record.DeletedAt == nil {
+					var file databrokerpb.File
+					if res.Record.Data.UnmarshalTo(&file) == nil {
+						d.dataBrokerFiles[res.Record.Id] = &file
+					} else {
+						delete(d.dataBrokerFiles, res.Record.Id)
+					}
+				} else {
+					delete(d.dataBrokerFiles, res.Record.Id)
+				}
+				d.mu.Unlock()
+				if err := update(); err != nil {
+					return err
 				}
 			}
-
-		case *databrokerpb.SyncLatestResponse_Versions:
-			d.serverVersion = res.Versions.ServerVersion
-			d.recordVersion = res.Versions.LatestRecordVersion
 		}
+
+		return nil
 	}
 
-	for p, f := range d.dataBrokerFiles {
-		if !seen.Contains(p) {
-			f.Deleted = true
-			d.dataBrokerFiles[p] = f
+	for {
+		err := syncChanges()
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("directory-mirror: error watching databroker for changes")
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(b.NextBackOff()):
+			}
 		}
 	}
+}
 
+func (d *directoryMirror) watchLocalToDataBroker(ctx context.Context) {
+	w := fileutil.NewWatcher()
+	ch := w.Bind()
+
+	for {
+		err := d.retry(ctx, func() error {
+			d.mu.Lock()
+			defer d.mu.Unlock()
+
+			err := d.loadFileSystemRecordsLocked(ctx)
+			if err != nil {
+				return err
+			}
+			w.Watch(slices.Sorted(maps.Keys(d.fileSystemFiles)))
+
+			err = d.loadDataBrokerRecordsLocked(ctx)
+			if err != nil {
+				return err
+			}
+
+			return d.syncLocalToDataBrokerLocked(ctx)
+		})
+		if err != nil {
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-ch:
+		}
+	}
+}
+
+func (d *directoryMirror) reconcileLocked(ctx context.Context) error {
+	err := d.loadDataBrokerRecordsLocked(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = d.loadFileSystemRecordsLocked(ctx)
+	if err != nil {
+		return err
+	}
+
+	switch d.cfg.mode {
+	case DirectoryMirrorModeDataBroker:
+		return d.syncDataBrokerToLocalLocked(ctx)
+	case DirectoryMirrorModeDataBrokerThenLocal:
+		if d.initialized {
+			return d.syncLocalToDataBrokerLocked(ctx)
+		}
+		err := d.syncDataBrokerToLocalLocked(ctx)
+		if err != nil {
+			return err
+		}
+		d.initialized = true
+		return nil
+	case DirectoryMirrorModeLocal:
+		return d.syncLocalToDataBrokerLocked(ctx)
+	default:
+		panic(fmt.Errorf("unknown directory mirror mode: %d", d.cfg.mode))
+	}
+}
+
+func (d *directoryMirror) syncLocalToDataBrokerLocked(ctx context.Context) error {
+	paths := set.TreeSetFrom(slices.Collect(maps.Keys(d.dataBrokerFiles)), strings.Compare)
+	paths.InsertSlice(slices.Collect(maps.Keys(d.fileSystemFiles)))
+	for p := range paths.Items() {
+		f1, ok1 := d.dataBrokerFiles[p]
+		f2, ok2 := d.fileSystemFiles[p]
+		if ok1 && !ok2 {
+			// a file in the databroker does not exist locally, so delete it
+			if err := d.deleteDataBrokerFile(ctx, f1); err != nil {
+				return err
+			}
+		} else if ok2 && (!ok1 || !bytes.Equal(f1.Data, f2.Data)) {
+			// a file in the databroker is different from a local file
+			if err := d.writeDataBrokerFile(ctx, f2); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
-func (d *directoryMirror) syncFileSystemLocked(_ context.Context) error {
-	seen := set.New[string](0)
+func (d *directoryMirror) syncDataBrokerToLocalLocked(ctx context.Context) error {
+	paths := set.TreeSetFrom(slices.Collect(maps.Keys(d.dataBrokerFiles)), strings.Compare)
+	paths.InsertSlice(slices.Collect(maps.Keys(d.fileSystemFiles)))
+	for p := range paths.Items() {
+		f1, ok1 := d.dataBrokerFiles[p]
+		f2, ok2 := d.fileSystemFiles[p]
+		if ok2 && !ok1 {
+			// a local file does not exist in the databroker, so delete it
+			if err := d.deleteLocalFile(ctx, f1); err != nil {
+				return err
+			}
+		} else if ok1 && (!ok2 || !bytes.Equal(f1.Data, f2.Data)) {
+			// a local file does not match the databroker, so update it
+			if err := d.writeLocalFile(ctx, f1); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (d *directoryMirror) loadDataBrokerRecordsLocked(ctx context.Context) error {
+	syncLatest := func() error {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		clear(d.dataBrokerFiles)
+
+		stream, err := d.client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{
+			Type: d.recordType,
+		})
+		if err != nil {
+			return fmt.Errorf("directory-mirror: error syncing latest records: %w", err)
+		}
+
+		for {
+			res, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			} else if err != nil {
+				return fmt.Errorf("directory-mirror: error receiving sync latest records response: %w", err)
+			}
+
+			switch res := res.Response.(type) {
+			case *databrokerpb.SyncLatestResponse_Versions:
+				d.serverVersion = res.Versions.ServerVersion
+				d.recordVersion = res.Versions.LatestRecordVersion
+			case *databrokerpb.SyncLatestResponse_Record:
+				var file databrokerpb.File
+				if res.Record.Data.UnmarshalTo(&file) == nil {
+					d.dataBrokerFiles[res.Record.Id] = &file
+				}
+			}
+		}
+
+		return nil
+	}
+	syncChanges := func() error {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		stream, err := d.client.Sync(ctx, &databrokerpb.SyncRequest{
+			Type:          d.recordType,
+			ServerVersion: d.serverVersion,
+			RecordVersion: d.recordVersion,
+			Wait:          new(false),
+		})
+		if err != nil {
+			return fmt.Errorf("directory-mirror: error syncing records: %w", err)
+		}
+
+		for {
+			res, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			} else if status.Code(err) == codes.Aborted {
+				cancel()
+				return syncLatest()
+			} else if err != nil {
+				return fmt.Errorf("directory-mirror: error receiving sync records response: %w", err)
+			}
+
+			switch res := res.Response.(type) {
+			case *databrokerpb.SyncResponse_Record:
+				if res.Record.DeletedAt == nil {
+					var file databrokerpb.File
+					if res.Record.Data.UnmarshalTo(&file) == nil {
+						d.dataBrokerFiles[res.Record.Id] = &file
+					} else {
+						delete(d.dataBrokerFiles, res.Record.Id)
+					}
+				} else {
+					delete(d.dataBrokerFiles, res.Record.Id)
+				}
+			}
+		}
+
+		return nil
+	}
+	if d.serverVersion == 0 {
+		return syncLatest()
+	}
+	return syncChanges()
+}
+
+func (d *directoryMirror) loadFileSystemRecordsLocked(_ context.Context) error {
+	clear(d.fileSystemFiles)
 	err := filepath.WalkDir(d.rootDir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("directory-mirror: error walking file system (filepath=%s): %w", path, err)
@@ -240,48 +466,25 @@ func (d *directoryMirror) syncFileSystemLocked(_ context.Context) error {
 			return fmt.Errorf("directory-mirror: error getting file info (filepath=%s): %w", path, err)
 		}
 
-		name := d.getFileName(path)
-		seen.Insert(name)
-
 		if info.IsDir() {
-			d.fileSystemFiles[name] = directoryMirrorFile{
-				File: &databrokerpb.File{
-					Name:       name,
-					Mode:       uint32(info.Mode()),
-					ModifiedAt: timestamppb.New(info.ModTime()),
-				},
-				Deleted: false,
-			}
 			return nil
 		}
+
+		name := d.getFileName(path)
 
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("directory-mirror: error reading file contents (filepath=%s): %w", path, err)
 		}
 
-		d.fileSystemFiles[name] = directoryMirrorFile{
-			File: &databrokerpb.File{
-				Name:       name,
-				Mode:       uint32(info.Mode()),
-				ModifiedAt: timestamppb.New(info.ModTime()),
-				Data:       data,
-			},
-			Deleted: false,
+		d.fileSystemFiles[name] = &databrokerpb.File{
+			Name: name,
+			Data: data,
 		}
-
 		return nil
 	})
 	if err != nil {
 		return err
-	}
-
-	// mark deleted files
-	for p, f := range d.fileSystemFiles {
-		if !seen.Contains(p) {
-			f.Deleted = true
-			d.fileSystemFiles[p] = f
-		}
 	}
 
 	return nil
@@ -334,42 +537,25 @@ func (d *directoryMirror) writeLocalFile(ctx context.Context, file *databrokerpb
 	fullPath := filepath.Join(d.rootDir, file.Name)
 	log.Ctx(ctx).Info().Str("filepath", fullPath).Msg("directory-mirror: writing local file")
 
-	err := os.MkdirAll(filepath.Dir(fullPath), 0o666)
+	err := os.MkdirAll(filepath.Dir(fullPath), d.cfg.permissions)
 	if err != nil {
 		return fmt.Errorf("directory-mirror: error creating parent directories (filepath=%s): %w", fullPath, err)
 	}
 
-	if os.FileMode(file.Mode).IsDir() {
-		err := os.Mkdir(fullPath, os.FileMode(file.Mode))
-		if err != nil && !os.IsExist(err) {
-			return fmt.Errorf("directory-mirror: error creating local directory (filepath=%s): %w", fullPath, err)
-		}
-	} else {
-		h, err := os.Create(fullPath)
-		if err != nil {
-			return fmt.Errorf("directory-mirror: error creating local file (filepath=%s): %w", fullPath, err)
-		}
-
-		_, err = h.Write(file.Data)
-		if err != nil {
-			_ = h.Close()
-			return fmt.Errorf("directory-mirror: error writing local file (filepath=%s): %w", fullPath, err)
-		}
-
-		err = h.Close()
-		if err != nil {
-			return fmt.Errorf("directory-mirror: error closing local file (filepath=%s): %w", fullPath, err)
-		}
+	h, err := os.OpenFile(fullPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, d.cfg.permissions)
+	if err != nil {
+		return fmt.Errorf("directory-mirror: error creating local file (filepath=%s): %w", fullPath, err)
 	}
 
-	err = os.Chmod(fullPath, os.FileMode(file.Mode))
+	_, err = h.Write(file.Data)
 	if err != nil {
-		return fmt.Errorf("directory-mirror: error changing local file mode (filepath=%s): %w", fullPath, err)
+		_ = h.Close()
+		return fmt.Errorf("directory-mirror: error writing local file (filepath=%s): %w", fullPath, err)
 	}
 
-	err = os.Chtimes(fullPath, file.ModifiedAt.AsTime(), file.ModifiedAt.AsTime())
+	err = h.Close()
 	if err != nil {
-		return fmt.Errorf("directory-mirror: error changing local file modification time (filepath=%s): %w", fullPath, err)
+		return fmt.Errorf("directory-mirror: error closing local file (filepath=%s): %w", fullPath, err)
 	}
 
 	return nil
@@ -379,4 +565,17 @@ func (d *directoryMirror) getFileName(fullPath string) string {
 	p := strings.TrimPrefix(fullPath, d.rootDir)
 	p = strings.TrimPrefix(p, "/")
 	return p
+}
+
+func (d *directoryMirror) retry(ctx context.Context, fn func() error) error {
+	return backoff.RetryNotify(
+		fn,
+		backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0)), ctx),
+		func(err error, d time.Duration) {
+			log.Error().
+				Err(err).
+				Dur("delay", d).
+				Msg("directory-mirror: error performing operation")
+		},
+	)
 }
