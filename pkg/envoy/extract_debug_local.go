@@ -5,15 +5,9 @@ package envoy
 import (
 	"os"
 	"path/filepath"
-
-	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
 var DebugLocalEnvoyPath string
-
-func init() {
-	files.SetFiles(nil, []byte(`{}`))
-}
 
 func extract(dstName string) (err error) {
 	if DebugLocalEnvoyPath == "" {

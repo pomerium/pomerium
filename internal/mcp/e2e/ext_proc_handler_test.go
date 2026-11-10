@@ -286,7 +286,7 @@ func TestExtProcHandlerIntegration(t *testing.T) {
 		t.Helper()
 		client := upstreams.NewHTTPClient(env.ServerCAs(), &upstreams.RequestOptions{})
 		url := mcpRoute.URL().Value() + path
-		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, url, nil)
+		req, err := newMCPRequest(t.Context(), url)
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := client.Do(req)

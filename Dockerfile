@@ -1,4 +1,4 @@
-FROM node:24.21.0-bookworm@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0 AS ui
+FROM node:24.22.2-bookworm@sha256:8fa96264f302f58bbb13aa7339c541547b56975766ce956c875da149452a3e40 AS ui
 WORKDIR /build
 
 COPY .git ./.git
@@ -13,7 +13,7 @@ RUN make npm-install
 COPY ./ui/ ./ui/
 RUN make build-ui
 
-FROM golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build
+FROM golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0 AS build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
 RUN apt-get update \
@@ -23,13 +23,20 @@ COPY . .
 COPY --from=ui /build/ui/dist ./ui/dist
 
 # build
-RUN --mount=type=cache,target=/go/pkg/mod make build-go NAME=pomerium
+ARG POMERIUM_OFFICIAL_BUILD=0
+RUN --mount=type=cache,target=/go/pkg/mod make build-go NAME=pomerium POMERIUM_OFFICIAL_BUILD=${POMERIUM_OFFICIAL_BUILD}
 RUN touch /config.yaml
+RUN if [ "${POMERIUM_OFFICIAL_BUILD}" = "1" ]; then \
+      cp licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt /LICENSE; \
+    else \
+      cp LICENSE /LICENSE; \
+    fi
 
-FROM gcr.io/distroless/base-nossl-debian12:debug@sha256:51c3587676d971b6744b1ac93bc7f64c6604e14b70ed87d1f353a6c060407e8a
+FROM gcr.io/distroless/base-nossl-debian13:debug@sha256:4a1b47e4dc79d5331f6b9265f8933a96351fb6341441902acf8dc8a9a6d25630
 ENV AUTOCERT_DIR=/data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
+COPY --from=build /LICENSE /pomerium/LICENSE
 COPY --from=build /config.yaml /pomerium/config.yaml
 ENTRYPOINT [ "/bin/pomerium" ]
 CMD ["--config","/pomerium/config.yaml"]

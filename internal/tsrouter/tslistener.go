@@ -130,9 +130,9 @@ func (l *tsListener) Start(ctx context.Context) {
 				Str("addr", l.Settings.ListenAddr.Value).
 				Msg("tsrouter: error starting tailnet listener")
 			return
-		} else {
-			go l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value)
 		}
+
+		go l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value)
 	}
 
 	if l.Settings.ListenFunnelAddr.IsSet {

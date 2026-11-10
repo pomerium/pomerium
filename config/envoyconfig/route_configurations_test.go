@@ -68,7 +68,6 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 							"filterMetadata": {
 								"envoy.filters.http.lua": {
 									"remove_impersonate_headers": false,
-									"remove_pomerium_authorization": true,
 									"remove_pomerium_cookie": "pomerium",
 									"rewrite_response_headers": []
 								}
@@ -104,7 +103,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_checksum": "5815450113803132963",
+										"route_checksum": "14065418408581849503",
 										"route_id": "5fbd81d8f19363f4"
 									}
 								}
@@ -127,7 +126,6 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 							"filterMetadata": {
 								"envoy.filters.http.lua": {
 									"remove_impersonate_headers": false,
-									"remove_pomerium_authorization": true,
 									"remove_pomerium_cookie": "pomerium",
 									"rewrite_response_headers": []
 								}
@@ -163,7 +161,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_checksum": "5815450113803132963",
+										"route_checksum": "14065418408581849503",
 										"route_id": "5fbd81d8f19363f4"
 									}
 								}

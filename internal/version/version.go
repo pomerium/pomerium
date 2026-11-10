@@ -23,8 +23,23 @@ var (
 	// Timestamp specifies the build time, set by the compiler as UNIX timestamp.
 	Timestamp = ""
 
+	officialBuild  = "0"
 	runtimeVersion = runtime.Version()
 )
+
+// IsOfficialBuild returns true if this is an official build.
+func IsOfficialBuild() bool {
+	return officialBuild == "1"
+}
+
+// License returns the name and URL of the license governing this build.
+func License() (name, url string) {
+	if IsOfficialBuild() {
+		return "Pomerium Community Edition License 1.0",
+			"https://github.com/pomerium/pomerium/blob/main/licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt"
+	}
+	return "Apache License 2.0", "https://github.com/pomerium/pomerium/blob/main/LICENSE"
+}
 
 func BuildTime() string {
 	tm, err := strconv.Atoi(Timestamp)

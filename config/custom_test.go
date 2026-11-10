@@ -406,3 +406,25 @@ func TestDecodeEnumHookFunc(t *testing.T) {
 		}
 	})
 }
+
+func TestDecodeBase64BytesHookFunc(t *testing.T) {
+	t.Parallel()
+
+	decode := func(dst any, src map[string]any) {
+		cfg := &mapstructure.DecoderConfig{
+			Result: dst,
+		}
+		ViperPolicyHooks(cfg)
+		decoder, err := mapstructure.NewDecoder(cfg)
+		require.NoError(t, err)
+		require.NoError(t, decoder.Decode(src))
+	}
+
+	var obj struct {
+		Data []byte `mapstructure:"data"`
+	}
+	decode(&obj, map[string]any{
+		"data": base64.StdEncoding.EncodeToString([]byte("TEST")),
+	})
+	assert.Equal(t, []byte("TEST"), obj.Data)
+}

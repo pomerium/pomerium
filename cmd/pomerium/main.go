@@ -27,10 +27,12 @@ func main() {
 	convertOldStyleFlags()
 	var configFile string
 	root := &cobra.Command{
-		Use:          "pomerium",
-		Version:      fmt.Sprintf("pomerium: %s\nenvoy: %s", version.FullVersion(), files.Lockfile().Version),
+		Use: "pomerium",
+		Version: fmt.Sprintf("%s\nenvoy version %s (%s)",
+			version.FullVersion(), files.Lockfile().Version, files.EmbeddedEnvoyLicenseIdentifierOrError()),
 		SilenceUsage: true,
 	}
+	root.SetVersionTemplate(versionTemplate())
 	root.AddCommand(zero_cmd.BuildRootCmd())
 	root.AddCommand(health.BuildHealthCommand())
 	root.PersistentFlags().StringVar(&configFile, "config", "", "Specify configuration file location")
@@ -87,4 +89,9 @@ func convertOldStyleFlags() {
 			os.Args[i] = "-" + arg
 		}
 	}
+}
+
+func versionTemplate() string {
+	name, url := version.License()
+	return "{{.Version}}\n" + fmt.Sprintf("Licensed under the terms of the %s: %s\n", name, url)
 }

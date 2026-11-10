@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v9"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/controlplane"
@@ -206,8 +207,9 @@ func TestServiceAccountMCPIntegration(t *testing.T) {
 
 		// Create an expired service account.
 		expiredSA := &user.ServiceAccount{
-			Id:     "test-sa-expired",
-			UserId: "user@example.com",
+			Id:        "test-sa-expired",
+			UserId:    "user@example.com",
+			ExpiresAt: timestamppb.New(time.Now().Add(-1 * time.Hour)),
 		}
 		_, err := user.PutServiceAccount(ctx, dbClient, expiredSA)
 		require.NoError(t, err)
@@ -229,16 +231,15 @@ func TestServiceAccountMCPIntegration(t *testing.T) {
 
 		// The request should fail — expired service accounts are rejected.
 		url := serverRoute.URL().Value()
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+		req, err := newMCPRequest(ctx, url)
 		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
 		resp, err := httpClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
 		// Expired SA should be rejected by Pomerium (not reach the upstream).
-		assert.True(t, resp.StatusCode >= 400 && resp.StatusCode < 500,
-			"expired service account should be rejected with 4xx, got %d", resp.StatusCode)
+		assert.Contains(t, []int{http.StatusUnauthorized, http.StatusForbidden}, resp.StatusCode,
+			"expired service account should be rejected with 401 or 403")
 	})
 
 	t.Run("service account with tampered JWT is rejected", func(t *testing.T) {
@@ -260,15 +261,14 @@ func TestServiceAccountMCPIntegration(t *testing.T) {
 		}
 
 		url := serverRoute.URL().Value()
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+		req, err := newMCPRequest(ctx, url)
 		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
 		resp, err := httpClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		assert.True(t, resp.StatusCode >= 400 && resp.StatusCode < 500,
-			"tampered JWT should be rejected with 4xx, got %d", resp.StatusCode)
+		assert.Contains(t, []int{http.StatusUnauthorized, http.StatusForbidden}, resp.StatusCode,
+			"tampered JWT should be rejected with 401 or 403")
 	})
 
 	t.Run("service account without existing session does not cause server error", func(t *testing.T) {
@@ -302,9 +302,8 @@ func TestServiceAccountMCPIntegration(t *testing.T) {
 		// but may fail at the upstream if it requires auth.
 		// We verify the request doesn't panic or return a 500.
 		url := serverRoute.URL().Value()
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+		req, err := newMCPRequest(ctx, url)
 		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
 		resp, err := httpClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -434,7 +433,7 @@ func TestServiceAccountExtProcHandlerIntegration(t *testing.T) {
 		t.Helper()
 		client := upstreams.NewHTTPClient(env.ServerCAs(), &upstreams.RequestOptions{})
 		url := mcpRoute.URL().Value() + path
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+		req, err := newMCPRequest(ctx, url)
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer Pomerium-"+saJWT)
 		resp, err := client.Do(req)

@@ -1,6 +1,8 @@
 package config
 
-import "maps"
+import (
+	"maps"
+)
 
 var (
 	// RuntimeFlagAddExtraMetricsLabels enables adding extra labels to metrics (host and installation id)
@@ -42,6 +44,9 @@ var (
 	// is deprecated pending removal in a future release, but this flag allows a temporary
 	// opt-out from the deprecation.
 	RuntimeFlagPomeriumJWTEndpoint = runtimeFlag("pomerium_jwt_endpoint", false)
+
+	// RuntimeFlagProductAnalytics enables product analytic collection
+	RuntimeFlagProductAnalytics = runtimeFlag("product_analytics", true)
 
 	// RuntimeFlagRefreshSessionAtIDTokenExpiration changes the identity manager session refresh
 	// timing to also take into account the ID token expiration time.

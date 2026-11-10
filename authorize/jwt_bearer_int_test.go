@@ -1,6 +1,7 @@
 package authorize_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +17,9 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
+	"github.com/pomerium/pomerium/pkg/endpoints"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 // TestExternalJWTBearer_HappyPath asserts a JWT-bearer authenticated request
@@ -316,4 +320,85 @@ func TestExternalJWTBearer_RouteProviderScoping(t *testing.T) {
 	assert.NotEqual(t, http.StatusOK, status(routeA, tokB), "route allowing only idp-a must reject idp-b token")
 	assert.Equal(t, http.StatusOK, status(routeB, tokA), "route with no allowlist must accept idp-a token")
 	assert.Equal(t, http.StatusOK, status(routeB, tokB), "route with no allowlist must accept idp-b token")
+}
+
+// TestExternalJWTBearer_UpstreamAuthorization asserts what the upstream
+// receives in the Authorization header when Pomerium consumes a JWT bearer
+// token: the caller's JWT is a credential for Pomerium, not for the upstream,
+// so it must not be forwarded. A route may still send its own Authorization
+// header to the upstream via set_request_headers.
+func TestExternalJWTBearer_UpstreamAuthorization(t *testing.T) {
+	const sub = "system:serviceaccount:default:my-sa"
+
+	run := func(t *testing.T, globalJWT bool, path string, policy func(p *config.Policy)) string {
+		t.Helper()
+
+		env := testenv.New(t)
+		idp, idpURL := configureJWTIdp(t, env, "demo-idp")
+		if globalJWT {
+			env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
+				cfg.Options.BearerTokenFormat = nullable.From(configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT)
+			}))
+		}
+
+		up := upstreams.HTTP(nil, upstreams.WithDisplayName("Echo"))
+		up.Handle("/echo", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "upstream-auth=%q", r.Header.Get("Authorization"))
+		})
+
+		route := up.Route().
+			From(env.SubdomainURL("api")).
+			To(values.Bind(up.Addr(), func(addr string) string {
+				return fmt.Sprintf("http://%s", addr)
+			})).
+			Policy(func(p *config.Policy) {
+				var ppl config.PPLPolicy
+				require.NoError(t, ppl.UnmarshalJSON([]byte(`{
+					"allow": {"and": [{"claim/sub": "`+sub+`"}]}
+				}`)))
+				p.Policy = &ppl
+				policy(p)
+			})
+
+		env.AddUpstream(up)
+		env.Start()
+		snippets.WaitStartupComplete(env)
+
+		tok := idp.SignJWT(stdSAClaims(idpURL.Value(), sub, jwtBearerAudience, time.Now()))
+		resp, err := up.Get(route,
+			upstreams.Path(path),
+			upstreams.Headers(map[string]string{"Authorization": "Bearer " + tok}),
+		)
+		require.NoError(t, err)
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode, "body=%q", string(body))
+		return string(body)
+	}
+
+	t.Run("route jwt format strips the caller's token", func(t *testing.T) {
+		body := run(t, false, "/echo", func(p *config.Policy) { useJWTBearer(p) })
+		assert.Equal(t, `upstream-auth=""`, body)
+	})
+
+	t.Run("global jwt format strips the caller's token", func(t *testing.T) {
+		body := run(t, true, "/echo", func(*config.Policy) {})
+		assert.Equal(t, `upstream-auth=""`, body)
+	})
+
+	t.Run("set_request_headers Authorization reaches the upstream", func(t *testing.T) {
+		body := run(t, false, "/echo", func(p *config.Policy) {
+			useJWTBearer(p)
+			p.SetRequestHeaders = map[string]string{"Authorization": "Bearer upstream-api-key"}
+		})
+		assert.Equal(t, `upstream-auth="Bearer upstream-api-key"`, body)
+	})
+
+	t.Run("internal endpoints still see the caller's token", func(t *testing.T) {
+		// With the global format, the proxy's own /.pomerium/ handlers
+		// authenticate the caller from the same bearer token, so it must not
+		// be stripped for them.
+		body := run(t, true, endpoints.PathPomeriumUser, func(*config.Policy) {})
+		assert.Contains(t, body, sub)
+	})
 }

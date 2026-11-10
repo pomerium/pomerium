@@ -56,6 +56,7 @@ func generateConfig(ctx context.Context) error {
 		"pomerium.config.DeleteServiceAccountRequest",
 		"pomerium.config.DeleteServiceAccountResponse",
 		"pomerium.config.DownstreamMtlsSettings",
+		"pomerium.config.EnterpriseSettings.StringList",
 		"pomerium.config.EntityInfo",
 		"pomerium.config.GetKeyPairRequest",
 		"pomerium.config.GetKeyPairResponse",
@@ -236,7 +237,7 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 							setterName = "SliceOf" + setterName
 						}
 						srcRef := jen.Id("src").Dot(protoGoName)
-						if fd.HasOptionalKeyword() {
+						if fd.HasOptionalKeyword() || setterName == "SliceOfByte" {
 							// do nothing
 						} else if od := fd.ContainingOneof(); od != nil {
 							srcRef = jen.Id("getOneOf").Call(
@@ -373,7 +374,6 @@ func generateBasicSetters(_ context.Context, g *jen.Group) error {
 	}
 	baseDefs := []Def{
 		{"bool", "Bool"},
-		{"byte", "Byte"},
 		{"float32", "Float"},
 		{"float64", "Double"},
 		{"int16", "Int16"},
@@ -637,7 +637,7 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
 		case "google.protobuf.Int64Value":
 			s = jen.Int64()
 		case "google.protobuf.Struct":
-			s = jen.Op("*").Qual("google.golang.org/protobuf/types/known/structpb", "Struct")
+			s = jen.Map(jen.String()).Any()
 		case "google.protobuf.Timestamp":
 			s = jen.Qual("time", "Time")
 		case "google.protobuf.UInt16Value":
@@ -646,7 +646,9 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
 			s = jen.Uint32()
 		case "google.protobuf.UInt64Value":
 			s = jen.Uint64()
-		case "pomerium.config.Route.StringList", "pomerium.config.Settings.StringList":
+		case "pomerium.config.EnterpriseSettings.StringList",
+			"pomerium.config.Route.StringList",
+			"pomerium.config.Settings.StringList":
 			s = jen.Index().String()
 		default:
 			s = jen.Id(getMessageName(fd.Message()))
@@ -700,7 +702,8 @@ func getFieldTypeName(fd protoreflect.FieldDescriptor) string {
 		name = "SliceOfByte"
 	case protoreflect.MessageKind:
 		switch fd.Message().FullName() {
-		case "pomerium.config.Route.StringList",
+		case "pomerium.config.EnterpriseSettings.StringList",
+			"pomerium.config.Route.StringList",
 			"pomerium.config.Settings.StringList":
 			name = "StringList"
 		case "google.protobuf.Timestamp":

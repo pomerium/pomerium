@@ -114,6 +114,7 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 				b.buildControlPlanePathRoute(options, "/"),
 				b.buildControlPlanePathRoute(options, endpoints.PathRobotsTxt),
 				b.buildControlPlanePrefixRoute(options, "/oidc/"),
+				b.buildControlPlanePathRoute(options, endpoints.PathWellKnownOpenIDConfiguration),
 			}, nil
 		}
 	}
@@ -344,11 +345,6 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 			Kind: &structpb.Value_StringValue{
 				StringValue: cfg.Options.CookieName,
-			},
-		}
-		luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
-			Kind: &structpb.Value_BoolValue{
-				BoolValue: true,
 			},
 		}
 		luaMetadata["remove_impersonate_headers"] = &structpb.Value{

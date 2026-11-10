@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/databroker"
+	"github.com/pomerium/pomerium/internal/analytics"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -38,7 +39,7 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.opts.Provider = "google"
-			_, err := databroker.New(t.Context(), config.New(&tt.opts), events.New())
+			_, err := databroker.New(t.Context(), config.New(&tt.opts), events.New(), analytics.New())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -1,28 +1,25 @@
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import {
-  Box,
-  Button,
-  IconButton,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from "@mui/material";
-import type { FC } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 
 import type { SessionBindingInfoPageData } from "../types";
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
-import { SmallTooltip } from "./Tooltips";
+import SmallTooltip from "./Tooltips";
 
 type SessionBindingInfoProps = {
   data: SessionBindingInfoPageData;
 };
 
-const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({ data }) => {
+export default function SessionBindingInfoPage({ data }: SessionBindingInfoProps) {
   return (
     <SidebarPage data={data}>
       <Section title="Client bindings">
@@ -30,9 +27,9 @@ const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({ data }) => {
       </Section>
     </SidebarPage>
   );
-};
+}
 
-const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
+function SessionBindingInfoContent({ data }: SessionBindingInfoProps) {
   return (
     <>
       <TableContainer component={Paper} sx={{ maxWidth: 1200, mb: 2 }}>
@@ -77,9 +74,7 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                         aria-label="Copy fingerprint"
                         size="small"
                         onClick={() => {
-                          navigator.clipboard.writeText(
-                            s.DetailsSSH.FingerprintID,
-                          );
+                          navigator.clipboard.writeText(s.DetailsSSH.FingerprintID);
                         }}
                       >
                         <ContentCopyIcon fontSize="small"></ContentCopyIcon>
@@ -96,11 +91,7 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                       method="POST"
                       sx={{ display: "inline-flex", gap: 1 }}
                     >
-                      <input
-                        type="hidden"
-                        name="sessionBindingID"
-                        value={s.SessionBindingID}
-                      />
+                      <input type="hidden" name="sessionBindingID" value={s.SessionBindingID} />
                       <Button size="small" type="submit" variant="contained">
                         Revoke
                       </Button>
@@ -117,11 +108,7 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                         alignItems: "center",
                       }}
                     >
-                      <input
-                        type="hidden"
-                        name="sessionBindingID"
-                        value={s.SessionBindingID}
-                      />
+                      <input type="hidden" name="sessionBindingID" value={s.SessionBindingID} />
                       <Button
                         size="small"
                         type="submit"
@@ -139,6 +126,4 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
       </TableContainer>
     </>
   );
-};
-
-export default SessionBindingInfoPage;
+}

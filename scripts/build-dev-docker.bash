@@ -16,7 +16,7 @@ cp bin/pomerium $_dir/
 
 EOF
   cat <<EOF >Dockerfile
-FROM gcr.io/distroless/base-nossl-debian12:debug
+FROM gcr.io/distroless/base-nossl-debian13:debug@sha256:d085c34ea66f46cdd1ff439c01f88c6875f6f49adeb2c1fcc7a22d33e1af515e
 WORKDIR /pomerium
 COPY pomerium /bin/pomerium
 COPY config.yaml /pomerium/config.yaml

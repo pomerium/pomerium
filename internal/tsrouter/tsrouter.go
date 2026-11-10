@@ -2,6 +2,7 @@ package tsrouter
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync"
 
@@ -48,7 +49,11 @@ func (r *tsRouter) Run(ctx context.Context) error {
 	r.updateLocked()
 	r.mu.Unlock()
 
-	return context.Cause(ctx)
+	err := context.Cause(ctx)
+	if errors.Is(err, context.Canceled) {
+		err = nil
+	}
+	return err
 }
 
 func (r *tsRouter) updateLocked() {

@@ -1,25 +1,24 @@
-import {
-  AppBar,
-  Box,
-  Drawer,
-  IconButton,
-  Menu,
-  MenuItem,
-  Toolbar,
-  styled,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
-import { get } from "lodash-es";
-import type { FC } from "react";
-import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, Menu as MenuIcon } from "react-feather";
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import { styled, useTheme } from "@mui/material/styles";
+import Toolbar from "@mui/material/Toolbar";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import get from "lodash-es/get";
+import type { MouseEvent } from "react";
+import { useState } from "react";
+import ChevronLeft from "react-feather/dist/icons/chevron-left";
+import ChevronRight from "react-feather/dist/icons/chevron-right";
+import MenuIcon from "react-feather/dist/icons/menu";
 
 import LogoURL from "../static/logo_white.svg";
 import type { PageData } from "../types";
-import { Avatar } from "./Avatar";
+import Avatar from "./Avatar";
 import Logo from "./Logo";
-import { ToolbarOffset } from "./ToolbarOffset";
+import ToolbarOffset from "./ToolbarOffset";
 import UserSidebarContent from "./UserSidebarContent";
 
 const DrawerHeader = styled("div")(({ theme }) => ({
@@ -33,7 +32,7 @@ type HeaderProps = {
   includeSidebar: boolean;
   data?: PageData;
 };
-const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
+export default function Header({ includeSidebar, data }: HeaderProps) {
   const theme = useTheme();
   const mdUp = useMediaQuery(() => theme.breakpoints.up("md"), {
     defaultMatches: true,
@@ -41,8 +40,8 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
   });
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
-  const handleMenuOpen = (e: React.MouseEvent<HTMLElement>) => {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const handleMenuOpen = (e: MouseEvent<HTMLElement>) => {
     setAnchorEl(e.currentTarget);
   };
   const handleMenuClose = () => {
@@ -56,8 +55,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
   const userPictureUrl = (get(data, "user.claims.picture") ||
     get(data, "profile.claims.picture") ||
     undefined) as string | undefined;
-  const showAvatar =
-    data?.page !== "SignOutConfirm" && data?.page !== "SignedOut";
+  const showAvatar = data?.page !== "SignOutConfirm" && data?.page !== "SignedOut";
 
   const handleDrawerOpen = () => {
     setDrawerOpen(true);
@@ -67,26 +65,23 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
     setDrawerOpen(false);
   };
 
-  const handleRoutes = (evt: React.MouseEvent): void => {
+  const handleRoutes = (evt: MouseEvent): void => {
     evt.preventDefault();
     window.open("/.pomerium/routes");
   };
 
-  const handleUserInfo = (evt: React.MouseEvent): void => {
+  const handleUserInfo = (evt: MouseEvent): void => {
     evt.preventDefault();
     window.open("/.pomerium/");
   };
 
-  const handleLogout = (evt: React.MouseEvent): void => {
+  const handleLogout = (evt: MouseEvent): void => {
     evt.preventDefault();
     location.href = "/.pomerium/sign_out";
   };
 
   return (
-    <AppBar
-      position="fixed"
-      sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
-    >
+    <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
       <Toolbar>
         {!mdUp && includeSidebar ? (
           <>
@@ -116,11 +111,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
             >
               <DrawerHeader>
                 <IconButton onClick={handleDrawerClose}>
-                  {theme.direction === "ltr" ? (
-                    <ChevronLeft />
-                  ) : (
-                    <ChevronRight />
-                  )}
+                  {theme.direction === "ltr" ? <ChevronLeft /> : <ChevronRight />}
                 </IconButton>
               </DrawerHeader>
               <UserSidebarContent close={handleDrawerClose} data={data} />
@@ -157,5 +148,4 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
       </Toolbar>
     </AppBar>
   );
-};
-export default Header;
+}

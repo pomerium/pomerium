@@ -5,10 +5,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/raft"
-	hclogzerolog "github.com/weastur/hclog-zerolog"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/log"
 )
 
 var ErrNoClusterID = errors.New("no cluster id defined")
@@ -30,7 +28,7 @@ func NewNode(streamLayer StreamLayer, options config.DataBrokerOptions) (Node, e
 
 	conf := raft.DefaultConfig()
 	conf.LocalID = raft.ServerID(nodeID)
-	conf.Logger = hclogzerolog.NewWithCustomNameField(log.Logger().With().Logger(), "component").Named("raft-node")
+	conf.Logger = newLogger("raft-node")
 
 	fsm := NewFSM()
 	logs := NewLogStore()

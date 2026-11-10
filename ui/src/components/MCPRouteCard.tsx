@@ -1,26 +1,20 @@
-import {
-  Alert,
-  Avatar,
-  Box,
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  CardHeader,
-  Chip,
-  Typography,
-} from "@mui/material";
-import type { FC } from "react";
-import React, { useState } from "react";
-import { Wifi, WifiOff } from "react-feather";
+import Alert from "@mui/material/Alert";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardActions from "@mui/material/CardActions";
+import CardContent from "@mui/material/CardContent";
+import CardHeader from "@mui/material/CardHeader";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
+import { useState } from "react";
+import Wifi from "react-feather/dist/icons/wifi";
+import WifiOff from "react-feather/dist/icons/wifi-off";
 
 import type { Route } from "../types";
 import type { MCPServerStatus } from "../util/mcpRouteStatus";
-import {
-  canRefresh,
-  findServerStatus,
-  refreshTokenCaption,
-} from "../util/mcpRouteStatus";
+import { canRefresh, findServerStatus, refreshTokenCaption } from "../util/mcpRouteStatus";
 
 // Official MCP logo icon (3 interweaving paths from the Model Context Protocol logo)
 // on a circular white background.
@@ -96,10 +90,8 @@ const stateFromRoute = (route: Route): MCPServerStatus => ({
 type MCPRouteCardProps = {
   route: Route;
 };
-const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
-  const [tokenState, setTokenState] = useState<MCPServerStatus>(() =>
-    stateFromRoute(route),
-  );
+export default function MCPRouteCard({ route }: MCPRouteCardProps) {
+  const [tokenState, setTokenState] = useState<MCPServerStatus>(() => stateFromRoute(route));
   const [pending, setPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -115,9 +107,7 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
       });
       if (!resp.ok) {
         const text = await resp.text().catch(() => "");
-        setErrorMessage(
-          `Failed to ${action} (${resp.status}): ${text || "unknown error"}`,
-        );
+        setErrorMessage(`Failed to ${action} (${resp.status}): ${text || "unknown error"}`);
         return;
       }
       const body = (await resp.json()) as MCPRoutesResponse;
@@ -129,17 +119,14 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
       setErrorMessage(routeError ? `Failed to ${action}: ${routeError}` : null);
     } catch (err) {
       setErrorMessage(
-        `Failed to ${action}: ${
-          err instanceof Error ? err.message : "network error"
-        }`,
+        `Failed to ${action}: ${err instanceof Error ? err.message : "network error"}`,
       );
     } finally {
       setPending(false);
     }
   };
 
-  const handleDisconnect = () =>
-    post("/.pomerium/mcp/routes/disconnect", "disconnect");
+  const handleDisconnect = () => post("/.pomerium/mcp/routes/disconnect", "disconnect");
   const handleRefresh = () => post("/.pomerium/mcp/routes/refresh", "refresh");
 
   // One source of truth for the three presentation states, so the chip's icon,
@@ -203,23 +190,13 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
       />
       {(route.description || tokenState.connected) && (
         <CardContent sx={{ pt: 0 }}>
-          {route.description && (
-            <Typography variant="body2">{route.description}</Typography>
-          )}
+          {route.description && <Typography variant="body2">{route.description}</Typography>}
           {tokenState.connected && (
             <>
-              <Typography
-                variant="caption"
-                component="div"
-                color="textSecondary"
-              >
+              <Typography variant="caption" component="div" color="textSecondary">
                 Access token: {describeExpiry(tokenState.token_expires_at)}
               </Typography>
-              <Typography
-                variant="caption"
-                component="div"
-                color={refreshCaption.color}
-              >
+              <Typography variant="caption" component="div" color={refreshCaption.color}>
                 {refreshCaption.text}
               </Typography>
             </>
@@ -227,11 +204,7 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
         </CardContent>
       )}
       {errorMessage && (
-        <Alert
-          severity="error"
-          onClose={() => setErrorMessage(null)}
-          sx={{ mx: 1 }}
-        >
+        <Alert severity="error" onClose={() => setErrorMessage(null)} sx={{ mx: 1 }}>
           {errorMessage}
         </Alert>
       )}
@@ -239,36 +212,20 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
         {tokenState.connected ? (
           <>
             {canRefresh(tokenState) && (
-              <Button
-                size="small"
-                color="primary"
-                disabled={pending}
-                onClick={handleRefresh}
-              >
+              <Button size="small" color="primary" disabled={pending} onClick={handleRefresh}>
                 Refresh
               </Button>
             )}
-            <Button
-              size="small"
-              color="error"
-              disabled={pending}
-              onClick={handleDisconnect}
-            >
+            <Button size="small" color="error" disabled={pending} onClick={handleDisconnect}>
               Disconnect
             </Button>
           </>
         ) : route.mcp_connect_url ? (
-          <Button
-            size="small"
-            color="primary"
-            href={route.mcp_connect_url}
-            component="a"
-          >
+          <Button size="small" color="primary" href={route.mcp_connect_url} component="a">
             Connect
           </Button>
         ) : null}
       </CardActions>
     </Card>
   );
-};
-export default MCPRouteCard;
+}
