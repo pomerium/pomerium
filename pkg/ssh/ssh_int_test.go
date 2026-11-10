@@ -10,6 +10,7 @@ import (
 	"net"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -1644,6 +1645,206 @@ allow:
 	err = client.Wait()
 	s.ErrorContains(err, "ssh: disconnect, reason 2")
 	s.ErrorContains(err, "Permission Denied: access denied{via_upstream}")
+}
+
+func (s *SSHTestSuite) TestAddRemoveRoutes() {
+	s.start([]RouteOptions{}) // start with 0 routes
+	cc := s.newClientConfig("username", "route1", "route1-user1@example.com")
+	_, err := s.upstream.Dial(cc)
+	s.Require().ErrorContains(err, "Permission Denied")
+
+	s.env.Add(s.upstream.Route().
+		From(values.Const("ssh://route1")).
+		PPL(`
+allow:
+  and:
+    - email:
+        is: "route1-user1@example.com"
+`))
+
+	s.Require().Eventually(func() bool {
+		client, err := s.upstream.Dial(cc)
+		if err != nil {
+			return false
+		}
+		defer client.Close()
+		VerifyWorkingShell(s.T(), client)
+		return true
+	}, 2*time.Second, 200*time.Millisecond, "failed to connect to route after config update")
+
+	s.env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
+		cfg.Options.Policies = nil
+	}))
+
+	s.Require().Eventually(func() bool {
+		client, err := s.upstream.Dial(cc)
+		if err == nil {
+			_ = client.Close()
+			return false
+		}
+		s.Assert().ErrorContains(err, "Permission Denied")
+		return true
+	}, 2*time.Second, 200*time.Millisecond, "expected error when connecting to removed route after config update")
+}
+
+func (s *SSHTestSuite) TestAddRemoveRouteSubset() {
+	// same as above, but starting with 1 route, and adding and removing another
+	// while keeping the first one
+	s.start([]RouteOptions{
+		{
+			Name: "route1",
+			PPLTemplate: `
+allow:
+  and:
+    - email:
+        in: ["route1-user1@example.com", "route1-user2@example.com"]
+`,
+		},
+	})
+
+	{
+		client, err := s.upstream.Dial(s.newClientConfig("username", "route1", "route1-user1@example.com"))
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		_ = client.Close()
+	}
+
+	cc := s.newClientConfig("username", "route2", "route2-user1@example.com")
+	_, err := s.upstream.Dial(cc)
+	s.Require().ErrorContains(err, "Permission Denied")
+
+	s.env.Add(s.upstream.Route().
+		From(values.Const("ssh://route2")).
+		PPL(`
+allow:
+  and:
+    - email:
+        is: "route2-user1@example.com"
+`))
+
+	s.Require().Eventually(func() bool {
+		client, err := s.upstream.Dial(cc)
+		if err != nil {
+			return false
+		}
+		defer client.Close()
+		VerifyWorkingShell(s.T(), client)
+		return true
+	}, 2*time.Second, 200*time.Millisecond, "failed to connect to route after config update")
+
+	s.env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
+		for i, p := range cfg.Options.Policies {
+			if p.From == "ssh://route2" {
+				cfg.Options.Policies = slices.Delete(cfg.Options.Policies, i, i+1)
+			}
+		}
+	}))
+
+	s.Require().Eventually(func() bool {
+		client, err := s.upstream.Dial(cc)
+		if err == nil {
+			_ = client.Close()
+			return false
+		}
+		s.Assert().ErrorContains(err, "Permission Denied")
+		return true
+	}, 2*time.Second, 200*time.Millisecond, "expected error when connecting to removed route after config update")
+
+	{
+		client, err := s.upstream.Dial(s.newClientConfig("username", "route1", "route1-user2@example.com"))
+		s.Require().NoError(err)
+		VerifyWorkingShell(s.T(), client)
+		_ = client.Close()
+	}
+}
+
+func (s *SSHTestSuite) TestRemovingRouteShouldRevokeSession() {
+	s.start([]RouteOptions{
+		{
+			Name: "route1",
+			PPLTemplate: `
+allow:
+  and:
+    - email:
+        is: "route1-user1@example.com"
+`,
+		},
+	})
+
+	client, err := s.upstream.Dial(s.newClientConfig("username", "route1", "route1-user1@example.com"))
+	s.Require().NoError(err)
+	waitC := make(chan error, 1)
+	go func() {
+		waitC <- client.Wait()
+	}()
+	VerifyWorkingShell(s.T(), client)
+	select {
+	case err := <-waitC:
+		s.Fail(fmt.Sprintf("unexpected error: %s", err))
+	default:
+	}
+
+	s.env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
+		cfg.Options.Policies = nil
+	}))
+
+	select {
+	case err := <-waitC:
+		s.ErrorContains(err, "access denied")
+	case <-time.After(5 * time.Second):
+		s.Fail("timed out waiting for error")
+	}
+}
+
+func (s *SSHTestSuite) TestRemovingRouteSubsetShouldRevokeSession() {
+	s.start([]RouteOptions{
+		{
+			Name: "route1",
+			PPLTemplate: `
+allow:
+  and:
+    - email:
+        is: "route1-user1@example.com"
+`,
+		},
+		{
+			Name: "route2",
+			PPLTemplate: `
+allow:
+  and:
+    - email:
+        is: "route2-user1@example.com"
+`,
+		},
+	})
+
+	client, err := s.upstream.Dial(s.newClientConfig("username", "route2", "route2-user1@example.com"))
+	s.Require().NoError(err)
+	waitC := make(chan error, 1)
+	go func() {
+		waitC <- client.Wait()
+	}()
+	VerifyWorkingShell(s.T(), client)
+	select {
+	case err := <-waitC:
+		s.Fail(fmt.Sprintf("unexpected error: %s", err))
+	default:
+	}
+
+	s.env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
+		for i, p := range cfg.Options.Policies {
+			if p.From == "ssh://route2" {
+				cfg.Options.Policies = slices.Delete(cfg.Options.Policies, i, i+1)
+			}
+		}
+	}))
+
+	select {
+	case err := <-waitC:
+		s.ErrorContains(err, "access denied")
+	case <-time.After(5 * time.Second):
+		s.Fail("timed out waiting for error")
+	}
 }
 
 func (s *SSHTestSuite) TestTooManyPublicKeyAttempts() {
