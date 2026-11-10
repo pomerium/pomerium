@@ -312,12 +312,9 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		tsRouter.OnConfigChange(cfg)
 	})
 	tsRouter.OnConfigChange(src.GetConfig())
-	go func() {
-		err := tsRouter.Run(ctx)
-		if err != nil {
-			log.Ctx(ctx).Fatal().Err(err).Msg("error running tsrouter")
-		}
-	}()
+	p.errGroup.Go(func() error {
+		return tsRouter.Run(ctx)
+	})
 
 	return nil
 }

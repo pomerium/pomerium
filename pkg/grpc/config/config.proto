@@ -1343,7 +1343,7 @@ message TailscaleListenerSettings {
   // Use an oauth client to create a pre-authentication key for the device.
   optional string oauth_client_id = 2;
   // Client secret for the oauth client id.
-  optional string oauth_client_secret = 3;
+  optional string oauth_client_secret = 3 [(sensitive) = true];
   // Use an identity provider token to authenticate via workload identity
   // federation.
   optional string id_token = 4;

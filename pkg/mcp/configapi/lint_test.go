@@ -129,6 +129,7 @@ var expectedSensitiveFields = map[string]struct{}{
 	"pomerium.config.Settings.signing_key":                          {},
 	"pomerium.config.Settings.ssh_host_keys":                        {},
 	"pomerium.config.Settings.ssh_user_ca_key":                      {},
+	"pomerium.config.TailscaleListenerSettings.oauth_client_secret": {},
 	"pomerium.config.UpdateServiceAccountResponse.jwt":              {},
 	"pomerium.config.UpstreamOAuth2.client_secret":                  {},
 }
