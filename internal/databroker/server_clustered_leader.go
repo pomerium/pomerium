@@ -2,8 +2,11 @@ package databroker
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/cenkalti/backoff/v4"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -247,24 +250,30 @@ func (srv *clusteredLeaderServer) run(ctx context.Context) {
 	defer close(srv.done)
 	ch := srv.onChange.Bind()
 	defer srv.onChange.Unbind(ch)
-	for {
-		// retrieve the current server info
-		res, err := srv.local.ServerInfo(ctx, new(emptypb.Empty))
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker-clustered-leader-server: error retrieving current server info")
-			continue
-		}
 
-		// set the checkpoint to the current server version and latest record version
-		_, err = srv.local.SetCheckpoint(ctx, &databrokerpb.SetCheckpointRequest{
-			Checkpoint: &databrokerpb.Checkpoint{
-				ServerVersion: res.GetServerVersion(),
-				RecordVersion: res.GetLatestRecordVersion(),
-			},
+	for {
+		err := srv.retry(ctx, func() error {
+			// retrieve the current server info
+			res, err := srv.local.ServerInfo(ctx, new(emptypb.Empty))
+			if err != nil {
+				return fmt.Errorf("error retrieving current server info: %w", err)
+			}
+
+			// set the checkpoint to the current server version and latest record version
+			_, err = srv.local.SetCheckpoint(ctx, &databrokerpb.SetCheckpointRequest{
+				Checkpoint: &databrokerpb.Checkpoint{
+					ServerVersion: res.GetServerVersion(),
+					RecordVersion: res.GetLatestRecordVersion(),
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("error updating checkpoint: %w", err)
+			}
+
+			return nil
 		})
 		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker-clustered-leader-server: error updating checkpoint")
-			continue
+			return
 		}
 
 		// wait for a change
@@ -274,4 +283,21 @@ func (srv *clusteredLeaderServer) run(ctx context.Context) {
 		case <-ch:
 		}
 	}
+}
+
+// retry executes fn with exponential backoff until it either succeeds or ctx is done
+func (srv *clusteredLeaderServer) retry(ctx context.Context, fn func() error) error {
+	b := backoff.NewExponentialBackOff(
+		backoff.WithInitialInterval(10*time.Millisecond),
+		backoff.WithRandomizationFactor(0.5),
+		backoff.WithMultiplier(2),
+		backoff.WithMaxInterval(time.Second),
+		backoff.WithMaxElapsedTime(0),
+	)
+	return backoff.RetryNotify(fn, backoff.WithContext(b, ctx), func(err error, d time.Duration) {
+		log.Ctx(ctx).Error().
+			Err(err).
+			Dur("delay", d).
+			Msg("databroker-clustered-leader-server: error performing operation, retrying")
+	})
 }
