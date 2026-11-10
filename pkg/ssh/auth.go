@@ -212,15 +212,23 @@ func (a *Auth) handlePublicKeyMethodRequest(
 
 	isPomeriumInternalRoute := res.HasReason(criteria.ReasonPomeriumRoute)
 	if !res.HasReason(criteria.ReasonUserUnauthenticated) && !isPomeriumInternalRoute {
-		// If the policy is missing any criteria that require a session, then it is
-		// misconfigured. Log an error and deny the request since there is no way to
-		// continue
-		log.Ctx(ctx).Error().
+		lg := log.Ctx(ctx).With().
 			Str("route", "ssh://"+user.Hostname()).
 			Str("client", streamInfo.SourceAddress).
 			Uint64("stream-id", streamInfo.StreamID).
 			Str("public-key", fmt.Sprintf("%s %s", req.PublicKeyAlg, fingerprintAsStrAttribute(req.PublicKeyFingerprintSha256))).
-			Msg("warning: denying access to ssh route which is missing session criteria in its policy")
+			Logger()
+
+		// Check if the route was not found
+		if res.HasReason(criteria.ReasonRouteNotFound) {
+			lg.Info().Msg("denying access to nonexistent ssh route")
+			return AuthMethodResponse{}, nil
+		}
+
+		// If the policy is missing any criteria that require a session, then it is
+		// misconfigured. Log an error and deny the request since there is no way to
+		// continue
+		lg.Error().Msg("warning: denying access to ssh route which is missing session criteria in its policy")
 		return AuthMethodResponse{}, nil
 	}
 
