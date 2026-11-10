@@ -5,6 +5,7 @@ import (
 	"crypto/hkdf"
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -133,9 +134,7 @@ func (r *reporter) getPseudonymizationKey(cfg *config.Config) []byte {
 }
 
 func (r *reporter) report(ctx context.Context, cfg *config.Config, sessionCount, userCount int) error {
-	if cfg == nil ||
-		cfg.Options.LicenseType.Value == configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE ||
-		!cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) {
+	if !ShouldReport(cfg) {
 		return nil
 	}
 
@@ -184,4 +183,12 @@ func sendOrReplace[T any](ch chan T, value T) {
 		default:
 		}
 	}
+}
+
+// ShouldReport returns true if analytics should be reported for the given configuration.
+func ShouldReport(cfg *config.Config) bool {
+	return cfg != nil &&
+		cfg.Options.LicenseType.Value != configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE &&
+		cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagProductAnalytics) &&
+		os.Getenv("DO_NOT_TRACK") != "1"
 }
