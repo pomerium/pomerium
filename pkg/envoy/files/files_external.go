@@ -11,3 +11,7 @@ func SetFiles(bin []byte, lockfile []byte) {
 	rawBinary = bin
 	rawLockfile = lockfile
 }
+
+func init() {
+	SetFiles(nil, []byte(`{"version": "unknown"}`))
+}

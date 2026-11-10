@@ -28,6 +28,7 @@ var protoPartial = protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown
 
 // ViperPolicyHooks are used to decode options and policy coming from YAML and env vars
 var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+	decodeBase64BytesHookFunc(),
 	mapstructure.StringToTimeDurationHookFunc(),
 	mapstructure.StringToWeakSliceHookFunc(","),
 	decodeNullableValueHookFunc(),

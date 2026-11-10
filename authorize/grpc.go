@@ -46,16 +46,16 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 	ctx = requestid.WithValue(ctx, requestID)
 
-	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, mcpEnabled)
-	if err != nil {
+	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in)
+	if errors.Is(err, errMCPRequestBodyTooLarge) || errors.Is(err, errMCPInvalidRequest) {
+		return a.rejectMCPRequest(ctx, in, req, err)
+	} else if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error building evaluator request")
 		return nil, err
 	}
 
 	// Add MCP information to trace if available
-	if mcpEnabled {
-		updateSpanWithMCPInfo(span, req.MCP)
-	}
+	updateSpanWithMCPInfo(span, req.MCP)
 
 	// Handle CORS preflight for MCP server routes.
 	// OPTIONS requests must be answered with CORS headers before any auth
@@ -77,7 +77,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	// on pass-through routes the Authorization header belongs to the
 	// upstream, so neither may be rejected here.
 	cfg := a.currentConfig.Load()
-	if cfg.GetBearerTokenFormatForPolicy(req.Policy) == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT &&
+	req.BearerTokenFormat = cfg.GetBearerTokenFormatForPolicy(req.Policy)
+	if req.BearerTokenFormat == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT &&
 		hasCookieAndBearer(hreq, cfg.Options.CookieName) {
 		log.Ctx(ctx).Info().
 			Str("request-id", requestID).
@@ -194,12 +195,10 @@ func (a *Authorize) getMCPSession(
 		return nil, fmt.Errorf("no authorization header was provided: %w", sessions.ErrNoSessionFound)
 	}
 
-	prefix := "Bearer "
-	if !strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-		return nil, fmt.Errorf("authorization header does not start with %q: %w", prefix, sessions.ErrNoSessionFound)
+	accessToken, ok := httputil.BearerToken(auth)
+	if !ok {
+		return nil, fmt.Errorf("authorization header does not use the Bearer scheme: %w", sessions.ErrNoSessionFound)
 	}
-
-	accessToken := auth[len(prefix):]
 	sessionID, sessionRecordVersion, err := a.state.Load().mcp.GetSessionAndVersionFromAccessToken(accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("no session found for access token: %w: %w", err, sessions.ErrNoSessionFound)
@@ -228,10 +227,54 @@ func (a *Authorize) getMCPSession(
 	return s, nil
 }
 
+var (
+	// errMCPRequestBodyTooLarge indicates that an MCP request body exceeds the
+	// route's max_request_bytes.
+	errMCPRequestBodyTooLarge = errors.New("MCP request body too large")
+	// errMCPInvalidRequest indicates an MCP request that authorization cannot
+	// be evaluated against.
+	errMCPInvalidRequest = errors.New("invalid MCP request")
+)
+
+// rejectMCPRequest denies an MCP request that authorization cannot be
+// evaluated against: 413 for an oversized body, 400 otherwise. The client has
+// not been authenticated, so it is told the cause only if the route shows error
+// details; the cause is always logged with the authorize check.
+func (a *Authorize) rejectMCPRequest(
+	ctx context.Context,
+	in *envoy_service_auth_v3.CheckRequest,
+	req *evaluator.Request,
+	err error,
+) (*envoy_service_auth_v3.CheckResponse, error) {
+	code := http.StatusBadRequest
+	if errors.Is(err, errMCPRequestBodyTooLarge) {
+		code = http.StatusRequestEntityTooLarge
+	}
+	reason := http.StatusText(code)
+	if req.Policy.ShowErrorDetails {
+		reason = err.Error()
+	}
+
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context { return c.Err(err) })
+	a.logAuthorizeCheck(ctx, zerolog.InfoLevel, req, nil, nil)
+
+	headers := make(http.Header)
+	mcp.SetCORSHeaders(headers)
+	return a.deniedResponse(ctx, in, int32(code), reason, headers)
+}
+
+// getEvaluatorRequestFromCheckRequest returns the evaluator request for a check
+// request. For an MCP request that authorization cannot be evaluated against,
+// it returns the request along with an errMCPRequestBodyTooLarge or
+// errMCPInvalidRequest error.
+//
+// The body of a request to an MCP server route is inspected whether or not the
+// mcp runtime flag is set: Envoy buffers and forwards it for such routes
+// regardless of the flag, so skipping inspection would let mcp_tool rules in
+// the route's policy fail open.
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
-	mcpEnabled bool,
 ) (*evaluator.Request, error) {
 	attrs := in.GetAttributes()
 	req := &evaluator.Request{
@@ -242,14 +285,18 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	}
 	req.Policy = a.getMatchingPolicy(req.EnvoyRouteID)
 
-	if mcpEnabled && req.Policy.IsMCPServer() {
+	if req.Policy.IsMCPServer() {
+		// Envoy buffers one byte past max_request_bytes, so a longer body is
+		// an oversized one it truncated.
+		body := in.GetAttributes().GetRequest().GetHttp().GetBody()
+		if uint64(len(body)) > uint64(req.Policy.MCP.Server.GetMaxRequestBytes()) {
+			return req, errMCPRequestBodyTooLarge
+		}
+
 		var err error
 		req.MCP, err = evaluator.RequestMCPFromCheckRequest(in)
 		if err != nil {
-			log.Ctx(ctx).Error().
-				Str("request-id", requestid.FromContext(ctx)).
-				Err(err).
-				Msg("error parsing MCP request from check request")
+			return req, fmt.Errorf("%w: %w", errMCPInvalidRequest, err)
 		}
 	}
 
@@ -330,9 +377,7 @@ func hasCookieAndBearer(r *http.Request, cookieName string) bool {
 	// Check the (cheap) Authorization header before parsing cookies: the
 	// common authenticated browser case carries a cookie but no bearer, so
 	// short-circuiting here skips cookie parsing on the hot path.
-	const prefix = "Bearer "
-	auth := r.Header.Get(httputil.HeaderAuthorization)
-	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+	if _, ok := httputil.BearerToken(r.Header.Get(httputil.HeaderAuthorization)); !ok {
 		return false
 	}
 	_, err := r.Cookie(cookieName)

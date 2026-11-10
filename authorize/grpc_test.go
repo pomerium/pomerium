@@ -1,14 +1,19 @@
 package authorize
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"maps"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -20,6 +25,8 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/testutil"
 	dtestutil "github.com/pomerium/pomerium/pkg/databrokerutil/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -96,7 +103,6 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				},
 			},
 		},
-		false, // mcp disabled
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
@@ -157,7 +163,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 					},
 				},
 			},
-		}, false) // mcp disabled
+		})
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy:  &a.currentConfig.Load().Options.Policies[0],
@@ -182,6 +188,186 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	assert.Equal(t, expect, actual)
 }
 
+func Test_getEvaluatorRequestMCPBody(t *testing.T) {
+	t.Parallel()
+
+	maxRequestBytes := uint32(128)
+	a := &Authorize{}
+	a.currentConfig.Store(config.New(&config.Options{
+		Policies: []config.Policy{{
+			ID:   "mcp",
+			From: "https://mcp.example.com",
+			MCP: &config.MCP{
+				Server: &config.MCPServer{MaxRequestBytes: &maxRequestBytes},
+			},
+		}},
+	}))
+	a.state.Store(new(authorizeState))
+
+	getEvaluatorRequest := func(body string) error {
+		_, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),
+			&envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					ContextExtensions: envoyconfig.MakeExtAuthzContextExtensions(false, "mcp", 0),
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+							Method: http.MethodPost,
+							Headers: map[string]string{
+								"content-type":         "application/json",
+								"mcp-protocol-version": "2025-11-25",
+							},
+							Host: "mcp.example.com",
+							Body: body,
+						},
+					},
+				},
+			},
+		)
+		return err
+	}
+
+	// toolsList returns a tools/list request padded with leading whitespace to
+	// exactly size bytes.
+	toolsList := func(size int) string {
+		body := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
+		return strings.Repeat(" ", size-len(body)) + body
+	}
+
+	assert.NoError(t, getEvaluatorRequest(toolsList(int(maxRequestBytes))),
+		"a body at max_request_bytes should be accepted")
+	assert.ErrorIs(t, getEvaluatorRequest(toolsList(int(maxRequestBytes)+1)), errMCPRequestBodyTooLarge,
+		"a body past max_request_bytes should be rejected")
+	assert.ErrorIs(t, getEvaluatorRequest(`[`+toolsList(int(maxRequestBytes)-2)+`]`), errMCPInvalidRequest,
+		"a body that is not a single JSON-RPC message should be rejected")
+}
+
+// TestCheckRejectsMCPRequest verifies that an MCP request authorization cannot
+// be evaluated against is rejected with a JSON error an MCP client can read,
+// with the CORS headers a browser-based client needs to read it, and a generic
+// reason, since the client has not been authenticated, unless the route shows
+// error details; and that the rejection is logged with its cause like any other
+// authorize check.
+func TestCheckRejectsMCPRequest(t *testing.T) {
+	t.Parallel()
+
+	maxRequestBytes := uint32(128)
+	for _, tc := range []struct {
+		name             string
+		showErrorDetails bool
+		headers          map[string]string
+		body             string
+		wantStatus       int
+		wantReason       string
+		wantLogError     string
+	}{
+		{
+			name:         "invalid",
+			headers:      map[string]string{"content-type": "text/<html>"},
+			body:         `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`,
+			wantStatus:   http.StatusBadRequest,
+			wantReason:   http.StatusText(http.StatusBadRequest),
+			wantLogError: `failed to parse content-type "text/<html>"`,
+		},
+		{
+			name:             "invalid with error details",
+			showErrorDetails: true,
+			headers:          map[string]string{"content-type": "text/<html>"},
+			body:             `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`,
+			wantStatus:       http.StatusBadRequest,
+			wantReason:       `invalid MCP request: failed to parse content-type "text/<html>": mime: expected token after slash`,
+			wantLogError:     `failed to parse content-type "text/<html>"`,
+		},
+		{
+			name:         "too large",
+			body:         strings.Repeat(" ", int(maxRequestBytes)+1),
+			wantStatus:   http.StatusRequestEntityTooLarge,
+			wantReason:   http.StatusText(http.StatusRequestEntityTooLarge),
+			wantLogError: errMCPRequestBodyTooLarge.Error(),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			policy := config.Policy{
+				From:             "https://mcp.example.com",
+				To:               mustParseWeightedURLs(t, "https://upstream.example.com"),
+				ShowErrorDetails: tc.showErrorDetails,
+				MCP: &config.MCP{
+					Server: &config.MCPServer{MaxRequestBytes: &maxRequestBytes},
+				},
+			}
+			routeID, err := policy.RouteID()
+			require.NoError(t, err)
+			opts := config.NewDefaultOptions()
+			opts.Policies = []config.Policy{policy}
+			a, err := New(t.Context(), config.New(opts))
+			require.NoError(t, err)
+
+			var logs bytes.Buffer
+			ctx := zerolog.New(&logs).Level(zerolog.InfoLevel).WithContext(t.Context())
+
+			headers := map[string]string{
+				"accept":               "application/json, text/event-stream",
+				"content-type":         "application/json",
+				"mcp-protocol-version": "2025-11-25",
+				"x-request-id":         "REQUEST-ID",
+			}
+			maps.Copy(headers, tc.headers)
+			res, err := a.Check(ctx, &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					ContextExtensions: envoyconfig.MakeExtAuthzContextExtensions(false, routeID, 0),
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+							Method:  http.MethodPost,
+							Scheme:  "https",
+							Host:    "mcp.example.com",
+							Path:    "/mcp",
+							Headers: headers,
+							Body:    tc.body,
+						},
+					},
+				},
+			})
+			require.NoError(t, err)
+
+			denied := res.GetDeniedResponse()
+			require.NotNil(t, denied, "request should be denied")
+			assert.EqualValues(t, tc.wantStatus, denied.GetStatus().GetCode())
+
+			gotHeaders := make(http.Header)
+			for _, h := range denied.GetHeaders() {
+				gotHeaders.Add(h.GetHeader().GetKey(), h.GetHeader().GetValue())
+			}
+			assert.Equal(t, "application/json", gotHeaders.Get("Content-Type"))
+			wantCORSHeaders := make(http.Header)
+			mcp.SetCORSHeaders(wantCORSHeaders)
+			for k, v := range wantCORSHeaders {
+				assert.Equal(t, v, gotHeaders.Values(k), "CORS header %s", k)
+			}
+
+			var body map[string]any
+			require.NoError(t, json.Unmarshal([]byte(denied.GetBody()), &body), denied.GetBody())
+			assert.Equal(t, map[string]any{
+				"error":      tc.wantReason,
+				"request_id": "REQUEST-ID",
+			}, body, "response body")
+
+			var entry map[string]any
+			for line := range strings.Lines(logs.String()) {
+				var e map[string]any
+				require.NoError(t, json.Unmarshal([]byte(line), &e))
+				if e["message"] == "authorize check" {
+					entry = e
+				}
+			}
+			require.NotNil(t, entry, "rejection should be logged as an authorize check: %s", logs.String())
+			assert.Equal(t, "info", entry["level"])
+			assert.Equal(t, routeID, entry["envoy-route-id"])
+			assert.Contains(t, entry["error"], tc.wantLogError)
+		})
+	}
+}
+
 func Test_MCP_TraceAttributes(t *testing.T) {
 	t.Parallel()
 
@@ -193,7 +379,8 @@ func Test_MCP_TraceAttributes(t *testing.T) {
 				Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 					Method: http.MethodPost,
 					Headers: map[string]string{
-						"content-type": "application/json",
+						"content-type":         "application/json",
+						"mcp-protocol-version": "2025-11-25",
 					},
 					Body: mcpBody,
 				},

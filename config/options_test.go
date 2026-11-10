@@ -435,7 +435,7 @@ func Test_Checksum(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags", "LicenseType"),
 		cmpopts.IgnoreFields(DataBrokerOptions{}, "ServiceURL", "ServiceURLs"),
 		cmpOptIgnoreUnexported,
 	}
@@ -1141,6 +1141,27 @@ func TestOptions_ApplySettings(t *testing.T) {
 		opts.ApplySettings(t.Context(), nil, &configpb.Settings{})
 		assert.Equal(t, &expected, opts)
 	})
+
+	t.Run("runtime_flags", func(t *testing.T) {
+		t.Parallel()
+
+		o := NewDefaultOptions()
+		o.RuntimeFlags = RuntimeFlags{
+			"a": true,
+			"b": false,
+		}
+		o.ApplySettings(t.Context(), nil, &configpb.Settings{
+			RuntimeFlags: map[string]bool{
+				"b": true,
+				"c": true,
+			},
+		})
+		assert.Equal(t, RuntimeFlags{
+			"a": true,
+			"b": true,
+			"c": true,
+		}, o.RuntimeFlags)
+	})
 }
 
 func TestOptions_GetSetResponseHeaders(t *testing.T) {
@@ -1413,7 +1434,8 @@ LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IUUNBUUVFSUdHaDZGbEJlOHl5OWRSSmdtKzM1
 		t.Parallel()
 		o := NewDefaultOptions()
 		o.SharedKey = base64.StdEncoding.EncodeToString(
-			[]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890+/AAAA="))
+			[]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890+/AAAA="),
+		)
 		require.NoError(t, o.Validate())
 		key, err := o.GetSigningKey()
 		assert.NoError(t, err)

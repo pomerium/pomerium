@@ -1,8 +1,12 @@
-import { Box, Container, Drawer, useMediaQuery, useTheme } from "@mui/material";
-import type { FC, ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Container from "@mui/material/Container";
+import Drawer from "@mui/material/Drawer";
+import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import type { ReactNode } from "react";
 
 import type { SidebarData } from "../types";
-import { ToolbarOffset } from "./ToolbarOffset";
+import ToolbarOffset from "./ToolbarOffset";
 import UserSidebarContent from "./UserSidebarContent";
 
 type SidebarPageProps = {
@@ -10,7 +14,7 @@ type SidebarPageProps = {
   data?: SidebarData;
 };
 
-const SidebarPage: FC<SidebarPageProps> = ({ children, data }) => {
+export default function SidebarPage({ children, data }: SidebarPageProps) {
   const theme = useTheme();
   const mdUp = useMediaQuery(() => theme.breakpoints.up("md"), {
     defaultMatches: true,
@@ -48,5 +52,4 @@ const SidebarPage: FC<SidebarPageProps> = ({ children, data }) => {
       </Box>
     </Container>
   );
-};
-export default SidebarPage;
+}

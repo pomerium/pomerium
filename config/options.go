@@ -41,12 +41,14 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/logfields"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
@@ -315,7 +317,6 @@ type Options struct {
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool                `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
 	BlobStorage                *blob.StorageConfig `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
-	Enterprise                 map[string]any      `mapstructure:"enterprise" yaml:"enterprise,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -356,6 +357,14 @@ var defaultOptions = Options{
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
 	SSHRLSEnabled:                       false,
+	LicenseType:                         nullable.From(defaultLicenseType()),
+}
+
+func defaultLicenseType() configpb.LicenseType {
+	if version.IsOfficialBuild() {
+		return configpb.LicenseType_LICENSE_TYPE_COMMUNITY
+	}
+	return configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
@@ -2108,7 +2117,11 @@ func copyMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1
 	if len(src) == 0 {
 		return
 	}
-	*dst = make(TMap1, len(src))
+	if *dst == nil {
+		*dst = make(TMap1, len(src))
+	} else {
+		*dst = maps.Clone(*dst)
+	}
 	for k, v := range src {
 		k1, v1 := convert(k, v)
 		(*dst)[k1] = v1

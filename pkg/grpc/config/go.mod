@@ -1,16 +1,16 @@
 module github.com/pomerium/pomerium/pkg/grpc/config
 
-go 1.26.3
+go 1.26.9
 
 require (
-	connectrpc.com/connect v1.21.0
+	connectrpc.com/connect v1.21.1
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/envoyproxy/go-control-plane/envoy v1.39.1-0.20260819172001-e6e3fd93e4be
+	github.com/envoyproxy/go-control-plane/envoy v1.40.0
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
 	github.com/google/gnostic v0.7.2-0.20250814192921-e0e09f706281
 	github.com/google/go-cmp v0.7.0
 	github.com/stretchr/testify v1.12.1
-	google.golang.org/grpc v1.86.0-dev
+	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 )
 
@@ -20,9 +20,9 @@ require (
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/net v0.59.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260819154853-08b0e4226688 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260921155816-b14227669459 // indirect
+	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20261012220534-4341edf3f941 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
 )

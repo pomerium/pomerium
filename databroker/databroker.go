@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/analytics"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
@@ -40,10 +41,11 @@ import (
 
 // DataBroker represents the databroker service.
 type DataBroker struct {
-	cfg         *databrokerConfig
-	srv         databroker.Server
-	identityMgr *manager.Manager
-	eventsMgr   *events.Manager
+	cfg               *databrokerConfig
+	srv               databroker.Server
+	identityMgr       *manager.Manager
+	eventsMgr         *events.Manager
+	analyticsReporter analytics.Reporter
 
 	localListener       net.Listener
 	localGRPCServer     *grpc.Server
@@ -54,7 +56,13 @@ type DataBroker struct {
 }
 
 // New creates a new databroker service.
-func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, options ...Option) (*DataBroker, error) {
+func New(
+	ctx context.Context,
+	cfg *config.Config,
+	eventsMgr *events.Manager,
+	analyticsReporter analytics.Reporter,
+	options ...Option,
+) (*DataBroker, error) {
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -93,13 +101,14 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 	srv := NewServer(tracerProvider, cfg)
 
 	d := &DataBroker{
-		cfg:             getConfig(options...),
-		srv:             srv,
-		localListener:   localListener,
-		localGRPCServer: localGRPCServer,
-		eventsMgr:       eventsMgr,
-		tracerProvider:  tracerProvider,
-		tracer:          tracer,
+		cfg:               getConfig(options...),
+		srv:               srv,
+		localListener:     localListener,
+		localGRPCServer:   localGRPCServer,
+		eventsMgr:         eventsMgr,
+		analyticsReporter: analyticsReporter,
+		tracerProvider:    tracerProvider,
+		tracer:            tracer,
 	}
 	d.RegisterGRPCServices(d.localGRPCServer)
 
@@ -222,7 +231,7 @@ func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
 	}, d.cfg.managerOptions...)
 
 	if d.identityMgr == nil {
-		d.identityMgr = manager.New(options...)
+		d.identityMgr = manager.New(d.analyticsReporter, options...)
 	} else {
 		d.identityMgr.UpdateConfig(options...)
 	}

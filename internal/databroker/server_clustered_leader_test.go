@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -66,5 +68,27 @@ func TestClusteredLeaderServer(t *testing.T) {
 		_, err = leader.SetCheckpoint(t.Context(), &databrokerpb.SetCheckpointRequest{})
 		assert.ErrorIs(t, err, databrokerpb.ErrSetCheckpointNotSupported,
 			"should not allow setting checkpoints")
+	})
+	t.Run("stops streams", func(t *testing.T) {
+		local := databroker.NewBackendServer(noop.NewTracerProvider())
+		leader := databroker.NewClusteredLeaderServer(local)
+		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
+		})
+
+		c := databrokerpb.NewDataBrokerServiceClient(leaderCC)
+		info, err := c.ServerInfo(t.Context(), new(emptypb.Empty))
+		require.NoError(t, err)
+		stream, err := c.Sync(t.Context(), &databrokerpb.SyncRequest{
+			ServerVersion: info.GetServerVersion(),
+			RecordVersion: info.GetLatestRecordVersion(),
+		})
+		require.NoError(t, err)
+
+		leader.Stop()
+
+		res, err := stream.Recv()
+		assert.Equal(t, codes.Canceled.String(), status.Code(err).String())
+		assert.Nil(t, res)
 	})
 }
