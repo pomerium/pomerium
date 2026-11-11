@@ -282,13 +282,21 @@ func (d *directoryMirror) watchLocalToDataBroker(ctx context.Context) {
 			d.mu.Lock()
 			defer d.mu.Unlock()
 
-			err := d.loadFileSystemRecordsLocked(ctx)
-			if err != nil {
-				return err
-			}
-			w.Watch(d.getWatchPathsLocked())
+			for {
+				paths := d.getWatchPathsLocked()
+				w.Watch(paths)
 
-			err = d.loadDataBrokerRecordsLocked(ctx)
+				err := d.loadFileSystemRecordsLocked(ctx)
+				if err != nil {
+					return err
+				}
+
+				if slices.Equal(paths, d.getWatchPathsLocked()) {
+					break
+				}
+			}
+
+			err := d.loadDataBrokerRecordsLocked(ctx)
 			if err != nil {
 				return err
 			}
@@ -483,7 +491,11 @@ func (d *directoryMirror) getWatchPathsLocked() []string {
 	return paths.Slice()
 }
 
-func (d *directoryMirror) loadFileSystemRecordsLocked(_ context.Context) error {
+func (d *directoryMirror) loadFileSystemRecordsLocked(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	d.fileSystemDirectories = set.New[string](0)
 	clear(d.fileSystemFiles)
 
