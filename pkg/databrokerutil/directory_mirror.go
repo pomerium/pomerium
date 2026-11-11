@@ -381,7 +381,8 @@ func (d *directoryMirror) loadDataBrokerRecordsLocked(ctx context.Context) error
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		clear(d.dataBrokerFiles)
+		var serverVersion, recordVersion uint64
+		dataBrokerFiles := map[string]*databrokerpb.File{}
 
 		stream, err := d.client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{
 			Type: d.recordType,
@@ -400,15 +401,18 @@ func (d *directoryMirror) loadDataBrokerRecordsLocked(ctx context.Context) error
 
 			switch res := res.Response.(type) {
 			case *databrokerpb.SyncLatestResponse_Versions:
-				d.serverVersion = res.Versions.ServerVersion
-				d.recordVersion = res.Versions.LatestRecordVersion
+				serverVersion, recordVersion = res.Versions.ServerVersion, res.Versions.LatestRecordVersion
 			case *databrokerpb.SyncLatestResponse_Record:
 				var file databrokerpb.File
 				if res.Record.Data.UnmarshalTo(&file) == nil {
-					d.dataBrokerFiles[res.Record.Id] = &file
+					dataBrokerFiles[res.Record.Id] = &file
 				}
 			}
 		}
+
+		d.serverVersion = serverVersion
+		d.recordVersion = recordVersion
+		d.dataBrokerFiles = dataBrokerFiles
 
 		return nil
 	}
