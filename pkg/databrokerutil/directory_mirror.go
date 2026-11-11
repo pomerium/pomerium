@@ -591,6 +591,13 @@ func (d *directoryMirror) writeLocalFile(ctx context.Context, file *databrokerpb
 		return fmt.Errorf("directory-mirror: error creating parent directories (filename=%s): %w", file.Name, err)
 	}
 
+	if info, err := root.Stat(file.Name); err == nil && info.IsDir() {
+		err = root.RemoveAll(file.Name)
+		if err != nil {
+			return fmt.Errorf("directory-mirror: error deleting directory which is being replaced with a file (filename=%s): %w", file.Name, err)
+		}
+	}
+
 	err = root.WriteFile(file.Name, file.Data, d.cfg.permissions)
 	if err != nil {
 		return fmt.Errorf("directory-mirror: error writing local file (filename=%s): %w", file.Name, err)

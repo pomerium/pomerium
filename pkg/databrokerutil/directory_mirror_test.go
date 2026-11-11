@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestDirectoryMirror(t *testing.T) {
@@ -81,6 +82,40 @@ func TestDirectoryMirror(t *testing.T) {
 			require.NoError(t, os.Remove(filepath.Join(rootDir, "example.txt")))
 			assert.NoError(t, d.Reconcile(t.Context()))
 			assert.Empty(t, dump(client))
+		})
+		t.Run("databroker", func(t *testing.T) {
+			t.Parallel()
+
+			srv := databroker.NewBackendServer(noop.NewTracerProvider())
+			t.Cleanup(srv.Stop)
+			cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+				databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+			})
+			client := databrokerpb.NewDataBrokerServiceClient(cc)
+
+			rootDir := t.TempDir()
+
+			require.NoError(t, os.Mkdir(filepath.Join(rootDir, "file"), 0o700))
+
+			_, err := client.Put(t.Context(), &databrokerpb.PutRequest{
+				Records: []*databrokerpb.Record{{
+					Type: recordType,
+					Id:   "file",
+					Data: protoutil.NewAny(&databrokerpb.File{
+						Name: "file",
+						Data: []byte("DATA"),
+					}),
+				}},
+			})
+			require.NoError(t, err)
+
+			d := databrokerutil.NewDirectoryMirror(client, recordType, rootDir,
+				databrokerutil.WithDirectoryMirrorMode(databrokerutil.DirectoryMirrorModeDataBroker))
+			assert.NoError(t, d.Reconcile(t.Context()))
+
+			data, err := os.ReadFile(filepath.Join(rootDir, "file"))
+			assert.NoError(t, err)
+			assert.Equal(t, "DATA", string(data))
 		})
 	})
 	t.Run("watch", func(t *testing.T) {
