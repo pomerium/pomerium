@@ -242,11 +242,15 @@ func (d *directoryMirror) watchDataBrokerToLocal(ctx context.Context) {
 				} else {
 					delete(d.dataBrokerFiles, res.Record.Id)
 				}
-				d.recordVersion = max(d.recordVersion, res.Record.Version)
 				d.mu.Unlock()
+
 				if err := update(); err != nil {
 					return err
 				}
+
+				d.mu.Lock()
+				d.recordVersion = max(d.recordVersion, res.Record.Version)
+				d.mu.Unlock()
 			}
 		}
 
