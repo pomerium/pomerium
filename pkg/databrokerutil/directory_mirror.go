@@ -157,9 +157,8 @@ func (d *directoryMirror) watchDataBrokerToLocal(ctx context.Context) {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		d.mu.Lock()
-		clear(d.dataBrokerFiles)
-		d.mu.Unlock()
+		var serverVersion, recordVersion uint64
+		dataBrokerFiles := map[string]*databrokerpb.File{}
 
 		stream, err := d.client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{
 			Type: d.recordType,
@@ -180,21 +179,22 @@ func (d *directoryMirror) watchDataBrokerToLocal(ctx context.Context) {
 
 			switch res := res.Response.(type) {
 			case *databrokerpb.SyncLatestResponse_Versions:
-				d.mu.Lock()
-				d.serverVersion = res.Versions.ServerVersion
-				d.recordVersion = res.Versions.LatestRecordVersion
-				d.mu.Unlock()
+				serverVersion, recordVersion = res.Versions.ServerVersion, res.Versions.LatestRecordVersion
 			case *databrokerpb.SyncLatestResponse_Record:
 				if res.Record.DeletedAt == nil {
 					var file databrokerpb.File
 					if res.Record.Data.UnmarshalTo(&file) == nil {
-						d.mu.Lock()
-						d.dataBrokerFiles[res.Record.Id] = &file
-						d.mu.Unlock()
+						dataBrokerFiles[res.Record.Id] = &file
 					}
 				}
 			}
 		}
+
+		d.mu.Lock()
+		d.dataBrokerFiles = dataBrokerFiles
+		d.serverVersion = serverVersion
+		d.recordVersion = recordVersion
+		d.mu.Unlock()
 
 		return update()
 	}
