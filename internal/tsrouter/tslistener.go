@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"reflect"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +21,9 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 var errStopped = errors.New("stopped")
@@ -31,8 +36,10 @@ type tsListener struct {
 
 	// The config is not included in the equality check.
 	certificates atomic.Pointer[[]tls.Certificate]
+	tempDir      string
 
 	stop context.CancelCauseFunc
+	wg   sync.WaitGroup
 }
 
 func newTSListener(cfg *config.Config, settings config.TailscaleListenerSettings) (*tsListener, error) {
@@ -60,6 +67,11 @@ func newTSListener(cfg *config.Config, settings config.TailscaleListenerSettings
 
 	l.certificates.Store(new(append(slices.Clone(certs), *catchAll)))
 
+	l.tempDir, err = os.MkdirTemp("", "tsrouter-*")
+	if err != nil {
+		return nil, fmt.Errorf("tsrouter: error making temporary directory: %w", err)
+	}
+
 	return l, nil
 }
 
@@ -80,8 +92,22 @@ func (l *tsListener) Start(ctx context.Context) {
 		Msg("tsrouter: starting listener")
 
 	ctx, l.stop = context.WithCancelCause(ctx)
+	cc, err := grpc.NewOutboundGRPCClientConn(ctx, &grpc.OutboundOptions{
+		OutboundPort: l.OutboundPort,
+		SignedJWTKey: l.SignedJWTKey,
+	})
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("service", "tsrouter").Msg("tsrouter: failed to create outbound grpc connection")
+		return
+	}
+	client := databrokerpb.NewDataBrokerServiceClient(cc)
+
+	l.wg.Go(func() {
+		databrokerutil.NewDirectoryMirror(client, "tsrouter/"+l.Settings.Hostname.Value, l.tempDir).Watch(ctx)
+	})
 
 	srv := &tsnet.Server{
+		Dir:           l.tempDir,
 		Hostname:      l.Settings.Hostname.Value,
 		Ephemeral:     l.Settings.Ephemeral.Value,
 		AuthKey:       l.Settings.AuthKey.Value,
@@ -118,7 +144,7 @@ func (l *tsListener) Start(ctx context.Context) {
 			return
 		}
 
-		go l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value)
+		l.wg.Go(func() { l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value) })
 	}
 
 	if l.Settings.ListenFunnelAddr.IsSet {
@@ -138,7 +164,7 @@ func (l *tsListener) Start(ctx context.Context) {
 				Str("addr", l.Settings.ListenFunnelAddr.Value).
 				Msg("tsrouter: error starting funnel listener")
 		} else {
-			go l.handleListener(ctx, li, false)
+			l.wg.Go(func() { l.handleListener(ctx, li, false) })
 		}
 	}
 
@@ -158,7 +184,7 @@ func (l *tsListener) Start(ctx context.Context) {
 				Uint32("service-port", l.Settings.ListenServicePort.Value).
 				Msg("tsrouter: error starting service listener")
 		} else {
-			go l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value)
+			l.wg.Go(func() { l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value) })
 		}
 	}
 }
@@ -167,6 +193,9 @@ func (l *tsListener) Stop() {
 	if l.stop != nil {
 		log.Info().Msg("tsrouter: stopping listener")
 		l.stop(errStopped)
+		l.wg.Wait()
+
+		_ = os.RemoveAll(l.tempDir)
 	}
 }
 
@@ -179,7 +208,7 @@ func (l *tsListener) handleListener(ctx context.Context, li net.Listener, rawTCP
 		conn, err := li.Accept()
 		if err == nil {
 			b.Reset()
-			go l.handleConn(ctx, conn, rawTCP)
+			l.wg.Go(func() { l.handleConn(ctx, conn, rawTCP) })
 		} else {
 			log.Ctx(ctx).Error().
 				Err(err).
