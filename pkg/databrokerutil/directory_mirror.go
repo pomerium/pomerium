@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"iter"
 	"maps"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -78,7 +80,7 @@ func WithDirectoryMirrorPermissions(permissions os.FileMode) DirectoryMirrorOpti
 func getDirectoryMirrorConfig(options ...DirectoryMirrorOption) *directoryMirrorConfig {
 	cfg := new(directoryMirrorConfig)
 	WithDirectoryMirrorMode(DirectoryMirrorModeDataBrokerThenLocal)(cfg)
-	WithDirectoryMirrorPermissions(0o600)(cfg)
+	WithDirectoryMirrorPermissions(0o0600)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -265,7 +267,9 @@ func (d *directoryMirror) watchDataBrokerToLocal(ctx context.Context) {
 
 func (d *directoryMirror) watchLocalToDataBroker(ctx context.Context) {
 	w := fileutil.NewWatcher()
+	defer w.Close()
 	ch := w.Bind()
+	defer w.Unbind(ch)
 
 	for {
 		err := d.retry(ctx, func() error {
@@ -276,7 +280,7 @@ func (d *directoryMirror) watchLocalToDataBroker(ctx context.Context) {
 			if err != nil {
 				return err
 			}
-			w.Watch(slices.Sorted(maps.Keys(d.fileSystemFiles)))
+			w.Watch(d.getWatchPathsLocked())
 
 			err = d.loadDataBrokerRecordsLocked(ctx)
 			if err != nil {
@@ -357,7 +361,7 @@ func (d *directoryMirror) syncDataBrokerToLocalLocked(ctx context.Context) error
 		f2, ok2 := d.fileSystemFiles[p]
 		if ok2 && !ok1 {
 			// a local file does not exist in the databroker, so delete it
-			if err := d.deleteLocalFile(ctx, f1); err != nil {
+			if err := d.deleteLocalFile(ctx, f2); err != nil {
 				return err
 			}
 		} else if ok1 && (!ok2 || !bytes.Equal(f1.Data, f2.Data)) {
@@ -454,27 +458,33 @@ func (d *directoryMirror) loadDataBrokerRecordsLocked(ctx context.Context) error
 	return syncChanges()
 }
 
+// getWatchPathsLocked returns the absolute paths of all the local files and
+// directories
+func (d *directoryMirror) getWatchPathsLocked() []string {
+	return GetWatchPaths(d.rootDir, maps.Keys(d.fileSystemFiles))
+}
+
 func (d *directoryMirror) loadFileSystemRecordsLocked(_ context.Context) error {
 	clear(d.fileSystemFiles)
-	err := filepath.WalkDir(d.rootDir, func(path string, entry fs.DirEntry, err error) error {
+
+	root, err := d.getRoot()
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+
+	err = fs.WalkDir(root.FS(), ".", func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
-			return fmt.Errorf("directory-mirror: error walking file system (filepath=%s): %w", path, err)
+			return fmt.Errorf("directory-mirror: error walking file system (filename=%s): %w", name, err)
 		}
 
-		info, err := entry.Info()
-		if err != nil {
-			return fmt.Errorf("directory-mirror: error getting file info (filepath=%s): %w", path, err)
-		}
-
-		if info.IsDir() {
+		if entry.IsDir() {
 			return nil
 		}
 
-		name := d.getFileName(path)
-
-		data, err := os.ReadFile(path)
+		data, err := root.ReadFile(name)
 		if err != nil {
-			return fmt.Errorf("directory-mirror: error reading file contents (filepath=%s): %w", path, err)
+			return fmt.Errorf("directory-mirror: error reading file contents (filename=%s): %w", name, err)
 		}
 
 		d.fileSystemFiles[name] = &databrokerpb.File{
@@ -507,12 +517,17 @@ func (d *directoryMirror) deleteDataBrokerFile(ctx context.Context, file *databr
 }
 
 func (d *directoryMirror) deleteLocalFile(ctx context.Context, file *databrokerpb.File) error {
-	fullPath := filepath.Join(d.rootDir, file.Name)
-	log.Ctx(ctx).Info().Str("filepath", fullPath).Msg("directory-mirror: deleting local file")
+	log.Ctx(ctx).Info().Str("filename", file.Name).Msg("directory-mirror: deleting local file")
 
-	err := os.RemoveAll(fullPath)
+	root, err := d.getRoot()
 	if err != nil {
-		return fmt.Errorf("directory-mirror: error deleting local file (filepath=%s): %w", fullPath, err)
+		return err
+	}
+	defer root.Close()
+
+	err = root.RemoveAll(file.Name)
+	if err != nil {
+		return fmt.Errorf("directory-mirror: error deleting local file (filename=%s): %w", file.Name, err)
 	}
 
 	return nil
@@ -534,37 +549,41 @@ func (d *directoryMirror) writeDataBrokerFile(ctx context.Context, file *databro
 }
 
 func (d *directoryMirror) writeLocalFile(ctx context.Context, file *databrokerpb.File) error {
-	fullPath := filepath.Join(d.rootDir, file.Name)
-	log.Ctx(ctx).Info().Str("filepath", fullPath).Msg("directory-mirror: writing local file")
+	log.Ctx(ctx).Info().Str("filename", file.Name).Msg("directory-mirror: writing local file")
 
-	err := os.MkdirAll(filepath.Dir(fullPath), d.cfg.permissions)
+	root, err := d.getRoot()
 	if err != nil {
-		return fmt.Errorf("directory-mirror: error creating parent directories (filepath=%s): %w", fullPath, err)
+		return err
+	}
+	defer root.Close()
+
+	err = root.MkdirAll(filepath.Dir(file.Name), d.getDirectoryPermissions())
+	if err != nil {
+		return fmt.Errorf("directory-mirror: error creating parent directories (filename=%s): %w", file.Name, err)
 	}
 
-	h, err := os.OpenFile(fullPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, d.cfg.permissions)
+	err = root.WriteFile(file.Name, file.Data, d.cfg.permissions)
 	if err != nil {
-		return fmt.Errorf("directory-mirror: error creating local file (filepath=%s): %w", fullPath, err)
-	}
-
-	_, err = h.Write(file.Data)
-	if err != nil {
-		_ = h.Close()
-		return fmt.Errorf("directory-mirror: error writing local file (filepath=%s): %w", fullPath, err)
-	}
-
-	err = h.Close()
-	if err != nil {
-		return fmt.Errorf("directory-mirror: error closing local file (filepath=%s): %w", fullPath, err)
+		return fmt.Errorf("directory-mirror: error writing local file (filename=%s): %w", file.Name, err)
 	}
 
 	return nil
 }
 
-func (d *directoryMirror) getFileName(fullPath string) string {
-	p := strings.TrimPrefix(fullPath, d.rootDir)
-	p = strings.TrimPrefix(p, "/")
-	return p
+func (d *directoryMirror) getRoot() (*os.Root, error) {
+	err := os.MkdirAll(d.rootDir, d.getDirectoryPermissions())
+	if err != nil {
+		return nil, fmt.Errorf("directory-mirror: error creating root directory (filepath=%s): %w", d.rootDir, err)
+	}
+	root, err := os.OpenRoot(d.rootDir)
+	if err != nil {
+		return nil, fmt.Errorf("directory-mirror: error opening root directory (filepath=%s): %w", d.rootDir, err)
+	}
+	return root, nil
+}
+
+func (d *directoryMirror) getDirectoryPermissions() os.FileMode {
+	return d.cfg.permissions | 0x0100
 }
 
 func (d *directoryMirror) retry(ctx context.Context, fn func() error) error {
@@ -578,4 +597,23 @@ func (d *directoryMirror) retry(ctx context.Context, fn func() error) error {
 				Msg("directory-mirror: error performing operation")
 		},
 	)
+}
+
+// GetWatchPaths returns absolute paths of a set of file paths and all their parent
+// directories, suitable for use with a file watcher.
+func GetWatchPaths(rootDir string, filePaths iter.Seq[string]) []string {
+	paths := set.NewTreeSet(strings.Compare)
+	paths.Insert(rootDir)
+	for p := range filePaths {
+		paths.Insert(filepath.Join(rootDir, p))
+		for {
+			dir := path.Dir(p)
+			if dir == p {
+				break
+			}
+			paths.Insert(filepath.Join(rootDir, dir))
+			p = dir
+		}
+	}
+	return paths.Slice()
 }

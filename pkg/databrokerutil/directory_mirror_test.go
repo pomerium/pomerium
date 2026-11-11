@@ -6,16 +6,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
-
-	"go.opentelemetry.io/otel/trace/noop"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -105,16 +105,49 @@ func TestDirectoryMirror(t *testing.T) {
 			t.Cleanup(cancel)
 			go d.Watch(ctx)
 
-			require.NoError(t, os.WriteFile(filepath.Join(rootDir, "example.txt"), []byte("TEST"), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(rootDir, "example1.txt"), []byte("TEST1"), 0o600))
 
 			assert.Eventually(t, func() bool { return len(dump(client)) == 1 }, 10*time.Second, 10*time.Millisecond)
 			assert.Empty(t, cmp.Diff([]*databrokerpb.File{
-				{Name: "example.txt", Data: []byte("TEST")},
+				{Name: "example1.txt", Data: []byte("TEST1")},
 			}, dump(client), protocmp.Transform()))
 
-			require.NoError(t, os.Remove(filepath.Join(rootDir, "example.txt")))
+			require.NoError(t, os.WriteFile(filepath.Join(rootDir, "example2.txt"), []byte("TEST2"), 0o600))
+
+			assert.Eventually(t, func() bool { return len(dump(client)) == 2 }, 10*time.Second, 10*time.Millisecond)
+			assert.Empty(t, cmp.Diff([]*databrokerpb.File{
+				{Name: "example1.txt", Data: []byte("TEST1")},
+				{Name: "example2.txt", Data: []byte("TEST2")},
+			}, dump(client), protocmp.Transform()))
+
+			require.NoError(t, os.Remove(filepath.Join(rootDir, "example1.txt")))
+			require.NoError(t, os.Remove(filepath.Join(rootDir, "example2.txt")))
 			assert.Eventually(t, func() bool { return len(dump(client)) == 0 }, 10*time.Second, 10*time.Millisecond)
 			assert.Empty(t, dump(client))
 		})
 	})
+}
+
+func TestGetWatchFilePaths(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, []string{
+		"/path/to/directory",
+		"/path/to/directory/a",
+		"/path/to/directory/a/b",
+		"/path/to/directory/a/b/c",
+		"/path/to/directory/a/b/c/d",
+		"/path/to/directory/a/b/c/d/e",
+		"/path/to/directory/a/b/c/d/e/file4.txt",
+		"/path/to/directory/a/b/file3.txt",
+		"/path/to/directory/a/file2.txt",
+		"/path/to/directory/file1.txt",
+	}, databrokerutil.GetWatchPaths("/path/to/directory", slices.Values([]string{
+		"./file1.txt",
+		"file1.txt",
+		"a/file2.txt",
+		"a/b/file3.txt",
+		"a/b/../file2.txt",
+		"a/b/c/d/e/file4.txt",
+	})))
 }
