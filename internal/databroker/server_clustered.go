@@ -12,16 +12,25 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker/raft"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
+)
+
+var (
+	errClusteredServerStopped = status.Error(codes.Canceled, "stopped")
+	errClusteredServerChanged = status.Error(codes.Unavailable, "server changed")
 )
 
 type clusteredServer struct {
@@ -30,11 +39,14 @@ type clusteredServer struct {
 	clientManager *ClientManager
 	streamLayer   raft.StreamLayer
 
-	mu                   sync.RWMutex
+	mu                   sync.Mutex
 	stopped              bool
 	currentLeaderElector LeaderElector
 	currentOptions       config.DataBrokerOptions
 	currentServer        Server
+	activeWG             sync.WaitGroup
+	activeCtx            context.Context
+	activeCancel         context.CancelCauseFunc
 }
 
 type storageMetricAttributeSetter interface {
@@ -51,6 +63,7 @@ func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server, c
 		streamLayer:    raft.NewStreamLayer(tracerProvider),
 		currentOptions: cfg.Options.DataBroker,
 	}
+	srv.activeCtx, srv.activeCancel = context.WithCancelCause(context.Background())
 	srv.local.OnConfigChange(context.Background(), cfg)
 	srv.clientManager.OnConfigChange(context.Background(), cfg)
 	srv.streamLayer.OnConfigChange(context.Background(), cfg)
@@ -59,325 +72,414 @@ func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server, c
 	return srv
 }
 
-func (srv *clusteredServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (*databrokerpb.AcquireLeaseResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.AcquireLease(ctx, req)
+func (srv *clusteredServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (res *databrokerpb.AcquireLeaseResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.AcquireLease(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) Clear(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ClearResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.Clear(ctx, req)
+func (srv *clusteredServer) Clear(ctx context.Context, req *emptypb.Empty) (res *databrokerpb.ClearResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.Clear(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) Get(ctx context.Context, req *databrokerpb.GetRequest) (*databrokerpb.GetResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.Get(ctx, req)
+func (srv *clusteredServer) Get(ctx context.Context, req *databrokerpb.GetRequest) (res *databrokerpb.GetResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.Get(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) GetCheckpoint(ctx context.Context, req *databrokerpb.GetCheckpointRequest) (*databrokerpb.GetCheckpointResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.GetCheckpoint(ctx, req)
+func (srv *clusteredServer) GetCheckpoint(ctx context.Context, req *databrokerpb.GetCheckpointRequest) (res *databrokerpb.GetCheckpointResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.GetCheckpoint(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) List(ctx context.Context, req *registrypb.ListRequest) (res *registrypb.ServiceList, err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.List(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.List(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) ListTypes(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ListTypesResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ListTypes(ctx, req)
+func (srv *clusteredServer) ListTypes(ctx context.Context, req *emptypb.Empty) (res *databrokerpb.ListTypesResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.ListTypes(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) Patch(ctx context.Context, req *databrokerpb.PatchRequest) (*databrokerpb.PatchResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.Patch(ctx, req)
+func (srv *clusteredServer) Patch(ctx context.Context, req *databrokerpb.PatchRequest) (res *databrokerpb.PatchResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.Patch(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) Put(ctx context.Context, req *databrokerpb.PutRequest) (*databrokerpb.PutResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.Put(ctx, req)
+func (srv *clusteredServer) Put(ctx context.Context, req *databrokerpb.PutRequest) (res *databrokerpb.PutResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.Put(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (*databrokerpb.QueryResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.Query(ctx, req)
+func (srv *clusteredServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (res *databrokerpb.QueryResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.Query(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (*emptypb.Empty, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ReleaseLease(ctx, req)
+func (srv *clusteredServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (res *emptypb.Empty, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.ReleaseLease(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) RenewLease(ctx context.Context, req *databrokerpb.RenewLeaseRequest) (*emptypb.Empty, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.RenewLease(ctx, req)
+func (srv *clusteredServer) RenewLease(ctx context.Context, req *databrokerpb.RenewLeaseRequest) (res *emptypb.Empty, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.RenewLease(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) Report(ctx context.Context, req *registrypb.RegisterRequest) (res *registrypb.RegisterResponse, err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.Report(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.Report(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ServerInfo(ctx, req)
+func (srv *clusteredServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (res *databrokerpb.ServerInfoResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.ServerInfo(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) SetCheckpoint(ctx context.Context, req *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.SetCheckpoint(ctx, req)
+func (srv *clusteredServer) SetCheckpoint(ctx context.Context, req *databrokerpb.SetCheckpointRequest) (res *databrokerpb.SetCheckpointResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.SetCheckpoint(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) GetOptions(ctx context.Context, req *databrokerpb.GetOptionsRequest) (res *databrokerpb.GetOptionsResponse, err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.GetOptions(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.GetOptions(ctx, req)
+		return err
+	})
+	return res, err
 }
 
-func (srv *clusteredServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.SetOptions(ctx, req)
+func (srv *clusteredServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (res *databrokerpb.SetOptionsResponse, err error) {
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.SetOptions(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) Sync(req *databrokerpb.SyncRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncResponse]) error {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.Sync(req, stream)
+	return srv.do(stream.Context(), func(ctx context.Context, current Server) error {
+		return grpcutil.HandleServerStreamingServerWithContext(ctx, stream, func(stream grpc.ServerStreamingServer[databrokerpb.SyncResponse]) error {
+			return current.Sync(req, stream)
+		})
+	})
 }
 
 func (srv *clusteredServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.SyncLatest(req, stream)
+	return srv.do(stream.Context(), func(ctx context.Context, current Server) error {
+		return grpcutil.HandleServerStreamingServerWithContext(ctx, stream, func(stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
+			return current.SyncLatest(req, stream)
+		})
+	})
 }
 
 func (srv *clusteredServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.Watch(req, stream)
+	return srv.do(stream.Context(), func(ctx context.Context, current Server) error {
+		return grpcutil.HandleServerStreamingServerWithContext(ctx, stream, func(stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
+			return current.Watch(req, stream)
+		})
+	})
 }
 
 // config methods
 
 func (srv *clusteredServer) CreateKeyPair(ctx context.Context, req *connect.Request[configpb.CreateKeyPairRequest]) (res *connect.Response[configpb.CreateKeyPairResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.CreateKeyPair(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.CreateKeyPair(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) CreatePolicy(ctx context.Context, req *connect.Request[configpb.CreatePolicyRequest]) (res *connect.Response[configpb.CreatePolicyResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.CreatePolicy(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.CreatePolicy(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) CreateRoute(ctx context.Context, req *connect.Request[configpb.CreateRouteRequest]) (res *connect.Response[configpb.CreateRouteResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.CreateRoute(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.CreateRoute(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) CreateServiceAccount(ctx context.Context, req *connect.Request[configpb.CreateServiceAccountRequest]) (res *connect.Response[configpb.CreateServiceAccountResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.CreateServiceAccount(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.CreateServiceAccount(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) DeleteKeyPair(ctx context.Context, req *connect.Request[configpb.DeleteKeyPairRequest]) (res *connect.Response[configpb.DeleteKeyPairResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.DeleteKeyPair(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.DeleteKeyPair(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) DeletePolicy(ctx context.Context, req *connect.Request[configpb.DeletePolicyRequest]) (res *connect.Response[configpb.DeletePolicyResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.DeletePolicy(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.DeletePolicy(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) DeleteRoute(ctx context.Context, req *connect.Request[configpb.DeleteRouteRequest]) (res *connect.Response[configpb.DeleteRouteResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.DeleteRoute(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.DeleteRoute(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) DeleteServiceAccount(ctx context.Context, req *connect.Request[configpb.DeleteServiceAccountRequest]) (res *connect.Response[configpb.DeleteServiceAccountResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.DeleteServiceAccount(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.DeleteServiceAccount(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) GetKeyPair(ctx context.Context, req *connect.Request[configpb.GetKeyPairRequest]) (res *connect.Response[configpb.GetKeyPairResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.GetKeyPair(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.GetKeyPair(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) GetPolicy(ctx context.Context, req *connect.Request[configpb.GetPolicyRequest]) (res *connect.Response[configpb.GetPolicyResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.GetPolicy(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.GetPolicy(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) GetRoute(ctx context.Context, req *connect.Request[configpb.GetRouteRequest]) (res *connect.Response[configpb.GetRouteResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.GetRoute(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.GetRoute(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) GetServerInfo(ctx context.Context, req *connect.Request[configpb.GetServerInfoRequest]) (res *connect.Response[configpb.GetServerInfoResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.GetServerInfo(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.GetServerInfo(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) GetServiceAccount(ctx context.Context, req *connect.Request[configpb.GetServiceAccountRequest]) (res *connect.Response[configpb.GetServiceAccountResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.GetServiceAccount(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.GetServiceAccount(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.GetSettings(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.GetSettings(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) ListAvailableLogFields(ctx context.Context, req *connect.Request[configpb.ListAvailableLogFieldsRequest]) (res *connect.Response[configpb.ListAvailableLogFieldsResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ListAvailableLogFields(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.ListAvailableLogFields(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) ListKeyPairs(ctx context.Context, req *connect.Request[configpb.ListKeyPairsRequest]) (res *connect.Response[configpb.ListKeyPairsResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ListKeyPairs(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.ListKeyPairs(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) ListPolicies(ctx context.Context, req *connect.Request[configpb.ListPoliciesRequest]) (res *connect.Response[configpb.ListPoliciesResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ListPolicies(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.ListPolicies(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) ListRoutes(ctx context.Context, req *connect.Request[configpb.ListRoutesRequest]) (res *connect.Response[configpb.ListRoutesResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ListRoutes(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.ListRoutes(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) ListServiceAccounts(ctx context.Context, req *connect.Request[configpb.ListServiceAccountsRequest]) (res *connect.Response[configpb.ListServiceAccountsResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ListServiceAccounts(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.ListServiceAccounts(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) ListSettings(ctx context.Context, req *connect.Request[configpb.ListSettingsRequest]) (res *connect.Response[configpb.ListSettingsResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ListSettings(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.ListSettings(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) UpdateKeyPair(ctx context.Context, req *connect.Request[configpb.UpdateKeyPairRequest]) (res *connect.Response[configpb.UpdateKeyPairResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.UpdateKeyPair(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.UpdateKeyPair(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) UpdatePolicy(ctx context.Context, req *connect.Request[configpb.UpdatePolicyRequest]) (res *connect.Response[configpb.UpdatePolicyResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.UpdatePolicy(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.UpdatePolicy(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) UpdateRoute(ctx context.Context, req *connect.Request[configpb.UpdateRouteRequest]) (res *connect.Response[configpb.UpdateRouteResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.UpdateRoute(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.UpdateRoute(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) UpdateServiceAccount(ctx context.Context, req *connect.Request[configpb.UpdateServiceAccountRequest]) (res *connect.Response[configpb.UpdateServiceAccountResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.UpdateServiceAccount(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.UpdateServiceAccount(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) UpdateSettings(ctx context.Context, req *connect.Request[configpb.UpdateSettingsRequest]) (res *connect.Response[configpb.UpdateSettingsResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.UpdateSettings(ctx, req)
+	err = srv.do(ctx, func(ctx context.Context, current Server) error {
+		var err error
+		res, err = current.UpdateSettings(ctx, req)
+		return err
+	})
+	return res, err
 }
 
 func (srv *clusteredServer) Stop() {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
-	srv.local.Stop()
+	// cancel and wait for any in-flight operations before stopping anything
+	srv.activeCancel(errClusteredServerStopped)
+	srv.activeWG.Wait()
 	srv.currentLeaderElector.Stop()
 	srv.currentLeaderElector = NewStaticLeaderElector(null.String{})
 	srv.currentServer.Stop()
 	srv.currentServer = NewErroringServer(fmt.Errorf("clustered server stopped"))
+	// the current server may wrap the local server, so stop it last
+	srv.local.Stop()
 	srv.stopped = true
 }
 
@@ -414,6 +516,20 @@ func (srv *clusteredServer) OnLeaderChange() {
 	}
 
 	srv.updateServerLocked()
+}
+
+func (srv *clusteredServer) do(
+	ctx context.Context,
+	fn func(ctx context.Context, current Server) error,
+) error {
+	srv.mu.Lock()
+	current := srv.currentServer
+	ctx, cancel := contextutil.Merge(ctx, srv.activeCtx)
+	defer cancel(nil)
+	srv.activeWG.Add(1)
+	defer srv.activeWG.Done()
+	srv.mu.Unlock()
+	return fn(ctx, current)
 }
 
 func (srv *clusteredServer) updateLeaderElectorLocked() {
@@ -459,7 +575,11 @@ func (srv *clusteredServer) updateServerLocked() {
 	}
 
 	if srv.currentServer != nil {
+		// cancel and wait for any in-flight operations before stopping the current server
+		srv.activeCancel(errClusteredServerChanged)
+		srv.activeWG.Wait()
 		srv.currentServer.Stop()
+		srv.activeCtx, srv.activeCancel = context.WithCancelCause(context.Background())
 	}
 
 	// if no cluster settings are being used, just use local
