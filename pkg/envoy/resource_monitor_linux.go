@@ -38,6 +38,7 @@ const (
 	RootPath CgroupFilePath = iota
 	MemoryUsagePath
 	MemoryLimitPath
+	MemoryStatPath
 )
 
 type CgroupDriver interface {
@@ -330,6 +331,7 @@ LOOP:
 					usage, err := s.driver.MemoryUsage(s.cgroup)
 					if err != nil {
 						log.Ctx(ctx).Error().Err(err).Msg("failed to get memory saturation")
+						tick.Reset(monitorMaxTickInterval)
 						continue
 					}
 					saturation = max(0.0, min(1.0, float64(usage)/float64(limit)))
@@ -428,6 +430,8 @@ func (d *cgroupV2Driver) Path(cgroup string, kind CgroupFilePath) string {
 		return filepath.Join(d.root, cgroup, "memory.current")
 	case MemoryLimitPath:
 		return filepath.Join(d.root, cgroup, "memory.max")
+	case MemoryStatPath:
+		return filepath.Join(d.root, cgroup, "memory.stat")
 	}
 	return ""
 }
@@ -446,7 +450,11 @@ func (d *cgroupV2Driver) MemoryUsage(cgroup string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+	usage, err := strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return subtractInactiveFile(d.fs, d.Path(cgroup, MemoryStatPath), "inactive_file", usage)
 }
 
 // MemoryLimit implements CgroupDriver.
@@ -516,6 +524,8 @@ func (d *cgroupV1Driver) Path(cgroup string, kind CgroupFilePath) string {
 		return filepath.Join(d.root, "memory", cgroup, "memory.usage_in_bytes")
 	case MemoryLimitPath:
 		return filepath.Join(d.root, "memory", cgroup, "memory.limit_in_bytes")
+	case MemoryStatPath:
+		return filepath.Join(d.root, "memory", cgroup, "memory.stat")
 	}
 	return ""
 }
@@ -561,7 +571,12 @@ func (d *cgroupV1Driver) MemoryUsage(cgroup string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+	usage, err := strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	// usage_in_bytes is hierarchical, so subtract the hierarchical total.
+	return subtractInactiveFile(d.fs, d.Path(cgroup, MemoryStatPath), "total_inactive_file", usage)
 }
 
 // MemoryLimit implements CgroupDriver.
@@ -594,6 +609,30 @@ func (d *cgroupV1Driver) Validate(cgroup string) error {
 }
 
 var _ CgroupDriver = (*cgroupV1Driver)(nil)
+
+// subtractInactiveFile subtracts the reclaimable inactive file cache under key
+// in memory.stat from usage, which it returns unchanged if either is missing.
+func subtractInactiveFile(fsys fs.FS, statPath, key string, usage uint64) (uint64, error) {
+	data, err := fs.ReadFile(fsys, statPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return usage, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	for line := range strings.Lines(string(data)) {
+		name, value, ok := strings.Cut(strings.TrimSpace(line), " ")
+		if !ok || name != key {
+			continue
+		}
+		inactive, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return usage - min(inactive, usage), nil
+	}
+	return usage, nil
+}
 
 func DetectCgroupDriver() (CgroupDriver, error) {
 	osFs := os.DirFS("/")

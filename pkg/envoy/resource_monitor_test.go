@@ -129,6 +129,7 @@ func TestCgroupV2Driver(t *testing.T) {
 		assert.Equal(t, "sys/fs/cgroup", d.Path("test", RootPath))
 		assert.Equal(t, "sys/fs/cgroup/test/memory.current", d.Path("test", MemoryUsagePath))
 		assert.Equal(t, "sys/fs/cgroup/test/memory.max", d.Path("test", MemoryLimitPath))
+		assert.Equal(t, "sys/fs/cgroup/test/memory.stat", d.Path("test", MemoryStatPath))
 		assert.Equal(t, "", d.Path("test", CgroupFilePath(0xF00)))
 	})
 
@@ -164,6 +165,46 @@ func TestCgroupV2Driver(t *testing.T) {
 			2: {
 				fs:  without(v2Fs, "sys/fs/cgroup/test/memory.current"),
 				err: "open sys/fs/cgroup/test/memory.current: file does not exist",
+			},
+			3: {
+				fs: with(v2Fs, fstest.MapFS{
+					"sys/fs/cgroup/test/memory.stat": file(`
+anon 50
+file 40
+kernel 10
+shmem 0
+inactive_anon 45
+active_anon 5
+inactive_file 30
+active_file 10
+workingset_refault_file 7
+`[1:], 0o444),
+				}),
+				usage: 70,
+			},
+			4: {
+				fs: with(v2Fs, fstest.MapFS{
+					"sys/fs/cgroup/test/memory.stat": file("inactive_file 150\n", 0o444),
+				}),
+				usage: 0,
+			},
+			5: {
+				fs: with(v2Fs, fstest.MapFS{
+					"sys/fs/cgroup/test/memory.stat": file("anon 50\nfile 40\n", 0o444),
+				}),
+				usage: 100,
+			},
+			6: {
+				fs: with(v2Fs, fstest.MapFS{
+					"sys/fs/cgroup/test/memory.stat": file("inactive_file invalid\n", 0o444),
+				}),
+				err: "strconv.ParseUint: parsing \"invalid\": invalid syntax",
+			},
+			7: {
+				fs: with(v2Fs, fstest.MapFS{
+					"sys/fs/cgroup/test/memory.stat": &fstest.MapFile{Mode: fs.ModeDir | 0o555},
+				}),
+				err: "read sys/fs/cgroup/test/memory.stat: invalid argument",
 			},
 		}
 
@@ -298,6 +339,7 @@ func TestCgroupV1Driver(t *testing.T) {
 		assert.Equal(t, "sys/fs/cgroup", d.Path("test", RootPath))
 		assert.Equal(t, "sys/fs/cgroup/memory/test/memory.usage_in_bytes", d.Path("test", MemoryUsagePath))
 		assert.Equal(t, "sys/fs/cgroup/memory/test/memory.limit_in_bytes", d.Path("test", MemoryLimitPath))
+		assert.Equal(t, "sys/fs/cgroup/memory/test/memory.stat", d.Path("test", MemoryStatPath))
 		assert.Equal(t, "", d.Path("test", CgroupFilePath(0xF00)))
 	})
 
@@ -329,6 +371,18 @@ func TestCgroupV1Driver(t *testing.T) {
 			2: {
 				fs:  without(v1Fs, "sys/fs/cgroup/memory/test/memory.usage_in_bytes"),
 				err: "open sys/fs/cgroup/memory/test/memory.usage_in_bytes: file does not exist",
+			},
+			3: {
+				fs: with(v1Fs, fstest.MapFS{
+					"sys/fs/cgroup/memory/test/memory.stat": file("cache 40\ninactive_file 5\ntotal_cache 40\ntotal_inactive_file 30\n", 0o444),
+				}),
+				usage: 70,
+			},
+			4: {
+				fs: with(v1Fs, fstest.MapFS{
+					"sys/fs/cgroup/memory/test/memory.stat": file("total_inactive_file invalid\n", 0o444),
+				}),
+				err: "strconv.ParseUint: parsing \"invalid\": invalid syntax",
 			},
 		}
 
@@ -510,7 +564,7 @@ var _ fs.FS = (*hybridTestFS)(nil)
 
 func (fs *hybridTestFS) Open(name string) (fs.File, error) {
 	switch base := path.Base(name); base {
-	case "memory.current", "memory.max":
+	case "memory.current", "memory.max", "memory.stat":
 		return os.Open(filepath.Join(fs.tempDir, ".fs", base))
 	}
 	return fs.base.Open(name)
@@ -518,7 +572,7 @@ func (fs *hybridTestFS) Open(name string) (fs.File, error) {
 
 func (fs *hybridTestFS) ReadFile(name string) ([]byte, error) {
 	switch base := path.Base(name); base {
-	case "memory.current", "memory.max":
+	case "memory.current", "memory.max", "memory.stat":
 		return os.ReadFile(filepath.Join(fs.tempDir, ".fs", base))
 	}
 	return fs.base.ReadFile(name)
@@ -526,7 +580,7 @@ func (fs *hybridTestFS) ReadFile(name string) ([]byte, error) {
 
 func (fs *hybridTestFS) Stat(name string) (fs.FileInfo, error) {
 	switch base := path.Base(name); base {
-	case "memory.current", "memory.max":
+	case "memory.current", "memory.max", "memory.stat":
 		return os.Stat(filepath.Join(fs.tempDir, ".fs", base))
 	}
 	return fs.base.Stat(name)
@@ -680,6 +734,22 @@ func TestSharedResourceMonitor(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "1.000000", readMemorySaturation(c))
 	}, timeout, interval)
+
+	// (150-75)/150
+	testMemoryStatPath := filepath.Join(tempDir, ".fs/memory.stat")
+	require.NoError(t, os.WriteFile(testMemoryStatPath, []byte("inactive_file 75\n"), 0o644))
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, "0.500000", readMemorySaturation(c))
+	}, timeout, interval)
+
+	// a read error must not stop the monitor
+	require.NoError(t, os.WriteFile(testMemoryStatPath, []byte("inactive_file invalid\n"), 0o644))
+	time.Sleep(3 * monitorMaxTickInterval)
+	require.NoError(t, os.WriteFile(testMemoryStatPath, []byte("inactive_file 30\n"), 0o644))
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, "0.800000", readMemorySaturation(c))
+	}, timeout, interval)
+	require.NoError(t, os.Remove(testMemoryStatPath))
 
 	ca()
 	assert.ErrorIs(t, <-errC, context.Canceled)
