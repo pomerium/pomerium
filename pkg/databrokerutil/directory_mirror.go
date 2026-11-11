@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"iter"
 	"maps"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -96,6 +94,7 @@ type directoryMirror struct {
 	mu                           sync.Mutex
 	serverVersion, recordVersion uint64
 	dataBrokerFiles              map[string]*databrokerpb.File
+	fileSystemDirectories        *set.Set[string]
 	fileSystemFiles              map[string]*databrokerpb.File
 	initialized                  bool
 }
@@ -113,8 +112,9 @@ func NewDirectoryMirror(
 		rootDir:    rootDir,
 		cfg:        getDirectoryMirrorConfig(options...),
 
-		dataBrokerFiles: make(map[string]*databrokerpb.File),
-		fileSystemFiles: make(map[string]*databrokerpb.File),
+		dataBrokerFiles:       make(map[string]*databrokerpb.File),
+		fileSystemDirectories: set.New[string](0),
+		fileSystemFiles:       make(map[string]*databrokerpb.File),
 	}
 }
 
@@ -242,6 +242,7 @@ func (d *directoryMirror) watchDataBrokerToLocal(ctx context.Context) {
 				} else {
 					delete(d.dataBrokerFiles, res.Record.Id)
 				}
+				d.recordVersion = max(d.recordVersion, res.Record.Version)
 				d.mu.Unlock()
 				if err := update(); err != nil {
 					return err
@@ -256,11 +257,12 @@ func (d *directoryMirror) watchDataBrokerToLocal(ctx context.Context) {
 		err := syncChanges()
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("directory-mirror: error watching databroker for changes")
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(b.NextBackOff()):
-			}
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(b.NextBackOff()):
 		}
 	}
 }
@@ -447,6 +449,7 @@ func (d *directoryMirror) loadDataBrokerRecordsLocked(ctx context.Context) error
 				} else {
 					delete(d.dataBrokerFiles, res.Record.Id)
 				}
+				d.recordVersion = max(d.recordVersion, res.Record.Version)
 			}
 		}
 
@@ -461,10 +464,19 @@ func (d *directoryMirror) loadDataBrokerRecordsLocked(ctx context.Context) error
 // getWatchPathsLocked returns the absolute paths of all the local files and
 // directories
 func (d *directoryMirror) getWatchPathsLocked() []string {
-	return GetWatchPaths(d.rootDir, maps.Keys(d.fileSystemFiles))
+	paths := set.NewTreeSet(strings.Compare)
+	paths.Insert(d.rootDir)
+	for p := range d.fileSystemDirectories.Items() {
+		paths.Insert(filepath.Join(d.rootDir, p))
+	}
+	for p := range d.fileSystemFiles {
+		paths.Insert(filepath.Join(d.rootDir, p))
+	}
+	return paths.Slice()
 }
 
 func (d *directoryMirror) loadFileSystemRecordsLocked(_ context.Context) error {
+	d.fileSystemDirectories = set.New[string](0)
 	clear(d.fileSystemFiles)
 
 	root, err := d.getRoot()
@@ -479,7 +491,16 @@ func (d *directoryMirror) loadFileSystemRecordsLocked(_ context.Context) error {
 		}
 
 		if entry.IsDir() {
+			d.fileSystemDirectories.Insert(name)
 			return nil
+		}
+
+		// WalkDir does not follow symlinks, so a symlink to a directory shows up
+		// as a non-directory entry. Skip it rather than failing to read it.
+		if entry.Type()&fs.ModeSymlink != 0 {
+			if info, err := root.Stat(name); err == nil && info.IsDir() {
+				return nil
+			}
 		}
 
 		data, err := root.ReadFile(name)
@@ -597,23 +618,4 @@ func (d *directoryMirror) retry(ctx context.Context, fn func() error) error {
 				Msg("directory-mirror: error performing operation")
 		},
 	)
-}
-
-// GetWatchPaths returns absolute paths of a set of file paths and all their parent
-// directories, suitable for use with a file watcher.
-func GetWatchPaths(rootDir string, filePaths iter.Seq[string]) []string {
-	paths := set.NewTreeSet(strings.Compare)
-	paths.Insert(rootDir)
-	for p := range filePaths {
-		paths.Insert(filepath.Join(rootDir, p))
-		for {
-			dir := path.Dir(p)
-			if dir == p {
-				break
-			}
-			paths.Insert(filepath.Join(rootDir, dir))
-			p = dir
-		}
-	}
-	return paths.Slice()
 }

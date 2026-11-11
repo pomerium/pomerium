@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"testing"
 	"time"
 
@@ -126,28 +125,4 @@ func TestDirectoryMirror(t *testing.T) {
 			assert.Empty(t, dump(client))
 		})
 	})
-}
-
-func TestGetWatchFilePaths(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, []string{
-		"/path/to/directory",
-		"/path/to/directory/a",
-		"/path/to/directory/a/b",
-		"/path/to/directory/a/b/c",
-		"/path/to/directory/a/b/c/d",
-		"/path/to/directory/a/b/c/d/e",
-		"/path/to/directory/a/b/c/d/e/file4.txt",
-		"/path/to/directory/a/b/file3.txt",
-		"/path/to/directory/a/file2.txt",
-		"/path/to/directory/file1.txt",
-	}, databrokerutil.GetWatchPaths("/path/to/directory", slices.Values([]string{
-		"./file1.txt",
-		"file1.txt",
-		"a/file2.txt",
-		"a/b/file3.txt",
-		"a/b/../file2.txt",
-		"a/b/c/d/e/file4.txt",
-	})))
 }
