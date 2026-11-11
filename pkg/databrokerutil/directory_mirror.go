@@ -583,7 +583,7 @@ func (d *directoryMirror) getRoot() (*os.Root, error) {
 }
 
 func (d *directoryMirror) getDirectoryPermissions() os.FileMode {
-	return d.cfg.permissions | 0x0100
+	return d.cfg.permissions | (d.cfg.permissions&0o444)>>2
 }
 
 func (d *directoryMirror) retry(ctx context.Context, fn func() error) error {
