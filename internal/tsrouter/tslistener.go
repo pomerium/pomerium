@@ -16,11 +16,15 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"tailscale.com/tsnet"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -34,7 +38,7 @@ type tsListener struct {
 	SignedJWTKey []byte
 	Settings     config.TailscaleListenerSettings
 
-	// The config is not included in the equality check.
+	telemetry    telemetry.Component
 	certificates atomic.Pointer[[]tls.Certificate]
 	tempDir      string
 
@@ -42,37 +46,12 @@ type tsListener struct {
 	wg   sync.WaitGroup
 }
 
-func newTSListener(cfg *config.Config, settings config.TailscaleListenerSettings) (*tsListener, error) {
-	sharedKey, err := cfg.Options.GetSharedKey()
-	if err != nil {
-		return nil, fmt.Errorf("tsrouter: error getting shared key: %w", err)
-	}
-
+func newTSListener(tracerProvider oteltrace.TracerProvider, cfg *config.Config, settings config.TailscaleListenerSettings) (*tsListener, error) {
 	l := &tsListener{
-		ServerAddr:   cfg.Options.Addr,
-		OutboundPort: cfg.OutboundPort,
-		SignedJWTKey: sharedKey,
-		Settings:     settings,
+		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.InfoLevel, "tslistener",
+			attribute.String("hostname", settings.Hostname.Value)),
 	}
-
-	certs, err := cfg.AllCertificates()
-	if err != nil {
-		return nil, fmt.Errorf("tsrouter: error loading certificates: %w", err)
-	}
-
-	catchAll, err := cfg.GenerateCatchAllCertificate()
-	if err != nil {
-		return nil, fmt.Errorf("tsrouter: error generating catch-all certificate: %w", err)
-	}
-
-	l.certificates.Store(new(append(slices.Clone(certs), *catchAll)))
-
-	l.tempDir, err = os.MkdirTemp("", "tsrouter-*")
-	if err != nil {
-		return nil, fmt.Errorf("tsrouter: error making temporary directory: %w", err)
-	}
-
-	return l, nil
+	return l, l.init(cfg, settings)
 }
 
 func (l *tsListener) Equal(other *tsListener) bool {
@@ -88,22 +67,88 @@ func (l *tsListener) Equal(other *tsListener) bool {
 }
 
 func (l *tsListener) Start(ctx context.Context) {
-	log.Ctx(ctx).Info().
-		Msg("tsrouter: starting listener")
+	_, op := l.telemetry.Start(ctx, "Start")
+	defer op.Complete()
 
 	ctx, l.stop = context.WithCancelCause(ctx)
+
 	cc, err := grpc.NewOutboundGRPCClientConn(ctx, &grpc.OutboundOptions{
 		OutboundPort: l.OutboundPort,
 		SignedJWTKey: l.SignedJWTKey,
 	})
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Str("service", "tsrouter").Msg("tsrouter: failed to create outbound grpc connection")
+		_ = op.Failure(fmt.Errorf("failed to create outbound grpc connection: %w", err))
 		return
 	}
 	client := databrokerpb.NewDataBrokerServiceClient(cc)
 
+	// the actual tsnet listener is run within a lease so that only one Pomerium Proxy
+	// node will handle each host
 	l.wg.Go(func() {
-		databrokerutil.NewDirectoryMirror(client, "tsrouter/"+l.Settings.Hostname.Value, l.tempDir).Watch(ctx)
+		_ = databrokerutil.NewLeasers("tslistener/"+l.Settings.Hostname.Value, 30*time.Second, client,
+			func(ctx context.Context) error {
+				l.startLeased(ctx, client)
+				<-ctx.Done()
+				return context.Cause(ctx)
+			}).Run(ctx)
+	})
+}
+
+func (l *tsListener) Stop() {
+	if l.stop != nil {
+		log.Info().Msg("tsrouter: stopping listener")
+		l.stop(errStopped)
+		l.wg.Wait()
+
+		_ = os.RemoveAll(l.tempDir)
+	}
+}
+
+func (l *tsListener) init(cfg *config.Config, settings config.TailscaleListenerSettings) error {
+	_, op := l.telemetry.Start(context.Background(), "init")
+	defer op.Complete()
+
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		return op.Failure(fmt.Errorf("error getting shared key: %w", err))
+	}
+
+	l.ServerAddr = cfg.Options.Addr
+	l.OutboundPort = cfg.OutboundPort
+	l.SignedJWTKey = sharedKey
+	l.Settings = settings
+
+	certs, err := cfg.AllCertificates()
+	if err != nil {
+		return op.Failure(fmt.Errorf("error loading certificates: %w", err))
+	}
+
+	catchAll, err := cfg.GenerateCatchAllCertificate()
+	if err != nil {
+		return op.Failure(fmt.Errorf("error generating catch-all certificate: %w", err))
+	}
+
+	l.certificates.Store(new(append(slices.Clone(certs), *catchAll)))
+
+	l.tempDir, err = os.MkdirTemp("", "tslistener-*")
+	if err != nil {
+		return op.Failure(fmt.Errorf("error making temporary directory: %w", err))
+	}
+
+	return nil
+}
+
+func (l *tsListener) startLeased(ctx context.Context, client databrokerpb.DataBrokerServiceClient) {
+	opCtx, op := l.telemetry.Start(ctx, "startLeased",
+		attribute.String("listen-addr", l.Settings.ListenAddr.Value),
+		attribute.String("listen-funnel-addr", l.Settings.ListenFunnelAddr.Value),
+		attribute.String("listen-service-name", l.Settings.ListenServiceName.Value))
+	defer op.Complete()
+
+	log.Ctx(opCtx).Info().Msg("tsrouter: starting listener")
+
+	l.wg.Go(func() {
+		databrokerutil.NewDirectoryMirror(client, "tslistener/"+l.Settings.Hostname.Value, l.tempDir).Watch(ctx)
 	})
 
 	srv := &tsnet.Server{
@@ -118,17 +163,15 @@ func (l *tsListener) Start(ctx context.Context) {
 		ControlURL:    l.Settings.ControlURL.Value,
 		AdvertiseTags: l.Settings.Tags.Value,
 		UserLogf: func(format string, args ...any) {
-			log.Ctx(ctx).Info().Str("service", "tsrouter").Msgf(format, args...)
+			l.telemetry.Logger(ctx).Info().Msgf(format, args...)
 		},
 		Logf: func(format string, args ...any) {
-			log.Ctx(ctx).Debug().Str("service", "tsrouter").Msgf(format, args...)
+			l.telemetry.Logger(ctx).Debug().Msgf(format, args...)
 		},
 	}
 
 	if l.Settings.ListenAddr.IsSet {
-		log.Ctx(ctx).Info().
-			Str("addr", l.Settings.ListenAddr.Value).
-			Msg("tsrouter: starting tailnet listener")
+		log.Ctx(opCtx).Info().Msg("starting tailnet listener")
 		var li net.Listener
 		var err error
 		if l.Settings.TerminateTLS.Value {
@@ -137,10 +180,7 @@ func (l *tsListener) Start(ctx context.Context) {
 			li, err = srv.Listen("tcp", l.Settings.ListenAddr.Value)
 		}
 		if err != nil {
-			log.Ctx(ctx).Error().
-				Err(err).
-				Str("addr", l.Settings.ListenAddr.Value).
-				Msg("tsrouter: error starting tailnet listener")
+			_ = op.Failure(fmt.Errorf("failed to start tailnet listener: %w", err))
 			return
 		}
 
@@ -148,9 +188,7 @@ func (l *tsListener) Start(ctx context.Context) {
 	}
 
 	if l.Settings.ListenFunnelAddr.IsSet {
-		log.Ctx(ctx).Info().
-			Str("addr", l.Settings.ListenFunnelAddr.Value).
-			Msg("tsrouter: starting funnel listener")
+		log.Ctx(opCtx).Info().Msg("starting funnel listener")
 		funnelOptions := []tsnet.FunnelOption{tsnet.FunnelOnly()}
 		if !l.Settings.TerminateTLS.Value {
 			funnelOptions = append(funnelOptions, tsnet.FunnelTLSConfig(&tls.Config{
@@ -159,43 +197,23 @@ func (l *tsListener) Start(ctx context.Context) {
 		}
 		li, err := srv.ListenFunnel("tcp", l.Settings.ListenFunnelAddr.Value, funnelOptions...)
 		if err != nil {
-			log.Ctx(ctx).Error().
-				Err(err).
-				Str("addr", l.Settings.ListenFunnelAddr.Value).
-				Msg("tsrouter: error starting funnel listener")
+			_ = op.Failure(fmt.Errorf("failed to start tailnet funnel listener: %w", err))
 		} else {
 			l.wg.Go(func() { l.handleListener(ctx, li, false) })
 		}
 	}
 
 	if l.Settings.ListenServiceName.IsSet {
-		log.Ctx(ctx).Info().
-			Str("service-name", l.Settings.ListenServiceName.Value).
-			Uint32("service-port", l.Settings.ListenServicePort.Value).
-			Msg("tsrouter: starting service listener")
+		log.Ctx(opCtx).Info().Msg("starting service listener")
 		li, err := srv.ListenService(l.Settings.ListenServiceName.Value, tsnet.ServiceModeTCP{
 			Port:         uint16(l.Settings.ListenServicePort.Value),
 			TerminateTLS: l.Settings.TerminateTLS.Value,
 		})
 		if err != nil {
-			log.Ctx(ctx).Error().
-				Err(err).
-				Str("service-name", l.Settings.ListenServiceName.Value).
-				Uint32("service-port", l.Settings.ListenServicePort.Value).
-				Msg("tsrouter: error starting service listener")
+			_ = op.Failure(fmt.Errorf("failed to start tailnet service listener: %w", err))
 		} else {
 			l.wg.Go(func() { l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value) })
 		}
-	}
-}
-
-func (l *tsListener) Stop() {
-	if l.stop != nil {
-		log.Info().Msg("tsrouter: stopping listener")
-		l.stop(errStopped)
-		l.wg.Wait()
-
-		_ = os.RemoveAll(l.tempDir)
 	}
 }
 
@@ -223,10 +241,13 @@ func (l *tsListener) handleListener(ctx context.Context, li net.Listener, rawTCP
 }
 
 func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP bool) {
-	log.Ctx(ctx).Info().
-		Str("local-addr", remote.LocalAddr().String()).
-		Str("remote-addr", remote.RemoteAddr().String()).
-		Msg("tsrouter: incoming connection")
+	ctx, op := l.telemetry.Start(ctx, "handleConn",
+		attribute.String("local-addr", remote.LocalAddr().String()),
+		attribute.String("remote-addr", remote.RemoteAddr().String()),
+		attribute.String("server-addr", l.ServerAddr))
+	defer op.Complete()
+
+	log.Ctx(ctx).Info().Msg("incoming connection")
 
 	defer remote.Close()
 	cleanupRemote := context.AfterFunc(ctx, func() { _ = remote.Close() })
@@ -248,9 +269,7 @@ func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP boo
 			return
 		default:
 		}
-		log.Ctx(ctx).Error().
-			Str("server-addr", l.ServerAddr).
-			Msg("tsrouter: error connecting to server")
+		_ = op.Failure(fmt.Errorf("failed to connect to server: %w", err))
 		return
 	}
 
@@ -258,14 +277,12 @@ func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP boo
 	cleanupLocal := context.AfterFunc(ctx, func() { _ = local.Close() })
 	defer cleanupLocal()
 
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, _ := errgroup.WithContext(ctx)
 	eg.Go(func() error { _, err := io.Copy(local, remote); return err })
 	eg.Go(func() error { _, err := io.Copy(remote, local); return err })
 	err = eg.Wait()
 	if err != nil {
-		log.Ctx(ctx).Error().
-			Str("server-addr", l.ServerAddr).
-			Msg("tsrouter: error proxying data to and from server")
+		_ = op.Failure(fmt.Errorf("failed to proxy data: %w", err))
 	}
 }
 

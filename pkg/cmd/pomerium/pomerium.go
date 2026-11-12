@@ -24,7 +24,6 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
-	"github.com/pomerium/pomerium/internal/tsrouter"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
@@ -257,10 +256,12 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		return fmt.Errorf("setting up registry reporter: %w", err)
 	}
 
+	var proxyServer *proxy.Proxy
 	if config.IsProxy(src.GetConfig().Options.Services) {
 		controlPlaneChecks = append(controlPlaneChecks, health.ProxyService)
-		if err := setupProxy(ctx, src, controlPlane); err != nil {
-			return err
+		proxyServer, err = setupProxy(ctx, src, controlPlane)
+		if err != nil {
+			return fmt.Errorf("error setting up proxy: %w", err)
 		}
 	}
 
@@ -306,15 +307,11 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 			return dataBrokerServer.Run(ctx)
 		})
 	}
-
-	tsRouter := tsrouter.New()
-	src.OnConfigChange(ctx, func(_ context.Context, cfg *config.Config) {
-		tsRouter.OnConfigChange(cfg)
-	})
-	tsRouter.OnConfigChange(src.GetConfig())
-	p.errGroup.Go(func() error {
-		return tsRouter.Run(ctx)
-	})
+	if proxyServer != nil {
+		p.errGroup.Go(func() error {
+			return proxyServer.Run(ctx)
+		})
+	}
 
 	return nil
 }
@@ -398,21 +395,21 @@ func setupRegistryReporter(ctx context.Context, tracerProvider oteltrace.TracerP
 	return nil
 }
 
-func setupProxy(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {
+func setupProxy(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*proxy.Proxy, error) {
 	svc, err := proxy.New(ctx, src.GetConfig())
 	if err != nil {
-		return fmt.Errorf("error creating proxy service: %w", err)
+		return nil, fmt.Errorf("error creating proxy service: %w", err)
 	}
 	err = controlPlane.EnableProxy(ctx, svc)
 	if err != nil {
-		return fmt.Errorf("error adding proxy service to control plane: %w", err)
+		return nil, fmt.Errorf("error adding proxy service to control plane: %w", err)
 	}
 
 	log.Ctx(ctx).Info().Msg("enabled proxy service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 
-	return nil
+	return svc, nil
 }
 
 func (p *Pomerium) updateTraceClient(ctx context.Context, cfg *config.Config) {

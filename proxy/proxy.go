@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"
@@ -20,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/tsrouter"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -62,6 +64,7 @@ type Proxy struct {
 	logoProvider     portal.LogoProvider
 	mcp              atomic.Pointer[mcp.Handler]
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn
+	tsRouter         tsrouter.TSRouter
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -78,12 +81,14 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 		tracerProvider:   tracerProvider,
 		logoProvider:     portal.NewLogoProvider(),
 		outboundGrpcConn: outboundGrpcConn,
+		tsRouter:         tsrouter.New(tracerProvider),
 	}
 	p.state.Store(state)
 	p.currentConfig.Store(config.New(config.NewDefaultOptions()))
 	p.currentRouter.Store(httputil.NewRouter())
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p,
+		mcpHandler, err := mcp.New(
+			ctx, mcp.DefaultPrefix, cfg, p,
 			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
 				return cfg.Options.GetAuthenticator(ctx, tracerProvider, idpID)
 			}),
@@ -131,7 +136,8 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	p.state.Store(state)
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p,
+		mcpHandler, err := mcp.New(
+			ctx, mcp.DefaultPrefix, cfg, p,
 			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
 				return cfg.Options.GetAuthenticator(ctx, p.tracerProvider, idpID)
 			}),
@@ -142,6 +148,8 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 			p.mcp.Store(mcpHandler)
 		}
 	}
+
+	p.tsRouter.OnConfigChange(cfg)
 }
 
 func (p *Proxy) setHandlers(ctx context.Context, opts *config.Options) error {
@@ -179,4 +187,19 @@ func (p *Proxy) querierMiddleware(h http.Handler) http.Handler {
 
 		h.ServeHTTP(w, r)
 	})
+}
+
+// Run runs the proxy service.
+func (p *Proxy) Run(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		// Most of the proxy service functionality happens through ServeHTTP
+		// so we do nothing and just wait for the context to exit
+		<-ctx.Done()
+		return context.Cause(ctx)
+	})
+	eg.Go(func() error {
+		return p.tsRouter.Run(ctx)
+	})
+	return eg.Wait()
 }

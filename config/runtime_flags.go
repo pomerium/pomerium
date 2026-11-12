@@ -67,6 +67,9 @@ var (
 
 	// RuntimeFlagSSHUpstreamTunnel enables SSH upstream tunnel support
 	RuntimeFlagSSHUpstreamTunnel = runtimeFlag("ssh_upstream_tunnel", false)
+
+	// RuntimeFlagTailscale enables the tailscale integration
+	RuntimeFlagTailscale = runtimeFlag("tailscale", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

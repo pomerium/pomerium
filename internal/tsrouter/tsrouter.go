@@ -2,11 +2,15 @@ package tsrouter
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 
+	"github.com/rs/zerolog"
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry"
 )
 
 // A TSRouter routes traffic from tailscale to Pomerium.
@@ -15,16 +19,20 @@ type TSRouter interface {
 	Run(ctx context.Context) error
 }
 
-// New returns a new tailscale router.
-func New() TSRouter {
-	return &tsRouter{}
-}
-
 type tsRouter struct {
+	telemetry telemetry.Component
+
 	mu        sync.Mutex
 	runCtx    context.Context
 	cfg       *config.Config
 	listeners []*tsListener
+}
+
+// New returns a new tailscale router.
+func New(tracerProvider oteltrace.TracerProvider) TSRouter {
+	return &tsRouter{
+		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.InfoLevel, "tsrouter"),
+	}
 }
 
 func (r *tsRouter) OnConfigChange(cfg *config.Config) {
@@ -53,7 +61,11 @@ func (r *tsRouter) Run(ctx context.Context) error {
 }
 
 func (r *tsRouter) updateLocked() {
-	if r.cfg == nil || r.runCtx == nil {
+	_, op := r.telemetry.Start(r.runCtx, "update")
+	defer op.Complete()
+
+	if r.cfg == nil ||
+		!r.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagTailscale) {
 		for _, li := range r.listeners {
 			li.Stop()
 		}
@@ -63,9 +75,9 @@ func (r *tsRouter) updateLocked() {
 
 	// start new or updated listeners
 	for i, s := range r.cfg.Options.TailscaleListeners.Value {
-		nl, err := newTSListener(r.cfg, s)
+		nl, err := newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s)
 		if err != nil {
-			log.Ctx(r.runCtx).Error().Err(err).Msg("tsrouter: error constructing listener")
+			_ = op.Failure(fmt.Errorf("error constructing listener: %w", err))
 			continue
 		}
 		if i >= len(r.listeners) {
