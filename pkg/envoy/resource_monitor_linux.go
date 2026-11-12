@@ -30,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 type CgroupFilePath int
@@ -38,6 +39,7 @@ const (
 	RootPath CgroupFilePath = iota
 	MemoryUsagePath
 	MemoryLimitPath
+	MemoryStatPath
 )
 
 type CgroupDriver interface {
@@ -47,6 +49,8 @@ type CgroupDriver interface {
 	MemoryUsage(cgroup string) (uint64, error)
 	MemoryLimit(cgroup string) (uint64, error)
 }
+
+const thresholdStopAcceptingConnections = 0.95
 
 var (
 	overloadActions = []struct {
@@ -70,7 +74,7 @@ var (
 
 		// At 95%, stop accepting new connections, but keep existing ones open.
 		// https://github.com/envoyproxy/envoy/blob/v1.30.1/source/server/worker_impl.cc#L168-L174
-		{"stop_accepting_connections", memUsageThreshold(0.95)},
+		{"stop_accepting_connections", memUsageThreshold(thresholdStopAcceptingConnections)},
 
 		// At 98%, disable HTTP keepalive. This prevents new http/2 streams and
 		// ends all existing ones.
@@ -333,6 +337,12 @@ LOOP:
 						continue
 					}
 					saturation = max(0.0, min(1.0, float64(usage)/float64(limit)))
+
+					if saturation >= thresholdStopAcceptingConnections {
+						health.ReportError(health.EnvoyOverloaded, fmt.Errorf("cgroup memory usage above threshold"))
+					} else {
+						health.ReportRunning(health.EnvoyOverloaded)
+					}
 				}
 			}
 
@@ -428,6 +438,8 @@ func (d *cgroupV2Driver) Path(cgroup string, kind CgroupFilePath) string {
 		return filepath.Join(d.root, cgroup, "memory.current")
 	case MemoryLimitPath:
 		return filepath.Join(d.root, cgroup, "memory.max")
+	case MemoryStatPath:
+		return filepath.Join(d.root, cgroup, "memory.stat")
 	}
 	return ""
 }
@@ -446,7 +458,70 @@ func (d *cgroupV2Driver) MemoryUsage(cgroup string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+
+	usage, err := strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+	if err != nil {
+		return usage, err
+	}
+	return usage - d.potentialReclaimAmount(cgroup), nil
+}
+
+func ReadFromMemStatEntries(fsys fs.FS, path string, cb func(entryValue string), entries ...string) {
+	if len(entries) == 0 {
+		return
+	}
+	data, err := fs.ReadFile(fsys, path)
+	if err != nil {
+		return
+	}
+	for line := range strings.Lines(string(data)) {
+		name, value, ok := strings.Cut(strings.TrimSpace(line), " ")
+		if !ok || !slices.Contains(entries, name) {
+			continue
+		}
+		cb(value)
+	}
+}
+
+func addTo(in *uint64) func(entryValue string) {
+	return func(entryValue string) {
+		value, err := strconv.ParseUint(entryValue, 10, 64)
+		if err != nil {
+			return
+		}
+		*in += value
+	}
+}
+
+// potentialReclaimAmount returns the amount of potentially reclaimable memory
+// for this cgroup when it is under memory pressure. This amount
+// is not reflected in memory.current and other implementations like Kubernetes &
+// cAdvisor implement similar mechanisms for eviction based on memory saturation.
+func (d *cgroupV2Driver) potentialReclaimAmount(cgroup string) uint64 {
+	// Typically implementations only cover `inactive_file` for counting
+	// reclaimable memory under pressure.
+	// The issues below feature discussions around whether or not slab reclaimable
+	// memory should be considered:
+	// * https://github.com/google/cadvisor/issues/3081
+	// * https://github.com/kubernetes/kubernetes/issues/43916
+	//
+	// In particular slab reclaimable memory tends to grow for filesystem
+	// heavy workloads, which Pomerium could be with the pebble storage engine.
+	// Kubernetes won't consider slab reclaimable memory in its default eviction
+	// process for cgroup memory saturation since it could
+	// have adverse effects for resource constrained jobs, but this
+	// is not how Pomerium is expected to be deployed.
+	// I think it is best to include here in our reclaim amount under pressure.
+	//
+	// If this proves to be insufficient we could have health checks consider the
+	// `ThresholdStopAcceptingConnections` without reclaimable memory (introducing this as a public method).
+
+	reclaimable := uint64(0)
+
+	// https://www.kernel.org/doc/Documentation/cgroup-v2.txt memory.stat
+	ReadFromMemStatEntries(d.fs, d.Path(cgroup, MemoryStatPath), addTo(&reclaimable), "inactive_file", "slab_reclaimable")
+
+	return reclaimable
 }
 
 // MemoryLimit implements CgroupDriver.
@@ -516,6 +591,8 @@ func (d *cgroupV1Driver) Path(cgroup string, kind CgroupFilePath) string {
 		return filepath.Join(d.root, "memory", cgroup, "memory.usage_in_bytes")
 	case MemoryLimitPath:
 		return filepath.Join(d.root, "memory", cgroup, "memory.limit_in_bytes")
+	case MemoryStatPath:
+		return filepath.Join(d.root, "memory", cgroup, "memory.stat")
 	}
 	return ""
 }
@@ -561,7 +638,27 @@ func (d *cgroupV1Driver) MemoryUsage(cgroup string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+
+	usage, err := strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+	if err != nil {
+		return usage, err
+	}
+
+	return usage - d.potentialReclaimAmount(cgroup), nil
+}
+
+func (d *cgroupV1Driver) potentialReclaimAmount(cgroup string) uint64 {
+	// Unlike cgroupv2, we should not consider slab reclaimable memory for cgroupV1.
+
+	// From the cgroup v1 memory docs
+	// (https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt):
+	//
+	//	> Currently no soft limit is implemented for kernel memory. It is future work
+	//	> to trigger slab reclaim when those limits are reached.
+
+	reclaimable := uint64(0)
+	ReadFromMemStatEntries(d.fs, d.Path(cgroup, MemoryStatPath), addTo(&reclaimable), "total_inactive_file")
+	return reclaimable
 }
 
 // MemoryLimit implements CgroupDriver.

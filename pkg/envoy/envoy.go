@@ -390,6 +390,8 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 			Msg("envoy process monitor stopped")
 	}()
 
+	// needs to always report healthy even if not configured since it is an expected check.
+	health.ReportRunning(health.EnvoyOverloaded)
 	if srv.resourceMonitor != nil {
 		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("starting resource monitor")
 		go func() {
