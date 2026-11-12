@@ -38,6 +38,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/logutil"
 	"github.com/pomerium/pomerium/pkg/netutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 const (
@@ -271,7 +272,11 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	// log level is managed via config
 	opts.logLevel = firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug)
 	opts.adminAddress = cfg.EnvoyAdminInternalAddress
-	opts.dynamicExtensionPaths = cfg.Options.EnvoyDynamicExtensions.Or([]string{})
+	opts.dynamicExtensionPaths = getDynamicExtensionPaths(
+		ctx,
+		os.Getenv(envPomeriumExt),
+		cfg.Options.EnvoyDynamicExtensions.Or([]string{}),
+	)
 	if cmp.Equal(srv.ServerOptions, opts, cmp.AllowUnexported(ServerOptions{})) {
 		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("envoy: no config changes detected")
 		return
@@ -282,6 +287,47 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
 		return
 	}
+}
+
+func getDynamicExtensionPaths(ctx context.Context, extDir string, configured []string) []string {
+	paths := []string{}
+	if extDir != "" {
+		paths = append(paths, dynamicExtensionFiles(ctx, extDir)...)
+	}
+	return slices.Unique(append(paths, configured...))
+}
+
+// dynamicExtensionFiles intentionally does not handle fetching files from nested paths in the base extDir.
+func dynamicExtensionFiles(ctx context.Context, extDir string) []string {
+	info, err := os.Stat(extDir)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Str("ext-path", extDir).Msg("failed to stat dynamic extensions directory")
+		return nil
+	}
+	if !info.IsDir() {
+		log.Ctx(ctx).Warn().Str("ext-path", extDir).Msg("dynamic extensions path is not a directory")
+		return nil
+	}
+
+	entries, err := os.ReadDir(extDir)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Str("ext-path", extDir).Msg("failed to read dynamic extensions directory")
+		return nil
+	}
+
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		entryPath := filepath.Join(extDir, entry.Name())
+		entryInfo, err := os.Stat(entryPath)
+		if err != nil {
+			log.Ctx(ctx).Warn().Err(err).Str("ext-path", entryPath).Msg("failed to inspect dynamic extension path")
+			continue
+		}
+		if entryInfo.Mode().IsRegular() {
+			paths = append(paths, entryPath)
+		}
+	}
+	return paths
 }
 
 func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
