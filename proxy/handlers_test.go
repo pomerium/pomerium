@@ -263,7 +263,7 @@ func TestProxy_jsonUserInfo(t *testing.T) {
 	})
 	t.Run("no_sub_claim", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/.pomerium/user", nil)
-		req.Header.Set("X-Pomerium-Jwt-Assertion", "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJmb28iOiJiYXIifQ.")
+		req.Header.Set("X-Pomerium-Jwt-Assertion", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmb28iOiJiYXIifQ.e30")
 		w := httptest.NewRecorder()
 		err := proxy.jsonUserInfo(w, req)
 		assert.ErrorContains(t, err, "not found")
@@ -290,7 +290,7 @@ func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
 	proxy, err := New(t.Context(), config.New(config.NewDefaultOptions()))
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodGet, "/.pomerium/jwt", nil)
-	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.e30"
 	req.Header.Set("X-Pomerium-Jwt-Assertion", rawJWT)
 
 	t.Run("disabled", func(t *testing.T) {

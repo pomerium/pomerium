@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -110,7 +110,7 @@ func TestValidateJWT(t *testing.T) {
 		signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key},
 			(&jose.SignerOptions{}).WithType("JWT"))
 		require.NoError(t, err)
-		s, err := jwt.Signed(signer).Claims(claims).CompactSerialize()
+		s, err := jwt.Signed(signer).Claims(claims).Serialize()
 		require.NoError(t, err)
 		return s
 	}

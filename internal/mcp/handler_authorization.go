@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"buf.build/go/protovalidate"
-	"github.com/go-jose/go-jose/v3/jwt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -20,6 +19,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	"github.com/pomerium/pomerium/internal/opaquetoken"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 var supportedTokenAuthMethodsForCIMD = []string{
@@ -325,14 +325,9 @@ func getClaimsFromRequest(r *http.Request) (map[string]any, error) {
 		return nil, fmt.Errorf("missing %s header", httputil.HeaderPomeriumJWTAssertion)
 	}
 
-	token, err := jwt.ParseSigned(h)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT: %w", err)
-	}
 	var m map[string]any
-	err = token.UnsafeClaimsWithoutVerification(&m)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT claims: %w", err)
+	if err := cryptutil.UnverifiedClaims(h, &m); err != nil {
+		return nil, fmt.Errorf("failed to parse JWT: %w", err)
 	}
 
 	return m, nil
