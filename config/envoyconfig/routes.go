@@ -339,6 +339,16 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		extAuthzOpts := MakeExtAuthzContextExtensions(false, routeID, routeChecksum)
 		if isConsoleRoute {
 			extAuthzOpts["console"] = "true"
+			route.RequestHeadersToAdd = append(
+				route.RequestHeadersToAdd,
+				&envoy_config_core_v3.HeaderValueOption{
+					Header: &envoy_config_core_v3.HeaderValue{
+						Key:   "x-pomerium-upstream-cluster",
+						Value: "%UPSTREAM_CLUSTER_RAW%",
+					},
+					AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+				},
+			)
 		}
 		extAuthzCfg := PerFilterConfigExtAuthzContextExtensions(extAuthzOpts)
 		if policy.IsMCPServer() {
@@ -374,19 +384,6 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 
 	route.Metadata.FilterMetadata = map[string]*structpb.Struct{
 		"envoy.filters.http.lua": {Fields: luaMetadata},
-	}
-
-	if isConsoleRoute {
-		route.RequestHeadersToAdd = append(
-			route.RequestHeadersToAdd,
-			&envoy_config_core_v3.HeaderValueOption{
-				Header: &envoy_config_core_v3.HeaderValue{
-					Key:   "x-pomerium-upstream-cluster",
-					Value: "%UPSTREAM_CLUSTER_RAW%",
-				},
-				AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
-			},
-		)
 	}
 
 	return route, nil
