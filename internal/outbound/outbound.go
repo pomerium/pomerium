@@ -91,6 +91,16 @@ func New() *HTTP {
 	transport.Proxy = o.Proxy
 	transport.DialContext = o.dial
 	transport.DialTLSContext = o.dialTLS
+	// Through a proxy, the TLS handshake with the origin uses TLSClientConfig
+	// rather than DialTLSContext. The CA pool can change with the settings,
+	// so the server certificate is verified against the current pool here.
+	transport.TLSClientConfig = &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true, // verified by VerifyConnection
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			return verifyServerCertificate(cs, o.state.Load().RootCAs)
+		},
+	}
 	transport.ForceAttemptHTTP2 = true
 	o.transport = transport
 	return o
@@ -197,4 +207,33 @@ func (c *conn) Close() error {
 		c.owner.mu.Unlock()
 	})
 	return c.Conn.Close()
+}
+
+// verifyServerCertificate verifies the server certificate chain against
+// rootCAs and the server name, like crypto/tls does when InsecureSkipVerify is
+// false. cs.ServerName is the SNI, which is empty when the server is addressed
+// by IP, so such servers are rejected rather than accepted without a name
+// check.
+func verifyServerCertificate(cs tls.ConnectionState, rootCAs *x509.CertPool) error {
+	if len(cs.PeerCertificates) == 0 {
+		return errors.New("tls: server presented no certificates")
+	}
+	var err error
+	if cs.ServerName == "" {
+		err = errors.New("cannot verify a server addressed by IP through a proxy")
+	} else {
+		intermediates := x509.NewCertPool()
+		for _, cert := range cs.PeerCertificates[1:] {
+			intermediates.AddCert(cert)
+		}
+		_, err = cs.PeerCertificates[0].Verify(x509.VerifyOptions{
+			DNSName:       cs.ServerName,
+			Roots:         rootCAs,
+			Intermediates: intermediates,
+		})
+	}
+	if err != nil {
+		return &tls.CertificateVerificationError{UnverifiedCertificates: cs.PeerCertificates, Err: err}
+	}
+	return nil
 }

@@ -19,6 +19,69 @@ import (
 	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
+func TestTransportThroughProxy(t *testing.T) {
+	t.Parallel()
+
+	origin, ca := newTLSOrigin(t, false)
+
+	// get requests https://host through a new proxy that tunnels every
+	// CONNECT to origin.
+	get := func(t *testing.T, ca *x509.CertPool, host string) error {
+		t.Helper()
+		proxy := outboundtest.NewConnectProxy(t, dialTo(origin))
+		o := outbound.New()
+		o.Update(t.Context(), httpsProxy(ca, proxy.URL))
+		transport := o.Transport()
+		t.Cleanup(transport.CloseIdleConnections)
+		err := getOrigin(t, transport, origin, host)
+		assert.Equal(t, 1, proxy.Connects(host), "request goes through the proxy")
+		return err
+	}
+
+	t.Run("trusted certificate authority", func(t *testing.T) {
+		assert.NoError(t, get(t, ca, "example.com"))
+	})
+	t.Run("untrusted certificate authority", func(t *testing.T) {
+		err := get(t, nil, "example.com")
+		var unknownAuthority x509.UnknownAuthorityError
+		assert.ErrorAs(t, err, &unknownAuthority)
+		var verifyErr *tls.CertificateVerificationError
+		assert.ErrorAs(t, err, &verifyErr)
+	})
+	t.Run("certificate for another host", func(t *testing.T) {
+		var hostnameErr x509.HostnameError
+		assert.ErrorAs(t, get(t, ca, "other.example"), &hostnameErr)
+	})
+	t.Run("certificate for another ip address", func(t *testing.T) {
+		assert.Error(t, get(t, ca, "192.0.2.1"))
+	})
+}
+
+func TestTransportThroughProxyFollowsCAChanges(t *testing.T) {
+	t.Parallel()
+
+	origin, ca := newTLSOrigin(t, false)
+	proxy := outboundtest.NewConnectProxy(t, dialTo(origin))
+
+	o := outbound.New()
+	o.Update(t.Context(), httpsProxy(nil, proxy.URL))
+	// The clone is taken before the settings change.
+	transport := o.Transport().Clone()
+	t.Cleanup(transport.CloseIdleConnections)
+	get := func() error {
+		transport.CloseIdleConnections()
+		return getOrigin(t, transport, origin, "example.com")
+	}
+
+	var unknownAuthority x509.UnknownAuthorityError
+	assert.ErrorAs(t, get(), &unknownAuthority, "without the CA")
+	o.Update(t.Context(), httpsProxy(ca, proxy.URL))
+	assert.NoError(t, get(), "with the CA")
+	o.Update(t.Context(), httpsProxy(nil, proxy.URL))
+	assert.ErrorAs(t, get(), &unknownAuthority, "after the CA is removed")
+	assert.Equal(t, 3, proxy.Connects("example.com"))
+}
+
 // TestTransportInvalidProxy asserts that, with an invalid
 // outbound_https_proxy, requests fail with an error that names the option and
 // not the value, and that after a valid value they go through the proxy.
@@ -30,7 +93,6 @@ func TestTransportInvalidProxy(t *testing.T) {
 	o := outbound.New()
 	o.Update(t.Context(), httpsProxy(ca, "http://user:s%ZZecret@invalid-proxy.example:3128"))
 	transport := o.Transport()
-	transport.TLSClientConfig = &tls.Config{RootCAs: ca}
 	t.Cleanup(transport.CloseIdleConnections)
 
 	err := getOrigin(t, transport, origin, "example.com")
@@ -73,7 +135,6 @@ func TestTransportFollowsProxyChanges(t *testing.T) {
 			o := outbound.New()
 			o.Update(t.Context(), httpsProxy(ca, proxyA.URL))
 			transport := o.Transport()
-			transport.TLSClientConfig = &tls.Config{RootCAs: ca}
 			if tc.clone {
 				transport = transport.Clone()
 			}
