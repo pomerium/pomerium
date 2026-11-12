@@ -1022,6 +1022,23 @@ message Settings {
   // ID of a managed key pair whose certificate is used as the upstream CA
   // bundle, as an alternative to the inline `certificate_authority` value.
   optional string certificate_authority_key_pair_id = 163;
+  // Web proxy URL for Pomerium's own outbound plain-HTTP (http://) requests.
+  // Same format as the HTTP_PROXY environment variable; a value without a
+  // scheme is an http:// proxy. Supported schemes: http, https, socks5,
+  // socks5h. If any outbound proxy setting is set, even to an empty value,
+  // the outbound proxy settings replace the HTTP_PROXY, HTTPS_PROXY and
+  // NO_PROXY environment variables. Changes apply without a restart.
+  optional string outbound_http_proxy = 194 [(sensitive) = true];
+  // Web proxy URL for Pomerium's own outbound HTTPS requests (e.g. to the
+  // identity provider). Same format as the HTTPS_PROXY environment variable.
+  // See outbound_http_proxy for how these settings replace the environment
+  // variables.
+  optional string outbound_https_proxy = 195 [(sensitive) = true];
+  // Comma-separated host names, domain suffixes (.example.com), IP
+  // addresses, CIDR ranges, or "*" that bypass the outbound proxy. Same
+  // semantics as the NO_PROXY environment variable. See outbound_http_proxy
+  // for how these settings replace the environment variables.
+  optional string outbound_no_proxy = 196;
   // Base hostname Pomerium uses to derive default TLS certificates for
   // routes. Empty disables derivation.
   optional string derive_tls = 96;
