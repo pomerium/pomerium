@@ -1,0 +1,23 @@
+{
+  "name": "pomerium-observability-e2e",
+  "version": "1.0.0",
+  "description": "Container-based E2E tests for Pomerium observability: access/authorize logging, the Prometheus metrics endpoint, and OTEL tracing against a real Jaeger collector, driven through a real Keycloak IdP against the official pomerium/pomerium container.",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "typecheck": "tsc --noEmit",
+    "install:browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@types/node": "^25.9.3",
+    "testcontainers": "^12.0.4",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "npm@10.9.4"
+}
