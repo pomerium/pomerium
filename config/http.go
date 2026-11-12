@@ -3,49 +3,46 @@ package config
 import (
 	"context"
 	"crypto/tls"
-	"net"
+	"crypto/x509"
 	"net/http"
 	"sync"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/outbound"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // NewHTTPTransport creates a new http transport. If CA or CAFile is set, the transport will
-// add the CA to system cert pool.
+// add the CA to system cert pool. The transport, and its clones, use the proxy chosen by
+// the HTTP_PROXY, HTTPS_PROXY and NO_PROXY environment variables.
 func NewHTTPTransport(src Source) *http.Transport {
+	return newOutboundHTTP(src).Transport()
+}
+
+// newOutboundHTTP creates an [outbound.HTTP] that follows the config of src.
+func newOutboundHTTP(src Source) *outbound.HTTP {
+	o := outbound.New()
 	var (
-		lock      sync.Mutex
-		tlsConfig *tls.Config
+		mu      sync.Mutex
+		rootCAs *x509.CertPool
 	)
 	update := func(ctx context.Context, cfg *Config) {
-		rootCAs, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
-		if err == nil {
-			lock.Lock()
-			tlsConfig = &tls.Config{
-				RootCAs:    rootCAs,
-				MinVersion: tls.VersionTLS12,
-			}
-			lock.Unlock()
-		} else {
+		mu.Lock()
+		defer mu.Unlock()
+		s := outbound.ProxySettings(outbound.ProxyOptions{})
+		// On error, the previous CA pool is kept.
+		if pool, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("config: error getting cert pool")
+		} else {
+			rootCAs = pool
 		}
+		s.RootCAs = rootCAs
+		o.Update(ctx, s)
 	}
 	src.OnConfigChange(context.Background(), update)
 	update(context.Background(), src.GetConfig())
-
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		lock.Lock()
-		d := &tls.Dialer{
-			Config: tlsConfig,
-		}
-		lock.Unlock()
-		return d.DialContext(ctx, network, addr)
-	}
-	transport.ForceAttemptHTTP2 = true
-	return transport
+	return o
 }
 
 // NewPolicyHTTPTransport creates a new http RoundTripper for a policy.
