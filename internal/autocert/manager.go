@@ -69,7 +69,9 @@ type Manager struct {
 
 // New creates a new autocert manager.
 func New(ctx context.Context, src config.Source) (*Manager, error) {
-	return newManager(ctx, src, certmagic.DefaultACME, renewalInterval)
+	acmeTemplate := certmagic.DefaultACME
+	acmeTemplate.HTTPProxy = nil // use the outbound proxy settings
+	return newManager(ctx, src, acmeTemplate, renewalInterval)
 }
 
 func newManager(
@@ -89,6 +91,9 @@ func newManager(
 
 	logger := getCertMagicLogger()
 	acmeTemplate.Logger = logger
+	if acmeTemplate.HTTPProxy == nil {
+		acmeTemplate.HTTPProxy = config.OutboundProxy(src)
+	}
 
 	mgr := &Manager{
 		src:          src,

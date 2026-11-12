@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,6 +39,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 type M = map[string]any
@@ -661,4 +663,55 @@ func TestShouldEnableHTTPChallenge(t *testing.T) {
 	assert.True(t, shouldEnableHTTPChallenge(config.New(&config.Options{
 		HTTPRedirectAddr: "127.0.0.1:80",
 	})))
+}
+
+func TestACMEOutboundProxy(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "")
+	t.Setenv("HTTPS_PROXY", "http://env-proxy.example:3128")
+	t.Setenv("NO_PROXY", "")
+
+	newConfig := func(httpsProxy nullable.Value[string]) *config.Config {
+		return config.New(&config.Options{
+			Enable: true, Folder: t.TempDir(),
+			OutboundHttpsProxy: httpsProxy,
+		})
+	}
+	acmeProxy := func(t *testing.T, mgr *Manager) string {
+		t.Helper()
+		issuer := mgr.acmeMgr.Load()
+		require.NotNil(t, issuer)
+		proxyURL, err := issuer.HTTPProxy(httptest.NewRequest(http.MethodGet, "https://acme.example/directory", nil))
+		require.NoError(t, err)
+		if proxyURL == nil {
+			return ""
+		}
+		return proxyURL.String()
+	}
+
+	t.Run("follows config changes", func(t *testing.T) {
+		src := config.NewStaticSource(newConfig(nullable.From("http://proxy-a.example:3128")))
+		mgr, err := newManager(t.Context(), src, certmagic.ACMEIssuer{CA: "https://acme.example/directory"}, time.Hour)
+		require.NoError(t, err)
+		assert.Equal(t, "http://proxy-a.example:3128", acmeProxy(t, mgr))
+
+		src.SetConfig(t.Context(), newConfig(nullable.From("http://proxy-b.example:3128")))
+		assert.Equal(t, "http://proxy-b.example:3128", acmeProxy(t, mgr))
+
+		src.SetConfig(t.Context(), newConfig(nullable.From("")))
+		assert.Empty(t, acmeProxy(t, mgr))
+
+		src.SetConfig(t.Context(), newConfig(nullable.Value[string]{}))
+		assert.Equal(t, "http://env-proxy.example:3128", acmeProxy(t, mgr))
+	})
+
+	t.Run("template proxy", func(t *testing.T) {
+		templateProxy := &url.URL{Scheme: "http", Host: "template-proxy.example:3128"}
+		src := config.NewStaticSource(newConfig(nullable.From("http://proxy-a.example:3128")))
+		mgr, err := newManager(t.Context(), src, certmagic.ACMEIssuer{
+			CA:        "https://acme.example/directory",
+			HTTPProxy: http.ProxyURL(templateProxy),
+		}, time.Hour)
+		require.NoError(t, err)
+		assert.Equal(t, templateProxy.String(), acmeProxy(t, mgr))
+	})
 }
