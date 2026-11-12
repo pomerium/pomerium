@@ -832,6 +832,12 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	if o.IsRuntimeFlagSet(RuntimeFlagTailscale) {
+		if err := o.ValidateTailscaleListenerSettings(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
