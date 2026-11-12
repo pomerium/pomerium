@@ -5,6 +5,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	goset "github.com/hashicorp/go-set/v3"
 )
 
 // ValidateCookieSameSite validates the cookie same site option.
@@ -30,6 +32,53 @@ func ValidateAddress(addr string) error {
 	}
 	if p <= 0 {
 		return fmt.Errorf("expected positive port number")
+	}
+
+	return nil
+}
+
+func (o *Options) ValidateTailscaleListenerSettings() error {
+	if len(o.TailscaleListeners.Value) == 0 {
+		return nil
+	}
+
+	if o.InsecureServer {
+		return fmt.Errorf("config: tailscale_listeners: insecure_server is not supported when using tailscale listeners")
+	}
+
+	seen := goset.New[string](0)
+	for i, t := range o.TailscaleListeners.Value {
+		if err := t.Validate(); err != nil {
+			return fmt.Errorf("config: tailscale_listeners[%d]: %w", i, err)
+		}
+		if !seen.Insert(t.Hostname.Value) {
+			return fmt.Errorf("config: tailscale_listeners[%d]: hostname must be unique across listeners", i)
+		}
+	}
+
+	return nil
+}
+
+// Validate validates the tailscale listener settings.
+func (s *TailscaleListenerSettings) Validate() error {
+	if !s.AuthKey.IsSet && !s.OauthClientID.IsSet && !s.IDToken.IsSet {
+		return fmt.Errorf("tailscale_listener: auth_key, oauth_client_id or id_token must be set")
+	} else if s.AuthKey.IsSet && (s.OauthClientID.IsSet || s.IDToken.IsSet) {
+		return fmt.Errorf("tailscale_listener: if auth_key is set, oauth_client_id and id_token should not be set")
+	} else if s.OauthClientID.IsSet && (s.AuthKey.IsSet || s.IDToken.IsSet) {
+		return fmt.Errorf("tailscale_listener: if oauth_client_id is set, auth_key and id_token should not be set")
+	} else if s.IDToken.IsSet && (s.AuthKey.IsSet || s.OauthClientID.IsSet) {
+		return fmt.Errorf("tailscale_listener: if id_token is set, auth_key and oidc_client_id should not be set")
+	}
+
+	if s.OauthClientID.IsSet && !s.OauthClientSecret.IsSet {
+		return fmt.Errorf("tailscale_listener: if oauth_client_id is set, oauth_client_secret must also be set")
+	} else if s.OauthClientSecret.IsSet && !s.OauthClientID.IsSet {
+		return fmt.Errorf("tailscale_listener: if oauth_client_secret is set, oauth_client_id must also be set")
+	}
+
+	if s.Hostname.Or("") == "" {
+		return fmt.Errorf("tailscale_listener: hostname must be non-empty")
 	}
 
 	return nil
