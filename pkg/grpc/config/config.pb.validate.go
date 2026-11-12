@@ -5775,7 +5775,25 @@ func (m *TailscaleListenerSettings) validate(all bool) error {
 
 	// no validation rules for Hostname
 
-	// no validation rules for Ephemeral
+	if m.ListenAddr != nil {
+		// no validation rules for ListenAddr
+	}
+
+	if m.ListenFunnelAddr != nil {
+		// no validation rules for ListenFunnelAddr
+	}
+
+	if m.ListenServiceName != nil {
+		// no validation rules for ListenServiceName
+	}
+
+	if m.ListenServicePort != nil {
+		// no validation rules for ListenServicePort
+	}
+
+	if m.Ephemeral != nil {
+		// no validation rules for Ephemeral
+	}
 
 	if m.AuthKey != nil {
 		// no validation rules for AuthKey
@@ -5799,22 +5817,6 @@ func (m *TailscaleListenerSettings) validate(all bool) error {
 
 	if m.ControlUrl != nil {
 		// no validation rules for ControlUrl
-	}
-
-	if m.ListenAddr != nil {
-		// no validation rules for ListenAddr
-	}
-
-	if m.ListenFunnelAddr != nil {
-		// no validation rules for ListenFunnelAddr
-	}
-
-	if m.ListenServiceName != nil {
-		// no validation rules for ListenServiceName
-	}
-
-	if m.ListenServicePort != nil {
-		// no validation rules for ListenServicePort
 	}
 
 	if m.TerminateTls != nil {

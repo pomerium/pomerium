@@ -5338,34 +5338,35 @@ func (x *Settings) GetReadonlyConsoleAudiences() *Settings_StringList {
 // TailscaleListenerSettings are the settings for a tailscale listener.
 type TailscaleListenerSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Hostname is the name of the device on the tailnet. Used as the subdomain
+	// of the Tailscale Funnel. Hostname is required for a tailscale listener.
+	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	// Start a listener only on the tailscale network.
+	ListenAddr *string `protobuf:"bytes,2,opt,name=listen_addr,json=listenAddr,proto3,oneof" json:"listen_addr,omitempty"`
+	// Start a Tailscale Funnel listener.
+	ListenFunnelAddr *string `protobuf:"bytes,3,opt,name=listen_funnel_addr,json=listenFunnelAddr,proto3,oneof" json:"listen_funnel_addr,omitempty"`
+	// Start a listener for the service.
+	ListenServiceName *string `protobuf:"bytes,4,opt,name=listen_service_name,json=listenServiceName,proto3,oneof" json:"listen_service_name,omitempty"`
+	// The port for the service.
+	ListenServicePort *uint32 `protobuf:"varint,5,opt,name=listen_service_port,json=listenServicePort,proto3,oneof" json:"listen_service_port,omitempty"`
+	// Ephemeral specifies that the instance should register as an ephemeral
+	// node. An ephemeral node will be automatically removed on exit.
+	Ephemeral *bool `protobuf:"varint,6,opt,name=ephemeral,proto3,oneof" json:"ephemeral,omitempty"`
 	// Use a pre-authentication key to register the node on the tailnet.
-	AuthKey *string `protobuf:"bytes,1,opt,name=auth_key,json=authKey,proto3,oneof" json:"auth_key,omitempty"`
+	AuthKey *string `protobuf:"bytes,7,opt,name=auth_key,json=authKey,proto3,oneof" json:"auth_key,omitempty"`
 	// Use an oauth client to create a pre-authentication key for the device.
-	OauthClientId *string `protobuf:"bytes,2,opt,name=oauth_client_id,json=oauthClientId,proto3,oneof" json:"oauth_client_id,omitempty"`
+	OauthClientId *string `protobuf:"bytes,8,opt,name=oauth_client_id,json=oauthClientId,proto3,oneof" json:"oauth_client_id,omitempty"`
 	// Client secret for the oauth client id.
-	OauthClientSecret *string `protobuf:"bytes,3,opt,name=oauth_client_secret,json=oauthClientSecret,proto3,oneof" json:"oauth_client_secret,omitempty"`
+	OauthClientSecret *string `protobuf:"bytes,9,opt,name=oauth_client_secret,json=oauthClientSecret,proto3,oneof" json:"oauth_client_secret,omitempty"`
 	// Use an identity provider token to authenticate via workload identity
 	// federation.
-	IdToken *string `protobuf:"bytes,4,opt,name=id_token,json=idToken,proto3,oneof" json:"id_token,omitempty"`
+	IdToken *string `protobuf:"bytes,10,opt,name=id_token,json=idToken,proto3,oneof" json:"id_token,omitempty"`
 	// Audience for the id_token.
-	IdTokenAudience *string `protobuf:"bytes,5,opt,name=id_token_audience,json=idTokenAudience,proto3,oneof" json:"id_token_audience,omitempty"`
-	// Hostname is the name of the device on the tailnet. Used as the subdomain
-	// of the Tailscale Funnel.
-	Hostname string `protobuf:"bytes,6,opt,name=hostname,proto3" json:"hostname,omitempty"`
-	// Ephemeral nodes are automatically removed when shut down.
-	Ephemeral bool `protobuf:"varint,7,opt,name=ephemeral,proto3" json:"ephemeral,omitempty"`
+	IdTokenAudience *string `protobuf:"bytes,11,opt,name=id_token_audience,json=idTokenAudience,proto3,oneof" json:"id_token_audience,omitempty"`
 	// The coordination server URL.
-	ControlUrl *string `protobuf:"bytes,8,opt,name=control_url,json=controlUrl,proto3,oneof" json:"control_url,omitempty"`
+	ControlUrl *string `protobuf:"bytes,12,opt,name=control_url,json=controlUrl,proto3,oneof" json:"control_url,omitempty"`
 	// Tags that should be applied to this node.
-	Tags []string `protobuf:"bytes,9,rep,name=tags,proto3" json:"tags,omitempty"`
-	// Start a listener only on the tailscale network.
-	ListenAddr *string `protobuf:"bytes,10,opt,name=listen_addr,json=listenAddr,proto3,oneof" json:"listen_addr,omitempty"`
-	// Start a Tailscale Funnel listener.
-	ListenFunnelAddr *string `protobuf:"bytes,11,opt,name=listen_funnel_addr,json=listenFunnelAddr,proto3,oneof" json:"listen_funnel_addr,omitempty"`
-	// Start a listener for the service name.
-	ListenServiceName *string `protobuf:"bytes,12,opt,name=listen_service_name,json=listenServiceName,proto3,oneof" json:"listen_service_name,omitempty"`
-	// Start a listener for the service port.
-	ListenServicePort *uint32 `protobuf:"varint,13,opt,name=listen_service_port,json=listenServicePort,proto3,oneof" json:"listen_service_port,omitempty"`
+	Tags []string `protobuf:"bytes,13,rep,name=tags,proto3" json:"tags,omitempty"`
 	// If set to true, terminate TLS before proxying data to envoy.
 	TerminateTls  *bool `protobuf:"varint,14,opt,name=terminate_tls,json=terminateTls,proto3,oneof" json:"terminate_tls,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -5400,6 +5401,48 @@ func (x *TailscaleListenerSettings) ProtoReflect() protoreflect.Message {
 // Deprecated: Use TailscaleListenerSettings.ProtoReflect.Descriptor instead.
 func (*TailscaleListenerSettings) Descriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *TailscaleListenerSettings) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *TailscaleListenerSettings) GetListenAddr() string {
+	if x != nil && x.ListenAddr != nil {
+		return *x.ListenAddr
+	}
+	return ""
+}
+
+func (x *TailscaleListenerSettings) GetListenFunnelAddr() string {
+	if x != nil && x.ListenFunnelAddr != nil {
+		return *x.ListenFunnelAddr
+	}
+	return ""
+}
+
+func (x *TailscaleListenerSettings) GetListenServiceName() string {
+	if x != nil && x.ListenServiceName != nil {
+		return *x.ListenServiceName
+	}
+	return ""
+}
+
+func (x *TailscaleListenerSettings) GetListenServicePort() uint32 {
+	if x != nil && x.ListenServicePort != nil {
+		return *x.ListenServicePort
+	}
+	return 0
+}
+
+func (x *TailscaleListenerSettings) GetEphemeral() bool {
+	if x != nil && x.Ephemeral != nil {
+		return *x.Ephemeral
+	}
+	return false
 }
 
 func (x *TailscaleListenerSettings) GetAuthKey() string {
@@ -5437,20 +5480,6 @@ func (x *TailscaleListenerSettings) GetIdTokenAudience() string {
 	return ""
 }
 
-func (x *TailscaleListenerSettings) GetHostname() string {
-	if x != nil {
-		return x.Hostname
-	}
-	return ""
-}
-
-func (x *TailscaleListenerSettings) GetEphemeral() bool {
-	if x != nil {
-		return x.Ephemeral
-	}
-	return false
-}
-
 func (x *TailscaleListenerSettings) GetControlUrl() string {
 	if x != nil && x.ControlUrl != nil {
 		return *x.ControlUrl
@@ -5463,34 +5492,6 @@ func (x *TailscaleListenerSettings) GetTags() []string {
 		return x.Tags
 	}
 	return nil
-}
-
-func (x *TailscaleListenerSettings) GetListenAddr() string {
-	if x != nil && x.ListenAddr != nil {
-		return *x.ListenAddr
-	}
-	return ""
-}
-
-func (x *TailscaleListenerSettings) GetListenFunnelAddr() string {
-	if x != nil && x.ListenFunnelAddr != nil {
-		return *x.ListenFunnelAddr
-	}
-	return ""
-}
-
-func (x *TailscaleListenerSettings) GetListenServiceName() string {
-	if x != nil && x.ListenServiceName != nil {
-		return *x.ListenServiceName
-	}
-	return ""
-}
-
-func (x *TailscaleListenerSettings) GetListenServicePort() uint32 {
-	if x != nil && x.ListenServicePort != nil {
-		return *x.ListenServicePort
-	}
-	return 0
 }
 
 func (x *TailscaleListenerSettings) GetTerminateTls() bool {
@@ -11249,36 +11250,38 @@ const file_config_proto_rawDesc = "" +
 	"\f_oidc_bridgeB\r\n" +
 	"\v_enterpriseB\x0f\n" +
 	"\r_license_typeB\x1d\n" +
-	"\x1b_readonly_console_audiencesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\xaa\x06\n" +
-	"\x19TailscaleListenerSettings\x12\x1e\n" +
-	"\bauth_key\x18\x01 \x01(\tH\x00R\aauthKey\x88\x01\x01\x12+\n" +
-	"\x0foauth_client_id\x18\x02 \x01(\tH\x01R\roauthClientId\x88\x01\x01\x129\n" +
-	"\x13oauth_client_secret\x18\x03 \x01(\tB\x04\xe8\xd6,\x01H\x02R\x11oauthClientSecret\x88\x01\x01\x12\x1e\n" +
-	"\bid_token\x18\x04 \x01(\tH\x03R\aidToken\x88\x01\x01\x12/\n" +
-	"\x11id_token_audience\x18\x05 \x01(\tH\x04R\x0fidTokenAudience\x88\x01\x01\x12\x1a\n" +
-	"\bhostname\x18\x06 \x01(\tR\bhostname\x12\x1c\n" +
-	"\tephemeral\x18\a \x01(\bR\tephemeral\x12$\n" +
-	"\vcontrol_url\x18\b \x01(\tH\x05R\n" +
-	"controlUrl\x88\x01\x01\x12\x12\n" +
-	"\x04tags\x18\t \x03(\tR\x04tags\x12$\n" +
-	"\vlisten_addr\x18\n" +
-	" \x01(\tH\x06R\n" +
+	"\x1b_readonly_console_audiencesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\xc9\x06\n" +
+	"\x19TailscaleListenerSettings\x12\x1a\n" +
+	"\bhostname\x18\x01 \x01(\tR\bhostname\x12$\n" +
+	"\vlisten_addr\x18\x02 \x01(\tH\x00R\n" +
 	"listenAddr\x88\x01\x01\x121\n" +
-	"\x12listen_funnel_addr\x18\v \x01(\tH\aR\x10listenFunnelAddr\x88\x01\x01\x123\n" +
-	"\x13listen_service_name\x18\f \x01(\tH\bR\x11listenServiceName\x88\x01\x01\x123\n" +
-	"\x13listen_service_port\x18\r \x01(\rH\tR\x11listenServicePort\x88\x01\x01\x12(\n" +
-	"\rterminate_tls\x18\x0e \x01(\bH\n" +
-	"R\fterminateTls\x88\x01\x01B\v\n" +
+	"\x12listen_funnel_addr\x18\x03 \x01(\tH\x01R\x10listenFunnelAddr\x88\x01\x01\x123\n" +
+	"\x13listen_service_name\x18\x04 \x01(\tH\x02R\x11listenServiceName\x88\x01\x01\x123\n" +
+	"\x13listen_service_port\x18\x05 \x01(\rH\x03R\x11listenServicePort\x88\x01\x01\x12!\n" +
+	"\tephemeral\x18\x06 \x01(\bH\x04R\tephemeral\x88\x01\x01\x12$\n" +
+	"\bauth_key\x18\a \x01(\tB\x04\xe8\xd6,\x01H\x05R\aauthKey\x88\x01\x01\x12+\n" +
+	"\x0foauth_client_id\x18\b \x01(\tH\x06R\roauthClientId\x88\x01\x01\x129\n" +
+	"\x13oauth_client_secret\x18\t \x01(\tB\x04\xe8\xd6,\x01H\aR\x11oauthClientSecret\x88\x01\x01\x12$\n" +
+	"\bid_token\x18\n" +
+	" \x01(\tB\x04\xe8\xd6,\x01H\bR\aidToken\x88\x01\x01\x12/\n" +
+	"\x11id_token_audience\x18\v \x01(\tH\tR\x0fidTokenAudience\x88\x01\x01\x12$\n" +
+	"\vcontrol_url\x18\f \x01(\tH\n" +
+	"R\n" +
+	"controlUrl\x88\x01\x01\x12\x12\n" +
+	"\x04tags\x18\r \x03(\tR\x04tags\x12(\n" +
+	"\rterminate_tls\x18\x0e \x01(\bH\vR\fterminateTls\x88\x01\x01B\x0e\n" +
+	"\f_listen_addrB\x15\n" +
+	"\x13_listen_funnel_addrB\x16\n" +
+	"\x14_listen_service_nameB\x16\n" +
+	"\x14_listen_service_portB\f\n" +
+	"\n" +
+	"_ephemeralB\v\n" +
 	"\t_auth_keyB\x12\n" +
 	"\x10_oauth_client_idB\x16\n" +
 	"\x14_oauth_client_secretB\v\n" +
 	"\t_id_tokenB\x14\n" +
 	"\x12_id_token_audienceB\x0e\n" +
-	"\f_control_urlB\x0e\n" +
-	"\f_listen_addrB\x15\n" +
-	"\x13_listen_funnel_addrB\x16\n" +
-	"\x14_listen_service_nameB\x16\n" +
-	"\x14_listen_service_portB\x10\n" +
+	"\f_control_urlB\x10\n" +
 	"\x0e_terminate_tls\"\x87\x01\n" +
 	"\x13BlobStorageSettings\x12\"\n" +
 	"\n" +

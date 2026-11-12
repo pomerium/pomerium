@@ -826,7 +826,7 @@ func setTailscaleListenerSettingsFromProto(dst *TailscaleListenerSettings, src *
 	return errors.Join(
 		setNullableStringFromProto(&dst.AuthKey, src.AuthKey),
 		setNullableStringFromProto(&dst.ControlURL, src.ControlUrl),
-		setNullableBoolFromProto(&dst.Ephemeral, &src.Ephemeral),
+		setNullableBoolFromProto(&dst.Ephemeral, src.Ephemeral),
 		setNullableStringFromProto(&dst.Hostname, &src.Hostname),
 		setNullableStringFromProto(&dst.IDToken, src.IdToken),
 		setNullableStringFromProto(&dst.IDTokenAudience, src.IdTokenAudience),
@@ -1445,7 +1445,7 @@ func setTailscaleListenerSettingsToProto(dst **configpb.TailscaleListenerSetting
 	return errors.Join(
 		setNullableStringToProto(&obj.AuthKey, src.AuthKey),
 		setNullableStringToProto(&obj.ControlUrl, src.ControlURL),
-		setBoolToProto(&obj.Ephemeral, src.Ephemeral),
+		setNullableBoolToProto(&obj.Ephemeral, src.Ephemeral),
 		setStringToProto(&obj.Hostname, src.Hostname),
 		setNullableStringToProto(&obj.IdToken, src.IDToken),
 		setNullableStringToProto(&obj.IdTokenAudience, src.IDTokenAudience),

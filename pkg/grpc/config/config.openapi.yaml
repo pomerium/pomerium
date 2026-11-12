@@ -6044,6 +6044,44 @@ components:
     pomerium.config.TailscaleListenerSettings:
       type: object
       properties:
+        hostname:
+          type: string
+          title: hostname
+          description: |-
+            Hostname is the name of the device on the tailnet. Used as the subdomain
+             of the Tailscale Funnel. Hostname is required for a tailscale listener.
+        listenAddr:
+          type:
+            - string
+            - "null"
+          title: listen_addr
+          description: Start a listener only on the tailscale network.
+        listenFunnelAddr:
+          type:
+            - string
+            - "null"
+          title: listen_funnel_addr
+          description: Start a Tailscale Funnel listener.
+        listenServiceName:
+          type:
+            - string
+            - "null"
+          title: listen_service_name
+          description: Start a listener for the service.
+        listenServicePort:
+          type:
+            - integer
+            - "null"
+          title: listen_service_port
+          description: The port for the service.
+        ephemeral:
+          type:
+            - boolean
+            - "null"
+          title: ephemeral
+          description: |-
+            Ephemeral specifies that the instance should register as an ephemeral
+             node. An ephemeral node will be automatically removed on exit.
         authKey:
           type:
             - string
@@ -6076,16 +6114,6 @@ components:
             - "null"
           title: id_token_audience
           description: Audience for the id_token.
-        hostname:
-          type: string
-          title: hostname
-          description: |-
-            Hostname is the name of the device on the tailnet. Used as the subdomain
-             of the Tailscale Funnel.
-        ephemeral:
-          type: boolean
-          title: ephemeral
-          description: Ephemeral nodes are automatically removed when shut down.
         controlUrl:
           type:
             - string
@@ -6098,30 +6126,6 @@ components:
             type: string
           title: tags
           description: Tags that should be applied to this node.
-        listenAddr:
-          type:
-            - string
-            - "null"
-          title: listen_addr
-          description: Start a listener only on the tailscale network.
-        listenFunnelAddr:
-          type:
-            - string
-            - "null"
-          title: listen_funnel_addr
-          description: Start a Tailscale Funnel listener.
-        listenServiceName:
-          type:
-            - string
-            - "null"
-          title: listen_service_name
-          description: Start a listener for the service name.
-        listenServicePort:
-          type:
-            - integer
-            - "null"
-          title: listen_service_port
-          description: Start a listener for the service port.
         terminateTls:
           type:
             - boolean

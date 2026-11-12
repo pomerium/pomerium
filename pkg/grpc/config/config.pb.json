@@ -8580,6 +8580,78 @@
           "extensions": [],
           "fields": [
             {
+              "name": "hostname",
+              "description": "Hostname is the name of the device on the tailnet. Used as the subdomain\nof the Tailscale Funnel. Hostname is required for a tailscale listener.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_addr",
+              "description": "Start a listener only on the tailscale network.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_addr",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_funnel_addr",
+              "description": "Start a Tailscale Funnel listener.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_funnel_addr",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_service_name",
+              "description": "Start a listener for the service.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_service_name",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_service_port",
+              "description": "The port for the service.",
+              "label": "optional",
+              "type": "uint32",
+              "longType": "uint32",
+              "fullType": "uint32",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_service_port",
+              "defaultValue": ""
+            },
+            {
+              "name": "ephemeral",
+              "description": "Ephemeral specifies that the instance should register as an ephemeral\nnode. An ephemeral node will be automatically removed on exit.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_ephemeral",
+              "defaultValue": ""
+            },
+            {
               "name": "auth_key",
               "description": "Use a pre-authentication key to register the node on the tailnet.",
               "label": "optional",
@@ -8640,30 +8712,6 @@
               "defaultValue": ""
             },
             {
-              "name": "hostname",
-              "description": "Hostname is the name of the device on the tailnet. Used as the subdomain\nof the Tailscale Funnel.",
-              "label": "",
-              "type": "string",
-              "longType": "string",
-              "fullType": "string",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
-              "name": "ephemeral",
-              "description": "Ephemeral nodes are automatically removed when shut down.",
-              "label": "",
-              "type": "bool",
-              "longType": "bool",
-              "fullType": "bool",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
               "name": "control_url",
               "description": "The coordination server URL.",
               "label": "optional",
@@ -8685,54 +8733,6 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
-              "name": "listen_addr",
-              "description": "Start a listener only on the tailscale network.",
-              "label": "optional",
-              "type": "string",
-              "longType": "string",
-              "fullType": "string",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_listen_addr",
-              "defaultValue": ""
-            },
-            {
-              "name": "listen_funnel_addr",
-              "description": "Start a Tailscale Funnel listener.",
-              "label": "optional",
-              "type": "string",
-              "longType": "string",
-              "fullType": "string",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_listen_funnel_addr",
-              "defaultValue": ""
-            },
-            {
-              "name": "listen_service_name",
-              "description": "Start a listener for the service name.",
-              "label": "optional",
-              "type": "string",
-              "longType": "string",
-              "fullType": "string",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_listen_service_name",
-              "defaultValue": ""
-            },
-            {
-              "name": "listen_service_port",
-              "description": "Start a listener for the service port.",
-              "label": "optional",
-              "type": "uint32",
-              "longType": "uint32",
-              "fullType": "uint32",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_listen_service_port",
               "defaultValue": ""
             },
             {
