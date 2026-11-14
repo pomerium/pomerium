@@ -31,7 +31,7 @@ type tsRouter struct {
 // New returns a new tailscale router.
 func New(tracerProvider oteltrace.TracerProvider) TSRouter {
 	return &tsRouter{
-		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.InfoLevel, "tsrouter"),
+		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "tsrouter"),
 	}
 }
 
@@ -64,7 +64,7 @@ func (r *tsRouter) updateLocked() {
 	_, op := r.telemetry.Start(r.runCtx, "update")
 	defer op.Complete()
 
-	if r.cfg == nil ||
+	if r.cfg == nil || r.runCtx == nil ||
 		!r.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagTailscale) {
 		for _, li := range r.listeners {
 			li.Stop()
