@@ -21,7 +21,10 @@ var defaultDialer = &net.Dialer{
 }
 
 func init() {
-	http.DefaultTransport.(*http.Transport).DialContext = OverrideDialContext(defaultDialer.DialContext)
+	// Wraps the existing DialContext, which tracks connections (see
+	// outbound.HTTP).
+	transport := http.DefaultTransport.(*http.Transport)
+	transport.DialContext = OverrideDialContext(transport.DialContext)
 }
 
 func OverrideDialContext(defaultDialContext DialContextFunc) DialContextFunc {
