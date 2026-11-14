@@ -15,7 +15,9 @@ import (
 
 // NewHTTPTransport creates a new http transport. If CA or CAFile is set, the transport will
 // add the CA to system cert pool. The transport, and its clones, use the proxy chosen by
-// the HTTP_PROXY, HTTPS_PROXY and NO_PROXY environment variables.
+// the current config's outbound proxy options (see [GlobalOptions.OutboundHttpProxy]),
+// or by the HTTP_PROXY, HTTPS_PROXY and NO_PROXY environment variables if none is set.
+// Their connections are closed when those settings change.
 func NewHTTPTransport(src Source) *http.Transport {
 	return newOutboundHTTP(src).Transport()
 }
@@ -30,7 +32,7 @@ func newOutboundHTTP(src Source) *outbound.HTTP {
 	update := func(ctx context.Context, cfg *Config) {
 		mu.Lock()
 		defer mu.Unlock()
-		s := outbound.ProxySettings(outbound.ProxyOptions{})
+		s := loadOutboundProxySettings(ctx, cfg.Options)
 		// On error, the previous CA pool is kept.
 		if pool, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("config: error getting cert pool")
@@ -43,6 +45,24 @@ func newOutboundHTTP(src Source) *outbound.HTTP {
 	src.OnConfigChange(context.Background(), update)
 	update(context.Background(), src.GetConfig())
 	return o
+}
+
+func (o *Options) outboundProxyOptions() outbound.ProxyOptions {
+	return outbound.ProxyOptions{
+		HTTPProxy:  o.OutboundHttpProxy,
+		HTTPSProxy: o.OutboundHttpsProxy,
+		NoProxy:    o.OutboundNoProxy,
+	}
+}
+
+// loadOutboundProxySettings returns the proxy settings for the outbound proxy
+// options of o (see [outbound.ProxySettings]), logging an invalid option.
+func loadOutboundProxySettings(ctx context.Context, o *Options) outbound.Settings {
+	s := outbound.ProxySettings(o.outboundProxyOptions())
+	if s.ProxyErr != nil {
+		log.Ctx(ctx).Error().Err(s.ProxyErr).Msg("config: outbound requests will fail until the outbound proxy settings are fixed")
+	}
+	return s
 }
 
 // NewPolicyHTTPTransport creates a new http RoundTripper for a policy.

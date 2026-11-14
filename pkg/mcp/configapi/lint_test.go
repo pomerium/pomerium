@@ -125,6 +125,8 @@ var expectedSensitiveFields = map[string]struct{}{
 	"pomerium.config.Settings.databroker_storage_connection_string": {},
 	"pomerium.config.Settings.idp_client_secret":                    {},
 	"pomerium.config.Settings.metrics_basic_auth":                   {},
+	"pomerium.config.Settings.outbound_http_proxy":                  {},
+	"pomerium.config.Settings.outbound_https_proxy":                 {},
 	"pomerium.config.Settings.shared_secret":                        {},
 	"pomerium.config.Settings.signing_key":                          {},
 	"pomerium.config.Settings.ssh_host_keys":                        {},

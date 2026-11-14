@@ -16,6 +16,7 @@ import (
 	"math/big"
 	mathrand "math/rand/v2"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -37,6 +38,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	"github.com/pomerium/pomerium/internal/outbound/outboundtest"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -100,6 +102,13 @@ func Test_Validate(t *testing.T) {
 	goodAuthorizeLogFields.AuthorizeLogFields = []logfields.AuthorizeLogField{"request-id"}
 	badAuthorizeLogFields := testOptions()
 	badAuthorizeLogFields.AuthorizeLogFields = []logfields.AuthorizeLogField{"zzzzzzzzzzz"}
+	goodOutboundProxy := testOptions()
+	goodOutboundProxy.OutboundHttpProxy = nullable.From("proxy.example:3128")
+	goodOutboundProxy.OutboundHttpsProxy = nullable.From("http://user:pass@proxy.example:3128")
+	badOutboundHTTPProxy := testOptions()
+	badOutboundHTTPProxy.OutboundHttpProxy = nullable.From("http://[::1")
+	badOutboundHTTPSProxy := testOptions()
+	badOutboundHTTPSProxy.OutboundHttpsProxy = nullable.From("http://[::1")
 
 	tests := []struct {
 		name     string
@@ -121,6 +130,9 @@ func Test_Validate(t *testing.T) {
 		{"bad access log field", badAccessLogFields, false},
 		{"good authorize log field", goodAuthorizeLogFields, false},
 		{"bad authorize log field", badAuthorizeLogFields, false},
+		{"good outbound proxy", goodOutboundProxy, false},
+		{"bad outbound http proxy", badOutboundHTTPProxy, true},
+		{"bad outbound https proxy", badOutboundHTTPSProxy, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2163,4 +2175,100 @@ func must[T any](t T, err error) T {
 		panic(err)
 	}
 	return t
+}
+
+// outboundProxyFunc returns the function that chooses the proxy for
+// Pomerium's own outbound HTTP requests with the options o.
+func outboundProxyFunc(o *Options) func(*http.Request) (*url.URL, error) {
+	return newOutboundHTTP(NewStaticSource(New(o))).Proxy
+}
+
+// TestEmptyOutboundProxyEnvReplacesProxyEnvironment asserts that an
+// OUTBOUND_HTTPS_PROXY environment variable set to an empty value counts as
+// set, so the outbound proxy settings replace HTTPS_PROXY.
+func TestEmptyOutboundProxyEnvReplacesProxyEnvironment(t *testing.T) {
+	outboundtest.ClearProxyEnv(t)
+	t.Setenv("HTTPS_PROXY", "http://env-https.example:3128")
+	t.Setenv("OUTBOUND_HTTPS_PROXY", "")
+
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfg, []byte("address: ':443'\n"), 0o644))
+	o, err := optionsFromViper(cfg)
+	require.NoError(t, err)
+
+	assert.True(t, o.OutboundHttpsProxy.IsSet, "an empty OUTBOUND_HTTPS_PROXY is set")
+	proxyURL, err := outboundProxyFunc(o)(httptest.NewRequest(http.MethodGet, "https://idp.example/token", nil))
+	require.NoError(t, err)
+	assert.Nil(t, proxyURL, "HTTPS_PROXY is not used")
+}
+
+// TestEmptyOutboundProxyEnvOverridesConfigFile asserts that each outbound
+// proxy environment variable set to an empty value sets the option to "",
+// replacing the value from the config file.
+func TestEmptyOutboundProxyEnvOverridesConfigFile(t *testing.T) {
+	for _, tc := range []struct {
+		key string
+		get func(*Options) nullable.Value[string]
+	}{
+		{"outbound_http_proxy", func(o *Options) nullable.Value[string] { return o.OutboundHttpProxy }},
+		{"outbound_https_proxy", func(o *Options) nullable.Value[string] { return o.OutboundHttpsProxy }},
+		{"outbound_no_proxy", func(o *Options) nullable.Value[string] { return o.OutboundNoProxy }},
+	} {
+		t.Run(tc.key, func(t *testing.T) {
+			t.Setenv(strings.ToUpper(tc.key), "")
+
+			cfg := filepath.Join(t.TempDir(), "config.yaml")
+			require.NoError(t, os.WriteFile(cfg, []byte("address: ':443'\n"+tc.key+": proxy.example\n"), 0o644))
+			o, err := optionsFromViper(cfg)
+			require.NoError(t, err)
+
+			assert.Equal(t, nullable.From(""), tc.get(o))
+		})
+	}
+}
+
+// TestEmptyEnvKeepsConfigFileValueForOtherOptions asserts that an empty
+// environment variable for an option other than the outbound proxy settings
+// does not replace the value from the config file.
+func TestEmptyEnvKeepsConfigFileValueForOtherOptions(t *testing.T) {
+	t.Setenv("INSTALLATION_ID", "")
+
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfg, []byte("address: ':443'\ninstallation_id: from-file\n"), 0o644))
+	o, err := optionsFromViper(cfg)
+	require.NoError(t, err)
+
+	assert.Equal(t, "from-file", o.InstallationID)
+}
+
+// TestValidateOutboundNoProxy asserts that Validate rejects outbound_no_proxy
+// entries that can never match a host.
+func TestValidateOutboundNoProxy(t *testing.T) {
+	t.Parallel()
+
+	for _, noProxy := range []string{
+		"https://idp.example",
+		"idp.example/",
+		"a.example idp.example",
+		"a.example;idp.example",
+		"10.0.0.0/33",
+	} {
+		// The entry is ignored: a request to idp.example still gets the proxy.
+		o := &Options{
+			OutboundHttpsProxy: nullable.From("http://proxy.example:3128"),
+			OutboundNoProxy:    nullable.From(noProxy),
+		}
+		proxyURL, err := outboundProxyFunc(o)(httptest.NewRequest(http.MethodGet, "https://idp.example/token", nil))
+		require.NoError(t, err)
+		require.NotNil(t, proxyURL, noProxy)
+
+		o = NewDefaultOptions()
+		o.SharedKey = "test"
+		o.Services = "all"
+		o.CertFile = "./testdata/example-cert.pem"
+		o.KeyFile = "./testdata/example-key.pem"
+		require.NoError(t, o.Validate())
+		o.OutboundNoProxy = nullable.From(noProxy)
+		assert.Error(t, o.Validate(), noProxy)
+	}
 }

@@ -38,6 +38,7 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/outbound"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -567,6 +568,14 @@ func bindEnvs(v *viper.Viper) error {
 		return fmt.Errorf("failed to bind field 'HeadersEnv' to env var 'HEADERS': %w", err)
 	}
 
+	// Viper ignores empty environment variables. For these keys an empty
+	// environment variable sets the option to "", overriding the config file.
+	for _, key := range []string{"outbound_http_proxy", "outbound_https_proxy", "outbound_no_proxy"} {
+		if value, ok := os.LookupEnv(strings.ToUpper(key)); ok && value == "" {
+			v.Set(key, "")
+		}
+	}
+
 	return nil
 }
 
@@ -658,6 +667,10 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("config: bad authorize-internal-url %s : %w", o.AuthorizeInternalURLString, err)
 		}
+	}
+
+	if err := outbound.ValidateProxyOptions(o.outboundProxyOptions()); err != nil {
+		return fmt.Errorf("config: %w", err)
 	}
 
 	if o.PolicyFile != "" {
