@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -77,6 +78,44 @@ func TestAuthorize_handleResult(t *testing.T) {
 			})
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
+
+		t.Run("programmatic gets the webauthn url", func(t *testing.T) {
+			// Denied, but the denial carries the URL needed to proceed.
+			res, err := a.handleResult(t.Context(),
+				&envoy_service_auth_v3.CheckRequest{
+					Attributes: &envoy_service_auth_v3.AttributeContext{
+						Request: &envoy_service_auth_v3.AttributeContext_Request{
+							Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+								Path: "/api/v1/namespaces",
+								// What kubectl actually sends through pomerium-cli.
+								Headers: map[string]string{
+									"authorization": "Bearer Pomerium-FAKE-SESSION-JWT",
+									"accept":        "application/json, */*",
+									"user-agent":    "kubectl/v1.36.0 (darwin/arm64)",
+								},
+							},
+						},
+					},
+				},
+				&evaluator.Request{},
+				&evaluator.Result{
+					Allow: evaluator.NewRuleResult(false, criteria.ReasonDeviceUnauthenticated),
+				})
+			assert.NoError(t, err)
+			denied := res.GetDeniedResponse()
+			assert.Equal(t, 401, int(denied.GetStatus().GetCode()))
+
+			var webAuthnURL string
+			for _, h := range denied.GetHeaders() {
+				if strings.EqualFold(h.GetHeader().GetKey(), "X-Pomerium-WebAuthn-Url") {
+					webAuthnURL = h.GetHeader().GetValue()
+				}
+			}
+			assert.Contains(t, webAuthnURL, "/.pomerium/webauthn",
+				"the denial should expose the webauthn url to the caller")
+			assert.Contains(t, denied.GetBody(), "/.pomerium/webauthn",
+				"the message should be actionable for a human reading kubectl output")
+		})
 
 		t.Run("webauthn path", func(t *testing.T) {
 			res, err := a.handleResult(t.Context(),
