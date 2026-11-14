@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -45,6 +46,13 @@ func newOutboundHTTP(src Source) *outbound.HTTP {
 	src.OnConfigChange(context.Background(), update)
 	update(context.Background(), src.GetConfig())
 	return o
+}
+
+// OutboundProxy returns a function that chooses the proxy for Pomerium's own
+// outbound HTTP requests like [NewHTTPTransport]'s transport does, according
+// to the current config of src.
+func OutboundProxy(src Source) func(*http.Request) (*url.URL, error) {
+	return newOutboundHTTP(src).Proxy
 }
 
 func (o *Options) outboundProxyOptions() outbound.ProxyOptions {
