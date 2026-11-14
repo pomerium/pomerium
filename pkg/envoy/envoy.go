@@ -174,6 +174,7 @@ func Drain(adminAddress netutil.InternalAddress) error {
 		Path:   "/drain_listeners",
 	}
 	client := envoyAdminClient(adminAddress)
+	defer client.CloseIdleConnections()
 
 	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
 	if err != nil {
@@ -497,6 +498,7 @@ func (srv *Server) envoyReady(ctx context.Context) error {
 		Path:   "/ready",
 	}
 	client := envoyAdminClient(adminAddress)
+	defer client.CloseIdleConnections()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return err

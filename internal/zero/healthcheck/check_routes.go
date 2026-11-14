@@ -73,6 +73,8 @@ func checkRoutesReachable(
 	}
 
 	client := getPingHTTPClient()
+	defer client.CloseIdleConnections()
+
 	var errs []error
 	for _, host := range hosts {
 		err = clusterping.CheckKey(ctx, clusterping.GetJWKSURL(host), *key, client)
