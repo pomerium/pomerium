@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/tripper"
@@ -126,6 +127,7 @@ func GetTLSClientTransport(cfg *Config) (*http.Transport, error) {
 	}
 	return &http.Transport{
 		TLSClientConfig:   tlsConfig,
+		IdleConnTimeout:   90 * time.Second,
 		ForceAttemptHTTP2: true,
 	}, nil
 }
