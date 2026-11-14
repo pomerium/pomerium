@@ -151,8 +151,9 @@ func newKubernetesHTTPClient(p kubernetesInClusterParams) (*http.Client, error) 
 	}
 	transport := http.DefaultTransport.(interface{ Clone() *http.Transport }).Clone()
 	// http.DefaultTransport may be config.NewHTTPTransport's transport (see
-	// pkg/cmd/pomerium), whose DialTLSContext is pinned to the global CA pool
-	// and takes precedence over TLSClientConfig.
+	// pkg/cmd/pomerium), whose DialTLSContext and TLSClientConfig both verify
+	// against the global CA pool, so both are replaced. DialTLSContext takes
+	// precedence over TLSClientConfig for connections without a proxy.
 	transport.DialTLSContext = nil
 	transport.TLSClientConfig = &tls.Config{
 		RootCAs:    rootCAs,
