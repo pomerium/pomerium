@@ -38,14 +38,6 @@ func ValidateAddress(addr string) error {
 }
 
 func (o *Options) ValidateTailscaleListenerSettings() error {
-	if len(o.TailscaleListeners.Value) == 0 {
-		return nil
-	}
-
-	if o.InsecureServer {
-		return fmt.Errorf("config: tailscale_listeners: insecure_server is not supported when using tailscale listeners")
-	}
-
 	seen := goset.New[string](0)
 	for i, t := range o.TailscaleListeners.Value {
 		if err := t.Validate(); err != nil {
