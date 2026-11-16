@@ -170,6 +170,8 @@ func (t *tcpUpstream) h1Dialer(
 		}
 		client := &http.Client{
 			Transport: httputil.NewTransport(func(transport *http.Transport) {
+				transport.Proxy = nil
+				transport.ForceAttemptHTTP2 = false
 				transport.DisableKeepAlives = true
 				transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 					if *remoteConn != nil {
@@ -214,6 +216,7 @@ func (t *tcpUpstream) h2Dialer(
 	jar, _ := cookiejar.New(nil)
 	return func(context.Context) *http.Client {
 		h1 := httputil.NewTransport(func(transport *http.Transport) {
+			transport.Proxy = nil
 			transport.ForceAttemptHTTP2 = true
 			transport.DisableKeepAlives = true
 			transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {

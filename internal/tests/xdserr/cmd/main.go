@@ -33,6 +33,8 @@ import (
 
 var httpClient = &http.Client{
 	Transport: httputil.NewTransport(func(transport *http.Transport) {
+		transport.Proxy = nil
+		transport.ForceAttemptHTTP2 = false
 		transport.TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: true,
 		}

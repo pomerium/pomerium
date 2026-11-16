@@ -112,8 +112,7 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool)
 	// We avoid setting a custom client config unless we have to as
 	// if TLSClientConfig is nil, the default configuration is used.
 	if isCustomClientConfig {
-		transport.DialTLSContext = nil
-		transport.TLSClientConfig = &tlsClientConfig
+		httputil.SetTLSClientConfig(transport, &tlsClientConfig)
 	}
 	return c.Then(transport)
 }
@@ -128,9 +127,7 @@ func GetTLSClientTransport(cfg *Config) (*http.Transport, error) {
 		// preserve previous behavior of not using HTTP(S)_PROXY.
 		// Left as a follow up for ENG-4530
 		transport.Proxy = nil
-		transport.DialTLS = nil
-		transport.DialTLSContext = nil
-		transport.TLSClientConfig = tlsConfig
+		httputil.SetTLSClientConfig(transport, tlsConfig)
 		transport.IdleConnTimeout = 90 * time.Second
 		transport.ForceAttemptHTTP2 = true
 	}), nil

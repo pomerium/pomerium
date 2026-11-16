@@ -151,14 +151,10 @@ func newKubernetesHTTPClient(p kubernetesInClusterParams) (*http.Client, error) 
 		return nil, fmt.Errorf("load kubernetes cluster CA: %w", err)
 	}
 	transport := httputil.NewTransport(func(transport *http.Transport) {
-		// http.DefaultTransport may be config.NewHTTPTransport's transport (see
-		// pkg/cmd/pomerium), whose DialTLSContext is pinned to the global CA pool
-		// and takes precedence over TLSClientConfig.
-		transport.DialTLSContext = nil
-		transport.TLSClientConfig = &tls.Config{
+		httputil.SetTLSClientConfig(transport, &tls.Config{
 			RootCAs:    rootCAs,
 			MinVersion: tls.VersionTLS12,
-		}
+		})
 	})
 	return &http.Client{Transport: &kubernetesAuthRoundTripper{
 		base:      transport,

@@ -25,9 +25,14 @@ func NewTransport(modify func(*http.Transport)) *http.Transport {
 func GetInsecureTransport() *http.Transport {
 	return NewTransport(func(transport *http.Transport) {
 		transport.DialTLS = nil
-		transport.DialTLSContext = nil
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		SetTLSClientConfig(transport, &tls.Config{InsecureSkipVerify: true})
 	})
+}
+
+// SetTLSClientConfig sets cfg and clears any inherited DialTLSContext, which would bypass it.
+func SetTLSClientConfig(transport *http.Transport, cfg *tls.Config) {
+	transport.DialTLSContext = nil
+	transport.TLSClientConfig = cfg
 }
 
 // NewLocalProxyProtocolTransport creates a new http transport that uses the proxy

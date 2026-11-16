@@ -366,11 +366,10 @@ var _ http.RoundTripper = Transport{}
 
 func NewHTTPClient(serverCAs *x509.CertPool, options *RequestOptions) *http.Client {
 	transport := httputil.NewTransport(func(transport *http.Transport) {
-		transport.TLSClientConfig = &tls.Config{
+		httputil.SetTLSClientConfig(transport, &tls.Config{
 			RootCAs:      serverCAs,
 			Certificates: options.clientCerts,
-		}
-		transport.DialTLSContext = nil
+		})
 	})
 	c := http.Client{
 		Transport: &Transport{
@@ -389,11 +388,10 @@ func NewHTTPClient(serverCAs *x509.CertPool, options *RequestOptions) *http.Clie
 
 func (h *httpUpstream) newClient(options *RequestOptions) *http.Client {
 	transport := httputil.NewTransport(func(transport *http.Transport) {
-		transport.TLSClientConfig = &tls.Config{
+		httputil.SetTLSClientConfig(transport, &tls.Config{
 			RootCAs:      h.Env().ServerCAs(),
 			Certificates: options.clientCerts,
-		}
-		transport.DialTLSContext = nil
+		})
 	})
 	if options.useProxyProtocol {
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {

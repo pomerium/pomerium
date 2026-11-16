@@ -53,16 +53,11 @@ func getPingHTTPClient() *http.Client {
 		Transport: httputil.NewTransport(func(transport *http.Transport) {
 			// we must reach our own routes directly, not via HTTP(S)_PROXY
 			transport.Proxy = nil
+			transport.ForceAttemptHTTP2 = false
 			transport.DialContext = (&net.Dialer{
 				Timeout: connectionTimeout,
 			}).DialContext
-			// http.DefaultTransport may be config.NewHTTPTransport's transport, whose
-			// DialTLSContext takes precedence over TLSClientConfig.
-			transport.DialTLS = nil
-			transport.DialTLSContext = nil
-			transport.TLSClientConfig = &tls.Config{
-				InsecureSkipVerify: true,
-			}
+			httputil.SetTLSClientConfig(transport, &tls.Config{InsecureSkipVerify: true})
 		}),
 	}
 }
