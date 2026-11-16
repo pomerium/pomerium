@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -242,6 +243,23 @@ func hashFile(path string) uint64 {
 	}
 
 	h := xxh3.New()
+
+	// for directories, hash the names of the directory entries so that
+	// adding or removing a file is detected as a change
+	if fi, err := f.Stat(); err == nil && fi.IsDir() {
+		names, err := f.Readdirnames(-1)
+		_ = f.Close()
+		if err != nil {
+			return 0
+		}
+		slices.Sort(names)
+		for _, name := range names {
+			_, _ = h.WriteString(name)
+			_, _ = h.Write([]byte{0})
+		}
+		return h.Sum64()
+	}
+
 	_, err = io.Copy(h, f)
 	if err != nil {
 		_ = f.Close()
