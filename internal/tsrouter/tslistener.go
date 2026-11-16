@@ -37,6 +37,7 @@ type tsListener struct {
 	OutboundPort string
 	SignedJWTKey []byte
 	Settings     config.TailscaleListenerSettings
+	ZeroAPI      config.ZeroAPI
 
 	telemetry    telemetry.Component
 	certificates atomic.Pointer[[]tls.Certificate]
@@ -46,7 +47,11 @@ type tsListener struct {
 	wg   sync.WaitGroup
 }
 
-func newTSListener(tracerProvider oteltrace.TracerProvider, cfg *config.Config, settings config.TailscaleListenerSettings) (*tsListener, error) {
+func newTSListener(
+	tracerProvider oteltrace.TracerProvider,
+	cfg *config.Config,
+	settings config.TailscaleListenerSettings,
+) (*tsListener, error) {
 	l := &tsListener{
 		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.InfoLevel, "tslistener",
 			attribute.String("hostname", settings.Hostname.Value)),
@@ -117,6 +122,7 @@ func (l *tsListener) init(cfg *config.Config, settings config.TailscaleListenerS
 	l.OutboundPort = cfg.OutboundPort
 	l.SignedJWTKey = sharedKey
 	l.Settings = settings
+	l.ZeroAPI = cfg.ZeroAPI
 
 	certs, err := cfg.AllCertificates()
 	if err != nil {
@@ -147,11 +153,8 @@ func (l *tsListener) startLeased(ctx context.Context, client databrokerpb.DataBr
 
 	log.Ctx(opCtx).Info().Msg("tsrouter: starting listener")
 
-	l.wg.Go(func() {
-		databrokerutil.NewDirectoryMirror(client, "tslistener/"+l.Settings.Hostname.Value, l.tempDir).Watch(ctx)
-	})
-
 	srv := &tsnet.Server{
+		Store:         newTSListenerStateStore(ctx, l, client),
 		Dir:           l.tempDir,
 		Hostname:      l.Settings.Hostname.Value,
 		Ephemeral:     l.Settings.Ephemeral.Value,

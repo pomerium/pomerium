@@ -44,7 +44,8 @@ func (svc *Source) Run(ctx context.Context) error {
 }
 
 func (svc *Source) watchUpdates(ctx context.Context) error {
-	return svc.api.Watch(ctx,
+	return svc.api.Watch(
+		ctx,
 		connect_mux.WithOnConnected(func(_ context.Context) {
 			svc.triggerUpdate(DefaultCheckForUpdateIntervalWhenConnected)
 		}),
@@ -62,7 +63,8 @@ func (svc *Source) updateLoop(ctx context.Context) error {
 	defer ticker.Stop()
 
 	for {
-		err := retry.Retry(ctx,
+		err := retry.Retry(
+			ctx,
 			"update bootstrap", svc.updateAndSave,
 			retry.WithWatch("bootstrap config updated", svc.checkForUpdate, nil),
 		)
@@ -98,7 +100,7 @@ func (svc *Source) updateAndSave(ctx context.Context) error {
 		return fmt.Errorf("load bootstrap config from API: %w", err)
 	}
 
-	svc.UpdateBootstrap(ctx, *cfg)
+	svc.UpdateBootstrap(ctx, svc.api, *cfg)
 
 	if svc.writer == nil {
 		return nil
@@ -124,5 +126,5 @@ func (svc *Source) tryLoadFromFile(ctx context.Context) {
 		return
 	}
 
-	svc.UpdateBootstrap(ctx, *cfg)
+	svc.UpdateBootstrap(ctx, svc.api, *cfg)
 }

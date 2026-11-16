@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -25,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/nullable"
@@ -65,12 +67,18 @@ type Config struct {
 	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
 	MetricsScrapeEndpoints []MetricsScrapeEndpoint
 
+	// ZeroAPI
+	ZeroAPI ZeroAPI
 	// ZeroClusterID is the zero cluster id, only set when in zero mode.
 	ZeroClusterID string
 	// ZeroOrganizationID is the zero organization id, only set when in zero mode.
 	ZeroOrganizationID string
 	// ZeroPseudonymizationKey is the zero key used to pseudonymize data, only set in zero mode.
 	ZeroPseudonymizationKey []byte
+}
+
+type ZeroAPI interface {
+	PutDataBrokerRecord(ctx context.Context, record *databrokerpb.Record) error
 }
 
 // New creates a new Config.
@@ -109,6 +117,11 @@ func (cfg *Config) Clone() *Config {
 
 		DerivedCertificates: cfg.DerivedCertificates,
 		DerivedCAPEM:        cfg.DerivedCAPEM,
+
+		ZeroAPI:                 cfg.ZeroAPI,
+		ZeroClusterID:           cfg.ZeroClusterID,
+		ZeroOrganizationID:      cfg.ZeroOrganizationID,
+		ZeroPseudonymizationKey: cfg.ZeroPseudonymizationKey,
 	}
 }
 

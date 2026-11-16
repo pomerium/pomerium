@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	zero_api "github.com/pomerium/pomerium/internal/zero/api"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
@@ -20,6 +21,9 @@ var _ = config.Source(new(source))
 var cmpOpts = []cmp.Option{
 	cmpopts.IgnoreUnexported(config.Options{}),
 	cmpopts.EquateEmpty(),
+	cmp.Comparer(func(x, y *zero_api.API) bool {
+		return x == y
+	}),
 }
 
 type source struct {
@@ -54,10 +58,10 @@ func (src *source) OnConfigChange(_ context.Context, l config.ChangeListener) {
 }
 
 // UpdateBootstrap updates the underlying configuration options
-func (src *source) UpdateBootstrap(ctx context.Context, cfg cluster_api.BootstrapConfig) bool {
+func (src *source) UpdateBootstrap(ctx context.Context, api *zero_api.API, cfg cluster_api.BootstrapConfig) bool {
 	current := src.cfg.Load()
 	incoming := current.Clone()
-	applyBootstrapConfig(incoming, &cfg)
+	applyBootstrapConfig(incoming, api, &cfg)
 
 	if cmp.Equal(incoming, current, cmpOpts...) {
 		return false
@@ -89,7 +93,7 @@ func (src *source) notifyListeners(ctx context.Context, cfg *config.Config) {
 	}
 }
 
-func applyBootstrapConfig(dst *config.Config, src *cluster_api.BootstrapConfig) {
+func applyBootstrapConfig(dst *config.Config, api *zero_api.API, src *cluster_api.BootstrapConfig) {
 	dst.Options.SharedKey = base64.StdEncoding.EncodeToString(src.SharedSecret)
 	if src.DatabrokerStorageConnection != nil {
 		if strings.HasPrefix(*src.DatabrokerStorageConnection, "file://") {
@@ -103,6 +107,7 @@ func applyBootstrapConfig(dst *config.Config, src *cluster_api.BootstrapConfig) 
 		dst.Options.DataBroker.StorageType = config.StorageInMemoryName
 		dst.Options.DataBroker.StorageConnectionString = ""
 	}
+	dst.ZeroAPI = api
 	dst.ZeroClusterID = src.ClusterId
 	dst.ZeroOrganizationID = src.OrganizationId
 	dst.ZeroPseudonymizationKey = src.PseudonymizationKey
