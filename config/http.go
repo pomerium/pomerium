@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -36,24 +37,22 @@ func NewHTTPTransport(src Source) *http.Transport {
 	src.OnConfigChange(context.Background(), update)
 	update(context.Background(), src.GetConfig())
 
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		lock.Lock()
-		d := &tls.Dialer{
-			Config: tlsConfig,
+	return httputil.NewTransport(func(transport *http.Transport) {
+		transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			lock.Lock()
+			d := &tls.Dialer{
+				Config: tlsConfig,
+			}
+			lock.Unlock()
+			return d.DialContext(ctx, network, addr)
 		}
-		lock.Unlock()
-		return d.DialContext(ctx, network, addr)
-	}
-	transport.ForceAttemptHTTP2 = true
-	return transport
+		transport.ForceAttemptHTTP2 = true
+	})
 }
 
 // NewPolicyHTTPTransport creates a new http RoundTripper for a policy.
 func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool) http.RoundTripper {
-	transport := http.DefaultTransport.(interface {
-		Clone() *http.Transport
-	}).Clone()
+	transport := httputil.NewTransport(func(*http.Transport) {})
 	c := tripper.NewChain()
 
 	// according to the docs:
@@ -125,9 +124,14 @@ func GetTLSClientTransport(cfg *Config) (*http.Transport, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &http.Transport{
-		TLSClientConfig:   tlsConfig,
-		IdleConnTimeout:   90 * time.Second,
-		ForceAttemptHTTP2: true,
-	}, nil
+	return httputil.NewTransport(func(transport *http.Transport) {
+		// preserve previous behavior of not using HTTP(S)_PROXY.
+		// Left as a follow up for ENG-4530
+		transport.Proxy = nil
+		transport.DialTLS = nil
+		transport.DialTLSContext = nil
+		transport.TLSClientConfig = tlsConfig
+		transport.IdleConnTimeout = 90 * time.Second
+		transport.ForceAttemptHTTP2 = true
+	}), nil
 }

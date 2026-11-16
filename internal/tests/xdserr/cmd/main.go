@@ -22,6 +22,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/tests/xdserr"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
@@ -31,11 +32,11 @@ import (
 )
 
 var httpClient = &http.Client{
-	Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{
+	Transport: httputil.NewTransport(func(transport *http.Transport) {
+		transport.TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: true,
-		},
-	},
+		}
+	}),
 }
 
 func main() {

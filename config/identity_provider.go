@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -627,15 +628,16 @@ func (cfg *Config) identityProviderHTTPClient() (*http.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("config: identity_providers: error building CA cert pool: %w", err)
 	}
-	transport := http.DefaultTransport.(interface{ Clone() *http.Transport }).Clone()
-	// http.DefaultTransport may be config.NewHTTPTransport's transport (see
-	// pkg/cmd/pomerium), whose DialTLSContext is pinned to the global CA pool
-	// and takes precedence over TLSClientConfig.
-	transport.DialTLSContext = nil
-	transport.TLSClientConfig = &tls.Config{
-		RootCAs:    rootCAs,
-		MinVersion: tls.VersionTLS12,
-	}
+	transport := httputil.NewTransport(func(transport *http.Transport) {
+		// http.DefaultTransport may be config.NewHTTPTransport's transport (see
+		// pkg/cmd/pomerium), whose DialTLSContext is pinned to the global CA pool
+		// and takes precedence over TLSClientConfig.
+		transport.DialTLSContext = nil
+		transport.TLSClientConfig = &tls.Config{
+			RootCAs:    rootCAs,
+			MinVersion: tls.VersionTLS12,
+		}
+	})
 	return &http.Client{Transport: transport}, nil
 }
 

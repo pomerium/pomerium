@@ -26,6 +26,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/values"
@@ -364,12 +365,13 @@ type Transport struct {
 var _ http.RoundTripper = Transport{}
 
 func NewHTTPClient(serverCAs *x509.CertPool, options *RequestOptions) *http.Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{
-		RootCAs:      serverCAs,
-		Certificates: options.clientCerts,
-	}
-	transport.DialTLSContext = nil
+	transport := httputil.NewTransport(func(transport *http.Transport) {
+		transport.TLSClientConfig = &tls.Config{
+			RootCAs:      serverCAs,
+			Certificates: options.clientCerts,
+		}
+		transport.DialTLSContext = nil
+	})
 	c := http.Client{
 		Transport: &Transport{
 			Transport: otelhttp.NewTransport(transport,
@@ -386,12 +388,13 @@ func NewHTTPClient(serverCAs *x509.CertPool, options *RequestOptions) *http.Clie
 }
 
 func (h *httpUpstream) newClient(options *RequestOptions) *http.Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{
-		RootCAs:      h.Env().ServerCAs(),
-		Certificates: options.clientCerts,
-	}
-	transport.DialTLSContext = nil
+	transport := httputil.NewTransport(func(transport *http.Transport) {
+		transport.TLSClientConfig = &tls.Config{
+			RootCAs:      h.Env().ServerCAs(),
+			Certificates: options.clientCerts,
+		}
+		transport.DialTLSContext = nil
+	})
 	if options.useProxyProtocol {
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			var zeroDialer net.Dialer
