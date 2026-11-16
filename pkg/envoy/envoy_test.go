@@ -2,11 +2,20 @@ package envoy
 
 import (
 	"io"
+	"net"
+	"net/http"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 func TestServer_handleLogs(t *testing.T) {
@@ -45,4 +54,41 @@ func Benchmark_handleLogs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		srv.handleLogs(b.Context(), rc)
 	}
+}
+
+func TestServer_envoyReadyClosesConnections(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	addr := netutil.NewInternalAddressForUnixSocket(filepath.Join(t.TempDir(), "admin.sock"))
+	li, err := addr.Listen(ctx)
+	require.NoError(t, err)
+
+	// count the admin connections that are still open
+	var open atomic.Int64
+	admin := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}),
+		ConnState: func(_ net.Conn, state http.ConnState) {
+			switch state {
+			case http.StateNew:
+				open.Add(1)
+			case http.StateClosed, http.StateHijacked:
+				open.Add(-1)
+			}
+		},
+	}
+	go func() { _ = admin.Serve(li) }()
+	t.Cleanup(func() { _ = admin.Close() })
+
+	srv := &Server{adminAddress: *addr}
+	for range 10 {
+		require.NoError(t, srv.envoyReady(ctx))
+	}
+
+	// the readiness check runs every 30 seconds for the life of the process,
+	// so a connection left open on each call adds up
+	assert.Eventually(t, func() bool { return open.Load() == 0 }, 5*time.Second, 10*time.Millisecond,
+		"envoyReady left %d Envoy admin connections open", open.Load())
 }

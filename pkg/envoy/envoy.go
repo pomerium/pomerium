@@ -157,12 +157,17 @@ func NewServer(
 	return srv, nil
 }
 
+// envoyAdminClient returns a client for a single request to the Envoy admin
+// API. Each call creates a new Transport, so keep-alives are disabled: an idle
+// connection kept by a Transport that is never used again would stay open, with
+// its goroutines, for the life of the process.
 func envoyAdminClient(adminAddress netutil.InternalAddress) *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 				return adminAddress.Dial(ctx)
 			},
+			DisableKeepAlives: true,
 		},
 	}
 }
