@@ -170,6 +170,8 @@ func (cfg *Config) AllocatePorts(ports [7]string) {
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries
+// and the CA derived from the shared secret. It is only for connections to
+// internal pomerium services.
 func (cfg *Config) GetTLSClientConfig() (*tls.Config, error) {
 	roots, err := cfg.GetCertificatePool()
 	if err != nil {
@@ -208,7 +210,9 @@ func (cfg *Config) WillHaveCertificateForServerName(serverName string) (bool, er
 	return cfg.Options.GetDeriveInternalDomain() == serverName, nil
 }
 
-// GetCertificatePool gets the certificate pool for the config.
+// GetCertificatePool gets the certificate pool for the config, including the CA
+// derived from the shared secret. It is only for connections to internal
+// pomerium services.
 func (cfg *Config) GetCertificatePool() (*x509.CertPool, error) {
 	pool, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
 	if err != nil {

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -19,9 +20,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -176,17 +179,22 @@ func (h *UpstreamAuthHandler) updateDataBrokerClient(ctx context.Context, cfg *c
 	return nil
 }
 
-// newUpstreamHTTPClient returns an HTTP client trusting the configured CAs, or
-// the default client when they cannot be loaded.
+// newUpstreamHTTPClient returns an HTTP client trusting the system roots and the
+// ca/ca_file options, or the default client when they cannot be loaded.
 func newUpstreamHTTPClient(ctx context.Context, cfg *config.Config) *http.Client {
-	tlsConfig, err := cfg.GetTLSClientConfig()
+	// the CA derived from the shared secret is only for internal pomerium
+	// services, so cfg.GetTLSClientConfig is not used here
+	rootCAs, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("mcp_upstream_auth: error loading custom CA, using system defaults")
 		return http.DefaultClient
 	}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = tlsConfig
-	return &http.Client{Transport: transport}
+	return &http.Client{Transport: httputil.NewTransport(func(transport *http.Transport) {
+		httputil.SetTLSClientConfig(transport, &tls.Config{
+			RootCAs:    rootCAs,
+			MinVersion: tls.VersionTLS12,
+		})
+	})}
 }
 
 // GetUpstreamToken looks up a cached upstream token for the given route context and host.
