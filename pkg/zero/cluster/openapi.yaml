@@ -233,6 +233,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /databroker/records:
+    put:
+      description: Add or update a databroker record
+      operationId: putDataBrokerRecord
+      tags: [databroker]
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              contentMediaType: application/octet-stream
+              contentEncoding: zstd
+        description: type.googleapis.com/pomerium.databroker.Record
+      responses:
+        "204":
+          description: OK
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   parameters:
     bundleId:

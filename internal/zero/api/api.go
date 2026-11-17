@@ -19,6 +19,7 @@ import (
 	token_api "github.com/pomerium/pomerium/internal/zero/token"
 	"github.com/pomerium/pomerium/pkg/fanout"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 	connect_api "github.com/pomerium/pomerium/pkg/zero/connect"
 )
@@ -59,7 +60,8 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 		return nil, err
 	}
 
-	fetcher, err := cluster_api.NewTokenFetcher(cfg.clusterAPIEndpoint,
+	fetcher, err := cluster_api.NewTokenFetcher(
+		cfg.clusterAPIEndpoint,
 		cluster_api.WithHTTPClient(cfg.httpClient),
 	)
 	if err != nil {
@@ -122,7 +124,46 @@ func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.Get
 }
 
 func (api *API) ImportConfig(ctx context.Context, cfg *configpb.Config, params *cluster_api.ImportConfigurationParams) (*cluster_api.ImportResponse, error) {
-	data, err := proto.Marshal(cfg)
+	data, err := api.marshalAndCompressMessage(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return apierror.CheckResponse(api.cluster.ImportConfigurationWithBodyWithResponse(
+		ctx,
+		params,
+		"application/octet-stream",
+		bytes.NewReader(data),
+	))
+}
+
+func (api *API) GetTelemetryConn() *grpc.ClientConn {
+	return api.telemetryConn
+}
+
+func (api *API) ReportUsage(ctx context.Context, req cluster_api.ReportUsageRequest) error {
+	_, err := apierror.CheckResponse(
+		api.cluster.ReportUsageWithResponse(ctx, req),
+	)
+	return err
+}
+
+func (api *API) PutDataBrokerRecord(ctx context.Context, record *databrokerpb.Record) error {
+	data, err := api.marshalAndCompressMessage(record)
+	if err != nil {
+		return fmt.Errorf("error encoding and compressing databroker record: %w", err)
+	}
+	_, err = apierror.CheckResponse(
+		api.cluster.PutDataBrokerRecordWithBodyWithResponse(
+			ctx,
+			"application/octet-stream",
+			bytes.NewReader(data),
+		),
+	)
+	return err
+}
+
+func (api *API) marshalAndCompressMessage(msg proto.Message) ([]byte, error) {
+	data, err := (proto.MarshalOptions{Deterministic: true}).Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
@@ -138,20 +179,5 @@ func (api *API) ImportConfig(ctx context.Context, cfg *configpb.Config, params *
 	if err := w.Close(); err != nil {
 		return nil, err
 	}
-	return apierror.CheckResponse(api.cluster.ImportConfigurationWithBodyWithResponse(ctx,
-		params,
-		"application/octet-stream",
-		&compressedData,
-	))
-}
-
-func (api *API) GetTelemetryConn() *grpc.ClientConn {
-	return api.telemetryConn
-}
-
-func (api *API) ReportUsage(ctx context.Context, req cluster_api.ReportUsageRequest) error {
-	_, err := apierror.CheckResponse(
-		api.cluster.ReportUsageWithResponse(ctx, req),
-	)
-	return err
+	return compressedData.Bytes(), nil
 }

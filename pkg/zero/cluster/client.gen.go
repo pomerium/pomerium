@@ -126,6 +126,12 @@ type ClientInterface interface {
 	// for the first time.
 	ImportConfigurationWithBody(ctx context.Context, params *ImportConfigurationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PutDataBrokerRecordWithBody performs a PUT /databroker/records (the `PutDataBrokerRecord` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Add or update a databroker record.
+	PutDataBrokerRecordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ExchangeClusterIdentityTokenWithBody performs a POST /exchangeToken (the `ExchangeClusterIdentityToken` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -237,6 +243,22 @@ func (c *Client) ReportClusterResourceBundleStatus(ctx context.Context, bundleId
 // for the first time.
 func (c *Client) ImportConfigurationWithBody(ctx context.Context, params *ImportConfigurationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewImportConfigurationRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PutDataBrokerRecordWithBody performs a PUT /databroker/records (the `PutDataBrokerRecord` operationId) request,
+// with any type of body and a specified content type.
+//
+// Add or update a databroker record.
+func (c *Client) PutDataBrokerRecordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutDataBrokerRecordRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -490,6 +512,35 @@ func NewImportConfigurationRequestWithBody(server string, params *ImportConfigur
 	return req, nil
 }
 
+// NewPutDataBrokerRecordRequestWithBody constructs an http.Request for the PutDataBrokerRecord method, with any body, and a specified content type
+func NewPutDataBrokerRecordRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/databroker/records")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewExchangeClusterIdentityTokenRequest calls the generic ExchangeClusterIdentityToken builder with application/json body
 func NewExchangeClusterIdentityTokenRequest(server string, body ExchangeClusterIdentityTokenJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -630,6 +681,9 @@ type ClientWithResponsesInterface interface {
 	// ImportConfigurationWithBodyWithResponse request with any body
 	ImportConfigurationWithBodyWithResponse(ctx context.Context, params *ImportConfigurationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportConfigurationResp, error)
 
+	// PutDataBrokerRecordWithBodyWithResponse request with any body
+	PutDataBrokerRecordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutDataBrokerRecordResp, error)
+
 	// ExchangeClusterIdentityTokenWithBodyWithResponse request with any body
 	ExchangeClusterIdentityTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExchangeClusterIdentityTokenResp, error)
 
@@ -763,6 +817,29 @@ func (r ImportConfigurationResp) StatusCode() int {
 	return 0
 }
 
+type PutDataBrokerRecordResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *ErrorResponse
+	JSON500      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutDataBrokerRecordResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutDataBrokerRecordResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ExchangeClusterIdentityTokenResp struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -861,6 +938,15 @@ func (c *ClientWithResponses) ImportConfigurationWithBodyWithResponse(ctx contex
 		return nil, err
 	}
 	return ParseImportConfigurationResp(rsp)
+}
+
+// PutDataBrokerRecordWithBodyWithResponse request with arbitrary body returning *PutDataBrokerRecordResp
+func (c *ClientWithResponses) PutDataBrokerRecordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutDataBrokerRecordResp, error) {
+	rsp, err := c.PutDataBrokerRecordWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutDataBrokerRecordResp(rsp)
 }
 
 // ExchangeClusterIdentityTokenWithBodyWithResponse request with arbitrary body returning *ExchangeClusterIdentityTokenResp
@@ -1114,6 +1200,42 @@ func ParseImportConfigurationResp(rsp *http.Response) (*ImportConfigurationResp,
 	return response, nil
 }
 
+// ParsePutDataBrokerRecordResp parses an HTTP response from a PutDataBrokerRecordWithResponse call
+func ParsePutDataBrokerRecordResp(rsp *http.Response) (*PutDataBrokerRecordResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutDataBrokerRecordResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseExchangeClusterIdentityTokenResp parses an HTTP response from a ExchangeClusterIdentityTokenWithResponse call
 func ParseExchangeClusterIdentityTokenResp(rsp *http.Response) (*ExchangeClusterIdentityTokenResp, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -1335,6 +1457,35 @@ func (r *ImportConfigurationResp) GetInternalServerError() (string, bool) {
 		return "", false
 	}
 	return r.JSON500.Error, true
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *PutDataBrokerRecordResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *PutDataBrokerRecordResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *PutDataBrokerRecordResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+// GetValue implements apierror.APIResponse
+func (r *PutDataBrokerRecordResp) GetValue() *EmptyResponse {
+	if r.StatusCode()/100 != 2 {
+		return nil
+	}
+	return &EmptyResponse{}
 }
 
 // GetHTTPResponse implements apierror.APIResponse
