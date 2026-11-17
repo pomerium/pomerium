@@ -8196,6 +8196,18 @@
               "defaultValue": ""
             },
             {
+              "name": "tailscale_listeners",
+              "description": "Configure Tailscale listeners.",
+              "label": "repeated",
+              "type": "TailscaleListenerSettings",
+              "longType": "TailscaleListenerSettings",
+              "fullType": "pomerium.config.TailscaleListenerSettings",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the settings were created.",
               "label": "",
@@ -8553,6 +8565,186 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "TailscaleListenerSettings",
+          "longName": "TailscaleListenerSettings",
+          "fullName": "pomerium.config.TailscaleListenerSettings",
+          "description": "TailscaleListenerSettings are the settings for a tailscale listener.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "hostname",
+              "description": "Hostname is the name of the device on the tailnet. Used as the subdomain\nof the Tailscale Funnel. Hostname is required for a tailscale listener.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_addr",
+              "description": "Start a listener only on the tailscale network.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_addr",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_funnel_addr",
+              "description": "Start a Tailscale Funnel listener.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_funnel_addr",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_service_name",
+              "description": "Start a listener for the service.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_service_name",
+              "defaultValue": ""
+            },
+            {
+              "name": "listen_service_port",
+              "description": "The port for the service.",
+              "label": "optional",
+              "type": "uint32",
+              "longType": "uint32",
+              "fullType": "uint32",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_service_port",
+              "defaultValue": ""
+            },
+            {
+              "name": "ephemeral",
+              "description": "Ephemeral specifies that the instance should register as an ephemeral\nnode. An ephemeral node will be automatically removed on exit.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_ephemeral",
+              "defaultValue": ""
+            },
+            {
+              "name": "auth_key",
+              "description": "Use a pre-authentication key to register the node on the tailnet.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_auth_key",
+              "defaultValue": ""
+            },
+            {
+              "name": "oauth_client_id",
+              "description": "Use an oauth client to create a pre-authentication key for the device.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_oauth_client_id",
+              "defaultValue": ""
+            },
+            {
+              "name": "oauth_client_secret",
+              "description": "Client secret for the oauth client id.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_oauth_client_secret",
+              "defaultValue": ""
+            },
+            {
+              "name": "id_token",
+              "description": "Use an identity provider token to authenticate via workload identity\nfederation.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_id_token",
+              "defaultValue": ""
+            },
+            {
+              "name": "id_token_audience",
+              "description": "Audience for the id_token.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_id_token_audience",
+              "defaultValue": ""
+            },
+            {
+              "name": "control_url",
+              "description": "The coordination server URL.",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_control_url",
+              "defaultValue": ""
+            },
+            {
+              "name": "tags",
+              "description": "Tags that should be applied to this node.",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "terminate_tls",
+              "description": "If set to true, terminate TLS before proxying data to envoy.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_terminate_tls",
               "defaultValue": ""
             }
           ]

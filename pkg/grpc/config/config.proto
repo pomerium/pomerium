@@ -1305,6 +1305,8 @@ message Settings {
   optional EnterpriseSettings enterprise = 192;
   // License type for Pomerium.
   optional LicenseType license_type = 193;
+  // Configure Tailscale listeners.
+  repeated TailscaleListenerSettings tailscale_listeners = 194;
 
   /* computed properties */
 
@@ -1332,6 +1334,41 @@ message Settings {
       read_only: true,
     }
   ];
+}
+
+// TailscaleListenerSettings are the settings for a tailscale listener.
+message TailscaleListenerSettings {
+  // Hostname is the name of the device on the tailnet. Used as the subdomain
+  // of the Tailscale Funnel. Hostname is required for a tailscale listener.
+  string hostname = 1;
+  // Start a listener only on the tailscale network.
+  optional string listen_addr = 2;
+  // Start a Tailscale Funnel listener.
+  optional string listen_funnel_addr = 3;
+  // Start a listener for the service.
+  optional string listen_service_name = 4;
+  // The port for the service.
+  optional uint32 listen_service_port = 5;
+  // Ephemeral specifies that the instance should register as an ephemeral
+  // node. An ephemeral node will be automatically removed on exit.
+  optional bool ephemeral = 6;
+  // Use a pre-authentication key to register the node on the tailnet.
+  optional string auth_key = 7 [(sensitive) = true];
+  // Use an oauth client to create a pre-authentication key for the device.
+  optional string oauth_client_id = 8;
+  // Client secret for the oauth client id.
+  optional string oauth_client_secret = 9 [(sensitive) = true];
+  // Use an identity provider token to authenticate via workload identity
+  // federation.
+  optional string id_token = 10 [(sensitive) = true];
+  // Audience for the id_token.
+  optional string id_token_audience = 11;
+  // The coordination server URL.
+  optional string control_url = 12;
+  // Tags that should be applied to this node.
+  repeated string tags = 13;
+  // If set to true, terminate TLS before proxying data to envoy.
+  optional bool terminate_tls = 14;
 }
 
 // BlobStorageSettings configures the object-storage backend Pomerium uses
