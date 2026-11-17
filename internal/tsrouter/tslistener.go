@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"path/filepath"
 	"reflect"
@@ -22,7 +21,6 @@ import (
 	"tailscale.com/tsnet"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
@@ -35,9 +33,10 @@ type tsListener struct {
 	ServerAddr string
 	Settings   config.TailscaleListenerSettings
 
-	telemetry    telemetry.Component
-	cc           *grpc.ClientConn
-	certificates atomic.Pointer[[]tls.Certificate]
+	telemetry      telemetry.Component
+	certificates   atomic.Pointer[[]tls.Certificate]
+	tsRouterConfig *tsRouterConfig
+	cc             *grpc.ClientConn
 
 	stop context.CancelCauseFunc
 	wg   sync.WaitGroup
@@ -47,12 +46,14 @@ func newTSListener(
 	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
 	settings config.TailscaleListenerSettings,
+	tsRouterConfig *tsRouterConfig,
 	cc *grpc.ClientConn,
 ) (*tsListener, error) {
 	l := &tsListener{
 		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.InfoLevel, "tslistener",
 			attribute.String("hostname", settings.Hostname.Value)),
-		cc: cc,
+		cc:             cc,
+		tsRouterConfig: tsRouterConfig,
 	}
 	return l, l.init(cfg, settings)
 }
@@ -80,9 +81,7 @@ func (l *tsListener) Start(ctx context.Context) {
 		_ = databrokerutil.NewLeasers("tslistener/"+l.Settings.Hostname.Value, 30*time.Second,
 			databroker.NewDataBrokerServiceClient(l.cc),
 			func(ctx context.Context) error {
-				l.startLeased(ctx)
-				<-ctx.Done()
-				return context.Cause(ctx)
+				return l.runLeased(ctx)
 			}).Run(ctx)
 	})
 }
@@ -116,8 +115,8 @@ func (l *tsListener) init(cfg *config.Config, settings config.TailscaleListenerS
 	return nil
 }
 
-func (l *tsListener) startLeased(ctx context.Context) {
-	opCtx, op := l.telemetry.Start(ctx, "startLeased",
+func (l *tsListener) runLeased(ctx context.Context) error {
+	opCtx, op := l.telemetry.Start(ctx, "runLeased",
 		attribute.String("listen-addr", l.Settings.ListenAddr.Value),
 		attribute.String("listen-funnel-addr", l.Settings.ListenFunnelAddr.Value),
 		attribute.String("listen-service-name", l.Settings.ListenServiceName.Value))
@@ -125,7 +124,7 @@ func (l *tsListener) startLeased(ctx context.Context) {
 
 	log.Ctx(opCtx).Info().Msg("tsrouter: starting listener")
 
-	dir := filepath.Join(fileutil.DataDir(), "tslistener", l.Settings.Hostname.Value)
+	dir := filepath.Join(l.tsRouterConfig.directory, l.Settings.Hostname.Value)
 	srv := &tsnet.Server{
 		Dir:           dir,
 		Hostname:      l.Settings.Hostname.Value,
@@ -144,6 +143,7 @@ func (l *tsListener) startLeased(ctx context.Context) {
 			l.telemetry.Logger(ctx).Debug().Msgf(format, args...)
 		},
 	}
+	defer srv.Close()
 
 	if l.Settings.ListenAddr.IsSet {
 		log.Ctx(opCtx).Info().Msg("starting tailnet listener")
@@ -155,10 +155,8 @@ func (l *tsListener) startLeased(ctx context.Context) {
 			li, err = srv.Listen("tcp", l.Settings.ListenAddr.Value)
 		}
 		if err != nil {
-			_ = op.Failure(fmt.Errorf("failed to start tailnet listener: %w", err))
-			return
+			return op.Failure(fmt.Errorf("failed to start tailnet listener: %w", err))
 		}
-
 		l.wg.Go(func() { l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value) })
 	}
 
@@ -172,10 +170,9 @@ func (l *tsListener) startLeased(ctx context.Context) {
 		}
 		li, err := srv.ListenFunnel("tcp", l.Settings.ListenFunnelAddr.Value, funnelOptions...)
 		if err != nil {
-			_ = op.Failure(fmt.Errorf("failed to start tailnet funnel listener: %w", err))
-		} else {
-			l.wg.Go(func() { l.handleListener(ctx, li, false) })
+			return op.Failure(fmt.Errorf("failed to start tailnet funnel listener: %w", err))
 		}
+		l.wg.Go(func() { l.handleListener(ctx, li, false) })
 	}
 
 	if l.Settings.ListenServiceName.IsSet {
@@ -185,11 +182,13 @@ func (l *tsListener) startLeased(ctx context.Context) {
 			TerminateTLS: l.Settings.TerminateTLS.Value,
 		})
 		if err != nil {
-			_ = op.Failure(fmt.Errorf("failed to start tailnet service listener: %w", err))
-		} else {
-			l.wg.Go(func() { l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value) })
+			return op.Failure(fmt.Errorf("failed to start tailnet service listener: %w", err))
 		}
+		l.wg.Go(func() { l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value) })
 	}
+
+	<-ctx.Done()
+	return context.Cause(ctx)
 }
 
 func (l *tsListener) handleListener(ctx context.Context, li net.Listener, rawTCP bool) {
@@ -253,10 +252,12 @@ func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP boo
 	cleanupLocal := context.AfterFunc(ctx, func() { _ = local.Close() })
 	defer cleanupLocal()
 
-	var wg sync.WaitGroup
-	wg.Go(func() { io.Copy(local, remote) })
-	wg.Go(func() { io.Copy(remote, local) })
-	wg.Wait()
+	err = copyFull(local, remote)
+	switch {
+	case err == nil, errors.Is(err, errCopyDone), errors.Is(err, net.ErrClosed):
+	default:
+		log.Ctx(ctx).Debug().Err(err).Msg("tsrouter: proxied connection ended with error")
+	}
 }
 
 func (l *tsListener) getCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {

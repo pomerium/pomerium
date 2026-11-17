@@ -24,6 +24,7 @@ type TSRouter interface {
 type tsRouter struct {
 	telemetry      telemetry.Component
 	databrokerConn grpc.CachedOutboundGRPClientConn
+	tsRouterConfig *tsRouterConfig
 
 	mu        sync.Mutex
 	runCtx    context.Context
@@ -31,18 +32,20 @@ type tsRouter struct {
 	listeners []*tsListener
 }
 
-func New(tracerProvider oteltrace.TracerProvider) TSRouter {
+func New(tracerProvider oteltrace.TracerProvider, options ...Option) TSRouter {
 	return &tsRouter{
 		telemetry:      *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "tsrouter"),
 		databrokerConn: grpc.CachedOutboundGRPClientConn{Name: "tsrouter"},
+		tsRouterConfig: getTSRouterConfig(options...),
 	}
 }
 
 func (r *tsRouter) OnConfigChange(cfg *config.Config) {
 	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.cfg = cfg
 	r.updateLocked()
-	r.mu.Unlock()
 }
 
 func (r *tsRouter) Run(ctx context.Context) error {
@@ -64,9 +67,7 @@ func (r *tsRouter) Run(ctx context.Context) error {
 }
 
 func (r *tsRouter) updateLocked() {
-	_, op := r.telemetry.Start(r.runCtx, "update")
-	defer op.Complete()
-
+	// tailscale routing is disabled, stop any listeners and return
 	if r.cfg == nil || r.runCtx == nil ||
 		!r.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagTailscale) {
 		for _, li := range r.listeners {
@@ -75,6 +76,10 @@ func (r *tsRouter) updateLocked() {
 		r.listeners = nil
 		return
 	}
+
+	// tailscale routing is enabled, start listeners
+	_, op := r.telemetry.Start(r.runCtx, "update")
+	defer op.Complete()
 
 	sharedKey, err := r.cfg.Options.GetSharedKey()
 	if err != nil {
@@ -93,7 +98,7 @@ func (r *tsRouter) updateLocked() {
 
 	// start new or updated listeners
 	for i, s := range r.cfg.Options.TailscaleListeners.Value {
-		nl, err := newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s, cc)
+		nl, err := newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s, r.tsRouterConfig, cc)
 		if err != nil {
 			_ = op.Failure(fmt.Errorf("error constructing listener: %w", err))
 			continue
