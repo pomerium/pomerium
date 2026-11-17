@@ -445,7 +445,7 @@ var changedSettingsRules = []fieldNameRule{
 	{`_log_fields$`, "log_fields"},
 	{`^mcp_`, "mcp"},
 	{`^metrics_`, "metrics"},
-	{`^((authorize|databroker)_service_urls|\w+_internal_service_url)$`, "service_urls"},
+	{`^(authorize|databroker)_service_urls$`, "service_urls"},
 	{`^ssh_(address|host_key|user_ca_key|rls_)`, "ssh"},
 	{`^(timeout_\w+|default_upstream_timeout|grpc_client_timeout)$`, "timeouts"},
 	{`^otel_`, "tracing"},
