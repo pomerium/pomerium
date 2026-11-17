@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"sync"
@@ -23,6 +23,7 @@ import (
 	"tailscale.com/tsnet"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
@@ -41,7 +42,6 @@ type tsListener struct {
 
 	telemetry    telemetry.Component
 	certificates atomic.Pointer[[]tls.Certificate]
-	tempDir      string
 
 	stop context.CancelCauseFunc
 	wg   sync.WaitGroup
@@ -104,8 +104,6 @@ func (l *tsListener) Stop() {
 		log.Info().Msg("tsrouter: stopping listener")
 		l.stop(errStopped)
 		l.wg.Wait()
-
-		_ = os.RemoveAll(l.tempDir)
 	}
 }
 
@@ -136,11 +134,6 @@ func (l *tsListener) init(cfg *config.Config, settings config.TailscaleListenerS
 
 	l.certificates.Store(new(append(slices.Clone(certs), *catchAll)))
 
-	l.tempDir, err = os.MkdirTemp("", "tslistener-*")
-	if err != nil {
-		return op.Failure(fmt.Errorf("error making temporary directory: %w", err))
-	}
-
 	return nil
 }
 
@@ -153,9 +146,10 @@ func (l *tsListener) startLeased(ctx context.Context, client databrokerpb.DataBr
 
 	log.Ctx(opCtx).Info().Msg("tsrouter: starting listener")
 
+	dir := filepath.Join(fileutil.DataDir(), "tslistener", l.Settings.Hostname.Value)
 	srv := &tsnet.Server{
 		Store:         newTSListenerStateStore(ctx, l, client),
-		Dir:           l.tempDir,
+		Dir:           dir,
 		Hostname:      l.Settings.Hostname.Value,
 		Ephemeral:     l.Settings.Ephemeral.Value,
 		AuthKey:       l.Settings.AuthKey.Value,

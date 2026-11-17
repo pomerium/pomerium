@@ -45,7 +45,7 @@ func (store *tsListenerStateStore) ReadState(id ipn.StateKey) ([]byte, error) {
 	// read the state from the databroker
 	res, err := store.dataBrokerClient.Get(ctx, &databrokerpb.GetRequest{
 		Type: StateDataBrokerRecordType,
-		Id:   store.listener.Settings.Hostname.Value + "|" + string(id),
+		Id:   store.listener.Settings.Hostname.Value + "/" + string(id),
 	})
 	if status.Code(err) == codes.NotFound {
 		// ipn has a special error type for not found
@@ -71,7 +71,7 @@ func (store *tsListenerStateStore) WriteState(id ipn.StateKey, bs []byte) error 
 
 	record := &databrokerpb.Record{
 		Type: StateDataBrokerRecordType,
-		Id:   store.listener.Settings.Hostname.Value + "|" + string(id),
+		Id:   store.listener.Settings.Hostname.Value + "/" + string(id),
 		Data: protoutil.NewAnyBytes(bs),
 	}
 	if len(bs) == 0 {
