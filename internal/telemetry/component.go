@@ -46,6 +46,10 @@ func (c *Component) Active(ctx context.Context, name string, attributes ...attri
 	return ctx, g
 }
 
+func (c *Component) Logger(ctx context.Context, attributes ...attribute.KeyValue) *zerolog.Logger {
+	return new(logger(ctx, append(c.attributes, attributes...)...))
+}
+
 // Start starts an operation.
 func (c *Component) Start(ctx context.Context, operationName string, attributes ...attribute.KeyValue) (context.Context, Operation) {
 	attributes = append(c.attributes, attributes...)
