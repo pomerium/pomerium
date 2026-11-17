@@ -33,6 +33,9 @@ type ServerInterface interface {
 	// (PUT /config/import)
 	ImportConfiguration(w http.ResponseWriter, r *http.Request, params ImportConfigurationParams)
 
+	// (PUT /databroker/records)
+	PutDataBrokerRecord(w http.ResponseWriter, r *http.Request)
+
 	// (POST /exchangeToken)
 	ExchangeClusterIdentityToken(w http.ResponseWriter, r *http.Request)
 
@@ -66,6 +69,11 @@ func (_ Unimplemented) ReportClusterResourceBundleStatus(w http.ResponseWriter, 
 
 // (PUT /config/import)
 func (_ Unimplemented) ImportConfiguration(w http.ResponseWriter, r *http.Request, params ImportConfigurationParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /databroker/records)
+func (_ Unimplemented) PutDataBrokerRecord(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -200,6 +208,20 @@ func (siw *ServerInterfaceWrapper) ImportConfiguration(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ImportConfiguration(w, r, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutDataBrokerRecord operation middleware
+func (siw *ServerInterfaceWrapper) PutDataBrokerRecord(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutDataBrokerRecord(w, r)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -370,6 +392,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/config/import", wrapper.ImportConfiguration)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/databroker/records", wrapper.PutDataBrokerRecord)
 	})
 
 	return r
@@ -661,6 +686,50 @@ func (response ImportConfiguration500JSONResponse) VisitImportConfigurationRespo
 	return err
 }
 
+type PutDataBrokerRecordRequestObject struct {
+	Body io.Reader
+}
+
+type PutDataBrokerRecordResponseObject interface {
+	VisitPutDataBrokerRecordResponse(w http.ResponseWriter) error
+}
+
+type PutDataBrokerRecord204Response struct {
+}
+
+func (response PutDataBrokerRecord204Response) VisitPutDataBrokerRecordResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PutDataBrokerRecord400JSONResponse ErrorResponse
+
+func (response PutDataBrokerRecord400JSONResponse) VisitPutDataBrokerRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDataBrokerRecord500JSONResponse ErrorResponse
+
+func (response PutDataBrokerRecord500JSONResponse) VisitPutDataBrokerRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ExchangeClusterIdentityTokenRequestObject struct {
 	Body *ExchangeClusterIdentityTokenJSONRequestBody
 }
@@ -772,6 +841,9 @@ type StrictServerInterface interface {
 
 	// (PUT /config/import)
 	ImportConfiguration(ctx context.Context, request ImportConfigurationRequestObject) (ImportConfigurationResponseObject, error)
+
+	// (PUT /databroker/records)
+	PutDataBrokerRecord(ctx context.Context, request PutDataBrokerRecordRequestObject) (PutDataBrokerRecordResponseObject, error)
 
 	// (POST /exchangeToken)
 	ExchangeClusterIdentityToken(ctx context.Context, request ExchangeClusterIdentityTokenRequestObject) (ExchangeClusterIdentityTokenResponseObject, error)
@@ -947,6 +1019,32 @@ func (sh *strictHandler) ImportConfiguration(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ImportConfigurationResponseObject); ok {
 		if err := validResponse.VisitImportConfigurationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutDataBrokerRecord operation middleware
+func (sh *strictHandler) PutDataBrokerRecord(w http.ResponseWriter, r *http.Request) {
+	var request PutDataBrokerRecordRequestObject
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutDataBrokerRecord(ctx, request.(PutDataBrokerRecordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutDataBrokerRecord")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutDataBrokerRecordResponseObject); ok {
+		if err := validResponse.VisitPutDataBrokerRecordResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
