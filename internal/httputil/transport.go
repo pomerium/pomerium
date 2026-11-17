@@ -24,25 +24,24 @@ func NewTransport(modify func(*http.Transport)) *http.Transport {
 // GetInsecureTransport gets an insecure HTTP transport.
 func GetInsecureTransport() *http.Transport {
 	return NewTransport(func(transport *http.Transport) {
-		transport.DialTLS = nil
 		SetTLSClientConfig(transport, &tls.Config{InsecureSkipVerify: true})
 	})
 }
 
-// SetTLSClientConfig sets cfg and clears any inherited DialTLSContext, which would bypass it.
+// SetTLSClientConfig sets cfg and clears any inherited DialTLS or
+// DialTLSContext, either of which would bypass it.
 func SetTLSClientConfig(transport *http.Transport, cfg *tls.Config) {
-	transport.DialTLSContext = nil
+	clearTLSDialers(transport)
 	transport.TLSClientConfig = cfg
 }
 
 // NewLocalProxyProtocolTransport creates a new http transport that uses the proxy
 // protocol with the LOCAL command. The base protocol is cloned and a new transport
-// is returned.
+// is returned. The base's DialTLS and DialTLSContext are cleared, because a TLS
+// dialer opens its own connection and would never send the header.
 func NewLocalProxyProtocolTransport(base *http.Transport) *http.Transport {
-	if base == nil {
-		base = http.DefaultTransport.(*http.Transport)
-	}
 	transport := base.Clone()
+	clearTLSDialers(transport)
 	originalDial := transport.Dial
 	originalDialContext := transport.DialContext
 	baseDial := func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -72,4 +71,9 @@ func NewLocalProxyProtocolTransport(base *http.Transport) *http.Transport {
 		return conn, err
 	}
 	return transport
+}
+
+func clearTLSDialers(transport *http.Transport) {
+	transport.DialTLS = nil
+	transport.DialTLSContext = nil
 }

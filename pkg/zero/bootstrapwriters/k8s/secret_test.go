@@ -2,16 +2,21 @@ package k8s
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +30,16 @@ import (
 )
 
 func TestSecretWriter(t *testing.T) {
+	// pkg/cmd/pomerium installs a default transport with a DialTLSContext,
+	// which must not bypass the API server's TLS config
+	original := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = original })
+	pinned := original.(*http.Transport).Clone()
+	pinned.DialTLSContext = func(context.Context, string, string) (net.Conn, error) {
+		return nil, errors.New("inherited DialTLSContext used")
+	}
+	http.DefaultTransport = pinned
+
 	requests := make(chan *http.Request, 1)
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := r.Clone(t.Context())
@@ -34,6 +49,15 @@ func TestSecretWriter(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
+	var openConns atomic.Int64
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		switch state {
+		case http.StateNew:
+			openConns.Add(1)
+		case http.StateClosed, http.StateHijacked:
+			openConns.Add(-1)
+		}
+	}
 	server.StartTLS()
 	defer server.Close()
 
@@ -73,6 +97,8 @@ func TestSecretWriter(t *testing.T) {
 		require.NoError(t, bootstrap.SaveBootstrapConfig(t.Context(), writer, &src))
 
 		r := <-requests
+		assert.Eventually(t, func() bool { return openConns.Load() == 0 }, 5*time.Second, 10*time.Millisecond,
+			"the connection to the API server should be closed after the write")
 		assert.Equal(t, "PATCH", r.Method)
 		assert.Equal(t, "application/apply-patch+yaml", r.Header.Get("Content-Type"))
 		assert.Equal(t, "/api/v1/namespaces/pomerium/secrets/bootstrap?fieldManager=pomerium-zero&force=true", r.RequestURI)

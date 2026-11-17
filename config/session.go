@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -248,12 +249,14 @@ func (c *incomingIDPTokenSessionCreator) createSessionForAccessToken(
 			return nil, err
 		}
 
-		authenticateURL, transport, err := cfg.resolveAuthenticateURL(c.telemetry.GetTracerProvider())
+		authenticateURL, transport, err := cfg.resolveAuthenticateURL()
 		if err != nil {
 			return nil, fmt.Errorf("error resolving authenticate url to verify access token: %w", err)
 		}
+		defer transport.CloseIdleConnections()
 
-		res, err := authenticateapi.New(authenticateURL, transport).VerifyAccessToken(ctx, &authenticateapi.VerifyAccessTokenRequest{
+		res, err := authenticateapi.New(authenticateURL,
+			otelhttp.NewTransport(transport, otelhttp.WithTracerProvider(c.telemetry.GetTracerProvider()))).VerifyAccessToken(ctx, &authenticateapi.VerifyAccessTokenRequest{
 			AccessToken:        rawAccessToken,
 			IdentityProviderID: idp.GetId(),
 		})
@@ -322,12 +325,14 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 			return nil, err
 		}
 
-		authenticateURL, transport, err := cfg.resolveAuthenticateURL(c.telemetry.GetTracerProvider())
+		authenticateURL, transport, err := cfg.resolveAuthenticateURL()
 		if err != nil {
 			return nil, fmt.Errorf("error resolving authenticate url to verify identity token: %w", err)
 		}
+		defer transport.CloseIdleConnections()
 
-		res, err := authenticateapi.New(authenticateURL, transport).VerifyIdentityToken(ctx, &authenticateapi.VerifyIdentityTokenRequest{
+		res, err := authenticateapi.New(authenticateURL,
+			otelhttp.NewTransport(transport, otelhttp.WithTracerProvider(c.telemetry.GetTracerProvider()))).VerifyIdentityToken(ctx, &authenticateapi.VerifyIdentityTokenRequest{
 			IdentityToken:      rawIdentityToken,
 			IdentityProviderID: idp.GetId(),
 		})

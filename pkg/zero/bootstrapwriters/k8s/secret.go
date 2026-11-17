@@ -86,12 +86,11 @@ func (w *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.Bootstr
 	})
 
 	transport := httputil.NewTransport(func(transport *http.Transport) {
-		transport.TLSClientConfig = config.TLSClientConfig
+		httputil.SetTLSClientConfig(transport, config.TLSClientConfig)
 		transport.Dial = nil
 		transport.DialContext = nil
-		transport.DialTLS = nil
-		transport.DialTLSContext = nil
 	})
+	defer transport.CloseIdleConnections()
 
 	client := &http.Client{
 		Transport: &roundTripper{

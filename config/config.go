@@ -13,7 +13,6 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -241,17 +240,20 @@ func (cfg *Config) GetCertificatePool() (*x509.CertPool, error) {
 
 // GetAuthenticateKeyFetcher returns a key fetcher for the authenticate service
 func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
-	authenticateURL, transport, err := cfg.resolveAuthenticateURL(otel.GetTracerProvider())
+	authenticateURL, transport, err := cfg.resolveAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}
 	hpkeURL := authenticateURL.ResolveReference(&url.URL{
 		Path: endpoints.PathHPKEPublicKey,
 	}).String()
-	return hpke.NewKeyFetcher(hpkeURL, transport), nil
+	return hpke.NewKeyFetcher(hpkeURL, otelhttp.NewTransport(transport, otelhttp.WithTracerProvider(otel.GetTracerProvider()))), nil
 }
 
-func (cfg *Config) resolveAuthenticateURL(tracerProvider oteltrace.TracerProvider) (*url.URL, http.RoundTripper, error) {
+// resolveAuthenticateURL returns the internal authenticate URL and a new
+// transport for it. Callers that make one-off requests must close the
+// transport's idle connections when done.
+func (cfg *Config) resolveAuthenticateURL() (*url.URL, *http.Transport, error) {
 	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid authenticate service url: %w", err)
@@ -272,7 +274,7 @@ func (cfg *Config) resolveAuthenticateURL(tracerProvider oteltrace.TracerProvide
 	if cfg.Options.UseProxyProtocol {
 		transport = httputil.NewLocalProxyProtocolTransport(transport)
 	}
-	return authenticateURL, otelhttp.NewTransport(transport, otelhttp.WithTracerProvider(tracerProvider)), nil
+	return authenticateURL, transport, nil
 }
 
 func getOneOf[OneOfContainer, OneOf, Value any](container OneOfContainer, _ OneOf, value Value) *Value {

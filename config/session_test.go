@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -433,7 +434,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 				Claims: jwtutil.Claims{"sub": "U1"},
 			})
 		})
-		srv := httptest.NewTLSServer(mux)
+		srv, openConns := startConnTrackingTLSServer(t, mux)
 
 		ctx := testutil.GetContext(t, time.Minute)
 		cfg := New(NewDefaultOptions())
@@ -465,6 +466,8 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		assert.Equal(t, "U1", s.GetUserId())
 		assert.Equal(t, "ACCESS_TOKEN", s.GetOauthToken().GetAccessToken())
 		assert.True(t, s.GetRefreshDisabled())
+		assert.Eventually(t, func() bool { return openConns.Load() == 0 }, 5*time.Second, 10*time.Millisecond,
+			"the connection to the authenticate service should be closed after verification")
 	})
 	t.Run("identity_token", func(t *testing.T) {
 		t.Parallel()
@@ -476,7 +479,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 				Claims: jwtutil.Claims{"sub": "U1"},
 			})
 		})
-		srv := httptest.NewTLSServer(mux)
+		srv, openConns := startConnTrackingTLSServer(t, mux)
 
 		ctx := testutil.GetContext(t, time.Minute)
 		cfg := New(NewDefaultOptions())
@@ -507,6 +510,8 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "U1", s.GetUserId())
 		assert.True(t, s.GetRefreshDisabled())
+		assert.Eventually(t, func() bool { return openConns.Load() == 0 }, 5*time.Second, 10*time.Millisecond,
+			"the connection to the authenticate service should be closed after verification")
 	})
 	t.Run("jwt", func(t *testing.T) {
 		t.Parallel()
@@ -874,4 +879,23 @@ func TestCreateSessionForJWT_RouteProviderScoping(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNoMatchingIdentityProvider)
 		assert.ErrorContains(t, err, "error building CA cert pool")
 	})
+}
+
+// startConnTrackingTLSServer starts a TLS server and returns it with the
+// number of its connections that are not yet closed.
+func startConnTrackingTLSServer(t *testing.T, handler http.Handler) (*httptest.Server, *atomic.Int64) {
+	t.Helper()
+	var open atomic.Int64
+	srv := httptest.NewUnstartedServer(handler)
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		switch state {
+		case http.StateNew:
+			open.Add(1)
+		case http.StateClosed, http.StateHijacked:
+			open.Add(-1)
+		}
+	}
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+	return srv, &open
 }

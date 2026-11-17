@@ -1,12 +1,22 @@
 package envoy
 
 import (
+	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 func TestServer_handleLogs(t *testing.T) {
@@ -45,4 +55,29 @@ func Benchmark_handleLogs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		srv.handleLogs(b.Context(), rc)
 	}
+}
+
+func TestEnvoyAdminClient(t *testing.T) {
+	original := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = original })
+	pinned := config.NewHTTPTransport(config.NewStaticSource(config.New(config.NewDefaultOptions())))
+	pinned.Proxy = func(*http.Request) (*url.URL, error) { return nil, errors.New("proxy used") }
+	http.DefaultTransport = pinned
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(s.Close)
+
+	client := envoyAdminClient(*netutil.NewInternalAddressForTCP(netip.MustParseAddrPort(s.Listener.Addr().String())))
+	defer client.CloseIdleConnections()
+
+	transport := client.Transport.(*http.Transport)
+	assert.NotZero(t, transport.IdleConnTimeout)
+	assert.NotZero(t, transport.MaxIdleConns)
+
+	res, err := client.Get("http://unix/ready")
+	require.NoError(t, err)
+	_ = res.Body.Close()
+	assert.Equal(t, http.StatusOK, res.StatusCode)
 }

@@ -2,8 +2,11 @@ package config
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"maps"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -363,4 +366,27 @@ func TestIdentityProviders_ProtoRoundTrip(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestIdentityProviderHTTPClient(t *testing.T) {
+	pinDefaultTransport(t)
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(s.Close)
+
+	client, err := New(&Options{
+		CA: base64.StdEncoding.EncodeToString(getLocalCertPEM(s)),
+	}).identityProviderHTTPClient()
+	require.NoError(t, err)
+	transport := client.Transport.(*http.Transport)
+	assertInheritsDefaults(t, transport)
+
+	_, err = client.Get(s.URL)
+	require.ErrorIs(t, err, errProxyUsed)
+
+	transport.Proxy = nil
+	res, err := client.Get(s.URL)
+	require.NoError(t, err)
+	_ = res.Body.Close()
 }

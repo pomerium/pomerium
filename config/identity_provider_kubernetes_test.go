@@ -606,3 +606,25 @@ func TestDeferredKubernetesProvider_TransientReadFailure(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "cluster", rp.Name)
 }
+
+func TestNewKubernetesHTTPClient(t *testing.T) {
+	pinDefaultTransport(t)
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(s.Close)
+
+	dir := t.TempDir()
+	client, err := newKubernetesHTTPClient(kubernetesInClusterParams{
+		caFile:    serverCAFile(t, dir, s),
+		tokenFile: writeTestFile(t, dir, "token", []byte("tok\n")),
+	})
+	require.NoError(t, err)
+	transport := client.Transport.(*kubernetesAuthRoundTripper).base.(*http.Transport)
+	assertInheritsDefaults(t, transport)
+
+	transport.Proxy = nil
+	res, err := client.Get(s.URL)
+	require.NoError(t, err)
+	_ = res.Body.Close()
+}
