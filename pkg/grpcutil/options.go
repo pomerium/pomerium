@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -56,7 +56,7 @@ func WithSignedJWT(ctx context.Context, key []byte) (context.Context, error) {
 
 		rawjwt, err := jwt.Signed(sig).Claims(jwt.Claims{
 			Expiry: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-		}).CompactSerialize()
+		}).Serialize()
 		if err != nil {
 			return ctx, err
 		}
@@ -105,7 +105,7 @@ func RequireSignedJWT(ctx context.Context, key []byte) error {
 }
 
 func validateJWT(rawjwt string, key []byte) error {
-	tok, err := jwt.ParseSigned(rawjwt)
+	tok, err := jwt.ParseSigned(rawjwt, []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
 		return err
 	}

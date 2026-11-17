@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -163,7 +163,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, json.Number(fmt.Sprint(iat.Add(5*time.Minute).Unix())), jwtPayloadDecoded["exp"],
 			"unexpected 'exp' timestamp format")
 
-		rawJWT, err := jwt.ParseSigned(jwtHeader)
+		rawJWT, err := jwt.ParseSigned(jwtHeader, []jose.SignatureAlgorithm{jose.ES256})
 		require.NoError(t, err)
 
 		var claims M
@@ -248,7 +248,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		authHeader := output.Headers.Get("Authorization")
 		assert.True(t, strings.HasPrefix(authHeader, "Bearer "))
 		authHeader = strings.TrimPrefix(authHeader, "Bearer ")
-		token, err := jwt.ParseSigned(authHeader)
+		token, err := jwt.ParseSigned(authHeader, []jose.SignatureAlgorithm{jose.ES256})
 		require.NoError(t, err)
 		var claims jwt.Claims
 		require.NoError(t, token.Claims(publicJWK, &claims))

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
-	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v4"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"go.opentelemetry.io/otel/metric"

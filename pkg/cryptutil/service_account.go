@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/volatiletech/null/v9"
 )
 
@@ -33,7 +33,7 @@ func SignServiceAccount(
 		claims.Expiry = jwt.NewNumericDate(expiresAt.Time)
 	}
 
-	rawJWT, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
+	rawJWT, err := jwt.Signed(sig).Claims(claims).Serialize()
 	if err != nil {
 		return "", fmt.Errorf("error creating signed JWT: %w", err)
 	}

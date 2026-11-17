@@ -9,12 +9,13 @@ import (
 	stdslices "slices"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -154,12 +155,8 @@ func ParseIDToken(idToken string) (*IDToken, error) {
 		return nil, nil
 	}
 
-	token, err := jwt.ParseSigned(idToken)
-	if err != nil {
-		return nil, err
-	}
 	var claims jwt.Claims
-	if err := token.UnsafeClaimsWithoutVerification(&claims); err != nil {
+	if err := cryptutil.UnverifiedClaims(idToken, &claims); err != nil {
 		return nil, err
 	}
 	return &IDToken{

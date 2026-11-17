@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"golang.org/x/oauth2"
@@ -549,7 +549,7 @@ func (token *idToken) Encode(signingKey jose.SigningKey) string {
 		panic(err)
 	}
 
-	str, err := jwt.Signed(sig).Claims(token).CompactSerialize()
+	str, err := jwt.Signed(sig).Claims(token).Serialize()
 	if err != nil {
 		panic(err)
 	}
@@ -565,7 +565,7 @@ func (idp *IDP) SignJWT(claims any) string {
 	if err != nil {
 		panic(err)
 	}
-	str, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
+	str, err := jwt.Signed(sig).Claims(claims).Serialize()
 	if err != nil {
 		panic(err)
 	}

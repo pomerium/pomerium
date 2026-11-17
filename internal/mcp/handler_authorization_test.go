@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	josejwt "github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	josejwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -141,11 +141,11 @@ func (s *authorizeTestStorage) PutUpstreamOAuthClient(context.Context, *oauth21p
 // makeTestJWT creates a minimal JWT with sid and sub claims for testing.
 func makeTestJWT(t *testing.T, sessionID, userID string) string {
 	t.Helper()
-	key := []byte("test-secret-key-32-bytes-long!!")
+	key := []byte("test-secret-key-32-bytes-long!!!")
 	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key}, nil)
 	require.NoError(t, err)
 	claims := map[string]any{"sid": sessionID, "sub": userID}
-	raw, err := josejwt.Signed(signer).Claims(claims).CompactSerialize()
+	raw, err := josejwt.Signed(signer).Claims(claims).Serialize()
 	require.NoError(t, err)
 	return raw
 }

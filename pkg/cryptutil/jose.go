@@ -9,9 +9,31 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/hashicorp/go-multierror"
 )
+
+// allSignatureAlgorithms is every JWS signature algorithm supported by go-jose.
+var allSignatureAlgorithms = []jose.SignatureAlgorithm{
+	jose.EdDSA,
+	jose.HS256, jose.HS384, jose.HS512,
+	jose.RS256, jose.RS384, jose.RS512,
+	jose.ES256, jose.ES384, jose.ES512,
+	jose.PS256, jose.PS384, jose.PS512,
+}
+
+// UnverifiedClaims decodes the claims of a compact-serialized JWT into dst
+// WITHOUT verifying its signature. The token may use any signature algorithm.
+// Only use it for tokens that were already verified elsewhere or whose claims
+// are informational.
+func UnverifiedClaims(rawJWT string, dst any) error {
+	token, err := jwt.ParseSigned(rawJWT, allSignatureAlgorithms)
+	if err != nil {
+		return err
+	}
+	return token.UnsafeClaimsWithoutVerification(dst)
+}
 
 // PrivateJWKFromBytes returns a jose JSON Web _Private_ Key from bytes.
 func PrivateJWKFromBytes(data []byte) (*jose.JSONWebKey, error) {
