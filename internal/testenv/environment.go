@@ -707,6 +707,12 @@ func (e *environment) Start() {
 	if e.traceConfig != nil {
 		cfg.Options.Tracing = *e.traceConfig
 	}
+	if cfg.Options.Tracing.OtelBspScheduleDelay == nil {
+		// flush envoy spans quickly so shutdown doesn't wait on the default 5s
+		// export interval for spans that are still buffered in envoy
+		d := otelconfig.Duration(otelconfig.MinimumScheduleDelay)
+		cfg.Options.Tracing.OtelBspScheduleDelay = &d
+	}
 
 	e.src = &configSource{cfg: cfg}
 	e.AddTask(TaskFunc(func(ctx context.Context) error {
