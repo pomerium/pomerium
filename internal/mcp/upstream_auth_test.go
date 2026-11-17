@@ -2,12 +2,16 @@ package mcp
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +27,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
@@ -1289,6 +1294,72 @@ func TestRefreshExpiredUpstreamMCPToken_ErrorClassification(t *testing.T) {
 			assert.Nil(t, refreshed)
 			assert.Equal(t, tc.expectCleared, errors.Is(err, errUpstreamTokenCleared))
 			assert.Equal(t, tc.expectCleared, tokenDeleted)
+		})
+	}
+}
+
+// TestNewUpstreamHTTPClient checks which certificate authorities the upstream
+// client trusts when http.DefaultTransport is the one pkg/cmd/pomerium
+// installs, built from the same config as the client or from the default
+// options.
+func TestNewUpstreamHTTPClient(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	// signed by the CA derived from the shared secret
+	derivedSrv := httptest.NewUnstartedServer(handler)
+	t.Cleanup(derivedSrv.Close)
+	// signed by the CA set in the ca option
+	customSrv := httptest.NewTLSServer(handler)
+	t.Cleanup(customSrv.Close)
+
+	opts := config.NewDefaultOptions()
+	opts.SharedKey = cryptutil.NewBase64Key()
+	derive := "localhost"
+	opts.DeriveInternalDomainCert = &derive
+	opts.CA = base64.StdEncoding.EncodeToString(pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: customSrv.Certificate().Raw,
+	}))
+	cfg := config.New(opts)
+
+	sharedKey, err := opts.GetSharedKey()
+	require.NoError(t, err)
+	ca, err := derivecert.NewCA(sharedKey)
+	require.NoError(t, err)
+	serverPEM, err := ca.NewServerCert([]string{"localhost"})
+	require.NoError(t, err)
+	serverCert, err := serverPEM.TLS()
+	require.NoError(t, err)
+	derivedSrv.TLS = &tls.Config{Certificates: []tls.Certificate{serverCert}}
+	derivedSrv.StartTLS()
+	// the derived certificate is only valid for localhost, not 127.0.0.1
+	derivedURL := strings.Replace(derivedSrv.URL, "127.0.0.1", "localhost", 1)
+
+	for _, tc := range []struct {
+		name      string
+		transport http.RoundTripper
+	}{
+		{"default transport from the same config", config.NewHTTPTransport(config.NewStaticSource(cfg))},
+		{"default transport from the default options", config.NewHTTPTransport(config.NewStaticSource(config.New(config.NewDefaultOptions())))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			original := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = original })
+			http.DefaultTransport = tc.transport
+
+			client := newUpstreamHTTPClient(t.Context(), cfg)
+			t.Cleanup(client.CloseIdleConnections)
+
+			res, err := client.Get(customSrv.URL)
+			if assert.NoError(t, err, "should trust the configured CA") {
+				_ = res.Body.Close()
+			}
+
+			_, err = client.Get(derivedURL)
+			var verificationErr *tls.CertificateVerificationError
+			assert.ErrorAs(t, err, &verificationErr, "should not trust the derived CA")
 		})
 	}
 }
