@@ -14,6 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -84,12 +85,13 @@ func (w *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.Bootstr
 		}.Encode(),
 	})
 
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = config.TLSClientConfig
-	transport.Dial = nil
-	transport.DialContext = nil
-	transport.DialTLS = nil
-	transport.DialTLSContext = nil
+	transport := httputil.NewTransport(func(transport *http.Transport) {
+		transport.TLSClientConfig = config.TLSClientConfig
+		transport.Dial = nil
+		transport.DialContext = nil
+		transport.DialTLS = nil
+		transport.DialTLSContext = nil
+	})
 
 	client := &http.Client{
 		Transport: &roundTripper{

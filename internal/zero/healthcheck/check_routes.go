@@ -15,6 +15,7 @@ import (
 	"github.com/go-jose/go-jose/v3"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -49,16 +50,15 @@ const (
 func getPingHTTPClient() *http.Client {
 	return &http.Client{
 		Timeout: connectionTimeout,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return (&net.Dialer{
-					Timeout: connectionTimeout,
-				}).DialContext(ctx, network, addr)
-			},
-		},
+		Transport: httputil.NewTransport(func(transport *http.Transport) {
+			// we must reach our own routes directly, not via HTTP(S)_PROXY
+			transport.Proxy = nil
+			transport.ForceAttemptHTTP2 = false
+			transport.DialContext = (&net.Dialer{
+				Timeout: connectionTimeout,
+			}).DialContext
+			httputil.SetTLSClientConfig(transport, &tls.Config{InsecureSkipVerify: true})
+		}),
 	}
 }
 
