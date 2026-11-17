@@ -138,7 +138,7 @@ func New(
 		trace:                   tracerProvider,
 		storage:                 NewStorage(client),
 		cipher:                  cipher,
-		hosts:                   NewHostInfo(cfg, upstreamHTTPClient),
+		hosts:                   NewHostInfo(cfg),
 		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
 		sessionExpiry:           cfg.Options.CookieExpire,
 		httpClient:              upstreamHTTPClient,

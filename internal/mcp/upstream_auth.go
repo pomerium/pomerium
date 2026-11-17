@@ -133,7 +133,7 @@ func NewUpstreamAuthHandler(
 	if err := h.updateDataBrokerClient(ctx, cfg); err != nil {
 		return nil, err
 	}
-	h.hosts = NewHostInfo(cfg, h.httpClient)
+	h.hosts = NewHostInfo(cfg)
 	h.asMetadataDomainMatcher.Store(NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains()))
 	return h, nil
 }
