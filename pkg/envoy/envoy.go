@@ -31,6 +31,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/recording"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
@@ -158,13 +159,13 @@ func NewServer(
 }
 
 func envoyAdminClient(adminAddress netutil.InternalAddress) *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return adminAddress.Dial(ctx)
-			},
-		},
-	}
+	return &http.Client{Transport: httputil.NewTransport(func(transport *http.Transport) {
+		// there are the local envoy instance, don't route them via HTTP(S)_PROXY
+		transport.Proxy = nil
+		transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return adminAddress.Dial(ctx)
+		}
+	})}
 }
 
 func Drain(adminAddress netutil.InternalAddress) error {

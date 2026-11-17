@@ -50,6 +50,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -149,15 +150,12 @@ func newKubernetesHTTPClient(p kubernetesInClusterParams) (*http.Client, error) 
 	if err != nil {
 		return nil, fmt.Errorf("load kubernetes cluster CA: %w", err)
 	}
-	transport := http.DefaultTransport.(interface{ Clone() *http.Transport }).Clone()
-	// http.DefaultTransport may be config.NewHTTPTransport's transport (see
-	// pkg/cmd/pomerium), whose DialTLSContext is pinned to the global CA pool
-	// and takes precedence over TLSClientConfig.
-	transport.DialTLSContext = nil
-	transport.TLSClientConfig = &tls.Config{
-		RootCAs:    rootCAs,
-		MinVersion: tls.VersionTLS12,
-	}
+	transport := httputil.NewTransport(func(transport *http.Transport) {
+		httputil.SetTLSClientConfig(transport, &tls.Config{
+			RootCAs:    rootCAs,
+			MinVersion: tls.VersionTLS12,
+		})
+	})
 	return &http.Client{Transport: &kubernetesAuthRoundTripper{
 		base:      transport,
 		tokenFile: p.tokenFile,
