@@ -995,15 +995,23 @@ func TestProp_ScrubSensitive_NoLeakage(t *testing.T) {
 type routeCRUDPropCapture struct {
 	configconnect.UnimplementedConfigServiceHandler
 	stored         atomic.Pointer[configpb.Route]
-	getErr         atomic.Value // error or nil
+	getErr         atomic.Pointer[error]
 	receivedUpdate atomic.Pointer[configpb.Route]
 }
 
+// reset prepares the capture for a new property test case. The MCP server
+// is built once per property test (building it regenerates every tool
+// schema, which dominates runtime) and shared across the sequentially-run
+// cases, so per-case state lives here and must be reset.
+func (s *routeCRUDPropCapture) reset(stored *configpb.Route, getErr error) {
+	s.stored.Store(stored)
+	s.getErr.Store(&getErr)
+	s.receivedUpdate.Store(nil)
+}
+
 func (s *routeCRUDPropCapture) GetRoute(_ context.Context, req *connect.Request[configpb.GetRouteRequest]) (*connect.Response[configpb.GetRouteResponse], error) {
-	if v := s.getErr.Load(); v != nil {
-		if e, ok := v.(error); ok && e != nil {
-			return nil, e
-		}
+	if e := s.getErr.Load(); e != nil && *e != nil {
+		return nil, *e
 	}
 	got := s.stored.Load()
 	if got == nil || got.GetId() != req.Msg.Id {
@@ -1034,6 +1042,8 @@ func (s *routeCRUDPropCapture) UpdateRoute(_ context.Context, req *connect.Reque
 // always be present and Get to always succeed; a failure there is a new
 // merge-recursion or oneof-handling bug.
 func TestProp_UpdateRoute_PreservesSensitive(t *testing.T) {
+	impl := &routeCRUDPropCapture{}
+	session := connectMCP(t, newTestServer(t, impl))
 	hegel.Test(t, func(ht *hegel.T) {
 		// Populate sentinels.
 		tlsKey := sensitiveSentinel(ht, "TLS")
@@ -1101,14 +1111,13 @@ func TestProp_UpdateRoute_PreservesSensitive(t *testing.T) {
 		// its err path so the registry's fail-closed guard fires.
 		getFails := hegel.Draw(ht, hegel.Booleans())
 
-		// Set up the in-process MCP server with the chosen behaviors.
-		impl := &routeCRUDPropCapture{}
-		impl.stored.Store(stored)
+		// Configure the shared fake with the chosen behaviors.
+		var getErr error
 		if getFails {
-			impl.getErr.Store(error(connect.NewError(connect.CodeUnavailable, errors.New("get fails"))))
+			getErr = connect.NewError(connect.CodeUnavailable, errors.New("get fails"))
 		}
+		impl.reset(stored, getErr)
 
-		session := connectMCP(t, newTestServer(t, impl))
 		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
 
@@ -1171,6 +1180,8 @@ func TestProp_UpdateRoute_PreservesSensitive(t *testing.T) {
 // If Hegel finds a counterexample here, it's a new merge-recursion or
 // oneof-handling bug.
 func TestProp_UpdateRoute_PreservesSensitive_HappyPath(t *testing.T) {
+	impl := &routeCRUDPropCapture{}
+	session := connectMCP(t, newTestServer(t, impl))
 	hegel.Test(t, func(ht *hegel.T) {
 		tlsKey := sensitiveSentinel(ht, "TLS")
 		k8sToken := sensitiveSentinel(ht, "K8S")
@@ -1235,10 +1246,8 @@ func TestProp_UpdateRoute_PreservesSensitive_HappyPath(t *testing.T) {
 			overlay["mcp"] = mcpOverlay
 		}
 
-		impl := &routeCRUDPropCapture{}
-		impl.stored.Store(stored)
+		impl.reset(stored, nil)
 
-		session := connectMCP(t, newTestServer(t, impl))
 		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 
@@ -71,10 +72,21 @@ type OutboundOptions struct {
 
 // NewOutboundGRPCClientConn gets a new outbound gRPC client.
 func NewOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other ...grpc.DialOption) (*grpc.ClientConn, error) {
+	dialOptions := append([]grpc.DialOption{
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: backoff.Config{
+				BaseDelay:  50 * time.Millisecond,
+				MaxDelay:   2 * time.Second,
+				Multiplier: 1.6, // default for gRPC
+				Jitter:     0.2, // default for gRPC
+			},
+			MinConnectTimeout: 20 * time.Second, // default for gRPC
+		}),
+	}, other...)
 	return NewGRPCClientConn(ctx, &Options{
 		Address:      net.JoinHostPort("127.0.0.1", opts.OutboundPort),
 		SignedJWTKey: opts.SignedJWTKey,
-	}, other...)
+	}, dialOptions...)
 }
 
 // CachedOutboundGRPClientConn keeps a cached outbound gRPC client connection open based on options.

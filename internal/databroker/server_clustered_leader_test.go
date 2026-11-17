@@ -1,6 +1,8 @@
 package databroker_test
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,6 +21,15 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
+
+type clusteredLeaderTestServer struct {
+	databroker.Server
+	serverInfo func(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error)
+}
+
+func (srv *clusteredLeaderTestServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
+	return srv.serverInfo(ctx, req)
+}
 
 func TestClusteredLeaderServer(t *testing.T) {
 	t.Parallel()
@@ -40,7 +51,6 @@ func TestClusteredLeaderServer(t *testing.T) {
 
 		assert.Empty(t, cmp.Diff(res1, res2, protocmp.Transform()))
 	})
-
 	t.Run("checkpoints", func(t *testing.T) {
 		t.Parallel()
 
@@ -90,5 +100,15 @@ func TestClusteredLeaderServer(t *testing.T) {
 		res, err := stream.Recv()
 		assert.Equal(t, codes.Canceled.String(), status.Code(err).String())
 		assert.Nil(t, res)
+	})
+	t.Run("handles checkpoint errors", func(t *testing.T) {
+		t.Parallel()
+		local := &clusteredLeaderTestServer{
+			serverInfo: func(_ context.Context, _ *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
+				return nil, fmt.Errorf("SERVER_INFO_ERROR")
+			},
+		}
+		leader := databroker.NewClusteredLeaderServer(local)
+		leader.Stop() // previously there was a bug in the code that caused this method to never complete
 	})
 }
