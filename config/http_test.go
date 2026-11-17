@@ -75,4 +75,8 @@ func TestPolicyHTTPTransport(t *testing.T) {
 		})
 		assert.NoError(t, err)
 	})
+	t.Run("no proxy", func(t *testing.T) {
+		transport := NewPolicyHTTPTransport(&Options{}, &Policy{}, false)
+		assert.Nil(t, transport.(*http.Transport).Proxy)
+	})
 }

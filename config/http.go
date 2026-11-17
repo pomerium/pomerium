@@ -54,6 +54,8 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool)
 	transport := http.DefaultTransport.(interface {
 		Clone() *http.Transport
 	}).Clone()
+	// route upstreams are reached directly, as envoy reaches them, not via HTTP(S)_PROXY
+	transport.Proxy = nil
 	c := tripper.NewChain()
 
 	// according to the docs:

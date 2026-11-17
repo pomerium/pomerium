@@ -25,16 +25,32 @@ import (
 // This is used to forward requests to Kubernetes with headers split to multiple values instead of coalesced via a
 // comma. (https://github.com/kubernetes/kubernetes/issues/94683) If the upstream issue is fixed we will remove this.
 type Handler struct {
-	mu       sync.RWMutex
-	key      []byte
-	options  *config.Options
-	policies map[string]*config.Policy
+	mu     sync.RWMutex
+	key    []byte
+	routes map[string]*route
+}
+
+// route holds the destinations and transports for a kubernetes policy, built
+// once per configuration so that upstream connections are reused across
+// requests.
+type route struct {
+	dsts             []url.URL
+	transport        http.RoundTripper
+	transportNoHTTP2 http.RoundTripper
+}
+
+func (rt *route) closeIdleConnections() {
+	for _, t := range []http.RoundTripper{rt.transport, rt.transportNoHTTP2} {
+		if c, ok := t.(interface{ CloseIdleConnections() }); ok {
+			c.CloseIdleConnections()
+		}
+	}
 }
 
 // New creates a new Handler.
 func New() *Handler {
 	h := new(Handler)
-	h.policies = make(map[string]*config.Policy)
+	h.routes = make(map[string]*route)
 	return h
 }
 
@@ -76,11 +92,10 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 		}
 
 		h.mu.RLock()
-		options := h.options
-		policy, ok := h.policies[policyID]
+		rt, ok := h.routes[policyID]
 		h.mu.RUnlock()
 
-		if !ok || !policy.IsForKubernetes() {
+		if !ok {
 			return httputil.NewError(http.StatusNotFound, errors.New("policy not found"))
 		}
 
@@ -97,23 +112,20 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 			}
 		}
 
-		var dsts []url.URL
-		for _, wu := range policy.To {
-			dsts = append(dsts, wu.URL)
-		}
-		if len(dsts) == 0 {
+		if len(rt.dsts) == 0 {
 			return httputil.NewError(http.StatusNotFound, errors.New("policy destination not found"))
 		}
 		// regular rand is fine for this
-		dst := dsts[rand.Intn(len(dsts))] //nolint:gosec
-
-		// when SPDY is being used, disable HTTP/2 because the two can't be used together with the reverse proxy
-		// Issue #2126
-		disableHTTP2 := isSPDY(r) || isWebsocket(r)
+		dst := rt.dsts[rand.Intn(len(rt.dsts))] //nolint:gosec
 
 		h := stdhttputil.NewSingleHostReverseProxy(&dst)
 		h.ErrorLog = stdlog.New(log.Logger(), "", 0)
-		h.Transport = config.NewPolicyHTTPTransport(options, policy, disableHTTP2)
+		h.Transport = rt.transport
+		// when SPDY is being used, disable HTTP/2 because the two can't be used together with the reverse proxy
+		// Issue #2126
+		if isSPDY(r) || isWebsocket(r) {
+			h.Transport = rt.transportNoHTTP2
+		}
 		h.ServeHTTP(w, r)
 		return nil
 	})
@@ -121,19 +133,36 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 
 // Update updates the handler with new configuration.
 func (h *Handler) Update(ctx context.Context, cfg *config.Config) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.key, _ = cfg.Options.GetSharedKey()
-	h.options = cfg.Options
-	h.policies = make(map[string]*config.Policy, cfg.Options.NumPolicies())
+	key, _ := cfg.Options.GetSharedKey()
+	routes := make(map[string]*route)
 	for p := range cfg.Options.GetAllPolicies() {
+		if !p.IsForKubernetes() {
+			continue
+		}
 		id, err := p.RouteID()
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("reproxy: error getting route id")
 			continue
 		}
-		h.policies[id] = p
+		rt := &route{
+			transport:        config.NewPolicyHTTPTransport(cfg.Options, p, false),
+			transportNoHTTP2: config.NewPolicyHTTPTransport(cfg.Options, p, true),
+		}
+		for _, wu := range p.To {
+			rt.dsts = append(rt.dsts, wu.URL)
+		}
+		routes[id] = rt
+	}
+
+	h.mu.Lock()
+	previous := h.routes
+	h.key, h.routes = key, routes
+	h.mu.Unlock()
+
+	// requests still in flight on the previous transports keep their
+	// connections; idle ones are closed now
+	for _, rt := range previous {
+		rt.closeIdleConnections()
 	}
 }
 
