@@ -112,15 +112,14 @@ func (r *tsRouter) updateLocked() {
 
 	var wg sync.WaitGroup
 	// stop listeners
-	for h, l := range r.listeners {
+	for h, ol := range r.listeners {
 		nl, ok := newListeners[h]
-		if ok && l.Equal(nl) {
-			l.certificates.Store(new(certificates))
-			newListeners[h] = l
+		if ok && ol.Equal(nl) {
+			ol.certificates.Store(new(certificates))
 			continue
 		}
-		log.Ctx(ctx).Info().Str("hostname", l.Settings.Hostname.Value).Msg("stopping tailscale listener")
-		wg.Go(l.Stop)
+		log.Ctx(ctx).Info().Str("hostname", ol.Settings.Hostname.Value).Msg("stopping tailscale listener")
+		wg.Go(ol.Stop)
 		delete(r.listeners, h)
 	}
 	wg.Wait()
@@ -133,10 +132,9 @@ func (r *tsRouter) updateLocked() {
 		}
 		log.Ctx(ctx).Info().Str("hostname", nl.Settings.Hostname.Value).Msg("starting tailscale listener")
 		wg.Go(func() { nl.Start(r.runCtx) })
+		r.listeners[h] = nl
 	}
 	wg.Wait()
-
-	r.listeners = newListeners
 }
 
 func getCertificates(cfg *config.Config) ([]tls.Certificate, error) {
