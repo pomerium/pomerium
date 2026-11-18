@@ -158,7 +158,9 @@ func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBroker
 			if err != nil {
 				return fmt.Errorf("failed to start tailnet listener: %w", err)
 			}
-			l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value)
+			localIsInsecure := l.Insecure
+			remoteIsInsecure := l.Settings.TerminateTLS.Value || l.Insecure
+			l.handleListener(ctx, li, localIsInsecure, remoteIsInsecure)
 			return nil
 		})
 	}
@@ -176,7 +178,9 @@ func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBroker
 			if err != nil {
 				return fmt.Errorf("failed to start tailnet funnel listener: %w", err)
 			}
-			l.handleListener(ctx, li, false)
+			localIsInsecure := l.Insecure
+			remoteIsInsecure := true // for funnels TLS is always terminated by the funnel
+			l.handleListener(ctx, li, localIsInsecure, remoteIsInsecure)
 			return nil
 		})
 	}
@@ -191,7 +195,9 @@ func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBroker
 			if err != nil {
 				return fmt.Errorf("error starting tailnet service listener: %w", err)
 			}
-			l.handleListener(ctx, li, !l.Settings.TerminateTLS.Value)
+			localIsInsecure := l.Insecure
+			remoteIsInsecure := l.Settings.TerminateTLS.Value || l.Insecure
+			l.handleListener(ctx, li, localIsInsecure, remoteIsInsecure)
 			return nil
 		})
 	}
@@ -200,7 +206,7 @@ func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBroker
 	return context.Cause(ctx)
 }
 
-func (l *tsListener) handleListener(ctx context.Context, li net.Listener, rawTCP bool) {
+func (l *tsListener) handleListener(ctx context.Context, li net.Listener, localIsInsecure, remoteIsInsecure bool) {
 	cleanup := context.AfterFunc(ctx, func() { _ = li.Close() })
 	defer cleanup()
 
@@ -210,7 +216,7 @@ func (l *tsListener) handleListener(ctx context.Context, li net.Listener, rawTCP
 		if err == nil {
 			b.Reset()
 			l.runTillDone(ctx, func() error {
-				l.handleConn(ctx, conn, rawTCP)
+				l.handleConn(ctx, conn, localIsInsecure, remoteIsInsecure)
 				return nil
 			})
 		} else {
@@ -232,7 +238,7 @@ func (l *tsListener) handleListener(ctx context.Context, li net.Listener, rawTCP
 	}
 }
 
-func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP bool) {
+func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, localIsInsecure, remoteIsInsecure bool) {
 	ctx, op := l.telemetry.Start(ctx, "handleConn",
 		attribute.String("local-addr", remote.LocalAddr().String()),
 		attribute.String("remote-addr", remote.RemoteAddr().String()),
@@ -245,7 +251,7 @@ func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP boo
 	cleanupRemote := context.AfterFunc(ctx, func() { _ = remote.Close() })
 	defer cleanupRemote()
 
-	local, err := l.dialLocal(ctx, remote, rawTCP)
+	local, err := l.dialLocal(ctx, remote, localIsInsecure, remoteIsInsecure)
 	if err != nil {
 		_ = op.Failure(fmt.Errorf("failed to connect to server: %w", err))
 		return
@@ -263,11 +269,7 @@ func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP boo
 	}
 }
 
-func (l *tsListener) dialLocal(ctx context.Context, remote net.Conn, rawTCP bool) (local net.Conn, err error) {
-	if rawTCP && l.Insecure {
-		return nil, fmt.Errorf("tailscale is only supported with insecure_server when TLS is terminated")
-	}
-
+func (l *tsListener) dialLocal(ctx context.Context, remote net.Conn, localIsInsecure, remoteIsInsecure bool) (local net.Conn, err error) {
 	var d net.Dialer
 	local, err = d.DialContext(ctx, "tcp", l.ServerAddr)
 	if err != nil {
@@ -283,12 +285,18 @@ func (l *tsListener) dialLocal(ctx context.Context, remote net.Conn, rawTCP bool
 		}
 	}
 
-	if rawTCP || l.Insecure {
-		// raw TCP: Pomerium terminates TLS, so pass the stream through.
-		// insecure: Pomerium serves plain HTTP, which is what Tailscale hands us.
+	if localIsInsecure == remoteIsInsecure {
+		// if both local and remote are using TLS,
+		// or if both local and remote are not using TLS,
+		// just forward the traffic
 		return local, nil
 	}
 
+	if localIsInsecure {
+		return nil, fmt.Errorf("a local plaintext connection with a remote tls connection is not currently supported")
+	}
+
+	// remote traffic will be plaintext, but local expects TLS
 	tlsConn := tls.Client(local, &tls.Config{InsecureSkipVerify: true})
 	err = tlsConn.HandshakeContext(ctx)
 	if err != nil {
