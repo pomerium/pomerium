@@ -14,7 +14,7 @@ func TestBlockPortAllocator(t *testing.T) {
 
 	b := netutil.NewBlockPortAllocator(
 		netutil.WithBlockPortAllocatorBlockSize(10),
-		netutil.WithBlockPortAllocatorMinPort(20_005),
+		netutil.WithBlockPortAllocatorMinPort(20_000),
 		netutil.WithBlockPortAllocatorMaxPort(20_093),
 		netutil.WithBlockPortAllocatorRandomSource(rand.NewPCG(1, 1)),
 		netutil.WithBlockPortAllocatorReserver(func(u uint16) (releaser func(), ok bool) {
@@ -32,7 +32,7 @@ func TestBlockPortAllocator(t *testing.T) {
 
 	expect := []uint16{
 		20_091, 20_092, 20_093,
-		20_005, 20_006, 20_007, 20_008, 20_009,
+		20_001, 20_002, 20_003, 20_004, 20_005, 20_006, 20_007, 20_008, 20_009,
 		20_041, 20_042, 20_043, 20_044, 20_045, 20_046, 20_047, 20_048, 20_049,
 		20_061, 20_062, 20_063, 20_064, 20_068, 20_069,
 		20_011, 20_012, 20_013, 20_014, 20_015, 20_016, 20_017, 20_018, 20_019,

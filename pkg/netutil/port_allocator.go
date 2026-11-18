@@ -134,7 +134,7 @@ func NewBlockPortAllocator(options ...BlockPortAllocatorOption) PortAllocator {
 
 	for i := int(b.minPort); i <= int(b.maxPort); i++ {
 		p := uint16(i)
-		if len(b.available) == 0 || (b.available[len(b.available)-1].last-b.available[len(b.available)-1].first) >= b.blockSize {
+		if len(b.available) == 0 || (b.available[len(b.available)-1].last-b.available[len(b.available)-1].first) >= (b.blockSize-1) {
 			b.available = append(b.available, portBlock{
 				first: p,
 				last:  p,
