@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"iter"
 	"maps"
-	"net/http"
 	"net/url"
 	"path"
 	"sync/atomic"
@@ -14,8 +13,6 @@ import (
 )
 
 type HostInfo struct {
-	httpClient *http.Client
-
 	servers atomic.Pointer[map[string]ServerHostInfo]
 	clients atomic.Pointer[map[string]ClientHostInfo]
 }
@@ -86,11 +83,8 @@ func NewServerHostInfoFromPolicy(p *config.Policy) (ServerHostInfo, error) {
 
 type ClientHostInfo struct{}
 
-func NewHostInfo(
-	cfg *config.Config,
-	httpClient *http.Client,
-) *HostInfo {
-	h := &HostInfo{httpClient: httpClient}
+func NewHostInfo(cfg *config.Config) *HostInfo {
+	h := &HostInfo{}
 	h.OnConfigChange(cfg)
 	return h
 }

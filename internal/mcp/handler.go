@@ -55,9 +55,7 @@ type Handler struct {
 	clientMetadataFetcher *ClientMetadataFetcher
 	getAuthenticator      AuthenticatorGetter
 	sessionExpiry         time.Duration
-	// httpClient is used for upstream discovery fetches and for the portal-triggered
-	// upstream token refresh. It trusts the CAs configured in the options, the same
-	// way UpstreamAuthHandler's client does.
+	// httpClient is used for upstream discovery, client registration and token requests.
 	httpClient              *http.Client
 	asMetadataDomainMatcher *DomainMatcher
 	dcrEnabled              bool
@@ -90,24 +88,20 @@ func WithSessionExpiry(d time.Duration) HandlerOption {
 	}
 }
 
-// WithHTTPClient sets the HTTP client used for upstream discovery fetches.
-func WithHTTPClient(client *http.Client) HandlerOption {
-	return func(h *Handler) {
-		h.httpClient = client
-	}
-}
-
 // SetClientMetadataFetcher replaces the client metadata fetcher.
 // This is exposed for testing purposes only.
 func (h *Handler) SetClientMetadataFetcher(fetcher *ClientMetadataFetcher) {
 	h.clientMetadataFetcher = fetcher
 }
 
+// New creates a Handler. httpClient is used for requests to upstream servers,
+// and for client metadata fetches when InsecureSkipMCPMetadataSSRFCheck is set.
 func New(
 	ctx context.Context,
 	prefix string,
 	cfg *config.Config,
 	client databroker.ClientGetter,
+	httpClient *http.Client,
 	opts ...HandlerOption,
 ) (*Handler, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "MCP")
@@ -124,24 +118,22 @@ func New(
 	// where test servers run on localhost.
 	var cimdHTTPClient *http.Client
 	if cfg.Options.InsecureSkipMCPMetadataSSRFCheck {
-		cimdHTTPClient = http.DefaultClient
+		cimdHTTPClient = httpClient
 	} else {
-		cimdHTTPClient = NewSSRFSafeClient()
+		cimdHTTPClient = ssrfSafeClient()
 	}
 
 	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
-
-	upstreamHTTPClient := newUpstreamHTTPClient(ctx, cfg)
 
 	h := &Handler{
 		prefix:                  prefix,
 		trace:                   tracerProvider,
 		storage:                 NewStorage(client),
 		cipher:                  cipher,
-		hosts:                   NewHostInfo(cfg, upstreamHTTPClient),
+		hosts:                   NewHostInfo(cfg),
 		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
 		sessionExpiry:           cfg.Options.CookieExpire,
-		httpClient:              upstreamHTTPClient,
+		httpClient:              httpClient,
 		asMetadataDomainMatcher: asDomainMatcher,
 		dcrEnabled: cfg.Options.IsRuntimeFlagSet(
 			config.RuntimeFlagMCPDynamicClientRegistration,
