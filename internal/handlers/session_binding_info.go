@@ -39,3 +39,34 @@ func ServeSessionBindingInfo(data SessionInfoData) http.Handler {
 		return ui.ServePage(w, r, "SessionBindingInfo", "Session Bindings", data.ToJSON())
 	})
 }
+
+type BindingInfoData struct {
+	UserInfoData
+	RevokeSessionBindingURL  string
+	RevokeIdentityBindingURL string
+	CurrentIDPSessionID      string
+	IDPSessionData           []IDPSessionData
+	BindingData              []SessionBindingData
+}
+
+type IDPSessionData struct {
+	IDPSessionID  string
+	SID           string
+	ClientAddress string
+	Resource      string
+	InitiatedAt   string
+}
+
+// temporary struct to make build pass
+type SessionBindingDataV2 struct {
+	IDPSessionID     string
+	SessionBindingID string
+	Protocol         string
+	Resource         string
+	ClientAddress    string
+	InitiatedAt      string
+	ExpiresAt        string
+	// IsCurrentBrowser   bool
+	HasIdentityBinding bool
+	DetailsSSH         *ProtocolDetailsSSH
+}
