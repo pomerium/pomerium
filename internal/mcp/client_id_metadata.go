@@ -81,7 +81,7 @@ type ClientMetadataFetcher struct {
 }
 
 // NewClientMetadataFetcher creates a new ClientMetadataFetcher.
-// httpClient must be non-nil and should be an SSRF-safe client (e.g. from NewSSRFSafeClient()).
+// httpClient must be non-nil and should be an SSRF-safe client (e.g. ssrfSafeClient()).
 // If domainMatcher is nil, all domains are rejected (empty allowlist behavior).
 func NewClientMetadataFetcher(httpClient *http.Client, domainMatcher *DomainMatcher) *ClientMetadataFetcher {
 	if httpClient == nil {

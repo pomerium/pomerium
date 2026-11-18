@@ -83,7 +83,8 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	p.currentConfig.Store(config.New(config.NewDefaultOptions()))
 	p.currentRouter.Store(httputil.NewRouter())
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p,
+		// pkg/cmd/pomerium makes http.DefaultClient trust the CAs of the current config
+		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p, http.DefaultClient,
 			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
 				return cfg.Options.GetAuthenticator(ctx, tracerProvider, idpID)
 			}),
@@ -131,7 +132,8 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	p.state.Store(state)
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p,
+		// pkg/cmd/pomerium makes http.DefaultClient trust the CAs of the current config
+		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p, http.DefaultClient,
 			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
 				return cfg.Options.GetAuthenticator(ctx, p.tracerProvider, idpID)
 			}),

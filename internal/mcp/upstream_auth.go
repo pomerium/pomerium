@@ -96,14 +96,6 @@ type UpstreamAuthHandler struct {
 // UpstreamAuthHandlerOption configures an UpstreamAuthHandler.
 type UpstreamAuthHandlerOption func(*UpstreamAuthHandler)
 
-// WithUpstreamHTTPClient sets the HTTP client used for upstream discovery and
-// token refresh. By default http.DefaultClient is used.
-func WithUpstreamHTTPClient(client *http.Client) UpstreamAuthHandlerOption {
-	return func(h *UpstreamAuthHandler) {
-		h.httpClient = client
-	}
-}
-
 // WithStorage replaces the handler's storage (for tests)
 func WithStorage(storage HandlerStorage) UpstreamAuthHandlerOption {
 	return func(h *UpstreamAuthHandler) {
@@ -111,21 +103,21 @@ func WithStorage(storage HandlerStorage) UpstreamAuthHandlerOption {
 	}
 }
 
-// NewUpstreamAuthHandler creates an UpstreamAuthHandler for cfg.
+// NewUpstreamAuthHandler creates an UpstreamAuthHandler for cfg. httpClient is
+// used for upstream discovery and token refresh.
 func NewUpstreamAuthHandler(
 	ctx context.Context,
 	cfg *config.Config,
+	httpClient *http.Client,
 	opts ...UpstreamAuthHandlerOption,
 ) (*UpstreamAuthHandler, error) {
 	h := &UpstreamAuthHandler{
+		httpClient:             httpClient,
 		tracerProvider:         trace.NewTracerProvider(ctx, "MCP-ExtProc"),
 		outboundGRPCConnection: grpc.CachedOutboundGRPClientConn{Name: "mcp-extproc"},
 	}
 	for _, opt := range opts {
 		opt(h)
-	}
-	if h.httpClient == nil {
-		h.httpClient = http.DefaultClient
 	}
 	if h.storage == nil {
 		h.storage = NewStorage(h) // the handler resolves its own client per use

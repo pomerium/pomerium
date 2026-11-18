@@ -71,9 +71,9 @@ func (t *httpsOnlyTransport) RoundTrip(req *http.Request) (*http.Response, error
 
 // ssrfSafeClient returns a process-wide SSRF-safe client, so that its
 // connections are reused across handlers.
-var ssrfSafeClient = sync.OnceValue(NewSSRFSafeClient)
+var ssrfSafeClient = sync.OnceValue(newSSRFSafeClient)
 
-// NewSSRFSafeClient creates an *http.Client that enforces HTTPS-only requests,
+// newSSRFSafeClient creates an *http.Client that enforces HTTPS-only requests,
 // blocks connections to private/loopback/internal IP addresses, and refuses
 // to follow HTTP redirects.
 //
@@ -81,7 +81,7 @@ var ssrfSafeClient = sync.OnceValue(NewSSRFSafeClient)
 // RFC 9728 §3.2) require a successful response to use 200 OK. Following
 // redirects would also undermine SSRF protection by allowing an attacker-
 // controlled endpoint to bounce requests to internal services.
-func NewSSRFSafeClient() *http.Client {
+func newSSRFSafeClient() *http.Client {
 	dialer := &net.Dialer{
 		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,

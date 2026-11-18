@@ -1238,7 +1238,7 @@ func newTestUpstreamAuthHandler(t *testing.T, cfg *config.Config, store HandlerS
 	t.Helper()
 	cfg.Options.MCPAllowedASMetadataDomains = []string{"127.0.0.1"}
 	cfg.Options.SharedKey = cryptutil.NewBase64Key()
-	h, err := NewUpstreamAuthHandler(t.Context(), cfg, WithStorage(store), WithUpstreamHTTPClient(httpClient))
+	h, err := NewUpstreamAuthHandler(t.Context(), cfg, httpClient, WithStorage(store))
 	require.NoError(t, err)
 	return h
 }

@@ -1,10 +1,12 @@
 package mcp
 
 import (
+	"crypto/cipher"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/oauth21"
 	"github.com/pomerium/pomerium/internal/opaquetoken"
 )
@@ -38,20 +40,53 @@ func CheckPKCE(
 	return nil
 }
 
+// AccessTokens seals and opens the MCP access tokens that the Handler issues.
+// The authorize service uses it to read them without a Handler.
+type AccessTokens struct {
+	cipher cipher.AEAD
+}
+
+// NewAccessTokens creates AccessTokens keyed by the shared secret of cfg.
+func NewAccessTokens(cfg *config.Config) (*AccessTokens, error) {
+	c, err := getCipher(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("get cipher: %w", err)
+	}
+	return &AccessTokens{cipher: c}, nil
+}
+
 // GetAccessTokenForSession returns an access token for a given session and expiration time.
-func (srv *Handler) GetAccessTokenForSession(sessionID string, sessionExpiresAt time.Time) (string, error) {
-	return srv.GetAccessTokenForSessionWithVersion(sessionID, 0, sessionExpiresAt)
+func (t AccessTokens) GetAccessTokenForSession(sessionID string, sessionExpiresAt time.Time) (string, error) {
+	return t.GetAccessTokenForSessionWithVersion(sessionID, 0, sessionExpiresAt)
 }
 
 // GetAccessTokenForSessionWithVersion returns an access token that also carries
 // the session's databroker record version, so the authorize service can read
 // the session with a read-your-writes (minimum-version) guarantee.
-func (srv *Handler) GetAccessTokenForSessionWithVersion(sessionID string, sessionRecordVersion uint64, sessionExpiresAt time.Time) (string, error) {
-	token, err := opaquetoken.Seal(opaquetoken.TypeAccess, sessionID, sessionExpiresAt, "", srv.cipher, sessionRecordVersion)
+func (t AccessTokens) GetAccessTokenForSessionWithVersion(sessionID string, sessionRecordVersion uint64, sessionExpiresAt time.Time) (string, error) {
+	token, err := opaquetoken.Seal(opaquetoken.TypeAccess, sessionID, sessionExpiresAt, "", t.cipher, sessionRecordVersion)
 	if err != nil {
 		return "", err
 	}
 	return accessTokenPrefix + token, nil
+}
+
+// GetSessionAndVersionFromAccessToken decrypts the access token and returns the
+// underlying session ID together with the databroker record version recorded at
+// issuance time (zero if none).
+func (t AccessTokens) GetSessionAndVersionFromAccessToken(accessToken string) (string, uint64, error) {
+	payload, err := opaquetoken.Open(opaquetoken.TypeAccess, strings.TrimPrefix(accessToken, accessTokenPrefix), t.cipher, "", time.Now())
+	if err != nil {
+		return "", 0, err
+	}
+
+	return payload.GetId(), payload.GetRecordVersion(), nil
+}
+
+// GetAccessTokenForSessionWithVersion is
+// AccessTokens.GetAccessTokenForSessionWithVersion with the Handler's cipher.
+func (srv *Handler) GetAccessTokenForSessionWithVersion(sessionID string, sessionRecordVersion uint64, sessionExpiresAt time.Time) (string, error) {
+	return AccessTokens{cipher: srv.cipher}.GetAccessTokenForSessionWithVersion(sessionID, sessionRecordVersion, sessionExpiresAt)
 }
 
 // CreateRefreshToken creates a refresh token for a given session and client.
@@ -75,14 +110,8 @@ func (srv *Handler) GetSessionIDFromAccessToken(accessToken string) (string, err
 	return sessionID, err
 }
 
-// GetSessionAndVersionFromAccessToken decrypts the access token and returns the
-// underlying session ID together with the databroker record version recorded at
-// issuance time (zero if none).
+// GetSessionAndVersionFromAccessToken is
+// AccessTokens.GetSessionAndVersionFromAccessToken with the Handler's cipher.
 func (srv *Handler) GetSessionAndVersionFromAccessToken(accessToken string) (string, uint64, error) {
-	payload, err := opaquetoken.Open(opaquetoken.TypeAccess, strings.TrimPrefix(accessToken, accessTokenPrefix), srv.cipher, "", time.Now())
-	if err != nil {
-		return "", 0, err
-	}
-
-	return payload.GetId(), payload.GetRecordVersion(), nil
+	return AccessTokens{cipher: srv.cipher}.GetSessionAndVersionFromAccessToken(accessToken)
 }

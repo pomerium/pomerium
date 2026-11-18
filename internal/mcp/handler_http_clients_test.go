@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,18 +10,18 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-// TestNewSharesHTTPClients checks that handlers rebuilt on config change share
-// their HTTP clients.
-func TestNewSharesHTTPClients(t *testing.T) {
+// TestNewSharesClientMetadataClient checks that handlers rebuilt on config
+// change fetch client metadata documents with the process-wide SSRF-safe
+// client.
+func TestNewSharesClientMetadataClient(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.New(config.NewDefaultOptions())
-	h1, err := New(t.Context(), DefaultPrefix, cfg, nil)
+	h1, err := New(t.Context(), DefaultPrefix, cfg, nil, http.DefaultClient)
 	require.NoError(t, err)
-	h2, err := New(t.Context(), DefaultPrefix, cfg, nil)
+	h2, err := New(t.Context(), DefaultPrefix, cfg, nil, http.DefaultClient)
 	require.NoError(t, err)
 
-	assert.Same(t, h1.httpClient, h2.httpClient, "should share the upstream client")
-	assert.Same(t, h1.clientMetadataFetcher.httpClient, h2.clientMetadataFetcher.httpClient,
-		"should share the client metadata client")
+	assert.Same(t, ssrfSafeClient(), h1.clientMetadataFetcher.httpClient)
+	assert.Same(t, ssrfSafeClient(), h2.clientMetadataFetcher.httpClient)
 }
