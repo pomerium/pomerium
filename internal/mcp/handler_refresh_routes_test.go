@@ -346,9 +346,7 @@ func TestRefreshRoutesMuxWiring(t *testing.T) {
 // client honors the CA configured in the options, the same way the ext_proc
 // UpstreamAuthHandler does. Otherwise a portal-triggered refresh against a token
 // endpoint signed by a private CA fails TLS while the ext_proc refresh succeeds.
-func TestNewRefreshHandlerTrustsConfiguredCA(t *testing.T) {
-	t.Parallel()
-
+func TestNewRefreshHandlerTrustsConfiguredCA(t *testing.T) { // not parallel: replaces http.DefaultTransport
 	tokenServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"access_token":"new","token_type":"Bearer"}`)
@@ -362,6 +360,15 @@ func TestNewRefreshHandlerTrustsConfiguredCA(t *testing.T) {
 
 	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.CA = base64.StdEncoding.EncodeToString(certPEM)
+
+	// the http.DefaultTransport that pkg/cmd/pomerium installs
+	original := http.DefaultTransport
+	transport := config.NewHTTPTransport(config.NewStaticSource(cfg))
+	t.Cleanup(func() {
+		http.DefaultTransport = original
+		transport.CloseIdleConnections()
+	})
+	http.DefaultTransport = transport
 
 	h, err := New(t.Context(), DefaultPrefix, cfg, nil)
 	require.NoError(t, err)

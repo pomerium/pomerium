@@ -56,8 +56,10 @@ type Handler struct {
 	getAuthenticator      AuthenticatorGetter
 	sessionExpiry         time.Duration
 	// httpClient is used for upstream discovery fetches and for the portal-triggered
-	// upstream token refresh. It trusts the CAs configured in the options, the same
-	// way UpstreamAuthHandler's client does.
+	// upstream token refresh. It is http.DefaultClient, the same as
+	// UpstreamAuthHandler's client. pkg/cmd/pomerium installs
+	// config.NewHTTPTransport as http.DefaultTransport, which trusts the CAs
+	// configured in the live options.
 	httpClient              *http.Client
 	asMetadataDomainMatcher *DomainMatcher
 	dcrEnabled              bool
@@ -126,12 +128,10 @@ func New(
 	if cfg.Options.InsecureSkipMCPMetadataSSRFCheck {
 		cimdHTTPClient = http.DefaultClient
 	} else {
-		cimdHTTPClient = NewSSRFSafeClient()
+		cimdHTTPClient = ssrfSafeClient()
 	}
 
 	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
-
-	upstreamHTTPClient := newUpstreamHTTPClient(ctx, cfg)
 
 	h := &Handler{
 		prefix:                  prefix,
@@ -141,7 +141,7 @@ func New(
 		hosts:                   NewHostInfo(cfg),
 		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
 		sessionExpiry:           cfg.Options.CookieExpire,
-		httpClient:              upstreamHTTPClient,
+		httpClient:              http.DefaultClient,
 		asMetadataDomainMatcher: asDomainMatcher,
 		dcrEnabled: cfg.Options.IsRuntimeFlagSet(
 			config.RuntimeFlagMCPDynamicClientRegistration,

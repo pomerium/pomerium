@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"sync"
 	"time"
 )
 
@@ -67,6 +68,10 @@ func (t *httpsOnlyTransport) RoundTrip(req *http.Request) (*http.Response, error
 	}
 	return t.base.RoundTrip(req)
 }
+
+// ssrfSafeClient returns a process-wide SSRF-safe client, so that its
+// connections are reused across handlers.
+var ssrfSafeClient = sync.OnceValue(NewSSRFSafeClient)
 
 // NewSSRFSafeClient creates an *http.Client that enforces HTTPS-only requests,
 // blocks connections to private/loopback/internal IP addresses, and refuses
