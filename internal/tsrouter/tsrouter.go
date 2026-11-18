@@ -39,6 +39,7 @@ func New(tracerProvider oteltrace.TracerProvider, options ...Option) TSRouter {
 		telemetry:      *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "tsrouter"),
 		databrokerConn: grpc.CachedOutboundGRPClientConn{Name: "tsrouter"},
 		tsRouterConfig: getTSRouterConfig(options...),
+		listeners:      make(map[string]*tsListener),
 	}
 }
 
@@ -75,7 +76,7 @@ func (r *tsRouter) updateLocked() {
 		for _, li := range r.listeners {
 			li.Stop()
 		}
-		r.listeners = nil
+		clear(r.listeners)
 		return
 	}
 
