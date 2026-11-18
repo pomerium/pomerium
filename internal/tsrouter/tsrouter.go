@@ -132,7 +132,7 @@ func (r *tsRouter) updateLocked() {
 			continue
 		}
 		log.Ctx(ctx).Info().Str("hostname", nl.Settings.Hostname.Value).Msg("starting tailscale listener")
-		wg.Go(func() { nl.Start(ctx) })
+		wg.Go(func() { nl.Start(r.runCtx) })
 	}
 	wg.Wait()
 
