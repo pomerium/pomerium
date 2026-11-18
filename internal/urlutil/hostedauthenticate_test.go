@@ -13,6 +13,10 @@ func TestIsHostedAuthenticateDomain(t *testing.T) {
 		assert.True(t, IsHostedAuthenticateDomain(domain), domain)
 	}
 
+	for _, domain := range []string{"Authenticate.Pomerium.App", "authenticate.pomerium.app."} {
+		assert.True(t, IsHostedAuthenticateDomain(domain), domain)
+	}
+
 	for _, domain := range []string{"authenticate.example.com", "foo.bar"} {
 		assert.False(t, IsHostedAuthenticateDomain(domain), domain)
 	}

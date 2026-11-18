@@ -20,7 +20,9 @@ import (
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/endpoints"
@@ -256,23 +258,45 @@ func (cfg *Config) resolveAuthenticateURL(tracerProvider oteltrace.TracerProvide
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid authenticate service url: %w", err)
 	}
-	ok, err := cfg.WillHaveCertificateForServerName(authenticateURL.Hostname())
+	transport, err := cfg.getAuthenticateTransport(authenticateURL.Hostname())
 	if err != nil {
-		return nil, nil, fmt.Errorf("error determining if authenticate service will have a certificate name: %w", err)
-	}
-	var transport *http.Transport
-	if ok {
-		transport, err = GetTLSClientTransport(cfg)
-		if err != nil {
-			return nil, nil, fmt.Errorf("get tls client config: %w", err)
-		}
-	} else {
-		transport = httputil.GetInsecureTransport()
+		return nil, nil, err
 	}
 	if cfg.Options.UseProxyProtocol {
 		transport = httputil.NewLocalProxyProtocolTransport(transport)
 	}
 	return authenticateURL, otelhttp.NewTransport(transport, otelhttp.WithTracerProvider(tracerProvider)), nil
+}
+
+func (cfg *Config) getAuthenticateTransport(serverName string) (*http.Transport, error) {
+	if urlutil.IsHostedAuthenticateDomain(serverName) {
+		// Hosted authenticate is an external service: trust only the system
+		// roots and the configured CA, and keep the default transport's proxy settings.
+		rootCAs, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
+		if err != nil {
+			log.Error().Err(err).Msg("config: error getting ca cert pool for hosted authenticate, using system roots")
+			rootCAs = nil // a nil pool verifies against the system roots
+		}
+		return httputil.NewTransport(func(transport *http.Transport) {
+			httputil.SetTLSClientConfig(transport, &tls.Config{
+				RootCAs:    rootCAs,
+				MinVersion: tls.VersionTLS12,
+			})
+		}), nil
+	}
+
+	ok, err := cfg.WillHaveCertificateForServerName(serverName)
+	if err != nil {
+		return nil, fmt.Errorf("error determining if authenticate service will have a certificate name: %w", err)
+	}
+	if !ok {
+		return httputil.GetInsecureTransport(), nil
+	}
+	transport, err := GetTLSClientTransport(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("get tls client config: %w", err)
+	}
+	return transport, nil
 }
 
 func getOneOf[OneOfContainer, OneOf, Value any](container OneOfContainer, _ OneOf, value Value) *Value {
