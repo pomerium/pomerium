@@ -6,9 +6,8 @@ import (
 	"slices"
 	"sync"
 
-	oteltrace "go.opentelemetry.io/otel/trace"
-
 	"github.com/rs/zerolog"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -100,6 +99,9 @@ func (r *tsRouter) updateLocked() {
 	for i, s := range r.cfg.Options.TailscaleListeners.Value {
 		nl, err := newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s, r.tsRouterConfig, cc)
 		if err != nil {
+			// stop the current listener
+			r.listeners[i].Stop()
+			r.listeners[i] = nil
 			_ = op.Failure(fmt.Errorf("error constructing listener: %w", err))
 			continue
 		}

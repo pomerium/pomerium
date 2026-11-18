@@ -202,6 +202,13 @@ func (l *tsListener) handleListener(ctx context.Context, li net.Listener, rawTCP
 			b.Reset()
 			l.wg.Go(func() { l.handleConn(ctx, conn, rawTCP) })
 		} else {
+			// if the reason we go an error is because the context is done, just return
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			log.Ctx(ctx).Error().
 				Err(err).
 				Msg("tsrouter: error accepting connection")
