@@ -91,7 +91,6 @@ func (l *tsListener) Start(ctx context.Context) {
 
 func (l *tsListener) Stop() {
 	if l.stop != nil {
-		log.Info().Msg("tsrouter: stopping listener")
 		l.stop(errStopped)
 		l.wg.Wait()
 	}

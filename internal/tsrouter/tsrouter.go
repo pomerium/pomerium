@@ -11,6 +11,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/grpc"
 )
@@ -79,7 +80,7 @@ func (r *tsRouter) updateLocked() {
 	}
 
 	// tailscale routing is enabled, start listeners
-	_, op := r.telemetry.Start(r.runCtx, "update")
+	ctx, op := r.telemetry.Start(r.runCtx, "update")
 	defer op.Complete()
 
 	sharedKey, err := r.cfg.Options.GetSharedKey()
@@ -104,22 +105,29 @@ func (r *tsRouter) updateLocked() {
 	}
 
 	// start new or updated listeners
+	var wg sync.WaitGroup
 	for i, s := range r.cfg.Options.TailscaleListeners.Value {
-		nl := newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s, r.tsRouterConfig, cc, certificates)
-		if i >= len(r.listeners) {
-			r.listeners = append(r.listeners, nl)
-			nl.Start(r.runCtx)
-		} else if !r.listeners[i].Equal(nl) {
-			r.listeners[i].Stop()
-			r.listeners[i] = nl
-			nl.Start(r.runCtx)
-		} else {
-			r.listeners[i].certificates.Store(nl.certificates.Load())
-		}
+		wg.Go(func() {
+			nl := newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s, r.tsRouterConfig, cc, certificates)
+			if i >= len(r.listeners) {
+				log.Ctx(ctx).Info().Str("hostname", s.Hostname.Value).Msg("starting listener")
+				r.listeners = append(r.listeners, nl)
+				nl.Start(r.runCtx)
+			} else if !r.listeners[i].Equal(nl) {
+				log.Ctx(ctx).Info().Str("hostname", s.Hostname.Value).Msg("restarting listener")
+				r.listeners[i].Stop()
+				r.listeners[i] = nl
+				nl.Start(r.runCtx)
+			} else {
+				r.listeners[i].certificates.Store(nl.certificates.Load())
+			}
+		})
 	}
+	wg.Wait()
 
 	// stop any old listeners
 	for i := len(r.cfg.Options.TailscaleListeners.Value); i < len(r.listeners); i++ {
+		log.Ctx(ctx).Info().Str("hostname", r.listeners[i].Settings.Hostname.Value).Msg("stopping listener")
 		r.listeners[i].Stop()
 		r.listeners[i] = nil
 	}
