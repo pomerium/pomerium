@@ -30,7 +30,7 @@ type tsRouter struct {
 	mu        sync.Mutex
 	runCtx    context.Context
 	cfg       *config.Config
-	listeners []*tsListener
+	listeners map[string]*tsListener // by hostname
 }
 
 // New creates a new TSRouter.
@@ -104,35 +104,35 @@ func (r *tsRouter) updateLocked() {
 		return
 	}
 
-	// start new or updated listeners
+	newListeners := map[string]*tsListener{}
+	for _, s := range r.cfg.Options.TailscaleListeners.Value {
+		newListeners[s.Hostname.Value] = newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s, r.tsRouterConfig, cc, certificates)
+	}
+
 	var wg sync.WaitGroup
-	for i, s := range r.cfg.Options.TailscaleListeners.Value {
-		wg.Go(func() {
-			nl := newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s, r.tsRouterConfig, cc, certificates)
-			if i >= len(r.listeners) {
-				log.Ctx(ctx).Info().Str("hostname", s.Hostname.Value).Msg("starting listener")
-				r.listeners = append(r.listeners, nl)
-				nl.Start(r.runCtx)
-			} else if !r.listeners[i].Equal(nl) {
-				log.Ctx(ctx).Info().Str("hostname", s.Hostname.Value).Msg("restarting listener")
-				r.listeners[i].Stop()
-				r.listeners[i] = nl
-				nl.Start(r.runCtx)
-			} else {
-				r.listeners[i].certificates.Store(nl.certificates.Load())
-			}
-		})
+	// stop listeners
+	for h, l := range r.listeners {
+		nl, ok := newListeners[h]
+		if ok && l.Equal(nl) {
+			l.certificates.Store(new(certificates))
+			continue
+		}
+		log.Ctx(ctx).Info().Str("hostname", l.Settings.Hostname.Value).Msg("stopping tailscale listener")
+		wg.Go(l.Stop)
+		delete(r.listeners, h)
+	}
+	// start listeners
+	for h, nl := range newListeners {
+		_, ok := r.listeners[h]
+		if ok {
+			continue
+		}
+		log.Ctx(ctx).Info().Str("hostname", nl.Settings.Hostname.Value).Msg("starting tailscale listener")
+		wg.Go(func() { nl.Start(ctx) })
 	}
 	wg.Wait()
 
-	// stop any old listeners
-	for i := len(r.cfg.Options.TailscaleListeners.Value); i < len(r.listeners); i++ {
-		log.Ctx(ctx).Info().Str("hostname", r.listeners[i].Settings.Hostname.Value).Msg("stopping listener")
-		r.listeners[i].Stop()
-		r.listeners[i] = nil
-	}
-
-	r.listeners = slices.DeleteFunc(r.listeners, func(l *tsListener) bool { return l == nil })
+	r.listeners = newListeners
 }
 
 func getCertificates(cfg *config.Config) ([]tls.Certificate, error) {

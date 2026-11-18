@@ -96,27 +96,6 @@ func (l *tsListener) Stop() {
 	}
 }
 
-// func (l *tsListener) init(cfg *config.Config, settings config.TailscaleListenerSettings) error {
-// 	_, op := l.telemetry.Start(context.Background(), "init")
-// 	defer op.Complete()
-
-// 	l.ServerAddr = cfg.Options.Addr
-// 	l.Settings = settings
-
-// 	// store the certificates
-// 	certs, err := cfg.AllCertificates()
-// 	if err != nil {
-// 		return op.Failure(fmt.Errorf("error loading certificates: %w", err))
-// 	}
-// 	catchAll, err := cfg.GenerateCatchAllCertificate()
-// 	if err != nil {
-// 		return op.Failure(fmt.Errorf("error generating catch-all certificate: %w", err))
-// 	}
-// 	l.certificates.Store(new(append(slices.Clone(certs), *catchAll)))
-
-// 	return nil
-// }
-
 func (l *tsListener) runLeased(ctx context.Context) error {
 	opCtx, op := l.telemetry.Start(ctx, "runLeased",
 		attribute.String("listen-addr", l.Settings.ListenAddr.Value),
@@ -298,7 +277,9 @@ func (l *tsListener) getCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate,
 
 func (l *tsListener) runTillDone(ctx context.Context, fn func() error) {
 	b := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0)), ctx)
-	go backoff.RetryNotify(fn, b, func(err error, d time.Duration) {
-		log.Ctx(ctx).Error().Err(err).Dur("delay", d).Msg("tslistener: error performing operation")
+	l.wg.Go(func() {
+		_ = backoff.RetryNotify(fn, b, func(err error, d time.Duration) {
+			log.Ctx(ctx).Error().Err(err).Dur("delay", d).Msg("tslistener: error performing operation")
+		})
 	})
 }
