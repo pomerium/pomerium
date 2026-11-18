@@ -116,12 +116,15 @@ func (r *tsRouter) updateLocked() {
 		nl, ok := newListeners[h]
 		if ok && l.Equal(nl) {
 			l.certificates.Store(new(certificates))
+			newListeners[h] = l
 			continue
 		}
 		log.Ctx(ctx).Info().Str("hostname", l.Settings.Hostname.Value).Msg("stopping tailscale listener")
 		wg.Go(l.Stop)
 		delete(r.listeners, h)
 	}
+	wg.Wait()
+
 	// start listeners
 	for h, nl := range newListeners {
 		_, ok := r.listeners[h]
