@@ -31,6 +31,7 @@ type tsRouter struct {
 	listeners []*tsListener
 }
 
+// New creates a new TSRouter.
 func New(tracerProvider oteltrace.TracerProvider, options ...Option) TSRouter {
 	return &tsRouter{
 		telemetry:      *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "tsrouter"),
