@@ -106,7 +106,7 @@ func (l *tsListener) Stop() {
 }
 
 func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-	opCtx, op := l.telemetry.Start(ctx, "runLeased",
+	ctx, op := l.telemetry.Start(ctx, "runLeased",
 		attribute.String("listen-addr", l.Settings.ListenAddr.Value),
 		attribute.String("listen-funnel-addr", l.Settings.ListenFunnelAddr.Value),
 		attribute.String("listen-service-name", l.Settings.ListenServiceName.Value))
@@ -135,8 +135,13 @@ func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBroker
 	}
 	defer srv.Close()
 
+	_, err := srv.Up(ctx)
+	if err != nil {
+		return op.Failure(fmt.Errorf("failed to start tailnet server: %w", err))
+	}
+
 	if l.Settings.ListenAddr.IsSet {
-		log.Ctx(opCtx).Info().Msg("starting tailnet listener")
+		log.Ctx(ctx).Info().Msg("starting tailnet listener")
 		l.runTillDone(ctx, func() error {
 			var li net.Listener
 			var err error
@@ -154,7 +159,7 @@ func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBroker
 	}
 
 	if l.Settings.ListenFunnelAddr.IsSet {
-		log.Ctx(opCtx).Info().Msg("starting funnel listener")
+		log.Ctx(ctx).Info().Msg("starting funnel listener")
 		l.runTillDone(ctx, func() error {
 			funnelOptions := []tsnet.FunnelOption{tsnet.FunnelOnly()}
 			if !l.Settings.TerminateTLS.Value {
@@ -172,7 +177,7 @@ func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBroker
 	}
 
 	if l.Settings.ListenServiceName.IsSet {
-		log.Ctx(opCtx).Info().Msg("starting service listener")
+		log.Ctx(ctx).Info().Msg("starting service listener")
 		l.runTillDone(ctx, func() error {
 			li, err := srv.ListenService(l.Settings.ListenServiceName.Value, tsnet.ServiceModeTCP{
 				Port:         uint16(l.Settings.ListenServicePort.Value),
