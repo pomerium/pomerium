@@ -8,7 +8,6 @@ import (
 	"net"
 	"path/filepath"
 	"reflect"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,9 +33,9 @@ type tsListener struct {
 	Settings   config.TailscaleListenerSettings
 
 	telemetry      telemetry.Component
-	certificates   atomic.Pointer[[]tls.Certificate]
 	tsRouterConfig *tsRouterConfig
 	cc             *grpc.ClientConn
+	certificates   atomic.Pointer[[]tls.Certificate]
 
 	stop context.CancelCauseFunc
 	wg   sync.WaitGroup
@@ -48,14 +47,18 @@ func newTSListener(
 	settings config.TailscaleListenerSettings,
 	tsRouterConfig *tsRouterConfig,
 	cc *grpc.ClientConn,
-) (*tsListener, error) {
+	certificates []tls.Certificate,
+) *tsListener {
 	l := &tsListener{
+		ServerAddr: cfg.Options.Addr,
+		Settings:   settings,
 		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "tslistener",
 			attribute.String("hostname", settings.Hostname.Value)),
-		cc:             cc,
 		tsRouterConfig: tsRouterConfig,
+		cc:             cc,
 	}
-	return l, l.init(cfg, settings)
+	l.certificates.Store(&certificates)
+	return l
 }
 
 func (l *tsListener) Equal(other *tsListener) bool {
@@ -94,26 +97,26 @@ func (l *tsListener) Stop() {
 	}
 }
 
-func (l *tsListener) init(cfg *config.Config, settings config.TailscaleListenerSettings) error {
-	_, op := l.telemetry.Start(context.Background(), "init")
-	defer op.Complete()
+// func (l *tsListener) init(cfg *config.Config, settings config.TailscaleListenerSettings) error {
+// 	_, op := l.telemetry.Start(context.Background(), "init")
+// 	defer op.Complete()
 
-	l.ServerAddr = cfg.Options.Addr
-	l.Settings = settings
+// 	l.ServerAddr = cfg.Options.Addr
+// 	l.Settings = settings
 
-	// store the certificates
-	certs, err := cfg.AllCertificates()
-	if err != nil {
-		return op.Failure(fmt.Errorf("error loading certificates: %w", err))
-	}
-	catchAll, err := cfg.GenerateCatchAllCertificate()
-	if err != nil {
-		return op.Failure(fmt.Errorf("error generating catch-all certificate: %w", err))
-	}
-	l.certificates.Store(new(append(slices.Clone(certs), *catchAll)))
+// 	// store the certificates
+// 	certs, err := cfg.AllCertificates()
+// 	if err != nil {
+// 		return op.Failure(fmt.Errorf("error loading certificates: %w", err))
+// 	}
+// 	catchAll, err := cfg.GenerateCatchAllCertificate()
+// 	if err != nil {
+// 		return op.Failure(fmt.Errorf("error generating catch-all certificate: %w", err))
+// 	}
+// 	l.certificates.Store(new(append(slices.Clone(certs), *catchAll)))
 
-	return nil
-}
+// 	return nil
+// }
 
 func (l *tsListener) runLeased(ctx context.Context) error {
 	opCtx, op := l.telemetry.Start(ctx, "runLeased",

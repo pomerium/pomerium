@@ -2,6 +2,7 @@ package tsrouter
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"slices"
 	"sync"
@@ -87,6 +88,12 @@ func (r *tsRouter) updateLocked() {
 		return
 	}
 
+	certificates, err := getCertificates(r.cfg)
+	if err != nil {
+		_ = op.Failure(fmt.Errorf("failed to get certificates: %w", err))
+		return
+	}
+
 	cc, err := r.databrokerConn.Get(r.runCtx, &grpc.OutboundOptions{
 		OutboundPort: r.cfg.OutboundPort,
 		SignedJWTKey: sharedKey,
@@ -98,14 +105,7 @@ func (r *tsRouter) updateLocked() {
 
 	// start new or updated listeners
 	for i, s := range r.cfg.Options.TailscaleListeners.Value {
-		nl, err := newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s, r.tsRouterConfig, cc)
-		if err != nil {
-			// stop the current listener
-			r.listeners[i].Stop()
-			r.listeners[i] = nil
-			_ = op.Failure(fmt.Errorf("error constructing listener: %w", err))
-			continue
-		}
+		nl := newTSListener(r.telemetry.GetTracerProvider(), r.cfg, s, r.tsRouterConfig, cc, certificates)
 		if i >= len(r.listeners) {
 			r.listeners = append(r.listeners, nl)
 			nl.Start(r.runCtx)
@@ -125,4 +125,16 @@ func (r *tsRouter) updateLocked() {
 	}
 
 	r.listeners = slices.DeleteFunc(r.listeners, func(l *tsListener) bool { return l == nil })
+}
+
+func getCertificates(cfg *config.Config) ([]tls.Certificate, error) {
+	certs, err := cfg.AllCertificates()
+	if err != nil {
+		return nil, fmt.Errorf("error loading certificates: %w", err)
+	}
+	catchAll, err := cfg.GenerateCatchAllCertificate()
+	if err != nil {
+		return nil, fmt.Errorf("error generating catch-all certificate: %w", err)
+	}
+	return append(slices.Clone(certs), *catchAll), nil
 }
