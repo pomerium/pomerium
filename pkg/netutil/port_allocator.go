@@ -16,6 +16,7 @@ type PortAllocator interface {
 }
 
 type ephemeralBindPortAllocator struct {
+	mu       sync.Mutex
 	reserved *set.Set[uint16]
 }
 
@@ -29,6 +30,9 @@ func NewEphemeralBindPortAllocator() PortAllocator {
 }
 
 func (e *ephemeralBindPortAllocator) AllocatePort() (uint16, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	for {
 		li, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
