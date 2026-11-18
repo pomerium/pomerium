@@ -308,7 +308,9 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		})
 	}
 	if proxyServer != nil {
-		return proxyServer.Run(ctx)
+		p.errGroup.Go(func() error {
+			return proxyServer.Run(ctx)
+		})
 	}
 	return nil
 }
