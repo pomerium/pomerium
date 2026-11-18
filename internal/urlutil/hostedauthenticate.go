@@ -1,5 +1,7 @@
 package urlutil
 
+import "strings"
+
 // HostedAuthenticateDomains is a list of all known domains associated with the
 // hosted authenticate service.
 var HostedAuthenticateDomains = []string{
@@ -18,8 +20,8 @@ func initHostedAuthenticateDomainSet() map[string]struct{} {
 }
 
 // IsHostedAuthenticateDomain indicates whether the given domain is associated
-// with the hosted authenticate service.
+// with the hosted authenticate service. The match ignores case and a trailing dot.
 func IsHostedAuthenticateDomain(domain string) bool {
-	_, isHostedAuthenticate := hostedAuthenticateDomainSet[domain]
+	_, isHostedAuthenticate := hostedAuthenticateDomainSet[strings.TrimSuffix(strings.ToLower(domain), ".")]
 	return isHostedAuthenticate
 }
