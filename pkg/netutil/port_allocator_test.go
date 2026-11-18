@@ -56,7 +56,7 @@ func TestBlockPortAllocatorMaxSize(t *testing.T) {
 		netutil.WithBlockPortAllocatorMinPort(65_530),
 		netutil.WithBlockPortAllocatorMaxPort(65_535),
 		netutil.WithBlockPortAllocatorRandomSource(rand.NewPCG(1, 1)),
-		netutil.WithBlockPortAllocatorReserver(func(u uint16) (releaser func(), ok bool) {
+		netutil.WithBlockPortAllocatorReserver(func(_ uint16) (releaser func(), ok bool) {
 			return func() {}, true
 		}),
 	)

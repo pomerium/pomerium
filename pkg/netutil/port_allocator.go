@@ -140,7 +140,7 @@ func NewBlockPortAllocator(options ...BlockPortAllocatorOption) PortAllocator {
 		}
 	}
 
-	rand.New(b.randomSource).Shuffle(len(b.available), func(i, j int) {
+	rand.New(b.randomSource).Shuffle(len(b.available), func(i, j int) { //nolint:gosec
 		b.available[i], b.available[j] = b.available[j], b.available[i]
 	})
 
