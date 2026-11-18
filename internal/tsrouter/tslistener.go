@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -29,8 +30,10 @@ import (
 var errStopped = errors.New("stopped")
 
 type tsListener struct {
-	ServerAddr string
-	Settings   config.TailscaleListenerSettings
+	ServerAddr       string
+	Insecure         bool
+	UseProxyProtocol bool
+	Settings         config.TailscaleListenerSettings
 
 	telemetry      telemetry.Component
 	tsRouterConfig *tsRouterConfig
@@ -50,8 +53,10 @@ func newTSListener(
 	certificates []tls.Certificate,
 ) *tsListener {
 	l := &tsListener{
-		ServerAddr: cfg.Options.Addr,
-		Settings:   settings,
+		ServerAddr:       cfg.Options.Addr,
+		Insecure:         cfg.Options.InsecureServer,
+		UseProxyProtocol: cfg.Options.UseProxyProtocol,
+		Settings:         settings,
 		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "tslistener",
 			attribute.String("hostname", settings.Hostname.Value)),
 		tsRouterConfig: tsRouterConfig,
@@ -68,6 +73,8 @@ func (l *tsListener) Equal(other *tsListener) bool {
 		return false
 	}
 	return l.ServerAddr == other.ServerAddr &&
+		l.Insecure == other.Insecure &&
+		l.UseProxyProtocol == other.UseProxyProtocol &&
 		l.cc == other.cc &&
 		reflect.DeepEqual(l.Settings, other.Settings)
 }
@@ -228,22 +235,7 @@ func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP boo
 	cleanupRemote := context.AfterFunc(ctx, func() { _ = remote.Close() })
 	defer cleanupRemote()
 
-	var local net.Conn
-	var err error
-	if rawTCP {
-		// raw TCP means that Pomerium needs to terminate TLS, so we just proxy
-		// the traffic directly
-		var d net.Dialer
-		local, err = d.DialContext(ctx, "tcp", l.ServerAddr)
-	} else {
-		// in this mode Tailscale is terminating TLS, so we need to make a TLS
-		// connection to Pomerium, but the traffic will be plain HTTP, so we
-		// use InsecureSkipVerify because this is a local connection and we
-		// don't care which cert ends up being used
-		var d tls.Dialer
-		d.Config = &tls.Config{InsecureSkipVerify: true}
-		local, err = d.DialContext(ctx, "tcp", l.ServerAddr)
-	}
+	local, err := l.dialLocal(ctx, remote, rawTCP)
 	if err != nil {
 		_ = op.Failure(fmt.Errorf("failed to connect to server: %w", err))
 		return
@@ -259,6 +251,43 @@ func (l *tsListener) handleConn(ctx context.Context, remote net.Conn, rawTCP boo
 	default:
 		log.Ctx(ctx).Debug().Err(err).Msg("tsrouter: proxied connection ended with error")
 	}
+}
+
+func (l *tsListener) dialLocal(ctx context.Context, remote net.Conn, rawTCP bool) (local net.Conn, err error) {
+	if rawTCP && l.Insecure {
+		return nil, fmt.Errorf("tailscale is only supported with insecure_server when TLS is terminated")
+	}
+
+	var d net.Dialer
+	local, err = d.DialContext(ctx, "tcp", l.ServerAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	if l.UseProxyProtocol {
+		header := proxyproto.HeaderProxyFromAddrs(2, remote.RemoteAddr(), remote.LocalAddr())
+		_, err = header.WriteTo(local)
+		if err != nil {
+			_ = local.Close()
+			return nil, err
+		}
+	}
+
+	if rawTCP || l.Insecure {
+		// raw TCP: Pomerium terminates TLS, so pass the stream through.
+		// insecure: Pomerium serves plain HTTP, which is what Tailscale hands us.
+		return local, nil
+	}
+
+	tlsConn := tls.Client(local, &tls.Config{InsecureSkipVerify: true})
+	err = tlsConn.HandshakeContext(ctx)
+	if err != nil {
+		_ = local.Close()
+		return nil, err
+	}
+	local = tlsConn
+
+	return local, nil
 }
 
 func (l *tsListener) getCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
