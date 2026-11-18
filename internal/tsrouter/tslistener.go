@@ -78,13 +78,15 @@ func (l *tsListener) Start(ctx context.Context) {
 
 	ctx, l.stop = context.WithCancelCause(ctx)
 
+	client := databroker.NewDataBrokerServiceClient(l.cc)
+
 	// the actual tsnet listener is run within a lease so that only one Pomerium Proxy
 	// node will handle each host
 	l.runTillDone(ctx, func() error {
 		return databrokerutil.NewLeasers("tslistener/"+l.Settings.Hostname.Value, 30*time.Second,
-			databroker.NewDataBrokerServiceClient(l.cc),
+			client,
 			func(ctx context.Context) error {
-				return l.runLeased(ctx)
+				return l.runLeased(ctx, client)
 			}).Run(ctx)
 	})
 }
@@ -96,7 +98,7 @@ func (l *tsListener) Stop() {
 	}
 }
 
-func (l *tsListener) runLeased(ctx context.Context) error {
+func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	opCtx, op := l.telemetry.Start(ctx, "runLeased",
 		attribute.String("listen-addr", l.Settings.ListenAddr.Value),
 		attribute.String("listen-funnel-addr", l.Settings.ListenFunnelAddr.Value),
@@ -107,6 +109,7 @@ func (l *tsListener) runLeased(ctx context.Context) error {
 	logger := l.telemetry.Logger(ctx)
 	srv := &tsnet.Server{
 		Dir:           dir,
+		Store:         newTSListenerStateStore(ctx, l, client),
 		Hostname:      l.Settings.Hostname.Value,
 		Ephemeral:     l.Settings.Ephemeral.Value,
 		AuthKey:       l.Settings.AuthKey.Value,
