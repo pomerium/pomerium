@@ -22,11 +22,6 @@ func TestLogger(t *testing.T) {
 		component := telemetry.NewComponent(noop.NewTracerProvider(), zerolog.InfoLevel, "test-component",
 			attribute.String("a", "1"), attribute.String("a", "2"))
 		component.Logger(ctx, attribute.String("a", "3")).Info().Msg("test")
-		assert.JSONEq(t, `{
-			"level": "info",
-			"component": "test-component",
-			"message": "test",
-			"a": "3"
-		}`, buf.String())
+		assert.Equal(t, `{"level":"info","component":"test-component","a":"3","message":"test"}`+"\n", buf.String())
 	})
 }
