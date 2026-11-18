@@ -126,7 +126,7 @@ func (g *grpcUpstream) Route() testenv.RouteStub {
 
 // Start implements testenv.Upstream.
 func (g *grpcUpstream) Run(ctx context.Context) error {
-	listener, err := testenv.Listen(ctx, g.Env().Host())
+	listener, err := net.Listen("tcp", net.JoinHostPort(g.Env().Host(), "0"))
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,8 @@ func (g *grpcUpstream) Run(ctx context.Context) error {
 	} else {
 		g.clientTracerProvider.Resolve(trace.NewTracerProvider(ctx, "GRPC Client"))
 	}
-	server := grpc.NewServer(append(g.serverOpts,
+	server := grpc.NewServer(append(
+		g.serverOpts,
 		grpc.Creds(g.creds),
 		grpc.StatsHandler(otelgrpc.NewServerHandler(
 			otelgrpc.WithTracerProvider(g.serverTracerProvider.Value()),
@@ -151,7 +152,8 @@ func (g *grpcUpstream) Run(ctx context.Context) error {
 		server.RegisterService(s.desc, s.impl)
 	}
 	if g.delayShutdown {
-		return snippets.RunWithDelayedShutdown(ctx,
+		return snippets.RunWithDelayedShutdown(
+			ctx,
 			func() error {
 				return server.Serve(listener)
 			},
@@ -172,7 +174,8 @@ func (g *grpcUpstream) Run(ctx context.Context) error {
 }
 
 func (g *grpcUpstream) withDefaultDialOpts(extraDialOpts []grpc.DialOption) []grpc.DialOption {
-	return append(extraDialOpts,
+	return append(
+		extraDialOpts,
 		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(g.Env().ServerCAs(), "")),
 		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(g.clientTracerProvider.Value()))),

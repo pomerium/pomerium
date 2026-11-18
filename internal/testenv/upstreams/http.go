@@ -297,7 +297,7 @@ func (h *httpUpstream) Route() testenv.RouteStub {
 
 // Run implements HTTPUpstream.
 func (h *httpUpstream) Run(ctx context.Context) error {
-	listener, err := testenv.Listen(ctx, h.Env().Host())
+	listener, err := net.Listen("tcp", net.JoinHostPort(h.Env().Host(), "0"))
 	if err != nil {
 		return err
 	}
@@ -324,7 +324,8 @@ func (h *httpUpstream) Run(ctx context.Context) error {
 		// },
 	}
 	if h.delayShutdown {
-		return snippets.RunWithDelayedShutdown(ctx,
+		return snippets.RunWithDelayedShutdown(
+			ctx,
 			func() error {
 				return server.Serve(listener)
 			},
@@ -373,7 +374,8 @@ func NewHTTPClient(serverCAs *x509.CertPool, options *RequestOptions) *http.Clie
 	})
 	c := http.Client{
 		Transport: &Transport{
-			Transport: otelhttp.NewTransport(transport,
+			Transport: otelhttp.NewTransport(
+				transport,
 				otelhttp.WithTracerProvider(noop.NewTracerProvider()),
 				otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 					return fmt.Sprintf("Client: %s %s", r.Method, r.URL.Path)
@@ -419,7 +421,8 @@ func (h *httpUpstream) newClient(options *RequestOptions) *http.Client {
 	}
 	c := http.Client{
 		Transport: &Transport{
-			Transport: otelhttp.NewTransport(transport,
+			Transport: otelhttp.NewTransport(
+				transport,
 				otelhttp.WithTracerProvider(h.clientTracerProvider.Value()),
 				otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 					return fmt.Sprintf("Client: %s %s", r.Method, r.URL.Path)
@@ -475,7 +478,8 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 	options.requestCtx = ctx
 	defer span.End()
 
-	return DoAuthenticatedRequest(options.requestCtx,
+	return DoAuthenticatedRequest(
+		options.requestCtx,
 		func(ctx context.Context) (*http.Request, error) {
 			return http.NewRequestWithContext(ctx, method, u.String(), nil)
 		},

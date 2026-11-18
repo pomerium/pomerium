@@ -2,23 +2,21 @@
 package netutil
 
 import (
-	"net"
-
-	"github.com/libp2p/go-reuseport"
+	"fmt"
+	"strconv"
 )
+
+var defaultPortAllocator = NewFailoverPortAllocator(NewBlockPortAllocator(), NewEphemeralBindPortAllocator())
 
 // AllocatePorts allocates random ports suitable for listening.
 func AllocatePorts(count int) ([]string, error) {
-	var ports []string
-	for len(ports) < count {
-		li, err := reuseport.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			return nil, err
+	ports := make([]string, count)
+	for i := range ports {
+		p, ok := defaultPortAllocator.AllocatePort()
+		if !ok {
+			return nil, fmt.Errorf("failed to allocate ports")
 		}
-		_, port, _ := net.SplitHostPort(li.Addr().String())
-		defer li.Close()
-
-		ports = append(ports, port)
+		ports[i] = strconv.FormatUint(uint64(p), 10)
 	}
 	return ports, nil
 }
