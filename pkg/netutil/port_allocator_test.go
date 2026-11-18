@@ -49,3 +49,12 @@ func TestBlockPortAllocator(t *testing.T) {
 	p, ok := b.AllocatePort()
 	assert.False(t, ok, "should return false after allocating all possible ports, got: %d", p)
 }
+
+func TestEphemeralBindPortAllocator(t *testing.T) {
+	t.Parallel()
+
+	b := netutil.NewEphemeralBindPortAllocator()
+	p, ok := b.AllocatePort()
+	assert.True(t, ok)
+	assert.NotZero(t, p)
+}

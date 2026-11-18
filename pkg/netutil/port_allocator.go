@@ -6,6 +6,8 @@ import (
 	"math/rand/v2"
 	"net"
 	"sync"
+
+	"github.com/hashicorp/go-set/v3"
 )
 
 // A PortAllocator allocates ports.
@@ -13,23 +15,31 @@ type PortAllocator interface {
 	AllocatePort() (uint16, bool)
 }
 
-type ephemeralBindPortAllocator struct{}
+type ephemeralBindPortAllocator struct {
+	reserved *set.Set[uint16]
+}
 
 // NewEphemeralBindPortAllocator creates a new PortAllocator that
 // allocates ports by binding a listener to :0 and then releasing
 // it and using the assigned port as the allocated port.
 func NewEphemeralBindPortAllocator() PortAllocator {
-	return &ephemeralBindPortAllocator{}
+	return &ephemeralBindPortAllocator{
+		reserved: set.New[uint16](0),
+	}
 }
 
-func (ephemeralBindPortAllocator) AllocatePort() (uint16, bool) {
-	li, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, false
+func (e *ephemeralBindPortAllocator) AllocatePort() (uint16, bool) {
+	for {
+		li, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return 0, false
+		}
+		port := uint16(li.Addr().(*net.TCPAddr).Port)
+		defer li.Close()
+		if e.reserved.Insert(port) {
+			return port, true
+		}
 	}
-	port := uint16(li.Addr().(*net.TCPAddr).Port)
-	_ = li.Close()
-	return port, true
 }
 
 type portBlock struct {
