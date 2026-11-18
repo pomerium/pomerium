@@ -50,6 +50,35 @@ func TestBlockPortAllocator(t *testing.T) {
 	assert.False(t, ok, "should return false after allocating all possible ports, got: %d", p)
 }
 
+func TestBlockPortAllocatorMaxSize(t *testing.T) {
+	b := netutil.NewBlockPortAllocator(
+		netutil.WithBlockPortAllocatorBlockSize(10),
+		netutil.WithBlockPortAllocatorMinPort(65_530),
+		netutil.WithBlockPortAllocatorMaxPort(65_535),
+		netutil.WithBlockPortAllocatorRandomSource(rand.NewPCG(1, 1)),
+		netutil.WithBlockPortAllocatorReserver(func(u uint16) (releaser func(), ok bool) {
+			return func() {}, true
+		}),
+	)
+	p, ok := b.AllocatePort()
+	assert.True(t, ok)
+	assert.Equal(t, 65_531, int(p))
+	p, ok = b.AllocatePort()
+	assert.True(t, ok)
+	assert.Equal(t, 65_532, int(p))
+	p, ok = b.AllocatePort()
+	assert.True(t, ok)
+	assert.Equal(t, 65_533, int(p))
+	p, ok = b.AllocatePort()
+	assert.True(t, ok)
+	assert.Equal(t, 65_534, int(p))
+	p, ok = b.AllocatePort()
+	assert.True(t, ok)
+	assert.Equal(t, 65_535, int(p))
+	_, ok = b.AllocatePort()
+	assert.False(t, ok)
+}
+
 func TestEphemeralBindPortAllocator(t *testing.T) {
 	t.Parallel()
 

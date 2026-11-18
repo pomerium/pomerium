@@ -128,11 +128,16 @@ func NewBlockPortAllocator(options ...BlockPortAllocatorOption) PortAllocator {
 		option(b)
 	}
 
-	for i := (b.minPort / b.blockSize) * b.blockSize; i <= b.maxPort; i += b.blockSize {
-		b.available = append(b.available, portBlock{
-			first: i,
-			last:  (i + b.blockSize) - 1,
-		})
+	for i := int(b.minPort); i <= int(b.maxPort); i++ {
+		p := uint16(i)
+		if len(b.available) == 0 || (b.available[len(b.available)-1].last-b.available[len(b.available)-1].first) >= b.blockSize {
+			b.available = append(b.available, portBlock{
+				first: p,
+				last:  p,
+			})
+		} else {
+			b.available[len(b.available)-1].last++
+		}
 	}
 
 	rand.New(b.randomSource).Shuffle(len(b.available), func(i, j int) {
