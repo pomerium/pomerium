@@ -135,9 +135,14 @@ func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBroker
 	}
 	defer srv.Close()
 
-	_, err := srv.Up(ctx)
+	err := srv.Start()
 	if err != nil {
 		return op.Failure(fmt.Errorf("failed to start tailnet server: %w", err))
+	}
+
+	_, err = srv.Up(ctx)
+	if err != nil {
+		return op.Failure(fmt.Errorf("failed to connect the tailnet server: %w", err))
 	}
 
 	if l.Settings.ListenAddr.IsSet {
