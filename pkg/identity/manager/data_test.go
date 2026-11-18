@@ -28,7 +28,7 @@ func TestUser_UnmarshalJSON(t *testing.T) {
 		"name": "joe",
 		"email": "joe@test.com",
 		"some-other-claim": "xyz"
-	}`), newUserUnmarshaler(u))
+	}`), NewUserUnmarshaler(u))
 	assert.NoError(t, err)
 	assert.Equal(t, "joe", u.Name)
 	assert.Equal(t, "joe@test.com", u.Email)

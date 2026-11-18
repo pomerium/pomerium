@@ -108,3 +108,6 @@ gha-creds-*.json
 # tcpdump captures
 *.pcap
 *.pcapng
+
+# pprof
+*.pprof
