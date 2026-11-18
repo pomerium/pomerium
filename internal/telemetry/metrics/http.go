@@ -29,42 +29,42 @@ var (
 	}
 
 	// HTTPServerRequestCountView is an OpenCensus View that tracks HTTP server
-	// requests by pomerium service, host, method and status
+	// requests by pomerium service, method and status
 	HTTPServerRequestCountView = &view.View{
 		Name:        "http/server/requests_total",
 		Measure:     ochttp.ServerLatency,
 		Description: "Total HTTP Requests",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHTTPMethod, ochttp.StatusCode},
 		Aggregation: view.Count(),
 	}
 
 	// HTTPServerRequestDurationView is an OpenCensus view that tracks HTTP
-	// server request duration by pomerium service, host, method and status
+	// server request duration by pomerium service, method and status
 	HTTPServerRequestDurationView = &view.View{
 		Name:        "http/server/request_duration_ms",
 		Measure:     ochttp.ServerLatency,
 		Description: "HTTP Request duration in ms",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHTTPMethod, ochttp.StatusCode},
 		Aggregation: DefaultHTTPLatencyDistrubtion,
 	}
 
 	// HTTPServerRequestSizeView is an OpenCensus view that tracks HTTP server
-	// request size by pomerium service, host and method
+	// request size by pomerium service and method
 	HTTPServerRequestSizeView = &view.View{
 		Name:        "http/server/request_size_bytes",
 		Measure:     ochttp.ServerRequestBytes,
 		Description: "HTTP Server Request Size in bytes",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHTTPMethod},
 		Aggregation: DefaulHTTPSizeDistribution,
 	}
 
 	// HTTPServerResponseSizeView is an OpenCensus view that tracks HTTP server
-	// response size by pomerium service, host, method and status
+	// response size by pomerium service, method and status
 	HTTPServerResponseSizeView = &view.View{
 		Name:        "http/server/response_size_bytes",
 		Measure:     ochttp.ServerResponseBytes,
 		Description: "HTTP Server Response Size in bytes",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHTTPMethod, ochttp.StatusCode},
 		Aggregation: DefaulHTTPSizeDistribution,
 	}
 
@@ -113,10 +113,13 @@ var (
 func HTTPMetricsHandler(_ func() string, service string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// r.Host is not used as a tag: the catch-all virtual host forwards
+			// paths such as /.pomerium/ and /healthz here for any Host header,
+			// and OpenCensus keeps every distinct tag set until the process
+			// restarts.
 			ctx, tagErr := tag.New(
 				r.Context(),
 				tag.Upsert(TagKeyService, service),
-				tag.Upsert(TagKeyHost, r.Host),
 				tag.Upsert(TagKeyHTTPMethod, r.Method),
 			)
 			if tagErr != nil {
