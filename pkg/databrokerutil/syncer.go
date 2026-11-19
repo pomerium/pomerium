@@ -85,10 +85,23 @@ func WithBackOff(bo backoff.BackOff) SyncerOption {
 }
 
 // A SyncerHandler receives sync events from the Syncer.
+//
+// Every (re-)sync calls ClearRecords and then UpdateRecords once with the full
+// set of records, even when that set is empty, so a handler may treat that
+// UpdateRecords call as the sync being complete. A handler that is also a
+// RecordReplacer gets one ReplaceRecords call in place of both.
 type SyncerHandler interface {
 	GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient
 	ClearRecords(ctx context.Context)
 	UpdateRecords(ctx context.Context, serverVersion uint64, records []*databrokerpb.Record)
+}
+
+// A RecordReplacer is a SyncerHandler that can clear and repopulate its records
+// in one step. When re-syncing, the Syncer prefers it over ClearRecords followed
+// by UpdateRecords, so a handler that publishes state derived from its records
+// never exposes an emptied record set in between.
+type RecordReplacer interface {
+	ReplaceRecords(ctx context.Context, serverVersion uint64, records []*databrokerpb.Record)
 }
 
 // A Syncer is a helper type for working with Sync and SyncLatest. It will make a call to
@@ -204,6 +217,13 @@ func (syncer *Syncer) init(ctx context.Context) error {
 	syncer.cfg.BackOff.Reset()
 	syncer.recordLatestVersions(ctx)
 	// reset the records as we have to sync latest records to handlers
+	if replacer, ok := syncer.handler.(RecordReplacer); ok {
+		startReplace := time.Now()
+		replacer.ReplaceRecords(ctx, serverVersion, records)
+		syncer.onClearRecords(ctx, startReplace)
+		syncer.onUpdateRecords(ctx, startReplace, len(records))
+		return nil
+	}
 	startClear := time.Now()
 	syncer.handler.ClearRecords(ctx)
 	syncer.onClearRecords(ctx, startClear)

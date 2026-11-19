@@ -77,3 +77,75 @@ func TestFastForward(t *testing.T) {
 		}
 	}
 }
+
+// blockingFF blocks in its first UpdateRecords call until released, so that
+// the commands enqueued in the meantime are still pending when it is free.
+type blockingFF struct {
+	calls   chan string
+	blocked chan struct{}
+	release chan struct{}
+	busy    bool
+}
+
+func (ff *blockingFF) ClearRecords(_ context.Context) {
+	ff.calls <- "ClearRecords"
+}
+
+func (ff *blockingFF) UpdateRecords(_ context.Context, _ uint64, _ []*databrokerpb.Record) {
+	if !ff.busy {
+		ff.busy = true
+		close(ff.blocked)
+		<-ff.release
+		return
+	}
+	ff.calls <- "UpdateRecords"
+}
+
+func (ff *blockingFF) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
+	return nil
+}
+
+// TestFastForward_ClearBeforeMergedUpdate covers a re-sync that arrives while
+// the handler is still applying an earlier update. The re-sync clears the
+// records and then delivers the re-fetched ones, and both are still pending
+// when the handler is free. The handler must be cleared before it gets the
+// re-fetched records, otherwise records that no longer exist stay.
+func TestFastForward_ClearBeforeMergedUpdate(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*10)
+	defer cancel()
+
+	m := &blockingFF{
+		calls:   make(chan string, 2),
+		blocked: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	f := newFastForwardHandler(ctx, noop.NewTracerProvider(), "test", m)
+
+	// the handler is busy applying an earlier update
+	f.UpdateRecords(ctx, 1, nil)
+	select {
+	case <-ctx.Done():
+		t.Fatal("timed out")
+	case <-m.blocked:
+	}
+
+	// a re-sync clears the records and delivers the re-fetched ones
+	f.ClearRecords(ctx)
+	f.UpdateRecords(ctx, 2, []*databrokerpb.Record{{Type: "t", Id: "1"}})
+	close(m.release)
+
+	next := func() string {
+		select {
+		case <-ctx.Done():
+			t.Fatal("timed out")
+		case call := <-m.calls:
+			return call
+		}
+		return ""
+	}
+	require.Equal(t, "ClearRecords", next(),
+		"the handler got the re-fetched records without being cleared first")
+	assert.Equal(t, "UpdateRecords", next())
+}
