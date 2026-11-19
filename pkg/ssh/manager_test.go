@@ -34,6 +34,47 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
+func TestStreamManagerConfigChange(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	auth := mock_ssh.NewMockAuthInterface(ctrl)
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+	})
+	t.Cleanup(func() { cc.Close() })
+	databrokerClient := databrokerpb.NewDataBrokerServiceClient(cc)
+	auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
+
+	cfg := config.New(config.NewDefaultOptions())
+	cfg.Options.Policies = []config.Policy{
+		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22")},
+	}
+	m := ssh.NewStreamManager(
+		t.Context(),
+		auth,
+		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(evalResultAlwaysAllow, databrokerClient)),
+		ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)),
+		cfg,
+	)
+
+	updated := config.New(config.NewDefaultOptions())
+	updated.Options.Policies = []config.Policy{
+		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22")},
+	}
+	m.OnConfigChange(updated)
+
+	// a stream created after the change must see the new routes
+	sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+	t.Cleanup(sh.Close)
+	var routes []string
+	for route := range sh.AllSSHRoutes() {
+		routes = append(routes, route.From)
+	}
+	assert.Equal(t, []string{"ssh://host2"}, routes)
+}
+
 func TestStreamManager(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	auth := mock_ssh.NewMockAuthInterface(ctrl)
