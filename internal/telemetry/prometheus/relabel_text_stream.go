@@ -65,6 +65,7 @@ func RelabelTextStream(dst io.Writer, src io.Reader, addLabels map[string]string
 			continue
 		}
 
+		existingLabels = bytes.TrimRight(existingLabels, " \t")
 		if len(existingLabels) > 0 {
 			if existingLabels[len(existingLabels)-1] == ',' {
 				if err := writeMulti(dst, metricName, []byte("{"), existingLabels, addedLabels, []byte("}"), value); err != nil {
@@ -112,10 +113,6 @@ func splitMetricLine(line []byte) (metricName, existingLabels, value []byte, ok 
 		prefix = prefix[:sepIdx]
 	}
 
-	if len(prefix) == 0 {
-		return nil, nil, nil, false
-	}
-
 	closeBraceRel := findClosingBrace(line[openBraceIdx+1:])
 	if closeBraceRel == -1 {
 		return nil, nil, nil, false
@@ -127,7 +124,42 @@ func splitMetricLine(line []byte) (metricName, existingLabels, value []byte, ok 
 	if next := line[closeBraceIdx+1]; next != ' ' && next != '\t' {
 		return nil, nil, nil, false
 	}
-	return prefix, line[openBraceIdx+1 : closeBraceIdx], line[closeBraceIdx+1:], true
+	labels := line[openBraceIdx+1 : closeBraceIdx]
+	if len(prefix) == 0 && !hasQuotedMetricName(labels) {
+		return nil, nil, nil, false
+	}
+	return prefix, labels, line[closeBraceIdx+1:], true
+}
+
+// hasQuotedMetricName reports whether a brace-enclosed label body begins with a
+// Prometheus UTF-8 quoted metric name (e.g. `"http.requests.total"` or
+// `"http.requests.total",method="GET"`), rather than a bare label pair or empty set.
+func hasQuotedMetricName(labels []byte) bool {
+	s := bytes.TrimLeft(labels, " \t")
+	if len(s) < 3 || s[0] != '"' {
+		return false
+	}
+	pos := 1
+	for pos < len(s) {
+		endRel := bytes.IndexByte(s[pos:], '"')
+		if endRel == -1 {
+			return false
+		}
+		end := pos + endRel
+		backslashes := 0
+		for i := end - 1; i >= pos && s[i] == '\\'; i-- {
+			backslashes++
+		}
+		pos = end + 1
+		if backslashes%2 == 0 {
+			if end == 1 {
+				return false
+			}
+			rest := bytes.TrimLeft(s[pos:], " \t")
+			return len(rest) == 0 || rest[0] == ','
+		}
+	}
+	return false
 }
 
 func findWhitespace(b []byte) int {

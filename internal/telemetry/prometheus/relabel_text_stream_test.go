@@ -150,6 +150,36 @@ func TestRelabelTextStream(t *testing.T) {
 			expected:  "metric_total{label=\"with space\",service=\"proxy\"} 1\n",
 		},
 		{
+			name:      "existing labels with trailing comma and whitespace",
+			input:     "metric_total{label=\"with space\", } 1\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "metric_total{label=\"with space\",service=\"proxy\"} 1\n",
+		},
+		{
+			name:      "whitespace-only labels",
+			input:     "metric_total{  \t } 1\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "metric_total{service=\"proxy\"} 1\n",
+		},
+		{
+			name:      "brace-enclosed quoted metric name without other labels",
+			input:     "{\"http.requests.total\"} 42\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "{\"http.requests.total\",service=\"proxy\"} 42\n",
+		},
+		{
+			name:      "brace-enclosed quoted metric name with existing labels",
+			input:     "{\"http.requests.total\",method=\"GET\",note=\"with space\"} 42\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "{\"http.requests.total\",method=\"GET\",note=\"with space\",service=\"proxy\"} 42\n",
+		},
+		{
+			name:      "malformed nameless label set",
+			input:     "{method=\"GET\"} 42\n{} 42\n{\"label\"=\"val\"} 42\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "{method=\"GET\"} 42\n{} 42\n{\"label\"=\"val\"} 42\n",
+		},
+		{
 			name:      "tab separator",
 			input:     "metric_without_labels\t42\nmetric_with_labels{label=\"with space\"}\t42\n",
 			addLabels: map[string]string{"service": "proxy"},
