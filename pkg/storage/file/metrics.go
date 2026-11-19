@@ -152,7 +152,7 @@ func (backend *Backend) registerMetrics() (metric.Registration, error) {
 	}
 
 	totalTableSize, err := m.Int64ObservableGauge("storage.pebble.table_size",
-		metric.WithDescription("The total size in bytes of the sstables in the level. Note that if tables contain references to blob files, this quantity does not include the the size of the blob files or the referenced values."),
+		metric.WithDescription("The total size in bytes of the sstables in the level. Note that if tables contain references to blob files, this quantity does not include the size of the blob files or the referenced values."),
 		metric.WithUnit("By"))
 	if err != nil {
 		return nil, err
