@@ -1,0 +1,40 @@
+# Pomerium configuration for the NEW Hosted Authenticate flow e2e tests.
+#
+# The LOCAL authenticate service runs on this instance and uses Pomerium's
+# hosted service (https://authenticate.pomerium.app) as its identity provider.
+# idp_client_id / idp_client_secret are intentionally absent: with
+# idp_provider "hosted" they are derived automatically (client_id = the
+# authenticate_service_url, request/assertion signing key = HKDF(shared_secret);
+# see pkg/identity/oidc/hosted/derived.go).
+#
+# Started only with the "hosted" compose profile (make up-hosted). Requires
+# outbound internet access to reach authenticate.pomerium.app.
+
+address: :8444
+authenticate_service_url: https://authenticate-hosted.localhost.pomerium.io:8444
+
+idp_provider: hosted
+idp_provider_url: https://authenticate.pomerium.app
+
+# TLS Configuration
+certificate_file: /certs/pomerium.crt
+certificate_key_file: /certs/pomerium.key
+
+# Secrets shared with pomerium/config.yaml.
+# These are test-only values - NEVER use in production
+cookie_secret: dj5y7E03ULP9YebCgHNIXmxWnWfYlVXCgwbm9IEdysI=
+shared_secret: 0CdEkgO02jgxmgSC2AdkqIbFELAN4CGw0v0RY85xNr4=
+
+# Logging
+log_level: debug
+
+# Pass the email claim as an HTTP header so the verify upstream can echo it
+jwt_claims_headers:
+  X-Pomerium-Claim-Email: email
+
+routes:
+  # Test route: any user authenticated via the hosted IdP may access
+  - from: https://verify-hosted.localhost.pomerium.io:8444
+    to: http://upstream:8000
+    pass_identity_headers: true
+    allow_any_authenticated_user: true

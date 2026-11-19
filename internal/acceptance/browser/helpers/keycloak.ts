@@ -4,7 +4,9 @@
  */
 
 import { urls, keycloakPaths } from "../fixtures/test-data.js";
-import { getRunId } from "../fixtures/users.js";
+
+/** Unique per-process run id used to prefix ephemeral test usernames. */
+const runId = Date.now().toString(36);
 
 /**
  * Keycloak admin client for test operations.
@@ -174,7 +176,7 @@ export class KeycloakAdmin {
    * Username should be without the run prefix.
    */
   async removeTestUserFromGroup(username: string, groupName: string): Promise<void> {
-    const prefixedUsername = `test-user-${getRunId()}-${username}`;
+    const prefixedUsername = `test-user-${runId}-${username}`;
 
     const user = await this.getUserByUsername(prefixedUsername);
     if (!user) {
@@ -194,7 +196,7 @@ export class KeycloakAdmin {
    * Username should be without the run prefix.
    */
   async addTestUserToGroup(username: string, groupName: string): Promise<void> {
-    const prefixedUsername = `test-user-${getRunId()}-${username}`;
+    const prefixedUsername = `test-user-${runId}-${username}`;
 
     const user = await this.getUserByUsername(prefixedUsername);
     if (!user) {

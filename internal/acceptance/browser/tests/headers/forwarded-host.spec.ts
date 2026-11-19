@@ -9,7 +9,7 @@
  * | Headers | preserve host header | preserve_host_header: true | Upstream host remains original |
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import { login, clearAuthState } from "../../helpers/authn-flow.js";
 import { testUsers } from "../../fixtures/users.js";
 import { urls, testRoutes } from "../../fixtures/test-data.js";
@@ -19,7 +19,7 @@ const expectedOriginalHost = new URL(urls.app).host;
 const autoRewrittenHost = "websocket-server:8080";
 const rewrittenHost = "rewritten.example.internal";
 
-async function getRequestInfo(page, route: string) {
+async function getRequestInfo(page: Page, route: string) {
   const response = await page.request.get(`${urls.app}${route}`, {
     ignoreHTTPSErrors: true,
     headers: {
