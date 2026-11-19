@@ -51,7 +51,7 @@ func (e *HTTPError) Unwrap() error { return e.Err }
 func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	encryptedBuildInformation, _ := diagnostics.EncryptBuildInformation(
 		diagnostics.DiagnosticKeyID,
-		diagnostics.DiagnosticPublicKeyPEM,
+		diagnostics.DiagnosticPublicKey,
 		diagnostics.ComputeBuildInformation(),
 	)
 	reqID := e.RequestID

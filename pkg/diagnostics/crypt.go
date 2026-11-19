@@ -10,33 +10,28 @@ import (
 )
 
 var (
-	DiagnosticKeyID        byte = 1
-	DiagnosticPublicKeyPEM      = `
+	DiagnosticKeyID     byte = 1
+	DiagnosticPublicKey      = must(parsePublicKey(`
 -----BEGIN PUBLIC KEY-----
 MCowBQYDK2VuAyEAGsDUHu1FPwN89ShuurVINishPAJNlsHwfOqJbyq4BjQ=
 -----END PUBLIC KEY-----
-`
+`))
+	kem  = hpke.DHKEM(ecdh.X25519())
+	kdf  = hpke.HKDFSHA256()
+	aead = hpke.AES256GCM()
 )
 
 // Decrypt decrypts data previously encrypted with Encrypt.
-func Decrypt(privateKeyPEMs map[byte]string, encapsulated []byte) ([]byte, error) {
-	keyID, ciphertext := decapsulate(encapsulated)
-	privateKeyPEM, ok := privateKeyPEMs[keyID]
-	if !ok {
-		return nil, fmt.Errorf("diagnostics: data was encrypted with an unknown key")
-	}
-	key, err := getPrivateKey(privateKeyPEM)
+func Decrypt(getPrivateKey func(keyID byte, kemID, kdfID, aeadID uint16) (hpke.PrivateKey, error), encapsulated []byte) ([]byte, error) {
+	keyID, kemID, kdfID, aeadID, ciphertext := decapsulate(encapsulated)
+	privateKey, err := getPrivateKey(keyID, kemID, kdfID, aeadID)
 	if err != nil {
-		return nil, fmt.Errorf("diagnostics: error loading private key: %w", err)
-	}
-	hpkeKey, err := hpke.NewDHKEMPrivateKey(key)
-	if err != nil {
-		return nil, fmt.Errorf("diagnostics: error loading private key: %w", err)
+		return nil, fmt.Errorf("diagnostics: error retrieving private key for message: %w", err)
 	}
 	plaintext, err := hpke.Open(
-		hpkeKey,
-		hpke.HKDFSHA256(),
-		hpke.ChaCha20Poly1305(),
+		privateKey,
+		kdf,
+		aead,
 		nil,
 		ciphertext,
 	)
@@ -47,19 +42,11 @@ func Decrypt(privateKeyPEMs map[byte]string, encapsulated []byte) ([]byte, error
 }
 
 // Encrypt encrypts data using HPKE.
-func Encrypt(keyID byte, publicKeyPEM string, plaintext []byte) ([]byte, error) {
-	key, err := getPublicKey(publicKeyPEM)
-	if err != nil {
-		return nil, fmt.Errorf("diagnostics: error loading public key: %w", err)
-	}
-	hpkeKey, err := hpke.NewDHKEMPublicKey(key)
-	if err != nil {
-		return nil, fmt.Errorf("diagnostics: error loading public key: %w", err)
-	}
+func Encrypt(keyID byte, publicKey hpke.PublicKey, plaintext []byte) ([]byte, error) {
 	ciphertext, err := hpke.Seal(
-		hpkeKey,
-		hpke.HKDFSHA256(),
-		hpke.ChaCha20Poly1305(),
+		publicKey,
+		kdf,
+		aead,
 		nil,
 		plaintext,
 	)
@@ -70,31 +57,7 @@ func Encrypt(keyID byte, publicKeyPEM string, plaintext []byte) ([]byte, error) 
 	return encapsulate(keyID, ciphertext), nil
 }
 
-func getPrivateKey(privateKeyPEM string) (*ecdh.PrivateKey, error) {
-	data := []byte(privateKeyPEM)
-	for {
-		var block *pem.Block
-		block, data = pem.Decode(data)
-		if block == nil {
-			break
-		}
-
-		if block.Type == "PRIVATE KEY" {
-			priv, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing private key: %w", err)
-			}
-			key, ok := priv.(*ecdh.PrivateKey)
-			if !ok {
-				return nil, fmt.Errorf("expected private key to be an ecdh key, got %T", priv)
-			}
-			return key, nil
-		}
-	}
-	return nil, fmt.Errorf("private key not found")
-}
-
-func getPublicKey(publicKeyPEM string) (*ecdh.PublicKey, error) {
+func parsePublicKey(publicKeyPEM string) (hpke.PublicKey, error) {
 	data := []byte(publicKeyPEM)
 	for {
 		var block *pem.Block
@@ -108,28 +71,44 @@ func getPublicKey(publicKeyPEM string) (*ecdh.PublicKey, error) {
 			if err != nil {
 				return nil, fmt.Errorf("error parsing diagnostic public key: %w", err)
 			}
-			key, ok := pub.(*ecdh.PublicKey)
+			ecdhPublicKey, ok := pub.(*ecdh.PublicKey)
 			if !ok {
 				return nil, fmt.Errorf("expected diagnostic public key to be an ecdh key, got %T", pub)
 			}
-			return key, nil
+			hpkePublicKey, err := hpke.NewDHKEMPublicKey(ecdhPublicKey)
+			if err != nil {
+				return nil, fmt.Errorf("error reading diagnostic public key: %w", err)
+			}
+			return hpkePublicKey, nil
 		}
 	}
 	return nil, fmt.Errorf("diagnostic public key not found")
 }
 
-func decapsulate(data []byte) (version byte, ciphertext []byte) {
+func decapsulate(data []byte) (version byte, kemID, kdfID, aeadID uint16, ciphertext []byte) {
 	if len(data) < 7 {
-		return 0, nil
+		return 0, 0, 0, 0, nil
 	}
-	return data[0], data[7:]
+	version = data[0]
+	kemID = binary.BigEndian.Uint16(data[1:3])
+	kdfID = binary.BigEndian.Uint16(data[3:5])
+	aeadID = binary.BigEndian.Uint16(data[5:7])
+	ciphertext = data[7:]
+	return version, kemID, kdfID, aeadID, ciphertext
 }
 
 func encapsulate(keyID byte, ciphertext []byte) []byte {
 	// this follows the header format described in https://www.rfc-editor.org/info/rfc9458/#section-4.1
 	hdr := []byte{keyID}
-	hdr = binary.BigEndian.AppendUint16(hdr, 0x0020) // DHKEM(X25519, HKDF-SHA256)
-	hdr = binary.BigEndian.AppendUint16(hdr, 0x0001) // HKDF-SHA256
-	hdr = binary.BigEndian.AppendUint16(hdr, 0x0003) // ChaCha20Poly1305
+	hdr = binary.BigEndian.AppendUint16(hdr, kem.ID())
+	hdr = binary.BigEndian.AppendUint16(hdr, kdf.ID())
+	hdr = binary.BigEndian.AppendUint16(hdr, aead.ID())
 	return append(hdr, ciphertext...)
+}
+
+func must[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return v
 }

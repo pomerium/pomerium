@@ -55,7 +55,7 @@ func (data UserInfoData) ToJSON() map[string]any {
 	}
 	m["encryptedBuildInformation"], _ = diagnostics.EncryptBuildInformation(
 		diagnostics.DiagnosticKeyID,
-		diagnostics.DiagnosticPublicKeyPEM,
+		diagnostics.DiagnosticPublicKey,
 		diagnostics.ComputeBuildInformation(),
 	)
 	return m

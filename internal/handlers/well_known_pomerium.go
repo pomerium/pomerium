@@ -17,7 +17,7 @@ func WellKnownPomerium(authenticateURL *url.URL) http.Handler {
 	return cors.AllowAll().Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		encryptedBuildInformation, _ := diagnostics.EncryptBuildInformation(
 			diagnostics.DiagnosticKeyID,
-			diagnostics.DiagnosticPublicKeyPEM,
+			diagnostics.DiagnosticPublicKey,
 			diagnostics.ComputeBuildInformation(),
 		)
 		wellKnownData := struct {

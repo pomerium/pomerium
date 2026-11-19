@@ -1,6 +1,8 @@
 package diagnostics
 
 import (
+	"bytes"
+	"crypto/hpke"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -12,12 +14,12 @@ import (
 
 // BuildInformation is information about the build.
 type BuildInformation struct {
-	BuiltAt         time.Time `json:"builtAt,omitzero"`
-	ComputedAt      time.Time `json:"computedAt,omitzero"`
-	EnvoyLicense    string    `json:"envoyLicense,omitzero"`
-	EnvoyVersion    string    `json:"envoyVersion,omitzero"`
-	PomeriumLicense string    `json:"pomeriumLicense,omitzero"`
-	PomeriumVersion string    `json:"pomeriumVersion,omitzero"`
+	BuiltAt         time.Time `json:"b,omitzero"`
+	ComputedAt      time.Time `json:"c,omitzero"`
+	EnvoyLicense    string    `json:"el,omitzero"`
+	EnvoyVersion    string    `json:"ev,omitzero"`
+	PomeriumLicense string    `json:"pl,omitzero"`
+	PomeriumVersion string    `json:"pv,omitzero"`
 }
 
 // ComputeBuildInformation computes build information for diagnostic purposes.
@@ -34,8 +36,8 @@ func ComputeBuildInformation() BuildInformation {
 }
 
 // DecryptBuildInformation decrypts build information previously encrypted with EncryptBuildInformation.
-func DecryptBuildInformation(privateKeyPEMs map[byte]string, encapsulated []byte) (*BuildInformation, error) {
-	plaintext, err := Decrypt(privateKeyPEMs, encapsulated)
+func DecryptBuildInformation(getPrivateKey func(keyID byte, kemID, kdfID, aeadID uint16) (hpke.PrivateKey, error), encapsulated []byte) (*BuildInformation, error) {
+	plaintext, err := Decrypt(getPrivateKey, encapsulated)
 	if err != nil {
 		return nil, err
 	}
@@ -48,10 +50,15 @@ func DecryptBuildInformation(privateKeyPEMs map[byte]string, encapsulated []byte
 }
 
 // EncryptBuildInformation encrypts build information.
-func EncryptBuildInformation(keyID byte, publicKeyPEM string, info BuildInformation) ([]byte, error) {
+func EncryptBuildInformation(keyID byte, publicKey hpke.PublicKey, info BuildInformation) ([]byte, error) {
 	plaintext, err := json.Marshal(info)
 	if err != nil {
 		return nil, fmt.Errorf("diagnostics: error marshaling build information: %w", err)
 	}
-	return Encrypt(keyID, publicKeyPEM, plaintext)
+
+	if len(plaintext) < 1_024 {
+		plaintext = append(plaintext, bytes.Repeat([]byte{' '}, 1_024-len(plaintext))...)
+	}
+
+	return Encrypt(keyID, publicKey, plaintext)
 }
