@@ -125,6 +125,60 @@ func TestRelabelTextStream(t *testing.T) {
 			addLabels: map[string]string{"instance": "localhost:9090"},
 			expected:  "metric1{instance=\"localhost:9090\"} 10\nmetric2{label=\"value\",instance=\"localhost:9090\"} 20\n# COMMENT\nmetric3{instance=\"localhost:9090\"} 30\n",
 		},
+		{
+			name:      "label value with spaces",
+			input:     "controller_runtime_active_workers{controller=\"bootstrap pod/pomerium-0\"} 0\n",
+			addLabels: map[string]string{"service": "bootstrap-controller"},
+			expected:  "controller_runtime_active_workers{controller=\"bootstrap pod/pomerium-0\",service=\"bootstrap-controller\"} 0\n",
+		},
+		{
+			name:      "label value with spaces, escaped quotes, and braces",
+			input:     "http_requests_total{path=\"/api/\\\"{id}\\\" test\",method=\"GET\"} 42 1700000000\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "http_requests_total{path=\"/api/\\\"{id}\\\" test\",method=\"GET\",service=\"proxy\"} 42 1700000000\n",
+		},
+		{
+			name:      "label value with trailing backslash escape before quote",
+			input:     "metric_total{note=\"foo \\\\\",other=\"bar baz\"} 1\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "metric_total{note=\"foo \\\\\",other=\"bar baz\",service=\"proxy\"} 1\n",
+		},
+		{
+			name:      "existing labels with trailing comma",
+			input:     "metric_total{label=\"with space\",} 1\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "metric_total{label=\"with space\",service=\"proxy\"} 1\n",
+		},
+		{
+			name:      "tab separator",
+			input:     "metric_without_labels\t42\nmetric_with_labels{label=\"with space\"}\t42\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "metric_without_labels{service=\"proxy\"}\t42\nmetric_with_labels{label=\"with space\",service=\"proxy\"}\t42\n",
+		},
+		{
+			name:      "metric without labels and exemplar",
+			input:     "http_requests_total 5 # {trace_id=\"abc\"} 1.0\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "http_requests_total{service=\"proxy\"} 5 # {trace_id=\"abc\"} 1.0\n",
+		},
+		{
+			name:      "whitespace before label block",
+			input:     "http_requests_total {label=\"with space\"} 5\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "http_requests_total{label=\"with space\",service=\"proxy\"} 5\n",
+		},
+		{
+			name:      "malformed metric (unclosed quote in label)",
+			input:     "invalid_metric{label=\"unclosed} 42\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "invalid_metric{label=\"unclosed} 42\n",
+		},
+		{
+			name:      "malformed metric (no value after closing brace)",
+			input:     "invalid_metric{label=\"value\"}\n",
+			addLabels: map[string]string{"service": "proxy"},
+			expected:  "invalid_metric{label=\"value\"}\n",
+		},
 	}
 
 	for _, tc := range testCases {

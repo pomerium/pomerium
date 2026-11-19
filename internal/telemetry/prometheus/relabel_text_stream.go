@@ -57,40 +57,23 @@ func RelabelTextStream(dst io.Writer, src io.Reader, addLabels map[string]string
 			continue
 		}
 
-		spaceIdx := bytes.IndexByte(line, ' ')
-		if spaceIdx == -1 {
+		metricName, existingLabels, value, ok := splitMetricLine(line)
+		if !ok {
 			if _, err := dst.Write(line); err != nil {
 				return err
 			}
 			continue
 		}
-
-		metricWithLabels := line[:spaceIdx]
-		value := line[spaceIdx:]
-
-		openBraceIdx := bytes.IndexByte(metricWithLabels, '{')
-		if openBraceIdx == -1 { // no labels
-			if err := writeMulti(dst, metricWithLabels, []byte("{"), addedLabels, []byte("}"), value); err != nil {
-				return err
-			}
-			continue
-		}
-
-		metricName := metricWithLabels[:openBraceIdx]
-
-		closeBraceIdx := bytes.LastIndexByte(metricWithLabels, '}')
-		if closeBraceIdx == -1 || closeBraceIdx <= openBraceIdx {
-			if _, err := dst.Write(line); err != nil {
-				return err
-			}
-			continue
-		}
-
-		existingLabels := metricWithLabels[openBraceIdx+1 : closeBraceIdx]
 
 		if len(existingLabels) > 0 {
-			if err := writeMulti(dst, metricName, []byte("{"), existingLabels, []byte(","), addedLabels, []byte("}"), value); err != nil {
-				return err
+			if existingLabels[len(existingLabels)-1] == ',' {
+				if err := writeMulti(dst, metricName, []byte("{"), existingLabels, addedLabels, []byte("}"), value); err != nil {
+					return err
+				}
+			} else {
+				if err := writeMulti(dst, metricName, []byte("{"), existingLabels, []byte(","), addedLabels, []byte("}"), value); err != nil {
+					return err
+				}
 			}
 		} else {
 			if err := writeMulti(dst, metricName, []byte("{"), addedLabels, []byte("}"), value); err != nil {
@@ -100,4 +83,96 @@ func RelabelTextStream(dst io.Writer, src io.Reader, addLabels map[string]string
 	}
 
 	return nil
+}
+
+// splitMetricLine splits a Prometheus text exposition sample line into the metric name,
+// any existing label body (without enclosing braces), and the trailing value/timestamp slice.
+func splitMetricLine(line []byte) (metricName, existingLabels, value []byte, ok bool) {
+	openBraceIdx := bytes.IndexByte(line, '{')
+	if openBraceIdx == -1 {
+		sepIdx := findWhitespace(line)
+		if sepIdx <= 0 {
+			return nil, nil, nil, false
+		}
+		return line[:sepIdx], nil, line[sepIdx:], true
+	}
+
+	prefix := line[:openBraceIdx]
+	if sepIdx := findWhitespace(prefix); sepIdx != -1 {
+		if sepIdx == 0 {
+			return nil, nil, nil, false
+		}
+		// Check whether whitespace precedes a label block (e.g. `metric {a="1"} 42`)
+		// or separates metric name from sample value (e.g. `metric 42 # {trace_id="1"}`).
+		for _, b := range prefix[sepIdx+1:] {
+			if b != ' ' && b != '\t' {
+				return line[:sepIdx], nil, line[sepIdx:], true
+			}
+		}
+		prefix = prefix[:sepIdx]
+	}
+
+	if len(prefix) == 0 {
+		return nil, nil, nil, false
+	}
+
+	closeBraceRel := findClosingBrace(line[openBraceIdx+1:])
+	if closeBraceRel == -1 {
+		return nil, nil, nil, false
+	}
+	closeBraceIdx := openBraceIdx + 1 + closeBraceRel
+	if closeBraceIdx+1 >= len(line) {
+		return nil, nil, nil, false
+	}
+	if next := line[closeBraceIdx+1]; next != ' ' && next != '\t' {
+		return nil, nil, nil, false
+	}
+	return prefix, line[openBraceIdx+1 : closeBraceIdx], line[closeBraceIdx+1:], true
+}
+
+func findWhitespace(b []byte) int {
+	spaceIdx := bytes.IndexByte(b, ' ')
+	tabIdx := bytes.IndexByte(b, '\t')
+	if spaceIdx == -1 {
+		return tabIdx
+	}
+	if tabIdx == -1 || spaceIdx < tabIdx {
+		return spaceIdx
+	}
+	return tabIdx
+}
+
+// findClosingBrace returns the index in b of the closing '}' outside quoted label values,
+// or -1 if unclosed.
+func findClosingBrace(b []byte) int {
+	offset := 0
+	for {
+		braceIdx := bytes.IndexByte(b[offset:], '}')
+		if braceIdx == -1 {
+			return -1
+		}
+		quoteIdx := bytes.IndexByte(b[offset:offset+braceIdx], '"')
+		if quoteIdx == -1 {
+			return offset + braceIdx
+		}
+
+		// Skip to the matching unescaped closing quote.
+		pos := offset + quoteIdx + 1
+		for {
+			endRel := bytes.IndexByte(b[pos:], '"')
+			if endRel == -1 {
+				return -1
+			}
+			end := pos + endRel
+			backslashes := 0
+			for i := end - 1; i >= pos && b[i] == '\\'; i-- {
+				backslashes++
+			}
+			pos = end + 1
+			if backslashes%2 == 0 {
+				break
+			}
+		}
+		offset = pos
+	}
 }
