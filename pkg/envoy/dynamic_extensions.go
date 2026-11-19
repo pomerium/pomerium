@@ -210,6 +210,7 @@ func (srv *Server) envoyDynamicExtStatus(ctx context.Context) (*extensionStatusI
 		Path:   "/dynamic_extensions/status",
 	}
 	client := envoyAdminClient(adminAddress)
+	defer client.CloseIdleConnections()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
