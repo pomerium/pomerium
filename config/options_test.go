@@ -515,6 +515,26 @@ func TestOptionsFromViper(t *testing.T) {
 	}
 }
 
+func TestOptionsFromViperTOML(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), "config.toml")
+	require.NoError(t, os.WriteFile(cfg, []byte(`
+autocert_dir = ""
+insecure_server = true
+
+[[policy]]
+from = "https://from.example"
+to = "https://to.example"
+set_response_headers = { "X-Test" = "value" }
+`), 0o644))
+
+	options, err := optionsFromViper(cfg)
+	require.NoError(t, err)
+	require.Len(t, options.Policies, 1)
+	assert.Equal(t, "https://from.example", options.Policies[0].From)
+	assert.Equal(t, mustParseWeightedURLs(t, "https://to.example"), options.Policies[0].To)
+	assert.Equal(t, map[string]string{"x-test": "value"}, options.Policies[0].SetResponseHeaders)
+}
+
 func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 	tests := []struct {
 		name        string
