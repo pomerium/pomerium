@@ -1024,6 +1024,12 @@ func (p *Policy) IsConsoleRoute(options *Options) bool {
 	return false
 }
 
+// IsForOIDCBridge returns true if this route explicitly opted into OIDC bridging.
+// It ignores the global setting. Used for telemetry.
+func (p *Policy) IsForOIDCBridge() bool {
+	return p.OidcBridge.Ptr().IsEnabled()
+}
+
 // AllAllowedDomains returns all the allowed domains.
 func (p *Policy) AllAllowedDomains() []string {
 	var ads []string
