@@ -6062,6 +6062,14 @@ components:
             - "null"
           title: listen_funnel_addr
           description: Start a Tailscale Funnel listener.
+        listenFunnelOnly:
+          type:
+            - boolean
+            - "null"
+          title: listen_funnel_only
+          description: |-
+            When set to true, only allow traffic from the Tailscale Funnel and not
+             the tailnet.
         listenServiceName:
           type:
             - string

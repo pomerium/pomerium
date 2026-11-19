@@ -186,6 +186,7 @@ type TailscaleListenerSettings struct {
 	IDTokenAudience   Value[string]   `json:"id_token_audience,omitzero" mapstructure:"id_token_audience" yaml:"id_token_audience,omitempty"`
 	ListenAddr        Value[string]   `json:"listen_addr,omitzero" mapstructure:"listen_addr" yaml:"listen_addr,omitempty"`
 	ListenFunnelAddr  Value[string]   `json:"listen_funnel_addr,omitzero" mapstructure:"listen_funnel_addr" yaml:"listen_funnel_addr,omitempty"`
+	ListenFunnelOnly  Value[bool]     `json:"listen_funnel_only,omitzero" mapstructure:"listen_funnel_only" yaml:"listen_funnel_only,omitempty"`
 	ListenServiceName Value[string]   `json:"listen_service_name,omitzero" mapstructure:"listen_service_name" yaml:"listen_service_name,omitempty"`
 	ListenServicePort Value[uint32]   `json:"listen_service_port,omitzero" mapstructure:"listen_service_port" yaml:"listen_service_port,omitempty"`
 	OauthClientID     Value[string]   `json:"oauth_client_id,omitzero" mapstructure:"oauth_client_id" yaml:"oauth_client_id,omitempty"`
@@ -832,6 +833,7 @@ func setTailscaleListenerSettingsFromProto(dst *TailscaleListenerSettings, src *
 		setNullableStringFromProto(&dst.IDTokenAudience, src.IdTokenAudience),
 		setNullableStringFromProto(&dst.ListenAddr, src.ListenAddr),
 		setNullableStringFromProto(&dst.ListenFunnelAddr, src.ListenFunnelAddr),
+		setNullableBoolFromProto(&dst.ListenFunnelOnly, src.ListenFunnelOnly),
 		setNullableStringFromProto(&dst.ListenServiceName, src.ListenServiceName),
 		setNullableUInt32FromProto(&dst.ListenServicePort, src.ListenServicePort),
 		setNullableStringFromProto(&dst.OauthClientID, src.OauthClientId),
@@ -1451,6 +1453,7 @@ func setTailscaleListenerSettingsToProto(dst **configpb.TailscaleListenerSetting
 		setNullableStringToProto(&obj.IdTokenAudience, src.IDTokenAudience),
 		setNullableStringToProto(&obj.ListenAddr, src.ListenAddr),
 		setNullableStringToProto(&obj.ListenFunnelAddr, src.ListenFunnelAddr),
+		setNullableBoolToProto(&obj.ListenFunnelOnly, src.ListenFunnelOnly),
 		setNullableStringToProto(&obj.ListenServiceName, src.ListenServiceName),
 		setNullableUInt32ToProto(&obj.ListenServicePort, src.ListenServicePort),
 		setNullableStringToProto(&obj.OauthClientId, src.OauthClientID),
