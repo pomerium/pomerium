@@ -806,6 +806,14 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 		return err
 	}
 
+	if err := backend.SetOptions(ctx, "type.googleapis.com/session.Session", &databrokerpb.Options{
+		IndexableFields: []string{
+			"user_id",
+		},
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 
