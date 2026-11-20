@@ -32,6 +32,25 @@ func TestWatcher(t *testing.T) {
 	expectChange(t, ch)
 }
 
+func TestWatcher_DirectoryChanges(t *testing.T) {
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	w := NewWatcher()
+	t.Cleanup(func() { w.Close() })
+	w.Watch([]string{tmpdir})
+
+	ch := w.Bind()
+	t.Cleanup(func() { w.Unbind(ch) })
+
+	require.NoError(t, os.Mkdir(filepath.Join(tmpdir, "a"), 0o700))
+	expectChange(t, ch)
+
+	require.NoError(t, os.Remove(filepath.Join(tmpdir, "a")))
+	expectChange(t, ch)
+}
+
 func TestWatcherSymlink(t *testing.T) {
 	t.Parallel()
 
