@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -197,6 +198,21 @@ func TestServer_Options(t *testing.T) {
 	st, ok = status.FromError(err)
 	assert.True(t, ok)
 	assert.Equal(t, codes.NotFound, st.Code())
+}
+
+func TestServer_ClearKeepsRequiredOptions(t *testing.T) {
+	t.Parallel()
+
+	srv := newServer(t)
+
+	_, err := srv.Clear(t.Context(), new(emptypb.Empty))
+	require.NoError(t, err)
+
+	res, err := srv.GetOptions(t.Context(), &databrokerpb.GetOptionsRequest{
+		Type: "type.googleapis.com/session.SessionBinding",
+	})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"session_id", "user_id"}, res.GetOptions().GetIndexableFields())
 }
 
 func TestServer_Lease(t *testing.T) {
