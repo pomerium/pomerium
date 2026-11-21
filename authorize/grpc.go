@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -24,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -126,7 +128,7 @@ func (a *Authorize) loadSession(
 ) (s sessionOrServiceAccount, err error) {
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 
-	s, err = a.maybeGetSessionFromRequest(ctx, hreq, req.Policy)
+	s, err = a.maybeGetSessionFromRequest(ctx, hreq, req)
 	if err == nil {
 		return s, nil
 	} else if !errors.Is(err, sessions.ErrNoSessionFound) {
@@ -165,11 +167,19 @@ func (a *Authorize) loadSession(
 	return s, nil
 }
 
+var oidcBridgeEndpoints = []string{
+	endpoints.PathOIDCAuth,
+	endpoints.PathOIDCToken,
+	endpoints.PathOIDCJWKS,
+	endpoints.PathOIDCUserInfo,
+}
+
 func (a *Authorize) maybeGetSessionFromRequest(
 	ctx context.Context,
 	hreq *http.Request,
-	policy *config.Policy,
+	req *evaluator.Request,
 ) (*session.Session, error) {
+	policy := req.Policy
 	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		if policy.IsMCPServer() || strings.HasPrefix(hreq.URL.Path, mcp.DefaultPrefix) {
 			s, err := a.getMCPSession(ctx, hreq)
@@ -181,7 +191,20 @@ func (a *Authorize) maybeGetSessionFromRequest(
 		}
 	}
 
-	// attempt to create a session from an incoming idp token
+	// this is a request sent to Pomerium's OIDC bridge endpoints
+	if req.IsInternal && slices.Contains(oidcBridgeEndpoints, hreq.URL.Path) {
+		// this sentinel allows Pomerium to continue through to its regular authorization flow
+		// when Pomerium is configured with `bearer_token_format``: "idp_access_token", "idp_identity_token" or "jwt".
+		//
+		// Otherwise, bearer token formats conflict with OIDC bridge's functionality:
+		//  1. OIDC Bridge mints tokens that are not associated with the idP, for use with its own
+		//     OIDC provider endpoints
+		//  2. bearer token handling below assumes that Authorization: Bearer <Token> is an idP
+		//     token that must be verified upstream, which will result in a 403, instead of succeeding.
+		return nil, sessions.ErrNoSessionFound
+	}
+
+	// attempt to create a session from an incoming idP token
 	return a.state.Load().idpTokenSessionCreator.
 		CreateSession(ctx, a.currentConfig.Load(), policy, hreq)
 }
