@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -32,6 +33,10 @@ var (
 	errClusteredFollowerServerStopped = status.Error(codes.Canceled, "stopped")
 	errClusteredFollowerNeedsReset    = status.Error(codes.Aborted, "needs reset")
 )
+
+// clusteredFollowerStreamStableAfter is how long a sync stream must stay up,
+// without an error, before an idle follower reports the cluster as healthy.
+const clusteredFollowerStreamStableAfter = time.Second
 
 type clusteredFollowerServer struct {
 	telemetry telemetry.Component
@@ -631,6 +636,20 @@ func (srv *clusteredFollowerServer) syncStep(
 		return fmt.Errorf("error starting sync stream: %w", err)
 	}
 
+	// A blocking sync (wait=true) only returns when the stream fails, so
+	// handleSyncError never gets a chance to report the cluster as running
+	// again after an earlier error. Report it once per stream instead: on the
+	// first message from the leader, or after the stream has stayed up for a
+	// short while (an idle leader may have nothing to send). A stream that
+	// fails first reports nothing, so a reconnect loop doesn't flash green.
+	reportRunning := sync.OnceFunc(func() {
+		if ctx.Err() == nil {
+			health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
+		}
+	})
+	stable := time.AfterFunc(clusteredFollowerStreamStableAfter, reportRunning)
+	defer stable.Stop()
+
 	for {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
@@ -642,6 +661,7 @@ func (srv *clusteredFollowerServer) syncStep(
 		}
 
 		b.Reset()
+		reportRunning()
 
 		payload := clusteredFollowerServerBatchStepPayload{}
 		switch res := res.Response.(type) {
