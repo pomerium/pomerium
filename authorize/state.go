@@ -38,7 +38,7 @@ type authorizeState struct {
 	idpResolver                *config.IdentityProviderResolver
 	authenticateFlow           authenticateFlow
 	syncQueriers               map[string]storage.Querier
-	mcp                        *mcp.Handler
+	mcp                        *mcp.AccessTokens
 }
 
 func newAuthorizeStateFromConfig(
@@ -48,7 +48,6 @@ func newAuthorizeStateFromConfig(
 	cfg *config.Config,
 	store *store.Store,
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
-	dataBrokerClient databroker.ClientGetter,
 ) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
@@ -93,9 +92,9 @@ func newAuthorizeStateFromConfig(
 
 	var evaluatorOptions []evaluator.Option
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, dataBrokerClient)
+		mcp, err := mcp.NewAccessTokens(cfg)
 		if err != nil {
-			return nil, fmt.Errorf("authorize: failed to create mcp handler: %w", err)
+			return nil, fmt.Errorf("authorize: failed to create mcp access tokens: %w", err)
 		}
 		state.mcp = mcp
 		evaluatorOptions = append(evaluatorOptions, evaluator.WithMCPAccessTokenProvider(mcp))

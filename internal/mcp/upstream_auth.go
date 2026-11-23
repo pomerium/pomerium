@@ -96,14 +96,6 @@ type UpstreamAuthHandler struct {
 // UpstreamAuthHandlerOption configures an UpstreamAuthHandler.
 type UpstreamAuthHandlerOption func(*UpstreamAuthHandler)
 
-// WithUpstreamHTTPClient sets the HTTP client used for upstream discovery and
-// token refresh. By default a client trusting the configured CA is used.
-func WithUpstreamHTTPClient(client *http.Client) UpstreamAuthHandlerOption {
-	return func(h *UpstreamAuthHandler) {
-		h.httpClient = client
-	}
-}
-
 // WithStorage replaces the handler's storage (for tests)
 func WithStorage(storage HandlerStorage) UpstreamAuthHandlerOption {
 	return func(h *UpstreamAuthHandler) {
@@ -111,21 +103,21 @@ func WithStorage(storage HandlerStorage) UpstreamAuthHandlerOption {
 	}
 }
 
-// NewUpstreamAuthHandler creates an UpstreamAuthHandler for cfg.
+// NewUpstreamAuthHandler creates an UpstreamAuthHandler for cfg. httpClient is
+// used for upstream discovery and token refresh.
 func NewUpstreamAuthHandler(
 	ctx context.Context,
 	cfg *config.Config,
+	httpClient *http.Client,
 	opts ...UpstreamAuthHandlerOption,
 ) (*UpstreamAuthHandler, error) {
 	h := &UpstreamAuthHandler{
+		httpClient:             httpClient,
 		tracerProvider:         trace.NewTracerProvider(ctx, "MCP-ExtProc"),
 		outboundGRPCConnection: grpc.CachedOutboundGRPClientConn{Name: "mcp-extproc"},
 	}
 	for _, opt := range opts {
 		opt(h)
-	}
-	if h.httpClient == nil {
-		h.httpClient = newUpstreamHTTPClient(ctx, cfg)
 	}
 	if h.storage == nil {
 		h.storage = NewStorage(h) // the handler resolves its own client per use
@@ -133,7 +125,7 @@ func NewUpstreamAuthHandler(
 	if err := h.updateDataBrokerClient(ctx, cfg); err != nil {
 		return nil, err
 	}
-	h.hosts = NewHostInfo(cfg, h.httpClient)
+	h.hosts = NewHostInfo(cfg)
 	h.asMetadataDomainMatcher.Store(NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains()))
 	return h, nil
 }
@@ -174,19 +166,6 @@ func (h *UpstreamAuthHandler) updateDataBrokerClient(ctx context.Context, cfg *c
 	client := databroker.NewDataBrokerServiceClient(cc)
 	h.dataBrokerClient.Store(&client)
 	return nil
-}
-
-// newUpstreamHTTPClient returns an HTTP client trusting the configured CAs, or
-// the default client when they cannot be loaded.
-func newUpstreamHTTPClient(ctx context.Context, cfg *config.Config) *http.Client {
-	tlsConfig, err := cfg.GetTLSClientConfig()
-	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("mcp_upstream_auth: error loading custom CA, using system defaults")
-		return http.DefaultClient
-	}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = tlsConfig
-	return &http.Client{Transport: transport}
 }
 
 // GetUpstreamToken looks up a cached upstream token for the given route context and host.

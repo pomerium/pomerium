@@ -135,7 +135,7 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	tokenResp, err := exchangeToken(srv.clientOAuthHTTPClient(), tokenReq)
+	tokenResp, err := exchangeToken(srv.httpClient, tokenReq)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/client-oauth-callback: token exchange failed")
 		_ = srv.storage.DeletePendingUpstreamAuth(ctx, pending.UserId, pending.DownstreamHost)
@@ -217,12 +217,4 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	// or the ext_proc request path; it is never client-supplied.
 	log.Ctx(ctx).Info().Msg("mcp/client-oauth-callback: no linked auth request, redirecting to original URL")
 	http.Redirect(w, r, pending.OriginalUrl, http.StatusFound)
-}
-
-// clientOAuthHTTPClient returns the HTTP client to use for upstream OAuth token exchange.
-func (srv *Handler) clientOAuthHTTPClient() *http.Client {
-	if srv.httpClient != nil {
-		return srv.httpClient
-	}
-	return http.DefaultClient
 }

@@ -250,7 +250,8 @@ func NewServer(
 	// handler is safe to install even when no MCP routes exist yet.
 	extProcHandler := options.extProcHandler
 	if extProcHandler == nil {
-		srv.mcpExtProcHandler, err = mcp.NewUpstreamAuthHandler(ctx, cfg)
+		// pkg/cmd/pomerium makes http.DefaultClient trust the CAs of the current config
+		srv.mcpExtProcHandler, err = mcp.NewUpstreamAuthHandler(ctx, cfg, http.DefaultClient)
 		if err != nil {
 			return nil, fmt.Errorf("mcp upstream auth handler: %w", err)
 		}
