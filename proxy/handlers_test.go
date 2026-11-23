@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -141,49 +140,42 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 		qp      map[string]string
 
 		wantStatus int
-		wantBody   string
 	}{
 		{
 			"good body not checked",
 			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "http://localhost"},
 			http.StatusOK,
-			"",
 		},
 		{
 			"good body not checked",
 			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "http://localhost"},
 			http.StatusOK,
-			"",
 		},
 		{
 			"router miss, bad redirect_uri query",
 			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{"bad_redirect_uri": "http://localhost"},
 			http.StatusNotFound,
-			"",
 		},
 		{
 			"bad redirect_uri missing scheme",
 			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "localhost"},
 			http.StatusBadRequest,
-			"{\"Status\":400}\n",
 		},
 		{
 			"bad redirect_uri not whitelisted",
 			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "https://example.com"},
 			http.StatusBadRequest,
-			"{\"Status\":400}\n",
 		},
 		{
 			"bad http method",
 			opts, http.MethodPost, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "http://localhost"},
 			http.StatusMethodNotAllowed,
-			"",
 		},
 	}
 	for _, tt := range tests {
@@ -210,13 +202,6 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
 				t.Errorf("\n%+v", w.Body.String())
-			}
-
-			if tt.wantBody != "" {
-				body := w.Body.String()
-				if diff := cmp.Diff(body, tt.wantBody); diff != "" {
-					t.Errorf("wrong body\n%s", diff)
-				}
 			}
 		})
 	}

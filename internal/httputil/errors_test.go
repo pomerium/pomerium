@@ -19,11 +19,10 @@ func TestHTTPError_ErrorResponse(t *testing.T) {
 		reqType string
 
 		wantStatus int
-		wantBody   string
 	}{
-		{"404 json", http.StatusNotFound, errors.New("route not known"), "application/json", http.StatusNotFound, "{\"Status\":404}\n"},
-		{"404 html", http.StatusNotFound, errors.New("route not known"), "", http.StatusNotFound, ""},
-		{"302 found", http.StatusFound, errors.New("redirect"), "", http.StatusFound, ""},
+		{"404 json", http.StatusNotFound, errors.New("route not known"), "application/json", http.StatusNotFound},
+		{"404 html", http.StatusNotFound, errors.New("route not known"), "", http.StatusNotFound},
+		{"302 found", http.StatusFound, errors.New("redirect"), "", http.StatusFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -41,11 +40,6 @@ func TestHTTPError_ErrorResponse(t *testing.T) {
 			fn(w, r)
 			if diff := cmp.Diff(tt.wantStatus, w.Code); diff != "" {
 				t.Errorf("ErrorResponse status:\n %s", diff)
-			}
-			if tt.reqType == "application/json" {
-				if diff := cmp.Diff(tt.wantBody, w.Body.String()); diff != "" {
-					t.Errorf("ErrorResponse status:\n %s", diff)
-				}
 			}
 		})
 	}

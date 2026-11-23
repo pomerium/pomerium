@@ -5,6 +5,7 @@ import (
 
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/pkg/diagnostics"
 	"github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -52,6 +53,11 @@ func (data UserInfoData) ToJSON() map[string]any {
 	if data.RuntimeFlags != nil {
 		m["runtimeFlags"] = data.RuntimeFlags
 	}
+	m["encryptedBuildInformation"], _ = diagnostics.EncryptBuildInformation(
+		diagnostics.DiagnosticKeyID,
+		diagnostics.DiagnosticPublicKey,
+		diagnostics.ComputeBuildInformation(),
+	)
 	return m
 }
 
