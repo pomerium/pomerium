@@ -95,8 +95,8 @@ update-tools() {
 	asdf set golang latest:1.27
 	asdf install golangci-lint latest:2
 	asdf set golangci-lint latest:2
-	asdf install nodejs latest:24
-	asdf set nodejs latest:24
+	asdf install nodejs latest:26
+	asdf set nodejs latest:26
 	asdf plugin add protoc
 	asdf install protoc latest
 	asdf set protoc latest
