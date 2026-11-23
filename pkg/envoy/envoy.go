@@ -530,18 +530,25 @@ func (srv *Server) readiness(ctx context.Context, exited chan struct{}) {
 			// small optimization to bring up envoy as ready
 			return
 		case <-firstC:
-			if err := srv.envoyReady(ctx); err != nil {
-				health.ReportError(health.EnvoyServer, err)
-			} else {
-				health.ReportRunning(health.EnvoyServer)
-			}
 		case <-ticker.C:
-			if err := srv.envoyReady(ctx); err != nil {
-				health.ReportError(health.EnvoyServer, err)
-			} else {
-				health.ReportRunning(health.EnvoyServer)
-			}
 		}
+		srv.reportReadiness(ctx, health.GetProviderManager())
+	}
+}
+
+func (srv *Server) reportReadiness(ctx context.Context, reporter health.Provider) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := srv.envoyReady(ctx); err != nil {
+		reporter.ReportError(health.EnvoyServer, err)
+		return
+	}
+	reporter.ReportStatus(health.EnvoyServer, health.StatusRunning)
+	if err := srv.envoyOverload(ctx); err != nil {
+		reporter.ReportError(health.EnvoyOverload, err)
+	} else {
+		reporter.ReportStatus(health.EnvoyOverload, health.StatusRunning)
 	}
 }
 
@@ -587,11 +594,12 @@ func preserveRlimitNofile() error {
 // GetExpectedHealthChecks implements the health.Check interface.
 // It must be safe for concurrent use
 func (srv *Server) GetExpectedHealthChecks() []health.Check {
+	checks := []health.Check{health.EnvoyOverload}
 	if srv.recordingServer.Load() != nil {
-		return []health.Check{
+		checks = append(checks,
 			health.BlobStorage,
 			health.RecordingHandler,
-		}
+		)
 	}
-	return []health.Check{}
+	return checks
 }

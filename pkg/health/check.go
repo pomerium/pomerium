@@ -11,6 +11,9 @@ const (
 	AuthorizationService = Check("authorize.service")
 	// EnvoyServer checks if the envoy server is up and running
 	EnvoyServer = Check("envoy.server")
+	// EnvoyOverload checks whether Envoy is accepting new connections and requests.
+	// It affects HTTP readiness, but not HTTP startup or liveness probes.
+	EnvoyOverload = Check("envoy.overload")
 	// ProxyService checks if the proxy server is up and running
 	ProxyService = Check("proxy.service")
 

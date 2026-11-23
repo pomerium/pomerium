@@ -138,3 +138,27 @@ func TestHTTP(t *testing.T) {
 	startup.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/", nil))
 	assert.Equal(t, http.StatusMethodNotAllowed, rec.Result().StatusCode)
 }
+
+func TestHTTPOverloadOnlyAffectsReadiness(t *testing.T) {
+	mgr := health.NewManager()
+	hp := health.NewHTTPProvider(mgr, health.WithExpectedChecks(health.EnvoyServer, health.EnvoyOverload))
+	startup := http.HandlerFunc(hp.StartupProbe)
+	ready := http.HandlerFunc(hp.ReadyProbe)
+	live := http.HandlerFunc(hp.LivenessProbe)
+
+	mgr.ReportStatus(health.EnvoyServer, health.StatusRunning)
+	// Missing overload reports must not block startup or cause restarts.
+	expectHTTPCode(t, http.StatusOK, startup, live)
+	expectHTTPCode(t, http.StatusServiceUnavailable, ready)
+
+	mgr.ReportError(health.EnvoyOverload, errors.New("envoy overloaded"))
+	expectHTTPCode(t, http.StatusOK, startup, live)
+	expectHTTPCode(t, http.StatusServiceUnavailable, ready)
+
+	mgr.ReportStatus(health.EnvoyOverload, health.StatusRunning)
+	expectHTTPCode(t, http.StatusOK, startup, ready, live)
+
+	// An actual Envoy failure must still fail liveness.
+	mgr.ReportError(health.EnvoyServer, errors.New("envoy unavailable"))
+	expectHTTPCode(t, http.StatusServiceUnavailable, ready, live)
+}

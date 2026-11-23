@@ -146,7 +146,7 @@ func (h *HTTPProvider) collectStatusRecords(
 }
 
 func (h *HTTPProvider) StartupProbe(w http.ResponseWriter, r *http.Request) {
-	h.probe(cmpStartupHealth).ServeHTTP(w, r)
+	h.probe(cmpStartupHealth, EnvoyOverload).ServeHTTP(w, r)
 }
 
 func (h *HTTPProvider) ReadyProbe(w http.ResponseWriter, r *http.Request) {
@@ -154,7 +154,7 @@ func (h *HTTPProvider) ReadyProbe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPProvider) LivenessProbe(w http.ResponseWriter, r *http.Request) {
-	h.probe(cmpLivelinessHealth).ServeHTTP(w, r)
+	h.probe(cmpLivelinessHealth, EnvoyOverload).ServeHTTP(w, r)
 }
 
 type httpStatusPayload struct {
@@ -196,14 +196,14 @@ func (h *HTTPProvider) Status(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(payload)
 }
 
-func (h *HTTPProvider) probe(healthcmp healthCmp) http.HandlerFunc {
+func (h *HTTPProvider) probe(healthcmp healthCmp, exclude ...Check) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
 		payload, healthy := h.collectStatusRecords(
-			h.globalFilter,
+			MergeFilters(h.globalFilter, Filter{Exclude: exclude}),
 			healthcmp,
 		)
 		if healthy {
