@@ -941,9 +941,7 @@ func (p *Policy) Matches(requestURL *url.URL, stripPort bool) bool {
 		return false
 	}
 
-	// This is consist because in envoyconfig we construct "/" from an empty prefix
-	// https://github.com/pomerium/pomerium/blob/0968d11013f6d5a06202d0ba6c2a23b1eb5dec6e/config/envoyconfig/routes.go#L568-L571
-	if p.Prefix != "" && p.Prefix != "/" {
+	if p.Prefix != "" {
 		if !strings.HasPrefix(requestURL.Path, p.Prefix) {
 			return false
 		}
