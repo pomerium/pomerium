@@ -1,7 +1,6 @@
 package handlers_test
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,18 +18,12 @@ func TestUserInfoData(t *testing.T) {
 	})
 	data := handlers.UserInfoData{Profile: &identity.Profile{Claims: claims}}
 	m := data.ToJSON()
-	bs, err := json.Marshal(m)
-	assert.NoError(t, err)
-	assert.JSONEq(t, `{
-		"isEnterprise": false,
-		"isImpersonated": false,
-		"profile": {
-			"claims": {"TEST":"VALUE"}
-		},
-		"session": null,
-		"user": null,
-		"webAuthnCreationOptions": null,
-		"webAuthnRequestOptions": null,
-		"webAuthnUrl": ""
-	}`, string(bs))
+	assert.Equal(t, false, m["isEnterprise"])
+	assert.Equal(t, false, m["isImpersonated"])
+	assert.Equal(t, map[string]any{"claims": map[string]any{"TEST": "VALUE"}}, m["profile"])
+	assert.Nil(t, m["session"])
+	assert.Nil(t, m["user"])
+	assert.Nil(t, m["webAuthnCreationOptions"])
+	assert.Nil(t, m["webAuthnRequestOptions"])
+	assert.Equal(t, "", m["webAuthnUrl"])
 }

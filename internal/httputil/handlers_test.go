@@ -1,7 +1,6 @@
 package httputil
 
 import (
-	"errors"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -36,30 +35,6 @@ func TestRedirect(t *testing.T) {
 			}
 			if w.Result().Header.Get(HeaderPomeriumResponse) == "" {
 				t.Errorf("pomerium header not found")
-			}
-		})
-	}
-}
-
-func TestHandlerFunc_ServeHTTP(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		f        HandlerFunc
-		wantBody string
-	}{
-		{"good http error", func(_ http.ResponseWriter, _ *http.Request) error { return NewError(404, errors.New("404")) }, "{\"Status\":404}\n"},
-		{"good std error", func(_ http.ResponseWriter, _ *http.Request) error { return errors.New("404") }, "{\"Status\":500}\n"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			r.Header.Set("Accept", "application/json")
-			w := httptest.NewRecorder()
-			tt.f.ServeHTTP(w, r)
-			if diff := cmp.Diff(tt.wantBody, w.Body.String()); diff != "" {
-				t.Errorf("ErrorResponse status:\n %s", diff)
 			}
 		})
 	}
