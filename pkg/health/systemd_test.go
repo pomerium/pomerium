@@ -3,14 +3,67 @@
 package health
 
 import (
+	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestSystemdOverloadDoesNotBlockStartup(t *testing.T) {
+	sock := t.TempDir() + "/notify.sock"
+	listener, err := net.ListenUnixgram("unixgram", &net.UnixAddr{Name: sock, Net: "unixgram"})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = listener.Close() })
+
+	mgr := NewManager()
+	checks := WithExpectedChecks(EnvoyServer, EnvoyOverload, BlobStorage, RecordingHandler)
+	sysd, err := NewSystemDProvider(t.Context(), mgr, sock, SystemdWatchdogConf{}, checks)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		sysd.Shutdown()
+		_ = sysd.conn.Close()
+	})
+	mgr.Register(ProviderSystemd, sysd)
+
+	mgr.ReportError(EnvoyOverload, errors.New("envoy overloaded"))
+	mgr.ReportStatus(EnvoyServer, StatusRunning)
+	assert.False(t, sysd.isStarted(), "recording checks must still block startup")
+	mgr.ReportStatus(BlobStorage, StatusRunning)
+	assert.False(t, sysd.isStarted(), "recording handler must still block startup")
+	mgr.ReportStatus(RecordingHandler, StatusRunning)
+	assert.True(t, sysd.isStarted())
+
+	require.NoError(t, listener.SetReadDeadline(time.Now().Add(time.Second)))
+	buf := make([]byte, 256)
+	for {
+		n, _, err := listener.ReadFromUnix(buf)
+		require.NoError(t, err, "systemd must receive READY=1 despite overload")
+		if string(buf[:n]) == sdNotifyReady {
+			break
+		}
+	}
+
+	httpProvider := NewHTTPProvider(mgr, checks)
+	for _, probe := range []struct {
+		handler http.HandlerFunc
+		code    int
+	}{
+		{httpProvider.ReadyProbe, http.StatusServiceUnavailable},
+		{httpProvider.StartupProbe, http.StatusOK},
+		{httpProvider.LivenessProbe, http.StatusOK},
+	} {
+		rec := httptest.NewRecorder()
+		probe.handler(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		assert.Equal(t, probe.code, rec.Code, rec.Body.String())
+	}
+}
 
 func TestSystemdProvider(t *testing.T) {
 	assert := assert.New(t)

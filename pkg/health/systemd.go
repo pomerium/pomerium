@@ -67,6 +67,9 @@ func NewSystemDProvider(
 ) (*SystemdProvider, error) {
 	options := CheckOptions{}
 	options.Apply(opts...)
+	// Overload affects traffic readiness, not service startup. Waiting for it to
+	// clear here could cause systemd to time out an otherwise running service.
+	delete(options.expected, EnvoyOverload)
 
 	sockAddr := &net.UnixAddr{
 		Name: addr,
