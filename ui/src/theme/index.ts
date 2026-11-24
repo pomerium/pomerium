@@ -1,15 +1,12 @@
 import "@fontsource/dm-mono";
 import "@fontsource/dm-sans";
-import type { Theme as MuiTheme } from "@mui/material";
-import { createTheme as muiCreateTheme } from "@mui/material";
 import { common } from "@mui/material/colors";
+import type { Theme as MuiTheme } from "@mui/material/styles";
+import { createTheme as muiCreateTheme } from "@mui/material/styles";
 
 import { softShadows } from "./shadows";
 
-export const createTheme = (
-  primaryColor: string,
-  secondaryColor: string,
-): MuiTheme => {
+export const createTheme = (primaryColor: string, secondaryColor: string): MuiTheme => {
   return muiCreateTheme({
     components: {
       MuiBackdrop: {

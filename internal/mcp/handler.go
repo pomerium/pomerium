@@ -10,14 +10,12 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/singleflight"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/identity"
-	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 const (
@@ -45,7 +43,6 @@ type AuthenticatorGetter func(ctx context.Context, idpID string) (identity.Authe
 
 type Handler struct {
 	prefix  string
-	trace   oteltrace.TracerProvider
 	storage HandlerStorage
 	cipher  cipher.AEAD
 	hosts   *HostInfo
@@ -110,8 +107,6 @@ func New(
 	client databroker.ClientGetter,
 	opts ...HandlerOption,
 ) (*Handler, error) {
-	tracerProvider := trace.NewTracerProvider(ctx, "MCP")
-
 	cipher, err := getCipher(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("get cipher: %w", err)
@@ -135,7 +130,6 @@ func New(
 
 	h := &Handler{
 		prefix:                  prefix,
-		trace:                   tracerProvider,
 		storage:                 NewStorage(client),
 		cipher:                  cipher,
 		hosts:                   NewHostInfo(cfg, upstreamHTTPClient),

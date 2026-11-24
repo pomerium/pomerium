@@ -1,15 +1,11 @@
-import {
-  Alert,
-  AlertTitle,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableRow,
-} from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import Alert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
+import Stack from "@mui/material/Stack";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableRow from "@mui/material/TableRow";
 
 import type { Profile, Session } from "../types";
 import ClaimRow from "./ClaimRow";
@@ -20,10 +16,7 @@ export type SessionDetailsProps = {
   session?: Session;
   profile?: Profile;
 };
-export const SessionDetails: FC<SessionDetailsProps> = ({
-  session,
-  profile,
-}) => {
+export default function SessionDetails({ session, profile }: SessionDetailsProps) {
   return (
     <>
       {session?.id || profile?.claims ? (
@@ -45,11 +38,7 @@ export const SessionDetails: FC<SessionDetailsProps> = ({
                   <TableRow>
                     <TableCell variant="head">User ID</TableCell>
                     <TableCell align="left">
-                      <IDField
-                        value={
-                          session?.userId || `${profile?.claims?.sub || ""}`
-                        }
-                      />
+                      <IDField value={session?.userId || `${profile?.claims?.sub || ""}`} />
                     </TableCell>
                   </TableRow>
                   {session?.expiresAt && (
@@ -58,21 +47,11 @@ export const SessionDetails: FC<SessionDetailsProps> = ({
                       <TableCell align="left">{session?.expiresAt}</TableCell>
                     </TableRow>
                   )}
-                  {Object.entries(session?.claims || {}).map(
-                    ([key, values]) => (
-                      <ClaimRow
-                        key={`session/${key}`}
-                        claimKey={key}
-                        claimValue={values}
-                      />
-                    ),
-                  )}
+                  {Object.entries(session?.claims || {}).map(([key, values]) => (
+                    <ClaimRow key={`session/${key}`} claimKey={key} claimValue={values} />
+                  ))}
                   {Object.entries(profile?.claims || {}).map(([key, value]) => (
-                    <ClaimRow
-                      key={`profile/${key}`}
-                      claimKey={key}
-                      claimValue={value}
-                    />
+                    <ClaimRow key={`profile/${key}`} claimKey={key} claimValue={value} />
                   ))}
                 </TableBody>
               </Table>
@@ -88,5 +67,4 @@ export const SessionDetails: FC<SessionDetailsProps> = ({
       )}
     </>
   );
-};
-export default SessionDetails;
+}

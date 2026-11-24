@@ -17,6 +17,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/http2"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -168,9 +169,11 @@ func (t *tcpUpstream) h1Dialer(
 			NextProtos:   []string{"http/1.1"},
 		}
 		client := &http.Client{
-			Transport: &http.Transport{
-				DisableKeepAlives: true,
-				DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			Transport: httputil.NewTransport(func(transport *http.Transport) {
+				transport.Proxy = nil
+				transport.ForceAttemptHTTP2 = false
+				transport.DisableKeepAlives = true
+				transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 					if *remoteConn != nil {
 						(*remoteConn).Close()
 						*remoteConn = nil
@@ -189,9 +192,9 @@ func (t *tcpUpstream) h1Dialer(
 					}
 					*remoteConn = cc.(*tls.Conn)
 					return cc, nil
-				},
-				TLSClientConfig: tlsConfig, // important
-			},
+				}
+				transport.TLSClientConfig = tlsConfig // important
+			}),
 			CheckRedirect: func(req *http.Request, _ []*http.Request) error {
 				if req.URL.String() == connectURL.String() && req.Method == http.MethodGet {
 					req.Method = http.MethodConnect
@@ -212,10 +215,11 @@ func (t *tcpUpstream) h2Dialer(
 ) func(context.Context) *http.Client {
 	jar, _ := cookiejar.New(nil)
 	return func(context.Context) *http.Client {
-		h1 := &http.Transport{
-			ForceAttemptHTTP2: true,
-			DisableKeepAlives: true,
-			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		h1 := httputil.NewTransport(func(transport *http.Transport) {
+			transport.Proxy = nil
+			transport.ForceAttemptHTTP2 = true
+			transport.DisableKeepAlives = true
+			transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 				if *remoteConn != nil {
 					(*remoteConn).Close()
 					*remoteConn = nil
@@ -239,13 +243,13 @@ func (t *tcpUpstream) h2Dialer(
 				*remoteConn = cc.(*tls.Conn)
 
 				return cc, nil
-			},
-			TLSClientConfig: &tls.Config{
+			}
+			transport.TLSClientConfig = &tls.Config{
 				RootCAs:      t.Env().ServerCAs(),
 				Certificates: options.clientCerts,
 				NextProtos:   []string{"h2"},
-			},
-		}
+			}
+		})
 		if err := http2.ConfigureTransport(h1); err != nil {
 			panic(err)
 		}
@@ -293,7 +297,7 @@ func (t *tcpUpstream) Route() testenv.RouteStub {
 func (t *tcpUpstream) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	listener, err := testenv.Listen(ctx, t.Env().Host())
+	listener, err := net.Listen("tcp", net.JoinHostPort(t.Env().Host(), "0"))
 	if err != nil {
 		return err
 	}

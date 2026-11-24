@@ -1,6 +1,3 @@
-import type { FC } from "react";
-import React from "react";
-
 import type { WebAuthnCreationOptions } from "../types";
 import { decode, encodeUrl } from "../util/base64";
 import type { WebAuthnButtonProps } from "./WebAuthnButton";
@@ -24,15 +21,11 @@ async function createCredential(
       attestation: creationOptions?.attestation || undefined,
       authenticatorSelection: {
         authenticatorAttachment:
-          creationOptions?.authenticatorSelection?.authenticatorAttachment ||
-          undefined,
+          creationOptions?.authenticatorSelection?.authenticatorAttachment || undefined,
         requireResidentKey:
-          creationOptions?.authenticatorSelection?.requireResidentKey ||
-          undefined,
+          creationOptions?.authenticatorSelection?.requireResidentKey || undefined,
         residentKey: creationOptions?.authenticatorSelection?.residentKey,
-        userVerification:
-          creationOptions?.authenticatorSelection?.userVerification ||
-          undefined,
+        userVerification: creationOptions?.authenticatorSelection?.userVerification || undefined,
       },
       challenge: decode(creationOptions?.challenge),
       pubKeyCredParams: creationOptions?.pubKeyCredParams?.map((p) => ({
@@ -61,10 +54,10 @@ export type WebAuthnRegisterButtonProps = Omit<
   creationOptions?: WebAuthnCreationOptions;
   url: string;
 };
-export const WebAuthnRegisterButton: FC<WebAuthnRegisterButtonProps> = ({
+export default function WebAuthnRegisterButton({
   creationOptions,
   ...props
-}) => {
+}: WebAuthnRegisterButtonProps) {
   async function register(): Promise<unknown> {
     if (!creationOptions) return;
     const credential = await createCredential(creationOptions);
@@ -88,5 +81,4 @@ export const WebAuthnRegisterButton: FC<WebAuthnRegisterButtonProps> = ({
       {...props}
     />
   );
-};
-export default WebAuthnRegisterButton;
+}

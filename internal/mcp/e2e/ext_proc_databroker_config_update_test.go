@@ -163,7 +163,7 @@ func TestExtProcUsesUpdatedDatabrokerConfigForLateMCPRoute(t *testing.T) {
 func startBareUpstream(t *testing.T, host string, receivedAuth *atomic.Pointer[string]) net.Listener {
 	t.Helper()
 
-	listener, err := testenv.Listen(t.Context(), host)
+	listener, err := net.Listen("tcp", net.JoinHostPort(host, "0"))
 	require.NoError(t, err)
 
 	mux := http.NewServeMux()

@@ -1,35 +1,28 @@
-import { CheckCircleRounded, Circle } from "@mui/icons-material";
-import type { TypographyProps } from "@mui/material";
-import {
-  Alert,
-  AlertTitle,
-  Card,
-  CardContent,
-  Container,
-  Divider,
-  Link,
-  Stack,
-  Typography,
-} from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
+import Circle from "@mui/icons-material/Circle";
+import Alert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Container from "@mui/material/Container";
+import Divider from "@mui/material/Divider";
+import Link from "@mui/material/Link";
+import Stack from "@mui/material/Stack";
+import type { TypographyProps } from "@mui/material/Typography";
+import Typography from "@mui/material/Typography";
 
 import type { ErrorPageProps } from "./ErrorPage";
 import IDField from "./IDField";
 
-const TextBlock: FC<TypographyProps> = ({ children }) => {
+function TextBlock({ children }: TypographyProps) {
   return (
-    <Typography
-      variant="body2"
-      color="rgba(102, 112, 133, 1)"
-      sx={{ fontWeight: 400 }}
-    >
+    <Typography variant="body2" color="rgba(102, 112, 133, 1)" sx={{ fontWeight: 400 }}>
       {children}
     </Typography>
   );
-};
+}
 
-export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
+export default function UpstreamErrorPage({ data }: ErrorPageProps) {
   const status = data?.status || 500;
   return (
     <Container>
@@ -106,8 +99,8 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
             <Stack sx={{ gap: 1, my: 5 }}>
               <Typography variant="h5">What happened?</Typography>
               <TextBlock>
-                The web server is not returning a connection. As a result, the
-                webpage is not displaying.
+                The web server is not returning a connection. As a result, the webpage is not
+                displaying.
               </TextBlock>
             </Stack>
             <Divider sx={{ color: "rgba(234, 236, 240, 1)" }} />
@@ -116,11 +109,7 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
                 <Typography variant="h5">What can I do?</Typography>
               </Stack>
               <Stack>
-                <Typography
-                  variant="body2"
-                  color="rgba(102, 112, 133, 1)"
-                  sx={{ fontWeight: 700 }}
-                >
+                <Typography variant="body2" color="rgba(102, 112, 133, 1)" sx={{ fontWeight: 700 }}>
                   If you are a visitor of this website:
                 </Typography>
                 <TextBlock>Please try again in a few minutes.</TextBlock>
@@ -130,8 +119,7 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
                   If you are the owner of this website:
                 </Typography>
                 <TextBlock>
-                  Contact your hosting provider letting them know your web
-                  server is not responding.
+                  Contact your hosting provider letting them know your web server is not responding.
                 </TextBlock>
                 <TextBlock>Error Text: {data.statusText}</TextBlock>
                 {data?.requestId && (
@@ -155,5 +143,4 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
       </Card>
     </Container>
   );
-};
-export default UpstreamErrorPage;
+}

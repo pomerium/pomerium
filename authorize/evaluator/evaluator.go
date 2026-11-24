@@ -29,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -37,11 +38,13 @@ import (
 // Request contains the inputs needed for evaluation.
 type Request struct {
 	IsInternal         bool
+	IsConsole          bool
 	Policy             *config.Policy
 	HTTP               RequestHTTP
 	SSH                RequestSSH
 	MCP                RequestMCP
 	Session            RequestSession
+	BearerTokenFormat  configpb.BearerTokenFormat
 	EnvoyRouteChecksum uint64
 	EnvoyRouteID       string
 }

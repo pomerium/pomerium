@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -197,6 +198,21 @@ func TestServer_Options(t *testing.T) {
 	st, ok = status.FromError(err)
 	assert.True(t, ok)
 	assert.Equal(t, codes.NotFound, st.Code())
+}
+
+func TestServer_ClearKeepsRequiredOptions(t *testing.T) {
+	t.Parallel()
+
+	srv := newServer(t)
+
+	_, err := srv.Clear(t.Context(), new(emptypb.Empty))
+	require.NoError(t, err)
+
+	res, err := srv.GetOptions(t.Context(), &databrokerpb.GetOptionsRequest{
+		Type: "type.googleapis.com/session.SessionBinding",
+	})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"session_id", "user_id"}, res.GetOptions().GetIndexableFields())
 }
 
 func TestServer_Lease(t *testing.T) {
@@ -494,4 +510,82 @@ func TestServer_PutIfMatchVersion(t *testing.T) {
 		_, err := client.Put(ctx, &databrokerpb.PutRequest{Records: []*databrokerpb.Record{proto.CloneOf(firstWrite)}})
 		require.NoError(t, err)
 	})
+}
+
+func TestServer_QuerySessionsByUserID(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		storageType      string
+		connectionString func(t *testing.T) string
+	}{
+		{config.StorageInMemoryName, func(*testing.T) string { return "" }},
+		{config.StorageFileName, func(t *testing.T) string { return t.TempDir() }},
+		{config.StoragePostgresName, func(t *testing.T) string {
+			if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+				t.Skip("Github action can not run docker on MacOS")
+			}
+			return testutil.StartPostgres(t)
+		}},
+	} {
+		t.Run(tc.storageType, func(t *testing.T) {
+			t.Parallel()
+
+			srv := newServer(t)
+			srv.OnConfigChange(t.Context(), config.New(&config.Options{
+				DataBroker: config.DataBrokerOptions{
+					StorageType:             tc.storageType,
+					StorageConnectionString: tc.connectionString(t),
+				},
+				SharedKey: cryptutil.NewBase64Key(),
+			}))
+			client := databrokerpb.NewDataBrokerServiceClient(testutil.NewGRPCServer(t, func(s *grpc.Server) {
+				databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+			}))
+			ctx := t.Context()
+			sessionType := protoutil.GetTypeURL(new(sessionpb.Session))
+
+			options, err := client.GetOptions(ctx, &databrokerpb.GetOptionsRequest{Type: sessionType})
+			require.NoError(t, err)
+			assert.Contains(t, options.GetOptions().GetIndexableFields(), "user_id")
+
+			_, err = databrokerpb.Put(ctx, client,
+				&sessionpb.Session{Id: "s1", UserId: "u1"},
+				&sessionpb.Session{Id: "s2", UserId: "u2"},
+				&sessionpb.Session{Id: "s3", UserId: "u1"},
+				&sessionpb.Session{Id: "s4"},
+				&sessionpb.Session{Id: "s5", UserId: "u1"},
+			)
+			require.NoError(t, err)
+
+			sessionsOf := func(userID string, offset, limit int64) (ids []string, totalCount int64) {
+				t.Helper()
+				res, err := client.Query(ctx, &databrokerpb.QueryRequest{
+					Type: sessionType,
+					Filter: &structpb.Struct{Fields: map[string]*structpb.Value{
+						"user_id": structpb.NewStringValue(userID),
+					}},
+					Offset: offset,
+					Limit:  limit,
+				})
+				require.NoError(t, err)
+				for _, record := range res.GetRecords() {
+					ids = append(ids, record.GetId())
+				}
+				return ids, res.GetTotalCount()
+			}
+
+			firstPage, totalCount := sessionsOf("u1", 0, 2)
+			assert.Len(t, firstPage, 2)
+			assert.Equal(t, int64(3), totalCount)
+			secondPage, totalCount := sessionsOf("u1", 2, 2)
+			assert.Len(t, secondPage, 1)
+			assert.Equal(t, int64(3), totalCount)
+			assert.ElementsMatch(t, []string{"s1", "s3", "s5"}, append(firstPage, secondPage...))
+
+			ids, totalCount := sessionsOf("u2", 0, 10)
+			assert.Equal(t, []string{"s2"}, ids)
+			assert.Equal(t, int64(1), totalCount)
+		})
+	}
 }

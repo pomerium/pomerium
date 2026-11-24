@@ -1,21 +1,19 @@
-import type { ListItemProps } from "@mui/material";
-import {
-  Alert,
-  AlertTitle,
-  Box,
-  Container,
-  Paper,
-  Stack,
-  Table,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
+import Alert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
+import Box from "@mui/material/Box";
+import Container from "@mui/material/Container";
+import type { ListItemProps } from "@mui/material/ListItem";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Table from "@mui/material/Table";
+import TableCell from "@mui/material/TableCell";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Typography from "@mui/material/Typography";
 import Markdown from "markdown-to-jsx";
-import type { FC } from "react";
-import React from "react";
-import { CheckCircle, MinusCircle, XCircle } from "react-feather";
+import CheckCircle from "react-feather/dist/icons/check-circle";
+import MinusCircle from "react-feather/dist/icons/minus-circle";
+import XCircle from "react-feather/dist/icons/x-circle";
 
 import type { ErrorPageData, PolicyEvaluationTrace } from "../types";
 import SectionFooter from "./SectionFooter";
@@ -23,9 +21,7 @@ import SectionFooter from "./SectionFooter";
 type PolicyEvaluationTraceDetailsProps = {
   trace: PolicyEvaluationTrace;
 } & ListItemProps;
-const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
-  trace,
-}) => {
+function PolicyEvaluationTraceDetails({ trace }: PolicyEvaluationTraceDetailsProps) {
   return (
     <TableRow>
       <TableCell align={"center"}>
@@ -41,20 +37,17 @@ const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
         <Markdown>{trace.explanation || `Policy ID ${trace.id}`}</Markdown>
       </TableCell>
       <TableCell>
-        <Markdown>
-          {trace.deny || !trace.allow ? trace.remediation : ""}
-        </Markdown>
+        <Markdown>{trace.deny || !trace.allow ? trace.remediation : ""}</Markdown>
       </TableCell>
     </TableRow>
   );
-};
+}
 
 export type ErrorPageProps = {
   data: ErrorPageData;
 };
-export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
-  const traces =
-    data?.policyEvaluationTraces?.filter((trace) => !!trace.id) || [];
+export default function ErrorPage({ data }: ErrorPageProps) {
+  const traces = data?.policyEvaluationTraces?.filter((trace) => !!trace.id) || [];
   const status = data?.status || 500;
 
   return (
@@ -62,17 +55,11 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
       <Paper sx={{ overflow: "hidden" }}>
         <Stack>
           <Box sx={{ padding: "16px" }}>
-            <Alert
-              severity={status < 200 || status >= 300 ? "error" : "success"}
-            >
+            <Alert severity={status < 200 || status >= 300 ? "error" : "success"}>
               <AlertTitle>
                 {status} {data?.statusText || "Internal Server Error"}
               </AlertTitle>
-              {data?.description ? (
-                <Markdown>{data.description}</Markdown>
-              ) : (
-                <></>
-              )}
+              {data?.description ? <Markdown>{data.description}</Markdown> : <></>}
             </Alert>
           </Box>
           {!!data?.errorMessageFirstParagraph && (
@@ -99,8 +86,8 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
           {data?.requestId ? (
             <SectionFooter>
               <Typography variant="caption">
-                If you should have access, contact your administrator with your
-                request id {data?.requestId}.
+                If you should have access, contact your administrator with your request id{" "}
+                {data?.requestId}.
               </Typography>
             </SectionFooter>
           ) : (
@@ -110,5 +97,4 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
       </Paper>
     </Container>
   );
-};
-export default ErrorPage;
+}

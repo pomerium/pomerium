@@ -4,6 +4,7 @@ import (
 	stdcmp "cmp"
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -220,6 +221,10 @@ func (r *reporter) CreatePosthogPropertiesForRoutes(cfg *config.Config) posthog.
 	routeTypes := map[string]int{}
 	for route := range cfg.Options.GetAllPolicies() {
 		routeCount++
+		// Technically, nothing prevents this for non-http. Although I'm skeptical that's a sane setup!
+		if route.IsForOIDCBridge() {
+			routeTypes["oidc_bridge"]++
+		}
 		if route.IsForKubernetes() {
 			routeTypes["kubernetes"]++
 		} else if route.IsMCPServer() {
@@ -321,6 +326,7 @@ func (r *reporter) CreatePosthogPropertiesForRuntimeFlags(cfg *config.Config) po
 
 func (r *reporter) CreatePosthogPropertiesForSettings(cfg *config.Config) posthog.Properties {
 	p := posthog.NewProperties()
+	p["oidc_bridge_global"] = fmt.Sprintf("%t", cfg.Options.OidcBridge.Ptr().IsEnabled())
 	p["databroker_storage_type"] = cfg.Options.DataBroker.StorageType
 	if cfg.Options.Provider != "" {
 		p["identity_provider"] = cfg.Options.Provider
@@ -445,7 +451,7 @@ var changedSettingsRules = []fieldNameRule{
 	{`_log_fields$`, "log_fields"},
 	{`^mcp_`, "mcp"},
 	{`^metrics_`, "metrics"},
-	{`^((authorize|databroker)_service_urls|\w+_internal_service_url)$`, "service_urls"},
+	{`^(authorize|databroker)_service_urls$`, "service_urls"},
 	{`^ssh_(address|host_key|user_ca_key|rls_)`, "ssh"},
 	{`^(timeout_\w+|default_upstream_timeout|grpc_client_timeout)$`, "timeouts"},
 	{`^otel_`, "tracing"},

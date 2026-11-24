@@ -41,8 +41,9 @@ type Error interface {
 func responseError[T any](resp APIResponse[T]) error {
 	reason, ok := resp.GetBadRequestError()
 	if ok {
-		return NewTerminalError(fmt.Errorf("bad request: %v", reason))
+		return fmt.Errorf("bad request: %v", reason)
 	}
+
 	reason, ok = resp.GetInternalServerError()
 	if ok {
 		return fmt.Errorf("internal server error: %v", reason)

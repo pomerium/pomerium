@@ -49,6 +49,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/testenv/envutil"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/envoy"
@@ -57,6 +58,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/logfields"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -644,7 +646,7 @@ func (e *environment) Start() {
 	e.debugf("temp dir: %s", e.TempDir())
 
 	cfg := config.New(config.NewDefaultOptions())
-	ports, err := AllocatePorts(13)
+	ports, err := netutil.AllocatePorts(13)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -705,6 +707,12 @@ func (e *environment) Start() {
 	cfg.Options.HealthCheckAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(e.ports.Health.Value()))
 	if e.traceConfig != nil {
 		cfg.Options.Tracing = *e.traceConfig
+	}
+	if cfg.Options.Tracing.OtelBspScheduleDelay == nil {
+		// flush envoy spans quickly so shutdown doesn't wait on the default 5s
+		// export interval for spans that are still buffered in envoy
+		d := otelconfig.Duration(otelconfig.MinimumScheduleDelay)
+		cfg.Options.Tracing.OtelBspScheduleDelay = &d
 	}
 
 	e.src = &configSource{cfg: cfg}
@@ -1249,6 +1257,7 @@ func newOtelConfigFromEnv(t testing.TB) otelconfig.Config {
 	cfg, err := config.NewFileOrEnvironmentSource(
 		context.Background(),
 		f.Name(),
+		version.FullVersion(),
 	)
 	require.NoError(t, err)
 	return cfg.GetConfig().Options.Tracing

@@ -1,0 +1,84 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "react", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "browser": true
+  },
+  "ignorePatterns": ["dist/**"],
+  "rules": {
+    "eslint/no-case-declarations": "error",
+    "eslint/no-empty": "error",
+    "eslint/no-fallthrough": "error",
+    "eslint/no-prototype-builtins": "error",
+    "eslint/no-redeclare": "error",
+    "eslint/no-regex-spaces": "error",
+    "eslint/no-useless-escape": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-array-constructor": "error",
+    "typescript/no-duplicate-enum-values": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-extra-non-null-assertion": "error",
+    "typescript/no-misused-new": "error",
+    "typescript/no-namespace": "error",
+    "typescript/no-non-null-asserted-optional-chain": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-this-alias": "error",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-unsafe-declaration-merging": "error",
+    "typescript/no-unsafe-function-type": "error",
+    "typescript/no-wrapper-object-types": "error",
+    "typescript/prefer-as-const": "error",
+    "typescript/prefer-namespace-keyword": "error",
+    "typescript/triple-slash-reference": "error",
+    "react/immutability": "warn",
+    "react/purity": "warn",
+    "react/function-component-definition": [
+      "error",
+      {
+        "namedComponents": "function-declaration",
+        "unnamedComponents": "arrow-function"
+      }
+    ],
+    "eslint/no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@mui/material",
+            "message": "Import from the component path instead, e.g. @mui/material/Box (or @mui/material/styles)."
+          },
+          {
+            "name": "@mui/icons-material",
+            "message": "Import the icon path instead, e.g. @mui/icons-material/Devices."
+          },
+          {
+            "name": "lodash-es",
+            "message": "Import the function path instead, e.g. lodash-es/get."
+          },
+          {
+            "name": "react-feather",
+            "message": "Import the icon path instead, e.g. react-feather/dist/icons/user.",
+            "allowTypeImports": true
+          },
+          {
+            "name": "react",
+            "importNames": ["default"],
+            "message": "React does not need to be in scope for JSX; use named imports, e.g. import { useState } from \"react\"."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["*.{js,mjs,cjs,ts,mts,cts}", "test/**"],
+      "env": {
+        "node": true
+      }
+    }
+  ]
+}

@@ -1,30 +1,27 @@
-FROM node:24.22.2-bookworm@sha256:e7add2a490bb17d97b485b8641bd88455fff7839ade0f5eba493c3508124d413 AS ui
+FROM node:26.13.1-bookworm@sha256:b7087bc4d973034b30854b378ba107f9fab622b47514cb7e2592e41b8bab8d49 AS build-ui
 WORKDIR /build
 
-COPY .git ./.git
-COPY Makefile ./Makefile
+COPY ui/package.json ./ui/package-lock.json ./
+RUN \
+  --mount=type=cache,target=/root/.npm \
+  npm ci
 
-# download npm dependencies
-COPY ui/package-lock.json ./ui/package-lock.json
-COPY ui/package.json ./ui/package.json
-RUN make npm-install
+COPY ./ui/ ./
+RUN npm run build
 
-# build ui
-COPY ./ui/ ./ui/
-RUN make build-ui
-
-FROM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS build
+FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS build
+ARG POMERIUM_OFFICIAL_BUILD=0
+ENV POMERIUM_OFFICIAL_BUILD=${POMERIUM_OFFICIAL_BUILD}
 WORKDIR /go/src/github.com/pomerium/pomerium
 
-RUN apt-get update \
-    && apt-get -y --no-install-recommends install zip
-
 COPY . .
-COPY --from=ui /build/ui/dist ./ui/dist
+COPY --from=build-ui /build/dist ./ui/dist
 
 # build
-ARG POMERIUM_OFFICIAL_BUILD=0
-RUN --mount=type=cache,target=/go/pkg/mod make build-go NAME=pomerium POMERIUM_OFFICIAL_BUILD=${POMERIUM_OFFICIAL_BUILD}
+RUN \
+  --mount=type=cache,target=/go/pkg/mod \
+  --mount=type=cache,target=/root/.cache/go-build \
+  make build-go
 RUN touch /config.yaml
 RUN if [ "${POMERIUM_OFFICIAL_BUILD}" = "1" ]; then \
       cp licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt /LICENSE; \

@@ -86,6 +86,40 @@ func TestCreatePosthogEvent(t *testing.T) {
 	})
 }
 
+func TestShouldReport(t *testing.T) {
+	getEnabledConfig := func(t *testing.T) *config.Config {
+		t.Helper()
+		t.Setenv("DO_NOT_TRACK", "")
+		cfg := config.New(config.NewDefaultOptions())
+		cfg.Options.LicenseType = nullable.From(configpb.LicenseType_LICENSE_TYPE_COMMERCIAL)
+		cfg.Options.RuntimeFlags[config.RuntimeFlagProductAnalytics] = true
+		return cfg
+	}
+
+	t.Run("enabled", func(t *testing.T) {
+		cfg := getEnabledConfig(t)
+		assert.True(t, analytics.ShouldReport(cfg))
+	})
+	t.Run("nil", func(t *testing.T) {
+		assert.False(t, analytics.ShouldReport(nil))
+	})
+	t.Run("DO_NOT_TRACK", func(t *testing.T) {
+		cfg := getEnabledConfig(t)
+		t.Setenv("DO_NOT_TRACK", "1")
+		assert.False(t, analytics.ShouldReport(cfg))
+	})
+	t.Run("open source license", func(t *testing.T) {
+		cfg := getEnabledConfig(t)
+		cfg.Options.LicenseType = nullable.From(configpb.LicenseType_LICENSE_TYPE_OPEN_SOURCE)
+		assert.False(t, analytics.ShouldReport(cfg))
+	})
+	t.Run("runtime flag", func(t *testing.T) {
+		cfg := getEnabledConfig(t)
+		cfg.Options.RuntimeFlags[config.RuntimeFlagProductAnalytics] = false
+		assert.False(t, analytics.ShouldReport(cfg))
+	})
+}
+
 func mustParsePPL(t testing.TB, raw string) *config.PPLPolicy {
 	ppl, err := parser.New().ParseJSON(strings.NewReader(raw))
 	require.NoError(t, err)

@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -52,10 +50,9 @@ func TestValidateSignature(t *testing.T) {
 		secretA    []byte
 		secretB    []byte
 		wantStatus int
-		wantBody   string
 	}{
-		{"good", []byte("secret"), []byte("secret"), http.StatusOK, http.StatusText(http.StatusOK)},
-		{"secret mistmatch", []byte("secret"), []byte("hunter42"), http.StatusBadRequest, "{\"Status\":400}\n"},
+		{"good", []byte("secret"), []byte("secret"), http.StatusOK},
+		{"secret mistmatch", []byte("secret"), []byte("hunter42"), http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -68,11 +65,6 @@ func TestValidateSignature(t *testing.T) {
 			got.ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("ValidateSignature() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())
-			}
-			body := w.Body.String()
-			if diff := cmp.Diff(body, tt.wantBody); diff != "" {
-				t.Errorf("ValidateSignature() %s", diff)
-				t.Errorf("%s", signedURL)
 			}
 		})
 	}

@@ -41,7 +41,7 @@ check-component() {
 
 main() {
 	check-component "config" '^config/options.go$|^config/policy.go$|^pkg/grpc/config/.*$'
-	check-component "mcp" "mcp"
+	check-component "mcp" "mcp.*[.]go$"
 	check-component "ssh" "ssh"
 }
 main

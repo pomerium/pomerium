@@ -1,27 +1,25 @@
-import { Button, Stack } from "@mui/material";
-import {
-  Box,
-  Checkbox,
-  FormControlLabel,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
-import type { FC } from "react";
-import React, { useEffect, useState } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Typography from "@mui/material/Typography";
+import { useEffect, useState } from "react";
 
 import type { SignInVerifyPageData } from "../types";
-import { SmallTooltip } from "./Tooltips";
+import SmallTooltip from "./Tooltips";
 
 type SignInVerifyPageProps = {
   data: SignInVerifyPageData;
 };
-const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
+export default function SignInVerifyPage({ data }: SignInVerifyPageProps) {
   const parseToDate = (v: unknown): Date => {
     if (v instanceof Date && !isNaN(v.getTime())) return v;
     if (typeof v === "number" && !isNaN(v)) return new Date(v);
@@ -39,10 +37,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
 
   useEffect(() => {
     const id = setInterval(() => {
-      const secs = Math.max(
-        0,
-        Math.round((expiresDate.getTime() - Date.now()) / 1000),
-      );
+      const secs = Math.max(0, Math.round((expiresDate.getTime() - Date.now()) / 1000));
       setRemainingSeconds(secs);
     }, 1000);
     return () => clearInterval(id);
@@ -62,10 +57,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
 
   return (
     <>
-      <TableContainer
-        component={Paper}
-        sx={{ maxWidth: 540, mx: "auto", mb: 2 }}
-      >
+      <TableContainer component={Paper} sx={{ maxWidth: 540, mx: "auto", mb: 2 }}>
         <Table size="small" aria-label="metadata table">
           <TableHead>
             <TableRow>
@@ -84,9 +76,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
               <TableCell component="th" scope="row">
                 Issued at
               </TableCell>
-              <TableCell>
-                {parseToDate(data.issuedAt).toLocaleString()}
-              </TableCell>
+              <TableCell>{parseToDate(data.issuedAt).toLocaleString()}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell component="th" scope="row">
@@ -106,14 +96,10 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
             py: 0.5,
             borderRadius: 2,
             bgcolor: (t) =>
-              remainingSeconds === 0
-                ? t.palette.error.light
-                : t.palette.primary.light,
+              remainingSeconds === 0 ? t.palette.error.light : t.palette.primary.light,
             color: (t) =>
               t.palette.getContrastText(
-                remainingSeconds === 0
-                  ? t.palette.error.light
-                  : t.palette.primary.light,
+                remainingSeconds === 0 ? t.palette.error.light : t.palette.primary.light,
               ),
             boxShadow: 1,
             mb: 1,
@@ -160,11 +146,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
           <SmallTooltip description="When enabled, your client is persistently bound to your user. This can be undone later" />
         </Box>
 
-        <Stack
-          direction="row"
-          spacing={2}
-          sx={{ justifyContent: "center", alignItems: "center" }}
-        >
+        <Stack direction="row" spacing={2} sx={{ justifyContent: "center", alignItems: "center" }}>
           <Box
             component="form"
             action={data.redirectUrl}
@@ -172,12 +154,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
             sx={{ display: "inline-flex", gap: 1 }}
           >
             <input type="hidden" name="confirm" value="false" />
-            <Button
-              size="small"
-              type="submit"
-              variant="contained"
-              disabled={disabled}
-            >
+            <Button size="small" type="submit" variant="contained" disabled={disabled}>
               Deny
             </Button>
           </Box>
@@ -190,12 +167,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
             sx={{ display: "inline-flex", gap: 1, alignItems: "center" }}
           >
             <input type="hidden" name="confirm" value="true" />
-            <Button
-              size="small"
-              type="submit"
-              variant="contained"
-              disabled={disabled}
-            >
+            <Button size="small" type="submit" variant="contained" disabled={disabled}>
               Authorize
             </Button>
           </Box>
@@ -203,5 +175,4 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
       </Box>
     </>
   );
-};
-export default SignInVerifyPage;
+}

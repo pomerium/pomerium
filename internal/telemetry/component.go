@@ -33,9 +33,9 @@ func NewComponent(tracerProvider oteltrace.TracerProvider, logLevel zerolog.Leve
 		component:      component,
 		tracer:         tracer,
 		tracerProvider: tracerProvider,
-		attributes: append([]attribute.KeyValue{
+		attributes: concatAndDedupe([]attribute.KeyValue{
 			attribute.String("component", component),
-		}, attributes...),
+		}, attributes),
 	}
 	return c
 }
@@ -46,9 +46,13 @@ func (c *Component) Active(ctx context.Context, name string, attributes ...attri
 	return ctx, g
 }
 
+func (c *Component) Logger(ctx context.Context, attributes ...attribute.KeyValue) *zerolog.Logger {
+	return new(logger(ctx, concatAndDedupe(c.attributes, attributes)...))
+}
+
 // Start starts an operation.
 func (c *Component) Start(ctx context.Context, operationName string, attributes ...attribute.KeyValue) (context.Context, Operation) {
-	attributes = append(c.attributes, attributes...)
+	attributes = concatAndDedupe(c.attributes, attributes)
 
 	// setup tracing
 	ctx, span := c.tracer.Start(ctx, c.component+"."+operationName, oteltrace.WithAttributes(attributes...))
@@ -79,7 +83,7 @@ type ActiveGauge struct {
 
 func newGauge(ctx context.Context, c *Component, name string, attributes ...attribute.KeyValue) *ActiveGauge {
 	g := getGauge(c.component, name)
-	attributes = append(c.attributes, attributes...)
+	attributes = concatAndDedupe(c.attributes, attributes)
 	g.Record(ctx, 1, metric.WithAttributes(attributes...))
 	return &ActiveGauge{
 		c:   c,
@@ -119,7 +123,7 @@ func (op *Operation) complete(err error, attributes ...attribute.KeyValue) {
 	}
 	op.done = true
 
-	attributes = append(op.c.attributes, attributes...)
+	attributes = concatAndDedupe(op.c.attributes, attributes)
 
 	getInt64Counter(op.c.component, op.name+".calls").Add(op.ctx, 1, metric.WithAttributes(attributes...))
 	getFloat64Histogram(op.c.component, op.name+".duration", metric.WithUnit("s")).Record(op.ctx, time.Since(op.start).Seconds(), metric.WithAttributes(attributes...))
@@ -149,4 +153,19 @@ func logger(ctx context.Context, attributes ...attribute.KeyValue) zerolog.Logge
 		logCtx = logCtx.Interface(string(a.Key), a.Value.AsInterface())
 	}
 	return logCtx.Logger()
+}
+
+func concatAndDedupe(x, y []attribute.KeyValue) []attribute.KeyValue {
+	seen := map[attribute.Key]int{}
+	combined := make([]attribute.KeyValue, 0, len(x)+len(y))
+	for _, a := range append(x, y...) {
+		idx, ok := seen[a.Key]
+		if ok {
+			combined[idx] = a
+		} else {
+			seen[a.Key] = len(combined)
+			combined = append(combined, a)
+		}
+	}
+	return combined
 }

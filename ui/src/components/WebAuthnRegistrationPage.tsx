@@ -1,6 +1,4 @@
-import { Stack } from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import Stack from "@mui/material/Stack";
 
 import type { WebAuthnRegistrationPageData } from "../types";
 import ExperimentalIcon from "./ExperimentalIcon";
@@ -11,22 +9,13 @@ import WebAuthnRegisterButton from "./WebAuthnRegisterButton";
 type WebAuthnRegistrationPageProps = {
   data: WebAuthnRegistrationPageData;
 };
-const WebAuthnRegistrationPage: FC<WebAuthnRegistrationPageProps> = ({
-  data,
-}) => {
+export default function WebAuthnRegistrationPage({ data }: WebAuthnRegistrationPageProps) {
   return (
     <Section title="WebAuthn Registration" icon={<ExperimentalIcon />}>
       <Stack direction="row" spacing={1} sx={{ justifyContent: "center" }}>
-        <WebAuthnRegisterButton
-          creationOptions={data?.creationOptions}
-          url={data?.selfUrl}
-        />
-        <WebAuthnAuthenticateButton
-          requestOptions={data?.requestOptions}
-          url={data?.selfUrl}
-        />
+        <WebAuthnRegisterButton creationOptions={data?.creationOptions} url={data?.selfUrl} />
+        <WebAuthnAuthenticateButton requestOptions={data?.requestOptions} url={data?.selfUrl} />
       </Stack>
     </Section>
   );
-};
-export default WebAuthnRegistrationPage;
+}

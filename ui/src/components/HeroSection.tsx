@@ -1,13 +1,14 @@
-import { Paper, Stack, Typography } from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import type { ReactNode } from "react";
 
 export type HeroSectionProps = {
-  icon?: React.ReactNode;
-  title: React.ReactNode;
-  text?: React.ReactNode;
+  icon?: ReactNode;
+  title: ReactNode;
+  text?: ReactNode;
 };
-export const HeroSection: FC<HeroSectionProps> = ({ icon, title, text }) => {
+export default function HeroSection({ icon, title, text }: HeroSectionProps) {
   return (
     <Paper sx={{ padding: "16px" }}>
       <Stack direction="row" spacing={2}>
@@ -19,5 +20,4 @@ export const HeroSection: FC<HeroSectionProps> = ({ icon, title, text }) => {
       </Stack>
     </Paper>
   );
-};
-export default HeroSection;
+}

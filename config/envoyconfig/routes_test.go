@@ -8,6 +8,7 @@ import (
 	"time"
 
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -17,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func policyNameFunc() func(*config.Policy) string {
@@ -120,7 +122,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			`+routeString("path", "/oauth2/callback")+`,
 			`+routeString("path", "/")+`,
 			`+routeString("path", "/robots.txt")+`,
-			`+routeString("prefix", "/oidc/")+`
+			`+routeString("prefix", "/oidc/")+`,
+			`+routeString("path", "/.well-known/openid-configuration")+`
 		]`, routes)
 	})
 	t.Run("proxy fronting authenticate", func(t *testing.T) {
@@ -422,14 +425,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		8: "301084c3bd94c1ed",
 	}
 	routeChecksums := []string{
-		1: "17485709624503589777",
-		2: "13386683040007862734",
-		3: "587428840667620042",
-		4: "17651808806254279764",
-		5: "14738351329808195599",
-		6: "9089812245880103350",
-		7: "11422511187762879650",
-		8: "10248448678581619844",
+		1: "2613870869198058690",
+		2: "8268083250664380775",
+		3: "11705837657304429840",
+		4: "17823036213921844015",
+		5: "10629448402425304356",
+		6: "800362634313263942",
+		7: "15564675672513137646",
+		8: "9572416118952349043",
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
@@ -456,7 +459,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -532,7 +534,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -608,7 +609,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -686,7 +686,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -762,7 +761,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -839,7 +837,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -914,7 +911,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -990,7 +986,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -1182,7 +1177,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -1240,7 +1234,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "1078947796273078975",
+								"route_checksum": "3647913599921171018",
 								"route_id": "98f90d58022ca963"
 							}
 						}
@@ -1260,7 +1254,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -1318,7 +1311,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "12705131236089651581",
+								"route_checksum": "13081167397038533592",
 								"route_id": "81175a3a9df11dd8"
 							}
 						}
@@ -1359,7 +1352,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -1417,7 +1409,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "5961730690217720435",
+								"route_checksum": "8135161070682931853",
 								"route_id": "ad0a23467bbdb773"
 							}
 						}
@@ -1462,7 +1454,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"filterMetadata": {
 							"envoy.filters.http.lua": {
 								"remove_impersonate_headers": false,
-								"remove_pomerium_authorization": true,
 								"remove_pomerium_cookie": "pomerium",
 								"rewrite_response_headers": []
 							}
@@ -1521,7 +1512,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "13948119668715095139",
+									"route_checksum": "13567235349126195132",
 									"route_id": "1013c6be524d7fbd"
 								}
 							}
@@ -1563,7 +1554,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"filterMetadata": {
 							"envoy.filters.http.lua": {
 								"remove_impersonate_headers": true,
-								"remove_pomerium_authorization": true,
 								"remove_pomerium_cookie": "pomerium",
 								"rewrite_response_headers": []
 							}
@@ -1638,7 +1628,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "6313229452269920062",
+									"route_checksum": "15600543390353135552",
 									"route_id": "a81e6b1e66c1e2cd"
 								}
 							}
@@ -1717,7 +1707,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -1774,7 +1763,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "5645948627064650692",
+								"route_checksum": "8593480224543838765",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1794,7 +1783,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -1851,7 +1839,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "6953705040649452518",
+								"route_checksum": "12180478294660661186",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1871,7 +1859,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -1933,7 +1920,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "16232364843823871609",
+								"route_checksum": "4768441198986943248",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1953,7 +1940,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -2010,7 +1996,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "8919841749343805975",
+								"route_checksum": "14667567765900815667",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2030,7 +2016,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -2087,7 +2072,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "10724637831932182268",
+								"route_checksum": "14204336502092938947",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2107,7 +2092,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium",
 							"rewrite_response_headers": []
 						}
@@ -2169,7 +2153,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "1630469948339367418",
+								"route_checksum": "16860407883891140515",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2560,4 +2544,90 @@ func Test_setHostRewriteOptions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_statefulSessionFilterEnabledForConsoleRoutes(t *testing.T) {
+	t.Parallel()
+
+	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
+	t.Run("audiences not set", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                      "https://console.example.com",
+					To:                        mustParseWeightedURLs(t, "https://console-int.example.com:8701"),
+					AllowAnyAuthenticatedUser: true,
+					PassIdentityHeaders:       new(true),
+				},
+			},
+		}), "console.example.com")
+		require.NoError(t, err)
+
+		var extAuthzConfig envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute
+		require.NoError(t, routes[0].TypedPerFilterConfig[PerFilterConfigExtAuthzName].UnmarshalTo(&extAuthzConfig))
+		assert.NotContains(t, extAuthzConfig.GetCheckSettings().GetContextExtensions(), "console")
+		for _, h := range routes[0].RequestHeadersToAdd {
+			assert.NotEqual(t, "x-pomerium-upstream-cluster", h.Header.Key)
+		}
+	})
+
+	t.Run("audiences set", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                      "https://console.example.com",
+					To:                        mustParseWeightedURLs(t, "https://console-int.example.com:8701"),
+					AllowAnyAuthenticatedUser: true,
+					PassIdentityHeaders:       new(true),
+				},
+			},
+			ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
+		}), "console.example.com")
+		require.NoError(t, err)
+
+		var extAuthzConfig envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute
+		require.NoError(t, routes[0].TypedPerFilterConfig[PerFilterConfigExtAuthzName].UnmarshalTo(&extAuthzConfig))
+		assert.Equal(t, "true", extAuthzConfig.GetCheckSettings().GetContextExtensions()["console"])
+
+		found := false
+		for _, h := range routes[0].RequestHeadersToAdd {
+			if h.Header.Key == "x-pomerium-upstream-cluster" {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "x-pomerium-upstream-cluster not found in request_headers_to_add")
+	})
+
+	t.Run("non-matching routes with audiences set", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                      "https://not-console.example.com",
+					To:                        mustParseWeightedURLs(t, "https://console-int.example.com:8701"),
+					AllowAnyAuthenticatedUser: true,
+					PassIdentityHeaders:       new(true),
+				},
+			},
+			ReadonlyConsoleAudiences: nullable.NewValue(true, []string{"console.example.com"}),
+		}), "not-console.example.com")
+		require.NoError(t, err)
+
+		var extAuthzConfig envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute
+		require.NoError(t, routes[0].TypedPerFilterConfig[PerFilterConfigExtAuthzName].UnmarshalTo(&extAuthzConfig))
+		assert.NotContains(t, extAuthzConfig.GetCheckSettings().GetContextExtensions(), "console")
+
+		for _, h := range routes[0].RequestHeadersToAdd {
+			assert.NotEqual(t, "x-pomerium-upstream-cluster", h.Header.Key)
+		}
+	})
 }

@@ -1,10 +1,10 @@
-import { AppBar, Box, Stack } from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
 
-import { FooterLink } from "./FooterLink";
+import FooterLink from "./FooterLink";
 
-const Footer: FC = () => {
+export default function Footer() {
   return (
     <AppBar
       position="fixed"
@@ -38,5 +38,4 @@ const Footer: FC = () => {
       </Stack>
     </AppBar>
   );
-};
-export default Footer;
+}

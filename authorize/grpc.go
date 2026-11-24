@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -24,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -77,7 +79,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	// on pass-through routes the Authorization header belongs to the
 	// upstream, so neither may be rejected here.
 	cfg := a.currentConfig.Load()
-	if cfg.GetBearerTokenFormatForPolicy(req.Policy) == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT &&
+	req.BearerTokenFormat = cfg.GetBearerTokenFormatForPolicy(req.Policy)
+	if req.BearerTokenFormat == configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT &&
 		hasCookieAndBearer(hreq, cfg.Options.CookieName) {
 		log.Ctx(ctx).Info().
 			Str("request-id", requestID).
@@ -125,7 +128,7 @@ func (a *Authorize) loadSession(
 ) (s sessionOrServiceAccount, err error) {
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 
-	s, err = a.maybeGetSessionFromRequest(ctx, hreq, req.Policy)
+	s, err = a.maybeGetSessionFromRequest(ctx, hreq, req)
 	if err == nil {
 		return s, nil
 	} else if !errors.Is(err, sessions.ErrNoSessionFound) {
@@ -164,11 +167,19 @@ func (a *Authorize) loadSession(
 	return s, nil
 }
 
+var oidcBridgeEndpoints = []string{
+	endpoints.PathOIDCAuth,
+	endpoints.PathOIDCToken,
+	endpoints.PathOIDCJWKS,
+	endpoints.PathOIDCUserInfo,
+}
+
 func (a *Authorize) maybeGetSessionFromRequest(
 	ctx context.Context,
 	hreq *http.Request,
-	policy *config.Policy,
+	req *evaluator.Request,
 ) (*session.Session, error) {
+	policy := req.Policy
 	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		if policy.IsMCPServer() || strings.HasPrefix(hreq.URL.Path, mcp.DefaultPrefix) {
 			s, err := a.getMCPSession(ctx, hreq)
@@ -180,7 +191,20 @@ func (a *Authorize) maybeGetSessionFromRequest(
 		}
 	}
 
-	// attempt to create a session from an incoming idp token
+	// this is a request sent to Pomerium's OIDC bridge endpoints
+	if req.IsInternal && slices.Contains(oidcBridgeEndpoints, hreq.URL.Path) {
+		// this sentinel allows Pomerium to continue through to its regular authorization flow
+		// when Pomerium is configured with `bearer_token_format``: "idp_access_token", "idp_identity_token" or "jwt".
+		//
+		// Otherwise, bearer token formats conflict with OIDC bridge's functionality:
+		//  1. OIDC Bridge mints tokens that are not associated with the idP, for use with its own
+		//     OIDC provider endpoints
+		//  2. bearer token handling below assumes that Authorization: Bearer <Token> is an idP
+		//     token that must be verified upstream, which will result in a 403, instead of succeeding.
+		return nil, sessions.ErrNoSessionFound
+	}
+
+	// attempt to create a session from an incoming idP token
 	return a.state.Load().idpTokenSessionCreator.
 		CreateSession(ctx, a.currentConfig.Load(), policy, hreq)
 }
@@ -194,12 +218,10 @@ func (a *Authorize) getMCPSession(
 		return nil, fmt.Errorf("no authorization header was provided: %w", sessions.ErrNoSessionFound)
 	}
 
-	prefix := "Bearer "
-	if !strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-		return nil, fmt.Errorf("authorization header does not start with %q: %w", prefix, sessions.ErrNoSessionFound)
+	accessToken, ok := httputil.BearerToken(auth)
+	if !ok {
+		return nil, fmt.Errorf("authorization header does not use the Bearer scheme: %w", sessions.ErrNoSessionFound)
 	}
-
-	accessToken := auth[len(prefix):]
 	sessionID, sessionRecordVersion, err := a.state.Load().mcp.GetSessionAndVersionFromAccessToken(accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("no session found for access token: %w: %w", err, sessions.ErrNoSessionFound)
@@ -280,6 +302,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	attrs := in.GetAttributes()
 	req := &evaluator.Request{
 		IsInternal:         envoyconfig.ExtAuthzContextExtensionsIsInternal(attrs.GetContextExtensions()),
+		IsConsole:          envoyconfig.ExtAuthzContextExtensionsIsConsoleRoute(attrs.GetContextExtensions()),
 		HTTP:               evaluator.RequestHTTPFromCheckRequest(ctx, in),
 		EnvoyRouteChecksum: envoyconfig.ExtAuthzContextExtensionsRouteChecksum(attrs.GetContextExtensions()),
 		EnvoyRouteID:       envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()),
@@ -378,9 +401,7 @@ func hasCookieAndBearer(r *http.Request, cookieName string) bool {
 	// Check the (cheap) Authorization header before parsing cookies: the
 	// common authenticated browser case carries a cookie but no bearer, so
 	// short-circuiting here skips cookie parsing on the hot path.
-	const prefix = "Bearer "
-	auth := r.Header.Get(httputil.HeaderAuthorization)
-	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+	if _, ok := httputil.BearerToken(r.Header.Get(httputil.HeaderAuthorization)); !ok {
 		return false
 	}
 	_, err := r.Cookie(cookieName)

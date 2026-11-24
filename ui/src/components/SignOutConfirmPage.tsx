@@ -1,22 +1,19 @@
-import {
-  Button,
-  Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-} from "@mui/material";
-import type { FC } from "react";
-import React from "react";
+import Button from "@mui/material/Button";
+import Container from "@mui/material/Container";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import type { MouseEvent } from "react";
 
 import type { SignOutConfirmPageData } from "../types";
 
 type SignOutConfirmPageProps = {
   data: SignOutConfirmPageData;
 };
-const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
-  function handleClickCancel(evt: React.MouseEvent) {
+export default function SignOutConfirmPage({ data }: SignOutConfirmPageProps) {
+  function handleClickCancel(evt: MouseEvent) {
     evt.preventDefault();
     if (document.referrer) {
       location.href = document.referrer;
@@ -25,7 +22,7 @@ const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
     }
   }
 
-  function handleClickLogout(evt: React.MouseEvent) {
+  function handleClickLogout(evt: MouseEvent) {
     evt.preventDefault();
     location.href = data.url;
   }
@@ -35,9 +32,7 @@ const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
       <Dialog open={true}>
         <DialogTitle>Logout?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Are you sure you want to logout?
-          </DialogContentText>
+          <DialogContentText>Are you sure you want to logout?</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClickCancel}>Cancel</Button>
@@ -46,5 +41,4 @@ const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
       </Dialog>
     </Container>
   );
-};
-export default SignOutConfirmPage;
+}

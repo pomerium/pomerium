@@ -129,6 +129,12 @@ func (srv *backendServer) Clear(ctx context.Context, _ *emptypb.Empty) (*databro
 		return nil, err
 	}
 
+	// clearing removes all options, so set the required ones again
+	err = srv.setupRequiredIndex(ctx, backend)
+	if err != nil {
+		return nil, err
+	}
+
 	newServerVersion, _, _, err := backend.Versions(ctx)
 	if err != nil {
 		return nil, err
@@ -802,6 +808,14 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 			"state_id",
 		},
 		Ttl: durationpb.New(15 * time.Minute),
+	}); err != nil {
+		return err
+	}
+
+	if err := backend.SetOptions(ctx, "type.googleapis.com/session.Session", &databrokerpb.Options{
+		IndexableFields: []string{
+			"user_id",
+		},
 	}); err != nil {
 		return err
 	}

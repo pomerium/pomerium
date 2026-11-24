@@ -1,13 +1,10 @@
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Stack,
-} from "@mui/material";
-import type { FC } from "react";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import Stack from "@mui/material/Stack";
 import { use, useState } from "react";
 
 import { SubpageContext } from "../context/Subpage";
@@ -20,12 +17,10 @@ import SidebarPage from "./SidebarPage";
 type UserInfoPageProps = {
   data: UserInfoData & { page: "DeviceEnrolled" | "UserInfo" };
 };
-const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
+export default function UserInfoPage({ data }: UserInfoPageProps) {
   const { subpage } = use(SubpageContext);
 
-  const [showDeviceEnrolled, setShowDeviceEnrolled] = useState(
-    data.page === "DeviceEnrolled",
-  );
+  const [showDeviceEnrolled, setShowDeviceEnrolled] = useState(data.page === "DeviceEnrolled");
 
   function handleCloseDeviceEnrolled() {
     setShowDeviceEnrolled(false);
@@ -43,15 +38,10 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
         </DialogActions>
       </Dialog>
       <Stack spacing={3}>
-        {subpage === "User" && (
-          <SessionDetails session={data?.session} profile={data?.profile} />
-        )}
+        {subpage === "User" && <SessionDetails session={data?.session} profile={data?.profile} />}
 
         {subpage === "Groups Info" && (
-          <GroupDetails
-            isEnterprise={data?.isEnterprise}
-            groups={data?.directoryGroups}
-          />
+          <GroupDetails isEnterprise={data?.isEnterprise} groups={data?.directoryGroups} />
         )}
 
         {subpage === "Devices Info" &&
@@ -71,5 +61,4 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
       </Stack>
     </SidebarPage>
   );
-};
-export default UserInfoPage;
+}

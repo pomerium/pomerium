@@ -50,6 +50,7 @@ func TestServerHTTP(t *testing.T) {
 			"frontchannel_logout_uri":          fmt.Sprintf("https://localhost:%s/.pomerium/sign_out", src.GetConfig().HTTPPort),
 			"jwks_uri":                         fmt.Sprintf("https://localhost:%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPPort),
 		}
+		delete(actual, "encrypted_build_information")
 		assert.Equal(t, expect, actual)
 	})
 	t.Run("jwks", func(t *testing.T) {

@@ -31,8 +31,7 @@ export const findServerStatus = (
 
 // canRefresh reports whether a connected route can be refreshed: without a
 // stored refresh token the Refresh action can only fail.
-export const canRefresh = (s: MCPServerStatus): boolean =>
-  !!s.refresh_token_available;
+export const canRefresh = (s: MCPServerStatus): boolean => !!s.refresh_token_available;
 
 // refreshTokenCaption describes the stored refresh token. A missing one is
 // flagged as an error: the route will need reconnecting once the access token

@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/pkg/envoy"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 // TestWebsocketViaMiddleEnvoy covers the topology where Pomerium runs in
@@ -232,7 +233,7 @@ func (m *middleEnvoy) Run(ctx context.Context) error {
 		return fmt.Errorf("split upstream addr: %w", err)
 	}
 
-	ports, err := testenv.AllocatePorts(1)
+	ports, err := netutil.AllocatePorts(1)
 	if err != nil {
 		return fmt.Errorf("allocate port: %w", err)
 	}
@@ -262,7 +263,8 @@ func (m *middleEnvoy) Run(ctx context.Context) error {
 	if v, ok := os.LookupEnv("MIDDLE_ENVOY_LOG_LEVEL"); ok {
 		logLevel = v
 	}
-	cmd := exec.CommandContext(ctx, envoyPath,
+	cmd := exec.CommandContext(
+		ctx, envoyPath,
 		"-c", cfgPath,
 		"--log-level", logLevel,
 		"--use-dynamic-base-id",

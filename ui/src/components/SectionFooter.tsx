@@ -1,6 +1,7 @@
-import { Box, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import { styled } from "@mui/material/styles";
 
-export const SectionFooter = styled(Box)(({ theme }) => ({
+const SectionFooter = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.grey[100],
   padding: theme.spacing(3),
 }));

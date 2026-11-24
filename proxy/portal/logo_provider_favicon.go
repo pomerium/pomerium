@@ -32,10 +32,15 @@ type faviconDiscoveryLogoProvider struct {
 	successTTL       time.Duration
 	failureTTL       time.Duration
 	discoveryTimeout time.Duration
+	client           *http.Client
 }
 
 func newFaviconDiscoveryLogoProvider() *faviconDiscoveryLogoProvider {
+	transport := httputil.GetInsecureTransport()
+	// route upstreams are reached directly, as envoy reaches them, not via HTTP(S)_PROXY
+	transport.Proxy = nil
 	return &faviconDiscoveryLogoProvider{
+		client:           &http.Client{Transport: transport},
 		cache:            make(map[string]*faviconCacheValue),
 		successTTL:       time.Hour,
 		failureTTL:       10 * time.Minute,
@@ -95,12 +100,7 @@ func (p *faviconDiscoveryLogoProvider) discoverLogoURL(ctx context.Context, rawU
 		return "", err
 	}
 
-	t := httputil.GetInsecureTransport()
-	c := &http.Client{
-		Transport: t,
-	}
-
-	res, err := c.Do(req)
+	res, err := p.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -114,14 +114,14 @@ func (p *faviconDiscoveryLogoProvider) discoverLogoURL(ctx context.Context, rawU
 			continue
 		}
 
-		logoURL := p.fetchLogoURL(ctx, c, linkURL)
+		logoURL := p.fetchLogoURL(ctx, linkURL)
 		if logoURL != "" {
 			return logoURL, nil
 		}
 	}
 
 	// try just the /favicon.ico
-	logoURL := p.fetchLogoURL(ctx, c, u.ResolveReference(&url.URL{Path: "/favicon.ico"}))
+	logoURL := p.fetchLogoURL(ctx, u.ResolveReference(&url.URL{Path: "/favicon.ico"}))
 	if logoURL != "" {
 		return logoURL, nil
 	}
@@ -129,13 +129,13 @@ func (p *faviconDiscoveryLogoProvider) discoverLogoURL(ctx context.Context, rawU
 	return "", ErrLogoNotFound
 }
 
-func (p *faviconDiscoveryLogoProvider) fetchLogoURL(ctx context.Context, client *http.Client, logoURL *url.URL) string {
+func (p *faviconDiscoveryLogoProvider) fetchLogoURL(ctx context.Context, logoURL *url.URL) string {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, logoURL.String(), nil)
 	if err != nil {
 		return ""
 	}
 
-	res, err := client.Do(req)
+	res, err := p.client.Do(req)
 	if err != nil {
 		log.Ctx(ctx).Debug().Str("url", logoURL.String()).Err(err).Msg("error fetching logo contents")
 		return ""

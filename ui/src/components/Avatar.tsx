@@ -1,14 +1,13 @@
-import { Avatar as MuiAvatar } from "@mui/material";
-import { isArray } from "lodash-es";
-import type { JSX } from "react";
-import { User } from "react-feather";
+import MuiAvatar from "@mui/material/Avatar";
+import isArray from "lodash-es/isArray";
+import User from "react-feather/dist/icons/user";
 
 type AvatarProps = {
   name: string;
   url?: string;
 };
 
-export const Avatar = ({ url, name }: AvatarProps): JSX.Element => {
+export default function Avatar({ url, name }: AvatarProps) {
   if (isArray(url)) {
     url = url?.[0];
   }
@@ -18,4 +17,4 @@ export const Avatar = ({ url, name }: AvatarProps): JSX.Element => {
   }
 
   return url ? <MuiAvatar alt={name} src={url} /> : <User />;
-};
+}

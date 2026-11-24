@@ -109,6 +109,10 @@ func TestCreatePosthogPropertiesForRoutes(t *testing.T) {
 				From:                             fmt.Sprintf("https://a.b.c.d.route-%02d.com", i),
 			},
 			config.Policy{
+				From:       fmt.Sprintf("https://e.f.g.h-%02d.com", i),
+				OidcBridge: nullable.From(config.OIDCBridge{}),
+			},
+			config.Policy{
 				AllowedUsers: []string{"u1", "u2", "u3"},
 				From:         fmt.Sprintf("https://a.b.c.route-%02d.com", i),
 				MCP:          &config.MCP{Server: &config.MCPServer{}},
@@ -133,14 +137,15 @@ func TestCreatePosthogPropertiesForRoutes(t *testing.T) {
 	}
 	p := New().(*reporter).CreatePosthogPropertiesForRoutes(cfg)
 	assert.Equal(t, posthog.Properties{
-		"route_count": 700.,
+		"route_count": 800.,
 		"route_types": map[string]any{
-			"http":       100.,
-			"kubernetes": 100.,
-			"mcp_server": 200.,
-			"ssh":        100.,
-			"tcp":        100.,
-			"udp":        100.,
+			"http":        200.,
+			"kubernetes":  100.,
+			"mcp_server":  200.,
+			"ssh":         100.,
+			"tcp":         100.,
+			"udp":         100.,
+			"oidc_bridge": 100.,
 		},
 	}, p)
 }
@@ -398,6 +403,7 @@ func TestCreatePosthogPropertiesForSettings(t *testing.T) {
 		"identity_provider":       "none",
 		"log_level":               "info",
 		"originator_id":           "none",
+		"oidc_bridge_global":      "false",
 		"proxy_log_level":         "info",
 		"services":                "all",
 		"changed_settings":        []any{},
@@ -464,6 +470,11 @@ func TestCreatePosthogPropertiesForSettingsValues(t *testing.T) {
 		{"proxy log level set", func(o *config.Options) { o.ProxyLogLevel = config.LogLevelWarning }, "proxy_log_level", "warn"},
 		{"proxy log level from log level", func(o *config.Options) { o.LogLevel = config.LogLevelError }, "proxy_log_level", "error"},
 		{"proxy log level default", func(o *config.Options) { o.LogLevel = config.LogLevelUnset }, "proxy_log_level", "debug"},
+		{"oidc bridge", func(o *config.Options) { o.OidcBridge = nullable.From(config.OIDCBridge{}) }, "oidc_bridge_global", "true"},
+		{"oidc bridge enabled on", func(o *config.Options) { o.OidcBridge = nullable.From(config.OIDCBridge{Enabled: nullable.From(true)}) }, "oidc_bridge_global", "true"},
+		{"oidc bridge enabled off", func(o *config.Options) {
+			o.OidcBridge = nullable.From(config.OIDCBridge{Enabled: nullable.From(false)})
+		}, "oidc_bridge_global", "false"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -486,7 +497,8 @@ func TestChangedSettingsRules(t *testing.T) {
 		"databroker_storage_connection_string":    "",
 		"ssh_two_person_approval_request_timeout": "ssh_two_person_approval_request_timeout",
 		"authenticate_service_url":                "authenticate_service_url",
-		"authenticate_internal_service_url":       "service_urls",
+		"authenticate_internal_service_url":       "authenticate_internal_service_url",
+		"databroker_service_url":                  "databroker_service_url",
 		"scopes":                                  "idp_scopes",
 		"autocert":                                "autocert",
 		"ssh_user_ca_key_pair_id":                 "ssh",

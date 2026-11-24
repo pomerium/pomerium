@@ -4184,6 +4184,40 @@ func (m *Settings) validate(all bool) error {
 		}
 	}
 
+	for idx, item := range m.GetTailscaleListeners() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  fmt.Sprintf("TailscaleListeners[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  fmt.Sprintf("TailscaleListeners[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  fmt.Sprintf("TailscaleListeners[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if all {
 		switch v := interface{}(m.GetCreatedAt()).(type) {
 		case interface{ ValidateAll() error }:
@@ -5716,6 +5750,158 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = SettingsValidationError{}
+
+// Validate checks the field values on TailscaleListenerSettings with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *TailscaleListenerSettings) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TailscaleListenerSettings with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// TailscaleListenerSettingsMultiError, or nil if none found.
+func (m *TailscaleListenerSettings) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TailscaleListenerSettings) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Hostname
+
+	if m.ListenAddr != nil {
+		// no validation rules for ListenAddr
+	}
+
+	if m.ListenFunnelAddr != nil {
+		// no validation rules for ListenFunnelAddr
+	}
+
+	if m.ListenServiceName != nil {
+		// no validation rules for ListenServiceName
+	}
+
+	if m.ListenServicePort != nil {
+		// no validation rules for ListenServicePort
+	}
+
+	if m.Ephemeral != nil {
+		// no validation rules for Ephemeral
+	}
+
+	if m.AuthKey != nil {
+		// no validation rules for AuthKey
+	}
+
+	if m.OauthClientId != nil {
+		// no validation rules for OauthClientId
+	}
+
+	if m.OauthClientSecret != nil {
+		// no validation rules for OauthClientSecret
+	}
+
+	if m.IdToken != nil {
+		// no validation rules for IdToken
+	}
+
+	if m.IdTokenAudience != nil {
+		// no validation rules for IdTokenAudience
+	}
+
+	if m.ControlUrl != nil {
+		// no validation rules for ControlUrl
+	}
+
+	if m.TerminateTls != nil {
+		// no validation rules for TerminateTls
+	}
+
+	if len(errors) > 0 {
+		return TailscaleListenerSettingsMultiError(errors)
+	}
+
+	return nil
+}
+
+// TailscaleListenerSettingsMultiError is an error wrapping multiple validation
+// errors returned by TailscaleListenerSettings.ValidateAll() if the
+// designated constraints aren't met.
+type TailscaleListenerSettingsMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TailscaleListenerSettingsMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TailscaleListenerSettingsMultiError) AllErrors() []error { return m }
+
+// TailscaleListenerSettingsValidationError is the validation error returned by
+// TailscaleListenerSettings.Validate if the designated constraints aren't met.
+type TailscaleListenerSettingsValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TailscaleListenerSettingsValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TailscaleListenerSettingsValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TailscaleListenerSettingsValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TailscaleListenerSettingsValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TailscaleListenerSettingsValidationError) ErrorName() string {
+	return "TailscaleListenerSettingsValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e TailscaleListenerSettingsValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTailscaleListenerSettings.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TailscaleListenerSettingsValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TailscaleListenerSettingsValidationError{}
 
 // Validate checks the field values on BlobStorageSettings with the rules
 // defined in the proto definition for this message. If any rules are

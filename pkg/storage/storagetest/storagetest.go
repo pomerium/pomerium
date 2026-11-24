@@ -1068,6 +1068,68 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 			{typeURL, "t3"},
 		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("proto_field.another_string_field", "ss2")))
 	})
+
+	t.Run("deleted record is not found by its old value", func(t *testing.T) {
+		put := func(t *testing.T, record *databroker.Record) {
+			t.Helper()
+			_, err := backend.Put(t.Context(), []*databroker.Record{record})
+			require.NoError(t, err)
+		}
+		testRecord := func(recordType, id, value string) *databroker.Record {
+			return &databroker.Record{Type: recordType, Id: id, Data: protoutil.NewAny(&testproto.Test{StringField: value})}
+		}
+		ids := func(t *testing.T, recordType, value string) []string {
+			t.Helper()
+			_, _, seq, err := backend.SyncLatest(t.Context(), recordType, storage.MustEqualsFilterExpression("string_field", value))
+			require.NoError(t, err)
+			records, err := iterutil.CollectWithError(seq)
+			require.NoError(t, err)
+			found := make([]string, len(records))
+			for i, record := range records {
+				found[i] = record.GetId()
+			}
+			return found
+		}
+
+		for _, tc := range []struct {
+			name, recordType string
+			capacity         *uint64
+			remove           func(t *testing.T, recordType string)
+		}{
+			{"delete with empty data", "index-delete-empty-data", nil, func(t *testing.T, recordType string) {
+				record := testRecord(recordType, "r1", "")
+				record.DeletedAt = timestamppb.Now()
+				put(t, record)
+			}},
+			{"delete with nil data", "index-delete-nil-data", nil, func(t *testing.T, recordType string) {
+				put(t, &databroker.Record{Type: recordType, Id: "r1", DeletedAt: timestamppb.Now()})
+			}},
+			{"ttl expiry", "index-ttl-expiry", nil, func(t *testing.T, recordType string) {
+				time.Sleep(10 * time.Millisecond)
+				require.NoError(t, backend.Clean(t.Context(), storage.CleanOptions{
+					RemoveRecordChangesBefore: time.Now().Add(-time.Hour),
+					RecordTTLs:                map[string]time.Duration{recordType: time.Millisecond},
+				}))
+			}},
+			{"capacity eviction", "index-capacity-eviction", proto.Uint64(1), func(t *testing.T, recordType string) {
+				put(t, testRecord(recordType, "r2", "other"))
+			}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				recordType := tc.recordType
+				require.NoError(t, backend.SetOptions(t.Context(), recordType, &databroker.Options{
+					IndexableFields: []string{"string_field"},
+					Capacity:        tc.capacity,
+				}))
+				put(t, testRecord(recordType, "r1", "old"))
+				tc.remove(t, recordType)
+				put(t, testRecord(recordType, "r1", "new"))
+
+				assert.Empty(t, ids(t, recordType, "old"))
+				assert.Equal(t, []string{"r1"}, ids(t, recordType, "new"))
+			})
+		}
+	})
 }
 
 func TestFilter(t *testing.T, backend storage.Backend) {

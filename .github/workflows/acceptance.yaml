@@ -56,6 +56,10 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: .tool-versions
+          # This job builds pomerium inside docker, so the host Go caches stay
+          # empty. Saving them would claim the shared setup-go cache key with
+          # an empty cache before the test.yaml build job can save a real one.
+          cache: false
 
       - name: Install Playwright dependencies
         working-directory: internal/acceptance/browser

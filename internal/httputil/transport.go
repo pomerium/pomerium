@@ -9,13 +9,30 @@ import (
 	"github.com/pires/go-proxyproto"
 )
 
+// NewTransport makes sure we inherit the default transport settings from http.DefaultTransport.
+//
+// Unset fields accidentally caused a socket/memory leak with go 1.27's changes to
+// idle connections.
+//
+//	https://github.com/pomerium/pomerium/issues/7027
+func NewTransport(modify func(*http.Transport)) *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	modify(transport)
+	return transport
+}
+
 // GetInsecureTransport gets an insecure HTTP transport.
 func GetInsecureTransport() *http.Transport {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DialTLS = nil
+	return NewTransport(func(transport *http.Transport) {
+		transport.DialTLS = nil
+		SetTLSClientConfig(transport, &tls.Config{InsecureSkipVerify: true})
+	})
+}
+
+// SetTLSClientConfig sets cfg and clears any inherited DialTLSContext, which would bypass it.
+func SetTLSClientConfig(transport *http.Transport, cfg *tls.Config) {
 	transport.DialTLSContext = nil
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	return transport
+	transport.TLSClientConfig = cfg
 }
 
 // NewLocalProxyProtocolTransport creates a new http transport that uses the proxy

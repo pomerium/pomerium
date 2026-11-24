@@ -1,12 +1,12 @@
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { IconButton, Tooltip } from "@mui/material";
-import type { FC } from "react";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 
 type SmallTooltipProps = {
   description: string;
 };
 
-export const SmallTooltip: FC<SmallTooltipProps> = ({ description }) => {
+export default function SmallTooltip({ description }: SmallTooltipProps) {
   return (
     <Tooltip title={description} arrow>
       <IconButton size="small" sx={{ p: 0 }}>
@@ -14,4 +14,4 @@ export const SmallTooltip: FC<SmallTooltipProps> = ({ description }) => {
       </IconButton>
     </Tooltip>
   );
-};
+}

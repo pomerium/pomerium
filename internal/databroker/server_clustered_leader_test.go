@@ -1,6 +1,8 @@
 package databroker_test
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -17,6 +21,15 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
+
+type clusteredLeaderTestServer struct {
+	databroker.Server
+	serverInfo func(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error)
+}
+
+func (srv *clusteredLeaderTestServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
+	return srv.serverInfo(ctx, req)
+}
 
 func TestClusteredLeaderServer(t *testing.T) {
 	t.Parallel()
@@ -38,7 +51,6 @@ func TestClusteredLeaderServer(t *testing.T) {
 
 		assert.Empty(t, cmp.Diff(res1, res2, protocmp.Transform()))
 	})
-
 	t.Run("checkpoints", func(t *testing.T) {
 		t.Parallel()
 
@@ -66,5 +78,37 @@ func TestClusteredLeaderServer(t *testing.T) {
 		_, err = leader.SetCheckpoint(t.Context(), &databrokerpb.SetCheckpointRequest{})
 		assert.ErrorIs(t, err, databrokerpb.ErrSetCheckpointNotSupported,
 			"should not allow setting checkpoints")
+	})
+	t.Run("stops streams", func(t *testing.T) {
+		local := databroker.NewBackendServer(noop.NewTracerProvider())
+		leader := databroker.NewClusteredLeaderServer(local)
+		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
+		})
+
+		c := databrokerpb.NewDataBrokerServiceClient(leaderCC)
+		info, err := c.ServerInfo(t.Context(), new(emptypb.Empty))
+		require.NoError(t, err)
+		stream, err := c.Sync(t.Context(), &databrokerpb.SyncRequest{
+			ServerVersion: info.GetServerVersion(),
+			RecordVersion: info.GetLatestRecordVersion(),
+		})
+		require.NoError(t, err)
+
+		leader.Stop()
+
+		res, err := stream.Recv()
+		assert.Equal(t, codes.Canceled.String(), status.Code(err).String())
+		assert.Nil(t, res)
+	})
+	t.Run("handles checkpoint errors", func(t *testing.T) {
+		t.Parallel()
+		local := &clusteredLeaderTestServer{
+			serverInfo: func(_ context.Context, _ *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
+				return nil, fmt.Errorf("SERVER_INFO_ERROR")
+			},
+		}
+		leader := databroker.NewClusteredLeaderServer(local)
+		leader.Stop() // previously there was a bug in the code that caused this method to never complete
 	})
 }

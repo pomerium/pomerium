@@ -1,6 +1,5 @@
-import { isArray } from "lodash-es";
-import type { FC } from "react";
-import React from "react";
+import isArray from "lodash-es/isArray";
+import { Fragment } from "react";
 
 import IDField from "./IDField";
 
@@ -12,15 +11,15 @@ type ClaimValueProps = {
   claimKey: string;
   claimValue: unknown;
 };
-const ClaimValue: FC<ClaimValueProps> = ({ claimKey, claimValue }) => {
+export default function ClaimValue({ claimKey, claimValue }: ClaimValueProps) {
   if (isArray(claimValue)) {
     return (
       <>
         {claimValue?.map((v, i) => (
-          <React.Fragment key={`${v}`}>
+          <Fragment key={`${v}`}>
             {i > 0 ? <br /> : <></>}
             <ClaimValue claimKey={claimKey} claimValue={v} />
-          </React.Fragment>
+          </Fragment>
         ))}
       </>
     );
@@ -35,5 +34,4 @@ const ClaimValue: FC<ClaimValueProps> = ({ claimKey, claimValue }) => {
   }
 
   return <>{`${claimValue}`}</>;
-};
-export default ClaimValue;
+}
