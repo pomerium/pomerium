@@ -159,6 +159,8 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            POMERIUM_OFFICIAL_BUILD=1
 
   precommit:
     runs-on: ubuntu-22.04

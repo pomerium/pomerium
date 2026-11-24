@@ -87,6 +87,8 @@ jobs:
             org.opencontainers.image.title=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
             org.opencontainers.image.revision=${{ github.sha }}
+          build-args: |
+            POMERIUM_OFFICIAL_BUILD=1
 
       - name: Docker Publish - Main ARM64
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
@@ -102,6 +104,8 @@ jobs:
             org.opencontainers.image.title=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
             org.opencontainers.image.revision=${{ github.sha }}
+          build-args: |
+            POMERIUM_OFFICIAL_BUILD=1
 
       - name: Docker Publish - Main Manifest
         run: |
@@ -127,6 +131,8 @@ jobs:
             org.opencontainers.image.title=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
             org.opencontainers.image.revision=${{ github.sha }}
+          build-args: |
+            POMERIUM_OFFICIAL_BUILD=1
 
       - name: Docker Publish - Debug Main ARM64
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
@@ -142,6 +148,8 @@ jobs:
             org.opencontainers.image.title=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
             org.opencontainers.image.revision=${{ github.sha }}
+          build-args: |
+            POMERIUM_OFFICIAL_BUILD=1
 
       - name: Docker Publish - Debug Main Manifest
         run: |
