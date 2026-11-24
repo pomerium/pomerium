@@ -34,6 +34,7 @@ func (r *reporter) CreatePosthogProperties(ctx context.Context, cfg *config.Conf
 	p := posthog.NewProperties()
 	p.Set("session_count", sessionCount).
 		Set("user_count", userCount)
+	p.Merge(r.CreatePosthogPropertiesForBuild())
 	p.Merge(r.CreatePosthogPropertiesForCertificates(cfg))
 	if infos, err := cpu.InfoWithContext(ctx); err == nil {
 		p.Merge(r.CreatePosthogPropertiesForCPU(infos))
@@ -51,6 +52,14 @@ func (r *reporter) CreatePosthogProperties(ctx context.Context, cfg *config.Conf
 	p.Merge(r.CreatePosthogPropertiesForRuntimeFlags(cfg))
 	p.Merge(r.CreatePosthogPropertiesForSettings(cfg))
 	return p
+}
+
+func (r *reporter) CreatePosthogPropertiesForBuild() posthog.Properties {
+	p := posthog.NewProperties()
+	p["official_build"] = version.IsOfficialBuild()
+	p["license"], _ = version.License()
+	_, p["envoy_license"] = (*envoyBuildInformation.Load())()
+	return normalizePropertyTypes(p)
 }
 
 func (r *reporter) CreatePosthogPropertiesForCertificates(cfg *config.Config) posthog.Properties {
