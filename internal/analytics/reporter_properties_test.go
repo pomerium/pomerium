@@ -24,6 +24,16 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
+func TestCreatePosthogPropertiesForBuild(t *testing.T) {
+	t.Parallel()
+	p := New().(*reporter).CreatePosthogPropertiesForBuild()
+	assert.Equal(t, posthog.Properties{
+		"envoy_license":  "",
+		"official_build": false,
+		"license":        "Apache License 2.0",
+	}, p)
+}
+
 func TestCreatePosthogPropertiesForCertificates(t *testing.T) {
 	t.Parallel()
 	cert, err := cryptutil.GenerateCertificate(nil, "example.com")
