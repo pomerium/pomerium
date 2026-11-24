@@ -42,9 +42,11 @@ jobs:
           docker compose up -d
 
       - name: integration tests
+        env:
+          GOTESTSUM_FORMAT: github-actions
         run: |
           (cd ./integration/clusters/${{matrix.deployment}}-${{matrix.authenticate-flow}} && docker compose logs -f &)
-          go test -tags integration -v ./integration/...
+          go tool gotestsum --packages="./integration/..." -- -tags integration -v
 
   e2e:
     runs-on: ubuntu-22.04
@@ -63,6 +65,8 @@ jobs:
       # own process by make test-e2e. Non-blocking for now: not added to
       # branch-protection required checks until proven stable on main.
       - name: e2e tests
+        env:
+          GOTESTSUM_FORMAT: github-actions
         run: make test-e2e
 
   build:
@@ -93,11 +97,10 @@ jobs:
           retention-days: 1
 
       - name: test
-        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
-        with:
-          timeout_minutes: 30
-          max_attempts: 3
-          command: make cover
+        timeout-minutes: 30
+        env:
+          GOTESTSUM_FORMAT: github-actions
+        run: make cover
 
       - uses: jandelgado/gcov2lcov-action@e4612787670fc5b5f49026b8c29c5569921de1db
         if: matrix.platform == 'ubuntu-latest'

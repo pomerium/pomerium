@@ -92,7 +92,7 @@ test-headers: test-suite-headers
 
 # Run tests via Go test wrapper
 test-go: up
-	go test -tags=acceptance -v -timeout=20m ./...
+	go tool gotestsum --packages="./..." -- -tags=acceptance -v -timeout=20m
 
 # ---------------------------------------------------------------------------
 # Downstream mTLS e2e suite (internal/acceptance/suites/downstream-mtls):

@@ -157,7 +157,7 @@ govulncheck: ## Scan for known Go vulnerabilities (all workspace modules)
 .PHONY: test
 test: get-envoy ## Runs the go tests.
 	@echo "==> $@"
-	$(GO) test $(GO_TESTFLAGS) -tags "$(BUILDTAGS)" ./...
+	$(GO) tool gotestsum --rerun-fails --packages="./..." -- $(GO_TESTFLAGS) -tags "$(BUILDTAGS)"
 
 # End-to-end tests are heavyweight (Docker via testcontainers, in-process
 # Pomerium via testenv) and each mutates process-global state (e.g. the OTel
@@ -170,12 +170,17 @@ test-e2e: test-e2e-k3s ## Runs all e2e tests, each isolated in its own process.
 .PHONY: test-e2e-k3s
 test-e2e-k3s: get-envoy ## Runs the k3s external-JWT e2e test (requires Docker).
 	@echo "==> $@"
-	RUN_TestExternalJWTBearer_K3s=1 $(GO) test -timeout=15m -run '^TestExternalJWTBearer_K3s$$' ./authorize/...
+	RUN_TestExternalJWTBearer_K3s=1 $(GO) tool gotestsum --packages="./authorize/..." -- -timeout=15m -run '^TestExternalJWTBearer_K3s$$'
 
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage
 	@echo "==> $@"
-	$(GO) test $(GO_TESTFLAGS) -tags "$(BUILDTAGS)" -coverprofile=coverage.txt ./...
+	@# coverage goes to a directory rather than -coverprofile so that tests
+	@# rerun by --rerun-fails add to it instead of overwriting it
+	@rm -rf .coverdata && mkdir -p .coverdata
+	$(GO) tool gotestsum --rerun-fails --packages="./..." -- \
+		$(GO_TESTFLAGS) -tags "$(BUILDTAGS)" -cover -args -test.gocoverdir=$(CURDIR)/.coverdata
+	$(GO) tool covdata textfmt -i=.coverdata -o coverage.txt
 	@sed -i.bak '/\.pb\.go\:/d' coverage.txt
 	@sed -i.bak '/\/mock_.*\.go\:/d' coverage.txt
 	@sed -i.bak '/\.gen\.go\:/d' coverage.txt
