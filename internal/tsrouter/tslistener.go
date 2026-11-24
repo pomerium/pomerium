@@ -168,7 +168,10 @@ func (l *tsListener) runLeased(ctx context.Context, client databroker.DataBroker
 	if l.Settings.ListenFunnelAddr.IsSet {
 		log.Ctx(ctx).Info().Msg("starting funnel listener")
 		l.runTillDone(ctx, func() error {
-			funnelOptions := []tsnet.FunnelOption{tsnet.FunnelOnly()}
+			var funnelOptions []tsnet.FunnelOption
+			if l.Settings.ListenFunnelOnly.Value {
+				funnelOptions = append(funnelOptions, tsnet.FunnelOnly())
+			}
 			if !l.Settings.TerminateTLS.Value {
 				funnelOptions = append(funnelOptions, tsnet.FunnelTLSConfig(&tls.Config{
 					GetCertificate: l.getCertificate,

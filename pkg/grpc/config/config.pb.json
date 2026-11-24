@@ -8616,6 +8616,18 @@
               "defaultValue": ""
             },
             {
+              "name": "listen_funnel_only",
+              "description": "When set to true, only allow traffic from the Tailscale Funnel and not\nthe tailnet.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_listen_funnel_only",
+              "defaultValue": ""
+            },
+            {
               "name": "listen_service_name",
               "description": "Start a listener for the service.",
               "label": "optional",
