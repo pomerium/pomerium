@@ -512,6 +512,10 @@ func (backend *Backend) deleteRecordLocked(
 		backend.recordCIDRIndex.delete(recordCIDRNode{recordType: record.GetType(), recordID: record.GetId(), prefix: *prefix})
 	}
 
+	if err := backend.deleteIndexLocked(rw, record); err != nil {
+		return err
+	}
+
 	backend.latestRecordVersion++
 	record.ModifiedAt = timestamppb.Now()
 	record.DeletedAt = timestamppb.Now()
@@ -881,9 +885,6 @@ func (backend *Backend) updateRecordLocked(
 	record *databrokerpb.Record,
 ) error {
 	if record.GetDeletedAt() != nil {
-		if err := backend.deleteIndexLocked(rw, record); err != nil {
-			return err
-		}
 		return backend.deleteRecordLocked(rw, record.GetType(), record.GetId())
 	}
 
