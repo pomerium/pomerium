@@ -79,7 +79,7 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
+		hosts := NewHostInfo(cfg)
 
 		// Verify HostInfo is set up correctly
 		assert.True(t, hosts.UsesAutoDiscovery("proxy.example.com"),
@@ -153,7 +153,7 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
+		hosts := NewHostInfo(cfg)
 
 		handler := &UpstreamAuthHandler{
 			hosts: hosts,
@@ -745,7 +745,7 @@ func TestHandle401_EmptyUserID(t *testing.T) {
 			},
 		},
 	})
-	hosts := NewHostInfo(cfg, nil)
+	hosts := NewHostInfo(cfg)
 
 	handler := &UpstreamAuthHandler{
 		hosts: hosts,
@@ -903,7 +903,7 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
+		hosts := NewHostInfo(cfg)
 
 		handler := &UpstreamAuthHandler{
 			storage: fullStore,
@@ -967,7 +967,7 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 				},
 			},
 		})
-		hosts := NewHostInfo(cfg, nil)
+		hosts := NewHostInfo(cfg)
 
 		handler := &UpstreamAuthHandler{
 			storage:    fullStore,
@@ -1052,7 +1052,7 @@ func TestRefreshOrClearToken_ErrorClassification(t *testing.T) {
 		})
 		return &UpstreamAuthHandler{
 			storage:    store,
-			hosts:      NewHostInfo(cfg, nil),
+			hosts:      NewHostInfo(cfg),
 			httpClient: httpClient,
 		}
 	}
@@ -1238,7 +1238,7 @@ func newTestUpstreamAuthHandler(t *testing.T, cfg *config.Config, store HandlerS
 	t.Helper()
 	cfg.Options.MCPAllowedASMetadataDomains = []string{"127.0.0.1"}
 	cfg.Options.SharedKey = cryptutil.NewBase64Key()
-	h, err := NewUpstreamAuthHandler(t.Context(), cfg, WithStorage(store), WithUpstreamHTTPClient(httpClient))
+	h, err := NewUpstreamAuthHandler(t.Context(), cfg, httpClient, WithStorage(store))
 	require.NoError(t, err)
 	return h
 }

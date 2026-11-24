@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -16,7 +17,7 @@ func TestUpstreamAuthHandler_OnConfigChange_RefreshesDomainMatcher(t *testing.T)
 	old := config.New(config.NewDefaultOptions())
 	old.Options.MCPAllowedASMetadataDomains = []string{"old.example.com"}
 
-	h, err := NewUpstreamAuthHandler(t.Context(), old)
+	h, err := NewUpstreamAuthHandler(t.Context(), old, http.DefaultClient)
 	require.NoError(t, err)
 
 	require.NoError(t, h.asMetadataDomainMatcher.Load().ValidateURLDomain(

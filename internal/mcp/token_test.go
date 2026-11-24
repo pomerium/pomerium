@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/opaquetoken"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -44,6 +46,27 @@ func TestAccessTokenPrefix(t *testing.T) {
 		assert.Equal(t, "session-2", id)
 		assert.Equal(t, uint64(7), version)
 	})
+}
+
+// TestNewAccessTokensOpensHandlerTokens checks that AccessTokens built from a
+// config open the access tokens that a Handler built from the same config
+// issues.
+func TestNewAccessTokensOpensHandlerTokens(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.New(config.NewDefaultOptions())
+	cfg.Options.SharedKey = cryptutil.NewBase64Key()
+	h, err := New(t.Context(), DefaultPrefix, cfg, nil, http.DefaultClient)
+	require.NoError(t, err)
+	tokens, err := NewAccessTokens(cfg)
+	require.NoError(t, err)
+
+	tok, err := h.GetAccessTokenForSessionWithVersion("session-1", 42, time.Now().Add(time.Hour))
+	require.NoError(t, err)
+	id, version, err := tokens.GetSessionAndVersionFromAccessToken(tok)
+	require.NoError(t, err)
+	assert.Equal(t, "session-1", id)
+	assert.Equal(t, uint64(42), version)
 }
 
 func TestRefreshTokenPrefix(t *testing.T) {

@@ -81,7 +81,7 @@ func TestHandleUpstreamResponse_ConfiguredUpstreamBasePath(t *testing.T) {
 			},
 		},
 	})
-	hosts := NewHostInfo(cfg, nil)
+	hosts := NewHostInfo(cfg)
 
 	// Sanity: the configured upstream URL retains the "/mcp" base path (matches prod log
 	// "upstream_server":"https://mcp.notion.com/mcp").
