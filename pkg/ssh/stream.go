@@ -391,6 +391,14 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 	ctx, sh.terminateFunc = context.WithCancelCause(ctx)
 	sh.terminateMu.Unlock()
 
+	err := sh.runLoop(ctx)
+	if cause := context.Cause(ctx); cause != nil {
+		return cause
+	}
+	return err
+}
+
+func (sh *StreamHandler) runLoop(ctx context.Context) error {
 	state := &StreamState{
 		NextRequiredAuthMethod: MethodPublicKey,
 		StreamID:               sh.downstream.StreamId,
