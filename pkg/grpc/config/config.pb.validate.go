@@ -5783,6 +5783,10 @@ func (m *TailscaleListenerSettings) validate(all bool) error {
 		// no validation rules for ListenFunnelAddr
 	}
 
+	if m.ListenFunnelOnly != nil {
+		// no validation rules for ListenFunnelOnly
+	}
+
 	if m.ListenServiceName != nil {
 		// no validation rules for ListenServiceName
 	}

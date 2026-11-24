@@ -5345,6 +5345,9 @@ type TailscaleListenerSettings struct {
 	ListenAddr *string `protobuf:"bytes,2,opt,name=listen_addr,json=listenAddr,proto3,oneof" json:"listen_addr,omitempty"`
 	// Start a Tailscale Funnel listener.
 	ListenFunnelAddr *string `protobuf:"bytes,3,opt,name=listen_funnel_addr,json=listenFunnelAddr,proto3,oneof" json:"listen_funnel_addr,omitempty"`
+	// When set to true, only allow traffic from the Tailscale Funnel and not
+	// the tailnet.
+	ListenFunnelOnly *bool `protobuf:"varint,15,opt,name=listen_funnel_only,json=listenFunnelOnly,proto3,oneof" json:"listen_funnel_only,omitempty"`
 	// Start a listener for the service.
 	ListenServiceName *string `protobuf:"bytes,4,opt,name=listen_service_name,json=listenServiceName,proto3,oneof" json:"listen_service_name,omitempty"`
 	// The port for the service.
@@ -5422,6 +5425,13 @@ func (x *TailscaleListenerSettings) GetListenFunnelAddr() string {
 		return *x.ListenFunnelAddr
 	}
 	return ""
+}
+
+func (x *TailscaleListenerSettings) GetListenFunnelOnly() bool {
+	if x != nil && x.ListenFunnelOnly != nil {
+		return *x.ListenFunnelOnly
+	}
+	return false
 }
 
 func (x *TailscaleListenerSettings) GetListenServiceName() string {
@@ -11250,28 +11260,30 @@ const file_config_proto_rawDesc = "" +
 	"\f_oidc_bridgeB\r\n" +
 	"\v_enterpriseB\x0f\n" +
 	"\r_license_typeB\x1d\n" +
-	"\x1b_readonly_console_audiencesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\xc9\x06\n" +
+	"\x1b_readonly_console_audiencesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10IJ\x06\b\xb2\x01\x10\xb3\x01\"\x93\a\n" +
 	"\x19TailscaleListenerSettings\x12\x1a\n" +
 	"\bhostname\x18\x01 \x01(\tR\bhostname\x12$\n" +
 	"\vlisten_addr\x18\x02 \x01(\tH\x00R\n" +
 	"listenAddr\x88\x01\x01\x121\n" +
-	"\x12listen_funnel_addr\x18\x03 \x01(\tH\x01R\x10listenFunnelAddr\x88\x01\x01\x123\n" +
-	"\x13listen_service_name\x18\x04 \x01(\tH\x02R\x11listenServiceName\x88\x01\x01\x123\n" +
-	"\x13listen_service_port\x18\x05 \x01(\rH\x03R\x11listenServicePort\x88\x01\x01\x12!\n" +
-	"\tephemeral\x18\x06 \x01(\bH\x04R\tephemeral\x88\x01\x01\x12$\n" +
-	"\bauth_key\x18\a \x01(\tB\x04\xe8\xd6,\x01H\x05R\aauthKey\x88\x01\x01\x12+\n" +
-	"\x0foauth_client_id\x18\b \x01(\tH\x06R\roauthClientId\x88\x01\x01\x129\n" +
-	"\x13oauth_client_secret\x18\t \x01(\tB\x04\xe8\xd6,\x01H\aR\x11oauthClientSecret\x88\x01\x01\x12$\n" +
+	"\x12listen_funnel_addr\x18\x03 \x01(\tH\x01R\x10listenFunnelAddr\x88\x01\x01\x121\n" +
+	"\x12listen_funnel_only\x18\x0f \x01(\bH\x02R\x10listenFunnelOnly\x88\x01\x01\x123\n" +
+	"\x13listen_service_name\x18\x04 \x01(\tH\x03R\x11listenServiceName\x88\x01\x01\x123\n" +
+	"\x13listen_service_port\x18\x05 \x01(\rH\x04R\x11listenServicePort\x88\x01\x01\x12!\n" +
+	"\tephemeral\x18\x06 \x01(\bH\x05R\tephemeral\x88\x01\x01\x12$\n" +
+	"\bauth_key\x18\a \x01(\tB\x04\xe8\xd6,\x01H\x06R\aauthKey\x88\x01\x01\x12+\n" +
+	"\x0foauth_client_id\x18\b \x01(\tH\aR\roauthClientId\x88\x01\x01\x129\n" +
+	"\x13oauth_client_secret\x18\t \x01(\tB\x04\xe8\xd6,\x01H\bR\x11oauthClientSecret\x88\x01\x01\x12$\n" +
 	"\bid_token\x18\n" +
-	" \x01(\tB\x04\xe8\xd6,\x01H\bR\aidToken\x88\x01\x01\x12/\n" +
-	"\x11id_token_audience\x18\v \x01(\tH\tR\x0fidTokenAudience\x88\x01\x01\x12$\n" +
-	"\vcontrol_url\x18\f \x01(\tH\n" +
-	"R\n" +
+	" \x01(\tB\x04\xe8\xd6,\x01H\tR\aidToken\x88\x01\x01\x12/\n" +
+	"\x11id_token_audience\x18\v \x01(\tH\n" +
+	"R\x0fidTokenAudience\x88\x01\x01\x12$\n" +
+	"\vcontrol_url\x18\f \x01(\tH\vR\n" +
 	"controlUrl\x88\x01\x01\x12\x12\n" +
 	"\x04tags\x18\r \x03(\tR\x04tags\x12(\n" +
-	"\rterminate_tls\x18\x0e \x01(\bH\vR\fterminateTls\x88\x01\x01B\x0e\n" +
+	"\rterminate_tls\x18\x0e \x01(\bH\fR\fterminateTls\x88\x01\x01B\x0e\n" +
 	"\f_listen_addrB\x15\n" +
-	"\x13_listen_funnel_addrB\x16\n" +
+	"\x13_listen_funnel_addrB\x15\n" +
+	"\x13_listen_funnel_onlyB\x16\n" +
 	"\x14_listen_service_nameB\x16\n" +
 	"\x14_listen_service_portB\f\n" +
 	"\n" +
