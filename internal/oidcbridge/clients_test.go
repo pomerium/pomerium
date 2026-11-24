@@ -37,10 +37,11 @@ func TestClientLookup(t *testing.T) {
 		return func(t *testing.T) {
 			t.Helper()
 			info, err := c.Lookup(clientID, clientID)
-			assert.NoError(t, err)
-			assert.Equal(t, clientID, info.ID)
-			hash := sha256.Sum256([]byte(clientSecret))
-			assert.Equal(t, hash[:], info.SecretHash)
+			if assert.NoError(t, err) {
+				assert.Equal(t, clientID, info.ID)
+				hash := sha256.Sum256([]byte(clientSecret))
+				assert.Equal(t, hash[:], info.SecretHash)
+			}
 		}
 	}
 	testLookupNotFound := func(clientID string) func(t *testing.T) {
@@ -55,9 +56,10 @@ func TestClientLookup(t *testing.T) {
 		return func(t *testing.T) {
 			t.Helper()
 			info, err := c.Lookup(clientID, redirectURI)
-			assert.NoError(t, err)
-			assert.Equal(t, clientID, info.ID)
-			assert.Equal(t, redirectURI, info.RedirectURI)
+			if assert.NoError(t, err) {
+				assert.Equal(t, clientID, info.ID)
+				assert.Equal(t, redirectURI, info.RedirectURI)
+			}
 		}
 	}
 
@@ -190,6 +192,59 @@ func TestClientLookup(t *testing.T) {
 	t.Run("valid redirect_uri non-nested", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/oauth/callback"))
 	t.Run("valid redirect_uri other host", testLookupOKByRedirectURI("https://strict.example.com/nested/foo", "https://foo.com/oauth/callback"))
 	t.Run("invalid redirect_uri", testLookupInvalidRedirectURI("https://strict.example.com/nested/foo", "https://strict.example.com/nested/foo/auth/callback"))
+
+	// kubernetes ingress objects have pathPrefix set by default
+	// these are testcases for those types of routes.
+	setup([]config.Policy{
+		{
+			From:   "https://prefix.example.com",
+			Prefix: "/",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("prefix"),
+			}),
+		},
+	})
+
+	t.Run("client id without trailing slash", testLookupOK("https://prefix.example.com", "prefix"))
+	t.Run("client id with trailing slash", testLookupOK("https://prefix.example.com/", "prefix"))
+
+	// in the same vein, path prefix testcases
+	setup([]config.Policy{
+		{
+			From:   "https://prefix-app.example.com",
+			Prefix: "/app",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				ClientSecret: nullable.From("prefix-app"),
+			}),
+		},
+		{
+			From: "https://callback.example.com",
+			Path: "/",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				RedirectURIs: nullable.From([]string{
+					"https://callback.example.com/oauth2/callback",
+				}),
+				ClientSecret: nullable.From("callback"),
+			}),
+		},
+		{
+			From: "https://callback-app.example.com",
+			Path: "/app",
+			OidcBridge: nullable.From(config.OIDCBridge{
+				RedirectURIs: nullable.From([]string{
+					"https://callback-app.example.com/app/oauth2/callback",
+				}),
+				ClientSecret: nullable.From("callback-app"),
+			}),
+		},
+	})
+
+	t.Run("app prefix", testLookupOKByRedirectURI("https://prefix-app.example.com/app", "https://prefix-app.example.com/app/oauth2/callback"))
+	t.Run("app prefix trailing slash", testLookupOKByRedirectURI("https://prefix-app.example.com/app/", "https://prefix-app.example.com/app/oauth2/callback"))
+	t.Run("app prefix empty path", testLookupNotFound("https://prefix-app.example.com"))
+	t.Run("redirect_uri trailing slash", testLookupOKByRedirectURI("https://callback.example.com/", "https://callback.example.com/oauth2/callback"))
+	t.Run("redirect_uri path prefix match", testLookupOKByRedirectURI("https://callback-app.example.com/app", "https://callback-app.example.com/app/oauth2/callback"))
+	t.Run("invalid match redirect_uri", testLookupInvalidRedirectURI("https://callback-app.example.com/app", "https://callback-app.example.com/app/callback"))
 }
 
 func TestClientLookup_ValidatesRedirectURI(t *testing.T) {
@@ -225,10 +280,12 @@ func TestClientLookup_ValidatesRedirectURI(t *testing.T) {
 	})
 
 	assertValid := func(t *testing.T, clientID, redirectURI string) {
+		t.Helper()
 		_, err := c.Lookup(clientID, redirectURI)
 		assert.NoError(t, err)
 	}
 	assertNotValid := func(t *testing.T, clientID, redirectURI string) {
+		t.Helper()
 		_, err := c.Lookup(clientID, redirectURI)
 		assert.Error(t, err)
 	}

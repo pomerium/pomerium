@@ -53,6 +53,16 @@ func parseURL(originalURL string) (*url.URL, error) {
 	return u, nil
 }
 
+// returns a copy of the URL with path "/" if the path is empty
+func asRequestURL(u *url.URL) *url.URL {
+	if u.Path != "" {
+		return u
+	}
+	c := *u
+	c.Path = "/"
+	return &c
+}
+
 // additional validation for clientID, using path normalization.
 // no query parameters allowed.
 func validateClientIDURL(u *url.URL) error {
@@ -150,7 +160,7 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 		routesToScan = c.wildcardRoutes
 	}
 	for _, r := range routesToScan {
-		clientMatches := r.Matches(parsedClient, false)
+		clientMatches := r.Matches(asRequestURL(parsedClient), false)
 		if !clientMatches {
 			continue
 		}
@@ -176,7 +186,7 @@ func (c *ClientLookup) Lookup(clientID, redirectURI string) (*ClientInfo, error)
 		}
 
 		// default fallback : any subpath of the parsedClient is accepted
-		if !r.Matches(parsedRedirect, false) {
+		if !r.Matches(asRequestURL(parsedRedirect), false) {
 			return nil, fmt.Errorf("redirect_uri %s does not match client_id %s", redirectURI, clientID)
 		}
 		if !redirectURIMatches(parsedClient, parsedRedirect) {
