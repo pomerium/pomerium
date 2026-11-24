@@ -9,6 +9,7 @@
 pem
 env
 coverage.txt
+.coverdata
 gsuite.service.account.json
 *.pem
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
