@@ -94,7 +94,7 @@ func (h *Handler) SetClientMetadataFetcher(fetcher *ClientMetadataFetcher) {
 // New creates a Handler. httpClient is used for requests to upstream servers,
 // and for client metadata fetches when InsecureSkipMCPMetadataSSRFCheck is set.
 func New(
-	ctx context.Context,
+	_ context.Context,
 	prefix string,
 	cfg *config.Config,
 	client databroker.ClientGetter,
