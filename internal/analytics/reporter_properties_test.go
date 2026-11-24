@@ -29,7 +29,6 @@ func TestCreatePosthogPropertiesForBuild(t *testing.T) {
 	p := New().(*reporter).CreatePosthogPropertiesForBuild()
 	assert.Equal(t, posthog.Properties{
 		"envoy_license":  "",
-		"envoy_version":  "",
 		"official_build": false,
 		"license":        "Apache License 2.0",
 	}, p)
