@@ -36,6 +36,23 @@ func TestEncryptBuildInformation(t *testing.T) {
 	assert.Equal(t, &info, decrypted)
 }
 
+func TestComputeBuildInformation(t *testing.T) {
+	// not parallel: SetEnvoyBuildInformation changes package state
+
+	info := diagnostics.ComputeBuildInformation()
+	assert.Empty(t, info.EnvoyVersion, "no envoy build information without a registered source")
+	assert.Empty(t, info.EnvoyLicense, "no envoy build information without a registered source")
+
+	diagnostics.SetEnvoyBuildInformation(func() (version, license string) {
+		return "envoy-version", "envoy-license"
+	})
+	t.Cleanup(func() { diagnostics.SetEnvoyBuildInformation(nil) })
+
+	info = diagnostics.ComputeBuildInformation()
+	assert.Equal(t, "envoy-version", info.EnvoyVersion)
+	assert.Equal(t, "envoy-license", info.EnvoyLicense)
+}
+
 func TestPadsInfo(t *testing.T) {
 	t.Parallel()
 

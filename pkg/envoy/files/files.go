@@ -5,8 +5,16 @@ import (
 	_ "embed" // for embedded files
 	"encoding/json"
 
+	"github.com/pomerium/pomerium/pkg/diagnostics"
 	"github.com/pomerium/pomerium/pkg/envoy/envoyversion"
 )
+
+func init() {
+	diagnostics.SetEnvoyBuildInformation(func() (version, license string) {
+		license, _ = EmbeddedEnvoyLicenseIdentifier()
+		return Lockfile().Version, license
+	})
+}
 
 // Binary returns the raw envoy binary bytes.
 func Binary() []byte {

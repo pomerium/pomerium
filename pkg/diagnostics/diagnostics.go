@@ -9,8 +9,15 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/version"
-	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
+
+var envoyBuildInformation func() (version, license string)
+
+// SetEnvoyBuildInformation sets how ComputeBuildInformation looks up the envoy
+// version and license. The package that embeds envoy calls it from init.
+func SetEnvoyBuildInformation(fn func() (version, license string)) {
+	envoyBuildInformation = fn
+}
 
 // BuildInformation is information about the build.
 type BuildInformation struct {
@@ -28,8 +35,9 @@ func ComputeBuildInformation() BuildInformation {
 	if i, err := strconv.ParseInt(version.Timestamp, 10, 64); err == nil {
 		info.BuiltAt = time.Unix(i, 0)
 	}
-	info.EnvoyLicense, _ = files.EmbeddedEnvoyLicenseIdentifier()
-	info.EnvoyVersion = files.Lockfile().Version
+	if envoyBuildInformation != nil {
+		info.EnvoyVersion, info.EnvoyLicense = envoyBuildInformation()
+	}
 	info.PomeriumVersion = version.FullVersion()
 	info.PomeriumLicense, _ = version.License()
 	return info
