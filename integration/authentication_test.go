@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +69,7 @@ func getSessionCookieJWTClaims(t *testing.T, client *http.Client, u *url.URL) *j
 	cookie := getSessionCookie(t, client, u)
 
 	var claims jwt.Claims
-	require.NoError(t, cryptutil.UnverifiedClaims(cookie.Value, &claims))
+	require.NoError(t, cryptutil.UnverifiedClaims(cookie.Value, []jose.SignatureAlgorithm{jose.HS256}, &claims))
 
 	return &claims
 }

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
+	"github.com/go-jose/go-jose/v4"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -158,7 +159,7 @@ func (p *Provider) UpdateUserInfo(_ context.Context, t *oauth2.Token, v any) err
 		return nil
 	}
 
-	return cryptutil.UnverifiedClaims(rawIDToken, v)
+	return cryptutil.UnverifiedClaims(rawIDToken, []jose.SignatureAlgorithm{jose.RS256}, v)
 }
 
 // SignIn redirects to the url of the provider's OAuth 2.0 consent page

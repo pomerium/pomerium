@@ -326,7 +326,7 @@ func getClaimsFromRequest(r *http.Request) (map[string]any, error) {
 	}
 
 	var m map[string]any
-	if err := cryptutil.UnverifiedClaims(h, &m); err != nil {
+	if err := cryptutil.UnverifiedClaims(h, cryptutil.SigningKeyAlgorithms, &m); err != nil {
 		return nil, fmt.Errorf("failed to parse JWT: %w", err)
 	}
 

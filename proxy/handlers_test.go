@@ -222,7 +222,7 @@ func TestProxy_jwt(t *testing.T) {
 	}
 
 	// with upstream request headers being set
-	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTY3MDg4OTI0MSwiZXhwIjoxNjcwODkyODQxfQ.YoROB12_-a8VxikPqrYOA576pLYoLFeGwXAOWCGpXgM"
+	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTY3MDg4OTI0MSwiZXhwIjoxNjcwODkyODQxfQ.YoROB12_-a8VxikPqrYOA576pLYoLFeGwXAOWCGpXgM"
 	req, _ = http.NewRequest(http.MethodGet, "https://www.example.com/.pomerium/jwt", nil)
 	w = httptest.NewRecorder()
 	req.Header.Set(httputil.HeaderPomeriumJWTAssertion, rawJWT)
@@ -248,7 +248,7 @@ func TestProxy_jsonUserInfo(t *testing.T) {
 	})
 	t.Run("no_sub_claim", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/.pomerium/user", nil)
-		req.Header.Set("X-Pomerium-Jwt-Assertion", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmb28iOiJiYXIifQ.e30")
+		req.Header.Set("X-Pomerium-Jwt-Assertion", "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJmb28iOiJiYXIifQ.e30")
 		w := httptest.NewRecorder()
 		err := proxy.jsonUserInfo(w, req)
 		assert.ErrorContains(t, err, "not found")
@@ -256,7 +256,7 @@ func TestProxy_jsonUserInfo(t *testing.T) {
 	t.Run("valid_jwt", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/.pomerium/user", nil)
 		req.Header.Set("X-Pomerium-Jwt-Assertion",
-			"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTY3MDg4OTI0MSwiZXhwIjoxNjcwODkyODQxfQ.YoROB12_-a8VxikPqrYOA576pLYoLFeGwXAOWCGpXgM")
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTY3MDg4OTI0MSwiZXhwIjoxNjcwODkyODQxfQ.YoROB12_-a8VxikPqrYOA576pLYoLFeGwXAOWCGpXgM")
 		w := httptest.NewRecorder()
 		err := proxy.jsonUserInfo(w, req)
 		require.NoError(t, err)
@@ -275,7 +275,7 @@ func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
 	proxy, err := New(t.Context(), config.New(config.NewDefaultOptions()))
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodGet, "/.pomerium/jwt", nil)
-	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.e30"
+	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.e30"
 	req.Header.Set("X-Pomerium-Jwt-Assertion", rawJWT)
 
 	t.Run("disabled", func(t *testing.T) {

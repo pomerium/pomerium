@@ -186,7 +186,7 @@ func populateLogEvent(
 	case logfields.AuthorizeLogFieldIDTokenClaims:
 		if s, ok := s.(*session.Session); ok {
 			var m map[string]any
-			if err := cryptutil.UnverifiedClaims(s.GetIdToken().GetRaw(), &m); err == nil {
+			if err := cryptutil.UnverifiedClaims(s.GetIdToken().GetRaw(), cryptutil.IDTokenAlgorithms, &m); err == nil {
 				evt = evt.Interface(string(field), m)
 			}
 		}

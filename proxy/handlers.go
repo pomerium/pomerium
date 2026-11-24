@@ -217,7 +217,7 @@ func (p *Proxy) redirectToAuthenticate(
 // if the JWT could not be parsed or if it does not contain a subject.
 func userInfoFromJWT(rawJWT string) map[string]any {
 	var payload map[string]any
-	if cryptutil.UnverifiedClaims(rawJWT, &payload) != nil {
+	if cryptutil.UnverifiedClaims(rawJWT, cryptutil.SigningKeyAlgorithms, &payload) != nil {
 		return nil
 	} else if sub, ok := payload["sub"].(string); !ok || sub == "" {
 		return nil

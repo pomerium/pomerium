@@ -156,7 +156,7 @@ func ParseIDToken(idToken string) (*IDToken, error) {
 	}
 
 	var claims jwt.Claims
-	if err := cryptutil.UnverifiedClaims(idToken, &claims); err != nil {
+	if err := cryptutil.UnverifiedClaims(idToken, cryptutil.IDTokenAlgorithms, &claims); err != nil {
 		return nil, err
 	}
 	return &IDToken{

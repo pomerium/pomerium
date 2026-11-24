@@ -14,21 +14,25 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-// allSignatureAlgorithms is every JWS signature algorithm supported by go-jose.
-var allSignatureAlgorithms = []jose.SignatureAlgorithm{
-	jose.EdDSA,
-	jose.HS256, jose.HS384, jose.HS512,
+// SigningKeyAlgorithms are the algorithms Pomerium signs JWT assertions with:
+// one per key type supported by SignatureAlgorithmForKey.
+var SigningKeyAlgorithms = []jose.SignatureAlgorithm{jose.ES256, jose.RS256}
+
+// IDTokenAlgorithms are the algorithms identity provider ID tokens may be
+// signed with. Pomerium verifies ID tokens with go-oidc, which supports only
+// these.
+var IDTokenAlgorithms = []jose.SignatureAlgorithm{
 	jose.RS256, jose.RS384, jose.RS512,
 	jose.ES256, jose.ES384, jose.ES512,
 	jose.PS256, jose.PS384, jose.PS512,
+	jose.EdDSA,
 }
 
-// UnverifiedClaims decodes the claims of a compact-serialized JWT into dst
-// WITHOUT verifying its signature. The token may use any signature algorithm.
-// Only use it for tokens that were already verified elsewhere or whose claims
-// are informational.
-func UnverifiedClaims(rawJWT string, dst any) error {
-	token, err := jwt.ParseSigned(rawJWT, allSignatureAlgorithms)
+// UnverifiedClaims decodes the claims of a compact-serialized JWT signed with
+// one of algs into dst WITHOUT verifying its signature. Only use it for tokens
+// that were already verified elsewhere or whose claims are informational.
+func UnverifiedClaims(rawJWT string, algs []jose.SignatureAlgorithm, dst any) error {
+	token, err := jwt.ParseSigned(rawJWT, algs)
 	if err != nil {
 		return err
 	}
