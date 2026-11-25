@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
@@ -41,6 +42,8 @@ type clusteredFollowerServer struct {
 	cancel           context.CancelCauseFunc
 	done             chan struct{}
 	extraHealthAttrs []health.Attr
+
+	initialSyncDone atomic.Bool
 }
 
 type FollowerOptions struct {
@@ -456,6 +459,13 @@ func (srv *clusteredFollowerServer) invokeReadWrite(ctx context.Context, fn func
 	}
 }
 
+func (srv *clusteredFollowerServer) setReadyForTraffic() {
+	if !srv.initialSyncDone.Load() {
+		srv.initialSyncDone.Store(true)
+		health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
+	}
+}
+
 func (srv *clusteredFollowerServer) run(ctx context.Context) {
 	defer func() {
 		select {
@@ -465,21 +475,23 @@ func (srv *clusteredFollowerServer) run(ctx context.Context) {
 	}()
 	b := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0))
 
-	wait := false
 	for {
 		// attempt to sync
 		// the first sync is non-blocking, to ensure startup guarantees
-		err := srv.sync(ctx, b, wait)
-		if !wait && (err == nil || errors.Is(err, io.EOF)) {
-			wait = true
-			health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
+		err := srv.sync(ctx, b, srv.initialSyncDone.Load())
+		if err == nil || errors.Is(err, io.EOF) {
+			// we've reasonably caught up to the leader when our.server_version == theirs.server_version
+			srv.setReadyForTraffic()
 			continue
 		}
 
 		// if we need to reset, call sync latest and then sync again
+		// we dialed a server when our.server_version != theirs.server_version, or our server version is 0.
 		if errors.Is(err, errClusteredFollowerNeedsReset) {
 			err = srv.syncLatest(ctx, b)
 			if err == nil {
+				// now that we're reasonably caught up to the leader we can signal we are ready.
+				srv.setReadyForTraffic()
 				err = srv.sync(ctx, b, true)
 			}
 		}
@@ -525,11 +537,6 @@ func (srv *clusteredFollowerServer) handleSyncError(ctx context.Context, err err
 	// gRPC drops the cancellation cause, so take it from ctx
 	if err != nil && ctx.Err() != nil {
 		err = context.Cause(ctx)
-	}
-	if err == nil || errors.Is(err, errClusteredFollowerServerStopped) {
-		health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
-	} else if !errors.Is(err, io.EOF) && !errors.Is(err, errClusteredFollowerNeedsReset) {
-		health.ReportError(health.DatabrokerCluster, err, srv.healthAttrs()...)
 	}
 	return err
 }
