@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -26,11 +27,12 @@ func TestWellKnownPomeriumHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "https://route.example.com", nil)
 		WellKnownPomerium(authenticateURL).ServeHTTP(w, r)
-		assert.JSONEq(t, `{
-			"issuer": "https://route.example.com/",
-			"authentication_callback_endpoint": "https://authenticate.example.com/oauth2/callback",
-			"frontchannel_logout_uri": "https://route.example.com/.pomerium/sign_out",
-			"jwks_uri": "https://route.example.com/.well-known/pomerium/jwks.json"
-		}`, w.Body.String())
+		m := map[string]any{}
+		assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &m))
+		assert.Equal(t, "https://route.example.com/", m["issuer"])
+		assert.Equal(t, "https://authenticate.example.com/oauth2/callback", m["authentication_callback_endpoint"])
+		assert.Equal(t, "https://route.example.com/.pomerium/sign_out", m["frontchannel_logout_uri"])
+		assert.Equal(t, "https://route.example.com/.well-known/pomerium/jwks.json", m["jwks_uri"])
+		assert.NotEmpty(t, m["encrypted_build_information"])
 	})
 }
