@@ -255,6 +255,34 @@ func TestHandleAuth(t *testing.T) {
 		location, err := url.Parse(w.Header().Get("Location"))
 		require.NoError(t, err)
 		assert.Equal(t, "invalid_scope", location.Query().Get("error"))
+
+		q2 := url.Values{
+			"client_id":     {"https://pkce.example.com"},
+			"redirect_uri":  {"https://pkce.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {"openid profile"},
+		}
+		w2 := httptest.NewRecorder()
+		h.HandleAuth(w2, httptest.NewRequest(
+			http.MethodGet, "/oidc/auth?"+q2.Encode(), nil,
+		))
+		location, err = url.Parse(w2.Header().Get("Location"))
+		require.NoError(t, err)
+		assert.Equal(t, "invalid_scope", location.Query().Get("error"))
+
+		q3 := url.Values{
+			"client_id":     {"https://pkce.example.com"},
+			"redirect_uri":  {"https://pkce.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {""},
+		}
+		w3 := httptest.NewRecorder()
+		h.HandleAuth(w3, httptest.NewRequest(
+			http.MethodGet, "/oidc/auth?"+q3.Encode(), nil,
+		))
+		location, err = url.Parse(w3.Header().Get("Location"))
+		require.NoError(t, err)
+		assert.Equal(t, "invalid_scope", location.Query().Get("error"))
 	})
 
 	t.Run("internal error", func(t *testing.T) {
@@ -325,6 +353,38 @@ func TestHandleAuth(t *testing.T) {
 		var sh2 session.Handle
 		require.NoError(t, proto.Unmarshal(shBytes, &sh2))
 		testutil.AssertProtoEqual(t, sh, &sh2)
+	})
+
+	t.Run("duplicate scopes ok", func(t *testing.T) {
+		sh := &session.Handle{
+			Id: "session-id",
+		}
+		getSessionHandler := mockGetSessionHandle(sh, nil)
+		h, err := NewHandlers(getSessionHandler, nil, exampleConfig())
+		require.NoError(t, err)
+
+		q := url.Values{
+			"client_id":             {"https://pkce.example.com"},
+			"nonce":                 {"example-nonce"},
+			"code_challenge_method": {"S256"},
+			"code_challenge":        {"QTytuADJyhDFCbcVU_m4Vkdbpy36C9a-6i0Yo25m0-s"},
+			"redirect_uri":          {"https://pkce.example.com/callback"},
+			"response_type":         {"code"},
+			// As a concrete example, headlamp accidentally(?) passes duplicate scopes,
+			// and there's nothing in RFC 6749 or OIDC core connect errata set 2
+			// that disallows clients from providing this to the server
+			"scope": {"openid openid"},
+			"state": {"example-state"},
+		}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/oidc/auth?"+q.Encode(), nil)
+		h.HandleAuth(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusFound, res.StatusCode)
+
+		location := res.Header.Get("Location")
+		assert.True(t, strings.HasPrefix(location, "https://pkce.example.com/callback"))
+		assert.False(t, strings.Contains(location, "error"))
 	})
 
 	t.Run("client secret", func(t *testing.T) {
