@@ -11,6 +11,9 @@ on:
       - "**/go.sum"
       - go.work
       - go.work.sum
+      - .tool-versions
+      - dagger.toml
+      - dagger.lock
       - Makefile
       - .github/workflows/govulncheck.yaml
   schedule:
@@ -19,15 +22,35 @@ on:
 
 jobs:
   govulncheck:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      - name: Read dagger version
+        id: dagger-version
+        run: echo "version=v$(awk '$1 == "dagger" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+
+      - name: Use the shared Dagger engine
+        env:
+          DAGGER_ADDR: dagger.doxsey.net
+          DAGGER_CA_CERT: ${{ secrets.DAGGER_CA_CERT }}
+          DAGGER_CLIENT_CERT: ${{ secrets.DAGGER_CLIENT_CERT }}
+          DAGGER_CLIENT_KEY: ${{ secrets.DAGGER_CLIENT_KEY }}
+        run: |
+          if [ -z "$DAGGER_CLIENT_KEY" ]; then
+            echo "No engine credentials; using a local engine."
+            exit 0
+          fi
+          d="$RUNNER_TEMP/dagger-tls"
+          mkdir -p "$d"
+          printf '%s\n' "$DAGGER_CA_CERT" > "$d/ca.crt"
+          printf '%s\n' "$DAGGER_CLIENT_CERT" > "$d/client.crt"
+          (umask 077 && printf '%s\n' "$DAGGER_CLIENT_KEY" > "$d/client.key")
+          echo "DAGGER_ENGINE=tls://$DAGGER_ADDR?ca_path=$d/ca.crt&cert_path=$d/client.crt&key_path=$d/client.key" >> "$GITHUB_ENV"
+
+      - uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # v8.4.1
         with:
-          go-version-file: .tool-versions
-          cache: false
-
-      - run: make deps-build
-
-      - run: make govulncheck
+          version: ${{ steps.dagger-version.outputs.version }}
+          verb: check
+          args: --check govulncheck
