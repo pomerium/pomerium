@@ -262,10 +262,30 @@ func (h *Handlers) validateAuthRequest(r *http.Request) (*validatedAuthRequest, 
 		return validated, &errorResponse{ErrorCode: "request_not_supported"}
 	}
 
-	if scope := r.FormValue("scope"); !slices.Contains(oidcSupportedScopes, scope) {
+	scopes := r.FormValue("scope")
+	// RFC 6749 §3.3
+	// This is slightly more lenient than strict space splitting, but our validation is very strict
+	// for the contents.
+	requestedScopes := strings.Fields(scopes)
+
+	if len(requestedScopes) == 0 {
 		return validated, &errorResponse{
 			ErrorCode:   "invalid_scope",
-			Description: fmt.Sprintf("unsupported scope requested : %s", scope),
+			Description: "scope parameter is required",
+		}
+	}
+
+	notSupported := []string{}
+	for _, scope := range requestedScopes {
+		if !slices.Contains(oidcSupportedScopes, scope) {
+			notSupported = append(notSupported, scope)
+		}
+	}
+
+	if len(notSupported) > 0 {
+		return validated, &errorResponse{
+			ErrorCode:   "invalid_scope",
+			Description: fmt.Sprintf("unsupported scope requested : %s", strings.Join(notSupported, " ")),
 		}
 	}
 
