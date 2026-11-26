@@ -34,8 +34,8 @@
     "typescript/prefer-as-const": "error",
     "typescript/prefer-namespace-keyword": "error",
     "typescript/triple-slash-reference": "error",
-    "react/immutability": "warn",
-    "react/purity": "warn",
+    "react/immutability": "error",
+    "react/purity": "error",
     "react/function-component-definition": [
       "error",
       {

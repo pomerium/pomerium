@@ -17,7 +17,7 @@ export type SubpageContextProviderProps = {
 };
 export function SubpageContextProvider({ page, children }: SubpageContextProviderProps) {
   const setSubpage = (subpage: string) => {
-    location.hash = "subpage=" + encodeURIComponent(subpage);
+    location.assign("#subpage=" + encodeURIComponent(subpage));
     setState({ ...state, subpage });
   };
   const hashParams = new URLSearchParams(location.hash.substring(1));

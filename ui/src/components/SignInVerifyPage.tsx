@@ -30,7 +30,7 @@ export default function SignInVerifyPage({ data }: SignInVerifyPageProps) {
     return new Date(Date.now() + 2 * 60 * 1000);
   };
 
-  const expiresDate = parseToDate(data.expiresAt);
+  const [expiresDate] = useState(() => parseToDate(data.expiresAt));
   const [remainingSeconds, setRemainingSeconds] = useState<number>(() =>
     Math.max(0, Math.round((expiresDate.getTime() - Date.now()) / 1000)),
   );
