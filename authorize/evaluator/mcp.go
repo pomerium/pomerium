@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -44,12 +45,17 @@ func RequestMCPFromCheckRequest(
 	}
 
 	contentType := ht.GetHeaders()["content-type"]
-	mimeType, _, err := mime.ParseMediaType(contentType)
+	mimeType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return mcpReq, fmt.Errorf("failed to parse content-type %q: %w", contentType, err)
 	}
 	if mimeType != "application/json" {
 		return mcpReq, fmt.Errorf("unsupported content-type %q, expected application/json", mimeType)
+	}
+	// JSON-RPC messages are UTF-8 encoded. An upstream that decodes the body
+	// by another charset would read a message that was never parsed here.
+	if charset, ok := params["charset"]; ok && !strings.EqualFold(charset, "utf-8") && !strings.EqualFold(charset, "utf8") {
+		return mcpReq, fmt.Errorf("unsupported content-type charset %q, expected utf-8", charset)
 	}
 
 	if !json.Valid([]byte(body)) {
