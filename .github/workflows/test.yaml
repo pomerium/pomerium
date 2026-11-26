@@ -96,14 +96,32 @@ jobs:
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
           retention-days: 1
 
+      # Linux tests (and coverage) run with Dagger in the test job.
       - name: test
+        if: matrix.platform != 'ubuntu-latest'
         timeout-minutes: 30
         env:
           GOTESTSUM_FORMAT: github-actions
-        run: make cover
+        run: make test
+
+  test:
+    runs-on: ubuntu-latest
+    # A rejected client certificate makes dagger retry instead of failing.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # Runs the tests on the shared Dagger engine (or a local one without credentials, e.g. for
+      # forks) and exports the coverage profile.
+      - uses: calebdoxsey/pomerium-dagger-poc/actions/run@main
+        with:
+          verb: api
+          args: call pomerium cover export --path coverage.txt
+          engine-ca-cert: ${{ secrets.DAGGER_CA_CERT }}
+          engine-client-cert: ${{ secrets.DAGGER_CLIENT_CERT }}
+          engine-client-key: ${{ secrets.DAGGER_CLIENT_KEY }}
 
       - uses: jandelgado/gcov2lcov-action@e4612787670fc5b5f49026b8c29c5569921de1db
-        if: matrix.platform == 'ubuntu-latest'
         name: convert coverage to lcov
         with:
           infile: coverage.txt
@@ -111,7 +129,6 @@ jobs:
 
       - name: upload to coveralls
         uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329
-        if: matrix.platform == 'ubuntu-latest'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.lcov
