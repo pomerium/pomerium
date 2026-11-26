@@ -278,6 +278,14 @@ func TestCheckRejectsMCPRequest(t *testing.T) {
 			wantLogError:     `failed to parse content-type "text/<html>"`,
 		},
 		{
+			name:         "unsupported content-encoding",
+			headers:      map[string]string{"content-encoding": "gzip"},
+			body:         `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`,
+			wantStatus:   http.StatusUnsupportedMediaType,
+			wantReason:   http.StatusText(http.StatusUnsupportedMediaType),
+			wantLogError: `unsupported content-encoding "gzip"`,
+		},
+		{
 			name:         "too large",
 			body:         strings.Repeat(" ", int(maxRequestBytes)+1),
 			wantStatus:   http.StatusRequestEntityTooLarge,
