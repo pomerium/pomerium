@@ -2,7 +2,7 @@
 # Any Dagger command may update this file; always commit it with your changes.
 # Run `dagger lock update` to refresh the pinned versions.
 [["version","2"]]
-["","git-sha",["github.com/calebdoxsey/pomerium-dagger-poc","main"],"0fa2ef851e8e5ad9ff76e1bcf9aec3ec3af891cc"]
+["","git-sha",["github.com/calebdoxsey/pomerium-dagger-poc","main"],"06aaa21a241ad812ba09d9d1ce35805fe4702647"]
 ["","oci-sha",["docker.io/golangci/golangci-lint:v2.15.0"],"sha256:fbfcfd12a6f8d7f1b97b3362ca80fc2a244d46863148c73cb88e7793af96c481"]
 ["","oci-sha",["docker.io/library/docker:29.0.1-dind"],"sha256:ecac43e78380d9b9d3bd24f0ab42b370f6391a1a06a66065c10a00b9d6d57a3e"]
 ["","oci-sha",["docker.io/library/golang:1.27.4"],"sha256:5f1b98fa02fe396ebce2a0227a0e08309e11792915b9dd2e1f71053d7e7e6666"]
