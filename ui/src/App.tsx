@@ -26,19 +26,16 @@ export default function App() {
   const secondary = data?.secondaryColor || "#49AAA1";
   const theme = createTheme(primary, secondary);
   let body: ReactNode = <></>;
-  if (
+  const isUpstreamError =
     data?.page === "Error" &&
     data?.statusText?.toLowerCase().includes("upstream") &&
-    !data?.statusText?.toLowerCase().includes("local")
-  ) {
-    data.page = "UpstreamError";
-  }
+    !data?.statusText?.toLowerCase().includes("local");
   switch (data?.page) {
     case "UpstreamError":
       body = <UpstreamErrorPage data={data} />;
       break;
     case "Error":
-      body = <ErrorPage data={data} />;
+      body = isUpstreamError ? <UpstreamErrorPage data={data} /> : <ErrorPage data={data} />;
       break;
     case "Routes":
       body = <RoutesPage data={data} />;
