@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"mime"
@@ -58,7 +59,7 @@ func RequestMCPFromCheckRequest(
 		return mcpReq, fmt.Errorf("unsupported content-type charset %q, expected utf-8", charset)
 	}
 
-	if !json.Valid([]byte(body)) {
+	if !jsontext.Value(body).IsValid() {
 		return mcpReq, errors.New("MCP request body is not valid JSON")
 	}
 
