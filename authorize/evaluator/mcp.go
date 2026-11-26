@@ -34,6 +34,9 @@ func RequestMCPFromCheckRequest(
 	var mcpReq RequestMCP
 
 	ht := in.GetAttributes().GetRequest().GetHttp()
+	if upgrade, ok := ht.GetHeaders()["upgrade"]; ok {
+		return mcpReq, fmt.Errorf("MCP request asks to upgrade to %q", upgrade)
+	}
 	if ht.Method != http.MethodPost {
 		return mcpReq, nil
 	}

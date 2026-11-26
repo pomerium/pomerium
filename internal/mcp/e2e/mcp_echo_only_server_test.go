@@ -38,7 +38,7 @@ type mcpEchoOnlyServer struct {
 	helloCalls *atomic.Int32
 }
 
-func startMCPEchoOnlyServer(t *testing.T, proto upstreams.Protocol) *mcpEchoOnlyServer {
+func startMCPEchoOnlyServer(t *testing.T, proto upstreams.Protocol, editPolicy ...func(*config.Policy)) *mcpEchoOnlyServer {
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
@@ -113,6 +113,9 @@ func startMCPEchoOnlyServer(t *testing.T, proto upstreams.Protocol) *mcpEchoOnly
 `).
 		Policy(func(p *config.Policy) {
 			p.MCP = &config.MCP{Server: mcpServerConfig}
+			for _, edit := range editPolicy {
+				edit(p)
+			}
 		})
 	env.AddUpstream(serverUpstream)
 
