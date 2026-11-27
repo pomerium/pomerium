@@ -33,6 +33,10 @@ func TestRequestMCPFromCheckRequest(t *testing.T) {
 		{"null method", http.MethodPost, `{"jsonrpc":"2.0","id":1,"method":null}`, true},
 		{"null tool name", http.MethodPost, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":null}}`, true},
 		{"tool call without params", http.MethodPost, `{"jsonrpc":"2.0","id":1,"method":"tools/call"}`, true},
+		{"invalid UTF-8", http.MethodPost, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"ec\xffho\"}}", true},
+		{"lone surrogate escape", http.MethodPost, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ec\udc00ho"}}`, true},
+		{"duplicate method", http.MethodPost, `{"jsonrpc":"2.0","id":1,"method":"tools/list","method":"tools/call","params":{"name":"echo"}}`, true},
+		{"duplicate tool name", http.MethodPost, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo","name":"other"}}`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
