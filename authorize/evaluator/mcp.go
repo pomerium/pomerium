@@ -13,6 +13,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 )
 
+// ErrUnsupportedContentEncoding indicates an MCP request whose body has a
+// content coding other than identity.
+var ErrUnsupportedContentEncoding = errors.New("unsupported content-encoding")
+
 // RequestMCP is the MCP field in the request.
 type RequestMCP struct {
 	ID       jsonrpc.ID          `json:"id"`
@@ -43,6 +47,9 @@ func RequestMCPFromCheckRequest(
 	body := ht.GetBody()
 	if body == "" {
 		return mcpReq, errors.New("MCP request body is empty")
+	}
+	if coding, ok := ht.GetHeaders()["content-encoding"]; ok && !strings.EqualFold(coding, "identity") {
+		return mcpReq, fmt.Errorf("%w %q", ErrUnsupportedContentEncoding, coding)
 	}
 
 	contentType := ht.GetHeaders()["content-type"]

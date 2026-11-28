@@ -260,7 +260,8 @@ var (
 )
 
 // rejectMCPRequest denies an MCP request that authorization cannot be
-// evaluated against: 413 for an oversized body, 400 otherwise. The client has
+// evaluated against: 413 for an oversized body, 415 with Accept-Encoding:
+// identity for a content-coded body, 400 otherwise. The client has
 // not been authenticated, so it is told the cause only if the route shows error
 // details; the cause is always logged with the authorize check.
 func (a *Authorize) rejectMCPRequest(
@@ -269,9 +270,14 @@ func (a *Authorize) rejectMCPRequest(
 	req *evaluator.Request,
 	err error,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
+	headers := make(http.Header)
 	code := http.StatusBadRequest
-	if errors.Is(err, errMCPRequestBodyTooLarge) {
+	switch {
+	case errors.Is(err, errMCPRequestBodyTooLarge):
 		code = http.StatusRequestEntityTooLarge
+	case errors.Is(err, evaluator.ErrUnsupportedContentEncoding):
+		code = http.StatusUnsupportedMediaType
+		headers.Set("Accept-Encoding", "identity")
 	}
 	reason := http.StatusText(code)
 	if req.Policy.ShowErrorDetails {
@@ -281,7 +287,6 @@ func (a *Authorize) rejectMCPRequest(
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context { return c.Err(err) })
 	a.logAuthorizeCheck(ctx, zerolog.InfoLevel, req, nil, nil)
 
-	headers := make(http.Header)
 	mcp.SetCORSHeaders(headers)
 	return a.deniedResponse(ctx, in, int32(code), reason, headers)
 }
