@@ -17,6 +17,16 @@ import (
 )
 
 func configureUpstreamTunnelCluster(policy *config.Policy, cluster *envoy_config_cluster_v3.Cluster) {
+	wrapTransportSocket := func(socket *envoy_config_core_v3.TransportSocket) {
+		wrappedTypedConfig := &envoy_config_core_v3.TransportSocket_TypedConfig{
+			TypedConfig: marshalAny(&envoy_extensions_transport_sockets_internal_upstream_v3.InternalUpstreamTransport{
+				TransportSocket: proto.Clone(socket).(*envoy_config_core_v3.TransportSocket),
+			}),
+		}
+		socket.Name = "envoy.transport_sockets.internal_upstream"
+		socket.ConfigType = wrappedTypedConfig
+	}
+
 	cluster.UpstreamBindConfig = nil
 	protocolOptions := cluster.TypedExtensionProtocolOptions["envoy.extensions.upstreams.http.v3.HttpProtocolOptions"]
 	if protocolOptions == nil {
@@ -103,16 +113,6 @@ func configureUpstreamTunnelCluster(policy *config.Policy, cluster *envoy_config
 			}),
 		})
 	}
-}
-
-func wrapTransportSocket(socket *envoy_config_core_v3.TransportSocket) {
-	wrappedTypedConfig := &envoy_config_core_v3.TransportSocket_TypedConfig{
-		TypedConfig: marshalAny(&envoy_extensions_transport_sockets_internal_upstream_v3.InternalUpstreamTransport{
-			TransportSocket: proto.Clone(socket).(*envoy_config_core_v3.TransportSocket),
-		}),
-	}
-	socket.Name = "envoy.transport_sockets.internal_upstream"
-	socket.ConfigType = wrappedTypedConfig
 }
 
 func UpstreamTunnelSetFilterStateFilter() *envoy_config_core_v3.TypedExtensionConfig {

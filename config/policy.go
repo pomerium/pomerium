@@ -1089,6 +1089,11 @@ func (p *Policy) GetAllowUpgrades(options *Options) []string {
 
 func (p *Policy) GetAllowWebsockets(options *Options) bool {
 	if p.AllowWebsockets {
+		if p.IsConsoleRoute(options) {
+			// the console route must have this disabled, since it relies on having
+			// correct alpn configuration
+			return false
+		}
 		return true
 	}
 	if p.AllowUpgrades.IsSet {

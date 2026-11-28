@@ -267,8 +267,9 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		cluster.PerConnectionBufferLimitBytes = wrapperspb.UInt32(sshConnectionBufferLimit)
 	}
 
-	// Keep last
-	if policy.UpstreamTunnel != nil {
+	// Route-specific transport socket overrides. Keep last
+	switch {
+	case policy.UpstreamTunnel != nil:
 		if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHUpstreamTunnel) {
 			configureUpstreamTunnelCluster(policy, cluster)
 		} else {
@@ -276,8 +277,9 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 				Msgf("upstream_tunnel support is disabled; enable it with the runtime flag %s",
 					config.RuntimeFlagSSHUpstreamTunnel)
 		}
+	case policy.IsConsoleRoute(options):
+		configureConsoleRouteCluster(cluster)
 	}
-
 	return cluster, nil
 }
 
