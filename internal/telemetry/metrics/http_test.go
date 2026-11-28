@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opencensus.io/stats/view"
 
 	"github.com/pomerium/pomerium/internal/tripper"
@@ -65,28 +67,28 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 			name:                          "good get",
 			url:                           "http://test.local/good",
 			verb:                          http.MethodGet,
-			wanthttpServerRequestSize:     "{ { {host test.local}{http_method GET}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpServerResponseSize:    "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }",
-			wanthttpServerRequestCount:    "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }",
+			wanthttpServerRequestSize:     "{ { {http_method GET}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpServerResponseSize:    "{ { {http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpServerRequestDuration: "{ { {http.status 200}{http_method GET}{service test_service} }",
+			wanthttpServerRequestCount:    "{ { {http.status 200}{http_method GET}{service test_service} }",
 		},
 		{
 			name:                          "good post",
 			url:                           "http://test.local/good",
 			verb:                          "POST",
-			wanthttpServerRequestSize:     "{ { {host test.local}{http_method POST}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpServerResponseSize:    "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }",
-			wanthttpServerRequestCount:    "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }",
+			wanthttpServerRequestSize:     "{ { {http_method POST}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpServerResponseSize:    "{ { {http.status 200}{http_method POST}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpServerRequestDuration: "{ { {http.status 200}{http_method POST}{service test_service} }",
+			wanthttpServerRequestCount:    "{ { {http.status 200}{http_method POST}{service test_service} }",
 		},
 		{
 			name:                          "bad post",
 			url:                           "http://test.local/bad",
 			verb:                          "POST",
-			wanthttpServerRequestSize:     "{ { {host test.local}{http_method POST}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpServerResponseSize:    "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }&{1 19 19 19 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }",
-			wanthttpServerRequestCount:    "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }",
+			wanthttpServerRequestSize:     "{ { {http_method POST}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpServerResponseSize:    "{ { {http.status 404}{http_method POST}{service test_service} }&{1 19 19 19 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpServerRequestDuration: "{ { {http.status 404}{http_method POST}{service test_service} }",
+			wanthttpServerRequestCount:    "{ { {http.status 404}{http_method POST}{service test_service} }",
 		},
 	}
 	for _, tt := range tests {
@@ -106,6 +108,22 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 			testDataRetrieval(HTTPServerRequestCountView, t, tt.wanthttpServerRequestCount)
 		})
 	}
+}
+
+func Test_HTTPMetricsHandler_DistinctHostsShareSeries(t *testing.T) {
+	view.Unregister(HTTPServerRequestCountView)
+	view.Register(HTTPServerRequestCountView)
+	t.Cleanup(func() { view.Unregister(HTTPServerRequestCountView) })
+
+	h := HTTPMetricsHandler(func() string { return "test_installation_id" }, "test_service")(newTestMux())
+	for _, host := range []string{"a.example.com", "b.example.com", "c.example.com:8443"} {
+		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://"+host+"/good", nil))
+	}
+
+	rows, err := view.RetrieveData(HTTPServerRequestCountView.Name)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, int64(3), rows[0].Data.(*view.CountData).Value)
 }
 
 func newTestTransport() http.RoundTripper {
