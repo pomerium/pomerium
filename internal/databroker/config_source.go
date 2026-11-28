@@ -397,6 +397,26 @@ func (s *configSyncerHandler) ClearRecords(_ context.Context) {
 
 func (s *configSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
 	s.src.mu.Lock()
+	s.updateRecordsLocked(ctx, records)
+	s.src.mu.Unlock()
+
+	s.src.rebuild(ctx)
+}
+
+// ReplaceRecords implements databrokerutil.RecordReplacer. Clearing and
+// repopulating in one critical section keeps a rebuild triggered by another
+// syncer or by the underlying source from publishing a config that is missing
+// the databroker-delivered records.
+func (s *configSyncerHandler) ReplaceRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
+	s.src.mu.Lock()
+	s.src.dbConfigs = map[string]dbConfig{}
+	s.updateRecordsLocked(ctx, records)
+	s.src.mu.Unlock()
+
+	s.src.rebuild(ctx)
+}
+
+func (s *configSyncerHandler) updateRecordsLocked(ctx context.Context, records []*databrokerpb.Record) {
 	for _, record := range records {
 		if record.GetDeletedAt() != nil {
 			delete(s.src.dbConfigs, record.GetId())
@@ -415,9 +435,6 @@ func (s *configSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, recor
 		metrics.SetDBConfigInfo(ctx, s.src.computedConfig.Options.Services, record.GetId(), record.GetVersion(), 0)
 	}
 	s.src.standardConfigReady = true
-	s.src.mu.Unlock()
-
-	s.src.rebuild(ctx)
 }
 
 // versionedConfigSyncerHandler manages updates to VersionedConfig records.
@@ -437,10 +454,30 @@ func (s *versionedConfigSyncerHandler) ClearRecords(_ context.Context) {
 }
 
 func (s *versionedConfigSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
+	s.src.mu.Lock()
+	s.updateRecordsLocked(ctx, records)
+	s.src.mu.Unlock()
+
+	s.src.rebuild(ctx)
+}
+
+// ReplaceRecords implements databrokerutil.RecordReplacer. Clearing and
+// repopulating in one critical section keeps a rebuild triggered by another
+// syncer or by the underlying source from publishing a config that is missing
+// the databroker-delivered records.
+func (s *versionedConfigSyncerHandler) ReplaceRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
+	s.src.mu.Lock()
+	s.src.dbVersionedConfigs = map[string]dbConfig{}
+	s.updateRecordsLocked(ctx, records)
+	s.src.mu.Unlock()
+
+	s.src.rebuild(ctx)
+}
+
+func (s *versionedConfigSyncerHandler) updateRecordsLocked(ctx context.Context, records []*databrokerpb.Record) {
 	versions := version.Components()
 	versions[""] = version.Version
 
-	s.src.mu.Lock()
 	for _, record := range records {
 		if record.GetDeletedAt() != nil {
 			delete(s.src.dbVersionedConfigs, record.GetId())
@@ -465,9 +502,6 @@ func (s *versionedConfigSyncerHandler) UpdateRecords(ctx context.Context, _ uint
 		}
 	}
 	s.src.versionedConfigReady = true
-	s.src.mu.Unlock()
-
-	s.src.rebuild(ctx)
 }
 
 type entityConfigSyncerHandler[T any, TMsg interface {
@@ -504,6 +538,26 @@ func (h *entityConfigSyncerHandler[T, TMsg]) ClearRecords(_ context.Context) {
 
 func (h *entityConfigSyncerHandler[T, TMsg]) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
 	h.src.mu.Lock()
+	h.updateRecordsLocked(ctx, records)
+	h.src.mu.Unlock()
+
+	h.src.rebuild(ctx)
+}
+
+// ReplaceRecords implements databrokerutil.RecordReplacer. Clearing and
+// repopulating in one critical section keeps a rebuild triggered by another
+// syncer or by the underlying source from publishing a config that is missing
+// the databroker-delivered records.
+func (h *entityConfigSyncerHandler[T, TMsg]) ReplaceRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
+	h.src.mu.Lock()
+	clear(h.entities)
+	h.updateRecordsLocked(ctx, records)
+	h.src.mu.Unlock()
+
+	h.src.rebuild(ctx)
+}
+
+func (h *entityConfigSyncerHandler[T, TMsg]) updateRecordsLocked(ctx context.Context, records []*databrokerpb.Record) {
 	for _, record := range records {
 		h.src.bundleSnapshot.version = max(h.src.bundleSnapshot.version, record.Version)
 
@@ -524,7 +578,4 @@ func (h *entityConfigSyncerHandler[T, TMsg]) UpdateRecords(ctx context.Context, 
 	}
 	*h.ready = true
 	h.src.bundleSnapshot.Config = h.src.bundle.Snapshot("bundle")
-	h.src.mu.Unlock()
-
-	h.src.rebuild(ctx)
 }
