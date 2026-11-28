@@ -616,6 +616,7 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 		health.XDSCluster,
 		health.XDSListener,
 		health.EnvoyServer,
+		health.EnvoyOverloaded,
 	)
 	return ret
 }

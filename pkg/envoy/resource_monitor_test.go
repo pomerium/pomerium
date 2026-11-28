@@ -129,6 +129,7 @@ func TestCgroupV2Driver(t *testing.T) {
 		assert.Equal(t, "sys/fs/cgroup", d.Path("test", RootPath))
 		assert.Equal(t, "sys/fs/cgroup/test/memory.current", d.Path("test", MemoryUsagePath))
 		assert.Equal(t, "sys/fs/cgroup/test/memory.max", d.Path("test", MemoryLimitPath))
+		assert.Equal(t, "sys/fs/cgroup/test/memory.stat", d.Path("test", MemoryStatPath))
 		assert.Equal(t, "", d.Path("test", CgroupFilePath(0xF00)))
 	})
 
@@ -164,6 +165,20 @@ func TestCgroupV2Driver(t *testing.T) {
 			2: {
 				fs:  without(v2Fs, "sys/fs/cgroup/test/memory.current"),
 				err: "open sys/fs/cgroup/test/memory.current: file does not exist",
+			},
+			3: {
+				// inactive_file and slab_reclaimable are subtracted from memory.current
+				fs: with(v2Fs, fstest.MapFS{
+					"sys/fs/cgroup/test/memory.stat": file(`
+anon 40
+file 50
+active_file 30
+inactive_file 20
+slab_reclaimable 5
+slab_unreclaimable 3
+`[1:], 0o444),
+				}),
+				usage: 75,
 			},
 		}
 
@@ -298,6 +313,7 @@ func TestCgroupV1Driver(t *testing.T) {
 		assert.Equal(t, "sys/fs/cgroup", d.Path("test", RootPath))
 		assert.Equal(t, "sys/fs/cgroup/memory/test/memory.usage_in_bytes", d.Path("test", MemoryUsagePath))
 		assert.Equal(t, "sys/fs/cgroup/memory/test/memory.limit_in_bytes", d.Path("test", MemoryLimitPath))
+		assert.Equal(t, "sys/fs/cgroup/memory/test/memory.stat", d.Path("test", MemoryStatPath))
 		assert.Equal(t, "", d.Path("test", CgroupFilePath(0xF00)))
 	})
 
@@ -329,6 +345,22 @@ func TestCgroupV1Driver(t *testing.T) {
 			2: {
 				fs:  without(v1Fs, "sys/fs/cgroup/memory/test/memory.usage_in_bytes"),
 				err: "open sys/fs/cgroup/memory/test/memory.usage_in_bytes: file does not exist",
+			},
+			3: {
+				// only total_inactive_file is subtracted from memory.usage_in_bytes
+				fs: with(v1Fs, fstest.MapFS{
+					"sys/fs/cgroup/memory/test/memory.stat": file(`
+cache 50
+rss 40
+active_file 25
+inactive_file 5
+total_cache 60
+total_rss 40
+total_active_file 30
+total_inactive_file 20
+`[1:], 0o444),
+				}),
+				usage: 80,
 			},
 		}
 
@@ -873,6 +905,48 @@ func TestComputeScaledTickInterval(t *testing.T) {
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
 			assert.Equal(t, c.expected, computeScaledTickInterval(c.saturation))
+		})
+	}
+}
+
+func TestReadFromMemStatEntries(t *testing.T) {
+	fsys := fstest.MapFS{
+		"memory.stat": file(`
+anon 1000
+file 2000
+active_file 400
+inactive_file 300
+slab_reclaimable 50
+slab_unreclaimable 7
+`[1:], 0o444),
+	}
+
+	cases := []struct {
+		entries  []string
+		expected []string
+	}{
+		0: {
+			// values are reported in file order
+			entries:  []string{"slab_reclaimable", "inactive_file"},
+			expected: []string{"300", "50"},
+		},
+		1: {
+			entries:  nil,
+			expected: nil,
+		},
+		2: {
+			entries:  []string{"does_not_exist"},
+			expected: nil,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
+			var values []string
+			ReadFromMemStatEntries(fsys, "memory.stat", func(v string) {
+				values = append(values, v)
+			}, c.entries...)
+			assert.Equal(t, c.expected, values)
 		})
 	}
 }
