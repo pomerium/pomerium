@@ -9,18 +9,16 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    # A rejected client certificate makes dagger retry instead of failing.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      # Runs on the shared Dagger engine (or a local one without credentials, e.g. for forks).
+      - uses: calebdoxsey/pomerium-dagger-poc/actions/run@main
         with:
-          go-version-file: .tool-versions
-          cache: false
-
-      - run: make deps-build
-
-      - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20
-        with:
-          version-file: .tool-versions
-          args: --timeout=10m
+          args: --check lint
+          engine-ca-cert: ${{ secrets.DAGGER_CA_CERT }}
+          engine-client-cert: ${{ secrets.DAGGER_CLIENT_CERT }}
+          engine-client-key: ${{ secrets.DAGGER_CLIENT_KEY }}

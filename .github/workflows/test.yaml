@@ -96,14 +96,32 @@ jobs:
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
           retention-days: 1
 
+      # Linux tests (and coverage) run with Dagger in the test job.
       - name: test
+        if: matrix.platform != 'ubuntu-latest'
         timeout-minutes: 30
         env:
           GOTESTSUM_FORMAT: github-actions
-        run: make cover
+        run: make test
+
+  test:
+    runs-on: ubuntu-latest
+    # A rejected client certificate makes dagger retry instead of failing.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # Runs the tests on the shared Dagger engine (or a local one without credentials, e.g. for
+      # forks) and exports the coverage profile.
+      - uses: calebdoxsey/pomerium-dagger-poc/actions/run@main
+        with:
+          verb: api
+          args: call pomerium cover export --path coverage.txt
+          engine-ca-cert: ${{ secrets.DAGGER_CA_CERT }}
+          engine-client-cert: ${{ secrets.DAGGER_CLIENT_CERT }}
+          engine-client-key: ${{ secrets.DAGGER_CLIENT_KEY }}
 
       - uses: jandelgado/gcov2lcov-action@e4612787670fc5b5f49026b8c29c5569921de1db
-        if: matrix.platform == 'ubuntu-latest'
         name: convert coverage to lcov
         with:
           infile: coverage.txt
@@ -111,7 +129,6 @@ jobs:
 
       - name: upload to coveralls
         uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329
-        if: matrix.platform == 'ubuntu-latest'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.lcov
@@ -120,48 +137,36 @@ jobs:
   build-windows:
     # pomerium/cli ships Windows binaries built from these packages, so
     # everything except the unix-only server packages must cross-compile.
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        goarch: [amd64, arm64]
-    env:
-      GOOS: windows
-      GOARCH: ${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    # A rejected client certificate makes dagger retry instead of failing.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      # Builds windows/amd64 and windows/arm64 on the shared Dagger engine (or a local one without
+      # credentials, e.g. for forks).
+      - uses: calebdoxsey/pomerium-dagger-poc/actions/run@main
         with:
-          go-version-file: .tool-versions
-          cache: false
-
-      - name: build
-        run: |
-          # Build every package in every workspace module, except unix-only
-          # server packages and anything importing them. Only add entries here
-          # for code that is genuinely server-only; otherwise fix the build.
-          # (integration is a test-only package that never builds standalone.)
-          unix_only='pomerium/(integration|pkg/(ipc|envoy/files))( |$)'
-          go list -f '{{if .GoFiles}}{{.ImportPath}} {{join .Deps " "}}{{end}}' $(go list -m -f '{{.Dir}}/...') \
-            | grep -vE "$unix_only" | cut -d' ' -f1 | xargs go build
+          args: --check build-windows
+          engine-ca-cert: ${{ secrets.DAGGER_CA_CERT }}
+          engine-client-cert: ${{ secrets.DAGGER_CLIENT_CERT }}
+          engine-client-key: ${{ secrets.DAGGER_CLIENT_KEY }}
 
   build-docker:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    # A rejected client certificate makes dagger retry instead of failing.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
-
-      - name: Docker Build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+      # Builds the Dockerfile (without pushing) on the shared Dagger engine, which keeps its layers
+      # cached (or a local one without credentials, e.g. for forks).
+      - uses: calebdoxsey/pomerium-dagger-poc/actions/run@main
         with:
-          context: .
-          file: ./Dockerfile
-          push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          args: --check build-docker
+          engine-ca-cert: ${{ secrets.DAGGER_CA_CERT }}
+          engine-client-cert: ${{ secrets.DAGGER_CLIENT_CERT }}
+          engine-client-key: ${{ secrets.DAGGER_CLIENT_KEY }}
 
   precommit:
     runs-on: ubuntu-22.04

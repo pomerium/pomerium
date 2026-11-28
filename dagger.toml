@@ -1,0 +1,4 @@
+# Dagger workspace configuration. See https://docs.dagger.io/reference/config-files/dagger-toml
+
+[modules.pomerium]
+source = "github.com/calebdoxsey/pomerium-dagger-poc@main"

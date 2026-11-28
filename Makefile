@@ -184,13 +184,13 @@ cover: get-envoy ## Runs go test with coverage
 	@sed -i.bak '/\.pb\.go\:/d' coverage.txt
 	@sed -i.bak '/\/mock_.*\.go\:/d' coverage.txt
 	@sed -i.bak '/\.gen\.go\:/d' coverage.txt
-	@sed -i.bak '/\/internal\/testenv\/:/d' coverage.txt
-	@sed -i.bak '/\/internal\/testutil\/:/d' coverage.txt
-	@sed -i.bak '/\/internal\/tests\/:/d' coverage.txt
-	@sed -i.bak '/\/storagetest\/:/d' coverage.txt
-	@sed -i.bak '/\/integration\/:/d' coverage.txt
-	@sed -i.bak '/\/examples\/:/d' coverage.txt
-	@sed -i.bak '/\/ssh\/test\/:/d' coverage.txt
+	@sed -i.bak '/\/internal\/testenv\//d' coverage.txt
+	@sed -i.bak '/\/internal\/testutil\//d' coverage.txt
+	@sed -i.bak '/\/internal\/tests\//d' coverage.txt
+	@sed -i.bak '/\/storagetest\//d' coverage.txt
+	@sed -i.bak '/\/integration\//d' coverage.txt
+	@sed -i.bak '/\/examples\//d' coverage.txt
+	@sed -i.bak '/\/ssh\/test\//d' coverage.txt
 	@sort -o coverage.txt coverage.txt
 
 .PHONY: clean
