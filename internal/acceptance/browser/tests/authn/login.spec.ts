@@ -9,17 +9,12 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { login, clearAuthState, isLoggedIn } from "../../helpers/authn-flow.js";
+import { login, isLoggedIn } from "../../helpers/authn-flow.js";
 import { getSessionCookie } from "../../helpers/cookies.js";
 import { testUsers } from "../../fixtures/users.js";
 import { urls } from "../../fixtures/test-data.js";
 
 test.describe("Auth Code Flow Login", () => {
-  test.beforeEach(async ({ page }) => {
-    // Clear any existing auth state
-    await clearAuthState(page);
-  });
-
   test("should redirect unauthenticated user to Keycloak login", async ({ page }) => {
     // Navigate to protected resource
     await page.goto(urls.app, {
@@ -63,7 +58,6 @@ test.describe("Auth Code Flow Login", () => {
     expect(await isLoggedIn(page)).toBe(true);
   });
 
-
   test("should preserve target URL after login redirect", async ({ page }) => {
     const user = testUsers.alice;
     const targetPath = "/by-group";
@@ -92,7 +86,6 @@ test.describe("Auth Code Flow Login", () => {
       );
     }, { timeout: 15000 });
   });
-
 
   test("should request correct OIDC scopes", async ({ page }) => {
     // Navigate to trigger OAuth redirect
