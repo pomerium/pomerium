@@ -556,9 +556,10 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 
 	t.Run("record update resets ttl clock", func(t *testing.T) {
 		resetType := "ttl-reset-test"
+		const ttl, wait = 500 * time.Millisecond, 300 * time.Millisecond
 
 		err := backend.SetOptions(ctx, resetType, &databroker.Options{
-			Ttl: durationpb.New(50 * time.Millisecond),
+			Ttl: durationpb.New(ttl),
 		})
 		require.NoError(t, err)
 
@@ -571,7 +572,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		require.NoError(t, err)
 
 		// Wait for some of the TTL to elapse
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(wait)
 
 		// Update the record (resets modified_at)
 		_, err = backend.Put(ctx, []*databroker.Record{
@@ -582,12 +583,12 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		require.NoError(t, err)
 
 		// Wait a bit more - less than TTL from update, but more than TTL from original put
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(wait)
 
 		// Clean
 		err = backend.Clean(ctx, storage.CleanOptions{
 			RemoveRecordChangesBefore: time.Now().Add(-time.Hour),
-			RecordTTLs:                map[string]time.Duration{resetType: 50 * time.Millisecond},
+			RecordTTLs:                map[string]time.Duration{resetType: ttl},
 		})
 		require.NoError(t, err)
 
