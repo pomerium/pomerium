@@ -12,7 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -786,7 +787,7 @@ func TestHandleToken(t *testing.T) {
 		// Verify that the ID token is valid.
 		idToken, ok := result["id_token"].(string)
 		require.True(t, ok, "expected an id_token string")
-		parsed, err := jwt.ParseSigned(idToken)
+		parsed, err := jwt.ParseSigned(idToken, []jose.SignatureAlgorithm{jose.RS256})
 		require.NoError(t, err)
 		var idTokenClaims jwt.Claims
 		require.NoError(t, parsed.Claims(h.publicJWKS, &idTokenClaims))

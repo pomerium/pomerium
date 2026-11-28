@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -95,7 +95,7 @@ func TestSignIn(t *testing.T) {
 	assert.Equal(t, "/login", location.Path)
 	q := location.Query()
 	assert.Len(t, q, 1)
-	requestJWT, err := jwt.ParseSigned(q.Get("request"))
+	requestJWT, err := jwt.ParseSigned(q.Get("request"), []jose.SignatureAlgorithm{jose.EdDSA})
 	require.NoError(t, err)
 	var claims struct {
 		jwt.Claims
@@ -109,8 +109,8 @@ func TestSignIn(t *testing.T) {
 	err = requestJWT.Claims(pub, &claims)
 	require.NoError(t, err)
 	err = claims.Validate(jwt.Expected{
-		Issuer:   claims.ClientID,
-		Audience: jwt.Audience{srv.URL},
+		Issuer:      claims.ClientID,
+		AnyAudience: jwt.Audience{srv.URL},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "https://my-client.example.com", claims.ClientID)
@@ -168,7 +168,7 @@ func TestSignInWithPKCE(t *testing.T) {
 	require.NoError(t, err)
 
 	location, _ := url.Parse(rec.Result().Header.Get("Location"))
-	requestJWT, err := jwt.ParseSigned(location.Query().Get("request"))
+	requestJWT, err := jwt.ParseSigned(location.Query().Get("request"), []jose.SignatureAlgorithm{jose.EdDSA})
 	require.NoError(t, err)
 
 	var claims struct {
@@ -225,7 +225,7 @@ func TestAuthenticate(t *testing.T) {
 			// Verify the private_key_jwt client auth.
 			assert.Equal(t, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
 				r.FormValue("client_assertion_type"))
-			clientJWT, err := jwt.ParseSigned(r.FormValue("client_assertion"))
+			clientJWT, err := jwt.ParseSigned(r.FormValue("client_assertion"), []jose.SignatureAlgorithm{jose.EdDSA})
 			require.NoError(t, err)
 			var claims struct {
 				jwt.Claims
@@ -233,9 +233,9 @@ func TestAuthenticate(t *testing.T) {
 			}
 			clientJWT.Claims(clientPub, &claims)
 			claims.Validate(jwt.Expected{
-				Issuer:   "https://my-client.example.com",
-				Subject:  "https://my-client.example.com",
-				Audience: jwt.Audience{srv.URL + "/token"},
+				Issuer:      "https://my-client.example.com",
+				Subject:     "https://my-client.example.com",
+				AnyAudience: jwt.Audience{srv.URL + "/token"},
 			})
 			assert.Equal(t, "0.31.0+abcdefg darwin/arm64", claims.PomeriumVersion)
 
@@ -248,7 +248,7 @@ func TestAuthenticate(t *testing.T) {
 				Subject:  "USER_ID",
 				Audience: jwt.Audience{"https://my-client.example.com"},
 				Expiry:   jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
-			}).CompactSerialize()
+			}).Serialize()
 			require.NoError(t, err)
 			expectedIDToken = idToken
 
@@ -338,7 +338,7 @@ func TestRefresh(t *testing.T) {
 			// Verify the private_key_jwt client auth.
 			assert.Equal(t, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
 				r.FormValue("client_assertion_type"))
-			clientJWT, err := jwt.ParseSigned(r.FormValue("client_assertion"))
+			clientJWT, err := jwt.ParseSigned(r.FormValue("client_assertion"), []jose.SignatureAlgorithm{jose.EdDSA})
 			require.NoError(t, err)
 			var claims struct {
 				jwt.Claims
@@ -346,9 +346,9 @@ func TestRefresh(t *testing.T) {
 			}
 			clientJWT.Claims(clientPub, &claims)
 			claims.Validate(jwt.Expected{
-				Issuer:   "https://my-client.example.com",
-				Subject:  "https://my-client.example.com",
-				Audience: jwt.Audience{srv.URL + "/token"},
+				Issuer:      "https://my-client.example.com",
+				Subject:     "https://my-client.example.com",
+				AnyAudience: jwt.Audience{srv.URL + "/token"},
 			})
 			assert.Equal(t, "0.31.0+abcdefg darwin/arm64", claims.PomeriumVersion)
 
@@ -361,7 +361,7 @@ func TestRefresh(t *testing.T) {
 				Subject:  "USER_ID",
 				Audience: jwt.Audience{"https://my-client.example.com"},
 				Expiry:   jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
-			}).CompactSerialize()
+			}).Serialize()
 			require.NoError(t, err)
 			expectedIDToken = idToken
 

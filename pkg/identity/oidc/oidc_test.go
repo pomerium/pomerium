@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -255,7 +255,7 @@ func TestAuthenticate(t *testing.T) {
 				NotBefore: jwt.NewNumericDate(iat),
 				IssuedAt:  jwt.NewNumericDate(iat),
 				ID:        jti,
-			}).CompactSerialize()
+			}).Serialize()
 			require.NoError(t, err)
 			expectedIDToken = idToken
 
@@ -361,7 +361,7 @@ func TestAuthenticateWithPKCE(t *testing.T) {
 				NotBefore: jwt.NewNumericDate(iat),
 				IssuedAt:  jwt.NewNumericDate(iat),
 				ID:        jti,
-			}).CompactSerialize()
+			}).Serialize()
 			require.NoError(t, err)
 			expectedIDToken = idToken
 
@@ -466,7 +466,7 @@ func TestRefresh_WithIDToken(t *testing.T) {
 				NotBefore: jwt.NewNumericDate(iat),
 				IssuedAt:  jwt.NewNumericDate(iat),
 				ID:        jti,
-			}).CompactSerialize()
+			}).Serialize()
 			require.NoError(t, err)
 			expectedIDToken = idToken
 
@@ -811,7 +811,7 @@ func TestVerifyIdentityToken(t *testing.T) {
 		"sub": "subject",
 		"exp": exp,
 		"iat": iat,
-	}).CompactSerialize()
+	}).Serialize()
 	require.NoError(t, err)
 
 	p, err := oidc.New(ctx, &oauth.Options{

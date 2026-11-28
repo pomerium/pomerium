@@ -20,7 +20,7 @@ func TestPopulateSessionFromProfile(t *testing.T) {
 	h := &session.Handle{
 		UserId: "user-id",
 	}
-	idToken := "e30." + base64.RawURLEncoding.EncodeToString([]byte(`{
+	idToken := "eyJhbGciOiJSUzI1NiJ9." + base64.RawURLEncoding.EncodeToString([]byte(`{
 		"iss": "https://issuer.example.com",
 		"sub": "id-token-user-id",
 		"iat": 1721965070,

@@ -22,10 +22,11 @@ func TestStore(t *testing.T) {
 			&Store{
 				ResponseSession: "test",
 				SessionHandle:   &session.Handle{UserId: "0101"},
+				Secret:          []byte("01234567890123456789012345678901"),
 				SaveError:       nil,
 				LoadError:       nil,
 			},
-			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMTAxIn0.Yfxj4xDTI0PHX7Mdi1wkY6S6Mn0dbROWNhS6xEe8LTc",
+			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMTAxIn0.H1n3we124lYP3nvZemvLZOCCZYGizGxZ09qwoUTL358",
 			&session.Handle{UserId: "0101"},
 			false,
 			false,

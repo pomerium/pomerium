@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
@@ -26,7 +27,7 @@ func TestGrpcStream(t *testing.T) {
 	t.Parallel()
 	h1, h2, h3 := Check("h1"), Check("h2"), Check("h3")
 	fmt.Println(h1, h2, h3)
-	sharedKey := []byte("key")
+	sharedKey := cryptutil.NewKey()
 	mgr := NewManager()
 	g := NewGRPCStreamProvider(t.Context(), mgr, time.Millisecond, sharedKey, WithExpectedChecks(
 		h1, h2, h3,

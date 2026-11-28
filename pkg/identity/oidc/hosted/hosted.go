@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/oauth2"
@@ -166,7 +166,7 @@ func (p *Provider) signRequestJWT(ctx context.Context, c *oauth2.Config, state s
 	claims["iat"] = jwt.NewNumericDate(now)
 	claims["exp"] = jwt.NewNumericDate(now.Add(5 * time.Minute))
 
-	return jwt.Signed(p.requestSigner).Claims(claims).CompactSerialize()
+	return jwt.Signed(p.requestSigner).Claims(claims).Serialize()
 }
 
 const clientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
@@ -238,7 +238,7 @@ func (p *Provider) signClientAssertionJWT(oa *oauth2.Config) (string, error) {
 		Expiry:          jwt.NewNumericDate(now.Add(5 * time.Minute)),
 		PomeriumVersion: p.pomeriumVersion,
 	}
-	return jwt.Signed(p.clientAssertionSigner).Claims(claims).CompactSerialize()
+	return jwt.Signed(p.clientAssertionSigner).Claims(claims).Serialize()
 }
 
 // Name returns the provider name.

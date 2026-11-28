@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"filippo.io/keygen"
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/hkdf"
 	"google.golang.org/protobuf/proto"
@@ -592,7 +592,7 @@ func (h *Handlers) issueIDToken(data *handlers.UserInfoData, clientID string, no
 		delete(payload, "nonce")
 	}
 
-	token, err := jwt.Signed(h.idTokenSigner).Claims(payload).CompactSerialize()
+	token, err := jwt.Signed(h.idTokenSigner).Claims(payload).Serialize()
 	if err != nil {
 		return "", err
 	}

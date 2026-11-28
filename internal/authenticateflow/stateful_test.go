@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
@@ -463,7 +463,7 @@ func TestPersistSession(t *testing.T) {
 			"name":  "John Doe",
 			"email": "john.doe@example.com",
 		},
-		RawIDToken: "e30." + base64.RawURLEncoding.EncodeToString([]byte(`{
+		RawIDToken: "eyJhbGciOiJSUzI1NiJ9." + base64.RawURLEncoding.EncodeToString([]byte(`{
 			"iss": "https://issuer.example.com",
 			"sub": "id-token-user-id",
 			"iat": 1721965070,

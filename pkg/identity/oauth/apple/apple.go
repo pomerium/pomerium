@@ -13,13 +13,14 @@ import (
 	"strings"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
@@ -158,12 +159,7 @@ func (p *Provider) UpdateUserInfo(_ context.Context, t *oauth2.Token, v any) err
 		return nil
 	}
 
-	idToken, err := jwt.ParseSigned(rawIDToken)
-	if err != nil {
-		return err
-	}
-
-	return idToken.UnsafeClaimsWithoutVerification(v)
+	return cryptutil.UnverifiedClaims(rawIDToken, []jose.SignatureAlgorithm{jose.RS256}, v)
 }
 
 // SignIn redirects to the url of the provider's OAuth 2.0 consent page

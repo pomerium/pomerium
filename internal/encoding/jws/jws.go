@@ -3,8 +3,8 @@
 package jws
 
 import (
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 
 	"github.com/pomerium/pomerium/internal/encoding"
 )
@@ -29,13 +29,13 @@ func NewHS256Signer(key []byte) (encoding.MarshalUnmarshaler, error) {
 
 // Marshal signs, and serializes a JWT.
 func (c *JSONWebSigner) Marshal(x any) ([]byte, error) {
-	s, err := jwt.Signed(c.Signer).Claims(x).CompactSerialize()
+	s, err := jwt.Signed(c.Signer).Claims(x).Serialize()
 	return []byte(s), err
 }
 
 // Unmarshal parses and validates a signed JWT.
 func (c *JSONWebSigner) Unmarshal(value []byte, s any) error {
-	tok, err := jwt.ParseSigned(string(value))
+	tok, err := jwt.ParseSigned(string(value), []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
 		return err
 	}
