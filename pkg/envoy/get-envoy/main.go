@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,7 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/pflag"
 	"github.com/zeebo/xxh3"
+	"golang.org/x/term"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/registry/remote"
 
@@ -55,6 +57,8 @@ const (
 	indexMediaType       = "application/vnd.oci.image.index.v1+json"
 	imageConfigMediaType = "application/vnd.oci.image.config.v1+json"
 	zstdLayerType        = "application/vnd.oci.image.layer.v1.tar+zstd"
+
+	officialRemoteRepoNamePrefix = "ghcr.io/pomerium/envoy-custom"
 )
 
 const preferredHashAlg = "xxh3"
@@ -75,6 +79,7 @@ type fetchResult struct {
 }
 
 func fetch(outputDir string, remoteRepoName string) error {
+	maybeShowLicenseNotice(outputDir, remoteRepoName)
 	version := envoyversion.Version()
 	ctx := context.Background()
 	debugf("envoy version: %s", version)
@@ -148,6 +153,70 @@ func fetch(outputDir string, remoteRepoName string) error {
 		}
 	}
 	return nil
+}
+
+func maybeShowLicenseNotice(outputDir, remoteRepoName string) {
+	if !strings.HasPrefix(remoteRepoName, officialRemoteRepoNamePrefix) {
+		return
+	}
+	if _, ok := os.LookupEnv("CI"); ok {
+		return
+	}
+	if os.Getenv("POMERIUM_COMMUNITY_EDITION_LICENSE_ACCEPTED") == "1" ||
+		os.Getenv("POMERIUM_OFFICIAL_BUILD") == "1" {
+		return
+	}
+	licenseNoticeAcceptedFile := filepath.Join(outputDir, ".license-notice-accepted")
+	if _, err := os.Stat(licenseNoticeAcceptedFile); err == nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, `
+NOTICE: the official pre-built Pomerium Envoy binaries are available under the
+Pomerium Community Edition license, which can be found in this repository at
+licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt. If you use the official binaries
+you must comply with the terms of this license. For most users, there are no
+additional requirements. Alternatively, you may build from source and set the
+variable ENVOY_OCI_REPO when running make. The source code is available at
+https://github.com/pomerium/envoy-custom under the Apache-2.0 license.
+
+`)
+
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		if os.Getenv("DOCKER_BUILD") == "1" {
+			fmt.Fprintln(os.Stderr,
+				"To download and use the official binaries, set --build-arg=POMERIUM_COMMUNITY_EDITION_LICENSE_ACCEPTED=1\n")
+		} else {
+			fmt.Fprintln(os.Stderr,
+				"To download and use the official binaries, set the environment variable POMERIUM_COMMUNITY_EDITION_LICENSE_ACCEPTED=1")
+		}
+		os.Exit(1)
+	}
+	prompt := func() {
+		fmt.Fprint(os.Stderr, `Download official Pomerium Envoy binaries? [y/N]: `)
+	}
+	prompt()
+	scan := bufio.NewScanner(os.Stdin)
+	var accepted bool
+	for scan.Scan() {
+		response := scan.Text()
+		switch strings.ToLower(strings.TrimSpace(response)) {
+		case "y", "yes":
+			accepted = true
+		case "", "n", "no":
+		default:
+			prompt()
+			continue
+		}
+		break
+	}
+	if accepted {
+		err := os.WriteFile(licenseNoticeAcceptedFile, []byte{}, 0o600)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+		}
+	} else {
+		os.Exit(1)
+	}
 }
 
 func fetchPlatform(ctx context.Context, req fetchRequest, outputDir string, repo *remote.Repository) (bool, error) {
@@ -327,7 +396,9 @@ func extract(outputFilename string, layer io.Reader) (_ int64, _ string, retErr 
 	if err != nil {
 		return 0, "", err
 	}
-	if hdr.Name != "envoy" && hdr.Name != "envoy.stripped" {
+	switch hdr.Name {
+	case "envoy", "envoy.stripped", "envoy.static", "envoy.static.stripped":
+	default:
 		return 0, "", fmt.Errorf("encountered unknown file in archive: %s", hdr.Name)
 	}
 
